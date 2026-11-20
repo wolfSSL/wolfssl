@@ -16685,7 +16685,7 @@ static WC_INLINE int sp_2048_div_64_cond(const sp_digit* a, const sp_digit* d,
  *
  * @return  MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, const sp_digit* a,
+WC_MAYBE_UNUSED static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, const sp_digit* a,
         const sp_digit* m)
 {
     return sp_2048_div_64_cond(a, m, NULL, r);
@@ -44322,7 +44322,7 @@ static WC_INLINE int sp_3072_div_96_cond(const sp_digit* a, const sp_digit* d,
  *
  * @return  MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, const sp_digit* a,
+WC_MAYBE_UNUSED static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, const sp_digit* a,
         const sp_digit* m)
 {
     return sp_3072_div_96_cond(a, m, NULL, r);
@@ -48165,6 +48165,36 @@ WC_OMIT_FRAME_POINTER static sp_digit sp_4096_add_128(sp_digit* r,
     return (word32)(size_t)r;
 }
 
+/* AND m into each word of a and store in r.
+ *
+ * @param [out] r  A single precision integer.
+ * @param [in]  a  A single precision integer.
+ * @param [in]  m  Mask to AND against each digit.
+ */
+static void sp_4096_mask_64(sp_digit* r, const sp_digit* a, sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i=0; i<64; i++) {
+        r[i] = a[i] & m;
+    }
+#else
+    int i;
+
+    for (i = 0; i < 64; i += 8) {
+        r[i+0] = a[i+0] & m;
+        r[i+1] = a[i+1] & m;
+        r[i+2] = a[i+2] & m;
+        r[i+3] = a[i+3] & m;
+        r[i+4] = a[i+4] & m;
+        r[i+5] = a[i+5] & m;
+        r[i+6] = a[i+6] & m;
+        r[i+7] = a[i+7] & m;
+    }
+#endif
+}
+
 /* Multiply a and b into r. (r = a * b)
  *
  * @param [out] r  A single precision integer.
@@ -48193,9 +48223,9 @@ SP_NOINLINE static void sp_4096_mul_128(sp_digit* r, const sp_digit* a,
 
     u += sp_4096_sub_in_place_128(z1, z0);
     u += sp_4096_sub_in_place_128(z1, z2);
-    sp_2048_mask_64(a1, a1, 0 - cb);
+    sp_4096_mask_64(a1, a1, 0 - cb);
     u += sp_2048_add_64(z1 + 64, z1 + 64, a1);
-    sp_2048_mask_64(b1, b1, 0 - ca);
+    sp_4096_mask_64(b1, b1, 0 - ca);
     u += sp_2048_add_64(z1 + 64, z1 + 64, b1);
 
     u += sp_4096_add_128(r + 64, r + 64, z1);
@@ -59739,7 +59769,7 @@ static WC_INLINE int sp_4096_div_128_cond(const sp_digit* a, const sp_digit* d,
  *
  * @return  MP_OKAY indicating success.
  */
-static WC_INLINE int sp_4096_mod_128_cond(sp_digit* r, const sp_digit* a,
+WC_MAYBE_UNUSED static WC_INLINE int sp_4096_mod_128_cond(sp_digit* r, const sp_digit* a,
         const sp_digit* m)
 {
     return sp_4096_div_128_cond(a, m, NULL, r);

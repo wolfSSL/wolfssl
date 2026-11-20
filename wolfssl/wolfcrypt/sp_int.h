@@ -1133,7 +1133,7 @@ typedef sp_int_digit mp_digit;
 
     #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
         (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-         !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+         !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
         #define sp_div wc_sp_div
     #endif
     #define sp_mod wc_sp_mod
@@ -1287,7 +1287,7 @@ MP_API int sp_rshb(const sp_int* a, int n, sp_int* r);
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
 MP_API int sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem);
 #endif
 MP_API int sp_mod(const sp_int* a, const sp_int* m, sp_int* r);

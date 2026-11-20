@@ -6545,7 +6545,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         der->certPoliciesSz = 0;
 #endif /* WOLFSSL_CERT_EXT */
 
-#ifdef WOLFSSL_ACME_OID
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ACME_OID)
     /* RFC 8737 id-pe-acmeIdentifier (TLS-ALPN-01 challenge cert).
      * Always critical=TRUE. */
     if (cert->acmeIdentifierSz == WC_SHA256_DIGEST_SIZE) {
@@ -6658,7 +6658,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         }
 #endif /* WOLFSSL_CERT_EXT */
 
-#ifdef WOLFSSL_ACME_OID
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ACME_OID)
         /* put ACME Identifier */
         if (der->acmeIdSz) {
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
