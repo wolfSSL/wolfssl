@@ -43839,6 +43839,22 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
+#if defined(WOLFSSL_RSA_KEY_CHECK) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WOLFSSL_PUBLIC_MP)
+    /* d + 1 still passes the CRT pair-wise test but d * e != 1 mod
+     * LCM(p - 1, q - 1): SP 800-56B Rev2 sec 6.4.1.2.1 step 6b. */
+    ret = mp_add_d(&genKey->d, 1, &genKey->d);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = wc_CheckRsaKey(genKey);
+    if (ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = mp_sub_d(&genKey->d, 1, &genKey->d);
+    if (ret == 0)
+        ret = wc_CheckRsaKey(genKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#endif
 #if !defined(WC_TEST_SKIP_RSA_PRIVATE_EXPORT) && !defined(WOLFSSL_MICROCHIP)
 #ifndef WOLFSSL_NO_MALLOC
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

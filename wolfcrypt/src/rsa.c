@@ -797,6 +797,54 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
                                int* isPrime, WC_RNG* rng);
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Check d * e = 1 mod LCM(p - 1, q - 1).
+ * SP 800-56B Rev2 sec 6.4.1.2.1 step 6b. */
+static int RsaCheckPrivExp(RsaKey* key)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* t;
+#else
+    mp_int t[3];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    t = (mp_int*)XMALLOC(sizeof(mp_int) * 3, key->heap, DYNAMIC_TYPE_RSA);
+    if (t == NULL) {
+        return MEMORY_E;
+    }
+#endif
+    ret = mp_init_multi(&t[0], &t[1], &t[2], NULL, NULL, NULL);
+    if (ret == MP_OKAY) {
+        ret = mp_sub_d(&key->p, 1, &t[0]);
+        if (ret == MP_OKAY) {
+            ret = mp_sub_d(&key->q, 1, &t[1]);
+        }
+        if (ret == MP_OKAY) {
+            ret = mp_lcm(&t[0], &t[1], &t[2]);
+        }
+        if (ret == MP_OKAY) {
+            ret = mp_mulmod(&key->d, &key->e, &t[2], &t[0]);
+        }
+        if ((ret == MP_OKAY) && !mp_isone(&t[0])) {
+            ret = MP_EXPTMOD_E;
+        }
+        mp_forcezero(&t[0]);
+        mp_forcezero(&t[1]);
+        mp_forcezero(&t[2]);
+    }
+    if (ret != MP_OKAY) {
+        ret = MP_EXPTMOD_E;
+    }
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, key->heap, DYNAMIC_TYPE_RSA);
+#endif
+    return ret;
+}
+#endif
+
 int wc_CheckRsaKey(RsaKey* key)
 {
     WC_RNG *rng = NULL;
@@ -917,6 +965,14 @@ int wc_CheckRsaKey(RsaKey* key)
          * many bits or fewer cannot, so counting bits settles it. */
         if ((ret == 0) && (mp_count_bits(&key->d) <= (nBits / 2))) {
             ret = MP_EXPTMOD_E;
+        }
+        /* Primes at most 2^(nBits/2) - 1 (steps 5a and 5b, upper bound). */
+        if ((ret == 0) && ((mp_count_bits(&key->p) > (nBits / 2)) ||
+                (mp_count_bits(&key->q) > (nBits / 2)))) {
+            ret = MP_EXPTMOD_E;
+        }
+        if (ret == 0) {
+            ret = RsaCheckPrivExp(key);
         }
     }
 #endif
