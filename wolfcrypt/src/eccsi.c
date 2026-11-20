@@ -116,6 +116,11 @@ int wc_InitEccsiKey_ex(EccsiKey* key, int keySz, int curveId, void* heap,
 #endif
                 );
     }
+#if defined(WOLFCRYPT_ECCSI_CLIENT) && defined(WOLFSSL_CHECK_MEM_ZERO)
+    if (err == 0) {
+        mp_memzero_add("ECCSI ssk", &key->ssk);
+    }
+#endif
     if (err == 0) {
         err = wc_ecc_set_curve(&key->ecc, keySz, curveId);
     }
@@ -164,7 +169,10 @@ void wc_FreeEccsiKey(EccsiKey* key)
 
         wc_ecc_del_point_h(params->base, key->heap);
 #ifdef WOLFCRYPT_ECCSI_CLIENT
-        mp_free(&key->ssk);
+        mp_forcezero(&key->ssk);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        mp_memzero_check(&key->ssk);
+    #endif
         mp_free(&key->tmp);
         mp_free(&params->prime);
         mp_free(&params->b);
