@@ -53,6 +53,13 @@ int test_wolfSSL_hs_retry_alert_fail(void);
 int test_wolfSSL_connect_ex_no_side(void);
 int test_wolfSSL_hs_done_cb_error(void);
 int test_wolfSSL_hs_info_cb(void);
+int test_wolfSSL_clear_client_groups(void);
+int test_wolfSSL_clear_server_groups(void);
+int test_wolfSSL_clear_hrr_group(void);
+int test_wolfSSL_clear_expect_session_ticket(void);
+int test_wolfSSL_clear_client_ciphers(void);
+int test_wolfSSL_clear_psk_refined_suites(void);
+int test_wolfSSL_clear_client_session_ref(void);
 
 #define TEST_SSL_HS_DECLS                                                      \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_state_string_long),             \
@@ -82,6 +89,13 @@ int test_wolfSSL_hs_info_cb(void);
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_done_cb_error),              \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_info_cb),                    \
         TEST_DECL_GROUP("ssl_hs", test_tls_wire_mangle),                       \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_clear_client_groups),           \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_clear_server_groups),           \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_clear_hrr_group),               \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_clear_expect_session_ticket),   \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_clear_client_ciphers),          \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_clear_psk_refined_suites),      \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_clear_client_session_ref),      \
         TEST_DECL_GROUP("ssl_hs", test_tls_wire_sequence)
 
 #endif /* TESTS_API_SSL_HS_H */

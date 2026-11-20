@@ -5817,11 +5817,23 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         /* reset error */
         ssl->error = 0;
+    #if !defined(NO_CLIENT_CACHE) && !defined(NO_SESSION_CACHE_REF)
+        /* The client cache reference wolfSSL_get_session() returned for the
+         * previous connection. */
+        ssl->clientSession = NULL;
+    #endif
 
         /* reset option bits */
         ssl->options.isClosed = 0;
         ssl->options.fatalAlert = 0;
         ssl->options.connReset = 0;
+#ifdef HAVE_SESSION_TICKET
+        /* Set when a ServerHello carries a session_ticket extension (TLS 1.2),
+         * cleared when the NewSessionTicket arrives. A handshake that stopped
+         * in between would make the next one fail with
+         * SESSION_TICKET_EXPECT_E when no ticket is requested. */
+        ssl->expect_session_ticket = 0;
+#endif
         ssl->options.sentNotify = 0;
         ssl->options.closeNotify = 0;
         /* Per-connection budgets, not cumulative across a reused object. */
@@ -5983,6 +5995,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->earlyData = no_early_data;
         ssl->earlyDataSz = 0;
     #endif
+    #ifdef HAVE_TLS_EXTENSIONS
+        /* The group a HelloRetryRequest of the previous connection asked
+         * for. DoTls13ClientHello takes a non-zero value to mean that this
+         * connection sent one, and holds the first ClientHello to it. */
+        ssl->hrr_keyshare_group = 0;
+    #endif
     #ifdef HAVE_RPK
         /* Drop the negotiated cert types so one peer's choice cannot carry into
          * the next handshake. Clearing the counts is enough: every read of the
@@ -6002,9 +6020,23 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->ws_peer_ca_names = NULL;
     #endif
 
+    #if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13)
+        /* wolfSSL_set_groups() keeps the groups twice: in the supported_groups
+         * extension freed below and in ssl->group[]. Put the list back to the
+         * context's as well, so both agree on the next connection. */
+        XMEMCPY(ssl->group, ssl->ctx->group, sizeof(ssl->group));
+        ssl->numGroups = ssl->ctx->numGroups;
+    #endif
+
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
         ssl->extensions = NULL;
+      #ifdef HAVE_SUPPORTED_CURVES
+        /* The supported_groups extension set on this object went with the
+         * list above; the flag that says the user supplied one must go too,
+         * or the next ClientHello is built without supported_groups. */
+        ssl->options.userCurves = ssl->ctx->userCurves;
+      #endif
       #if defined(HAVE_SECURE_RENEGOTIATION) \
        || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         ssl->secure_renegotiation = NULL;
@@ -6115,6 +6147,13 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
+    #ifdef OPENSSL_EXTRA
+        /* Compat builds keep the client's offered suites after the handshake
+         * for wolfSSL_get_client_ciphers(); they belong to that client. */
+        XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+        ssl->clSuites = NULL;
+    #endif
+
         /* Discard any partial handshake-message reassembly on reuse. */
         XFREE(ssl->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
         ssl->pendingMsg = NULL;
@@ -6126,6 +6165,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         InitCiphers(ssl);
         InitCipherSpecs(&ssl->specs);
 
+        if (ssl->suitesBeforeRefine != NULL) {
+            if (ssl->suites != NULL)
+                XMEMCPY(ssl->suites, ssl->suitesBeforeRefine, sizeof(Suites));
+            XFREE(ssl->suitesBeforeRefine, ssl->heap, DYNAMIC_TYPE_SUITES);
+            ssl->suitesBeforeRefine = NULL;
+        }
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
 

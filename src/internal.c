@@ -10425,6 +10425,8 @@ void FreeSuites(WOLFSSL* ssl)
     XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->clSuites = NULL;
 #endif
+    XFREE(ssl->suitesBeforeRefine, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->suitesBeforeRefine = NULL;
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->suites = NULL;
 }

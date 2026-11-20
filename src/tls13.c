@@ -7477,7 +7477,15 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     if (bindersLen > helloSz)
         return BUFFER_ERROR;
 
-    /* Refine list for PSK processing. */
+    /* Refine list for PSK processing. A caller-set list survives
+     * wolfSSL_clear(): keep it as it was so the next connection gets it. */
+    if (AllocateSuites(ssl) == 0 && ssl->suites->setSuites &&
+            ssl->suitesBeforeRefine == NULL) {
+        ssl->suitesBeforeRefine = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                                   DYNAMIC_TYPE_SUITES);
+        if (ssl->suitesBeforeRefine != NULL)
+            XMEMCPY(ssl->suitesBeforeRefine, ssl->suites, sizeof(Suites));
+    }
     sslRefineSuites(ssl, clSuites);
 
     usePsk = PskModesUsable(ssl, clSuites);
