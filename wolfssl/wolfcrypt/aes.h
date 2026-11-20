@@ -523,6 +523,7 @@ struct Aes {
     WC_BITFIELD  gcmKeySet:1;
     WC_BITFIELD  nonceSet:1;
     WC_BITFIELD  ctrSet:1;
+    WC_BITFIELD  gcmIvStream:1; /* this stream counted the generated IV */
 #endif
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     void *CipherLifecycleTag; /* used for dummy allocation and initialization,

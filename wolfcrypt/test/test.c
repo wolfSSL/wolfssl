@@ -23609,6 +23609,24 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
+    /* A stream on the generated IV uses it up. (SP 800-38D 8) */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, sizeof(ext), NULL, 0, &rng);
+#ifdef WOLFSSL_AESGCM_STREAM
+    if (ret == 0)
+        ret = wc_AesGcmEncryptInit_ex(enc, NULL, 0, ext, sizeof(ext));
+#endif
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
   out:
     if (rngInited)
         wc_FreeRng(&rng);

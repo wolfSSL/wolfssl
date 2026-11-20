@@ -8919,6 +8919,12 @@ static WARN_UNUSED_RESULT WC_INLINE int GcmCountInvocation(Aes* aes)
         aes->invokeCtr[1]++;
     return 0;
 }
+
+/* Move the internal IV to the next value. */
+static WC_INLINE void GcmIncIv(Aes* aes)
+{
+    IncCtr((byte*)aes->reg, aes->nonceSz);
+}
 #endif /* HAVE_AESGCM */
 
 
@@ -15369,6 +15375,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
     int ret = 0;
+    int counted = 0;
 
     /* Check validity of parameters. */
     if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
@@ -15459,6 +15466,18 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
                 iv = (byte*)aes->reg;
                 ivSz = aes->nonceSz;
             }
+        #ifdef WC_AESGCM_IV_LOCK
+            /* A stream on the generated IV uses it up here, so no other call
+             * is given the same IV. (SP 800-38D 8) */
+            if ((iv != NULL) && aes->gcmIvLock && aes->gcmKeySet) {
+                ret = GcmCountInvocation(aes);
+                if (ret != 0) {
+                    iv = NULL;
+                } else {
+                    counted = 1;
+                }
+            }
+        #endif
         }
 
         if ((iv != NULL) && (!aes->gcmKeySet)) {
@@ -15505,6 +15524,10 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
             if (ret == 0)
                 aes->nonceSet = 1;
+            aes->gcmIvStream = (byte)counted;
+            if (counted) {
+                GcmIncIv(aes);
+            }
         }
     }
 
@@ -15627,12 +15650,13 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* Count the stream at its first AAD or data; an empty stream counts in
      * Final. */
-    if ((ret == 0) && aes->ctrSet && ((sz > 0) || (authInSz > 0)) &&
-            (aes->aSz == 0) && (aes->cSz == 0)) {
+    if ((ret == 0) && aes->ctrSet && !aes->gcmIvStream &&
+            ((sz > 0) || (authInSz > 0)) && (aes->aSz == 0) &&
+            (aes->cSz == 0)) {
         ret = GcmCountInvocation(aes);
         /* The next stream gets the next IV even if this one fails. */
         if (ret == 0) {
-            IncCtr((byte*)aes->reg, aes->nonceSz);
+            GcmIncIv(aes);
         }
     }
 
@@ -15716,10 +15740,11 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
         ret = AesAssociateTagSz(aes, authTagSz);
     }
     /* A stream with no AAD or data has not been counted yet. */
-    if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
+    if ((ret == 0) && aes->ctrSet && !aes->gcmIvStream &&
+            (aes->aSz == 0) && (aes->cSz == 0)) {
         ret = GcmCountInvocation(aes);
         if (ret == 0) {
-            IncCtr((byte*)aes->reg, aes->nonceSz);
+            GcmIncIv(aes);
         }
     }
 
@@ -16180,7 +16205,7 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
         }
     #endif
         /* The counted nonce is never used again, even if the encrypt failed. */
-        IncCtr((byte*)aes->reg, ivOutSz);
+        GcmIncIv(aes);
     }
 
     return ret;
