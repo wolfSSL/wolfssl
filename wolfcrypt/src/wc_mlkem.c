@@ -1081,8 +1081,7 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
         if (mlkemkey_nb_begin(key, MLKEM_NB_OP_MAKE, rand,
                 WC_ML_KEM_MAKEKEY_RAND_SZ, NULL) == 1) {
             WOLFSSL_MSG("ML-KEM non-blocking make key starting");
-        }
-        else {
+        } else {
             WOLFSSL_MSG("ML-KEM non-blocking make key resuming or unset");
         }
     }
@@ -2254,8 +2253,7 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
         if (mlkemkey_nb_begin(key, MLKEM_NB_OP_ENCAP, rand,
                 WC_ML_KEM_ENC_RAND_SZ, ct) == 1) {
             WOLFSSL_MSG("ML-KEM non-blocking encapsulate starting");
-        }
-        else {
+        } else {
             WOLFSSL_MSG("ML-KEM non-blocking encapsulate resuming or unset");
         }
     }
@@ -2799,8 +2797,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
         /* Resume only the decapsulation of the cipher text here. */
         if (mlkemkey_nb_begin(key, MLKEM_NB_OP_DECAP, NULL, 0, ct) == 1) {
             WOLFSSL_MSG("ML-KEM non-blocking decapsulate starting");
-        }
-        else {
+        } else {
             WOLFSSL_MSG("ML-KEM non-blocking decapsulate resuming or unset");
         }
     }
