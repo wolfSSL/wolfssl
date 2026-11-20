@@ -8,6 +8,7 @@ ccache
 crossbuild-essential-arm64
 crossbuild-essential-armel
 crossbuild-essential-armhf
+crossbuild-essential-ppc64el
 crossbuild-essential-riscv64
 libtool
 qemu-user
