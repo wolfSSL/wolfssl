@@ -12025,8 +12025,7 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         if (mldsa_nb_begin(key, MLDSA_NB_OP_MAKE, seed, 0, MLDSA_SEED_SZ,
                 NULL) == 1) {
             WOLFSSL_MSG("ML-DSA non-blocking make key starting");
-        }
-        else {
+        } else {
             WOLFSSL_MSG("ML-DSA non-blocking make key resuming or unset");
         }
         if ((key->nb != NULL) && (key->nb->work != NULL)) {
@@ -12961,8 +12960,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     if (mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
             MLDSA_RND_SZ + MLDSA_MU_SZ, sig) == 1) {
         WOLFSSL_MSG("ML-DSA non-blocking sign starting");
-    }
-    else {
+    } else {
         WOLFSSL_MSG("ML-DSA non-blocking sign resuming or unset");
     }
 #endif
@@ -13742,8 +13740,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
     if (mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
             MLDSA_RND_SZ + MLDSA_MU_SZ, sig) == 1) {
         WOLFSSL_MSG("ML-DSA non-blocking sign starting");
-    }
-    else {
+    } else {
         WOLFSSL_MSG("ML-DSA non-blocking sign resuming or unset");
     }
 #endif
