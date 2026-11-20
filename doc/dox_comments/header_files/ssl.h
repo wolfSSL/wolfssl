@@ -2820,7 +2820,11 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
            retransmitted fragments and a second ClientHello after a key-share
            HelloRetryRequest do not repeat the notification. The object is
            already stateful before input is read, but the peer's
-           return-routability has not been verified.
+           return-routability has not been verified. The same holds when the
+           cookie exchange is skipped on resumption
+           (WOLFSSL_DTLS_NO_HVR_ON_RESUME, WOLFSSL_DTLS13_NO_HRR_ON_RESUME). In
+           DTLS 1.3 the callback is then called before the PSK binder of the
+           ClientHello is checked.
            Returning 0 accepts the ClientHello and the handshake continues.
            Any negative return stops the accept call with that error and leaves
            the accept state machine at the ClientHello, so nothing is sent to
