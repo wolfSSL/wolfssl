@@ -3063,6 +3063,7 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
     word32* idxIn, word32 sz)
 {
     word32 idx = *idxIn;
+    word32 valueEnd;
     int  strLen;
     int  ret;
     byte tag;
@@ -3088,9 +3089,14 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
         WOLFSSL_MSG("\tfail: str len");
         return ASN_PARSE_E;
     }
+    valueEnd = idx + (word32)strLen;
 
     if (GetSequence(input, &idx, &strLen, sz) < 0) {
         WOLFSSL_MSG("\tBad Sequence");
+        return ASN_PARSE_E;
+    }
+    if (idx + (word32)strLen != valueEnd) {
+        WOLFSSL_MSG("\tHardware Module Name length mismatch");
         return ASN_PARSE_E;
     }
 
@@ -3116,6 +3122,13 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
         XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
         cert->hwType = NULL;
         return ret;
+    }
+    if (idx + (word32)strLen != valueEnd) {
+        WOLFSSL_MSG("\tData after Hardware Module Name serial number");
+        XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
+        cert->hwType = NULL;
+        cert->hwTypeSz = 0;
+        return ASN_PARSE_E;
     }
 
     cert->hwSerialNum = (byte*)XMALLOC((size_t)strLen + 1, cert->heap,

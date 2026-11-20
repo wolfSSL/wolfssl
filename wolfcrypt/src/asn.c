@@ -21317,6 +21317,10 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
     GetASN_OID(&hwDataASN[HWNAMEASN_IDX_TYPE], oidIgnoreType);
     ret = GetASN_Items(hwNameASN, hwDataASN, (int)hwNameASN_Length, 1, seq,
                        &idx, seqLen);
+    if ((ret == 0) && (idx != seqLen)) {
+        WOLFSSL_MSG("\tData after Hardware Module Name serial number");
+        ret = ASN_PARSE_E;
+    }
     if (ret == 0) {
         oidLen = hwDataASN[HWNAMEASN_IDX_TYPE].data.oid.length;
         serialLen = hwDataASN[HWNAMEASN_IDX_NUM].data.ref.length;
