@@ -698,6 +698,15 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
         return BAD_FUNC_ARG;
 #endif
 
+    /* Refuse a short key before the old key is freed, so the object stays as
+     * it was (SP 800-107r1 5.3.2, SP 800-131A r2 Table 9). */
+    if (!allowFlag) {
+        if (length < HMAC_FIPS_MIN_KEY) {
+            WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
+            return HMAC_MIN_KEYLEN_E;
+        }
+    }
+
     heap = hmac->heap;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     /* if set key has already been run then make sure and free existing */
@@ -740,41 +749,6 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     ret = _InitHmac(hmac, type, heap);
     if (ret != 0)
         return ret;
-
-    /* Regarding the password length:
-     * SP800-107r1 ss 5.3.2 states: "An HMAC key shall have a security strength
-     * that meets or exceeds the security strength required to protect the data
-     * over which the HMAC is computed" then refers to SP800-133 for HMAC keys
-     * generation.
-     *
-     * SP800-133r2 ss 6.2.3 states: "When a key is generated from a password,
-     * the entropy provided (and thus, the maximum security strength that can be
-     * supported by the generated key) shall be considered to be zero unless the
-     * password is generated using an approved RBG"
-     *
-     * wolfSSL Notes: The statement from SP800-133r2 applies to
-     * all password lengths. Any human generated password is considered to have
-     * 0 security strength regardless of length, there is no minimum length that
-     * is OK or will provide any amount of security strength other than 0. If
-     * a security strength is required users shall generate random passwords
-     * using a FIPS approved RBG of sufficient length that any HMAC key
-     * generated from that password can claim to inherit the needed security
-     * strength from that input.
-     */
-
-    /* In light of the above, Loosen past restriction that limited passwords to
-     * no less than 14-bytes to allow for shorter Passwords.
-     * User needs to pass true (non-zero) to override historical behavior that
-     * prevented use of any password less than 14-bytes. ALL non-RBG generated
-     * passwords shall inherit a security strength of zero
-     * (no security strength)
-     */
-    if (!allowFlag) {
-        if (length < HMAC_FIPS_MIN_KEY) {
-            WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
-            return HMAC_MIN_KEYLEN_E;
-        }
-    }
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY)
     #ifndef WOLF_CRYPTO_CB_FIND
