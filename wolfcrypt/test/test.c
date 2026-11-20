@@ -23500,10 +23500,12 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     byte tag[16];
     byte iv1[GCM_NONCE_MIN_SZ];
     byte iv2[GCM_NONCE_MIN_SZ];
+    byte ext[GCM_NONCE_MID_SZ];
     word32 ctr1;
     word32 ctr2;
 
     XMEMSET(p, 0, sizeof(p));
+    XMEMSET(ext, 0x5a, sizeof(ext));
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -23560,6 +23562,21 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     ret = wc_AesGcmSetKey(enc, key, sizeof(key));
     if (ret == 0)
         ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* A caller IV cannot replace the generated one under the same key. */
+    ret = wc_AesGcmSetExtIV(enc, ext, sizeof(ext));
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    ret = wc_AesGcmInit(enc, NULL, 0, ext, sizeof(ext));
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetExtIV(enc, ext, sizeof(ext));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -23663,8 +23680,10 @@ static wc_test_ret_t aesgcm_ivctr_test(Aes* enc)
                               tag, sizeof(tag), NULL, 0);
     if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    /* Leave enc with a fresh count for the tests that follow. */
-    ret = wc_AesGcmSetExtIV(enc, start, sizeof(start));
+    /* Leave enc with a new key and a fresh count for the tests that follow. */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetExtIV(enc, start, sizeof(start));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 

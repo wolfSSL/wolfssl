@@ -4567,6 +4567,7 @@ int test_wc_AesGcmEncrypt_ex_NonceUnique(void)
     XMEMSET(extIv, 0x00, sizeof(extIv));
     extIv[GCM_NONCE_MID_SZ - 2] = 0xFF;
     extIv[GCM_NONCE_MID_SZ - 1] = 0xFF;
+    ExpectIntEQ(wc_AesGcmSetKey(aes, key, sizeof(key)), 0);
     ExpectIntEQ(wc_AesGcmSetExtIV(aes, extIv, sizeof(extIv)), 0);
 
     ret = wc_AesGcmEncrypt_ex(aes, cipher, plain, TEST_AES_NONCE_SZ,

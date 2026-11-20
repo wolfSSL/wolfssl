@@ -15405,6 +15405,10 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
         ret = MISSING_KEY;
     }
 #ifdef WC_AESGCM_IV_LOCK
+    /* A generated IV stays until a new key is set. (SP 800-38D 8.2) */
+    if ((ret == 0) && (iv != NULL) && aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
     if ((ret == 0) && (iv != NULL)) {
         aes->gcmIvDet = 0;
     }
@@ -15989,6 +15993,12 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
     if (aes == NULL || iv == NULL || !CheckAesGcmIvSize((int)ivSz)) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* A generated IV stays until a new key is set. (SP 800-38D 8.2) */
+    else if (aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     if (ret == 0) {
         XMEMCPY((byte*)aes->reg, iv, ivSz);
