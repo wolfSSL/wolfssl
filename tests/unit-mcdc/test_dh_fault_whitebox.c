@@ -39,7 +39,7 @@
  *   (b) size-capacity rows: sp_int is a fixed SP_INT_DIGITS-digit struct
  *       (SP_INT_BITS=4096 here); mp_read_unsigned_bin()/sp_exptmod() reject
  *       inputs that do not fit *by construction* (sp_read_unsigned_bin: inSz
- *       > a->size*SP_WORD_SIZEOF; sp_exptmod_ex: m->used*2 >= SP_INT_DIGITS).
+ *       > a->size*SP_WORD_OCTETS; sp_exptmod_ex: m->used*2 >= SP_INT_DIGITS).
  *       Passing an oversized buffer (here: 2000 zero bytes, always over the
  *       ~1024-1032 byte capacity regardless of 32/64-bit sp_int digits) or a
  *       modulus bigger than SP_INT_BITS deterministically fails that call
