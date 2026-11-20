@@ -66,6 +66,7 @@ int test_ToTraditional_ex_negative(void);
 int test_ToTraditional_ex_mldsa_bad_params(void);
 int test_wc_SignCert_buffer_bounds(void);
 int test_wc_MakeCert_generalizedTimeValidity(void);
+int test_wc_MakeCert_validityDays(void);
 int test_wc_MakeCert_serial_encoding(void);
 int test_wc_DecodeKeyUsage_decipherOnly(void);
 int test_wc_DecodeExtKeyUsage_ssh(void);
@@ -119,6 +120,7 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_ToTraditional_ex_mldsa_bad_params), \
     TEST_DECL_GROUP("asn", test_wc_SignCert_buffer_bounds),         \
     TEST_DECL_GROUP("asn", test_wc_MakeCert_generalizedTimeValidity), \
+    TEST_DECL_GROUP("asn", test_wc_MakeCert_validityDays), \
     TEST_DECL_GROUP("asn", test_wc_MakeCert_serial_encoding),       \
     TEST_DECL_GROUP("asn", test_wc_DecodeKeyUsage_decipherOnly),    \
     TEST_DECL_GROUP("asn", test_wc_DecodeExtKeyUsage_ssh),          \

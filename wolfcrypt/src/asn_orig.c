@@ -6070,70 +6070,12 @@ static int SetValidity(byte* output, int daysValid)
 #ifndef NO_ASN_TIME
     byte before[MAX_DATE_SIZE];
     byte  after[MAX_DATE_SIZE];
+    word32 beforeSz;
+    word32 afterSz;
+    word32 seqSz;
 
-    word32 beforeSz, afterSz, seqSz;
-    word32 timeSz;
-    byte format;
-
-    time_t now;
-    time_t then;
-    struct tm* tmpTime;
-    struct tm* expandedTime;
-    struct tm localTime;
-
-#if defined(NEED_TMP_TIME)
-    /* for use with gmtime_r */
-    struct tm tmpTimeStorage;
-    tmpTime = &tmpTimeStorage;
-#else
-    tmpTime = NULL;
-#endif
-    (void)tmpTime;
-
-    now = wc_Time(0);
-
-    /* before now */
-    /* subtract 1 day of seconds for more compliance */
-    then = now - 86400;
-    expandedTime = XGMTIME(&then, tmpTime);
-    if (ValidateGmtime(expandedTime)) {
-        WOLFSSL_MSG("XGMTIME failed");
+    if (SetValidityTimes(before, &beforeSz, after, &afterSz, daysValid) != 0)
         return 0;   /* error */
-    }
-    localTime = *expandedTime;
-
-    /* adjust */
-    localTime.tm_year += 1900;
-    localTime.tm_mon +=    1;
-
-    format = ValidityTimeFormat(&localTime);
-    timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
-                                      : ASN_GEN_TIME_SZ;
-    before[0] = format;
-    beforeSz = SetLength(timeSz, before + 1) + 1;
-    SetTime(&localTime, before + beforeSz, format);
-    beforeSz += timeSz;
-
-    /* add daysValid of seconds */
-    then = now + (daysValid * (time_t)86400);
-    expandedTime = XGMTIME(&then, tmpTime);
-    if (ValidateGmtime(expandedTime)) {
-        WOLFSSL_MSG("XGMTIME failed");
-        return 0;   /* error */
-    }
-    localTime = *expandedTime;
-
-    /* adjust */
-    localTime.tm_year += 1900;
-    localTime.tm_mon  +=    1;
-
-    format = ValidityTimeFormat(&localTime);
-    timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
-                                      : ASN_GEN_TIME_SZ;
-    after[0] = format;
-    afterSz  = SetLength(timeSz, after + 1) + 1;
-    SetTime(&localTime, after + afterSz, format);
-    afterSz += timeSz;
 
     /* headers and output */
     seqSz = SetSequence(beforeSz + afterSz, output);

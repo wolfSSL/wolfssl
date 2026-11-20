@@ -5619,6 +5619,125 @@ int test_wc_MakeCert_generalizedTimeValidity(void)
     return EXPECT_RESULT();
 }
 
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) && !defined(NO_ASN_TIME)
+static time_t test_asn_validityNow;
+static time_t test_asn_validity_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_asn_validityNow;
+    return test_asn_validityNow;
+}
+
+/* Make a cert valid for daysValid at the fixed time and check both dates. */
+static int test_asn_validity_days(Cert* cert, RsaKey* key, WC_RNG* rng,
+    byte* der, time_t now, int daysValid, const char* expBefore,
+    const char* expAfter)
+{
+    EXPECT_DECLS;
+    DecodedCert dc;
+    int derSz = 0;
+    word32 len;
+
+    test_asn_validityNow = now;
+    cert->daysValid = daysValid;
+    ExpectIntEQ(wc_SetTimeCb(test_asn_validity_time_cb), 0);
+    derSz = wc_MakeCert(cert, der, SIGN_CERT_SCRATCH_SZ, key, NULL, rng);
+    wc_SetTimeCb(NULL);
+    if (expAfter == NULL) {
+        ExpectIntEQ(derSz, WC_NO_ERR_TRACE(DATE_E));
+        return EXPECT_RESULT();
+    }
+    ExpectIntGT(derSz, 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(derSz = wc_SignCert(cert->bodySz, cert->sigType, der,
+            SIGN_CERT_SCRATCH_SZ, key, NULL, rng), 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        wc_InitDecodedCert(&dc, der, (word32)derSz, NULL);
+        ExpectIntEQ(wc_ParseCert(&dc, CERT_TYPE, NO_VERIFY, NULL), 0);
+        len = (word32)XSTRLEN(expBefore);
+        ExpectIntEQ(dc.beforeDate[0], (len == 15) ? ASN_GENERALIZED_TIME :
+            ASN_UTC_TIME);
+        ExpectIntEQ(dc.beforeDate[1], len);
+        ExpectBufEQ(dc.beforeDate + 2, expBefore, len);
+        len = (word32)XSTRLEN(expAfter);
+        ExpectIntEQ(dc.afterDate[0], (len == 15) ? ASN_GENERALIZED_TIME :
+            ASN_UTC_TIME);
+        ExpectIntEQ(dc.afterDate[1], len);
+        ExpectBufEQ(dc.afterDate + 2, expAfter, len);
+        wc_FreeDecodedCert(&dc);
+    }
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wc_MakeCert_validityDays(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) && !defined(NO_ASN_TIME)
+    WC_RNG rng;
+    Cert   cert;
+    RsaKey key;
+    byte*  der = NULL;
+    word32 idx = 0;
+    int    rngInit = 0;
+    int    keyInit = 0;
+    /* 2026-11-19T12:00:00Z and 2028-03-01T00:00:00Z */
+    const time_t now = (time_t)1795089600L;
+    const time_t leapNow = (time_t)1835481600L;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&cert, 0, sizeof(cert));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+    ExpectNotNull(der = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+    if (EXPECT_SUCCESS()) {
+        cert.sigType = CTC_SHA256wRSA;
+        cert.serial[0] = 0x01;
+        cert.serialSz = 1;
+        XSTRNCPY(cert.subject.commonName, "validity-days", CTC_NAME_SIZE);
+    }
+
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, now, 9000,
+        "261118120000Z", "20510711120000Z"), TEST_SUCCESS);
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, now, 2912120,
+        "261118120000Z", "99991231120000Z"), TEST_SUCCESS);
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, now, 2912121,
+        NULL, NULL), TEST_SUCCESS);
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, leapNow, 365,
+        "280229000000Z", "290301000000Z"), TEST_SUCCESS);
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, now, -739938,
+        "261118120000Z", "00010101120000Z"), TEST_SUCCESS);
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, now, -739939,
+        NULL, NULL), TEST_SUCCESS);
+    /* An XTIME error, then a clock before 1970 as a signed 32-bit time_t
+     * after 2038 gives. */
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, (time_t)-1,
+        365, NULL, NULL), TEST_SUCCESS);
+#ifndef WOLFSSL_GMTIME
+    if ((time_t)-1 < (time_t)1) {
+        ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der,
+            (time_t)-86400, 365, NULL, NULL), TEST_SUCCESS);
+    }
+#endif
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyInit)
+        wc_FreeRsaKey(&key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(TEST_SIGN_CERT_BOUNDS_RSA) || defined(TEST_SIGN_CERT_BOUNDS_ECC)
 #define TEST_MAKECERT_SERIAL
 #endif

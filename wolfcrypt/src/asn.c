@@ -29781,6 +29781,110 @@ static void SetTime(struct tm* date, byte* output, byte format)
 
     output[i] = 'Z';  /* Zulu profile */
 }
+
+/* Day numbers of 0001-01-01 and 9999-12-31, counting from 0000-03-01. */
+#define ASN_VALIDITY_DAY_MIN    306
+#define ASN_VALIDITY_DAY_MAX    3652364
+
+/* Encode now shifted by days as a Time. */
+static int SetValidityTime(const struct tm* now, int days, byte* output,
+    word32* outSz)
+{
+    struct tm date;
+    sword32 y;
+    sword32 m;
+    sword32 era;
+    sword32 yoe;
+    sword32 doy;
+    sword32 doe;
+    sword32 day;
+    byte format;
+    word32 timeSz;
+    word32 idx;
+
+    if (now->tm_year > 9999 - 1900) {
+        WOLFSSL_MSG("Current time is after 9999");
+        return DATE_E;
+    }
+    y = (sword32)now->tm_year + 1900;
+    m = now->tm_mon + 1;
+    if (m <= 2)
+        y--;
+    era = y / 400;
+    yoe = y - era * 400;
+    doy = (153 * ((m > 2) ? m - 3 : m + 9) + 2) / 5 + now->tm_mday - 1;
+    doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    day = era * 146097 + doe;
+
+    if (((sword32)days < ASN_VALIDITY_DAY_MIN - day) ||
+            ((sword32)days > ASN_VALIDITY_DAY_MAX - day)) {
+        WOLFSSL_MSG("Validity date outside years 1 to 9999");
+        return DATE_E;
+    }
+    day += days;
+
+    era = day / 146097;
+    doe = day - era * 146097;
+    yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    m = (5 * doy + 2) / 153;
+
+    date = *now;
+    date.tm_mday = (int)(doy - (153 * m + 2) / 5 + 1);
+    date.tm_mon = (int)((m < 10) ? m + 3 : m - 9);
+    date.tm_year = (int)(yoe + era * 400 + ((date.tm_mon <= 2) ? 1 : 0));
+
+    format = ValidityTimeFormat(&date);
+    timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1 : ASN_GEN_TIME_SZ;
+    output[0] = format;
+    idx = SetLength(timeSz, output + 1) + 1;
+    SetTime(&date, output + idx, format);
+    *outSz = idx + timeSz;
+
+    return 0;
+}
+
+/* Encode notBefore as now less one day and notAfter as now plus daysValid. */
+static int SetValidityTimes(byte* before, word32* beforeSz, byte* after,
+    word32* afterSz, int daysValid)
+{
+    int ret = 0;
+    time_t now;
+    struct tm* ts = NULL;
+    struct tm* tmpTime;
+    struct tm nowTm;
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+    tmpTime = &tmpTimeStorage;
+#else
+    tmpTime = NULL;
+#endif
+    (void)tmpTime;
+
+    now = wc_Time(0);
+    if (now == (time_t)-1) {
+        WOLFSSL_MSG("Current time not available");
+        return DATE_E;
+    }
+    ts = XGMTIME(&now, tmpTime);
+    if (ValidateGmtime(ts)) {
+        WOLFSSL_MSG("XGMTIME failed");
+        ret = DATE_E;
+    }
+    else if (ts->tm_year < 70) {
+        WOLFSSL_MSG("Current time is before 1970");
+        ret = DATE_E;
+    }
+    if (ret == 0) {
+        nowTm = *ts;
+        ret = SetValidityTime(&nowTm, -1, before, beforeSz);
+    }
+    if (ret == 0) {
+        ret = SetValidityTime(&nowTm, daysValid, after, afterSz);
+    }
+
+    return ret;
+}
 #endif
 
 
@@ -31603,70 +31707,10 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
 static int SetValidity(byte* before, byte* after, int daysValid)
 {
 #ifndef NO_ASN_TIME
-    int ret = 0;
-    byte format;
-    word32 timeSz;
-    time_t now;
-    time_t then;
-    struct tm* tmpTime;
-    struct tm* expandedTime;
-    struct tm localTime;
-#if defined(NEED_TMP_TIME)
-    /* for use with gmtime_r */
-    struct tm tmpTimeStorage;
-    tmpTime = &tmpTimeStorage;
-#else
-    tmpTime = NULL;
-#endif
-    (void)tmpTime;
+    word32 beforeSz;
+    word32 afterSz;
 
-    now = wc_Time(0);
-
-    /* subtract 1 day of seconds for more compliance */
-    then = now - 86400;
-    expandedTime = XGMTIME(&then, tmpTime);
-    if (ValidateGmtime(expandedTime)) {
-        WOLFSSL_MSG("XGMTIME failed");
-        ret = DATE_E;
-    }
-    if (ret == 0) {
-        localTime = *expandedTime;
-
-        /* adjust */
-        localTime.tm_year += 1900;
-        localTime.tm_mon +=    1;
-
-        format = ValidityTimeFormat(&localTime);
-        timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
-                                          : ASN_GEN_TIME_SZ;
-        before[0] = format;
-        SetLength(timeSz, before + 1);
-        SetTime(&localTime, before + 2, format);
-
-        /* add daysValid of seconds */
-        then = now + (daysValid * (time_t)86400);
-        expandedTime = XGMTIME(&then, tmpTime);
-        if (ValidateGmtime(expandedTime)) {
-            WOLFSSL_MSG("XGMTIME failed");
-            ret = DATE_E;
-        }
-    }
-    if (ret == 0) {
-        localTime = *expandedTime;
-
-        /* adjust */
-        localTime.tm_year += 1900;
-        localTime.tm_mon  +=    1;
-
-        format = ValidityTimeFormat(&localTime);
-        timeSz = (format == ASN_UTC_TIME) ? ASN_UTC_TIME_SIZE - 1
-                                          : ASN_GEN_TIME_SZ;
-        after[0] = format;
-        SetLength(timeSz, after + 1);
-        SetTime(&localTime, after + 2, format);
-    }
-
-    return ret;
+    return SetValidityTimes(before, &beforeSz, after, &afterSz, daysValid);
 #else
     (void)before;
     (void)after;
