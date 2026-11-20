@@ -139,8 +139,23 @@ static int CompareRevokedCert(const RevokedCert* a, const RevokedCert* b)
     return XMEMCMP(a->serialNumber, b->serialNumber, (size_t)a->serialSz);
 }
 
-/* Sort revoked cert array in-place using insertion sort. The array is bounded
- * by CRL_MAX_REVOKED_CERTS so O(n^2) is fine. */
+/* Chain the used entries of the revoked cert array through next, so it can be
+ * walked the same way as the dynamic list. Anything that moves or copies
+ * entries leaves next stale and has to call this afterwards. */
+static void LinkCRL_CertList(RevokedCert* certs, int totalCerts)
+{
+    int i;
+
+    for (i = 0; i < totalCerts - 1; i++) {
+        certs[i].next = &certs[i + 1];
+    }
+    if (totalCerts > 0) {
+        certs[totalCerts - 1].next = NULL;
+    }
+}
+
+/* Sort revoked cert array in-place using insertion sort and relink it. The
+ * array is bounded by CRL_MAX_REVOKED_CERTS so O(n^2) is fine. */
 static void SortCRL_CertList(RevokedCert* certs, int totalCerts)
 {
     int i, j;
@@ -155,6 +170,8 @@ static void SortCRL_CertList(RevokedCert* certs, int totalCerts)
         }
         XMEMCPY(&certs[j + 1], &tmp, sizeof(RevokedCert));
     }
+
+    LinkCRL_CertList(certs, totalCerts);
 }
 #endif /* CRL_STATIC_REVOKED_LIST */
 
@@ -1471,6 +1488,7 @@ static int DupRevokedCertList(CRL_Entry* dupl, const CRL_Entry* ent, void* heap)
         if (DupRevokedCert(&dupl->certs[i], &ent->certs[i], heap) != 0)
             return MEMORY_E;
     }
+    LinkCRL_CertList(dupl->certs, ent->totalCerts);
 #else
     RevokedCert* current;
     RevokedCert* prev = NULL;
@@ -2648,7 +2666,9 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
 {
     CRL_Entry* entry;
     RevokedCert* rc;
+#ifndef CRL_STATIC_REVOKED_LIST
     RevokedCert* curr;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_CRL_add_revoked");
 
@@ -2665,6 +2685,13 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     if (entry == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef CRL_STATIC_REVOKED_LIST
+    if (entry->totalCerts >= CRL_MAX_REVOKED_CERTS) {
+        WOLFSSL_MSG("Out of space to add revoked certs");
+        return BUFFER_E;
+    }
+#endif
 
     {
         const byte* serial = rev->serialNumber->data;
@@ -2691,8 +2718,12 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
             return BAD_FUNC_ARG;
         }
 
+#ifdef CRL_STATIC_REVOKED_LIST
+        rc = &entry->certs[entry->totalCerts];
+#else
         rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), crl->heap,
                                    DYNAMIC_TYPE_REVOKED);
+#endif
         if (rc == NULL) {
             return MEMORY_E;
         }
@@ -2713,7 +2744,9 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         XMEMSET(&revDate, 0, sizeof(revDate));
         if (wolfSSL_ASN1_TIME_adj(&revDate, XTIME(NULL), 0, 0) == NULL) {
             WOLFSSL_MSG("Failed to get current time");
+#ifndef CRL_STATIC_REVOKED_LIST
             XFREE(rc, crl->heap, DYNAMIC_TYPE_REVOKED);
+#endif
             return BAD_STATE_E;
         }
         XMEMCPY(rc->revDate, revDate.data, revDate.length);
@@ -2723,6 +2756,11 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     rc->reasonCode = rev->reason;
     rc->next = NULL;
 
+#ifdef CRL_STATIC_REVOKED_LIST
+    /* Keep the array sorted, FindRevokedSerial binary searches it. */
+    entry->totalCerts++;
+    SortCRL_CertList(entry->certs, entry->totalCerts);
+#else
     /* Add to end of list */
     if (entry->certs == NULL) {
         entry->certs = rc;
@@ -2733,6 +2771,7 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
         curr->next = rc;
     }
     entry->totalCerts++;
+#endif
 
     /* Invalidate cached STACK_OF(X509_REVOKED) since list changed */
     if (crl->revokedStack != NULL) {
@@ -2876,6 +2915,7 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
 {
     int ret = WOLFSSL_SUCCESS;
     CRL_Entry* entry;
+    RevokedCert* certs;
     byte* issuerDer = NULL;
     int issuerSz = 0;
     int sigType = 0;
@@ -2900,6 +2940,10 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
         WOLFSSL_MSG("CRL has no entry");
         return BAD_FUNC_ARG;
     }
+
+    /* With CRL_STATIC_REVOKED_LIST certs is an array and never NULL, so an
+     * empty list has to be detected by count. */
+    certs = (entry->totalCerts > 0) ? entry->certs : NULL;
 
     /* Determine signature type from digest and key type */
     if (ret == WOLFSSL_SUCCESS) {
@@ -3042,7 +3086,7 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
         bufSz = wc_MakeCRL_ex(issuerDer, (word32)issuerSz,
                               entry->lastDate, entry->lastDateFormat,
                               entry->nextDate, entry->nextDateFormat,
-                              entry->certs, crlNumber, crlNumberSz,
+                              certs, crlNumber, crlNumberSz,
                               sigType, entry->version, NULL, 0);
         if (bufSz < 0) {
             WOLFSSL_MSG("wc_MakeCRL_ex size check failed");
@@ -3082,7 +3126,7 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
         tbsSz = wc_MakeCRL_ex(issuerDer, (word32)issuerSz,
                               entry->lastDate, entry->lastDateFormat,
                               entry->nextDate, entry->nextDateFormat,
-                              entry->certs, crlNumber, crlNumberSz,
+                              certs, crlNumber, crlNumberSz,
                               sigType,
                               entry->version, buf, bufSz);
         if (tbsSz < 0) {
