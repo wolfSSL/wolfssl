@@ -2838,6 +2838,29 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
         WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
         if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
             return -EAGAIN;
+#if FIPS_VERSION3_GE(7,0,0)
+        else if (wolfCrypt_GetMode_fips() == FIPS_MODE_FAILED) {
+            /* The module is latched FAILED, so key the errno on the
+             * write-once cause cell, not this run's verdict code (on
+             * v7 any verdict latches FAILED, so a code check here
+             * would shadow the integrity case): IN_CORE_FIPS_E reads
+             * -ELIBBAD, matching the wolfCrypt_GetStatus_fips() leg
+             * below; anything else is reload-only -- the module is
+             * gone as a service, which in kernel idiom is -ENODEV,
+             * matching the wc_RunAllCast_fips() leg below.  This also
+             * answers the same way on a repeat invocation against an
+             * already-failed module. */
+            if (wolfCrypt_GetStatus_fips() ==
+                WC_NO_ERR_TRACE(IN_CORE_FIPS_E))
+                return -ELIBBAD;
+            else
+                return -ENODEV;
+        }
+#endif
+        else if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E))
+            /* pre-v7: matching the wolfCrypt_GetStatus_fips() leg
+             * below. */
+            return -ELIBBAD;
         else
             return -EINVAL;
     }
