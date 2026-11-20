@@ -1655,7 +1655,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
     byte* output;
     int isLast;
     int sendSz;
-#ifndef NO_ASN_TIME
+#ifdef WOLFSSL_HAVE_MILLI_TIME
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 now;
 #else
@@ -1666,9 +1666,11 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("Dtls13RtxSendBuffered");
 
-#ifndef NO_ASN_TIME
+#ifdef WOLFSSL_HAVE_MILLI_TIME
     now = TimeNowInMilliseconds();
-    if (now - ssl->dtls13Rtx.lastRtx < DTLS13_MIN_RTX_INTERVAL) {
+    if (ssl->dtls13Rtx.lastRtx != 0 &&
+            (word32)(now - ssl->dtls13Rtx.lastRtx) <
+            (word32)DTLS13_MIN_RTX_INTERVAL) {
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("Avoid too fast retransmission");
 #endif /* WOLFSSL_DEBUG_TLS */

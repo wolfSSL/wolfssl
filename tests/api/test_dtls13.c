@@ -1820,7 +1820,7 @@ int test_dtls13_min_rtx_interval(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_DTLS13) && !defined(DTLS13_MIN_RTX_INTERVAL) && \
-    !defined(NO_ASN_TIME)
+    defined(WOLFSSL_HAVE_MILLI_TIME)
     /* We don't want to test when DTLS13_MIN_RTX_INTERVAL is defined because
      * it may be too low to trigger reliably in a test. The default value is
      * 1 second which is sufficient for testing here. */
@@ -2595,10 +2595,10 @@ int test_dtls13_plaintext_ack_after_handshake(void)
 int test_dtls13_plaintext_ack_during_handshake(void)
 {
     EXPECT_DECLS;
-/* Without a clock (NO_ASN_TIME) retransmissions are not rate limited, so the
+/* Without a clock retransmissions are not rate limited, so the
  * server flight is resent at points this sequence does not expect. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) && \
-    !defined(NO_ASN_TIME)
+    defined(WOLFSSL_HAVE_MILLI_TIME)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;

@@ -2118,7 +2118,7 @@ end:
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || defined(WOLFSSL_DTLS13)
 #ifdef WOLFSSL_32BIT_MILLI_TIME
-#ifndef NO_ASN_TIME
+#ifdef WOLFSSL_HAVE_MILLI_TIME
 #if defined(USER_TICKS)
 #if 0
     word32 TimeNowInMilliseconds(void)
@@ -2141,7 +2141,7 @@ end:
         return (word32)((now.seconds * 1000) + now.millis);
     }
 
-#elif defined(TIME_OVERRIDES)
+#elif defined(TIME_OVERRIDES) && !defined(NO_ASN_TIME)
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
     word32 TimeNowInMilliseconds(void)
     {
@@ -2414,9 +2414,9 @@ end:
      *   word32 TimeNowInMilliseconds(void);
      * The response is milliseconds elapsed
      */
-#endif /* !NO_ASN_TIME */
+#endif /* WOLFSSL_HAVE_MILLI_TIME */
 #else
-#ifndef NO_ASN_TIME
+#ifdef WOLFSSL_HAVE_MILLI_TIME
 #if defined(USER_TICKS)
 #if 0
     sword64 TimeNowInMilliseconds(void)
@@ -2439,7 +2439,7 @@ end:
         return ((sword64)now.seconds * 1000) + (sword64)now.millis;
     }
 
-#elif defined(TIME_OVERRIDES)
+#elif defined(TIME_OVERRIDES) && !defined(NO_ASN_TIME)
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
     sword64 TimeNowInMilliseconds(void)
     {
@@ -2724,7 +2724,7 @@ end:
      *   sword64 TimeNowInMilliseconds(void);
      * The response is milliseconds elapsed
      */
-#endif /* !NO_ASN_TIME */
+#endif /* WOLFSSL_HAVE_MILLI_TIME */
 #endif /* WOLFSSL_32BIT_MILLI_TIME */
 #endif /* HAVE_SESSION_TICKET || !NO_PSK || WOLFSSL_DTLS13 */
 
@@ -14915,6 +14915,10 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     if (lifetime > MAX_LIFETIME) {
         WOLFSSL_ERROR_VERBOSE(SERVER_HINT_ERROR);
         return SERVER_HINT_ERROR;
+    }
+    if (lifetime == 0) {
+        WOLFSSL_MSG("Ticket lifetime is zero, ignoring ticket");
+        storeTicket = 0;
     }
 
     /* Age add. */
