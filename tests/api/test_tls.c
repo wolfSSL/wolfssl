@@ -5260,8 +5260,9 @@ static void test_clear_cfg(WOLFSSL* ssl_c, WOLFSSL* ssl_s, int flags)
     }
 #endif
 #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
-    /* The harness default is too small for FIPS. */
-    if ((flags & TEST_CLEAR_DHE) && (ssl_s != NULL))
+    /* For every connection: a server's own DH parameters are freed when its
+     * handshake ends, and the harness default is too small for FIPS. */
+    if (ssl_s != NULL)
         (void)wolfSSL_SetTmpDH_file(ssl_s, dhParamFile, CERT_FILETYPE);
 #endif
     (void)ssl_c;
@@ -5465,16 +5466,14 @@ static int test_clear_reuse(method_provider cm, method_provider sm, int flags)
         WOLFSSL* next_s = reuseS ? ssl_s : fresh_s2;
 
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-        test_clear_cfg(NULL, next_s,
-            flags & (TEST_CLEAR_PSK | TEST_CLEAR_DHE));
+        test_clear_cfg(NULL, next_s, flags & TEST_CLEAR_PSK);
         ExpectIntEQ(test_memio_do_handshake(ssl_c, next_s, 10, NULL), 0);
     }
 #ifdef OPENSSL_ALL
     if (cipherName != NULL) {
         /* What a never-connected server reports for the same client. */
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-        test_clear_cfg(NULL, fresh_s,
-            flags & (TEST_CLEAR_PSK | TEST_CLEAR_DHE));
+        test_clear_cfg(NULL, fresh_s, flags & TEST_CLEAR_PSK);
         ExpectIntEQ(wolfSSL_set_cipher_list(fresh_c, cipherName),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(test_memio_do_handshake(fresh_c, fresh_s, 10, NULL), 0);

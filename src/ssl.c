@@ -6112,12 +6112,16 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
         ssl->buffers.clearOutputBuffer.buffer = NULL;
         ssl->buffers.clearOutputBuffer.length = 0;
+    #ifndef NO_TLS
         if (ssl->buffers.inputBuffer.dynamicFlag)
             ShrinkInputBuffer(ssl, FORCED_FREE);
+    #endif
         ssl->buffers.inputBuffer.idx = 0;
         ssl->buffers.inputBuffer.length = 0;
+    #ifndef NO_TLS
         /* Output the last connection could not send is not the next peer's. */
         ShrinkOutputBuffer(ssl);
+    #endif
         ForceZero(ssl->buffers.inputBuffer.staticBuffer,
             sizeof(ssl->buffers.inputBuffer.staticBuffer));
         ForceZero(ssl->buffers.outputBuffer.staticBuffer,
