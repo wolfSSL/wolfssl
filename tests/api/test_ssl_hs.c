@@ -1980,6 +1980,114 @@ int test_wolfSSL_hs_send_buffered_advance(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Number of interrupts left to report before sending through memio. */
+static int test_ssl_hs_isr_left = 0;
+/* Number of times the send callback was called. */
+static int test_ssl_hs_isr_calls = 0;
+
+/* Send callback that reports an interrupt a set number of times.
+ *
+ * Fails outright after many calls so an unbounded retry loop shows up as a
+ * test failure rather than a hang.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] buf  Data to send.
+ * @param [in] sz   Size of data in bytes.
+ * @param [in] ctx  memio context.
+ * @return  Bytes sent, WOLFSSL_CBIO_ERR_ISR or WOLFSSL_CBIO_ERR_GENERAL.
+ */
+static int test_ssl_hs_send_isr(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    test_ssl_hs_isr_calls++;
+    if (test_ssl_hs_isr_calls > WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 1000) {
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+    if (test_ssl_hs_isr_left > 0) {
+        test_ssl_hs_isr_left--;
+        return WOLFSSL_CBIO_ERR_ISR;
+    }
+    return test_memio_write_cb(ssl, buf, sz, ctx);
+}
+#endif
+
+/* Test that an interrupted send is retried a bounded number of times.
+ *
+ * A few interrupts are absorbed and the flush completes. An interrupt that
+ * persists makes the call return WANT_WRITE with the output still buffered,
+ * and the handshake completes once the transport recovers.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_hs_send_buffered_isr(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int isrTransient = (WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS < 3) ?
+        WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS : 3;
+
+    /* Transient: interrupts within the retry limit are absorbed. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (ssl_c != NULL) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_ssl_hs_send_isr);
+    }
+    test_ssl_hs_isr_calls = 0;
+    test_ssl_hs_isr_left = isrTransient;
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ssl_hs_isr_calls, isrTransient + 1);
+    ExpectIntEQ(test_ctx.s_msg_count, 1);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* Persistent: the call returns instead of looping forever. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (ssl_c != NULL) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_ssl_hs_send_isr);
+    }
+    test_ssl_hs_isr_calls = 0;
+    test_ssl_hs_isr_left = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 2000;
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(test_ssl_hs_isr_calls, WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 1);
+    if (ssl_c != NULL) {
+        ExpectIntGT(ssl_c->buffers.outputBuffer.length, 0);
+    }
+    ExpectIntEQ(test_ctx.s_msg_count, 0);
+
+    /* Once the interrupts stop the buffered output goes out. */
+    test_ssl_hs_isr_left = 0;
+    test_ssl_hs_isr_calls = 0;
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_CALLBACKS) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 /* Timeout callback that does nothing.

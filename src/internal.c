@@ -13335,6 +13335,9 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
     ssl->buffers.inputBuffer.length = (word32)usedLength;
 }
 
+/* return 0 when all buffered output is sent, WANT_WRITE to call again (also
+ * when an interrupted send keeps failing past the retry limit),
+ * SEND_OOB_READ_E, SOCKET_ERROR_E on error, or BAD_FUNC_ARG if ssl is null */
 int SendBuffered(WOLFSSL* ssl)
 {
     int retryLimit = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS;
@@ -13404,7 +13407,14 @@ retry:
                             }
                         }
                     #endif
-                    continue;
+                    /* Bound retries so a persistent interrupt cannot spin
+                     * forever. The output is still buffered and resumable. */
+                    if (retryLimit > 0) {
+                        retryLimit--;
+                        continue;
+                    }
+                    WOLFSSL_MSG("SendBuffered() interrupt retry limit hit");
+                    return WC_NO_ERR_TRACE(WANT_WRITE);
 
                 case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_CLOSE): /* epipe */
                     ssl->options.connReset = 1;  /* treat same as reset */

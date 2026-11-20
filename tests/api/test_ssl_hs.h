@@ -48,6 +48,7 @@ int test_wolfSSL_connect_step_failures(void);
 int test_wolfSSL_accept_step_failures(void);
 int test_wolfSSL_hs_send_buffered_fail(void);
 int test_wolfSSL_hs_send_buffered_advance(void);
+int test_wolfSSL_hs_send_buffered_isr(void);
 int test_wolfSSL_hs_retry_alert_fail(void);
 int test_wolfSSL_connect_ex_no_side(void);
 int test_wolfSSL_hs_done_cb_error(void);
@@ -75,6 +76,7 @@ int test_wolfSSL_hs_info_cb(void);
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_accept_step_failures),          \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_send_buffered_fail),         \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_send_buffered_advance),      \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_send_buffered_isr),          \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_retry_alert_fail),           \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_connect_ex_no_side),            \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_done_cb_error),              \

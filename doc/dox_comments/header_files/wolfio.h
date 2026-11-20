@@ -50,7 +50,9 @@ int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \return WOLFSSL_CBIO_ERR_CONN_RST returned with a “Connection reset”
     message if the last error was SOCKET_ECONNRESET.
     \return WOLFSSL_CBIO_ERR_ISR returned with a “Socket interrupted” message
-    if the last error was SOCKET_EINTR.
+    if the last error was SOCKET_EINTR. The library retries the send up to
+    WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS times and then reports WANT_WRITE, so a
+    custom send callback that keeps returning this value does not block.
     \return WOLFSSL_CBIO_ERR_CONN_CLOSE returned with a “Socket EPIPE” message
     if the last error was SOCKET_EPIPE.
     \return WOLFSSL_CBIO_ERR_GENERAL returned with a “General error” message
@@ -126,7 +128,9 @@ int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \return WOLFSSL_CBIO_ERR_CONN_RST returned with a “Connection reset”
     message if the last error was SOCKET_ECONNRESET.
     \return WOLFSSL_CBIO_ERR_ISR returned with a “Socket interrupted” message
-    if the last error was SOCKET_EINTR.
+    if the last error was SOCKET_EINTR. The library retries the send up to
+    WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS times and then reports WANT_WRITE, so a
+    custom send callback that keeps returning this value does not block.
     \return WOLFSSL_CBIO_ERR_CONN_CLOSE returned with a “Socket EPIPE” message
     if the last error was WOLFSSL_CBIO_ERR_CONN_CLOSE.
     \return WOLFSSL_CBIO_ERR_GENERAL returned with a “General error” message
