@@ -113,6 +113,13 @@ jobs:
            "cc": "ccache clang-19",
            "configure": ["CXX=clang++-19", "--enable-all-crypto",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wunreachable-code-aggressive"],
+           "check": false},
+          {"name": "clang-19-sp-asm-dh-no-rsa", "minutes": 1.5,
+           "comment": "SP asm with DH but no RSA; clang flags unused static inline SP helpers that gcc does not.",
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19", "--disable-rsa",
+            "--enable-sp=yes,4096", "--enable-sp-asm",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
            "check": false}
           ]
           EOF
