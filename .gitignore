@@ -487,6 +487,11 @@ user_settings_asm.h
 /IDE/MPLABX16/wolfcrypt_test.X/dist/default/
 /IDE/MPLABX16/wolfcrypt_test.X/.generated_files
 
+# GHS INTEGRITY build output (default.gpj Debug/Checked/Release configs)
+/IDE/INTEGRITY/dbg/
+/IDE/INTEGRITY/chk/
+/IDE/INTEGRITY/rel/
+
 # auto-created CMake backups
 **/CMakeLists.txt.old
 

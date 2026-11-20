@@ -77,7 +77,7 @@
 
 #ifndef WC_MAYBE_UNUSED
     #if (defined(__GNUC__) && (__GNUC__ >= 3)) || defined(__clang__) || \
-            defined(__IAR_SYSTEMS_ICC__)
+            defined(__IAR_SYSTEMS_ICC__) || defined(__ghs__)
         #define WC_MAYBE_UNUSED __attribute__((unused))
     #else
         #define WC_MAYBE_UNUSED
