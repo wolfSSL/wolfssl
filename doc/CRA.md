@@ -66,8 +66,8 @@ make sbom         # produces wolfssl-<version>.spdx.json, .cdx.json, .spdx
 make bomsh        # optional: produces omnibor/ + OmniBOR-enriched SPDX
 ```
 
-`make sbom` is a convenience wrapper around the same `scripts/gen-sbom`
-script the embedded path uses.
+`make sbom` uses `scripts/sbom.am`, which includes `tools/sbom/sbom.am`.
+That recipe calls the same generator as `scripts/gen-sbom`.
 
 See `doc/SBOM.md` for prerequisites and full details on both entry
 points.
@@ -155,7 +155,7 @@ under which your distribution mirrors `wolfssl-<version>.cdx.json`.
   "type": "library",
   "name": "wolfssl",
   "version": "<version>",
-  "purl": "pkg:github/wolfSSL/wolfssl@v<version>",
+  "purl": "pkg:github/wolfssl/wolfssl@v<version>-stable",
   "cpe": "cpe:2.3:a:wolfssl:wolfssl:<version>:*:*:*:*:*:*:*",
   "licenses": [{ "license": { "id": "GPL-3.0-only" } }],
   "externalReferences": [
@@ -227,9 +227,11 @@ with the override (Option 1) or override at the consumer level (Option 2).
 ## Reproducible SBOMs
 
 The generator honors `SOURCE_DATE_EPOCH` for the SBOM creation timestamp and
-uses deterministic UUIDs derived from the package name and version, so two
-runs of `make sbom` against the same source tree, library binary, and build
-options produce byte-identical `.spdx.json` and `.cdx.json` files.  This
+uses deterministic UUIDs derived from the package name and version, the
+build configuration (feature macros, dependencies, licence, source list) and
+the library hash. Two runs of `make sbom` against the same source tree,
+library binary, and build options produce byte-identical `.spdx.json` and
+`.cdx.json` files. Two configurations of one release get different UUIDs.  This
 matters for downstream attestation pipelines that hash SBOMs as part of a
 provenance chain.
 
