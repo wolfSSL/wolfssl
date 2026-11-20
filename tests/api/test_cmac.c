@@ -36,14 +36,6 @@
 #include <tests/api/api.h>
 #include <tests/api/test_cmac.h>
 
-/* Frozen module headers do not provide the CMAC allocation helpers. */
-#ifndef WC_ALLOC_CMAC
-#define WC_ALLOC_CMAC(heap) \
-    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
-#define WC_FREE_CMAC(cmac, heap) \
-    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
-#endif
-
 /*
  * Testing wc_InitCmac()
  */

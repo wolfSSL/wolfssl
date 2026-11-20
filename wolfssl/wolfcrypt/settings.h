@@ -673,13 +673,14 @@
 /* FIPS bundle builds (v5/v6 and selftest) overlay the frozen module
  * files: their aes.h predates the aligned Aes allocator, so the
  * WC_ALLOC_AES/WC_FREE_AES/WC_ALLOC_XTS/WC_FREE_XTS macros from the
- * non-frozen aes.h are missing there. Provide the plain-allocator
+ * non-frozen aes.h are missing there, and likewise the frozen cmac.h has no
+ * WC_ALLOC_CMAC/WC_FREE_CMAC. Provide the plain-allocator
  * fallback for those builds only; the v7 boundary matches master and
  * non-FIPS builds take the real definitions from aes.h, so there is no
  * redefinition. The WC_ALIGNED_ALLOC marker is deliberately not defined:
  * it means the aligned allocator exists, which is false here, so cmac.h
  * takes its plain fallback. Macro bodies resolve Aes/XtsAes/XMALLOC/
- * DYNAMIC_TYPE_AES at expansion time, so no forward declarations are
+ * DYNAMIC_TYPE_AES/Cmac/DYNAMIC_TYPE_CMAC at expansion time, so no forward declarations are
  * needed here. */
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && !FIPS_VERSION3_GE(7,0,0)
 #define WC_ALLOC_AES(heap) \
@@ -690,6 +691,10 @@
     ((XtsAes*)XMALLOC(sizeof(XtsAes), (heap), DYNAMIC_TYPE_AES))
 #define WC_FREE_XTS(aes, heap) \
     do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
+#define WC_ALLOC_CMAC(heap) \
+    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
 #endif
 
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \

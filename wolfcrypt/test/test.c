@@ -396,15 +396,6 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/cmac.h>
-
-/* FIPS builds validate cmac.h without the aligned-allocation macros; the
- * plain allocation path is what they expect. */
-#ifndef WC_ALLOC_CMAC
-#define WC_ALLOC_CMAC(heap) \
-    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
-#define WC_FREE_CMAC(cmac, heap) \
-    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
-#endif
 #ifdef WOLF_CRYPTO_CB_KEYSTORE
     #include <wolfssl/wolfcrypt/wc_keystore.h>
 #endif

@@ -212,7 +212,10 @@ int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz);
  * aes.h (and aes.c) are the frozen module versions, so the aligned branch
  * must fall back there. The cast keeps the macro valid in C++. The fallback
  * is a macro, not a function, so plain builds pay no indirection. */
-#if defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    !FIPS_VERSION3_GE(7,0,0)
+/* Frozen FIPS bundle: plain fallbacks come from settings.h. */
+#elif defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
     !defined(WOLFSSL_TI_CRYPT) && defined(WC_ALIGNED_ALLOC)
 #define WC_ALLOC_CMAC(heap) ((Cmac*)wc_alloc_aligned((heap), sizeof(Cmac), \
                                                      WC_ALIGNOF(Cmac), \
