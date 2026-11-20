@@ -33,6 +33,19 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(WOLFSSL_SRP_CT_SECRET) && defined(WOLFSSL_ESPIDF)
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#endif
+
+/* The ESP32 fastmath exponentiation accelerator ignores the fixed digit
+ * count and picks hardware or software from the exponent's actual width. */
+#if defined(WOLFSSL_SRP_CT_SECRET) && defined(USE_FAST_MATH) && \
+    defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI) && \
+    !defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD)
+    #error "WOLFSSL_SRP_CT_SECRET needs NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD"
+#endif
+
 /** Computes the session key using the Mask Generation Function 1. */
 static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size);
 
@@ -517,6 +530,66 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
     return r;
 }
 
+/* res = b ^ e % N, with a secret exponent e < 2 * N. */
+static int SrpExptMod(Srp* srp, mp_int* b, mp_int* e, mp_int* res)
+{
+#ifdef WOLFSSL_SRP_CT_SECRET
+    WC_DECLARE_VAR(t, mp_int, 1, 0);
+    byte* buf = NULL;
+    int bits;
+    int digits;
+    int bufSz;
+    int tInited = 0;
+    int r = MP_OKAY;
+
+    /* Public sizes covering N + 1 bits so work is independent of e. */
+    bits = mp_count_bits(&srp->N) + 1;
+    digits = (bits + DIGIT_BIT - 1) / DIGIT_BIT;
+    bufSz = (bits + 7) / 8;
+
+#ifdef WOLFSSL_SMALL_STACK
+    t = (mp_int*)XMALLOC(sizeof(*t), srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (t == NULL)
+        r = MEMORY_E;
+#endif
+    if (r == MP_OKAY) {
+        buf = (byte*)XMALLOC((size_t)bufSz, srp->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL)
+            r = MEMORY_E;
+    }
+    if (r == MP_OKAY) {
+        if (mp_init(t) != MP_OKAY)
+            r = MP_INIT_E;
+        else
+            tInited = 1;
+    }
+    if (r == MP_OKAY) {
+        /* Words above used are read, so start from an all zero value. */
+        mp_forcezero(t);
+        /* Copy e through a fixed width encoding. mp_copy() would copy
+         * e->used words, which depends on the secret. */
+        r = mp_to_unsigned_bin_len_ct(e, buf, bufSz);
+    }
+    if (r == MP_OKAY)
+        r = mp_read_unsigned_bin(t, buf, (word32)bufSz);
+    if (r == MP_OKAY)
+        r = mp_exptmod_ex(b, t, digits, &srp->N, res);
+
+    if (tInited)
+        mp_forcezero(t);
+    if (buf != NULL) {
+        ForceZero(buf, (word32)bufSz);
+        XFREE(buf, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    WC_FREE_VAR_EX(t, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return r;
+#else
+    return mp_exptmod(b, e, &srp->N, res);
+#endif
+}
+
 int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
 {
     WC_DECLARE_VAR(v, mp_int, 1, 0);
@@ -537,7 +610,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (r != MP_OKAY)
         r = MP_INIT_E;
     /* v = g ^ x % N */
-    if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, v);
+    if (!r) r = SrpExptMod(srp, &srp->g, &srp->auth, v);
     if (!r) r = *size < (word32)mp_unsigned_bin_size(v) ? BUFFER_E : MP_OKAY;
     if (!r) r = mp_to_unsigned_bin(v, verifier);
     if (!r) *size = (word32)mp_unsigned_bin_size(v);
@@ -637,7 +710,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
 
     /* client side: A = g ^ a % N */
     if (srp->side == SRP_CLIENT_SIDE) {
-        if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, pubkey);
+        if (!r) r = SrpExptMod(srp, &srp->g, &srp->priv, pubkey);
 
     /* server side: B = (k * v + (g ^ b % N)) % N */
     } else {
@@ -663,7 +736,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
             }
             if (!r) r = mp_read_unsigned_bin(i, srp->k, (word32)hashSize);
             if (!r) r = mp_iszero(i) == MP_YES ? SRP_BAD_KEY_E : 0;
-            if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, pubkey);
+            if (!r) r = SrpExptMod(srp, &srp->g, &srp->priv, pubkey);
             if (!r) r = mp_mulmod(i, &srp->auth, &srp->N, j);
             if (!r) r = mp_add(j, pubkey, i);
             if (!r) r = mp_mod(i, &srp->N, pubkey);
@@ -902,7 +975,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
             r = SRP_BAD_KEY_E;
             goto out;
         }
-        if ((r = mp_exptmod(&srp->g, &srp->auth, &srp->N, temp2)))
+        if ((r = SrpExptMod(srp, &srp->g, &srp->auth, temp2)))
             goto out;
         if ((r = mp_mulmod(temp1, temp2, &srp->N, s)))
             goto out;
@@ -926,7 +999,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
             goto out;
 
         /* secret = temp1 ^ temp2 % N */
-        if ((r = mp_exptmod(temp1, temp2, &srp->N, s)))
+        if ((r = SrpExptMod(srp, temp1, temp2, s)))
             goto out;
 
     } else if (srp->side == SRP_SERVER_SIDE) {
@@ -963,16 +1036,24 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         }
 
         /* secret = temp2 * b % N */
-        if ((r = mp_exptmod(temp2, &srp->priv, &srp->N, s)))
+        if ((r = SrpExptMod(srp, temp2, &srp->priv, s)))
             goto out;
     }
 
     /* building session key from secret */
 
+#ifdef WOLFSSL_SRP_CT_SECRET
+    /* Fixed width so the KDF work does not depend on leading zeros of S. */
+    if ((r = mp_to_unsigned_bin_len_ct(s, secret, (int)secretSz)))
+        goto out;
+    if ((r = srp->keyGenFunc_cb(srp, secret, secretSz)))
+        goto out;
+#else
     if ((r = mp_to_unsigned_bin(s, secret)))
         goto out;
     if ((r = srp->keyGenFunc_cb(srp, secret, (word32)mp_unsigned_bin_size(s))))
         goto out;
+#endif
 
     /* updating client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
 
