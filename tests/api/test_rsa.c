@@ -261,10 +261,11 @@ int test_wc_RsaPublicKeyDecodeRaw(void)
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WC_NO_RNG)
     {
-        /* Encrypt needs a 2048-bit modulus and verify a 1024-bit one
-         * (SP 800-131A Rev2 Tables 2 and 5). */
+        /* Encrypt and verify both need a 2048-bit modulus (FIPS 186-5
+         * sec 5.1). The fips.c wrapper or rsa.c refuses it. */
         RsaKey small;
         WC_RNG rng;
+        int    ret;
         byte   bigN[128];
         byte   sig[128];
         byte   out[128];
@@ -283,18 +284,22 @@ int test_wc_RsaPublicKeyDecodeRaw(void)
         ExpectIntEQ(wc_InitRsaKey(&small, HEAP_HINT), 0);
         ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(bigN, 64, e3, sizeof(e3),
             &small), 0);
-        ExpectIntEQ(wc_RsaSSL_Verify(sig, 64, out, sizeof(out), &small),
-            WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+        ret = wc_RsaSSL_Verify(sig, 64, out, sizeof(out), &small);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+            (ret == WC_NO_ERR_TRACE(SIG_TYPE_E)));
         DoExpectIntEQ(wc_FreeRsaKey(&small), 0);
 
-        /* 1024 bits: encrypt is refused, verify runs. */
+        /* 1024 bits: encrypt and verify are both refused. */
         ExpectIntEQ(wc_InitRsaKey(&small, HEAP_HINT), 0);
         ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(bigN, sizeof(bigN), e3,
             sizeof(e3), &small), 0);
-        ExpectIntEQ(wc_RsaPublicEncrypt(msg, sizeof(msg), out, sizeof(out),
-            &small, &rng), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
-        ExpectIntNE(wc_RsaSSL_Verify(sig, sizeof(sig), out, sizeof(out),
-            &small), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+        ret = wc_RsaPublicEncrypt(msg, sizeof(msg), out, sizeof(out), &small,
+            &rng);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+            (ret == WC_NO_ERR_TRACE(SIG_TYPE_E)));
+        ret = wc_RsaSSL_Verify(sig, sizeof(sig), out, sizeof(out), &small);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+            (ret == WC_NO_ERR_TRACE(SIG_TYPE_E)));
         DoExpectIntEQ(wc_FreeRsaKey(&small), 0);
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
     }
