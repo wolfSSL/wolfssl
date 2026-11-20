@@ -566,7 +566,7 @@ static void wb_signerinfo_binding(void)
 
 /* ------------------------------------------------------------------------- *
  * Section 4: wc_PKCS7_VerifyContentMessageDigest() attribute/content shapes
- * [:5857, :5890, :5893]
+ * [:6012, :6069, :6075] plus the ANY-span check [:6030, :6037, :6046]
  * ------------------------------------------------------------------------- */
 static void wb_verify_content_msgdigest(void)
 {
@@ -577,11 +577,41 @@ static void wb_verify_content_msgdigest(void)
     byte content[8];
     byte pkcs7Content[8];
     byte hash[32];
+    byte anySpan[2];     /* 30 00: single element spanning the content */
+    byte anyTrail[3];    /* 30 00 00: element plus a trailing byte */
+    byte anyHighTag[2];  /* 1f 00: high-tag-number identifier */
+    byte anyIndef[2];    /* 30 80: indefinite length */
+    byte anyBadLen[3];   /* 30 81 7f: non-minimal 1-byte long-form length */
+    byte anyBufExc[3];   /* 30 81 80: long-form length runs past the element */
+    byte anyLen2NM[4];   /* 30 82 00 13: non-minimal 2-byte long-form length */
+    byte anyLen4MSB[6];  /* 30 84 80 00 00 00: 4-byte length with the MSB set */
+    byte anyLenOvr[7];   /* 30 85 ...: overlong length (more than four octets) */
+    byte anyEoc[3];      /* 00 01 78: end-of-contents identifier as element tag */
+    byte anyLen3NM[5];   /* 30 83 00 00 13: non-minimal 3-byte long-form length */
+    byte anyLen4NM[6];   /* 30 84 00 00 00 13: non-minimal 4-byte long-form len */
 
     XMEMSET(&attrib, 0, sizeof(attrib));
     XMEMCPY(mdOidDer, wbMessageDigestOid, sizeof(wbMessageDigestOid));
     XMEMSET(content, 0x31, sizeof(content));
     XMEMSET(hash, 0, sizeof(hash));
+    anySpan[0]    = 0x30; anySpan[1]    = 0x00;
+    anyTrail[0]   = 0x30; anyTrail[1]   = 0x00; anyTrail[2] = 0x00;
+    anyHighTag[0] = 0x1f; anyHighTag[1] = 0x00;
+    anyIndef[0]   = 0x30; anyIndef[1]   = 0x80;
+    anyBadLen[0]  = 0x30; anyBadLen[1]  = 0x81; anyBadLen[2] = 0x7f;
+    anyBufExc[0]  = 0x30; anyBufExc[1]  = 0x81; anyBufExc[2] = 0x80;
+    anyLen2NM[0]  = 0x30; anyLen2NM[1]  = 0x82; anyLen2NM[2] = 0x00;
+    anyLen2NM[3]  = 0x13;
+    anyLen4MSB[0] = 0x30; anyLen4MSB[1] = 0x84; anyLen4MSB[2] = 0x80;
+    anyLen4MSB[3] = 0x00; anyLen4MSB[4] = 0x00; anyLen4MSB[5] = 0x00;
+    anyLenOvr[0]  = 0x30; anyLenOvr[1]  = 0x85; anyLenOvr[2] = 0x00;
+    anyLenOvr[3]  = 0x00; anyLenOvr[4]  = 0x00; anyLenOvr[5] = 0x00;
+    anyLenOvr[6]  = 0x13;
+    anyEoc[0]     = 0x00; anyEoc[1]     = 0x01; anyEoc[2] = 0x78;
+    anyLen3NM[0]  = 0x30; anyLen3NM[1]  = 0x83; anyLen3NM[2] = 0x00;
+    anyLen3NM[3]  = 0x00; anyLen3NM[4]  = 0x13;
+    anyLen4NM[0]  = 0x30; anyLen4NM[1]  = 0x84; anyLen4NM[2] = 0x00;
+    anyLen4NM[3]  = 0x00; anyLen4NM[4]  = 0x00; anyLen4NM[5] = 0x13;
 
     /* OCTET STRING wrapping a 32-byte digest */
     mdValue[0] = ASN_OCTET_STRING;
@@ -608,7 +638,7 @@ static void wb_verify_content_msgdigest(void)
     attrib.valueSz = (word32)sizeof(mdValue);
     p.decodedAttrib = &attrib;
 
-    WB_NOTE("VerifyContentMessageDigest attrib->value guards [:5857]");
+    WB_NOTE("VerifyContentMessageDigest attrib->value guards [:6012]");
     /* 1st operand true */
     attrib.value = NULL;
     (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
@@ -618,23 +648,23 @@ static void wb_verify_content_msgdigest(void)
     (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
     attrib.valueSz = (word32)sizeof(mdValue);
 
-    WB_NOTE("VerifyContentMessageDigest content shape [:5890,:5893]");
-    /* all false at :5857; :5890 1st operand false (content == NULL) */
+    WB_NOTE("VerifyContentMessageDigest content shape [:6069,:6075]");
+    /* all false at :6012; :6069 1st operand false (content == NULL) */
     p.content   = NULL;
     p.contentSz = 0;
     p.contentIsPkcs7Type = 1;
     (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
-    /* :5890 2nd operand false (content set, not PKCS#7-typed) */
+    /* :6069 2nd operand false (content set, not PKCS#7-typed) */
     p.content   = content;
     p.contentSz = (word32)sizeof(content);
     p.contentIsPkcs7Type = 0;
     (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
-    /* :5890 both true, :5893 contentLen > 1 */
+    /* :6069 both true, :6075 contentLen > 1 */
     p.content   = pkcs7Content;
     p.contentSz = (word32)sizeof(pkcs7Content);
     p.contentIsPkcs7Type = 1;
     (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
-    /* :5893 contentLen <= 1 */
+    /* :6037 contentSz < 2 operand (intercepts the old contentLen <= 1 drive) */
     p.contentSz = 1;
     (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
     /* caller-supplied hash path */
@@ -642,6 +672,75 @@ static void wb_verify_content_msgdigest(void)
     p.contentSz = (word32)sizeof(content);
     p.contentIsPkcs7Type = 0;
     (void)wc_PKCS7_VerifyContentMessageDigest(&p, hash, (word32)sizeof(hash));
+
+    /* ANY-span check [:6030-:6050], inserted ahead of the decisions above and
+     * reached with the valid messageDigest attribute set here. */
+    WB_NOTE("VerifyContentMessageDigest ANY-span check [:6030,:6037,:6046]");
+    attrib.value   = mdValue;
+    attrib.valueSz = (word32)sizeof(mdValue);
+    p.contentIsPkcs7Type = 1;
+    /* :6030 contentSz > 0 false operand (flag set, content set, size 0); this
+     * also drives the :6075 contentLen <= 1 arm, unreachable once the span
+     * check runs (it requires contentSz >= 2). */
+    p.content   = anySpan;
+    p.contentSz = 0;
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6030 content != NULL operand varies alone: content NULL with
+     * contentSz > 0 (MCDC pair; the parse code never produces this state,
+     * so it is a defensive guard). */
+    p.content   = NULL;
+    p.contentSz = (word32)sizeof(content);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6037 high-tag-number identifier operand */
+    p.content   = anyHighTag;
+    p.contentSz = (word32)sizeof(anyHighTag);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6037 end-of-contents (0x00) operand: not a valid element tag, the
+     * length still spans so only this operand rejects */
+    p.content   = anyEoc;
+    p.contentSz = (word32)sizeof(anyEoc);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6037 indefinite-length operand */
+    p.content   = anyIndef;
+    p.contentSz = (word32)sizeof(anyIndef);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6043 GetLength_ex failure: non-minimal 1-byte long-form length
+     * (0x7f is below the 0x80 minimum, not a run past the end) */
+    p.content   = anyBadLen;
+    p.contentSz = (word32)sizeof(anyBadLen);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6043 GetLength_ex failure: long-form length runs past the element */
+    p.content   = anyBufExc;
+    p.contentSz = (word32)sizeof(anyBufExc);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6043 GetLength_ex failure: non-minimal 2-byte long-form length */
+    p.content   = anyLen2NM;
+    p.contentSz = (word32)sizeof(anyLen2NM);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6043 GetLength_ex failure: non-minimal 3-byte long-form length */
+    p.content   = anyLen3NM;
+    p.contentSz = (word32)sizeof(anyLen3NM);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6043 GetLength_ex failure: non-minimal 4-byte long-form length */
+    p.content   = anyLen4NM;
+    p.contentSz = (word32)sizeof(anyLen4NM);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6043 GetLength_ex failure: 4-byte length with the high bit set */
+    p.content   = anyLen4MSB;
+    p.contentSz = (word32)sizeof(anyLen4MSB);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6043 GetLength_ex failure: overlong length (more than four octets) */
+    p.content   = anyLenOvr;
+    p.contentSz = (word32)sizeof(anyLenOvr);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6046 element does not span the content (trailing byte) */
+    p.content   = anyTrail;
+    p.contentSz = (word32)sizeof(anyTrail);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
+    /* :6030-:6046 all pass: a single element spanning the content */
+    p.content   = anySpan;
+    p.contentSz = (word32)sizeof(anySpan);
+    (void)wc_PKCS7_VerifyContentMessageDigest(&p, NULL, 0);
 
     p.decodedAttrib = NULL;
     p.content = NULL;
