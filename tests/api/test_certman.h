@@ -31,6 +31,14 @@ int test_wolfSSL_CertManagerLoadCABuffer_ex(void);
 int test_wolfSSL_CertManagerLoadCABufferType(void);
 int test_wolfSSL_CertManagerGetCerts(void);
 int test_wolfSSL_CertManagerSetVerify(void);
+int test_wolfSSL_CertManagerCertEvents(void);
+int test_wolfSSL_CertManagerCertEvents_badCerts(void);
+int test_wolfSSL_CertEvents_tls(void);
+int test_wolfSSL_CertEvents_chain(void);
+int test_wolfSSL_CertEvents_noPeerCert(void);
+int test_wolfSSL_CertEvents_heldStatus(void);
+int test_wolfSSL_CertEvents_extensions(void);
+int test_wolfSSL_CertEvents_fields(void);
 int test_wolfSSL_CertManagerNameConstraint(void);
 int test_wolfSSL_CertManagerNameConstraint2(void);
 int test_wolfSSL_CertManagerNameConstraint3(void);
@@ -77,6 +85,15 @@ int test_wolfSSL_trust_peer_cert_dates(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerLoadCABufferType),   \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerGetCerts),           \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerSetVerify),          \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCertEvents),         \
+    TEST_DECL_GROUP("certman",                                              \
+        test_wolfSSL_CertManagerCertEvents_badCerts),                       \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertEvents_tls),                \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertEvents_chain),              \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertEvents_noPeerCert),         \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertEvents_heldStatus),         \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertEvents_extensions),         \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertEvents_fields),             \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint),     \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint2),    \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint3),    \

@@ -663,5 +663,11 @@
 {"name": "sp-math-sakke",
  "comment": "SAKKE on WOLFSSL_SP_MATH without RSA, DH, or ECCSI: its blinded RSK inverse needs sp_mulmod, which nothing else builds in this shape.",
  "configure": ["--enable-cryptonly", "--enable-sp-math", "--enable-sp",
-  "--disable-rsa", "--disable-dh", "--enable-sakke"]}
+  "--disable-rsa", "--disable-dh", "--enable-sakke"]},
+{"name": "cert-events-crl",
+ "comment": "Certificate validation events without the compatibility layer. --enable-all covers them with OPENSSL_EXTRA on, where the TLS verify path and the error codes it passes on differ.",
+ "configure": ["--enable-cert-events", "--enable-crl"]},
+{"name": "cert-events-tiny",
+ "comment": "Certificate validation events without CRL and with WOLFSSL_X509_TINY, which does not decode some extensions.",
+ "configure": ["--enable-cert-events", "CPPFLAGS=-DWOLFSSL_X509_TINY"]}
 ]
