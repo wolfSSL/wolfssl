@@ -99,6 +99,8 @@ typedef struct ChaCha {
     ALIGN8 word32 over[CHACHA_CHUNK_WORDS];
 #endif
     WC_BITFIELD keySet:1;                    /* set to 1 once a key is set */
+    WC_BITFIELD cntExhausted:1;      /* block 0xFFFFFFFF of this IV is used */
+    WC_BITFIELD isXChacha:1;         /* carry the block counter into X[13] */
 #ifdef WOLF_CRYPTO_CB
     /* X[] holds expanded state, but a device is handed a plaintext key, so
      * keep a copy as Aes.devKey does. Set by wc_Chacha_SetKey_ex(). */
@@ -106,6 +108,8 @@ typedef struct ChaCha {
     word32 devKeySz;
     int devId;
 #endif
+    /* Next unused block counter, tracked apart from X[] as backends differ */
+    word32 nextBlock;
 } ChaCha;
 
 /**

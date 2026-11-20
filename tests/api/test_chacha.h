@@ -29,6 +29,7 @@ int test_wc_Chacha_Process(void);
 int test_wc_Chacha_Process_Chunking(void);
 int test_wc_Chacha_MonteCarlo(void);
 int test_wc_Chacha_CounterOverflow(void);
+int test_wc_Chacha_XChachaCounterCarry(void);
 int test_wc_Chacha_InPlace(void);
 int test_wc_Chacha_UnalignedBuffers(void);
 int test_wc_Chacha_XChachaSetKey(void);
@@ -40,6 +41,7 @@ int test_wc_Chacha_MissingKey(void);
     TEST_DECL_GROUP("chacha", test_wc_Chacha_Process_Chunking),         \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_MonteCarlo),               \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_CounterOverflow),          \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_XChachaCounterCarry),      \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_InPlace),                  \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_UnalignedBuffers),         \
     TEST_DECL_GROUP("chacha", test_wc_Chacha_XChachaSetKey),            \
