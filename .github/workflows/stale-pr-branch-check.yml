@@ -1,0 +1,51 @@
+name: Stale PR branch check
+
+# Fails a PR whose branch is more than MAX_BEHIND commits behind its base
+# branch. CI results on a stale branch say little about how the change
+# behaves once merged, so ask for a rebase or merge first.
+#
+# The count is taken from the PR head commit, not the checked-out merge
+# ref: the merge ref already contains the base, so it is never behind.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ master ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  behind-base:
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # Full history but commits only: the check counts commits, not files.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - name: Check commits behind base branch
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MAX_BEHIND: 100
+        run: |
+          set -euo pipefail
+          # Refresh the base so the count reflects its current tip, not
+          # the tip at the time of the triggering event.
+          git fetch --no-tags --filter=tree:0 origin \
+            "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          behind=$(git rev-list --count "${HEAD_SHA}..origin/${BASE_REF}")
+          echo "PR head ${HEAD_SHA} is ${behind} commit(s) behind ${BASE_REF}."
+          if [ "$behind" -gt "$MAX_BEHIND" ]; then
+            echo "::error::Branch is ${behind} commits behind ${BASE_REF} (maximum allowed is ${MAX_BEHIND}). Please rebase onto master."
+            exit 1
+          fi
