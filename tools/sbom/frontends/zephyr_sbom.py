@@ -14,6 +14,9 @@ writes when west configures the build. The module's sources are the entries
 under `--root` whose object Zephyr placed in the module's library directory,
 `<build>/modules/<module name>/`. That set follows Kconfig and any CMake logic
 the module uses, and it leaves out application files inside the module tree.
+A module that adds its sources to another target, for example with
+`target_sources(app ...)`, has no library directory. For that module, pass
+`--target app` to take the objects of that target under `--root`.
 
 The configuration is Kconfig-driven, so by default this produces a
 source-inventory SBOM. `--user-settings` records the module's -D flags and the
@@ -37,6 +40,8 @@ import tempfile
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DRIVER = os.path.join(os.path.dirname(SCRIPT_DIR), "sbom-driver")
+sys.path.insert(0, SCRIPT_DIR)
+from included_sources import _compiler_index  # noqa: E402
 
 SRC_EXTS = ('.c', '.cc', '.cpp', '.cxx', '.s', '.asm')
 _ARG_OPTS = ('-D', '-U', '-I', '-iquote', '-isystem', '-idirafter',
@@ -68,15 +73,20 @@ def module_name(root):
     return os.path.basename(os.path.normpath(root))
 
 
-def compdb_entries(compdb, root, name):
+def compdb_entries(compdb, root, name, target=None):
     """Return the module library's compile commands as [(source, entry)]
-    for sources under root, plus the library sources outside it."""
+    for sources under root, plus the library sources outside it.
+
+    With target, take the objects of that CMake target instead, for a
+    module that adds its sources to another target such as app."""
     try:
         with open(compdb) as f:
             db = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         raise ParseError(f"cannot read {compdb}: {e}")
     root = os.path.realpath(root) + os.sep
+    target_dir = (os.sep + os.path.join('CMakeFiles', target + '.dir') + os.sep
+                  if target else None)
     picked, outside, seen = [], [], set()
     for e in db:
         if 'output' not in e:
@@ -85,12 +95,15 @@ def compdb_entries(compdb, root, name):
         if not e.get('file'):
             continue
         directory = e.get('directory', '')
-        lib_dir = os.path.normpath(
-            os.path.join(directory, 'modules', name)) + os.sep
         out = os.path.normpath(os.path.join(directory, e['output']))
         src = os.path.normpath(os.path.join(directory, e['file']))
-        if (not out.startswith(lib_dir)
-                or not src.lower().endswith(SRC_EXTS)):
+        if target_dir:
+            in_target = target_dir in out
+        else:
+            lib_dir = os.path.normpath(
+                os.path.join(directory, 'modules', name)) + os.sep
+            in_target = out.startswith(lib_dir)
+        if not in_target or not src.lower().endswith(SRC_EXTS):
             continue
         if os.path.realpath(src).startswith(root):
             picked.append((src, e))
@@ -144,7 +157,7 @@ def _entry_tokens(entry):
                              f"{entry.get('file')}: {e}")
     if not toks:
         raise ParseError(f"empty compile command for {entry.get('file')}")
-    return toks
+    return toks[_compiler_index(toks):]
 
 
 def _dump_macros(cc, flags, directory):
@@ -267,6 +280,11 @@ def main():
     ap.add_argument('--module-name', default=None,
                     help='Zephyr module name. Default: the name in '
                          'zephyr/module.yml, else the --root directory name.')
+    ap.add_argument('--target', default=None,
+                    help='CMake target that compiles the module sources, '
+                         'e.g. app for a module that calls '
+                         'target_sources(app ...). Default: the module '
+                         'library.')
     ap.add_argument('--user-settings', default=None,
                     help="The module's settings header, captured with the "
                          "module's compile flags.")
@@ -315,11 +333,14 @@ def main():
     settings = None
     try:
         name = args.module_name or module_name(args.root)
-        entries, outside = compdb_entries(args.compdb, args.root, name)
+        entries, outside = compdb_entries(args.compdb, args.root, name,
+                                          args.target)
         if not entries:
+            what = (f"target '{args.target}'" if args.target
+                    else f"module '{name}'")
             sys.exit(f"ERROR: {args.compdb} has no compile commands for "
-                     f"module '{name}' from sources under {args.root}; "
-                     f"check --root and --module-name.")
+                     f"{what} from sources under {args.root}; "
+                     f"check --root, --module-name and --target.")
         if args.user_settings:
             settings = capture_user_settings(entries, args.user_settings,
                                              args.hostcc)

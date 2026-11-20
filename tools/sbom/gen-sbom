@@ -28,6 +28,10 @@ from datetime import datetime, timezone
 # shapes because dropping --dep-liboqs did not bump it, leaving vendored
 # copies indistinguishable by the only identifier the SBOM records.
 #
+# 1.10 A build that defines WOLFSSL_ACCEPT_WEAK_ENTROPY is marked with
+#      `wolfssl:security:weak-entropy=permitted` and a
+#      `wolfssl:security:weak-entropy-note` warning (CycloneDX property,
+#      SPDX annotation), as wolfssl scripts/gen-sbom does since 402fdb307f.
 # 1.9  Nested wolfcrypt keeps name, version, supplier and PURL, but no
 #      longer emits cpe:2.3:a:wolfssl:wolfcrypt. NVD files crypto CVEs
 #      against wolfssl, not wolfcrypt; a second CPE on the same sources
@@ -63,7 +67,22 @@ from datetime import datetime, timezone
 #      -only/-or-later distinction cannot be inferred.
 # 1.2  Dropped --dep-liboqs (unversioned; see above).
 GEN_SBOM_TOOL_NAME = 'wolfssl-sbom-gen'
-GEN_SBOM_VERSION = '1.9'
+GEN_SBOM_VERSION = '1.10'
+
+_WEAK_ENTROPY_NOTE = (
+    'WARNING: WOLFSSL_ACCEPT_WEAK_ENTROPY permits weak or deterministic '
+    'seed sources. Keys and nonces may be predictable if such a source is '
+    'selected. Verify the actual entropy source and remove this opt-in '
+    'before deployment.'
+)
+
+
+_WEAK_ENTROPY_MACRO = 'WOLFSSL_ACCEPT_WEAK_ENTROPY'
+
+
+def weak_entropy_permitted(build_props):
+    """A defined opt-in permits weak seeds even when its value is zero."""
+    return any(name == _WEAK_ENTROPY_MACRO for name, _value in build_props)
 
 # Placeholder recorded in the component checksum fields when the operator
 # passes --no-artifact-hash: a build (ROM image, HSM firmware, binary-only
@@ -248,7 +267,8 @@ def resolve_crypto_only(mode, build_props):
     """Return (is_crypto_only, basis) for --crypto-only auto|yes|no.
 
     basis is 'declared' when the operator stated it, 'captured' when it was
-    read out of the configuration macros this SBOM records, and 'unknown'
+    read out of the captured configuration macros (before any --macro-prefix
+    filter, so the deciding macro may not be recorded), and 'unknown'
     when there are no captured macros to read (a --source-only front end
     such as Zephyr, where nothing in the inputs can settle the question).
 
@@ -283,7 +303,8 @@ def config_identity(lib_hash, license_id, build_props, enabled_deps,
                     dep_versions, *, supplier=None, component_type=None,
                     license_text=None, hash_kind=None, hash_source=None,
                     file_names=None, wolfssl_subset=None, subset_basis=None,
-                    copyright_start=DEFAULT_COPYRIGHT_START):
+                    copyright_start=DEFAULT_COPYRIGHT_START,
+                    macro_prefixes=None, weak_entropy=False):
     """Stable digest of the build configuration behind one name+version.
 
     Folded into the SBOM serialNumber / SPDX documentNamespace so two builds
@@ -333,6 +354,12 @@ def config_identity(lib_hash, license_id, build_props, enabled_deps,
     # Folded only when set, so default documents keep their serialNumber.
     if copyright_start != DEFAULT_COPYRIGHT_START:
         _field('copyright_start', str(copyright_start))
+    if macro_prefixes:
+        _field('macro_prefix', ','.join(macro_prefixes))
+    # The recorded macros already carry the opt-in unless --macro-prefix
+    # filtered it out; fold the marker only then.
+    if weak_entropy and not weak_entropy_permitted(build_props):
+        _field('weak_entropy', 'permitted')
     return h.hexdigest()
 
 
@@ -895,8 +922,7 @@ def parse_options_h(path):
         with open(path) as f:
             text = f.read()
     except OSError as e:
-        print(f"WARNING: cannot read options.h {path}: {e}", file=sys.stderr)
-        return []
+        sys.exit(f"ERROR: cannot read --options-h {path}: {e}")
 
     defines = {}
     for m in re.finditer(r'^#define[ \t]+(\w+)(?:[ \t]+(.*))?$', text, re.MULTILINE):
@@ -1005,6 +1031,15 @@ def parse_user_settings(settings_h_path, include_dirs, predefines):
         tokens = macro.value or []
         defines[name] = ' '.join(t.value for t in tokens).strip()
     return sorted(defines.items())
+
+
+def filter_macro_prefix(build_props, prefixes):
+    """Keep only the (name, value) pairs whose name starts with a prefix.
+
+    An empty prefix list keeps everything."""
+    if not prefixes:
+        return build_props
+    return [(k, v) for k, v in build_props if k.startswith(tuple(prefixes))]
 
 
 def gitoid_blob_sha256(path):
@@ -1208,7 +1243,9 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
                  dep_version_overrides=None, hash_kind='library-binary',
                  hash_source='lib', srcs_basenames=None, file_entries=None,
                  component_type='library', wolfssl_subset=None,
-                 subset_basis=None, copyright_start=DEFAULT_COPYRIGHT_START):
+                 subset_basis=None, copyright_start=DEFAULT_COPYRIGHT_START,
+                 macro_prefixes=None, weak_entropy=False):
+    weak_entropy = weak_entropy or weak_entropy_permitted(build_props)
     bom_ref = derived_uuid(name, version, 'package')
     urls = project_urls(name)
 
@@ -1242,6 +1279,17 @@ def generate_cdx(name, version, supplier, license_id, license_text, lib_hash,
         {'name': f'wolfssl:build:{k}', 'value': v}
         for k, v in build_props
     ]
+    if weak_entropy:
+        properties.extend([
+            {'name': 'wolfssl:security:weak-entropy', 'value': 'permitted'},
+            {'name': 'wolfssl:security:weak-entropy-note',
+             'value': _WEAK_ENTROPY_NOTE},
+        ])
+    if macro_prefixes:
+        properties.append({
+            'name': 'wolfssl:sbom:macro-prefix',
+            'value': ','.join(macro_prefixes),
+        })
     # Document what the SHA-256 in `hashes` represents, on every entry
     # point.  Without this property an auditor reading the SBOM has to
     # guess whether the SHA-256 is over a library binary, a source-set
@@ -1380,7 +1428,9 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
                   hash_source='lib', srcs_basenames=None,
                   document_namespace=None, file_entries=None,
                   component_type='library', wolfssl_subset=None,
-                  subset_basis=None, copyright_start=DEFAULT_COPYRIGHT_START):
+                  subset_basis=None, copyright_start=DEFAULT_COPYRIGHT_START,
+                  macro_prefixes=None, weak_entropy=False):
+    weak_entropy = weak_entropy or weak_entropy_permitted(build_props)
     build_defines = ', '.join(k for k, _ in build_props)
     # Hash-kind / source-set / bomsh-traced-binary information used to
     # be stuffed into the package `comment` as `key=value` slugs, which
@@ -1406,10 +1456,15 @@ def generate_spdx(name, version, supplier, license_id, license_text, lib_hash,
 
     _annotate(f'wolfssl:sbom:hash-kind={hash_kind}')
     _annotate(f'wolfssl:sbom:hash-source={hash_source}')
+    if weak_entropy:
+        _annotate('wolfssl:security:weak-entropy=permitted')
+        _annotate(f'wolfssl:security:weak-entropy-note={_WEAK_ENTROPY_NOTE}')
     if hash_source == 'none':
         _annotate(f'wolfssl:sbom:no-artifact-hash-note={_NO_HASH_NOTE}')
     if srcs_basenames:
         _annotate('wolfssl:sbom:source-set=' + ','.join(srcs_basenames))
+    if macro_prefixes:
+        _annotate('wolfssl:sbom:macro-prefix=' + ','.join(macro_prefixes))
     if wolfssl_subset:
         _annotate(f'wolfssl:sbom:wolfssl-subset={wolfssl_subset}')
         _annotate('wolfssl:sbom:wolfssl-subset-basis='
@@ -1703,6 +1758,15 @@ def main():
                              'on the compiler command line.  At minimum '
                              'pass `WOLFSSL_USER_SETTINGS` so settings.h '
                              'pulls in user_settings.h.')
+    parser.add_argument('--macro-prefix', action='append', default=[],
+                        metavar='PREFIX',
+                        help='Record only the build-configuration macros '
+                             'whose name starts with PREFIX (repeatable), '
+                             'e.g. WOLFCERT_ for a product that shares one '
+                             'user_settings.h with wolfSSL.  Applies to '
+                             '--options-h and --user-settings alike.  '
+                             '--crypto-only auto still reads the full '
+                             'capture.')
     # Component checksum source: pick exactly one.
     parser.add_argument('--lib',
                         help='Path to the wolfSSL library artifact '
@@ -1809,6 +1873,14 @@ def main():
             "compiled into your firmware (OmniBOR gitoid Merkle hash).\n"
             "       --no-artifact-hash: record a placeholder when no "
             "hashable artefact exists (ROM/HSM/binary-only).")
+    if any(not pfx.strip() for pfx in args.macro_prefix):
+        sys.exit("ERROR: --macro-prefix must not be empty.")
+    if any(pfx != pfx.strip() for pfx in args.macro_prefix):
+        sys.exit("ERROR: --macro-prefix must not start or end with "
+                 "whitespace.")
+    if any(',' in pfx for pfx in args.macro_prefix):
+        sys.exit("ERROR: --macro-prefix takes one prefix; repeat the option "
+                 "for more.")
 
     # SPDX 2.3 §6.5 requires documentNamespace to be a unique absolute URI
     # per RFC 3986.  `make sbom` runs pyspdxtools afterwards and would
@@ -1877,10 +1949,38 @@ def main():
             args.user_settings_include,
             args.user_settings_define,
         )
+    # Read from the full capture, so a later filter of the recorded macros
+    # cannot drop the security marker.
+    weak_entropy = weak_entropy_permitted(build_props)
+    if weak_entropy:
+        print(_WEAK_ENTROPY_NOTE, file=sys.stderr)
+    elif not build_props:
+        print(
+            f"NOTE: no build configuration was captured, so {_WEAK_ENTROPY_MACRO} "
+            "could not be checked; the SBOM does not state whether the build "
+            "permits weak entropy.",
+            file=sys.stderr)
 
     crypto_only, subset_basis = resolve_crypto_only(args.crypto_only,
                                                     build_props)
     wolfssl_subset = WOLFSSL_SUBSET_CRYPTO_ONLY if crypto_only else None
+    macro_prefixes = sorted(set(args.macro_prefix))
+    captured = build_props
+    build_props = filter_macro_prefix(build_props, macro_prefixes)
+    if macro_prefixes and not captured:
+        print(f"WARNING: --macro-prefix {','.join(macro_prefixes)} has no "
+              "captured macros to filter.", file=sys.stderr)
+    elif macro_prefixes and not build_props:
+        print(
+            f"WARNING: --macro-prefix {','.join(macro_prefixes)} matched none "
+            f"of the {len(captured)} captured macros; the SBOM records no "
+            "build configuration.",
+            file=sys.stderr)
+    elif captured:
+        for pfx in macro_prefixes:
+            if not filter_macro_prefix(captured, [pfx]):
+                print(f"WARNING: --macro-prefix {pfx} matched none of the "
+                      f"{len(captured)} captured macros.", file=sys.stderr)
     if subset_basis == 'unknown' and 'wolfssl' in enabled_deps:
         # A front end that captures no macros (--source-only) cannot answer
         # the question either way.  Say so rather than defaulting silently to
@@ -1981,6 +2081,8 @@ def main():
         wolfssl_subset=wolfssl_subset,
         subset_basis=subset_basis,
         copyright_start=args.copyright_start,
+        macro_prefixes=macro_prefixes,
+        weak_entropy=weak_entropy,
     )
     serial = derived_uuid(args.name, args.version, 'serial', config_id)
     doc_ns_uuid = derived_uuid(args.name, args.version, 'document', config_id)
@@ -1997,6 +2099,8 @@ def main():
         wolfssl_subset=wolfssl_subset,
         subset_basis=subset_basis,
         copyright_start=args.copyright_start,
+        macro_prefixes=macro_prefixes,
+        weak_entropy=weak_entropy,
     )
     spdx = generate_spdx(
         args.name, args.version, args.supplier,
@@ -2011,6 +2115,8 @@ def main():
         wolfssl_subset=wolfssl_subset,
         subset_basis=subset_basis,
         copyright_start=args.copyright_start,
+        macro_prefixes=macro_prefixes,
+        weak_entropy=weak_entropy,
     )
 
     try:

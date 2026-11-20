@@ -42,6 +42,7 @@ reach gen-sbom (for example -DPICO_SDK_PATH=/home/you/pico-sdk from arch.mk). Us
 """
 
 import argparse
+import functools
 import os
 import re
 import subprocess
@@ -123,14 +124,47 @@ def find_gen_sbom(explicit):
     return sibling  # report the sibling path in the error message
 
 
-def gen_sbom_supports(python, gen_sbom, flag):
-    """Return True if the generator advertises a flag in its --help."""
+@functools.lru_cache(maxsize=None)
+def _gen_sbom_help(python, gen_sbom):
     try:
         res = subprocess.run([python, gen_sbom, "--help"],
                              capture_output=True, text=True, check=False)
     except OSError:
-        return False
-    return flag in (res.stdout + res.stderr)
+        return ""
+    return res.stdout + res.stderr
+
+
+def gen_sbom_supports(python, gen_sbom, flag):
+    """Return True if the generator advertises a flag in its --help."""
+    return flag in _gen_sbom_help(python, gen_sbom)
+
+
+def default_source_date_epoch(root):
+    """Return the last commit time of the checkout that tracks root, or "".
+
+    Uses the same rule as build/sbom-with-sde.cmake and sbom.am: root must
+    hold tracked files, so a tarball unpacked inside another checkout does
+    not take that checkout's time.
+    """
+    def git(args, capture):
+        # ls-files prints every tracked path and only its status is used.
+        # Leave both streams unread, so a file name this locale cannot
+        # decode does not raise UnicodeDecodeError.
+        try:
+            res = subprocess.run(
+                ["git", "-C", root, *args],
+                stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=capture, check=False)
+        except OSError:
+            return None
+        if res.returncode != 0:
+            return None
+        return res.stdout.strip() if capture else ""
+
+    if git(["ls-files", "--error-unmatch", "--", "."], False) is None:
+        return ""
+    return git(["log", "-1", "--format=%ct"], True) or ""
 
 
 def split_cflags(cflags):
@@ -262,7 +296,8 @@ def main():
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    # Composition (at least one of --lib / --srcs-file; --source-only needs srcs).
+    # Composition (one of --lib / --srcs-file / --no-artifact-hash;
+    # --source-only needs srcs).
     ap.add_argument("--lib", default="",
                     help="Path to the built library to hash (tier R/L/S).")
     ap.add_argument("--srcs-file", default="",
@@ -304,6 +339,11 @@ def main():
                          "user_settings.h.")
     grp.add_argument("--source-only", action="store_true",
                      help="Source-inventory SBOM with no build-config macros.")
+    ap.add_argument("--macro-prefix", action="append", default=[],
+                    metavar="PREFIX",
+                    help="Record only configuration macros whose name starts "
+                         "with PREFIX (repeatable). Passed through only if "
+                         "the generator supports it.")
 
     # Identity.
     ap.add_argument("--name", required=True, help="Package name in the SBOM.")
@@ -367,7 +407,8 @@ def main():
     elif args.lib and args.srcs_file:
         sys.exit("ERROR: pass one of --lib or --srcs-file.")
     elif not args.lib and not args.srcs_file:
-        sys.exit("ERROR: pass at least one of --lib or --srcs-file.")
+        sys.exit("ERROR: pass one of --lib, --srcs-file or "
+                 "--no-artifact-hash.")
     if args.source_only and not args.srcs_file:
         sys.exit("ERROR: --source-only needs --srcs-file.")
     if args.srcs_file and not os.path.isfile(args.srcs_file):
@@ -486,6 +527,14 @@ def main():
         if args.dep_version and gen_sbom_supports(args.python, gen_sbom, "--dep-version"):
             for dv in args.dep_version:
                 cmd += ["--dep-version", dv]
+        if args.macro_prefix:
+            if gen_sbom_supports(args.python, gen_sbom, "--macro-prefix"):
+                for prefix in args.macro_prefix:
+                    cmd += ["--macro-prefix", prefix]
+            else:
+                print("NOTE: this gen-sbom has no --macro-prefix support; "
+                      "every captured macro will be recorded.",
+                      file=sys.stderr)
         if args.crypto_only and gen_sbom_supports(
                 args.python, gen_sbom, "--crypto-only"):
             cmd += ["--crypto-only", args.crypto_only]
@@ -498,7 +547,16 @@ def main():
             print(f"  sources: {src_count} file(s)")
         print(f"  outputs: {cdx_out}  {spdx_out}")
 
-        rc = subprocess.call(cmd)
+        # Only an explicit --root selects the checkout. The working
+        # directory is not one: a front end run from inside another
+        # checkout would otherwise take that checkout's time.
+        env = None
+        if args.root and not os.environ.get("SOURCE_DATE_EPOCH"):
+            sde = default_source_date_epoch(root)
+            if sde:
+                env = dict(os.environ, SOURCE_DATE_EPOCH=sde)
+
+        rc = subprocess.call(cmd, env=env)
     finally:
         for f in tmp_files:
             try:

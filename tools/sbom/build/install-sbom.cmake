@@ -12,15 +12,22 @@ endif()
 include("${CMAKE_CURRENT_LIST_DIR}/sbom-paths.cmake")
 wolfssl_compliance_tooling_sbom_resolve_outputs(_cdx _spdx _tv)
 
-# file(INSTALL) applies DESTDIR itself. Prepending it here would stage
-# the files twice. file(MAKE_DIRECTORY) does not apply DESTDIR, so the
-# directory is created at the staged path.
+# file(INSTALL) applies DESTDIR itself, and creates the directory. _staged
+# is only for the message. On Windows, file(INSTALL) drops a drive letter
+# before it adds DESTDIR, so D:/stage + C:/x is D:/stage/x;
+# uninstall-sbom.cmake uses the same rule.
 if(DEFINED ENV{DESTDIR})
-    set(_destdir "$ENV{DESTDIR}")
+    # Forward slashes, as file(INSTALL) prints them, so the message matches
+    # the path it wrote on Windows too.
+    file(TO_CMAKE_PATH "$ENV{DESTDIR}" _destdir)
 else()
     set(_destdir "")
 endif()
-set(_staged "${_destdir}${WOLFSSL_COMPLIANCE_TOOLING_INSTALL_DIR}")
+set(_install_dir "${WOLFSSL_COMPLIANCE_TOOLING_INSTALL_DIR}")
+if(CMAKE_HOST_WIN32 AND NOT _destdir STREQUAL "")
+    string(REGEX REPLACE "^[A-Za-z]:" "" _install_dir "${_install_dir}")
+endif()
+set(_staged "${_destdir}${_install_dir}")
 
 if(NOT EXISTS "${_cdx}")
     message(FATAL_ERROR "install-sbom.cmake: missing CycloneDX file ${_cdx}")
@@ -29,7 +36,6 @@ if(NOT EXISTS "${_spdx}")
     message(FATAL_ERROR "install-sbom.cmake: missing SPDX file ${_spdx}")
 endif()
 
-file(MAKE_DIRECTORY "${_staged}")
 file(INSTALL "${_cdx}" "${_spdx}" DESTINATION "${WOLFSSL_COMPLIANCE_TOOLING_INSTALL_DIR}")
 if(NOT _tv STREQUAL "" AND EXISTS "${_tv}")
     file(INSTALL "${_tv}" DESTINATION "${WOLFSSL_COMPLIANCE_TOOLING_INSTALL_DIR}")
