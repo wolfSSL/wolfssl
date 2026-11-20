@@ -51670,11 +51670,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
                                   "C32F009F9955B1D994E61D3C51EE8760"
                                   "90B4EF89CC7AF42F46E72201BFCC7977";
     const char* label           = "master secret";
+    const char* emsLabel        = "extended master secret";
 
     byte pms[48] = {0};
     byte seed[64] = {0};
     byte ms[48] = {0};
     byte result[48] = {0};
+    byte lblSeed[22 + 64];
 
     word32 pmsSz    = (word32)sizeof(pms);
     word32 seedSz   = (word32)sizeof(seed);
@@ -51714,6 +51716,37 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
 
     if (XMEMCMP(result, ms, msSz) != 0)
         return WC_TEST_RET_ENC_NC;
+
+    /* The label at the front of the seed, as OpenSSL passes it, gives the same
+     * master secret and the same flag. */
+    XMEMCPY(lblSeed, label, XSTRLEN(label));
+    XMEMCPY(lblSeed + XSTRLEN(label), seed, seedSz);
+    XMEMSET(result, 0, sizeof(result));
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_PRF_TLS(result, msSz, pms, pmsSz, (const byte*)"", 0, lblSeed,
+            (word32)XSTRLEN(label) + seedSz, 1, sha256_mac, NULL, devId);
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(result, ms, msSz) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* An extended master secret passed the same way is approved. */
+    XMEMCPY(lblSeed, emsLabel, XSTRLEN(emsLabel));
+    XMEMCPY(lblSeed + XSTRLEN(emsLabel), seed, WC_SHA256_DIGEST_SIZE);
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_PRF_TLS(result, msSz, pms, pmsSz, (const byte*)"", 0, lblSeed,
+            (word32)XSTRLEN(emsLabel) + WC_SHA256_DIGEST_SIZE, 1, sha256_mac,
+            NULL, devId);
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
     return 0;
 }
 #endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
