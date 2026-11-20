@@ -1765,6 +1765,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #endif /* WOLFSSL_SMALL_STACK */
     byte   counterBuf[4];
     int    ret = 0;
+    int    freeRet;
 
     /* screen out bad args. */
     if (Kin == NULL || Kout == NULL) {
@@ -1826,8 +1827,12 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
             }
         }
 
-        if (cmac_inited)
-            (void)wc_CmacFree(cmac);
+        /* A failed wipe outranks an earlier error. */
+        if (cmac_inited) {
+            freeRet = wc_CmacFree(cmac);
+            if (freeRet != 0)
+                ret = freeRet;
+        }
 
         if (ret != 0) { break; }
 
@@ -1879,8 +1884,11 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(rem, sizeof(rem));
     #endif
-        if (cmac_inited)
-            (void)wc_CmacFree(cmac);
+        if (cmac_inited) {
+            freeRet = wc_CmacFree(cmac);
+            if (freeRet != 0)
+                ret = freeRet;
+        }
     }
 
     #ifdef WOLFSSL_SMALL_STACK

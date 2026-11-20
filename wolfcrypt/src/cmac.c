@@ -536,11 +536,15 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
 int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
 {
     int ret = 0;
+    int freeRet;
 
     if (cmac == NULL)
         return BAD_FUNC_ARG;
     ret = wc_CmacFinalNoFree(cmac, out, outSz);
-    (void)wc_CmacFree(cmac);
+    /* A failed wipe outranks the Final result. */
+    freeRet = wc_CmacFree(cmac);
+    if (freeRet != 0)
+        ret = freeRet;
     return ret;
 }
 
@@ -611,7 +615,9 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
         ret = wc_CmacUpdate(cmac, in, inSz);
         /* Ensure we are freed and zeroed if not calling wc_CmacFinal */
         if (ret != 0) {
-            (void)wc_CmacFree(cmac);
+            int freeRet = wc_CmacFree(cmac);
+            if (freeRet != 0)
+                ret = freeRet;
         }
     }
     if (ret == 0) {

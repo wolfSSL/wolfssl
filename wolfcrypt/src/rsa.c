@@ -284,16 +284,17 @@ RsaKey* wc_NewRsaKey_Label(const char* label, void* heap, int devId,
 int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 {
     void* heap;
+    int ret;
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
     heap = key->heap;
-    wc_FreeRsaKey(key);
+    ret = wc_FreeRsaKey(key);
     XFREE(key, heap, DYNAMIC_TYPE_RSA);
     if (key_p != NULL) {
         *key_p = NULL;
     }
-    return 0;
+    return ret;
 }
 #endif /* !WC_NO_CONSTRUCTORS */
 
@@ -1003,7 +1004,10 @@ int wc_CheckRsaKey(RsaKey* key)
     mp_forcezero(tmp);
 
     if ((rng != NULL) && (rng != key->rng)) {
-        wc_FreeRng(rng);
+        /* A failed DRBG wipe outranks the check's result. */
+        int free_ret = wc_FreeRng(rng);
+        if (free_ret != 0)
+            ret = free_ret;
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
 #endif
@@ -6026,7 +6030,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         if (err == MP_OKAY)
             err = mp_copy(q, p);
         if (err == MP_OKAY)
-            mp_copy(tmp1, q);
+            err = mp_copy(tmp1, q);
     }
 
     /* Setup RsaKey buffers: wipe and free what wc_InitRsaKey() or an earlier
@@ -6156,7 +6160,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
     if (err != 0) {
-        wc_FreeRsaKey(key);
+        int free_err = wc_FreeRsaKey(key);
+        if (free_err != 0)
+            err = free_err;
         goto out;
     }
 

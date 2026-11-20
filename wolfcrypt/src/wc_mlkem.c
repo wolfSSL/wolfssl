@@ -437,7 +437,7 @@ int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p)
     else {
         void* heap = key->heap;
 
-        wc_MlKemKey_Free(key);
+        ret = wc_MlKemKey_Free(key);
         XFREE(key, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (key_p != NULL) {
             *key_p = NULL;
@@ -822,7 +822,8 @@ static void mlkemkey_hash_wipe(wc_Sha3* h)
     ForceZero(h->t, sizeof(h->t));
     h->i = 0;
 #else
-    (void)wc_Sha3_256_Reset(h);
+    if (wc_Sha3_256_Reset(h) != 0)
+        WOLFSSL_MSG("ML-KEM hash wipe failed");
 #endif
 }
 
@@ -1079,8 +1080,12 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #ifdef WC_MLKEM_NONBLOCK
     if (ret == 0) {
         /* Resume only the generation from these seeds. */
-        (void)mlkemkey_nb_begin(key, MLKEM_NB_OP_MAKE, rand,
-            WC_ML_KEM_MAKEKEY_RAND_SZ, NULL);
+        if (mlkemkey_nb_begin(key, MLKEM_NB_OP_MAKE, rand,
+                WC_ML_KEM_MAKEKEY_RAND_SZ, NULL) == 1) {
+            WOLFSSL_MSG("ML-KEM non-blocking make key starting");
+        } else {
+            WOLFSSL_MSG("ML-KEM non-blocking make key resuming or unset");
+        }
     }
 #endif
 
@@ -2247,8 +2252,12 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
 #ifdef WC_MLKEM_NONBLOCK
     if (ret == 0) {
         /* Resume only the encapsulation of this m into this buffer. */
-        (void)mlkemkey_nb_begin(key, MLKEM_NB_OP_ENCAP, rand,
-            WC_ML_KEM_ENC_RAND_SZ, ct);
+        if (mlkemkey_nb_begin(key, MLKEM_NB_OP_ENCAP, rand,
+                WC_ML_KEM_ENC_RAND_SZ, ct) == 1) {
+            WOLFSSL_MSG("ML-KEM non-blocking encapsulate starting");
+        } else {
+            WOLFSSL_MSG("ML-KEM non-blocking encapsulate resuming or unset");
+        }
     }
 #endif
     /* Check the public key has been set. */
@@ -2788,7 +2797,11 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 #ifdef WC_MLKEM_NONBLOCK
     if (ret == 0) {
         /* Resume only the decapsulation of the cipher text here. */
-        (void)mlkemkey_nb_begin(key, MLKEM_NB_OP_DECAP, NULL, 0, ct);
+        if (mlkemkey_nb_begin(key, MLKEM_NB_OP_DECAP, NULL, 0, ct) == 1) {
+            WOLFSSL_MSG("ML-KEM non-blocking decapsulate starting");
+        } else {
+            WOLFSSL_MSG("ML-KEM non-blocking decapsulate resuming or unset");
+        }
     }
 #endif
     /* Decrypt and derive the re-encryption inputs. Runs once; a non-blocking

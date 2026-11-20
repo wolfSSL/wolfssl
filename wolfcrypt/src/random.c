@@ -386,9 +386,9 @@ wc_static_assert(DRBG_SUCCESS == 0);
                 &cur_extra_entropy_epoch_get_handler,
                 handler))
         {
-            (void)wc_RNG_entropy_epoch_import(WC_RNG_ENTROPY_EPOCH_INVALID,
-                                              init_extra_entropy_epoch,
-                                              &extra_entropy_epoch_local);
+            wc_RNG_entropy_epoch_import(WC_RNG_ENTROPY_EPOCH_INVALID,
+                                        init_extra_entropy_epoch,
+                                        &extra_entropy_epoch_local);
             extra_entropy_epoch_get_arg = arg;
             return 0;
         }
@@ -422,7 +422,7 @@ wc_static_assert(DRBG_SUCCESS == 0);
                                           &extra_entropy_epoch_local))
         {
             wc_RNG_extra_entropy_epoch_get_handler_t expected_null = NULL;
-            (void)wolfSSL_Atomic_Func_Ptr_CompareExchange(
+            wolfSSL_Atomic_Func_Ptr_CompareExchange(
                 &extra_entropy_epoch_get_handler,
                 &expected_null,
                 *handler);
@@ -443,7 +443,7 @@ wc_static_assert(DRBG_SUCCESS == 0);
                     wc_RNG_entropy_epoch_export(&extra_entropy_epoch_local);
                 if (cur_extra_entropy_epoch != cur_extra_entropy_epoch_local) {
                     wc_RNG_global_invalidate_entropy();
-                    (void)wc_RNG_entropy_epoch_import(
+                    wc_RNG_entropy_epoch_import(
                         cur_extra_entropy_epoch_local,
                         cur_extra_entropy_epoch,
                         &extra_entropy_epoch_local);
@@ -1100,8 +1100,8 @@ static WARN_UNUSED_RESULT int Hash_df(DRBG_internal* drbg, byte* out,
             ret = wc_Sha256Final(sha, digest);
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-        if (ret != 0)
-            (void)wc_Sha256Reset(sha);
+        if ((ret != 0) && (wc_Sha256Reset(sha) != 0))
+            WOLFSSL_MSG("SHA-256 reset failed");
 #else
         wc_Sha256Free(sha);
 #endif
@@ -1257,7 +1257,7 @@ static WARN_UNUSED_RESULT int NextSeedPurge(WC_RNG *rng)
                         lenp, &expected, WC_DRBG_NEXT_SEED_EMPTY))
                 {
                     expected = WC_DRBG_NEXT_SEED_PURGED;
-                    (void)wolfSSL_Atomic_Int_CompareExchange(
+                    wolfSSL_Atomic_Int_CompareExchange(
                         lenp, &expected, WC_DRBG_NEXT_SEED_EMPTY);
                 }
             }
@@ -1306,7 +1306,7 @@ static int NextSeedProducerRelease(wolfSSL_Atomic_Int *lenp,
         return 0;
     ForceZero(seed_buf, seed_buf_sz);
     expected = WC_DRBG_NEXT_SEED_PURGED;
-    (void)wolfSSL_Atomic_Int_CompareExchange(lenp, &expected,
+    wolfSSL_Atomic_Int_CompareExchange(lenp, &expected,
                                        WC_DRBG_NEXT_SEED_EMPTY);
     return BUSY_E;
 }
@@ -1955,8 +1955,8 @@ static WARN_UNUSED_RESULT int Hash_gen(DRBG_internal* drbg, byte* out,
         if (ret == 0)
             ret = wc_Sha256Final(sha, digest);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-        if (ret != 0)
-            (void)wc_Sha256Reset(sha);
+        if ((ret != 0) && (wc_Sha256Reset(sha) != 0))
+            WOLFSSL_MSG("SHA-256 reset failed");
 #else
         wc_Sha256Free(sha);
 #endif
@@ -2142,8 +2142,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Generate(DRBG_internal* drbg,
             if (ret == 0)
                 ret = wc_Sha256Final(sha, digest);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-            if (ret != 0)
-                (void)wc_Sha256Reset(sha);
+            if ((ret != 0) && (wc_Sha256Reset(sha) != 0))
+                WOLFSSL_MSG("SHA-256 reset failed");
 #else
             wc_Sha256Free(sha);
 #endif
@@ -2187,8 +2187,8 @@ static WARN_UNUSED_RESULT int Hash_DRBG_Generate(DRBG_internal* drbg,
                 ret = wc_Sha256Final(sha, digest);
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-            if (ret != 0)
-                (void)wc_Sha256Reset(sha);
+            if ((ret != 0) && (wc_Sha256Reset(sha) != 0))
+                WOLFSSL_MSG("SHA-256 reset failed");
 #else
             wc_Sha256Free(sha);
 #endif
@@ -2458,8 +2458,8 @@ static WARN_UNUSED_RESULT int Hash512_df(DRBG_SHA512_internal* drbg, byte* out,
         if (ret == 0)
             ret = wc_Sha512Final(sha, digest);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-        if (ret != 0)
-            (void)wc_Sha512Reset(sha);
+        if ((ret != 0) && (wc_Sha512Reset(sha) != 0))
+            WOLFSSL_MSG("SHA-512 reset failed");
 #else
         wc_Sha512Free(sha);
 #endif
@@ -2626,8 +2626,8 @@ static WARN_UNUSED_RESULT int Hash512_gen(DRBG_SHA512_internal* drbg,
         if (ret == 0)
             ret = wc_Sha512Final(sha, digest);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-        if (ret != 0)
-            (void)wc_Sha512Reset(sha);
+        if ((ret != 0) && (wc_Sha512Reset(sha) != 0))
+            WOLFSSL_MSG("SHA-512 reset failed");
 #else
         wc_Sha512Free(sha);
 #endif
@@ -2767,8 +2767,8 @@ static WARN_UNUSED_RESULT int Hash512_DRBG_Generate(DRBG_SHA512_internal* drbg,
             if (ret == 0)
                 ret = wc_Sha512Final(sha, digest);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-            if (ret != 0)
-                (void)wc_Sha512Reset(sha);
+            if ((ret != 0) && (wc_Sha512Reset(sha) != 0))
+                WOLFSSL_MSG("SHA-512 reset failed");
 #else
             wc_Sha512Free(sha);
 #endif
@@ -2812,8 +2812,8 @@ static WARN_UNUSED_RESULT int Hash512_DRBG_Generate(DRBG_SHA512_internal* drbg,
             if (ret == 0)
                 ret = wc_Sha512Final(sha, digest);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-            if (ret != 0)
-                (void)wc_Sha512Reset(sha);
+            if ((ret != 0) && (wc_Sha512Reset(sha) != 0))
+                WOLFSSL_MSG("SHA-512 reset failed");
 #else
             wc_Sha512Free(sha);
 #endif
@@ -4244,7 +4244,8 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
                  * the whole latch, mutex included. */
                 ret = wc_LockMutex(&rng->mutex);
                 if (ret != 0) {
-                    (void)wc_FreeMutex(&rng->mutex);
+                    if (wc_FreeMutex(&rng->mutex) != 0)
+                        WOLFSSL_MSG("RNG mutex free failed");
                     rng->flags &= ~WC_RNG_FLAG_FULL_MUTEX;
                 }
             }
@@ -4256,9 +4257,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
     #ifndef NO_SHA256
         if (rng->drbgType == WC_DRBG_SHA256) {
-            if (drbg_instantiated) {
-                (void)Hash_DRBG_Uninstantiate(
-                    (DRBG_internal *)rng->drbg);
+            /* A failed wipe outranks the error that led here. */
+            if (drbg_instantiated &&
+                (Hash_DRBG_Uninstantiate((DRBG_internal *)rng->drbg) !=
+                 DRBG_SUCCESS)) {
+                ret = RNG_FAILURE_E;
             }
             #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
             XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
@@ -4268,9 +4271,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
             XFREE(rng->health_check_scratch, rng->heap,
                    DYNAMIC_TYPE_TMP_BUFFER);
             rng->health_check_scratch = NULL;
-            if (drbg_scratch_instantiated)
-                (void)Hash_DRBG_Uninstantiate(
-                    (DRBG_internal *)rng->drbg_scratch);
+            if (drbg_scratch_instantiated &&
+                (Hash_DRBG_Uninstantiate(
+                     (DRBG_internal *)rng->drbg_scratch) != DRBG_SUCCESS)) {
+                ret = RNG_FAILURE_E;
+            }
             XFREE(rng->drbg_scratch, rng->heap, DYNAMIC_TYPE_RNG);
             rng->drbg_scratch = NULL;
             #endif /* WOLFSSL_SMALL_STACK_CACHE */
@@ -4278,9 +4283,10 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_DRBG_SHA512
         if (rng->drbgType == WC_DRBG_SHA512) {
-            if (drbg_instantiated) {
-                (void)Hash512_DRBG_Uninstantiate(
-                    (DRBG_SHA512_internal *)rng->drbg512);
+            if (drbg_instantiated &&
+                (Hash512_DRBG_Uninstantiate(
+                     (DRBG_SHA512_internal *)rng->drbg512) != DRBG_SUCCESS)) {
+                ret = RNG_FAILURE_E;
             }
             #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
             XFREE(rng->drbg512, rng->heap, DYNAMIC_TYPE_RNG);
@@ -4290,8 +4296,11 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
             XFREE(rng->health_check_scratch_512, rng->heap,
                    DYNAMIC_TYPE_TMP_BUFFER);
             rng->health_check_scratch_512 = NULL;
-            if (drbg_scratch_instantiated)
-                (void)Hash512_DRBG_Uninstantiate(rng->drbg512_scratch);
+            if (drbg_scratch_instantiated &&
+                (Hash512_DRBG_Uninstantiate(rng->drbg512_scratch) !=
+                 DRBG_SUCCESS)) {
+                ret = RNG_FAILURE_E;
+            }
             XFREE(rng->drbg512_scratch, rng->heap, DYNAMIC_TYPE_RNG);
             rng->drbg512_scratch = NULL;
             #endif /* WOLFSSL_SMALL_STACK_CACHE */
@@ -4315,13 +4324,16 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
          (flags & WC_RNG_INIT_FLAG_USE_AUTO_LOCK))) {
         ret = RngAutoLockInit(rng);
         if (ret != 0) {
+            int free_ret;
             /* Unpublished instance: no latch needed, and the latch may be
              * born held (_LOCK_INITIALLY), which wc_FreeRng() would refuse. */
 #ifdef WC_RNG_HAVE_LOCK
-            (void)wc_FreeRng_PreLocked(rng);
+            free_ret = wc_FreeRng_PreLocked(rng);
 #else
-            (void)wc_FreeRng(rng);
+            free_ret = wc_FreeRng(rng);
 #endif
+            if (free_ret != 0)
+                ret = free_ret;
         }
     }
 #endif
@@ -4331,7 +4343,7 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
         (WOLFSSL_ATOMIC_LOAD(seedRng->lock) & WC_RNG_LOCK_REQUIRED) &&
         (! (seedRng->flags & WC_RNG_FLAG_NO_RBGC_PARENT)))
     {
-        (void)wolfSSL_Atomic_Uint_FetchAdd(&seedRng->RBGC_refcount, 1U);
+        wolfSSL_Atomic_Uint_FetchAdd(&seedRng->RBGC_refcount, 1U);
         rng->RBGC_parent = seedRng;
     }
 #endif
@@ -4477,8 +4489,9 @@ int wc_InitRngFixedSeed(WC_RNG* rng, const byte* seed, word32 seedSz)
      * with another DRBG-less source (CUSTOM_RAND_GENERATE_BLOCK) returns 0
      * with no DRBG and would then generate without the seed. */
     if ((ret == 0) && !wc_RNG_DRBG_Present(rng)) {
-        (void)wc_FreeRng(rng);
-        ret = WRONG_TYPE_OBJECT_E;
+        ret = wc_FreeRng(rng);
+        if (ret == 0)
+            ret = WRONG_TYPE_OBJECT_E;
     }
 
     return ret;
@@ -4649,7 +4662,8 @@ static int wc_RNG_global_fallback_init_local(const byte* seed, word32 seedSz,
         break;
     }
     if (ret != 0) {
-        (void)wc_RNG_lock_put(&global_fallback_rng, 0);
+        if (wc_RNG_lock_put(&global_fallback_rng, 0) != 0)
+            WOLFSSL_MSG("global fallback RNG unlock failed");
         return ret;
     }
 
@@ -4791,7 +4805,8 @@ static WC_MAYBE_UNUSED int RngLockOrphanCheck(WC_RNG* rng,
         if ((cas_ret == 0) &&
             (! (*cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)))
         {
-            (void)wc_RNG_invalidate_entropy(rng);
+            if (wc_RNG_invalidate_entropy(rng) != 0)
+                WOLFSSL_MSG("orphaned RNG entropy invalidation failed");
         }
         return OBJECT_ORPHANED_E;
     }
@@ -4835,8 +4850,9 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
             ++rng->_stats_locks_refused; /* racy */
             #endif
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-            if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-                (void)wc_UnLockMutex(&rng->mutex);
+            if ((rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+                (wc_UnLockMutex(&rng->mutex) != 0))
+                WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
             return orphan_ret;
         }
@@ -4865,8 +4881,9 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
             ++rng->_stats_locks_refused; /* racy */
             #endif
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-            if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-                (void)wc_UnLockMutex(&rng->mutex);
+            if ((rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+                (wc_UnLockMutex(&rng->mutex) != 0))
+                WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
             return NEEDS_RECOVERY_E;
         }
@@ -4899,8 +4916,9 @@ int wc_RNG_lock_get(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* CAS failure with the mutex held means a non-mutex claimant holds
      * the latch (mixed-discipline use); back out the mutex. */
-    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-        (void)wc_UnLockMutex(&rng->mutex);
+    if ((rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+        (wc_UnLockMutex(&rng->mutex) != 0))
+        WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
 
     if (cur_lock & WC_RNG_LOCK_HELD)
@@ -4950,8 +4968,9 @@ int wc_RNG_lock_get_conditional(WC_RNG* rng,
             ++rng->_stats_locks_refused; /* racy */
             #endif
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-            if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-                (void)wc_UnLockMutex(&rng->mutex);
+            if ((rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+                (wc_UnLockMutex(&rng->mutex) != 0))
+                WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
             return orphan_ret;
         }
@@ -4964,8 +4983,9 @@ int wc_RNG_lock_get_conditional(WC_RNG* rng,
         ++rng->_stats_locks_refused; /* racy */
         #endif
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-        if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-            (void)wc_UnLockMutex(&rng->mutex);
+        if ((rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+            (wc_UnLockMutex(&rng->mutex) != 0))
+            WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
         return NEEDS_RECOVERY_E;
     }
@@ -4993,8 +5013,9 @@ int wc_RNG_lock_get_conditional(WC_RNG* rng,
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
     /* CAS failure with the mutex held means a non-mutex claimant holds
      * the latch (mixed-discipline use); back out the mutex. */
-    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-        (void)wc_UnLockMutex(&rng->mutex);
+    if ((rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+        (wc_UnLockMutex(&rng->mutex) != 0))
+        WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
 
     if ((cur_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED) !=
@@ -5038,7 +5059,33 @@ int wc_RNG_lock_get_unconditional(WC_RNG* rng) {
 void wc_RNG_lock_put_unconditional(WC_RNG* rng) {
     if (rng == NULL)
         return;
-    (void)wolfSSL_Atomic_Uint_FetchSub(&rng->lock, WC_RNG_LOCK_HELD);
+    wolfSSL_Atomic_Uint_FetchSub(&rng->lock, WC_RNG_LOCK_HELD);
+}
+
+/* Finish a release whose CAS committed: unlock, then report the recovery
+ * obligation ahead of an unlock error so the caller still purges. */
+static int rng_lock_put_result(WC_RNG* rng, WC_RNG_lock_arg_t new_lock)
+{
+    int ret = 0;
+
+    (void)rng;
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX) {
+        ret = wc_UnLockMutex(&rng->mutex);
+        if (ret != 0)
+            WOLFSSL_MSG("RNG mutex unlock failed");
+    }
+#endif
+    if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
+        return NEEDS_RECOVERY_E;
+#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
+    /* An epoch not yet propagated here is the latch's obligation, delivered
+     * lazily; the read is unleased (see rng_entropy_event_propagate()). */
+    if (rng->entropy_epoch != current_entropy_epoch())
+        return NEEDS_RECOVERY_E;
+#endif
+    return ret;
 }
 
 int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
@@ -5077,22 +5124,7 @@ int wc_RNG_lock_put(WC_RNG* rng, WC_RNG_lock_arg_t extra_bits)
         return cas_ret;
     }
 
-#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-    if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-        (void)wc_UnLockMutex(&rng->mutex);
-#endif
-
-    if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
-        return NEEDS_RECOVERY_E;
-#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    /* An increment not yet propagated to this instance is the same obligation
-     * the latch carries, delivered lazily: report it here so that a holder
-     * whose last operation straddled the event learns of it at release.  The
-     * read is unleased by design (see rng_entropy_event_propagate()). */
-    if (rng->entropy_epoch != current_entropy_epoch())
-        return NEEDS_RECOVERY_E;
-#endif
-    return 0;
+    return rng_lock_put_result(rng, new_lock);
 }
 
 int wc_RNG_lock_put_conditional(WC_RNG* rng,
@@ -5144,18 +5176,7 @@ int wc_RNG_lock_put_conditional(WC_RNG* rng,
                 &rng->lock, &expected,
                 new_lock))
         {
-#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-            if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-                (void)wc_UnLockMutex(&rng->mutex);
-#endif
-            if (new_lock & WC_RNG_LOCK_ENTROPY_INVALIDATED)
-                return NEEDS_RECOVERY_E;
-#ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-            /* as in wc_RNG_lock_put() */
-            if (rng->entropy_epoch != current_entropy_epoch())
-                return NEEDS_RECOVERY_E;
-#endif
-            return 0;
+            return rng_lock_put_result(rng, new_lock);
         }
         /* Retry only when the mismatch is confined to the transient latch
          * bits; a mismatch anywhere else (_HELD, _REQUIRED, the extra
@@ -6916,7 +6937,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
                  * code and wins over the release's BUSY_E.)
                  *
                  * Note, a failed release cannot brick the RNG and needs no
-                 * disposition at the several (void) sites below: its one cause
+                 * disposition at the logging release sites below: its one cause
                  * is a purge's _PURGED repaint (producers cannot claim a
                  * PRODUCING word, consumers exchange only from READY, and the
                  * purge is the sole other writer), and the BUSY arm is its own
@@ -6929,8 +6950,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
                  * swallowing it: at worst one silent refill from offset
                  * zero.
                  */
-                (void)NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
-                                              nextSeedSz, cur);
+                if (NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
+                                            nextSeedSz, cur) != 0)
+                    WOLFSSL_MSG("next seed release refused");
                 return ret;
             }
 
@@ -6979,8 +7001,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
                  * instead; the seed-gather failure is the more
                  * informative code and wins over the release's
                  * BUSY_E.) */
-                (void)NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
-                                              nextSeedSz, cur);
+                if (NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
+                                            nextSeedSz, cur) != 0)
+                    WOLFSSL_MSG("next seed release refused");
                 return ret;
             }
 
@@ -7048,8 +7071,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
              * converge on EMPTY, and the health-test failure is the more
              * informative code and wins over the release's BUSY_E. */
             ForceZero(rng->nextSeed, nextSeedSz);
-            (void)NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
-                                          nextSeedSz, WC_DRBG_NEXT_SEED_EMPTY);
+            if (NextSeedProducerRelease(&rng->nextSeedLen, rng->nextSeed,
+                    nextSeedSz, WC_DRBG_NEXT_SEED_EMPTY) != 0)
+                WOLFSSL_MSG("next seed release refused");
 
             /* The health-test failure belongs to the depositor's seed
              * collection, not to the destination RNG.  The depositor collects
@@ -7084,9 +7108,10 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
              * re-adjudicates.  The primary error is the more
              * informative code and wins over a purge-discard's
              * BUSY_E. */
-            (void)NextSeedProducerRelease(
-                &rng->nextSeedLen, rng->nextSeed,
-                nextSeedSz, (WC_ATOMIC_INT_ARG)nextSeedSz);
+            if (NextSeedProducerRelease(
+                    &rng->nextSeedLen, rng->nextSeed,
+                    nextSeedSz, (WC_ATOMIC_INT_ARG)nextSeedSz) != 0)
+                WOLFSSL_MSG("next seed release refused");
             return ret;
         }
     }
@@ -7350,7 +7375,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
              * make, not ours. */
             {
                 WC_ATOMIC_INT_ARG expected_purged = WC_DRBG_NEXT_SEED_PURGED;
-                (void)wolfSSL_Atomic_Int_CompareExchange(
+                wolfSSL_Atomic_Int_CompareExchange(
                     &rng->nextSeedLen, &expected_purged,
                     WC_DRBG_NEXT_SEED_EMPTY);
             }
@@ -7439,7 +7464,9 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
     }
     else {
         wc_drbg_reseed_ctr_t ctr = WC_RESEED_INTERVAL;
-        (void)wc_RNG_DRBG_GetReseedCtr(rng, &ctr);
+        /* On failure ctr keeps the interval, the conservative reading. */
+        if (wc_RNG_DRBG_GetReseedCtr(rng, &ctr) != 0)
+            WOLFSSL_MSG("RNG reseed counter read failed");
         if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
             /* Not reachable here -- retained only for uniformity with
              * wc_RNG_GenerateBlock() and wc_RNG_DRBG_Reseed_Now().  Where
@@ -8075,7 +8102,7 @@ int wc_FreeRng(WC_RNG* rng)
         if ((parent != NULL) && wolfSSL_Atomic_Ptr_CompareExchange(
                 (void * volatile *)&rng->RBGC_parent, (void **)&parent, NULL))
         {
-            (void)wolfSSL_Atomic_Uint_FetchSub(&parent->RBGC_refcount, 1U);
+            wolfSSL_Atomic_Uint_FetchSub(&parent->RBGC_refcount, 1U);
         }
     }
 #endif
@@ -8261,9 +8288,15 @@ int wc_FreeRng(WC_RNG* rng)
         /* If the latch is held, the caller is the holder (enforced when
          * _LOCK_REQUIRED) and owns the mutex: release it before
          * destruction.  A free latch means the mutex is unowned. */
+        int unlock_ret = 0;
+        int free_ret;
         if (WOLFSSL_ATOMIC_LOAD(rng->lock) & WC_RNG_LOCK_HELD)
-            (void)wc_UnLockMutex(&rng->mutex);
-        (void)wc_FreeMutex(&rng->mutex);
+            unlock_ret = wc_UnLockMutex(&rng->mutex);
+        free_ret = wc_FreeMutex(&rng->mutex);
+        if (unlock_ret == 0)
+            unlock_ret = free_ret;
+        if (ret == 0)
+            ret = unlock_ret;
         rng->flags &= ~WC_RNG_FLAG_FULL_MUTEX;
     }
 #endif
@@ -8311,8 +8344,9 @@ int wc_FreeRng(WC_RNG* rng)
         /* deallocating a held RNG induces undefined behavior.  must return
          * failure. */
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-        if (rng->flags & WC_RNG_FLAG_FULL_MUTEX)
-            (void)wc_UnLockMutex(&rng->mutex);
+        if ((rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+            (wc_UnLockMutex(&rng->mutex) != 0))
+            WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
         return ret;
     }
@@ -8322,8 +8356,9 @@ int wc_FreeRng(WC_RNG* rng)
     wc_RNG_lock_put_unconditional(rng);
 
 #ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
-    if ((ret != 0) && (rng->flags & WC_RNG_FLAG_FULL_MUTEX))
-        (void)wc_UnLockMutex(&rng->mutex);
+    if ((ret != 0) && (rng->flags & WC_RNG_FLAG_FULL_MUTEX) &&
+        (wc_UnLockMutex(&rng->mutex) != 0))
+        WOLFSSL_MSG("RNG mutex unlock failed");
 #endif
 
     return ret;
@@ -11760,12 +11795,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #ifdef WOLFSSL_KEEP_RNG_SEED_FD_OPEN
         if (!os->keepSeedFdOpen && os->seedFdOpen)
         {
-            close(os->fd);
+            if (close(os->fd) != 0)
+                WOLFSSL_MSG("seed fd close failed");
             os->fd = -1;
             os->seedFdOpen = 0;
         }
     #else
-        close(os->fd);
+        if (close(os->fd) != 0)
+            WOLFSSL_MSG("seed fd close failed");
     #endif /* WOLFSSL_KEEP_RNG_SEED_FD_OPEN */
 #else /* NO_FILESYSTEM */
         (void)output;
