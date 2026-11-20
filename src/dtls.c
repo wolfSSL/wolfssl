@@ -426,7 +426,7 @@ static int FindExtByType(WolfSSL_ConstVector* ret, word16 extType,
 #if defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
 #ifdef HAVE_SESSION_TICKET
 static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
-                            int* resume)
+                            int* resume, int* skipSessionIdCheck)
 {
     WolfSSL_ConstVector tlsxSessionTicket;
     byte tempTicket[SESSION_TICKET_LEN];
@@ -440,9 +440,16 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
                          &tlsxFound);
     if (ret != 0)
         return ret;
-    if (tlsxSessionTicket.size == 0)
+    if (tlsxSessionTicket.size == 0) {
+        /* The server answers a blank ticket with a new one, not resumption */
+        if (tlsxFound && ssl->ctx->ticketEncCb != NULL &&
+                !ssl->options.noTicketTls12)
+            *skipSessionIdCheck = TRUE;
         return 0;
-    if (tlsxSessionTicket.size > SESSION_TICKET_LEN)
+    }
+    *skipSessionIdCheck = TRUE;
+    if (ssl->options.noTicketTls12 ||
+            tlsxSessionTicket.size > SESSION_TICKET_LEN)
         return 0;
     XMEMCPY(tempTicket, tlsxSessionTicket.elements, tlsxSessionTicket.size);
     ret = DoDecryptTicket(ssl, tempTicket, (word32)tlsxSessionTicket.size, &it);
@@ -522,12 +529,13 @@ static int TlsResumptionIsValid(const WOLFSSL* ssl, WolfSSL_CH* ch,
                                 int* resume)
 {
     int ret;
-
 #ifdef HAVE_SESSION_TICKET
-    ret = TlsTicketIsValid(ssl, ch->extension, resume);
+    int skipSessionIdCheck = FALSE;
+
+    ret = TlsTicketIsValid(ssl, ch->extension, resume, &skipSessionIdCheck);
     if (ret != 0)
         return ret;
-    if (*resume)
+    if (*resume || skipSessionIdCheck)
         return 0;
 #endif /* HAVE_SESSION_TICKET */
     ret = TlsSessionIdIsValid(ssl, ch->sessionId, resume);
