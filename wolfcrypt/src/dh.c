@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#define WC_FIPS_LL_CRYPTO
 #define _WC_BUILDING_DH_C
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
@@ -27,7 +26,8 @@
 #ifndef NO_DH
 
 #if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2) && \
+    (HAVE_FIPS_VERSION < 7)
 
     #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$e")

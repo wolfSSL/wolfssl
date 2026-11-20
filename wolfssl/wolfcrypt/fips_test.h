@@ -98,7 +98,9 @@ enum FipsCastId {
     FIPS_CAST_AES_CMAC          = 26,
     FIPS_CAST_SHAKE             = 27,
     FIPS_CAST_AES_KW            = 28,
-    FIPS_CAST_COUNT             = 29
+    /* IG 10.3.A Note10: deterministic ECDSA signing has its own CAST. */
+    FIPS_CAST_ECDSA_DET         = 29,
+    FIPS_CAST_COUNT             = 30
 };
 #define WC_FIPS_ENUM_CAST_ID_DEFINED
 

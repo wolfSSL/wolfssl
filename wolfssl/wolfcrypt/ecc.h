@@ -763,7 +763,7 @@ WOLFSSL_API
 int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
-WOLFSSL_API
+WOLFSSL_FIPS_V7_LOCAL
 int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime);
 WOLFSSL_API
 int wc_ecc_get_generator(ecc_point* ecp, int curve_idx);
@@ -862,7 +862,7 @@ int wc_ecc_set_deterministic(ecc_key* key, byte flag);
 WOLFSSL_API
 int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag,
         enum wc_HashType hashType);
-WOLFSSL_API
+WOLFSSL_FIPS_V7_LOCAL
 int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         enum wc_HashType hashType, mp_int* priv, mp_int* k, mp_int* order,
         void* heap);
@@ -1198,7 +1198,7 @@ WOLFSSL_LOCAL int wc_ecc_oid_cache_init(void);
 WOLFSSL_LOCAL void wc_ecc_oid_cache_free(void);
 #endif
 
-WOLFSSL_API
+WOLFSSL_FIPS_V7_LOCAL
 int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order);
 
 #ifdef WOLFSSL_DSP

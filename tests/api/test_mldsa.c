@@ -31695,7 +31695,8 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 }
 
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
-    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
 #define MLDSA_TEST_ENC_MAX_K    8
 #define MLDSA_TEST_ENC_GUARD    32
 #define MLDSA_TEST_ENC_SZ       \
@@ -31743,8 +31744,10 @@ static word32 test_mldsa_rand(word32* state)
 int test_mldsa_vec_encode_exact_len(void)
 {
     EXPECT_DECLS;
+/* FIPS v7 omits these test hooks. */
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
-    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
     static const byte etas[] = {
     #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
         2,
@@ -31853,9 +31856,12 @@ int test_mldsa_vec_encode_exact_len(void)
 int test_mldsa_encode_w1_large_values(void)
 {
     EXPECT_DECLS;
+/* FIPS v7 omits these test hooks; the ML-DSA sign and verify tests reach the
+ * encoders directly. */
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
-     !defined(WOLFSSL_MLDSA_NO_VERIFY))
+     !defined(WOLFSSL_MLDSA_NO_VERIFY)) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
 
     sword32 w1[MLDSA_N];
     unsigned int j, k;

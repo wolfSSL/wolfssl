@@ -237,6 +237,11 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
      * target kernel is FIPS. */
     #define LINUXKM_ECC192
 #endif
+/* FIPS v7: no P-192 ECDH (SP 800-56Ar3 Table 24); P-192 ECDSA verify stays
+ * (SP 800-131Ar2 section 3). */
+#if defined(LINUXKM_ECC192) && !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
+    #define LINUXKM_ECDH_ECC192
+#endif
 #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
     (ECC_MIN_KEY_SZ <= 521) && !defined(LINUXKM_ECC521)
     #define LINUXKM_ECC521
@@ -921,15 +926,15 @@ static int linuxkm_lkcapi_register(void)
     */
     #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(WC_LINUX_CONFIG_SELFTESTS)
-        #if defined(LINUXKM_ECC192)
+        #if defined(LINUXKM_ECDH_ECC192)
         REGISTER_ALG_OPTIONAL(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
-        #endif /* LINUXKM_ECC192 */
+        #endif /* LINUXKM_ECDH_ECC192 */
         REGISTER_ALG_OPTIONAL(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
         REGISTER_ALG_OPTIONAL(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
     #else
-        #if defined(LINUXKM_ECC192)
+        #if defined(LINUXKM_ECDH_ECC192)
         REGISTER_ALG(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
-        #endif /* LINUXKM_ECC192 */
+        #endif /* LINUXKM_ECDH_ECC192 */
         REGISTER_ALG(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
         REGISTER_ALG(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
     #endif /* CONFIG_CRYPTO_FIPS && etc.. */
@@ -1477,9 +1482,9 @@ static int linuxkm_lkcapi_unregister(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_MLKEM */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
-    #if defined(LINUXKM_ECC192)
+    #if defined(LINUXKM_ECDH_ECC192)
         UNREGISTER_ALG(ecdh_nist_p192, kpp);
-    #endif /* LINUXKM_ECC192 */
+    #endif /* LINUXKM_ECDH_ECC192 */
     UNREGISTER_ALG(ecdh_nist_p256, kpp);
     UNREGISTER_ALG(ecdh_nist_p384, kpp);
     #ifdef LINUXKM_ECC521

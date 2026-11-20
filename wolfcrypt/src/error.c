@@ -798,6 +798,9 @@ static const char* wc_GetErrorStringIdx(int error)
     case WC_SPAN2_TO_IDX(HWPUF_ZEROIZE_E):
         return "HWPUF zeroize failed";
 
+    case WC_SPAN2_TO_IDX(ECDSA_DET_KAT_FIPS_E):
+        return "wolfCrypt FIPS deterministic ECDSA Known Answer Test Failure";
+
     default:
         return wc_unknown_error_str;
     }
@@ -1060,6 +1063,7 @@ static WC_MAYBE_UNUSED void wc_ErrorStringsCheck(int error)
     case HWPUF_GENERATE_KEY_E:
     case HWPUF_GET_KEY_E:
     case HWPUF_ZEROIZE_E:
+    case ECDSA_DET_KAT_FIPS_E:
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

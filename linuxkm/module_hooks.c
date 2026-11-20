@@ -770,6 +770,11 @@ int wc_linuxkm_check_for_intr_signals(void) {
     return 0;
 }
 
+/* Process context only: linux-7.0 Documentation/timers/delay_sleep_functions.rst. */
+void wc_linuxkm_sleep_briefly(void) {
+    usleep_range(20, 100);
+}
+
 void wc_linuxkm_relax_long_loop(void) {
     #if WC_LINUXKM_MAX_NS_WITHOUT_YIELD >= 0
     if (wc_linuxkm_can_block()) {
@@ -2454,6 +2459,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_end = wc_linuxkm_sig_ignore_end;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_relax_long_loop = wc_linuxkm_relax_long_loop;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sleep_briefly = wc_linuxkm_sleep_briefly;
 
 #ifdef CONFIG_KASAN
     wolfssl_linuxkm_pie_redirect_table.kasan_disable_current = kasan_disable_current;
