@@ -1646,13 +1646,15 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         }
         else {
             ret = wolfSSL_DupSession(session, ssl->session, 0);
-            if (ret != WOLFSSL_SUCCESS)
-                WOLFSSL_MSG("Session duplicate failed");
 #ifdef HAVE_EX_DATA
-            else
-                /* Keep the cache entry the sole owner */
+            /* Keep the cache entry the sole owner. Done on failure too: the
+             * dup copies the entry's ex_data pointers before anything in it
+             * can fail. */
+            if (ssl->session != NULL)
                 SessionDropExDataCopy(ssl->session);
 #endif
+            if (ret != WOLFSSL_SUCCESS)
+                WOLFSSL_MSG("Session duplicate failed");
         }
     }
 
@@ -4498,17 +4500,15 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
         output->peer = NULL;
 #endif
 
-#ifdef HAVE_EX_DATA_CRYPTO
+#ifdef HAVE_EX_DATA
     if (ret == WOLFSSL_SUCCESS && transferExData &&
             input->type != WOLFSSL_SESSION_TYPE_CACHE &&
             output->type != WOLFSSL_SESSION_TYPE_CACHE) {
         /* If there is a session cache the input session may not own
          * its ex_data in that case we have to retrieve it from the cache
-         * and duplicated it to the output */
-        const WOLFSSL_CRYPTO_EX_DATA* data = &input->ex_data;
+         * and duplicated it to the output. This is needed with or without
+         * dup callbacks: the handle holds no copy to carry over. */
 #ifndef NO_SESSION_CACHE
-        WOLFSSL_CRYPTO_EX_DATA        fetched = {0};
-
         if (!input->ownExData) {
             WOLFSSL_SESSION* cacheSess = NULL;
             SessionRow* sessRow = NULL;
@@ -4516,19 +4516,25 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
             /* on success of this function the lock is held so we can operate
              * on cacheSess safely */
             if (SessionExDataCacheFind(input, 0, &cacheSess, &sessRow) == 1) {
-                XMEMCPY(&fetched, &cacheSess->ex_data, sizeof(fetched));
+                XMEMCPY(&output->ex_data, &cacheSess->ex_data,
+                        sizeof(output->ex_data));
+#ifdef HAVE_EX_DATA_CRYPTO
+                ret = crypto_ex_cb_dup_data(&cacheSess->ex_data,
+                        &output->ex_data, crypto_ex_cb_ctx_session);
+#endif
                 SESSION_ROW_UNLOCK(sessRow);
             }
-
-            XMEMCPY(&output->ex_data, &fetched, sizeof(fetched));
-            data = &fetched; /* empty if the entry was already evicted */
         }
-#endif /* !NO_SESSION_CACHE */
-
-        ret = crypto_ex_cb_dup_data(data, &output->ex_data,
-                                    crypto_ex_cb_ctx_session);
-    }
+        else
+#endif/* !NO_SESSION_CACHE */
+        {
+#ifdef HAVE_EX_DATA_CRYPTO
+            ret = crypto_ex_cb_dup_data(&input->ex_data, &output->ex_data,
+                                        crypto_ex_cb_ctx_session);
 #endif
+        }
+    }
+#endif /* HAVE_EX_DATA */
 
 #ifdef HAVE_EX_DATA
     if (!transferExData)

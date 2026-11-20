@@ -7553,6 +7553,14 @@ int test_tls13_session_ex_data_dup(void)
     test_tls13_0rtt_ex_data_frees = 0;
     wolfSSL_SESSION_free(dup);
     ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 1);
+
+    /* The cache entry outlives this test and still holds the counted marker.
+     * Clear it so a later eviction does not bump the shared free counter in
+     * another test. */
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
+        test_tls13_0rtt_ex_data_idx, NULL), WOLFSSL_SUCCESS);
+    ExpectNull(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s),
+        test_tls13_0rtt_ex_data_idx));
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
