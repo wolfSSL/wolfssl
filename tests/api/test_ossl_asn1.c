@@ -2185,10 +2185,22 @@ int test_wolfSSL_ASN1_TIME_to_tm(void)
     ExpectIntEQ(tm.tm_mon, 1);
     ExpectIntEQ(tm.tm_year, 100);
     ExpectIntEQ(tm.tm_isdst, 0);
-#ifdef XMKTIME
     ExpectIntEQ(tm.tm_wday, 2);
     ExpectIntEQ(tm.tm_yday, 52);
-#endif
+
+    ExpectIntEQ(ASN1_TIME_set_string(&asnTime, "99991231235959Z"), 1);
+    ExpectIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 1);
+    ExpectIntEQ(tm.tm_year, 9999 - 1900);
+    ExpectIntEQ(tm.tm_wday, 5);
+    ExpectIntEQ(tm.tm_yday, 364);
+    ExpectIntEQ(ASN1_TIME_set_string(&asnTime, "20480301000000Z"), 1);
+    ExpectIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 1);
+    ExpectIntEQ(tm.tm_wday, 0);
+    ExpectIntEQ(tm.tm_yday, 60);
+    ExpectIntEQ(ASN1_TIME_set_string(&asnTime, "00000101000000Z"), 1);
+    ExpectIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 1);
+    ExpectIntEQ(tm.tm_wday, 6);
+    ExpectIntEQ(tm.tm_yday, 0);
 
     ExpectIntEQ(ASN1_TIME_set_string(&asnTime, "500222211515Z"), 1);
     ExpectIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 1);
@@ -2217,7 +2229,7 @@ int test_wolfSSL_ASN1_TIME_to_tm(void)
     ExpectIntEQ(ASN1_TIME_set_string(&asnTime, "20000222211515U"), 1);
     ExpectIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 0);
 
-#ifdef XMKTIME
+#if defined(OPENSSL_EXTRA) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
     ExpectNotNull(ASN1_TIME_adj(&asnTime, testTime, 0, 0));
     ExpectIntEQ(ASN1_TIME_to_tm(&asnTime, &tm), 1);
     ExpectIntEQ(tm.tm_sec, 47);

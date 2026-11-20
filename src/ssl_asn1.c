@@ -4697,15 +4697,27 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
     }
 
     if (ret == 1) {
+        static const int monthDays[12] = {
+            0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
+        };
+        static const int wdayOffset[12] = {
+            0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4
+        };
+        int year = localTm.tm_year + 1900;
+        int leap = ((year % 4 == 0) && (year % 100 != 0)) ||
+                   (year % 400 == 0);
+
+        localTm.tm_yday = monthDays[localTm.tm_mon] + localTm.tm_mday - 1 +
+                          ((leap && (localTm.tm_mon > 1)) ? 1 : 0);
+        /* 400 years are whole weeks; keep year positive for the divisions. */
+        year += 400;
+        if (localTm.tm_mon < 2)
+            year--;
+        localTm.tm_wday = (year + year / 4 - year / 100 + year / 400 +
+                           wdayOffset[localTm.tm_mon] + localTm.tm_mday) % 7;
+
         /* Publish to caller. */
         XMEMCPY(tm, &localTm, sizeof(*tm));
-    #ifdef XMKTIME
-        /* XMKTIME may set tm_isdst/tm_gmtoff on localTm; call after the
-         * copy so those fields stay zero in the caller's tm. */
-        XMKTIME(&localTm);
-        tm->tm_wday = localTm.tm_wday;
-        tm->tm_yday = localTm.tm_yday;
-    #endif
     }
 
     return ret;
