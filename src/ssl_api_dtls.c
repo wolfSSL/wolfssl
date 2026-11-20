@@ -1195,36 +1195,136 @@ void wolfSSL_dtls13_set_send_more_acks(WOLFSSL* ssl, int value)
 }
 #endif /* WOLFSSL_DTLS13 */
 
-/* Get the time left until the next DTLS timeout.
+#ifndef NO_ASN_TIME
+/* Check whether a sent flight waits for the peer's reply.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when a flight waits.
+ * @return  0 otherwise.
+ */
+static int DtlsFlightWaits(WOLFSSL* ssl)
+{
+    if (!IsDtlsNotSctpMode(ssl) || ssl->dtls_timeout <= 0 ||
+            ssl->options.isClosed || ssl->options.connReset ||
+            ssl->options.sentNotify || ssl->options.closeNotify ||
+            ssl->buffers.outputBuffer.length > 0)
+        return 0;
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite != NULL)
+        return 0;
+#endif
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    if (IsHsSuspendErr(ssl->error))
+        return 0;
+#endif
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version))
+        return ssl->dtls13Rtx.rtxRecords != NULL;
+#endif
+    return ssl->options.handShakeState != HANDSHAKE_DONE &&
+        (ssl->dtls_tx_msg_list != NULL || ssl->dtls_tx_msg != NULL);
+}
+
+/* Start the retransmission timer for the current flight.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ */
+static void DtlsTimerRestart(WOLFSSL* ssl)
+{
+    ssl->dtls_timer_start = LowResTimer();
+    /* Round up a second so a whole-second clock never expires it early. */
+    ssl->dtls_timer_len = (word32)ssl->dtls_timeout + 1;
+    ssl->dtls_timer_seq = ssl->keys.dtls_handshake_number;
+}
+#endif /* !NO_ASN_TIME */
+
+/* Get the seconds left until the retransmission timer expires.
+ *
+ * @param [in]  ssl   SSL/TLS object.
+ * @param [out] left  Seconds left, 0 once the timer expired.
+ * @return  1 when the timer runs.
+ * @return  0 when no timer runs.
+ */
+static int DtlsTimerLeft(WOLFSSL* ssl, word32* left)
+{
+#ifndef NO_ASN_TIME
+    word32 elapsed;
+
+    if (!DtlsFlightWaits(ssl)) {
+        ssl->dtls_timer_len = 0;
+        return 0;
+    }
+    if (ssl->dtls_timer_len == 0 ||
+            ssl->dtls_timer_seq != ssl->keys.dtls_handshake_number)
+        DtlsTimerRestart(ssl);
+
+    elapsed = LowResTimer() - ssl->dtls_timer_start;
+    *left = (elapsed < ssl->dtls_timer_len) ?
+        ssl->dtls_timer_len - elapsed : 0;
+    return 1;
+#else
+    (void)ssl;
+    (void)left;
+    return 0;
+#endif
+}
+
+/* Get the time left until the DTLS retransmission timer expires.
+ *
+ * The timer starts on the first call after a flight was sent.
  *
  * @param [in]  ssl       SSL/TLS object.
- * @param [out] timeleft  Time left until the next timeout.
- * @return  0 always.
+ * @param [out] timeleft  Time left, zero once the timer expired.
+ * @return  1 when the timer runs.
+ * @return  0 when no timer runs, or ssl or timeleft is NULL.
  */
 int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, WOLFSSL_TIMEVAL* timeleft)
 {
-    if (ssl && timeleft) {
-        XMEMSET(timeleft, 0, sizeof(WOLFSSL_TIMEVAL));
-        timeleft->tv_sec = ssl->dtls_timeout;
-    }
-    return 0;
+    word32 left = 0;
+
+    if (ssl == NULL || timeleft == NULL)
+        return 0;
+
+    XMEMSET(timeleft, 0, sizeof(WOLFSSL_TIMEVAL));
+    if (!DtlsTimerLeft(ssl, &left))
+        return 0;
+
+    timeleft->tv_sec = left;
+    return 1;
 }
 
-#ifndef NO_WOLFSSL_STUB
-/* Handle a DTLS timeout.
- *
- * Not implemented - stub for OpenSSL compatibility.
+/* Retransmit the last flight when the DTLS retransmission timer expired.
  *
  * @param [in] ssl  SSL/TLS object.
- * @return  0 always.
+ * @return  1 when the timer expired and the flight was retransmitted.
+ * @return  0 when no timer runs or it has not expired yet.
+ * @return  WOLFSSL_FATAL_ERROR when ssl is NULL or retransmitting failed.
  */
 int wolfSSL_DTLSv1_handle_timeout(WOLFSSL* ssl)
 {
-    WOLFSSL_STUB("SSL_DTLSv1_handle_timeout");
-    (void)ssl;
-    return 0;
+    word32 left = 0;
+
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+    if (!DtlsTimerLeft(ssl, &left) || left > 0)
+        return 0;
+#ifdef WOLFSSL_DTLS13
+    ssl->dtls13FastTimeout = 0;
+#endif
+    if (wolfSSL_dtls_got_timeout(ssl) != WOLFSSL_SUCCESS) {
+#ifndef NO_ASN_TIME
+        ssl->dtls_timer_len = 0;
+#endif
+        return WOLFSSL_FATAL_ERROR;
+    }
+#ifndef NO_ASN_TIME
+    DtlsTimerRestart(ssl);
+#endif
+
+    return 1;
 }
 
+#ifndef NO_WOLFSSL_STUB
 /* Set the initial DTLS timeout duration.
  *
  * Not implemented - stub for OpenSSL compatibility.
