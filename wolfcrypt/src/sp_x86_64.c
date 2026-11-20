@@ -1439,7 +1439,7 @@ static WC_INLINE int sp_2048_div_32_cond(const sp_digit* a, const sp_digit* d, s
  *
  * @return  MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_mod_32_cond(sp_digit* r, const sp_digit* a,
+WC_MAYBE_UNUSED static WC_INLINE int sp_2048_mod_32_cond(sp_digit* r, const sp_digit* a,
         const sp_digit* m)
 {
     return sp_2048_div_32_cond(a, m, NULL, r);
@@ -4357,7 +4357,7 @@ static WC_INLINE int sp_3072_div_48_cond(const sp_digit* a, const sp_digit* d, s
  *
  * @return  MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_mod_48_cond(sp_digit* r, const sp_digit* a,
+WC_MAYBE_UNUSED static WC_INLINE int sp_3072_mod_48_cond(sp_digit* r, const sp_digit* a,
         const sp_digit* m)
 {
     return sp_3072_div_48_cond(a, m, NULL, r);
@@ -6398,7 +6398,7 @@ static WC_INLINE int sp_4096_div_64_cond(const sp_digit* a, const sp_digit* d, s
  *
  * @return  MP_OKAY indicating success.
  */
-static WC_INLINE int sp_4096_mod_64_cond(sp_digit* r, const sp_digit* a,
+WC_MAYBE_UNUSED static WC_INLINE int sp_4096_mod_64_cond(sp_digit* r, const sp_digit* a,
         const sp_digit* m)
 {
     return sp_4096_div_64_cond(a, m, NULL, r);
