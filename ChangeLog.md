@@ -125,6 +125,15 @@
   because callers fold the result into constant-time masks that read a
   negative value as a match.
 
+* **Behavioral change (new internal symbol `wc_BarrierDataSink()`)**: now
+  exported on every build, since code that includes `misc.c` picks its
+  `WC_BARRIER_DATA()` arm from its own compiler and flags.  Only the portable
+  arm (non-GCC compilers such as MSVC and IAR, or `WOLFSSL_NO_ASM`) calls it;
+  `WC_BARRIER_DATA_USES_SINK` marks that arm.
+
+* **Behavioral change (`secure_zero_memory()` removed from `blake2-impl.h`)**:
+  BLAKE2 now wipes with `ForceZero()`; use `wc_ForceZero()` instead.
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -184,6 +193,17 @@
   and Keil's AC5 armcc under `__KEIL__`, `__asm__`, which neither accepts.
   Both now get `__asm`, which IAR keeps under `--strict` and both Keil
   compilers accept.
+
+* **Fix (`wc_ForceZero()`/`wc_ConstantCompare()` undefined without
+  `memory.c`)**: `--disable-memory`, `--enable-leanpsk` and `--enable-leantls`
+  builds could not link them.  Both moved to `wc_port.c`, declared in
+  `wc_port.h`.  No ABI change.
+
+* **Fix (minimal builds failed to link `ForceZero()`/`ConstantCompare()`)**:
+  `settings.h` no longer defines `WOLFSSL_NO_FORCE_ZERO` or
+  `WOLFSSL_NO_CONST_CMP` for small `WOLFCRYPT_ONLY` builds; SHA-1 and
+  ChaCha20-Poly1305 still call them.  Integrators who supply their own must
+  now define the macro themselves.  `WOLFSSL_USE_FORCE_ZERO` is a no-op.
 
 ## Fixes
 
