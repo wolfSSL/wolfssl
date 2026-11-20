@@ -4271,28 +4271,41 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                 if (rsa_type == RSA_PRIVATE_DECRYPT) {
                     word32 i = 0;
                     word32 j;
-                    byte last = 0;
+                    word32 copyLen = outLen;
+                    /* Unpad returns 0 on failure: copy nothing then. */
+                    signed char okMask = (signed char)ctMaskGT(ret, 0);
                     int start = (int)((size_t)pad - (size_t)key->data);
 
-                    for (j = 0; j < key->dataLen; j++) {
-                        signed char incMask;
-                        signed char maskData;
+                    /* Message can't exceed dataLen; keeps int math safe. */
+                    if (copyLen > key->dataLen) {
+                        copyLen = key->dataLen;
+                    }
 
-                        /* When j < start + outLen then out[i] = key->data[j]
-                         *                         else out[i] = last
-                         */
-                        maskData = (signed char)ctMaskLT((int)j,
-                            start + (int)outLen);
-                        out[i] = (byte)(key->data[j] &   maskData ) |
-                                 (byte)(last         & (~maskData));
-                        last = out[i];
+                    /* outLen is public: no capacity means no store at all. */
+                    if (copyLen > 0) {
+                        for (j = 0; j < key->dataLen; j++) {
+                            signed char incMask;
+                            signed char maskData;
 
-                        /* Increment i when j is in range:
-                         *   [start..(start + outLen - 1)]. */
-                        incMask  = (signed char)ctMaskGTE((int)j, start);
-                        incMask &= (signed char)ctMaskLT((int)j,
-                            start + (int)outLen - 1);
-                        i += (word32)((byte)(-incMask));
+                            /* When unpad ok and start <= j < start + copyLen
+                             *     out[i] = key->data[j]
+                             * else
+                             *     out[i] keeps its current value
+                             */
+                            maskData  = okMask;
+                            maskData &= (signed char)ctMaskGTE((int)j, start);
+                            maskData &= (signed char)ctMaskLT((int)j,
+                                start + (int)copyLen);
+                            out[i] = (byte)(key->data[j] &   maskData ) |
+                                     (byte)(out[i]       & (~maskData));
+
+                            /* Increment i when j is in range:
+                             *   [start..(start + copyLen - 1)]. */
+                            incMask  = (signed char)ctMaskGTE((int)j, start);
+                            incMask &= (signed char)ctMaskLT((int)j,
+                                start + (int)copyLen - 1);
+                            i += (word32)((byte)(-incMask));
+                        }
                     }
                 }
                 else

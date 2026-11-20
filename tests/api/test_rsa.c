@@ -1020,6 +1020,52 @@ int test_wc_RsaKeyToPublicDer(void)
     return EXPECT_RESULT();
 } /* END test_wc_RsaKeyToPublicDer */
 
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+/* Encrypt a block that is invalid for both PKCS#1 v1.5 and OAEP. */
+static int test_rsa_bad_pad_cipher(RsaKey* key, WC_RNG* rng, byte* cipher,
+    word32* cipherLen)
+{
+    int ret;
+    WC_DECLARE_VAR(block, byte, TEST_RSA_BYTES, NULL);
+
+    WC_ALLOC_VAR_EX(block, byte, TEST_RSA_BYTES, NULL, DYNAMIC_TYPE_WOLF_BIGINT,
+        return MEMORY_E);
+    XMEMSET(block, 0x5a, TEST_RSA_BYTES);
+    /* Leading zero keeps block below modulus; zero at 5 is a short PS. */
+    block[0] = 0x00;
+    block[1] = 0x02;
+    block[5] = 0x00;
+    ret = wc_RsaFunction(block, TEST_RSA_BYTES, cipher, cipherLen,
+        RSA_PUBLIC_ENCRYPT, key, rng);
+    WC_FREE_VAR(block, NULL);
+    return ret;
+}
+
+/* Distinct byte values catch copies of one byte over another. */
+static void test_rsa_fill_pattern(byte* buf, word32 len)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        buf[i] = (byte)(0xa5 + i);
+    }
+}
+
+static int test_rsa_check_pattern(const byte* buf, word32 len)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (buf[i] != (byte)(0xa5 + i)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+#endif
+
 /*
  *  Testing wc_RsaPublicEncrypt() and wc_RsaPrivateDecrypt()
  */
@@ -1085,6 +1131,22 @@ int test_wc_RsaPublicEncryptDecrypt(void)
         ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, cipherLenResult, shortPlain,
                                          TEST_STRING_SZ - 4, &key), RSA_BUFFER_E);
         WC_FREE_VAR(shortPlain, NULL);
+
+        /* Zero output capacity must not write to the output buffer. */
+        XMEMSET(plain, 0xa5, plainLen);
+        ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, cipherLenResult, plain, 0,
+            &key), WC_NO_ERR_TRACE(RSA_BUFFER_E));
+        ExpectIntEQ(plain[0], 0xa5);
+
+    #ifndef HAVE_FIPS
+        /* Bad padding must not modify the output buffer. */
+        ExpectIntEQ(test_rsa_bad_pad_cipher(&key, &rng, cipher,
+            &cipherLenResult), 0);
+        test_rsa_fill_pattern(plain, plainLen);
+        ExpectIntLE(wc_RsaPrivateDecrypt(cipher, cipherLenResult, plain,
+            plainLen, &key), 0);
+        ExpectIntEQ(test_rsa_check_pattern(plain, plainLen), 1);
+    #endif
     }
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
@@ -1115,6 +1177,9 @@ int test_wc_RsaPublicEncryptDecrypt_ex(void)
     const word32 cipherSz = TEST_RSA_BYTES;
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     const word32 plainSz = (word32)TEST_STRING_SZ;
+#ifndef HAVE_SELFTEST
+    word32  cipherLen;
+#endif
     byte*   res = NULL;
 
     WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
@@ -1156,9 +1221,29 @@ int test_wc_RsaPublicEncryptDecrypt_ex(void)
     ExpectIntEQ(XMEMCMP(plain, inStr, plainSz), 0);
     /* Pass bad args - tested in another testing function.*/
 
+#ifndef HAVE_SELFTEST
+    /* Zero output capacity must not write to the output buffer. */
+    XMEMSET(plain, 0xa5, plainSz);
+    ExpectIntEQ(wc_RsaPrivateDecrypt_ex(cipher, (word32)idx, plain, 0,
+        &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
+        WC_NO_ERR_TRACE(RSA_BUFFER_E));
+    ExpectIntEQ(plain[0], 0xa5);
+#endif
+
     ExpectIntGE(wc_RsaPrivateDecryptInline_ex(cipher, (word32)idx, &res, &key,
         WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0), 0);
     ExpectIntEQ(XMEMCMP(inStr, res, plainSz), 0);
+
+#ifndef HAVE_SELFTEST
+    /* Bad padding must not modify the output buffer. */
+    cipherLen = cipherSz;
+    ExpectIntEQ(test_rsa_bad_pad_cipher(&key, &rng, cipher, &cipherLen), 0);
+    test_rsa_fill_pattern(plain, plainSz);
+    ExpectIntLE(wc_RsaPrivateDecrypt_ex(cipher, cipherLen, plain, plainSz,
+        &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
+        0);
+    ExpectIntEQ(test_rsa_check_pattern(plain, plainSz), 1);
+#endif
 #endif
 
     WC_FREE_VAR(in, NULL);
