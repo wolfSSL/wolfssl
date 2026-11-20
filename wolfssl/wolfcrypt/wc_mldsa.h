@@ -110,6 +110,9 @@
 #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
     #include <wolfssl/wolfcrypt/random.h>
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 #if defined(WC_MLDSA_CACHE_PRIV_VECTORS) && \
         !defined(WC_MLDSA_CACHE_MATRIX_A)
@@ -641,7 +644,12 @@ typedef struct wc_MlDsaParams MlDsaParams;
  * operation whose message or signature buffer was rewritten in place since it
  * started returns BAD_STATE_E. A key generation from an RNG has no
  * arguments to tell it from the one in flight, so it resumes that one:
- * re-attach the context to start another. */
+ * re-attach the context to start another.
+ *
+ * With the software async device (WOLFSSL_ASYNC_CRYPT_SW) and a key opened on
+ * it, the operation instead returns WC_PENDING_E once and the poll runs it to
+ * completion: finish it with wc_AsyncWait(..., WC_ASYNC_FLAG_NONE) and do not
+ * call it again, as for X25519. */
 typedef struct wc_MlDsaNonBlock {
     void*  work;    /* working allocation kept alive across yields */
     const void* in; /* message the operation was started with */
@@ -707,6 +715,9 @@ struct wc_MlDsaKey {
     wc_Shake shake;
 #ifdef WC_MLDSA_NONBLOCK
     wc_MlDsaNonBlock* nb;  /* non-NULL selects resumable operation */
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
 #endif
 #ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
     /* Caller-supplied matrix A, expanded off-target and typically flash
