@@ -330,7 +330,7 @@ static int km_ecdh_op_new(int need_rng, struct km_ecdh_op_state **op_out)
             if (err == WC_NO_ERR_TRACE(MEMORY_E))
                 return -ENOMEM;
             else
-                return -EINVAL;
+                return lkcapi_wc_errno(err, -EINVAL);
         }
     }
 
@@ -366,7 +366,7 @@ static int km_ecdh_op_init(const struct km_ecdh_ctx *ctx, int need_rng,
                WOLFKM_ECDH_DRIVER, err);
         #endif /* WOLFKM_DEBUG_ECDH */
         km_ecdh_op_free(op);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     *op_out = op;
@@ -442,7 +442,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                    WOLFKM_ECDH_DRIVER, err);
             #endif
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         /* We should get back ecc private key type. */
@@ -466,7 +466,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
             /* scrub any partial export. */
             ForceZero(ctx->priv, sizeof(ctx->priv));
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
     }
     else {
@@ -497,7 +497,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                    WOLFKM_ECDH_DRIVER, err);
             #endif
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         /* We should get back ecc priv only key type. */
@@ -517,7 +517,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                    WOLFKM_ECDH_DRIVER, err);
             #endif
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         XMEMCPY(ctx->priv, params.key, ctx->curve_len);
@@ -541,7 +541,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
             #endif
             ForceZero(ctx->priv, sizeof(ctx->priv));
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
     }
 
@@ -777,7 +777,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
         #ifdef WOLFKM_DEBUG_ECDH
         pr_err("error: wc_ecc_import_unsigned failed: %d\n", err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ecdh_shared_secret_end;
     }
 
@@ -805,7 +805,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
         pr_err("error: wc_ecc_shared_secret returned: %d, %d\n", err,
                shared_secret_len);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ecdh_shared_secret_end;
     }
 

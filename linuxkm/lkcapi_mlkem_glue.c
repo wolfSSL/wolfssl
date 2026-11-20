@@ -408,7 +408,7 @@ out:
         if (err == WC_NO_ERR_TRACE(FIPS_UNAPPROVED_E))
             return -EOPNOTSUPP;
         else
-            return (err > 0) ? -err : -EINVAL;
+            return (err > 0) ? -err : lkcapi_wc_errno(err, -EINVAL);
     }
 
     #ifdef WOLFKM_DEBUG_MLKEM
@@ -483,7 +483,7 @@ static int km_mlkem_generate_ek(struct km_mlkem_ctx *ctx,
 
     free(ek);
     km_mlkem_del_wc_key(wc_key);
-    return err ? -EINVAL : 0;
+    return err ? lkcapi_wc_errno(err, -EINVAL) : 0;
 }
 
 /* Encapsulation role: run a fresh encapsulation against the installed
@@ -539,7 +539,7 @@ static int km_mlkem_generate_ct(struct km_mlkem_ctx *ctx,
             wc_FreeRng(&rng);
         }
         else {
-            err = -ENODEV;
+            err = lkcapi_wc_errno(err, -ENODEV);
             goto out;
         }
     }
@@ -551,7 +551,7 @@ static int km_mlkem_generate_ct(struct km_mlkem_ctx *ctx,
         /* Normalize wolfCrypt failure codes to a kernel errno; the kernel
          * errnos this function sets itself (-ENOMEM, -ENODEV) take their
          * own paths to out.  Matches km_mlkem_generate_ek(). */
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -682,7 +682,7 @@ static int km_mlkem_ss_decap(struct km_mlkem_ctx *ctx,
     ForceZero(work, ct_len + ss_len);
     free(work);
     km_mlkem_del_wc_key(wc_key);
-    return err ? -EINVAL : 0;
+    return err ? lkcapi_wc_errno(err, -EINVAL) : 0;
 }
 
 /* Encapsulation role: claim the pending shared secret for the
@@ -736,7 +736,7 @@ static int km_mlkem_ss_claim(struct km_mlkem_ctx *ctx,
     free(ct);
     ct = NULL;
     if (err != 0)
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
 
     if (wc_LockMutex(&ctx->pending_lock) != 0)
         return -EINVAL;

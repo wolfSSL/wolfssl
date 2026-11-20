@@ -424,7 +424,7 @@ static int km_ed25519_set_pub(struct eddsa_tfm_type *tfm, const void *key,
         pr_err("%s: wc_ed25519_import_public failed: %d\n",
                WOLFKM_ED25519_DRIVER, err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     XMEMCPY(ctx->pub, key, ED25519_PUB_KEY_SIZE);
@@ -495,7 +495,7 @@ static int km_ed25519_set_priv(struct eddsa_tfm_type *tfm, const void *key,
         pr_err("%s: ed25519 private key import/derivation failed: %d\n",
                WOLFKM_ED25519_DRIVER, err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     XMEMCPY(ctx->priv, key, ED25519_KEY_SIZE);
@@ -644,7 +644,7 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
         pr_err("%s: per-op wc_ed25519_import_public_ex failed: %d\n",
                WOLFKM_ED25519_DRIVER, err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed25519_verify_end;
     }
 
@@ -663,7 +663,7 @@ static int km_ed25519_verify(struct crypto_sig *tfm,
         pr_err("error: %s: ed25519 verify: verify_msg returned: %d\n",
                WOLFKM_ED25519_DRIVER, err);
         #endif
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(err, -EBADMSG);
         goto ed25519_verify_end;
     }
 
@@ -742,7 +742,7 @@ static int km_ed25519_sign(struct crypto_sig *tfm,
                "%d\n", WOLFKM_ED25519_DRIVER, err);
         #endif
         km_ed25519_del_key(key);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
@@ -761,7 +761,7 @@ static int km_ed25519_sign(struct crypto_sig *tfm,
         pr_err("error: %s: ed25519 sign: sign_msg returned: %d, "
                "out_len %u\n", WOLFKM_ED25519_DRIVER, err, out_len);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     #ifdef WOLFKM_DEBUG_EDDSA
@@ -864,7 +864,7 @@ static int km_ed25519_verify(struct akcipher_request *req)
         pr_err("%s: per-op wc_ed25519_import_public_ex failed: %d\n",
                WOLFKM_ED25519_DRIVER, err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed25519_verify_end;
     }
 
@@ -875,7 +875,7 @@ static int km_ed25519_verify(struct akcipher_request *req)
         pr_err("error: %s: ed25519 verify: verify_msg returned: %d\n",
                WOLFKM_ED25519_DRIVER, err);
         #endif
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(err, -EBADMSG);
         goto ed25519_verify_end;
     }
 
@@ -974,7 +974,7 @@ static int km_ed25519_sign(struct akcipher_request *req)
         pr_err("%s: per-op wc_ed25519_import_private_key_ex failed: "
                "%d\n", WOLFKM_ED25519_DRIVER, err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed25519_sign_end;
     }
 
@@ -985,7 +985,7 @@ static int km_ed25519_sign(struct akcipher_request *req)
         pr_err("error: %s: ed25519 sign: sign_msg returned: %d, "
                "out_len %u\n", WOLFKM_ED25519_DRIVER, err, out_len);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed25519_sign_end;
     }
 
@@ -1082,7 +1082,7 @@ static int km_ed448_set_pub(struct eddsa_tfm_type *tfm, const void *key,
         pr_err("%s: wc_ed448_import_public failed: %d\n",
                WOLFKM_ED448_DRIVER, err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     XMEMCPY(ctx->pub, key, ED448_PUB_KEY_SIZE);
@@ -1152,7 +1152,7 @@ static int km_ed448_set_priv(struct eddsa_tfm_type *tfm, const void *key,
         pr_err("%s: ed448 private key import/derivation failed: %d\n",
                WOLFKM_ED448_DRIVER, err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     XMEMCPY(ctx->priv, key, ED448_KEY_SIZE);
@@ -1291,7 +1291,7 @@ static int km_ed448_verify(struct crypto_sig *tfm,
         pr_err("%s: per-op wc_ed448_import_public_ex failed: %d\n",
                WOLFKM_ED448_DRIVER, err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed448_verify_end;
     }
 
@@ -1311,7 +1311,7 @@ static int km_ed448_verify(struct crypto_sig *tfm,
         pr_err("error: %s: ed448 verify: verify_msg returned: %d\n",
                WOLFKM_ED448_DRIVER, err);
         #endif
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(err, -EBADMSG);
         goto ed448_verify_end;
     }
 
@@ -1391,7 +1391,7 @@ static int km_ed448_sign(struct crypto_sig *tfm,
                "%d\n", WOLFKM_ED448_DRIVER, err);
         #endif
         km_ed448_del_key(key);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
@@ -1411,7 +1411,7 @@ static int km_ed448_sign(struct crypto_sig *tfm,
         pr_err("error: %s: ed448 sign: sign_msg returned: %d, "
                "out_len %u\n", WOLFKM_ED448_DRIVER, err, out_len);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     #ifdef WOLFKM_DEBUG_EDDSA
@@ -1513,7 +1513,7 @@ static int km_ed448_verify(struct akcipher_request *req)
         pr_err("%s: per-op wc_ed448_import_public_ex failed: %d\n",
                WOLFKM_ED448_DRIVER, err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed448_verify_end;
     }
 
@@ -1526,7 +1526,7 @@ static int km_ed448_verify(struct akcipher_request *req)
         pr_err("error: %s: ed448 verify: verify_msg returned: %d\n",
                WOLFKM_ED448_DRIVER, err);
         #endif
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(err, -EBADMSG);
         goto ed448_verify_end;
     }
 
@@ -1626,7 +1626,7 @@ static int km_ed448_sign(struct akcipher_request *req)
         pr_err("%s: per-op wc_ed448_import_private_key_ex failed: "
                "%d\n", WOLFKM_ED448_DRIVER, err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed448_sign_end;
     }
 
@@ -1638,7 +1638,7 @@ static int km_ed448_sign(struct akcipher_request *req)
         pr_err("error: %s: ed448 sign: sign_msg returned: %d, "
                "out_len %u\n", WOLFKM_ED448_DRIVER, err, out_len);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ed448_sign_end;
     }
 

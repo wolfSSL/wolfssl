@@ -547,7 +547,7 @@ static int km_mldsa_set_priv(struct mldsa_tfm_type *tfm, const void *key,
         if (err == WC_NO_ERR_TRACE(FIPS_UNAPPROVED_E))
             return -EOPNOTSUPP;
         else
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
     }
 
     #ifdef WOLFKM_DEBUG_MLDSA
@@ -660,7 +660,7 @@ static int km_mldsa_verify_common(struct km_mldsa_ctx *ctx,
         #ifdef WOLFKM_DEBUG_MLDSA
         pr_err("error: mldsa verify: VerifyCtx returned: %d\n", err);
         #endif
-        return -EBADMSG;
+        return lkcapi_wc_errno(err, -EBADMSG);
     }
     if (result != 1) {
         #ifdef WOLFKM_DEBUG_MLDSA
@@ -728,7 +728,7 @@ static int km_mldsa_sign_common(struct km_mldsa_ctx *ctx,
         pr_err("error: mldsa sign: SignCtx returned: %d, out_len %u\n",
                err, *out_len);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
     return 0;
 }

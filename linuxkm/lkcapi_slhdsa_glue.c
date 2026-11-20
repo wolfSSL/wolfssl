@@ -317,14 +317,14 @@ static int km_slhdsa_set_priv(struct slhdsa_tfm_type *tfm, const void *key,
         pr_err("error: wc_SlhDsaKey_ImportPrivate failed: %d\n", err);
         #endif
         km_slhdsa_del_wc_key(wc_key);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     pub_len_w = (word32)sizeof(ctx->pub);
     err = wc_SlhDsaKey_ExportPublic(wc_key, ctx->pub, &pub_len_w);
     km_slhdsa_del_wc_key(wc_key);
     if (unlikely(err))
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
 
     XMEMCPY(ctx->priv, key, priv_len);
     ctx->priv_set = 1;
@@ -385,11 +385,11 @@ static int km_slhdsa_verify_common(struct km_slhdsa_ctx *ctx,
             #ifdef WOLFKM_DEBUG_SLHDSA
             pr_err("error: wc_SlhDsaKey_Verify returned: %d\n", err);
             #endif
-            err = -EBADMSG;
+            err = lkcapi_wc_errno(err, -EBADMSG);
         }
     }
     else {
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
     }
 
     km_slhdsa_del_wc_key(wc_key);
@@ -433,13 +433,13 @@ static int km_slhdsa_sign_common(struct km_slhdsa_ctx *ctx,
     err = wc_SlhDsaKey_ImportPrivate(wc_key, ctx->priv, (word32)priv_len);
     if (err != 0) {
         km_slhdsa_del_wc_key(wc_key);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     err = LKCAPI_INITRNG(&rng);
     if (err != 0) {
         km_slhdsa_del_wc_key(wc_key);
-        return -ENODEV;
+        return lkcapi_wc_errno(err, -ENODEV);
     }
     rng_inited = 1;
     (void)rng_inited;
@@ -456,7 +456,7 @@ static int km_slhdsa_sign_common(struct km_slhdsa_ctx *ctx,
         #ifdef WOLFKM_DEBUG_SLHDSA
         pr_err("error: wc_SlhDsaKey_Sign returned: %d\n", err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     if (sig_len_w != (word32)exp_sig_len)

@@ -334,7 +334,7 @@ static int km_xmss_set_pub(struct xmss_tfm_type *tfm, const void *key,
                ctx->is_xmssmt ? WOLFKM_XMSSMT_DRIVER : WOLFKM_XMSS_DRIVER,
                err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     ctx->pub_set = 1;
@@ -450,7 +450,7 @@ static int km_xmss_verify_common(struct km_xmss_ctx *ctx,
                ctx->is_xmssmt ? WOLFKM_XMSSMT_DRIVER : WOLFKM_XMSS_DRIVER,
                err);
         #endif
-        return -EBADMSG;
+        return lkcapi_wc_errno(err, -EBADMSG);
     }
     return 0;
 }

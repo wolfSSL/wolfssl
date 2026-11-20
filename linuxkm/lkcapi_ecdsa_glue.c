@@ -200,7 +200,7 @@ static int km_ecdsa_key_from_ctx(const struct km_ecdsa_ctx *ctx,
                WOLFKM_ECDSA_DRIVER, err);
         #endif
         km_ecdsa_del_key(key);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     *key_out = key;
@@ -439,7 +439,7 @@ static int km_ecdsa_set_pub(struct ecdsa_tfm_type *tfm, const void *key,
         pr_err("%s: wc_ecc_import_unsigned failed: %d\n",
                WOLFKM_ECDSA_DRIVER, err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     XMEMCPY(ctx->pub, pub, (size_t)(2U * ctx->curve_len));
@@ -683,7 +683,7 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
         pr_err("error: %s: ecdsa verify: wc_ecc_rs_raw_to_sig returned: %d\n",
                WOLFKM_ECDSA_DRIVER, err);
         #endif /* WOLFKM_DEBUG_ECDSA */
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(err, -EBADMSG);
         goto ecdsa_verify_end;
     }
 
@@ -703,7 +703,7 @@ static int km_ecdsa_verify(struct crypto_sig *tfm,
         pr_err("error: %s: ecdsa verify: verify_hash returned: %d\n",
                WOLFKM_ECDSA_DRIVER, err);
         #endif /* WOLFKM_DEBUG_ECDSA */
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(err, -EBADMSG);
         goto ecdsa_verify_end;
     }
 
@@ -828,7 +828,7 @@ static int km_ecdsa_verify(struct akcipher_request *req)
         pr_err("error: %s: ecdsa verify: verify_hash returned: %d\n",
                WOLFKM_ECDSA_DRIVER, err);
         #endif /* WOLFKM_DEBUG_ECDSA */
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(err, -EBADMSG);
         goto ecdsa_verify_end;
     }
 
