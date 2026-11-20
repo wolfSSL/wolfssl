@@ -6,6 +6,12 @@ EXTRA_DIST += \
 	     certs/intermediate/genintcerts.sh \
 	     certs/intermediate/ca-ecc-bad-aki.der \
 	     certs/intermediate/ca-ecc-bad-aki.pem \
+	     certs/intermediate/ca-ecc-same-dn-akid-cert.pem \
+	     certs/intermediate/ca-ecc-same-dn-akid-name-cert.pem \
+	     certs/intermediate/ca-ecc-same-dn-cert.pem \
+	     certs/intermediate/ca-ecc-same-dn-int-cert.pem \
+	     certs/intermediate/ca-ecc-same-dn-rsa-cert.pem \
+	     certs/intermediate/ca-ecc-same-key-cert.pem \
 	     certs/intermediate/ca-int-cert.der \
 	     certs/intermediate/ca-int-cert.pem \
 	     certs/intermediate/ca-int-ecc-cert.der \
@@ -33,6 +39,12 @@ EXTRA_DIST += \
 	     certs/intermediate/client-int-ecc-cert.der \
 	     certs/intermediate/client-int-ecc-cert.pem \
 	     certs/intermediate/server-chain-alt-ecc.pem \
+	     certs/intermediate/server-chain-alt-same-dn-akid-ecc.pem \
+	     certs/intermediate/server-chain-alt-same-dn-akid-name-ecc.pem \
+	     certs/intermediate/server-chain-alt-same-dn-ecc.pem \
+	     certs/intermediate/server-chain-alt-same-dn-int-ecc.pem \
+	     certs/intermediate/server-chain-alt-same-dn-rsa.pem \
+	     certs/intermediate/server-chain-alt-same-key-ecc.pem \
 	     certs/intermediate/server-chain-alt.pem \
 	     certs/intermediate/server-chain-ecc.der \
 	     certs/intermediate/server-chain-ecc.pem \
