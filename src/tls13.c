@@ -14916,6 +14916,10 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
         WOLFSSL_ERROR_VERBOSE(SERVER_HINT_ERROR);
         return SERVER_HINT_ERROR;
     }
+    if (lifetime == 0) {
+        WOLFSSL_MSG("Ticket lifetime is zero, ignoring ticket");
+        storeTicket = 0;
+    }
 
     /* Age add. */
     if ((*inOutIdx - begin) + SESSION_ADD_SZ > size)

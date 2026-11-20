@@ -11624,6 +11624,65 @@ int test_tls13_new_session_ticket_max_lifetime(void)
     return EXPECT_RESULT();
 }
 
+/* RFC 8446 Section 4.6.1: a zero ticket_lifetime means discard the ticket. It
+ * must not be stored, nor replace a ticket the client already holds. */
+int test_tls13_new_session_ticket_zero_lifetime(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    char buf[64];
+    word32 ageAdd = 0;
+    word16 ticketLen = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    wolfSSL_CTX_set_TicketEncCb(ctx_s, test_tls13_max_lifetime_ticketEncCb);
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx_s, 0), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectNotNull(ssl_c->session);
+    ExpectIntEQ(ssl_c->session->ticketLen, 0);
+
+    /* A ticket with a lifetime is kept. */
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx_s, 100), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(ssl_c->session->ticketLen, 0);
+    ExpectIntEQ(ssl_c->session->timeout, 100);
+    if (EXPECT_SUCCESS()) {
+        ticketLen = ssl_c->session->ticketLen;
+        ageAdd = ssl_c->session->ticketAdd;
+    }
+
+    /* A later zero-lifetime ticket leaves it in place. */
+    ExpectIntEQ(wolfSSL_CTX_set_TicketHint(ctx_s, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_send_SessionTicket(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(ssl_c->session->ticketLen, ticketLen);
+    ExpectIntEQ(ssl_c->session->ticketAdd, ageAdd);
+    ExpectIntEQ(ssl_c->session->timeout, 100);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* A TLS 1.3 client that does not retain its handshake arrays after the
  * handshake (e.g. built without HAVE_SESSION_TICKET, as on a small embedded
