@@ -556,7 +556,9 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
         return MEMORY_E;
     }
 
-    WC_ALLOC_VAR(cmac, Cmac, 1, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    cmac = WC_ALLOC_CMAC(she->heap);
+#endif
     if (!WC_VAR_OK(cmac)) {
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
         WC_FREE_AES(aes, she->heap);
@@ -569,8 +571,8 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     if (ret != 0) {
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
         WC_FREE_AES(aes, she->heap);
+        WC_FREE_CMAC(cmac, she->heap);
 #endif
-        WC_FREE_VAR(cmac, she->heap);
         return ret;
     }
 
@@ -647,8 +649,8 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     wc_AesFree(aes);
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     WC_FREE_AES(aes, she->heap);
+    WC_FREE_CMAC(cmac, she->heap);
 #endif
-    WC_FREE_VAR(cmac, she->heap);
     return ret;
 }
 
@@ -743,7 +745,9 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
         return MEMORY_E;
     }
 
-    WC_ALLOC_VAR(cmac, Cmac, 1, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    cmac = WC_ALLOC_CMAC(she->heap);
+#endif
     if (!WC_VAR_OK(cmac)) {
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
         WC_FREE_AES(aes, she->heap);
@@ -756,8 +760,8 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     if (ret != 0) {
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
         WC_FREE_AES(aes, she->heap);
+        WC_FREE_CMAC(cmac, she->heap);
 #endif
-        WC_FREE_VAR(cmac, she->heap);
         return ret;
     }
 
@@ -826,8 +830,8 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     wc_AesFree(aes);
 #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     WC_FREE_AES(aes, she->heap);
+    WC_FREE_CMAC(cmac, she->heap);
 #endif
-    WC_FREE_VAR(cmac, she->heap);
     return ret;
 }
 
