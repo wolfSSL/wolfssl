@@ -8579,6 +8579,12 @@ int test_wc_PKCS7_VerifySignedData_eContentAnySpan(void)
                             contentSz), 0);
             }
         }
+        /* drop the last verify's content so it is not taken as
+         * caller-supplied content by the next verify */
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
         /* same object, CMS message, ordinary entry point */
         ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)anySz),
                     0);
@@ -8587,8 +8593,16 @@ int test_wc_PKCS7_VerifySignedData_eContentAnySpan(void)
             ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz);
             ExpectIntEQ(XMEMCMP(pkcs7->content, contentStr, contentSz), 0);
         }
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
         /* ANY again, then CMS through the precomputed-hash entry point */
         ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
         ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
                     output, (word32)anySz, NULL, 0), 0);
         if (pkcs7 != NULL) {
@@ -8613,6 +8627,10 @@ int test_wc_PKCS7_VerifySignedData_eContentAnySpan(void)
         any[octetOff + 1] = (byte)(contentSz - 4);
         ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
                     WC_NO_ERR_TRACE(ASN_PARSE_E));
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
         ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)anySz), 0);
         if (pkcs7 != NULL) {
             ExpectIntEQ(pkcs7->contentIsPkcs7Type, 0);
