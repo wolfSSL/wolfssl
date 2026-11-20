@@ -257,6 +257,48 @@ int test_wc_RsaPublicKeyDecodeRaw(void)
 
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WC_NO_RNG)
+    {
+        /* Encrypt needs a 2048-bit modulus and verify a 1024-bit one
+         * (SP 800-131A Rev2 Tables 2 and 5). */
+        RsaKey small;
+        WC_RNG rng;
+        byte   bigN[128];
+        byte   sig[128];
+        byte   out[128];
+        byte   msg[16];
+        const byte e3[3] = { 0x01, 0x00, 0x01 };
+
+        XMEMSET(bigN, 0x5A, sizeof(bigN));
+        bigN[0] = 0xC0;
+        bigN[sizeof(bigN) - 1] = 0x01;
+        XMEMSET(sig, 0x01, sizeof(sig));
+        XMEMSET(msg, 0x42, sizeof(msg));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+
+        /* 512 bits: verify is refused. */
+        ExpectIntEQ(wc_InitRsaKey(&small, HEAP_HINT), 0);
+        ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(bigN, 64, e3, sizeof(e3),
+            &small), 0);
+        ExpectIntEQ(wc_RsaSSL_Verify(sig, 64, out, sizeof(out), &small),
+            WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+        DoExpectIntEQ(wc_FreeRsaKey(&small), 0);
+
+        /* 1024 bits: encrypt is refused, verify runs. */
+        ExpectIntEQ(wc_InitRsaKey(&small, HEAP_HINT), 0);
+        ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(bigN, sizeof(bigN), e3,
+            sizeof(e3), &small), 0);
+        ExpectIntEQ(wc_RsaPublicEncrypt(msg, sizeof(msg), out, sizeof(out),
+            &small, &rng), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+        ExpectIntNE(wc_RsaSSL_Verify(sig, sizeof(sig), out, sizeof(out),
+            &small), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+        DoExpectIntEQ(wc_FreeRsaKey(&small), 0);
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 

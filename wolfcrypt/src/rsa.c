@@ -3780,6 +3780,11 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     if (ret != 0) {
         return ret;
     }
+    /* Verify allows a 1024-bit modulus, every other operation needs 2048
+     * (SP 800-131A Rev2 Tables 2 and 5). */
+    if (mp_count_bits(&key->n) < ((type == RSA_PUBLIC_DECRYPT) ? 1024 : 2048)) {
+        return WC_KEY_SIZE_E;
+    }
 #endif
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
