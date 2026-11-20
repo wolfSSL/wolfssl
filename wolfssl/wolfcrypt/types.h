@@ -2431,6 +2431,20 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_NORETURN
 #endif
 
+/* Skip clang's -fsanitize=function check in a function. Used where a
+ * function is called through a generic pointer type. */
+#ifndef WC_NO_SANITIZE_FUNCTION
+    #if defined(__clang__) && defined(__has_attribute)
+        #if __has_attribute(no_sanitize)
+            #define WC_NO_SANITIZE_FUNCTION \
+                __attribute__((no_sanitize("function")))
+        #endif
+    #endif
+#endif
+#ifndef WC_NO_SANITIZE_FUNCTION
+    #define WC_NO_SANITIZE_FUNCTION /* null expansion */
+#endif
+
 #ifdef __has_attribute
 #if __has_attribute(nonnull)
     #ifndef WC_ARG_NOT_NULL
