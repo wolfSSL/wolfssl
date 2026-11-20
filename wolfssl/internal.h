@@ -8246,14 +8246,15 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
         !defined(NO_PSK) || defined(WOLFSSL_DTLS13))
 /* Tick sources that need no wall clock. */
 #if defined(WOLFSSL_NO_MILLI_TIME)
-#elif !defined(NO_ASN_TIME) || defined(USER_TICKS) || defined(XTIME_MS) || \
+#elif !defined(NO_ASN_TIME) || (!defined(USER_TICKS) && \
+    (defined(XTIME_MS) || \
     defined(WOLFSSL_OPTEE) || defined(WOLFSSL_DEOS) || defined(MICRIUM) || \
     defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP) || \
     defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
     defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS) || \
     defined(FREESCALE_KSDK_BM) || defined(WOLFSSL_CMSIS_RTOS) || \
     defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_UTASKER) || \
-    defined(WOLFSSL_ZEPHYR) || defined(FREERTOS)
+    defined(WOLFSSL_ZEPHYR) || defined(FREERTOS)))
     #define WOLFSSL_HAVE_MILLI_TIME
 #endif
 #ifdef WOLFSSL_32BIT_MILLI_TIME
