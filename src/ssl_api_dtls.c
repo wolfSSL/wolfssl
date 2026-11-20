@@ -1873,7 +1873,9 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
 }
 
 /* Notify after cookie verification, or, with cookies disabled, after complete
- * successful ClientHello processing (once per connection).
+ * successful ClientHello processing (once per connection). When the cookie
+ * exchange is skipped on resumption, notify without cookie verification. For
+ * DTLS 1.3 this is before the PSK binder is checked.
  *
  * WC_NO_INLINE: wolfDTLS_accept_stateless passes the address of a stack-local
  * context here; the restore call before return clears it again. Preventing
