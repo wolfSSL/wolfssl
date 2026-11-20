@@ -18400,7 +18400,7 @@ static int DecodeDsaAsn1Sig(const byte* sig, word32 sigSz, byte* sigCpy,
 /* The certificate's signatureAlgorithm (sigOID) must match the issuer's
  * key type (keyOID). sigOID picks the pre-hash; keyOID picks the
  * verifier. They need to agree or the verifier gets the wrong input. */
-static int SigOidMatchesKeyOid(word32 sigOID, word32 keyOID)
+int SigOidMatchesKeyOid(word32 sigOID, word32 keyOID)
 {
     switch (keyOID) {
     #ifndef NO_RSA
@@ -21142,6 +21142,63 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
     return 1;
 }
 
+/* Checks the names of cert against the name constraints of caCert, as for a
+ * cert below caCert in a chain, leaf when it ends it. *violation is 0 when
+ * they are met, else NC_VIOLATION_EXCLUDED, NC_VIOLATION_PERMITTED or, for a
+ * critical constraint of a form that is not supported,
+ * NC_VIOLATION_UNSUPPORTED.
+ * Returns 0, or an error when a cert cannot be parsed. */
+int CheckCertNameConstraints(const byte* caCert, word32 caCertSz,
+        const byte* cert, word32 certSz, int leaf, void* heap, int* violation)
+{
+    int ret = WC_NO_ERR_TRACE(MEMORY_E);
+    Signer signer;
+    WC_DECLARE_VAR(ca, DecodedCert, 1, heap);
+    WC_DECLARE_VAR(dc, DecodedCert, 1, heap);
+
+    *violation = 0;
+    WC_ALLOC_VAR_EX(ca, DecodedCert, 1, heap, DYNAMIC_TYPE_DCERT, goto end);
+    InitDecodedCert(ca, caCert, caCertSz, heap);
+    WC_ALLOC_VAR_EX(dc, DecodedCert, 1, heap, DYNAMIC_TYPE_DCERT, goto end);
+    InitDecodedCert(dc, cert, certSz, heap);
+    ret = ParseCertRelative(ca, CA_TYPE, NO_VERIFY, NULL, NULL);
+    if (ret == 0) {
+        ret = ParseCertRelative(dc, CERT_TYPE, NO_VERIFY, NULL, NULL);
+    }
+    if (ret != 0) {
+        goto end;
+    }
+    /* As OpenSSL, the CN of the leaf is checked, CA or not */
+    if (leaf)
+        dc->isCA = 0;
+    XMEMSET(&signer, 0, sizeof(signer));
+    signer.excludedNames = ca->excludedNames;
+    if (!ConfirmNameConstraints(&signer, dc)) {
+        *violation = NC_VIOLATION_EXCLUDED;
+    }
+    else {
+        signer.permittedNames = ca->permittedNames;
+        if (!ConfirmNameConstraints(&signer, dc)) {
+            *violation = NC_VIOLATION_PERMITTED;
+        }
+        else {
+            signer.extNameConstraintCrit = ca->extNameConstraintCrit;
+            signer.extNameConstraintHasUnsupported =
+                ca->extNameConstraintHasUnsupported;
+            if (!ConfirmNameConstraints(&signer, dc)) {
+                *violation = NC_VIOLATION_UNSUPPORTED;
+            }
+        }
+    }
+end:
+    /* ca and dc are each NULL or initialised */
+    FreeDecodedCert(dc);
+    FreeDecodedCert(ca);
+    WC_FREE_VAR_EX(dc, heap, DYNAMIC_TYPE_DCERT);
+    WC_FREE_VAR_EX(ca, heap, DYNAMIC_TYPE_DCERT);
+    return ret;
+}
+
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -22223,7 +22280,10 @@ int DecodeAuthKeyId(const byte* input, word32 sz, const byte **extAuthKeyId,
                 dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data, &idx,
                 dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.length);
 
-        if (ret == 0 && extAuthKeyIdIssuer && extAuthKeyIdIssuerSz) {
+        /* Only a directoryName names the issuer's issuer. */
+        if (ret == 0 && extAuthKeyIdIssuer && extAuthKeyIdIssuerSz &&
+                nameASN[ALTNAMEASN_IDX_GN].tag ==
+                    (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
             GetASN_GetConstRef(&nameASN[ALTNAMEASN_IDX_GN],
                     extAuthKeyIdIssuer, extAuthKeyIdIssuerSz);
         }
@@ -22232,6 +22292,11 @@ int DecodeAuthKeyId(const byte* input, word32 sz, const byte **extAuthKeyId,
             dataASN[AUTHKEYIDASN_IDX_SERIAL].data.ref.data != NULL) {
         GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_SERIAL],
                 extAuthKeyIdIssuerSN, extAuthKeyIdIssuerSNSz);
+        /* Drop the sign byte as for a certificate's serial number. */
+        if (*extAuthKeyIdIssuerSNSz > 1 && (*extAuthKeyIdIssuerSN)[0] == 0) {
+            (*extAuthKeyIdIssuerSN)++;
+            (*extAuthKeyIdIssuerSNSz)--;
+        }
     }
     if (ret == 0 && extAuthKeyIdIssuerSz && extAuthKeyIdIssuerSNSz) {
         if ((*extAuthKeyIdIssuerSz > 0) ^
@@ -26148,6 +26213,63 @@ static WC_NO_INLINE int ConfirmSelfSignature(DecodedCert* cert)
     return ret;
 }
 
+#ifdef WOLFSSL_AKID_NAME
+/* RFC 5280, 4.2.1.1: the AKID's authorityCertIssuer and
+ * authorityCertSerialNumber name the issuer and serial of the signer's
+ * certificate. Returns 1 when ca is not ruled out by them. */
+static int SignerMatchesAkidName(DecodedCert* cert, Signer* ca)
+{
+    byte hash[SIGNER_DIGEST_SIZE];
+
+    if (cert->extAuthKeyIdIssuerSNSz > 0 &&
+            (CalcHashId(cert->extAuthKeyIdIssuerSN,
+                cert->extAuthKeyIdIssuerSNSz, hash) != 0 ||
+             XMEMCMP(hash, ca->serialHash, SIGNER_DIGEST_SIZE) != 0)) {
+        return 0;
+    }
+    if (cert->extAuthKeyIdIssuerSz > 0 &&
+            (CalcHashId_ex(cert->extAuthKeyIdIssuer,
+                cert->extAuthKeyIdIssuerSz, hash,
+                HashIdAlg(cert->signatureOID)) != 0 ||
+             XMEMCMP(hash, ca->issuerNameHash, SIGNER_DIGEST_SIZE) != 0)) {
+        return 0;
+    }
+    return 1;
+}
+
+/* Returns 1 when the AKID issuer and serial of cert rule out ca. A
+ * self-issued cert with the key of ca is a copy of ca: its AKID names
+ * itself. */
+int SignerAkidNameRulesOut(DecodedCert* cert, Signer* ca)
+{
+    if (cert->selfIssued && ca->publicKey != NULL &&
+            cert->pubKeySize == ca->pubKeySize &&
+            XMEMCMP(cert->publicKey, ca->publicKey, cert->pubKeySize) == 0) {
+        return 0;
+    }
+    return !SignerMatchesAkidName(cert, ca);
+}
+
+/* Returns 1 when ca has the key that the AKID key id names and no other CA
+ * of cm has the AKID issuer and serial. The AKID then names another cert of
+ * the key of ca, such as a re-issued CA, and ca is the signer. */
+static int SignerHasAkidKeyId(DecodedCert* cert, WOLFSSL_CERT_MANAGER* cm,
+    const Signer* ca)
+{
+#ifndef NO_SKID
+    return cert->extAuthKeyIdSet &&
+        XMEMCMP(cert->extAuthKeyId, ca->subjectKeyIdHash, KEYID_SIZE) == 0 &&
+        GetCAByAKID(cm, cert->extAuthKeyIdIssuer, cert->extAuthKeyIdIssuerSz,
+            cert->extAuthKeyIdIssuerSN, cert->extAuthKeyIdIssuerSNSz) == NULL;
+#else
+    (void)cert;
+    (void)cm;
+    (void)ca;
+    return 0;
+#endif
+}
+#endif /* WOLFSSL_AKID_NAME */
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify,
                       WOLFSSL_CERT_MANAGER* cm, Signer *extraCAList)
 {
@@ -26656,6 +26778,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             if (cert->ca == NULL)
                 cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
+    #ifdef WOLFSSL_AKID_NAME
+            if (cert->ca != NULL && SignerAkidNameRulesOut(cert, cert->ca) &&
+                    !SignerHasAkidKeyId(cert, cm, cert->ca)) {
+                WOLFSSL_MSG("CA issuer or serial doesn't match AKID");
+                cert->ca = NULL;
+            }
+    #endif
 
             if (cert->ca == NULL && extraCAList != NULL) {
         #ifndef NO_SKID
@@ -39832,6 +39961,8 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
                         word32 signatureOID, const byte* sigParams,
                         int sigParamsSz, Signer *ca, void* heap)
 {
+    int ret;
+
     /* try to confirm/verify signature */
     /* Enforced by default (RFC 5280 4.2.1.3 / 5.2: a CRL issuer MUST assert
      * cRLSign). IGNORE_KEY_EXTENSIONS is a deliberate, RFC-non-conformant
@@ -39845,12 +39976,17 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
 #endif /* IGNORE_KEY_EXTENSIONS */
 
     InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
-    if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
+    ret = ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
-                         signatureOID, sigParams, (word32)sigParamsSz, NULL) != 0) {
+                         signatureOID, sigParams, (word32)sigParamsSz, NULL);
+    if (ret != 0) {
         WOLFSSL_MSG("CRL Confirm signature failed");
-        WOLFSSL_ERROR_VERBOSE(ASN_CRL_CONFIRM_E);
-        return ASN_CRL_CONFIRM_E;
+        /* Running out of memory is not a bad signature */
+        if (ret != WC_NO_ERR_TRACE(MEMORY_E)) {
+            ret = ASN_CRL_CONFIRM_E;
+        }
+        WOLFSSL_ERROR_VERBOSE(ret);
+        return ret;
     }
 
     return 0;
@@ -42310,9 +42446,10 @@ static int _RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         return ASN_GETINT_E;
     }
 #ifdef HAVE_WOLF_BIGINT
+    /* Only fails to allocate */
     if ((int)nSz > 0 && wc_bigint_from_unsigned_bin(&key->n.raw, n, nSz) != 0) {
         mp_clear(&key->n);
-        return ASN_GETINT_E;
+        return MEMORY_E;
     }
 #endif /* HAVE_WOLF_BIGINT */
 
@@ -42330,7 +42467,7 @@ static int _RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
     if ((int)eSz > 0 && wc_bigint_from_unsigned_bin(&key->e.raw, e, eSz) != 0) {
         mp_clear(&key->n);
         mp_clear(&key->e);
-        return ASN_GETINT_E;
+        return MEMORY_E;
     }
 #endif /* HAVE_WOLF_BIGINT */
 

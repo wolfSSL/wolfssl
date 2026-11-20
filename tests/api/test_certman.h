@@ -29,6 +29,7 @@ int test_certman_decision_coverage(void);
 int test_wolfSSL_CertManagerLoadCABuffer(void);
 int test_wolfSSL_CertManagerLoadCABuffer_ex(void);
 int test_wolfSSL_CertManagerLoadCABufferType(void);
+int test_wolfSSL_CertManagerCAKeySize(void);
 int test_wolfSSL_CertManagerGetCerts(void);
 int test_wolfSSL_CertManagerSetVerify(void);
 int test_wolfSSL_CertManagerNameConstraint(void);
@@ -68,6 +69,8 @@ int test_wolfSSL_CertManagerRejectRPK(void);
 int test_wolfSSL_X509_V_ERR_strings(void);
 int test_wolfSSL_CertManagerNameConstraint_valid_chain(void);
 int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void);
+int test_wolfSSL_CertManager_akid_issuer_serial(void);
+int test_wolfSSL_akid_issuer_serial_tls(void);
 int test_wolfSSL_trust_peer_cert_dates(void);
 
 #define TEST_CERTMAN_DECLS                                                  \
@@ -75,6 +78,7 @@ int test_wolfSSL_trust_peer_cert_dates(void);
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerLoadCABuffer),       \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerLoadCABuffer_ex),    \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerLoadCABufferType),   \
+    TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerCAKeySize),          \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerGetCerts),           \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerSetVerify),          \
     TEST_DECL_GROUP("certman", test_wolfSSL_CertManagerNameConstraint),     \
@@ -120,6 +124,9 @@ int test_wolfSSL_trust_peer_cert_dates(void);
         test_wolfSSL_CertManagerNameConstraint_valid_chain),                \
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerNameConstraint_skid_disambiguates),         \
+    TEST_DECL_GROUP("certman",                                             \
+        test_wolfSSL_CertManager_akid_issuer_serial),                       \
+    TEST_DECL_GROUP("certman", test_wolfSSL_akid_issuer_serial_tls),        \
     TEST_DECL_GROUP("certman", test_wolfSSL_trust_peer_cert_dates),         \
     TEST_DECL_GROUP("certman",                                             \
         test_wolfSSL_CertManagerCheckCRL_out_of_date),                      \

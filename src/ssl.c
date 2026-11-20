@@ -435,11 +435,15 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
  * them here, next to the includes, rather than inside the files that need
  * them.
  *
- * x509GetIssuerFromCM() is defined in src/x509_str.c, which also requires
- * NO_CERTS to be undefined. */
+ * x509GetIssuerFromCM() and X509StoreCmIsIssuer() are defined in
+ * src/x509_str.c, which also requires NO_CERTS to be undefined. */
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
 static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x);
+#ifdef KEEP_PEER_CERT
+static int X509StoreCmIsIssuer(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_X509* ca,
+        WOLFSSL_X509* x509);
+#endif
 #endif
 
 #define WOLFSSL_SSL_API_CERT_INCLUDED
@@ -3159,6 +3163,21 @@ static int CheckcipherList(const char* list)
     return ret;
 }
 
+/* Does the list have a "-ALL" or "!ALL" token? */
+static int CipherListRemovesAll(const char* list)
+{
+    const char* p = list;
+
+    while ((p = XSTRSTR(p, "ALL")) != NULL) {
+        if (p > list && (p[-1] == '-' || p[-1] == '!') &&
+                (p - 1 == list || p[-2] == ':') &&
+                (p[3] == ':' || p[3] == '\0'))
+            return 1;
+        p += 3;
+    }
+    return 0;
+}
+
 /* parse some bulk lists like !eNULL / !aNULL
  *
  * returns WOLFSSL_SUCCESS on success and sets the cipher suite list
@@ -3169,6 +3188,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int     ret = 0;
     int     listattribute = 0;
     int     tls13Only = 0;
+    int     removeAll;
     WC_DECLARE_VAR(suitesCpy, byte, WOLFSSL_MAX_SUITE_SZ, 0);
     word16  suitesCpySz = 0;
     word16  i = 0;
@@ -3179,7 +3199,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         return WOLFSSL_FAILURE;
     }
 
-    listattribute = CheckcipherList(list);
+    /* "-ALL" and "!ALL" only set the TLS 1.2 and lower suites. */
+    removeAll = CipherListRemovesAll(list);
+    /* A new CTX has no suites yet: start from its defaults. */
+    if (removeAll && ctx != NULL && suites->suiteSz == 0)
+        InitSSL_CTX_Suites(ctx, suites);
+    listattribute = removeAll ? 1 : CheckcipherList(list);
 
     if (listattribute == 0) {
        /* list has mixed(pre-TLSv13 and TLSv13) suites
@@ -3236,6 +3261,20 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     ret = SetCipherList_ex(ctx, ssl, suites, list);
     if (ret != 1) {
+        if (removeAll) {
+            /* Nothing was added back: keep the TLS 1.3 suites and fail, as
+             * OpenSSL. */
+            suites->suiteSz = 0;
+            for (i = 0; i < suitesCpySz; i += 2) {
+                if (IsTls13CipherSuite(suitesCpy[i], suitesCpy[i + 1]) ||
+                        (suitesCpy[i] == CIPHER_BYTE && suitesCpy[i + 1] ==
+                        TLS_EMPTY_RENEGOTIATION_INFO_SCSV)) {
+                    suites->suites[suites->suiteSz++] = suitesCpy[i];
+                    suites->suites[suites->suiteSz++] = suitesCpy[i + 1];
+                }
+            }
+            suites->setSuites = 1;
+        }
         WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
@@ -6135,6 +6174,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #ifdef KEEP_PEER_CERT
         FreePeerCert(ssl);
 #endif
+#ifdef OPENSSL_EXTRA
+        /* The next connection builds its own verified chain. */
+        wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+        ssl->verifiedChain = NULL;
+#endif
 
 #ifdef WOLFSSL_QUIC
         wolfSSL_quic_clear(ssl);
@@ -8903,6 +8947,74 @@ static void* OSSL_Realloc(void *ptr, size_t size)
 #endif /* USE_WOLFSSL_MEMORY && !WOLFSSL_DEBUG_MEMORY &&
         * !WOLFSSL_STATIC_MEMORY */
 
+/* The allocators CRYPTO_get_mem_functions returns when none are set. They
+ * don't call into wolfSSL's allocator, so a wrapper of them passed to
+ * CRYPTO_set_mem_functions does not recurse. */
+#if !defined(USE_WOLFSSL_MEMORY) || defined(WOLFSSL_STATIC_MEMORY)
+    #define OSSL_DEF_MALLOC(s)      XMALLOC(s, NULL, DYNAMIC_TYPE_OPENSSL)
+    #define OSSL_DEF_REALLOC(p, s)  XREALLOC(p, s, NULL, DYNAMIC_TYPE_OPENSSL)
+    #define OSSL_DEF_FREE(p)        XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL)
+#elif !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_DEBUG_MEMORY)
+    #define OSSL_SAVE_DEFAULTS
+/* wolfSSL's allocators from before CRYPTO_set_mem_functions. Memory they
+ * allocated stays valid to free after it. */
+static wolfSSL_Malloc_cb  ossl_def_malloc  = NULL;
+static wolfSSL_Free_cb    ossl_def_free    = NULL;
+static wolfSSL_Realloc_cb ossl_def_realloc = NULL;
+
+static void OSSL_SaveDefaults(void)
+{
+    if (ossl_malloc == NULL) {
+        (void)wolfSSL_GetAllocators(&ossl_def_malloc, &ossl_def_free,
+            &ossl_def_realloc);
+    }
+}
+
+    #define OSSL_DEF_MALLOC(s)                                              \
+        ((ossl_def_malloc != NULL) ? ossl_def_malloc(s) :                   \
+            malloc(s)) /* native heap */
+    #define OSSL_DEF_REALLOC(p, s)                                          \
+        ((ossl_def_realloc != NULL) ? ossl_def_realloc(p, s) :              \
+            realloc(p, s)) /* native heap */
+    #define OSSL_DEF_FREE(p)                                                \
+        do {                                                                \
+            if (ossl_def_free != NULL)                                      \
+                ossl_def_free(p);                                           \
+            else                                                            \
+                free(p); /* native heap */                                  \
+        } while (0)
+#elif !defined(WOLFSSL_NO_MALLOC)
+    #define OSSL_DEF_MALLOC(s)      malloc(s) /* native heap */
+    #define OSSL_DEF_REALLOC(p, s)  realloc(p, s) /* native heap */
+    #define OSSL_DEF_FREE(p)        free(p) /* native heap */
+#else
+    #define OSSL_DEF_MALLOC(s)      ((void)(s), (void*)NULL)
+    #define OSSL_DEF_REALLOC(p, s)  ((void)(p), (void)(s), (void*)NULL)
+    #define OSSL_DEF_FREE(p)        (void)(p)
+#endif
+
+static void* OSSL_DefMalloc(size_t size, const char* file, int line)
+{
+    (void)file;
+    (void)line;
+    return OSSL_DEF_MALLOC(size);
+}
+
+static void* OSSL_DefRealloc(void* ptr, size_t size, const char* file,
+    int line)
+{
+    (void)file;
+    (void)line;
+    return OSSL_DEF_REALLOC(ptr, size);
+}
+
+static void OSSL_DefFree(void* ptr, const char* file, int line)
+{
+    (void)file;
+    (void)line;
+    OSSL_DEF_FREE(ptr);
+}
+
 int wolfSSL_CRYPTO_set_mem_functions(
         wolfSSL_OSSL_Malloc_cb  m,
         wolfSSL_OSSL_Realloc_cb r,
@@ -8919,6 +9031,9 @@ int wolfSSL_CRYPTO_set_mem_functions(
     WOLFSSL_MSG("wolfSSL was compiled without WOLFSSL_DEBUG_MEMORY mem "
                 "functions will receive a NULL file name and 0 for the "
                 "line number.");
+#ifdef OSSL_SAVE_DEFAULTS
+    OSSL_SaveDefaults();
+#endif
     if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)OSSL_Malloc,
            (wolfSSL_Free_cb)OSSL_Free, (wolfSSL_Realloc_cb)OSSL_Realloc) == 0) {
         ossl_malloc = m;
@@ -8936,6 +9051,62 @@ int wolfSSL_CRYPTO_set_mem_functions(
     WOLFSSL_MSG("wolfSSL allocator callback functions not compiled in");
     return WOLFSSL_FAILURE;
 #endif
+}
+
+/* Get the allocators set with CRYPTO_set_mem_functions, as in OpenSSL 3.0.
+ *
+ * When none are set, the returned functions use the C library. They can be
+ * wrapped and the wrappers passed to CRYPTO_set_mem_functions.
+ * Where that is not supported they allocate as OPENSSL_malloc does.
+ *
+ * @param [out] m  Malloc function. May be NULL.
+ * @param [out] r  Realloc function. May be NULL.
+ * @param [out] f  Free function. May be NULL.
+ */
+void wolfSSL_CRYPTO_get_mem_functions(
+        wolfSSL_OSSL_Malloc_cb*  m,
+        wolfSSL_OSSL_Realloc_cb* r,
+        wolfSSL_OSSL_Free_cb*    f)
+{
+    wolfSSL_OSSL_Malloc_cb  mf = OSSL_DefMalloc;
+    wolfSSL_OSSL_Realloc_cb rf = OSSL_DefRealloc;
+    wolfSSL_OSSL_Free_cb    ff = OSSL_DefFree;
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+    if (ossl_malloc != NULL) {
+        mf = ossl_malloc;
+        rf = ossl_realloc;
+        ff = ossl_free;
+    }
+#ifdef OSSL_SAVE_DEFAULTS
+    else {
+        OSSL_SaveDefaults();
+    }
+#endif
+#elif defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+    {
+        wolfSSL_Malloc_cb  wmf = NULL;
+        wolfSSL_Free_cb    wff = NULL;
+        wolfSSL_Realloc_cb wrf = NULL;
+
+        /* CRYPTO_set_mem_functions sets them as wolfSSL's allocators. */
+        (void)wolfSSL_GetAllocators(&wmf, &wff, &wrf);
+        if (wmf != NULL)
+            mf = (wolfSSL_OSSL_Malloc_cb)wmf;
+        if (wrf != NULL)
+            rf = (wolfSSL_OSSL_Realloc_cb)wrf;
+        if (wff != NULL)
+            ff = (wolfSSL_OSSL_Free_cb)wff;
+    }
+#endif
+
+    if (m != NULL)
+        *m = mf;
+    if (r != NULL)
+        *r = rf;
+    if (f != NULL)
+        *f = ff;
 }
 
 int wolfSSL_FIPS_mode(void)
@@ -9489,8 +9660,10 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     if (suites == NULL)
         return NULL;
 
-    /* check if stack needs populated */
-    if (ssl->suitesStack == NULL) {
+    /* Rebuild the stack when the cipher list changed since it was built. */
+    if (!CipherStackMatches(ssl->suitesStack, suites,
+            ssl->options.minDowngrade, ssl->options.mask)) {
+        wolfSSL_sk_CIPHER_free(ssl->suitesStack);
         ((WOLFSSL*)ssl)->suitesStack = CipherStackNew(suites,
             ssl->options.minDowngrade, ssl->options.mask, ssl->heap);
     }

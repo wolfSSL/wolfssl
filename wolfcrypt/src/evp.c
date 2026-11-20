@@ -495,6 +495,7 @@ void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
     if (ctx) {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_free");
         wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
+        ForceZero(ctx, sizeof(*ctx));
         XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 }
@@ -3512,36 +3513,41 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
     }
 #endif /* !NO_RSA */
 
-#ifndef NO_DSA
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
     case WC_EVP_PKEY_DSA: {
         int bytes;
         int ret;
+        WOLFSSL_DSA_SIG* dsaSig;
         if (!ctx->pkey->dsa)
             return WOLFSSL_FAILURE;
-        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
-        if (bytes == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        if (!ctx->pkey->dsa->exSet &&
+                SetDsaExternal(ctx->pkey->dsa) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
-        bytes *= 2;
+        /* DER encoding of r and s, as in OpenSSL. */
+        bytes = wolfSSL_DSA_size(ctx->pkey->dsa);
+        if (bytes <= 0)
+            return WOLFSSL_FAILURE;
         if (!sig) {
             *siglen = (size_t)bytes;
             return WOLFSSL_SUCCESS;
         }
         if ((int)*siglen < bytes)
             return WOLFSSL_FAILURE;
-        /* wolfssl_local_dsa_do_sign() takes the length as an int, and wolfCrypt
+        /* wolfSSL_DSA_do_sign_ex() takes the length as an int, and wolfCrypt
          * rejects anything longer than this anyway. */
         if (tbslen > WC_MAX_DIGEST_SIZE)
             return WOLFSSL_FAILURE;
-        ret = wolfssl_local_dsa_do_sign(tbs, (int)tbslen, sig, ctx->pkey->dsa);
-        /* wolfssl_local_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
-        if (ret != WOLFSSL_SUCCESS)
-            return ret;
-        if (bytes == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        dsaSig = wolfSSL_DSA_do_sign_ex(tbs, (int)tbslen, ctx->pkey->dsa);
+        if (dsaSig == NULL)
             return WOLFSSL_FAILURE;
-        *siglen = (size_t)bytes;
+        ret = wolfSSL_i2d_DSA_SIG(dsaSig, &sig);
+        wolfSSL_DSA_SIG_free(dsaSig);
+        if (ret <= 0)
+            return WOLFSSL_FAILURE;
+        *siglen = (size_t)ret;
         return WOLFSSL_SUCCESS;
     }
-#endif /* NO_DSA */
+#endif /* !NO_DSA && !HAVE_SELFTEST */
 
 #ifdef HAVE_ECC
     case WC_EVP_PKEY_EC: {
@@ -3654,25 +3660,36 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
             ctx->padding, wolfSSL_EVP_MD_type(ctx->mgf1_md), ctx->saltlen);
 #endif /* !NO_RSA */
 
-#ifndef NO_DSA
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
      case WC_EVP_PKEY_DSA: {
-        int dsacheck = 0;
-        int bytes;
-        if (!ctx->pkey->dsa || tbslen < WC_SHA_DIGEST_SIZE)
+        int ret;
+        const unsigned char* p = sig;
+        unsigned char* der = NULL;
+        WOLFSSL_DSA_SIG* dsaSig;
+        if (!ctx->pkey->dsa)
             return WOLFSSL_FAILURE;
-        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
-        if (bytes <= 0 || siglen < (size_t)bytes * 2)
-            return WOLFSSL_FAILURE;
-        /* wolfssl_local_dsa_do_verify() takes the length as an int, and wolfCrypt
+        /* wolfSSL_DSA_do_verify_ex() takes the length as an int, and wolfCrypt
          * rejects anything longer than this anyway. */
         if (tbslen > WC_MAX_DIGEST_SIZE)
             return WOLFSSL_FAILURE;
-        if (wolfssl_local_dsa_do_verify(tbs, (int)tbslen, (unsigned char *)sig,
-            ctx->pkey->dsa, &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
+        dsaSig = wolfSSL_d2i_DSA_SIG(NULL, &p, (long)siglen);
+        if (dsaSig == NULL)
             return WOLFSSL_FAILURE;
-        return WOLFSSL_SUCCESS;
+        /* Only the DER encoding of r and s, as in OpenSSL. */
+        ret = wolfSSL_i2d_DSA_SIG(dsaSig, &der);
+        if ((ret > 0) && ((size_t)ret == siglen) &&
+                (XMEMCMP(der, sig, (size_t)ret) == 0)) {
+            ret = wolfSSL_DSA_do_verify_ex(tbs, (int)tbslen, dsaSig,
+                ctx->pkey->dsa);
+        }
+        else {
+            ret = 0;
+        }
+        XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
+        wolfSSL_DSA_SIG_free(dsaSig);
+        return (ret == 1) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
      }
-#endif /* NO_DSA */
+#endif /* !NO_DSA && !HAVE_SELFTEST */
 
 #ifdef HAVE_ECC
     case WC_EVP_PKEY_EC: {
@@ -3693,6 +3710,13 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
     }
 }
 
+/* Key bits that OpenSSL reports for RFC 7748 and RFC 8032 keys. X25519 uses
+ * the bit length of the group order. */
+#define WC_EVP_X25519_BITS  253
+#define WC_EVP_ED25519_BITS (ED25519_KEY_SIZE * WOLFSSL_BIT_SIZE)
+#define WC_EVP_X448_BITS    (CURVE448_KEY_SIZE * WOLFSSL_BIT_SIZE)
+#define WC_EVP_ED448_BITS   (ED448_KEY_SIZE * WOLFSSL_BIT_SIZE)
+
 /* Get the size in bits for WOLFSSL_EVP_PKEY key
  *
  * pkey WOLFSSL_EVP_PKEY structure to get key size of
@@ -3711,7 +3735,14 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
     switch (pkey->type) {
 #ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
-        ret = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->rsa));
+        if (pkey->rsa == NULL || (!pkey->rsa->inSet &&
+                SetRsaInternal(pkey->rsa) != WOLFSSL_SUCCESS))
+            break;
+        /* Modulus bits, not bytes * 8. */
+        ret = mp_count_bits(&((RsaKey*)pkey->rsa->internal)->n);
+        if (ret <= 0)
+            ret = wc_RsaEncryptSize((RsaKey*)pkey->rsa->internal) *
+                WOLFSSL_BIT_SIZE;
         break;
 #endif /* !NO_RSA */
 
@@ -3721,7 +3752,7 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
                 (!pkey->dsa->exSet &&
                         SetDsaExternal(pkey->dsa) != WOLFSSL_SUCCESS))
             break;
-        ret = wolfSSL_BN_num_bytes(pkey->dsa->p);
+        ret = wolfSSL_BN_num_bits(pkey->dsa->p);
         break;
 #endif
 
@@ -3731,14 +3762,40 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
             WOLFSSL_MSG("No ECC key has been set");
             break;
         }
-        ret = wc_ecc_size((ecc_key*)(pkey->ecc->internal));
+        /* Bits of the group order, as OpenSSL reports. */
+        if (pkey->ecc->group != NULL)
+            ret = wolfSSL_EC_GROUP_order_bits(pkey->ecc->group);
+        if (ret <= 0)
+            ret = wc_ecc_size((ecc_key*)(pkey->ecc->internal)) *
+                WOLFSSL_BIT_SIZE;
         break;
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_CURVE25519
+    case WC_EVP_PKEY_X25519:
+        ret = WC_EVP_X25519_BITS;
+        break;
+#endif
+#ifdef HAVE_ED25519
+    case WC_EVP_PKEY_ED25519:
+        ret = WC_EVP_ED25519_BITS;
+        break;
+#endif
+#ifdef HAVE_CURVE448
+    case WC_EVP_PKEY_X448:
+        ret = WC_EVP_X448_BITS;
+        break;
+#endif
+#ifdef HAVE_ED448
+    case WC_EVP_PKEY_ED448:
+        ret = WC_EVP_ED448_BITS;
+        break;
+#endif
 
     default:
         break;
     }
-    return ret > 0 ? ret * 8 : 0;
+    return ret > 0 ? ret : 0;
 }
 
 
@@ -7114,6 +7171,8 @@ void wolfSSL_EVP_init(void)
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_cleanup");
         if (ctx) {
             wolfSSL_EVP_CIPHER_CTX_cleanup_cipher(ctx);
+            /* Key schedules of all ciphers, DES included. */
+            ForceZero(&ctx->cipher, sizeof(ctx->cipher));
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             if (ctx->key) {
@@ -9713,7 +9772,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 #endif /* !NO_RSA */
 
 #if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
-/* with set1 functions the pkey struct does not own the DSA structure
+/* with set1 functions the pkey struct takes a reference to the DSA structure
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
@@ -9727,9 +9786,14 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DSA");
 
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
+    /* Take the reference first: key may be the one the pkey holds. */
+    if (wolfSSL_DSA_up_ref(key) != 1) {
+        WOLFSSL_MSG("wolfSSL_DSA_up_ref failed");
+        return WOLFSSL_FAILURE;
+    }
     clearEVPPkeyKeys(pkey);
     pkey->dsa    = key;
-    pkey->ownDsa = 0; /* pkey does not own DSA */
+    pkey->ownDsa = 1; /* pkey holds a reference */
     pkey->type   = WC_EVP_PKEY_DSA;
     if (key->inSet == 0) {
         if (SetDsaInternal(key) != WOLFSSL_SUCCESS) {
@@ -9769,6 +9833,16 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
         return WOLFSSL_FAILURE;
     }
 
+    /* Drop the encoding of a key held before. */
+    if (pkey->pkey.ptr != NULL) {
+        if (pkey->pkey_sz > 0) {
+            ForceZero(pkey->pkey.ptr, (word32)pkey->pkey_sz);
+        }
+        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_DER);
+        pkey->pkey_sz = 0;
+    }
+    /* The new encoding has no PKCS#8 header. */
+    pkey->pkcs8HeaderSz = 0;
     pkey->pkey.ptr = (char*)XMALLOC((size_t)derSz, pkey->heap,
         DYNAMIC_TYPE_DER);
     if (pkey->pkey.ptr == NULL) {
@@ -9791,6 +9865,9 @@ WOLFSSL_DSA* wolfSSL_EVP_PKEY_get0_DSA(struct WOLFSSL_EVP_PKEY *pkey)
     return pkey->dsa;
 }
 
+/* Returns the DSA key of the pkey with its reference count incremented.
+ * The caller frees it with wolfSSL_DSA_free().
+ */
 WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_DSA* local;
@@ -9801,14 +9878,18 @@ WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
         WOLFSSL_MSG("Bad function argument");
         return NULL;
     }
-
-    local = wolfSSL_DSA_new();
-    if (local == NULL) {
-        WOLFSSL_MSG("Error creating a new WOLFSSL_DSA structure");
+    if (key->type != WC_EVP_PKEY_DSA) {
+        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold a DSA key");
         return NULL;
     }
 
-    if (key->type == WC_EVP_PKEY_DSA) {
+    if (key->dsa == NULL) {
+        /* Decode the stored DER and keep the key on the pkey. */
+        local = wolfSSL_DSA_new();
+        if (local == NULL) {
+            WOLFSSL_MSG("Error creating a new WOLFSSL_DSA structure");
+            return NULL;
+        }
         if (wolfSSL_DSA_LoadDer(local, (const unsigned char*)key->pkey.ptr,
                     key->pkey_sz) != WOLFSSL_SUCCESS) {
             /* now try public key */
@@ -9816,16 +9897,18 @@ WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
                         (const unsigned char*)key->pkey.ptr, key->pkey_sz,
                         WOLFSSL_DSA_LOAD_PUBLIC) != WOLFSSL_SUCCESS) {
                 wolfSSL_DSA_free(local);
-                local = NULL;
+                return NULL;
             }
         }
+        key->dsa = local;
+        key->ownDsa = 1;
     }
-    else {
-        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold a DSA key");
-        wolfSSL_DSA_free(local);
-        local = NULL;
+
+    if (wolfSSL_DSA_up_ref(key->dsa) != 1) {
+        WOLFSSL_MSG("wolfSSL_DSA_up_ref failed");
+        return NULL;
     }
-    return local;
+    return key->dsa;
 }
 #endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
 

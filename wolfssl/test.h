@@ -2762,7 +2762,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 #if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) \
     && !defined(OPENSSL_COEXIST)
         /* avoid printing duplicate certs */
-        if (store->depth == 1) {
+        if (store->error_depth == 0) {
             int i;
             /* retrieve x509 certs and display them on stdout */
             sk = wolfSSL_X509_STORE_GetCerts(store);

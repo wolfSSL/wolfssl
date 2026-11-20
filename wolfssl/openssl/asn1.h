@@ -30,7 +30,6 @@
 
 #define ASN1_STRING_new       wolfSSL_ASN1_STRING_new
 #define ASN1_STRING_type_new  wolfSSL_ASN1_STRING_type_new
-#define ASN1_STRING_type      wolfSSL_ASN1_STRING_type
 #define ASN1_STRING_set       wolfSSL_ASN1_STRING_set
 #define ASN1_OCTET_STRING_set wolfSSL_ASN1_STRING_set
 #define ASN1_STRING_free      wolfSSL_ASN1_STRING_free
@@ -86,6 +85,8 @@
 #define V_ASN1_BMPSTRING                WOLFSSL_V_ASN1_BMPSTRING
 
 #define V_ASN1_CONSTRUCTED              WOLFSSL_V_ASN1_CONSTRUCTED
+
+#define B_ASN1_OCTET_STRING             WOLFSSL_B_ASN1_OCTET_STRING
 
 #define ASN1_STRING_FLAG_BITS_LEFT      WOLFSSL_ASN1_STRING_FLAG_BITS_LEFT
 #define ASN1_STRING_FLAG_NDEF           WOLFSSL_ASN1_STRING_FLAG_NDEF

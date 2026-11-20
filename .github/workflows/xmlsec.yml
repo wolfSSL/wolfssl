@@ -1,0 +1,213 @@
+name: xmlsec Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-24.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          # The CFLAGS only relax limits for the xmlsec test data: a 512-bit
+          # RSA CA, rsa-1024 key generation, serial-0 certs and MD5-signed
+          # certs.
+          configure: >-
+            --enable-all
+            'CFLAGS=-DWOLFSSL_MIN_RSA_BITS=512 -DRSA_MIN_SIZE=1024 -DWOLFSSL_ASN_ALLOW_0_SERIAL -DWOLFSSL_ALLOW_MD5_CERT_SIGS'
+          install: true
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v6
+        with:
+          name: wolf-install-xmlsec
+          path: build-dir.tgz
+          retention-days: 5
+
+  xmlsec_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ref: 1.2.42
+            tag: xmlsec-1_2_42
+            sha256: 5359e3c19016ab164b505c1222ef5a2d87b34f50f85ff91d765f4aaa0df42db2
+            checks: keys dsig enc
+            # wolfSSL does not load DSA private keys from PKCS#12.
+            expect_fail: >-
+              aleksey-xmldsig-01/enveloping-dsa-x509chain
+              aleksey-xmldsig-01/enveloping-sha256-dsa2048-sha256
+              aleksey-xmldsig-01/enveloping-sha256-dsa3072-sha256
+              merlin-exc-c14n-one/exc-signature
+              merlin-xmldsig-twenty-three/signature
+              merlin-xmldsig-twenty-three/signature-enveloped-dsa
+              merlin-xmldsig-twenty-three/signature-enveloping-b64-dsa
+              merlin-xmldsig-twenty-three/signature-enveloping-dsa
+              merlin-xmldsig-twenty-three/signature-external-b64-dsa
+              merlin-xmldsig-twenty-three/signature-external-dsa
+              merlin-xmldsig-twenty-three/signature-keyname
+              merlin-xmldsig-twenty-three/signature-retrievalmethod-rawx509crt
+              merlin-xmldsig-twenty-three/signature-x509-crt
+              merlin-xmldsig-twenty-three/signature-x509-is
+              merlin-xmldsig-twenty-three/signature-x509-ski
+              merlin-xmldsig-twenty-three/signature-x509-sn
+          - ref: 1.3.12
+            tag: 1.3.12
+            sha256: 24045199af12d93fe5fdbbbf7e386e823e4842071e9432e2b90ac108b889a923
+            checks: unit-tests keys dsig enc
+            # wolfSSL does not load DSA private keys from PKCS#12 or PKCS#8.
+            expect_fail: >-
+              aleksey-xmldsig-01/enveloped-sha1-dsa-sha1
+              aleksey-xmldsig-01/enveloping-dsa-x509chain
+              aleksey-xmldsig-01/enveloping-sha1-dsa1024-der-encoded-key-value
+              aleksey-xmldsig-01/enveloping-sha256-dsa2048-der-encoded-key-value
+              aleksey-xmldsig-01/enveloping-sha256-dsa2048-sha256
+              aleksey-xmldsig-01/enveloping-sha256-dsa3072-sha256
+              dsa-1024
+              merlin-exc-c14n-one/exc-signature
+              merlin-xmldsig-twenty-three/signature
+              merlin-xmldsig-twenty-three/signature-enveloped-dsa
+              merlin-xmldsig-twenty-three/signature-enveloping-b64-dsa
+              merlin-xmldsig-twenty-three/signature-enveloping-dsa
+              merlin-xmldsig-twenty-three/signature-external-b64-dsa
+              merlin-xmldsig-twenty-three/signature-external-dsa
+              merlin-xmldsig-twenty-three/signature-keyname
+              merlin-xmldsig-twenty-three/signature-retrievalmethod-rawx509crt
+              merlin-xmldsig-twenty-three/signature-x509-crt
+              merlin-xmldsig-twenty-three/signature-x509-is
+              merlin-xmldsig-twenty-three/signature-x509-ski
+              merlin-xmldsig-twenty-three/signature-x509-sn
+    name: ${{ matrix.ref }}
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    needs: build_wolfssl
+    steps:
+      - name: Checkout wolfSSL CI actions
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/actions
+          fetch-depth: 1
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          # Fit the loop inside this job's timeout-minutes.
+          budget-seconds: '120'
+          pull-timeout: '60'
+          packages: autoconf automake libtool pkg-config libltdl-dev libxml2-dev libxslt1-dev
+          ghcr-debs-tag: ubuntu-24.04-full
+
+      - name: Download lib
+        uses: actions/download-artifact@v7
+        with:
+          name: wolf-install-xmlsec
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v5
+        with:
+          repository: wolfssl/osp
+          path: osp
+          fetch-depth: 1
+
+      - name: Download xmlsec
+        run: |
+          curl -fLO https://github.com/lsh123/xmlsec/releases/download/${{ matrix.tag }}/xmlsec1-${{ matrix.ref }}.tar.gz
+          echo "${{ matrix.sha256 }}  xmlsec1-${{ matrix.ref }}.tar.gz" | sha256sum -c -
+          tar xf xmlsec1-${{ matrix.ref }}.tar.gz
+
+      - name: Build xmlsec
+        working-directory: xmlsec1-${{ matrix.ref }}
+        run: |
+          patch -p1 < "$GITHUB_WORKSPACE/osp/xmlsec/${{ matrix.ref }}/xmlsec1-${{ matrix.ref }}.patch"
+          autoreconf -fi
+          # NO_OLD_WC_NAMES: wolfCrypt's old names (Sha256, ...) clash with xmlsec's
+          OPENSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include -I$GITHUB_WORKSPACE/build-dir/include/wolfssl -DWOLFSSL_USE_OPTIONS_H" \
+          OPENSSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath,$GITHUB_WORKSPACE/build-dir/lib -lwolfssl" \
+          CPPFLAGS="-DNO_OLD_WC_NAMES" \
+          ./configure --with-default-crypto=openssl --without-nss --without-gnutls \
+              --without-gcrypt --disable-docs --disable-mans
+          make -j
+          ldd src/openssl/.libs/libxmlsec1-openssl.so | grep wolfssl
+          if ldd src/openssl/.libs/libxmlsec1-openssl.so | grep -E 'libssl|libcrypto'; then
+            echo "::error::libxmlsec1-openssl is linked against OpenSSL"
+            exit 1
+          fi
+
+      - name: Run xmlsec tests
+        working-directory: xmlsec1-${{ matrix.ref }}
+        env:
+          EXPECT_FAIL: ${{ matrix.expect_fail }}
+          CHECKS: ${{ matrix.checks }}
+        run: |
+          export TMPFOLDER="$GITHUB_WORKSPACE/xmlsec-logs"
+          mkdir -p "$TMPFOLDER"
+          # make check stops at the first failing script, so run each one
+          for t in $CHECKS; do
+            rc=0
+            make "check-$t" > "$TMPFOLDER/check-$t.log" 2>&1 || rc=$?
+            if [ "$t" = unit-tests ]; then
+              # No expected failures: it must exit 0 and report success.
+              if [ $rc -ne 0 ] ||
+                  ! grep 'Checking xmlsec-core: SUCCESS' "$TMPFOLDER/check-$t.log"; then
+                tail -n 50 "$TMPFOLDER/check-$t.log"
+                echo "::error::check-$t failed"
+                exit 1
+              fi
+            elif ! grep -- '--- TOTAL' "$TMPFOLDER/check-$t.log"; then
+              tail -n 50 "$TMPFOLDER/check-$t.log"
+              echo "::error::check-$t did not finish"
+              exit 1
+            fi
+          done
+          # A test name is an unindented line, "Test: " prefixed in 1.3. Its
+          # steps are indented and end in OK, Fail or Skip.
+          for t in $CHECKS; do
+            [ "$t" = unit-tests ] && continue
+            awk '/^--- TOTAL/ {exit}
+                 /^[^ \t]/ {name = $0; sub(/^Test: /, "", name); sub(/[ \t]+$/, "", name)}
+                 /[ \t]Fail$/ {print name}' "$TMPFOLDER/check-$t.log"
+          done | sort -u > "$TMPFOLDER/failed.txt"
+          # Tests are matched by name: a listed test that fails for another
+          # reason is not caught.
+          echo "$EXPECT_FAIL" | tr ' ' '\n' | sed '/^$/d' | sort -u > "$TMPFOLDER/expected.txt"
+          if ! diff -u "$TMPFOLDER/expected.txt" "$TMPFOLDER/failed.txt"; then
+            echo "::error::Failed tests differ from expect_fail (- passes now, + new failure)"
+            exit 1
+          fi
+
+      - name: Upload test logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: xmlsec-${{ matrix.ref }}-logs
+          path: xmlsec-logs
+          retention-days: 5

@@ -443,6 +443,10 @@ enum {
     WC_EVP_PKEY_RSA           = 16,
     WC_EVP_PKEY_DSA           = 17,
     WC_EVP_PKEY_EC            = 18,
+    /* OpenSSL RSA key types. wolfSSL never creates keys of these types;
+     * they exist so code that switches on them compiles. */
+    WC_EVP_PKEY_RSA2          = 19,
+    WC_EVP_PKEY_RSA_PSS       = WC_NID_rsassaPss,
     WC_AES_128_GCM_TYPE       = 21,
     WC_AES_192_GCM_TYPE       = 22,
     WC_AES_256_GCM_TYPE       = 23,
@@ -522,6 +526,8 @@ enum {
 #define EVP_PKEY_RSA WC_EVP_PKEY_RSA
 #define EVP_PKEY_DSA WC_EVP_PKEY_DSA
 #define EVP_PKEY_EC WC_EVP_PKEY_EC
+#define EVP_PKEY_RSA2 WC_EVP_PKEY_RSA2
+#define EVP_PKEY_RSA_PSS WC_EVP_PKEY_RSA_PSS
 #define AES_128_GCM_TYPE WC_AES_128_GCM_TYPE
 #define AES_192_GCM_TYPE WC_AES_192_GCM_TYPE
 #define AES_256_GCM_TYPE WC_AES_256_GCM_TYPE

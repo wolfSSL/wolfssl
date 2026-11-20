@@ -38,6 +38,7 @@ int test_wolfSSL_SMIME_write_PKCS7(void);
 int test_wolfSSL_PKCS7_verify_nointern(void);
 int test_wolfSSL_PKCS12(void);
 int test_wolfSSL_PKCS12_create_mac(void);
+int test_wolfSSL_PKCS12_alias_keyid(void);
 
 #define TEST_OSSL_PKCS7_DECLS                                               \
     TEST_DECL_GROUP("ossl_p7", test_wolfssl_PKCS7),                         \
@@ -56,9 +57,10 @@ int test_wolfSSL_PKCS12_create_mac(void);
     TEST_DECL_GROUP("ossl_smime", test_wolfSSL_SMIME_write_PKCS7),   \
     TEST_DECL_GROUP("ossl_smime", test_wolfSSL_PKCS7_verify_nointern)
 
-#define TEST_OSSL_PKCS12_DECLS                                  \
-    TEST_DECL_GROUP("ossl_p12", test_wolfSSL_PKCS12),           \
-    TEST_DECL_GROUP("ossl_p12", test_wolfSSL_PKCS12_create_mac)
+#define TEST_OSSL_PKCS12_DECLS                                   \
+    TEST_DECL_GROUP("ossl_p12", test_wolfSSL_PKCS12),            \
+    TEST_DECL_GROUP("ossl_p12", test_wolfSSL_PKCS12_create_mac), \
+    TEST_DECL_GROUP("ossl_p12", test_wolfSSL_PKCS12_alias_keyid)
 
 #endif /* WOLFCRYPT_TEST_OSSL_P7P12_H */
 

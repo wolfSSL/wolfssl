@@ -626,6 +626,63 @@ int test_wolfSSL_CertManagerLoadCABufferType(void)
     return EXPECT_RESULT();
 }
 
+/* AddCA() checks the RSA modulus and ECC curve size of a CA against the
+ * minimum key sizes when the CTX verifies peers. */
+int test_wolfSSL_CertManagerCAKeySize(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    byte* buf = NULL;
+    size_t sz = 0;
+
+#if !defined(NO_RSA) && !defined(NO_SHA256)
+    /* A 2048-bit modulus. */
+    ExpectIntEQ(load_file("./certs/ca-cert.der", &buf, &sz), 0);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 2048), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 2056), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+#endif
+#if defined(HAVE_ECC) && !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
+    (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    /* P-256 is below a minimum of 384 bits, P-384 is not. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_SetMinEccKey_Sz(ctx, 384), WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file("./certs/ca-ecc-cert.der", &buf, &sz), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ECC_KEY_SIZE_E));
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+    ExpectIntEQ(load_file("./certs/ca-ecc384-cert.der", &buf, &sz), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, buf, (long)sz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+    (void)ctx;
+    (void)buf;
+    (void)sz;
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CertManagerGetCerts(void)
 {
     EXPECT_DECLS;
@@ -914,6 +971,24 @@ int test_wolfSSL_CertManagerNameConstraint(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES)
+/* Keep only the key id in the AKID: its issuer and serial name the CA of
+ * the original cert, not ca. */
+static int cm_nc_set_akid(WOLFSSL_X509* x509, WOLFSSL_X509* ca)
+{
+    unsigned char skid[64];
+    int skidSz = (int)sizeof(skid);
+
+    if (wolfSSL_X509_get_subjectKeyID(ca, skid, &skidSz) == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    return wolfSSL_X509_set_authority_key_id(x509, skid, skidSz);
+}
+#endif
+
 int test_wolfSSL_CertManagerNameConstraint2(void)
 {
     EXPECT_DECLS;
@@ -979,6 +1054,7 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cm_nc_set_akid(x509, ca), WOLFSSL_SUCCESS);
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
     wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
 #else
@@ -1021,6 +1097,7 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cm_nc_set_akid(x509, ca), WOLFSSL_SUCCESS);
 
     /* add in miss matching DIR alt name and resign */
     wolfSSL_X509_add_altname_ex(x509, altNameFail, sizeof(altNameFail),
@@ -1043,6 +1120,7 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cm_nc_set_akid(x509, ca), WOLFSSL_SUCCESS);
     wolfSSL_X509_add_altname_ex(x509, altName, sizeof(altName), ASN_DIR_TYPE);
     wolfSSL_X509_add_altname_ex(x509, altNameFail, sizeof(altNameFail),
             ASN_DIR_TYPE);
@@ -1063,6 +1141,7 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cm_nc_set_akid(x509, ca), WOLFSSL_SUCCESS);
     wolfSSL_X509_add_altname_ex(x509, altNameFail, sizeof(altNameFail),
             ASN_DIR_TYPE);
     wolfSSL_X509_add_altname_ex(x509, altName, sizeof(altName), ASN_DIR_TYPE);
@@ -1085,6 +1164,7 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
                 WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cm_nc_set_akid(x509, ca), WOLFSSL_SUCCESS);
     wolfSSL_X509_add_altname_ex(x509, altNameBadUtf8, sizeof(altNameBadUtf8),
             ASN_DIR_TYPE);
 
@@ -1117,6 +1197,7 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
             ASN_DIR_TYPE);
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cm_nc_set_akid(x509, ca), WOLFSSL_SUCCESS);
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
     wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
@@ -1137,6 +1218,7 @@ int test_wolfSSL_CertManagerNameConstraint2(void)
             ASN_DIR_TYPE);
     ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
     ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    ExpectIntEQ(cm_nc_set_akid(x509, ca), WOLFSSL_SUCCESS);
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
     wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
@@ -5299,6 +5381,150 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
                 WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 
     wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(HAVE_ECC) && !defined(NO_SHA256) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    #define TEST_AKID_SERIAL
+    #define AKID_SERIAL_DIR "./certs/test/akid-serial/"
+#endif
+
+/* RFC 5280, 4.2.1.1: a CA whose serial or issuer name is not the one in the
+ * AKID is not the signer, unless it has the key of the AKID key id and no
+ * other CA has that serial and issuer name: a CA re-issued with the same
+ * key. */
+int test_wolfSSL_CertManager_akid_issuer_serial(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_AKID_SERIAL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CM_VERIFY)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root = AKID_SERIAL_DIR "root-cert.pem";
+    const char* ca = AKID_SERIAL_DIR "ca-cert.pem";
+    const char* twin = AKID_SERIAL_DIR "ca-twin-cert.pem";
+    const char* otherKey = AKID_SERIAL_DIR "ca-otherkey-cert.pem";
+    const char* leaf = AKID_SERIAL_DIR "leaf-cert.pem";
+    const char* leafTwin = AKID_SERIAL_DIR "leaf-twin-cert.pem";
+    const char* leafIssuer = AKID_SERIAL_DIR "leaf-issuer-cert.pem";
+    const char* leafOtherKey = AKID_SERIAL_DIR "leaf-otherkey-cert.pem";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leaf, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    /* AKID serial is the twin's, which has the same key */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leafTwin, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    /* AKID serial is the CA's but the issuer name is another */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leafIssuer,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    /* AKID serial is of a CA of another key that is not loaded */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leafOtherKey,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    /* Loaded, the CA of the AKID serial has another key */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, otherKey, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leafOtherKey,
+        WOLFSSL_FILETYPE_PEM), WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leaf, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, twin, NULL), WOLFSSL_SUCCESS);
+    /* The twin has the key of the AKID key id of leaf */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leaf, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, leafTwin, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(TEST_AKID_SERIAL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(OPENSSL_EXTRA)
+/* The server sends the CA of the AKID of its cert. */
+static int test_akid_serial_send_ca(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509* ca = NULL;
+
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(
+        AKID_SERIAL_DIR "ca-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_CTX_add1_chain_cert(ctx, ca), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(ca);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* The AKID issuer and serial check in a handshake */
+int test_wolfSSL_akid_issuer_serial_tls(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_AKID_SERIAL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(OPENSSL_EXTRA)
+    struct {
+        const char* cert;
+        const char* trusted;
+        const char* trusted2;
+        ctx_cb sendCa;
+        int err;
+    } cases[] = {
+        { AKID_SERIAL_DIR "leaf-cert.pem", AKID_SERIAL_DIR "ca-cert.pem",
+          NULL, NULL, 0 },
+        /* the CA has the key of the AKID key id */
+        { AKID_SERIAL_DIR "leaf-twin-cert.pem", AKID_SERIAL_DIR "ca-cert.pem",
+          NULL, NULL, 0 },
+        /* trusts an older copy of the CA the server sends: same key */
+        { AKID_SERIAL_DIR "leaf-cert.pem", AKID_SERIAL_DIR "ca-twin-cert.pem",
+          NULL, test_akid_serial_send_ca, 0 },
+        /* the CA of the AKID serial has another key */
+        { AKID_SERIAL_DIR "leaf-otherkey-cert.pem",
+          AKID_SERIAL_DIR "ca-cert.pem", AKID_SERIAL_DIR "ca-otherkey-cert.pem",
+          NULL, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) },
+    };
+    test_ssl_memio_ctx test_ctx;
+    size_t i;
+    int ret;
+
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ret = TEST_FAIL;
+
+        test_ctx.c_cb.caPemFile = AKID_SERIAL_DIR "root-cert.pem";
+        test_ctx.s_cb.certPemFile = cases[i].cert;
+        test_ctx.s_cb.keyPemFile = AKID_SERIAL_DIR "leaf-key.pem";
+        test_ctx.s_cb.ctx_ready = cases[i].sendCa;
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(test_ctx.c_ctx,
+            cases[i].trusted, NULL), WOLFSSL_SUCCESS);
+        if (cases[i].trusted2 != NULL) {
+            ExpectIntEQ(wolfSSL_CTX_load_verify_locations(test_ctx.c_ctx,
+                cases[i].trusted2, NULL), WOLFSSL_SUCCESS);
+        }
+        wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+
+        if (EXPECT_SUCCESS()) {
+            ret = test_ssl_memio_do_handshake(&test_ctx, 10, NULL);
+        }
+        if (cases[i].err == 0) {
+            ExpectIntEQ(ret, TEST_SUCCESS);
+        }
+        else {
+            ExpectIntNE(ret, TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0), cases[i].err);
+        }
+
+        test_ssl_memio_cleanup(&test_ctx);
+    }
 #endif
     return EXPECT_RESULT();
 }

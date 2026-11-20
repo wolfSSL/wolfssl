@@ -1040,58 +1040,88 @@ void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
     XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
-/* Get the length of the raw integer value bytes, stripping the DER tag/length
- * header if present. Required for OpenSSL compatibility where ASN1_INTEGER is
- * typedef'd to ASN1_STRING and callers use ASN1_STRING_length() on integers.
+/* Get the value of the INTEGER as OpenSSL holds it: the magnitude without the
+ * DER header and leading zero octets. Data without a DER header is the value
+ * (WOLFSSL_QT / WOLFSSL_HAPROXY format).
+ *
+ * @param [in]  ai   ASN.1 INTEGER object.
+ * @param [out] len  Length of the value in bytes.
+ * @return  Pointer to the value on success.
+ * @return  NULL when ai is NULL or has no data.
+ */
+static const unsigned char* wolfssl_asn1_integer_value(
+    const WOLFSSL_ASN1_INTEGER* ai, int* len)
+{
+    const unsigned char* data = NULL;
+    word32 idx = 1;
+    int derLen = 0;
+
+    *len = 0;
+    if ((ai != NULL) && (ai->data != NULL) && (ai->length > 0)) {
+        data = ai->data;
+        *len = ai->length;
+        if ((data[0] == ASN_INTEGER) &&
+                (GetLength(data, &idx, &derLen, (word32)ai->length) >= 0) &&
+                (idx + (word32)derLen == (word32)ai->length)) {
+            data += idx;
+            *len = derLen;
+        }
+        while ((*len > 1) && (data[0] == 0x00)) {
+            data++;
+            (*len)--;
+        }
+    }
+
+    return data;
+}
+
+/* Get the length of the value of the INTEGER, as ASN1_STRING_length() on an
+ * ASN1_INTEGER in OpenSSL.
  *
  * @param [in] ai  ASN.1 INTEGER object.
- * @return  Length of the raw integer value on success.
- * @return  0 when ai is NULL or data is invalid.
+ * @return  Length of the value on success.
+ * @return  0 when ai is NULL or has no data.
  */
 int wolfSSL_ASN1_INTEGER_get_length(const WOLFSSL_ASN1_INTEGER* ai)
 {
-    if (ai == NULL || ai->data == NULL || ai->length <= 0) {
-        return 0;
-    }
-    if (ai->data[0] == ASN_INTEGER) {
-        word32 idx = 1;
-        int len = 0;
-        if (GetLength(ai->data, &idx, &len, (word32)ai->length) >= 0 &&
-                idx + (word32)len == (word32)ai->length) {
-            return len;
-        }
-    }
-    /* WOLFSSL_QT / WOLFSSL_HAPROXY format: raw bytes without DER header,
-     * or data that coincidentally starts with 0x02 but whose header+value
-     * boundaries do not span exactly ai->length. */
-    return ai->length;
+    int len;
+
+    (void)wolfssl_asn1_integer_value(ai, &len);
+    return len;
 }
 
-/* Get a pointer to the raw integer value bytes, skipping the DER tag/length
- * header if present. Required for OpenSSL compatibility where ASN1_INTEGER is
- * typedef'd to ASN1_STRING and callers use ASN1_STRING_get0_data() on integers.
+/* Get the value of the INTEGER, as ASN1_STRING_get0_data() on an ASN1_INTEGER
+ * in OpenSSL: the magnitude, big-endian. The sign is in the type.
  *
  * @param [in] ai  ASN.1 INTEGER object.
- * @return  Pointer to the raw integer value bytes on success.
- * @return  NULL when ai is NULL or data is invalid.
+ * @return  Pointer to the value on success.
+ * @return  NULL when ai is NULL or has no data.
  */
 const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(const WOLFSSL_ASN1_INTEGER* ai)
 {
-    if (ai == NULL || ai->data == NULL || ai->length <= 0) {
-        return NULL;
+    int len;
+
+    return wolfssl_asn1_integer_value(ai, &len);
+}
+
+/* Get the type of the INTEGER, as ASN1_STRING_type() on an ASN1_INTEGER in
+ * OpenSSL. The sign is in the negative flag, as for the other INTEGER APIs.
+ *
+ * @param [in] ai  ASN.1 INTEGER object.
+ * @return  WOLFSSL_V_ASN1_NEG_INTEGER when negative.
+ * @return  WOLFSSL_V_ASN1_INTEGER when not negative.
+ * @return  0 when ai is NULL.
+ */
+int wolfSSL_ASN1_INTEGER_get_type(const WOLFSSL_ASN1_INTEGER* ai)
+{
+    int type = 0;
+
+    if (ai != NULL) {
+        type = ai->negative ? WOLFSSL_V_ASN1_NEG_INTEGER :
+            WOLFSSL_V_ASN1_INTEGER;
     }
-    if (ai->data[0] == ASN_INTEGER) {
-        word32 idx = 1;
-        int len = 0;
-        if (GetLength(ai->data, &idx, &len, (word32)ai->length) >= 0 &&
-                idx + (word32)len == (word32)ai->length) {
-            return ai->data + idx;
-        }
-    }
-    /* WOLFSSL_QT / WOLFSSL_HAPROXY format: raw bytes without DER header,
-     * or data that coincidentally starts with 0x02 but whose header+value
-     * boundaries do not span exactly ai->length. */
-    return ai->data;
+
+    return type;
 }
 
 #if defined(OPENSSL_EXTRA)
@@ -1261,6 +1291,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
         }
         else {
             XMEMCPY(dst->data, src->data, (size_t)src->length);
+            dst->length = src->length;
         }
     }
 
@@ -1300,13 +1331,20 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
         ret = 1;
     }
     else {
+        /* Compare the magnitudes from the accessors: data may hold the DER
+         * encoding or only the content. */
+        const unsigned char* aData = wolfSSL_ASN1_INTEGER_get0_data(a);
+        const unsigned char* bData = wolfSSL_ASN1_INTEGER_get0_data(b);
+        int aLen = wolfSSL_ASN1_INTEGER_get_length(a);
+        int bLen = wolfSSL_ASN1_INTEGER_get_length(b);
+
         /* Check for difference in length. */
-        if (a->length != b->length) {
-            ret = a->length - b->length;
+        if (aLen != bLen) {
+            ret = aLen - bLen;
         }
-        else {
+        else if (aLen > 0) {
             /* Compare data given they are the same length. */
-            ret = XMEMCMP(a->data, b->data, (size_t)a->length);
+            ret = XMEMCMP(aData, bData, (size_t)aLen);
         }
         /* Reverse comparison result when both negative. */
         if (a->negative) {
@@ -1361,7 +1399,7 @@ static int wolfssl_asn1_int_twos_compl(byte* data, int length, byte* neg)
     }
     else {
         if (neg != NULL) {
-            *neg = data[idx] & 0x80;
+            *neg = (data[idx] & 0x80) ? 1 : 0;
         }
         if ((neg == NULL) || (*neg != 0)) {
             wolfssl_twos_compl(data + idx, length - (int)idx);
@@ -1407,6 +1445,19 @@ static int wolfssl_asn1_int_transfer_to_int(WOLFSSL_ASN1_INTEGER* dest,
     return 0;
 }
 
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+/* Is the data of the INTEGER a DER encoding, not only the value? */
+static int wolfssl_asn1_integer_is_der(const WOLFSSL_ASN1_INTEGER* a)
+{
+    word32 idx = 1;
+    int len = 0;
+
+    return (a->length > 0) && (a->data[0] == ASN_INTEGER) &&
+        (GetLength(a->data, &idx, &len, (word32)a->length) >= 0) &&
+        (idx + (word32)len == (word32)a->length);
+}
+#endif
+
 /* Encode ASN.1 INTEGER as DER without tag.
  *
  * When out points to NULL, a new buffer is allocated and returned.
@@ -1419,6 +1470,10 @@ static int wolfssl_asn1_int_transfer_to_int(WOLFSSL_ASN1_INTEGER* dest,
  */
 int wolfSSL_i2d_ASN1_INTEGER(const WOLFSSL_ASN1_INTEGER* a, unsigned char** pp)
 {
+    byte hdr[1 + MAX_LENGTH_SZ + 1];
+    int hdrSz = 0;
+    int sz;
+
     WOLFSSL_ENTER("wolfSSL_i2d_ASN1_INTEGER");
 
     /* Validate parameters. */
@@ -1427,38 +1482,53 @@ int wolfSSL_i2d_ASN1_INTEGER(const WOLFSSL_ASN1_INTEGER* a, unsigned char** pp)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+    /* X509_get_serialNumber() keeps only the value: add the header. */
+    if (!wolfssl_asn1_integer_is_der(a)) {
+        int pad = (a->data[0] & 0x80) ? 1 : 0;
+
+        hdr[hdrSz++] = ASN_INTEGER;
+        hdrSz += (int)SetLength((word32)(a->length + pad), hdr + hdrSz);
+        if (pad)
+            hdr[hdrSz++] = 0x00;
+    }
+#endif
+    sz = hdrSz + a->length;
+
     if (pp != NULL) {
         byte* buf;
 
         if (*pp != NULL)
             buf = *pp;
         else {
-            buf = (byte*)XMALLOC((size_t)a->length, NULL, DYNAMIC_TYPE_ASN1);
+            buf = (byte*)XMALLOC((size_t)sz, NULL, DYNAMIC_TYPE_ASN1);
             if (buf == NULL)
                 return WOLFSSL_FATAL_ERROR;
         }
 
         /* Copy the data (including tag and length) into output buffer. */
-        XMEMCPY(buf, a->data, (size_t)a->length);
+        if (hdrSz > 0)
+            XMEMCPY(buf, hdr, (size_t)hdrSz);
+        XMEMCPY(buf + hdrSz, a->data, (size_t)a->length);
         /* Only magnitude of the number stored (i.e. the sign isn't encoded).
          * The "negative" field is 1 if the value must be interpreted as
          * negative and we need to output the 2's complement of the value in
          * the DER output.
          */
         if (a->negative &&
-                wolfssl_asn1_int_twos_compl(buf, a->length, NULL) != 0) {
+                wolfssl_asn1_int_twos_compl(buf, sz, NULL) != 0) {
             if (*pp == NULL)
                 XFREE(buf, NULL, DYNAMIC_TYPE_ASN1);
             return WOLFSSL_FATAL_ERROR;
         }
 
         if (*pp != NULL)
-            *pp += a->length;
+            *pp += sz;
         else
             *pp = buf;
     }
 
-    return a->length;
+    return sz;
 }
 
 /* Decode DER encoding of ASN.1 INTEGER.
@@ -1502,6 +1572,13 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
     /* Check that len + idx won't overflow a signed int */
     if ((!err) && (len > INT_MAX - (int)idx)) {
         WOLFSSL_MSG("ASN.1 length too large.");
+        err = 1;
+    }
+    /* DER has no redundant leading octet. OpenSSL rejects one. */
+    if ((!err) && (len > 1) &&
+            ((((*in)[idx] == 0x00) && (((*in)[idx + 1] & 0x80) == 0)) ||
+             (((*in)[idx] == 0xff) && (((*in)[idx + 1] & 0x80) != 0)))) {
+        WOLFSSL_MSG("ASN.1 INTEGER not minimal.");
         err = 1;
     }
     /* Allocate a new ASN.1 INTEGER object. */
@@ -1708,11 +1785,25 @@ int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
          err = 1;
     }
 
+#if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
+    /* X509_get_serialNumber() keeps only the value. */
+    if ((!err) && (a->data != NULL) && (a->length > 0) &&
+            !wolfssl_asn1_integer_is_der(a)) {
+        idx = 0;
+        len = a->length;
+    }
+    else
+#endif
     if (!err) {
         /* Read DER length - must be at least 1 byte. */
         if (GetLength(a->data, &idx, &len, (word32)a->length) <= 0) {
             err = 1;
         }
+    }
+    /* Write the magnitude, without the DER zero octet, as OpenSSL. */
+    while ((!err) && (len > 1) && (a->data[idx] == 0x00)) {
+        idx++;
+        len--;
     }
 
     /* Keep encoding and writing while no error and bytes in data. */
@@ -6302,6 +6393,19 @@ int wc_OBJ_sn2nid(const char *sn)
         WOLFSSL_ENTER("wolfSSL_OBJ_cmp");
 
         if (a && b && a->obj && b->obj) {
+            /* An object made from a NID that has no OID encoding here, as for
+             * name attribute types, is only the tag and a zero length:
+             * compare NIDs. */
+            if (a->objSz <= 2 || b->objSz <= 2) {
+                int nidA = wolfSSL_OBJ_obj2nid(a);
+                int nidB = wolfSSL_OBJ_obj2nid(b);
+
+                if (nidA > 0 && nidB > 0) {
+                    if (nidA == nidB)
+                        return 0;
+                    return (nidA < nidB) ? -1 : 1;
+                }
+            }
             if (a->objSz == b->objSz) {
                 return XMEMCMP(a->obj, b->obj, a->objSz);
             }
