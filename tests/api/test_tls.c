@@ -5524,6 +5524,17 @@ static int test_clear_keeps_version_mask(void)
         if (ssl_s != NULL)
             ExpectIntEQ(ssl_s->version.minor, TLSv1_2_MINOR);
     }
+    /* The downgraded client starts from its own version again, and a
+     * setting made after that is not undone by another clear. */
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->version.minor, TLSv1_2_MINOR);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->version.minor, TLSv1_3_MINOR);
+    (void)wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_TLSv1_3);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->version.minor, TLSv1_2_MINOR);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

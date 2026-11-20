@@ -5931,6 +5931,7 @@ struct Options {
     word16            downgrade:1;        /* allow downgrade of versions */
     word16            versionSet:1;       /* max version set by SetVersion */
     word16            minVersionSet:1;    /* min version set by SetMinVersion */
+    word16            cfgVersionSaved:1;  /* cfgVersionMinor is valid */
     word16            resuming:1;
 #ifdef HAVE_SECURE_RENEGOTIATION
     word16            resumed:1;          /* resuming may be reset on SCR */
@@ -6180,6 +6181,7 @@ struct Options {
     byte            minDowngrade;       /* minimum downgrade version */
     byte            maxVersionMinor;    /* maximum set by SetVersion. Version
                                          * negotiation does not change it. */
+    byte            cfgVersionMinor;    /* version when the connection began */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
     byte            asyncState;         /* sub-state for enum asyncState */
@@ -7755,7 +7757,6 @@ do {                                                                           \
     } while (0)
 
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
-WOLFSSL_LOCAL int  SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int  ClearSSL(WOLFSSL* ssl, byte keepResults);
 WOLFSSL_LOCAL int  InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
@@ -7989,6 +7990,7 @@ WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeEphemeralKeys(WOLFSSL* ssl);
 WOLFSSL_LOCAL void ResetAlertHistory(WOLFSSL* ssl);
+WOLFSSL_LOCAL void StartConnection(WOLFSSL* ssl);
 WOLFSSL_LOCAL void SetDefaultHmac(WOLFSSL* ssl);
 #ifdef WOLFSSL_ASYNC_CRYPT
 WOLFSSL_LOCAL int AsyncDetachEvent(WOLFSSL* ssl);

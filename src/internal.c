@@ -8202,9 +8202,10 @@ int InitSSL_Suites(WOLFSSL* ssl)
    writeDup flag indicating this is a write dup only
 
    WOLFSSL_SUCCESS return value on success */
+#ifdef OPENSSL_EXTRA
 /* Apply the protocol version mask and downgrade rules. Returns VERSION_ERROR
  * when the requested options are inconsistent, 0 otherwise. */
-int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+static int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     #ifdef WOLFSSL_TLS13
     if (ssl->version.minor == TLSv1_3_MINOR &&
@@ -8270,6 +8271,7 @@ int SetSSL_CTX_CheckVersion(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     return 0;
 }
+#endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
 /* Give the SSL object the certificate, certificate chain and private key of
@@ -9021,13 +9023,6 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     }
     (void)ctx;
-
-    /* Called on every connect/accept, so only when a connection starts. */
-    if (!ssl->options.handShakeDone &&
-            (((ssl->options.side == WOLFSSL_CLIENT_END) ?
-              ssl->options.connectState : ssl->options.acceptState) == 0)) {
-        ResetAlertHistory(ssl);
-    }
 
     ssl->options.shutdownDone = 0;
     if (ssl->session != NULL)
@@ -10995,6 +10990,22 @@ void ResetAlertHistory(WOLFSSL* ssl)
     ssl->alert_history.last_rx.level = -1;
     ssl->alert_history.last_tx.code  = -1;
     ssl->alert_history.last_tx.level = -1;
+}
+
+/* Called on every connect/accept entry; acts only when a connection starts. */
+void StartConnection(WOLFSSL* ssl)
+{
+    if (ssl->options.handShakeDone ||
+            (((ssl->options.side == WOLFSSL_CLIENT_END) ?
+              ssl->options.connectState : ssl->options.acceptState) != 0)) {
+        return;
+    }
+    ResetAlertHistory(ssl);
+    /* Negotiation may lower it; wolfSSL_clear() restores this. */
+    if (!ssl->options.cfgVersionSaved) {
+        ssl->options.cfgVersionMinor = ssl->version.minor;
+        ssl->options.cfgVersionSaved = 1;
+    }
 }
 
 /* Free any handshake resources no longer needed */

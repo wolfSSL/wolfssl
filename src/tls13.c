@@ -16996,6 +16996,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
+    StartConnection(ssl);
 
 #ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR) {
@@ -18284,6 +18285,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
+    StartConnection(ssl);
 
 #ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR) {

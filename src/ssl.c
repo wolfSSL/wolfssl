@@ -5840,15 +5840,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         if (!keepResults) {
             /* The peer's version is not the limit for the next connection. */
-            if (ssl->options.downgrade) {
-                ssl->version.minor = ssl->options.versionSet ?
-                    ssl->options.maxVersionMinor :
-                    ssl->ctx->method->version.minor;
-                /* The version mask only covers TLS. */
-                if (!ssl->options.dtls &&
-                        (SetSSL_CTX_CheckVersion(ssl, ssl->ctx) != 0)) {
-                    return WOLFSSL_FAILURE;
-                }
+            if (ssl->options.cfgVersionSaved) {
+                ssl->version.minor = ssl->options.cfgVersionMinor;
+                ssl->options.cfgVersionMinor = 0;
+                ssl->options.cfgVersionSaved = 0;
             }
 
             ResetAlertHistory(ssl);
