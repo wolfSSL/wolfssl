@@ -46748,6 +46748,12 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             /* Restore the fake ID */
             XMEMCPY(ssl->session->sessionID, bogusID, ID_LEN);
             ssl->session->sessionIDSz= bogusIDSz;
+#ifdef HAVE_EX_DATA
+            /* If we are duping a cached entry we need to maintain single
+             * owner of the ex_data. The data is found in cache on request. */
+            if (sess->type == WOLFSSL_SESSION_TYPE_CACHE)
+                SessionDropExDataCopy(ssl->session);
+#endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
     !defined(NO_SESSION_CACHE)
             /* A stateful ticket only resumes on a cache hit. RFC 8446 Sect. 8:

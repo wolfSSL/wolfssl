@@ -7195,8 +7195,10 @@ int test_tls13_0rtt_remove_cb_replay(void)
     return EXPECT_RESULT();
 }
 
+/* Shared by the 0-RTT and the session ex_data tests below, so no
+ * WOLFSSL_EARLY_DATA here. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
     !defined(NO_SESSION_CACHE) && \
     defined(HAVE_EX_DATA_CRYPTO) && \
@@ -7217,16 +7219,24 @@ static int test_tls13_0rtt_remove_id(WOLFSSL_CTX* ctx, const byte* id)
 }
 #endif
 
+/* Session ex_data indexes are never released and the default MAX_EX_DATA of
+ * 5 caps the whole unit.test run, so every TLS 1.3 session ex_data test
+ * shares this one index (it has no dup callback and a counting free callback)
+ * where it can. Shared with the session ex_data tests, so no
+ * WOLFSSL_EARLY_DATA here. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
     !defined(NO_SESSION_CACHE) && defined(HAVE_EX_DATA_CRYPTO) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
 static int test_tls13_0rtt_ex_data_marker;
-static int test_tls13_0rtt_ex_data_marker2;
 static int test_tls13_0rtt_ex_data_idx = -1;
 static int test_tls13_0rtt_ex_data_frees;
+#ifdef WOLFSSL_EARLY_DATA
+/* Only test_tls13_0rtt_ticket_ex_data_overlap reads these. */
+static int test_tls13_0rtt_ex_data_marker2;
 static int test_tls13_0rtt_ex_data_frees2;
+#endif
 
 static void test_tls13_0rtt_ex_data_free_cb(void* parent, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argl, void* argp)
@@ -7239,9 +7249,21 @@ static void test_tls13_0rtt_ex_data_free_cb(void* parent, void* ptr,
         void* data = wolfSSL_CRYPTO_get_ex_data(a, idx);
         if (data == (void*)&test_tls13_0rtt_ex_data_marker)
             test_tls13_0rtt_ex_data_frees++;
+#ifdef WOLFSSL_EARLY_DATA
         else if (data == (void*)&test_tls13_0rtt_ex_data_marker2)
             test_tls13_0rtt_ex_data_frees2++;
+#endif
     }
+}
+
+/* Allocate the shared index on first use. */
+static int test_tls13_session_ex_data_idx(void)
+{
+    if (test_tls13_0rtt_ex_data_idx < 0) {
+        test_tls13_0rtt_ex_data_idx = wolfSSL_SESSION_get_ex_new_index(0,
+            NULL, NULL, NULL, test_tls13_0rtt_ex_data_free_cb);
+    }
+    return test_tls13_0rtt_ex_data_idx;
 }
 
 #endif
@@ -7269,11 +7291,7 @@ int test_tls13_0rtt_ticket_ex_data_owner(void)
     XMEMSET(idA, 0, sizeof(idA));
     XMEMSET(idB, 0, sizeof(idB));
     test_tls13_0rtt_ex_data_frees = 0;
-    if (test_tls13_0rtt_ex_data_idx < 0) {
-        test_tls13_0rtt_ex_data_idx = wolfSSL_SESSION_get_ex_new_index(0,
-            NULL, NULL, NULL, test_tls13_0rtt_ex_data_free_cb);
-    }
-    ExpectIntGE(test_tls13_0rtt_ex_data_idx, 0);
+    ExpectIntGE(test_tls13_session_ex_data_idx(), 0);
 
     /* Full handshake. The ticket is 0-RTT capable, so it gets its own ID. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -7359,11 +7377,7 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     XMEMSET(idC, 0, sizeof(idC));
     test_tls13_0rtt_ex_data_frees = 0;
     test_tls13_0rtt_ex_data_frees2 = 0;
-    if (test_tls13_0rtt_ex_data_idx < 0) {
-        test_tls13_0rtt_ex_data_idx = wolfSSL_SESSION_get_ex_new_index(0,
-            NULL, NULL, NULL, test_tls13_0rtt_ex_data_free_cb);
-    }
-    ExpectIntGE(test_tls13_0rtt_ex_data_idx, 0);
+    ExpectIntGE(test_tls13_session_ex_data_idx(), 0);
 
     /* Full handshake. The cache entry for the ticket owns the ex_data. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -7447,6 +7461,195 @@ int test_tls13_0rtt_ticket_ex_data_overlap(void)
     (void)test_tls13_0rtt_remove_id(ctx_s, idC);
     ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 1);
     ExpectIntEQ(test_tls13_0rtt_ex_data_frees2, 1);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
+    defined(HAVE_EX_DATA_CRYPTO) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+static int   test_session_exdata_dup_marker;
+static int   test_session_exdata_dup_idx = -1;
+static void* test_session_exdata_dup_saw;
+static int   test_session_exdata_dup_called;
+
+static int test_session_exdata_dup_cb(WOLFSSL_CRYPTO_EX_DATA* out,
+        const WOLFSSL_CRYPTO_EX_DATA* in, void* ptr, int idx, long argl,
+        void* argp)
+{
+    (void)out;
+    (void)in;
+    (void)argl;
+    (void)argp;
+    if (idx == test_session_exdata_dup_idx) {
+        test_session_exdata_dup_called = 1;
+        test_session_exdata_dup_saw = *(void**)ptr;
+    }
+    return 1;
+}
+#endif
+
+/* After a handshake the server session's ex_data lives in the cache entry and
+ * the connection handle keeps no copy. Duplicating that session must still
+ * hand the stored pointer to the registered dup callback, not NULL, and must
+ * shallow-copy indexes that have no dup callback. Besides its own index (with
+ * a dup callback) it uses the shared session ex_data index, which has none. */
+int test_tls13_session_ex_data_dup(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
+    defined(HAVE_EX_DATA_CRYPTO) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *dup = NULL;
+    struct test_memio_ctx test_ctx;
+
+    if (test_session_exdata_dup_idx < 0) {
+        test_session_exdata_dup_idx = wolfSSL_SESSION_get_ex_new_index(0,
+            NULL, NULL, test_session_exdata_dup_cb, NULL);
+    }
+    ExpectIntGE(test_session_exdata_dup_idx, 0);
+    ExpectIntGE(test_tls13_session_ex_data_idx(), 0);
+    test_session_exdata_dup_called = 0;
+    test_session_exdata_dup_saw = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Store ex_data on the cached server session. */
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
+        test_session_exdata_dup_idx, &test_session_exdata_dup_marker),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
+        test_tls13_0rtt_ex_data_idx, &test_tls13_0rtt_ex_data_marker),
+        WOLFSSL_SUCCESS);
+    /* The set went to the cache entry: had no entry been found the handle
+     * would have claimed ownership of a local copy instead. */
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->session->ownExData, 0);
+    /* The public getter resolves it from the cache entry. */
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s),
+        test_session_exdata_dup_idx), &test_session_exdata_dup_marker);
+
+    /* Duplicating the session runs the dup callback: it must see the real
+     * pointer fetched from the cache, not the handle's empty local copy. */
+    ExpectNotNull(dup = wolfSSL_SESSION_dup(wolfSSL_get_session(ssl_s)));
+    ExpectIntEQ(test_session_exdata_dup_called, 1);
+    ExpectPtrEq(test_session_exdata_dup_saw, &test_session_exdata_dup_marker);
+    /* The index without a dup callback is carried over as-is. */
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(dup, test_tls13_0rtt_ex_data_idx),
+        &test_tls13_0rtt_ex_data_marker);
+
+    /* The dup owns its copy: freeing it runs the free callback once. */
+    test_tls13_0rtt_ex_data_frees = 0;
+    wolfSSL_SESSION_free(dup);
+    ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 1);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Session ex_data set before a resumption must survive the ticket reissue
+ * (new alt session ID) and still be readable on the live resumed session.
+ * SessionTakeExData() moves ownership to the reissued session, so the entry
+ * under the original ID gives it up and the data is freed exactly once when
+ * both entries are dropped: not lost, and not shared and freed twice.
+ * WOLFSSL_OP_NO_TICKET forces the reissue (new alt ID). */
+int test_tls13_session_ex_data_reissue_survives(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
+    defined(HAVE_EX_DATA_CRYPTO) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    WOLFSSL_SESSION *origSess = NULL;
+    struct test_memio_ctx test_ctx;
+    byte idA[ID_LEN];
+    byte idB[ID_LEN];
+    const byte* id = NULL;
+    unsigned int idLen = 0;
+    char buf[64];
+    int idx;
+
+    XMEMSET(idA, 0, sizeof(idA));
+    XMEMSET(idB, 0, sizeof(idB));
+    test_tls13_0rtt_ex_data_frees = 0;
+    idx = test_tls13_session_ex_data_idx();
+    ExpectIntGE(idx, 0);
+
+    /* Full handshake. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (ssl_s != NULL)
+        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
+        idx, &test_tls13_0rtt_ex_data_marker), WOLFSSL_SUCCESS);
+    ExpectNotNull(id = wolfSSL_SESSION_get_id(wolfSSL_get_session(ssl_s),
+        &idLen));
+    ExpectIntEQ(idLen, ID_LEN);
+    if (id != NULL)
+        XMEMCPY(idA, id, ID_LEN);
+    /* id points into ssl_s's session, freed below. */
+    id = NULL;
+    /* Keep a handle on the original server session: it resolves its ex_data
+     * through the cache entry under the original ID. */
+    ExpectNotNull(origSess = wolfSSL_get1_session(ssl_s));
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(origSess, idx),
+        &test_tls13_0rtt_ex_data_marker);
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Resume: the server reissues under a new ID, moving the ex_data. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (ssl_s != NULL)
+        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
+    ExpectNotNull(id = wolfSSL_SESSION_get_id(wolfSSL_get_session(ssl_s),
+        &idLen));
+    ExpectIntEQ(idLen, ID_LEN);
+    if (id != NULL)
+        XMEMCPY(idB, id, ID_LEN);
+    id = NULL;
+    ExpectIntNE(XMEMCMP(idA, idB, ID_LEN), 0);
+    /* The data must still be reachable on the live resumed session. */
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s), idx),
+        &test_tls13_0rtt_ex_data_marker);
+    /* Moved, not shared: the entry under the original ID gave the ex_data
+     * up, so the original handle no longer resolves it. */
+    ExpectNull(wolfSSL_SESSION_get_ex_data(origSess, idx));
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_SESSION_free(origSess); origSess = NULL;
+
+    /* Nothing freed it yet. Dropping both entries frees it exactly once. */
+    ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 0);
+    (void)test_tls13_0rtt_remove_id(ctx_s, idA);
+    (void)test_tls13_0rtt_remove_id(ctx_s, idB);
+    ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 1);
 
     wolfSSL_SESSION_free(sess);
     wolfSSL_CTX_free(ctx_c);

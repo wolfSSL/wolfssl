@@ -1481,7 +1481,9 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
         error = wolfSSL_DupSession(sess, output, 1);
 #endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
 #ifdef HAVE_EX_DATA
-        output->ownExData = !sess->ownExData; /* Session may own ex_data */
+        /* The cache session needs to be the only owner of the ex_data
+         * so we drop it from the output session. */
+        SessionDropExDataCopy(output);
 #endif
         TlsSessionCacheUnlockRow(row);
     }
@@ -1646,6 +1648,11 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
             ret = wolfSSL_DupSession(session, ssl->session, 0);
             if (ret != WOLFSSL_SUCCESS)
                 WOLFSSL_MSG("Session duplicate failed");
+#ifdef HAVE_EX_DATA
+            else
+                /* Keep the cache entry the sole owner */
+                SessionDropExDataCopy(ssl->session);
+#endif
         }
     }
 
@@ -2130,7 +2137,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     cacheSession = &sessRow->Sessions[idx];
 #endif
 
-#ifdef HAVE_EX_DATA_CRYPTO
+#ifdef HAVE_EX_DATA
     if (overwrite) {
         /* Figure out who owns the ex_data */
         if (cacheSession->ownExData) {
@@ -2140,11 +2147,13 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         }
         /* else will be copied in wolfSSL_DupSession call */
     }
+#ifdef HAVE_EX_DATA_CRYPTO
     else if (cacheSession->ownExData) {
         crypto_ex_cb_free_data(cacheSession, crypto_ex_cb_ctx_session,
                                &cacheSession->ex_data);
         cacheSession->ownExData = 0;
     }
+#endif
 #endif
 
     if (!overwrite)
@@ -2241,9 +2250,9 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
             cacheSession->rem_sess_cb = ctx->rem_sess_cb;
 #endif
 #ifdef HAVE_EX_DATA
-        /* The session in cache now owns the ex_data */
-        addSession->ownExData = 0;
+        /* The cache entry now owns the ex_data */
         cacheSession->ownExData = 1;
+        SessionDropExDataCopy(addSession);
 #endif
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
     defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
@@ -2706,41 +2715,99 @@ WOLFSSL_SESSION* wolfSSL_GetSession(WOLFSSL* ssl, byte* masterSecret,
 
 #endif /* NO_SESSION_CACHE */
 
+#ifdef HAVE_EX_DATA
+/* Drop a session handle's local copy of the ex_data and mark it as not the
+ * owner. */
+void SessionDropExDataCopy(WOLFSSL_SESSION* session)
+{
+    XMEMSET(&session->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+    session->ownExData = 0;
+}
+#endif /* HAVE_EX_DATA */
+
+#if defined(HAVE_EX_DATA) && !defined(NO_SESSION_CACHE)
+/* Find the cache entry holding the live ex_data for a session handle that
+ * does not own it.
+ *
+ * The Lock is held on success (1) and the found session is assigned to
+ * *found. Otherwise -1 means an error was hit and 0 means no cache entry
+ * was found */
+static int SessionExDataCacheFind(const WOLFSSL_SESSION* session, byte write,
+        WOLFSSL_SESSION** found, SessionRow** rowOut)
+{
+    int row;
+    int i;
+    int error = 0;
+    SessionRow* sessRow;
+    const byte* id;
+
+    *found = NULL;
+    *rowOut = NULL;
+
+    id = session->sessionID;
+    if (session->haveAltSessionID)
+        id = session->altSessionID;
+    else if (session->sessionIDSz != ID_LEN) {
+        WOLFSSL_MSG("Incorrect sessionIDSz");
+        return -1;
+    }
+
+    row = (int)SessionCacheRow(id, session->side, &error);
+    if (error != 0) {
+        WOLFSSL_MSG("Hash session failed");
+        return -1;
+    }
+
+    sessRow = &SessionCache[row];
+    if (write)
+        error = SESSION_ROW_WR_LOCK(sessRow);
+    else
+        error = SESSION_ROW_RD_LOCK(sessRow);
+    if (error != 0) {
+        WOLFSSL_MSG("Session row lock failed");
+        return -1;
+    }
+
+    for (i = 0; i < SESSIONS_PER_ROW && i < sessRow->totalCount; i++) {
+        WOLFSSL_SESSION* cacheSession;
+#ifdef SESSION_CACHE_DYNAMIC_MEM
+        cacheSession = sessRow->Sessions[i];
+#else
+        cacheSession = &sessRow->Sessions[i];
+#endif
+        if (cacheSession && cacheSession->sessionIDSz == ID_LEN &&
+                XMEMCMP(id, cacheSession->sessionID, ID_LEN) == 0
+                && session->side == cacheSession->side
+                && (IsAtLeastTLSv1_3(session->version) ==
+                    IsAtLeastTLSv1_3(cacheSession->version))
+                /* An entry that gave its ex_data to a reissued ticket no
+                 * longer holds this session's ex_data. */
+                && cacheSession->ownExData
+            ) {
+            *found = cacheSession;
+            *rowOut = sessRow;
+            return 1;
+        }
+    }
+    SESSION_ROW_UNLOCK(sessRow);
+    return 0;
+}
+#endif /* HAVE_EX_DATA && !NO_SESSION_CACHE */
+
 #if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
 #if defined(HAVE_EX_DATA) && !defined(NO_SESSION_CACHE)
-/* Does freeing a session's ex_data call anything? Only then can two cache
- * entries holding the same ex_data free it twice. */
-static int SessionExDataHasFree(void)
-{
-#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-    return 1;
-#elif defined(HAVE_EX_DATA_CRYPTO)
-    const CRYPTO_EX_cb_ctx* cb;
-
-    for (cb = crypto_ex_cb_ctx_session; cb != NULL; cb = cb->next) {
-        if (cb->free_func != NULL)
-            return 1;
-    }
-    return 0;
-#else
-    return 0;
-#endif
-}
-
 /* Move ex_data ownership from the cache entry of ssl->session to the
- * session. When the entry is gone or no longer owns it, another owner holds
- * the ex_data, so drop the stale copy and own an empty one. */
+ * session. When no cache entry owns it any more, another owner holds the
+ * ex_data, so the session starts with an empty one. */
 static void SessionTakeExData(WOLFSSL* ssl)
 {
     WOLFSSL_SESSION* session = ssl->session;
     WOLFSSL_SESSION* sess = NULL;
-    const byte* id;
-    word32 row = 0;
+    SessionRow* sessRow = NULL;
     int taken = 0;
 
-    if (session->ownExData || SslSessionCacheOff(ssl, session) ||
-            !SessionExDataHasFree()) {
+    if (session->ownExData || SslSessionCacheOff(ssl, session)) {
         return;
     }
 #ifdef HAVE_EXT_CACHE
@@ -2748,20 +2815,15 @@ static void SessionTakeExData(WOLFSSL* ssl)
         return;
 #endif
 
-    id = session->sessionID;
-    if (session->haveAltSessionID)
-        id = session->altSessionID;
-
-    if (TlsSessionCacheGetAndWrLock(id, &sess, &row, ssl->options.side) == 0 &&
-            sess != NULL) {
-        if (sess->ownExData) {
-            XMEMCPY(&session->ex_data, &sess->ex_data,
-                    sizeof(WOLFSSL_CRYPTO_EX_DATA));
-            XMEMSET(&sess->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
-            sess->ownExData = 0;
-            taken = 1;
-        }
-        TlsSessionCacheUnlockRow(row);
+    /* Find the cache session on success (1) the lock is kept so
+     * it is safe to work with the cache entry */
+    if (SessionExDataCacheFind(session, 1, &sess, &sessRow) == 1) {
+        XMEMCPY(&session->ex_data, &sess->ex_data,
+                sizeof(WOLFSSL_CRYPTO_EX_DATA));
+        XMEMSET(&sess->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+        sess->ownExData = 0;
+        taken = 1;
+        SESSION_ROW_UNLOCK(sessRow);
     }
     if (!taken)
         XMEMSET(&session->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
@@ -2770,8 +2832,8 @@ static void SessionTakeExData(WOLFSSL* ssl)
 #endif /* HAVE_EX_DATA && !NO_SESSION_CACHE */
 
 /* Give ssl->session a new random ID to cache it under. The entry for the old
- * ID may own the ex_data the session holds a copy of. Move it to the session
- * first so the entry added for the new ID is the only owner. */
+ * ID may own the session's ex_data. Move it to the session first so the entry
+ * added for the new ID is the only owner. */
 int SessionNewAltId(WOLFSSL* ssl)
 {
     byte id[ID_LEN];
@@ -3539,75 +3601,37 @@ long wolfSSL_SESSION_set_time(WOLFSSL_SESSION *ses, long t)
 static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
         void* data, byte get, void** getRet, int* setRet)
 {
-    int row;
-    int i;
-    int error = 0;
     SessionRow* sessRow = NULL;
-    const byte* id;
+    WOLFSSL_SESSION* cacheSession = NULL;
     byte foundCache = 0;
+    int ret;
 
     if (getRet != NULL)
         *getRet = NULL;
     if (setRet != NULL)
         *setRet = WOLFSSL_FAILURE;
 
-    id = session->sessionID;
-    if (session->haveAltSessionID)
-        id = session->altSessionID;
-    else if (session->sessionIDSz != ID_LEN) {
-        WOLFSSL_MSG("Incorrect sessionIDSz");
+    /* lock is still held on success (1) so we can operate on cacheSession
+     * safely */
+    ret = SessionExDataCacheFind(session, (byte)!get, &cacheSession, &sessRow);
+    if (ret < 0)
         return;
-    }
-
-    row = (int)SessionCacheRow(id, session->side, &error);
-    if (error != 0) {
-        WOLFSSL_MSG("Hash session failed");
-        return;
-    }
-
-    sessRow = &SessionCache[row];
-    if (get)
-        error = SESSION_ROW_RD_LOCK(sessRow);
-    else
-        error = SESSION_ROW_WR_LOCK(sessRow);
-    if (error != 0) {
-        WOLFSSL_MSG("Session row lock failed");
-        return;
-    }
-
-    for (i = 0; i < SESSIONS_PER_ROW && i < sessRow->totalCount; i++) {
-        WOLFSSL_SESSION* cacheSession;
-#ifdef SESSION_CACHE_DYNAMIC_MEM
-        cacheSession = sessRow->Sessions[i];
-#else
-        cacheSession = &sessRow->Sessions[i];
-#endif
-        if (cacheSession && cacheSession->sessionIDSz == ID_LEN &&
-                XMEMCMP(id, cacheSession->sessionID, ID_LEN) == 0
-                && session->side == cacheSession->side
-                && (IsAtLeastTLSv1_3(session->version) ==
-                    IsAtLeastTLSv1_3(cacheSession->version))
-                /* An entry that gave its ex_data to a reissued ticket no
-                 * longer holds this session's ex_data. */
-                && cacheSession->ownExData
-            ) {
-            if (get) {
-                if (getRet) {
-                    *getRet = wolfSSL_CRYPTO_get_ex_data(
-                        &cacheSession->ex_data, idx);
-                }
+    if (ret == 1) {
+        if (get) {
+            if (getRet) {
+                *getRet = wolfSSL_CRYPTO_get_ex_data(
+                    &cacheSession->ex_data, idx);
             }
-            else {
-                if (setRet) {
-                    *setRet = wolfSSL_CRYPTO_set_ex_data(
-                        &cacheSession->ex_data, idx, data);
-                }
-            }
-            foundCache = 1;
-            break;
         }
+        else {
+            if (setRet) {
+                *setRet = wolfSSL_CRYPTO_set_ex_data(
+                    &cacheSession->ex_data, idx, data);
+            }
+        }
+        SESSION_ROW_UNLOCK(sessRow);
+        foundCache = 1;
     }
-    SESSION_ROW_UNLOCK(sessRow);
     /* If we don't have a session in cache then clear the ex_data and
      * own it */
     if (!foundCache) {
@@ -4478,8 +4502,30 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     if (ret == WOLFSSL_SUCCESS && transferExData &&
             input->type != WOLFSSL_SESSION_TYPE_CACHE &&
             output->type != WOLFSSL_SESSION_TYPE_CACHE) {
-        /* Not called with cache as that passes ownership of ex_data */
-        ret = crypto_ex_cb_dup_data(&input->ex_data, &output->ex_data,
+        /* If there is a session cache the input session may not own
+         * its ex_data in that case we have to retrieve it from the cache
+         * and duplicated it to the output */
+        const WOLFSSL_CRYPTO_EX_DATA* data = &input->ex_data;
+#ifndef NO_SESSION_CACHE
+        WOLFSSL_CRYPTO_EX_DATA        fetched = {0};
+
+        if (!input->ownExData) {
+            WOLFSSL_SESSION* cacheSess = NULL;
+            SessionRow* sessRow = NULL;
+
+            /* on success of this function the lock is held so we can operate
+             * on cacheSess safely */
+            if (SessionExDataCacheFind(input, 0, &cacheSess, &sessRow) == 1) {
+                XMEMCPY(&fetched, &cacheSess->ex_data, sizeof(fetched));
+                SESSION_ROW_UNLOCK(sessRow);
+            }
+
+            XMEMCPY(&output->ex_data, &fetched, sizeof(fetched));
+            data = &fetched; /* empty if the entry was already evicted */
+        }
+#endif /* !NO_SESSION_CACHE */
+
+        ret = crypto_ex_cb_dup_data(data, &output->ex_data,
                                     crypto_ex_cb_ctx_session);
     }
 #endif

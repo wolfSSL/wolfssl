@@ -5560,6 +5560,9 @@ WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
 WOLFSSL_LOCAL void SetupSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
+#ifdef HAVE_EX_DATA
+WOLFSSL_LOCAL void SessionDropExDataCopy(WOLFSSL_SESSION* session);
+#endif
 #if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
 WOLFSSL_LOCAL int SessionNewAltId(WOLFSSL* ssl);
