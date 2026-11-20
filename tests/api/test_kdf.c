@@ -1034,11 +1034,12 @@ int test_wc_SshKdfReuse(void)
 }
 
 /* Same fixtures with K as an RFC 4251 sec 5 string (uint32 length || K, no
- * sign pad), as draft-ietf-sshm-mlkem-hybrid-kex sec 2.5 requires. */
+ * sign pad), as RFC 10042 sec 2.5 requires. */
 int test_wc_SshKdfStringK(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_WOLFSSH) && !defined(NO_HMAC)
+#if defined(WOLFSSL_WOLFSSH) && !defined(NO_HMAC) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     static const struct {
         byte hashId;
         const char* expected;
