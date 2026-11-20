@@ -1,7 +1,8 @@
 # Microchip PolarFire SoC Athena F5200 (TeraFire)
 
-SHA-384 and AES-256-CTR offload on the Athena F5200 "TeraFire" user
-cryptoprocessor, through the wolfCrypt crypto callback.
+Offload of SHA-2, AES, random number generation, ECDSA, ECDH and RSA to the
+Athena F5200 "TeraFire" user cryptoprocessor, through the wolfCrypt crypto
+callback.
 
 ## Hardware
 
@@ -57,7 +58,6 @@ With autotools, point the build at the CAL directory:
 ```sh
 ./configure --host=riscv64-unknown-elf \
     --with-mpfs-athena=<hart-software-services>/services/crypto \
-    --enable-aesctr \
     CFLAGS="-march=rv64imac -mabi=lp64 -mcmodel=medany"
 ```
 
@@ -74,10 +74,60 @@ it by turning on `WOLF_CRYPTO_CB`,
 `WOLF_CRYPTO_CB_COPY` and `WOLF_CRYPTO_CB_FREE` and maps `WC_USE_DEVID` so the
 stock `wolfcrypt_test()` and `benchmark()` drive the engine with no argument.
 
-Which engines are offloaded follows the ordinary wolfCrypt feature gates rather
-than port-specific ones: `WOLFSSL_SHA384` for the hash, and
-`WOLFSSL_AES_COUNTER` with `!NO_AES` for AES-256-CTR. AES-128 and AES-192
-requests are declined to software, as are all other hash types.
+What is offloaded follows the ordinary wolfCrypt feature gates, and each family
+can be kept in software with a port opt-out:
+
+| Offload | wolfCrypt gate | Opt-out |
+|---|---|---|
+| SHA-224, SHA-256 | `!NO_SHA256`, `WOLFSSL_SHA224` | `WC_MPFS_ATHENA_NO_SHA256` |
+| SHA-384 | `WOLFSSL_SHA384` | |
+| SHA-512, SHA-512/224, SHA-512/256 | `WOLFSSL_SHA512` | `WC_MPFS_ATHENA_NO_SHA512` |
+| AES-ECB (and so AES-XTS) | `HAVE_AES_ECB` | |
+| AES-CTR | `WOLFSSL_AES_COUNTER` | |
+| AES-CBC | `HAVE_AES_CBC` | `WC_MPFS_ATHENA_NO_CBC` |
+| AES-GCM (and so GMAC) | `HAVE_AESGCM` | `WC_MPFS_ATHENA_NO_GCM` |
+| AES key wrap, RFC 3394 and RFC 5649 wrap | `HAVE_AES_KEYWRAP` | `WC_MPFS_ATHENA_NO_KEYWRAP` |
+| AES-CMAC, one-shot | `WOLFSSL_CMAC` | `WC_MPFS_ATHENA_NO_CMAC` |
+| NRBG seed for every RNG (`random.c`); engine DRBG with `WC_MPFS_ATHENA_RNG_DRBG` | `HAVE_HASHDRBG`, without `CUSTOM_RAND_GENERATE_BLOCK` | `WC_MPFS_ATHENA_NO_RNG` |
+| ECDSA sign and verify, ECDH, EC key generation, P-192 to P-521 | `HAVE_ECC` | `WC_MPFS_ATHENA_NO_ECC` |
+| RSA CRT private, and raw public with `WC_MPFS_ATHENA_RSA_PUBLIC`, up to `WC_MPFS_ATHENA_RSA_MAX_BITS` | `!NO_RSA` | `WC_MPFS_ATHENA_NO_RSA` |
+
+AES runs at all three key sizes. Anything the port declines runs in software,
+so a request it cannot serve is never an error: a GCM IV other than 96 bits,
+streaming CMAC, an RFC 5649 unwrap or a key whose length is not a whole
+number of words, a key wrap over 501 semiblocks, an RFC 3394 unwrap whose
+output buffer is not at least as long as its input, a custom curve, an RSA key
+without CRT parameters, or an operation whose input wolfCrypt would reject on
+its own path, such as an all-zero ECDSA digest or an RSA input outside
+1 < x < n - 1.
+
+### AES-XTS
+
+XTS is AES-ECB over tweak-masked data, and `_AesXtsHelper()` already issues one
+bulk `wc_AesEcbEncrypt()`/`wc_AesEcbDecrypt()` per XTS call, which lands on this
+port's ECB case. An `XtsAes` tagged with the port's devId is therefore offloaded
+with no XTS code here, given:
+
+- `HAVE_AES_ECB` (`--enable-aesecb`; configure adds it for `--with-mpfs-athena`
+  with `--enable-aesxts`). Without it XTS runs a block at a time through
+  `wc_AesEncryptDirect()`, slower than software.
+- Distinct input and output buffers; the helper is not used in place.
+
+The tweak encrypt and the stealing tail arrive as single-block calls and stay in
+software, as do the GF(2^128) tweak multiply and both XORs. XTS therefore gains
+less than bulk CTR, and improves with call size since the engine setup is paid
+once per call - measure at the size the application uses.
+
+Stock benchmark, MPFS250TS Video Kit, E51 at 600 MHz, bare metal; the software
+column is wolfCrypt's default cache-line-touch-hardened C AES for RISC-V:
+
+| Call size | AES-256-XTS software | AES-256-XTS engine | AES-256-CTR engine | SHA-384 engine |
+|---|---|---|---|---|
+| 512 B | 48 KiB/s | 1.23 MiB/s | 12.9 MiB/s | 11.4 MiB/s |
+| 1 KiB | 49 KiB/s | 2.06 MiB/s | 14.6 MiB/s | 13.2 MiB/s |
+| 4 KiB | 49 KiB/s | 4.2 MiB/s | 16.1 MiB/s | 14.8 MiB/s |
+
+Software SHA-384 is 5.8 MiB/s.
 
 ## Using it
 
@@ -87,8 +137,13 @@ wc_MpfsAthena_RegisterDevice(WC_MPFS_ATHENA_DEVID);
 wc_MpfsAthena_SelfTest();
 ```
 
-then pass that devId to `wc_InitSha384_ex()` and `wc_AesInit()`. Contexts tagged
-with any other devId stay in software.
+then pass that devId to the `_ex` init of each object: `wc_InitSha256_ex()`,
+`wc_AesInit()`, `wc_ecc_init_ex()`, `wc_InitRsaKey_ex()`, `wc_InitRng_ex()` and
+so on. Objects tagged with any other devId stay in software. Seeding is the
+exception: `wc_GenerateSeed()` reads the NRBG directly, so every RNG is seeded
+from the engine whatever its devId (`WC_MPFS_ATHENA_NO_RNG` opts out, and a
+`CUSTOM_RAND_GENERATE_SEED` takes precedence). The engine DRBG applies only to
+an RNG created with the port's devId.
 
 `wolfCrypt_Init()` must come first. It is what initialises the crypto callback
 device table; without it every slot reads as occupied and
@@ -98,9 +153,8 @@ would unregister every other device.
 
 `wc_MpfsAthena_SelfTest()` runs known-answer tests through the public wolfCrypt
 API and **counts the callback entries the engine actually served**. It is
-compiled by default; `WC_MPFS_ATHENA_NO_SELFTEST` drops it and the KAT tables
-where size matters more, and the stub then returns `NOT_COMPILED_IN`. That count is
-part of the pass condition: when registration has silently failed, wolfCrypt
+compiled only with `WC_MPFS_ATHENA_SELFTEST`; without it the stub returns
+`NOT_COMPILED_IN`. That count is part of the pass condition: when registration has silently failed, wolfCrypt
 computes the correct answer in software and a digest-only comparison still
 passes. `wc_MpfsAthena_SelfTestDesc()` names what a failure tripped on and
 `wc_MpfsAthena_GetCbCount()` exposes the count.
@@ -114,14 +168,21 @@ except `WC_MPFS_ATHENA_DEVID`, which `settings.h` sets so it can also drive
 | Macro | Default | Meaning |
 |---|---|---|
 | `WC_MPFS_ATHENA_DEVID` | `0xA7` | crypto callback device id |
-| `WC_MPFS_ATHENA_HASH_SLOTS` | 4 | concurrent offloaded SHA-384 contexts when there is no heap |
+| `WC_MPFS_ATHENA_HASH_SLOTS` | 4 | concurrent offloaded SHA-2 contexts when there is no heap |
+| `WC_MPFS_ATHENA_AES_MIN_SZ` | 32 | smallest AES-ECB or AES-CBC request the engine serves; self-test needs twice this as scratch |
+| `WC_MPFS_ATHENA_GCM_MIN_SZ` | 0 | smallest AES-GCM payload the engine serves |
+| `WC_MPFS_ATHENA_RSA_MAX_BITS` | 4096 | largest RSA modulus the engine serves |
+| `WC_MPFS_ATHENA_RSA_PUBLIC` | unset | also serve RSA public operations, which are slower on the engine than in software with a small public exponent |
+| `WC_MPFS_ATHENA_RNG_DRBG` | unset | generate random output with the engine's DRBG rather than wolfCrypt's |
+| `WC_MPFS_ATHENA_DRBG_RESEED` | 1024 | generate calls between reseeds of the engine's DRBG |
 | `WC_MPFS_ATHENA_BASE_ADDR` | `0x22000000` | user-crypto base, for `g_user_crypto_base_addr` |
 | `WC_MPFS_ATHENA_REG_BASE` | `0x20127000` | `ATHENAREG` |
 | `WC_MPFS_ATHENA_SYSREG_BASE` | `0x20002000` | MSS SYSREG |
 | `WC_MPFS_ATHENA_NO_BASE_ADDR` | unset | the platform defines `g_user_crypto_base_addr` |
 | `WC_MPFS_ATHENA_NO_HW_INIT` | unset | the clock, reset and stall seed are already set up |
-| `WC_MPFS_ATHENA_NO_SELFTEST` | unset | drop the known-answer tests |
+| `WC_MPFS_ATHENA_SELFTEST` | unset | compile the known-answer tests |
 | `WC_MPFS_ATHENA_NO_HW_MUTEX` | unset | do not serialise CAL transactions |
+| `WC_MPFS_ATHENA_NO_<family>` | unset | keep that family in software, per the table above |
 
 Under `WOLFSSL_NO_MALLOC` or `WOLFSSL_STATIC_MEMORY` the per-context engine
 state comes from a fixed pool of `WC_MPFS_ATHENA_HASH_SLOTS` entries, and
@@ -138,14 +199,30 @@ None of this is in the CAL headers.
   `CALIni()` recovers.
 - **The stall seed is read from `rdcycle`, not `mcycle`**: an `mcycle` read traps
   in the S-mode builds.
-- **A non-final `CALHashCtx()` call must carry a whole number of 128-byte
-  blocks**, or it fails with `SATR_BADHASHLEN` (30). The final call takes any
-  remainder, including zero, and the engine pads.
+- **A non-final `CALHashCtx()` call must carry a whole number of blocks**, or it
+  fails with `SATR_BADHASHLEN` (30). The port feeds 128 bytes at a time for
+  every SHA-2 type, which is also a whole number of SHA-256 blocks. The final
+  call takes any remainder, including zero, and the engine pads.
 - **`CALSymEncrypt()` only starts the transfer.** Without a following
   `CALSymTrfRes(SAT_TRUE)` the output buffer is never written while both calls
   report success.
 - **The AES counter is advanced in place**, so consecutive calls on one context
   continue the keystream.
+- **The engine's CTR counter is 32 bits wide.** It carries nothing past the low
+  word, where `wc_AesCtrEncrypt()` counts over all 128. The port stops each
+  transfer at that wrap and recomputes the counter itself; the self-test covers
+  a stream across it.
+- **DRBG generate and every public-key operation complete through
+  `CALPKTrfRes()`**, not `CALSymTrfRes()`, and the operation's own result code
+  arrives there. The NRBG read, DRBG instantiate and `CALPurge52()` are
+  synchronous: a `CALPKTrfRes()` after them waits forever.
+- **Public-key operands are 32-bit words, least significant word first.** On
+  this little-endian core that is the big-endian value with its bytes reversed.
+  The NIST primes are in the engine's ROM and are passed by address
+  (`P256_MOD` and the rest) with no Barrett constant; the order and an RSA
+  modulus need one from `CALPreCompute()`, one word longer than the modulus.
+- **The engine keeps private-key operands in its own memory**, so every private
+  operation ends with `CALPurge52()`.
 - **The DMA entry points do nothing.** `CALHashDMA()` and `aesf5200dma()` are
   declared, but the shipped archive is built with `USE_X52EXEC_DMA 0` and they
   return success without moving data. The port uses the non-DMA calls.
@@ -161,10 +238,19 @@ None of this is in the CAL headers.
   `WOLFSSL_STATIC_MEMORY` also takes that mutex to hand out and return slots;
   `wc_MpfsAthena_Init()` fails if it cannot be taken, so registration fails
   rather than running the pool unlocked.
-- **`wc_Sha384FinalRaw()` does not see the engine.** It reads the software digest
-  state directly with no callback dispatch, so on an offloaded context it returns
-  the SHA-384 initial values. This affects every hash crypto callback port, not
-  just this one.
+- **The `FinalRaw()` hash functions do not see the engine.** They read the
+  software digest state directly with no callback dispatch, so on an offloaded
+  context they return the initial values. This affects every hash crypto
+  callback port, not just this one.
+- **A SHA-512 family context is identified by its initial value**, not by the
+  event type: wolfCrypt reports every SHA-512/224 and SHA-512/256 update as
+  `WC_HASH_TYPE_SHA512`, and retries a declined SHA-384 call the same way.
+- **Software blinding does not run on an offloaded private-key operation.** The
+  port uses the engine's countermeasure paths instead (`CALECDSASignCM()`,
+  `CALECMultCM()`, `CALRSACRTCM()`).
+- **The ECC and RSA handlers need operand scratch**: about 0.9 KiB for ECC and
+  about 3.8 KiB for RSA at the default 4096-bit maximum. It is on the stack, or
+  allocated with `WOLFSSL_SMALL_STACK`.
 - **CI compiles the port but gives no target-ABI coverage.**
   `.github/workflows/mpfs-athena-compile.yml` compiles it with the runner's own
   host compiler against the CAL headers from the public hart-software-services
@@ -172,13 +258,14 @@ None of this is in the CAL headers.
   is defined in the archive. It is a host compile because both CAL archives are
   soft-float `lp64` and Ubuntu's riscv64 glibc is `lp64d` only, so `-mabi=lp64`
   cannot be satisfied there; what the job guards is a CAL header rename or a
-  refactor in `aes.c`, `sha512.c` or `cryptocb.h`, all of which the host
+  refactor in the wolfCrypt algorithm files or `cryptocb.h`, all of which the host
   compiler sees. The target ABI is proven by building for the board, and
   functional correctness by `wc_MpfsAthena_SelfTest()` on real silicon.
 
-## Not yet offloaded
+## Not offloaded
 
-The CAL also exposes SHA-1/224/256/512, AES-128/192, AES-GCM/CCM/key-wrap, HMAC,
-DRBG/NRBG, ECDSA, ECDH, RSA, DSA and DH. None of those have been run on this
-silicon, so they are left in software rather than shipped untested. ECDSA P-384
-verify is the one most worth adding next.
+SHA-1, AES-CFB and AES-OFB stay in software by choice. HMAC needs no handler of
+its own: its inner and outer hashes reach the engine through the SHA-2
+offload. The engine has no AES-CCM mode, no prime generation for RSA key
+generation, and no post-quantum algorithms. DSA and DH are exposed by the CAL
+and not wired up.
