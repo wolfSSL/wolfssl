@@ -76,6 +76,11 @@ function(wolfssl_compliance_tooling_sbom_resolve_outputs out_cdx out_spdx out_tv
     if(_tv STREQUAL "" AND WOLFSSL_COMPLIANCE_TOOLING_SBOM_TV_FROM_SPDX)
         string(REGEX REPLACE "\\.json$" "" _tv "${_spdx}")
     endif()
+    if(NOT _tv STREQUAL "" AND _tv STREQUAL _spdx)
+        message(FATAL_ERROR
+            "sbom paths: the tag-value and SPDX files are the same (${_spdx}). "
+            "Set TV_OUT.")
+    endif()
 
     set(${out_cdx} "${_cdx}" PARENT_SCOPE)
     set(${out_spdx} "${_spdx}" PARENT_SCOPE)

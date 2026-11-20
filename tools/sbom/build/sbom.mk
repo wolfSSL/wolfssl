@@ -29,6 +29,8 @@
 #                       Predefines for that preprocess, space-separated.
 #                       Include WOLFSSL_USER_SETTINGS.
 #   SBOM_SOURCE_ONLY = 1   Source-inventory SBOM with no build-config macros.
+#   SBOM_MACRO_PREFIX   Record only the captured macros whose name starts
+#                       with one of these prefixes, space-separated.
 #
 # Config, strongly recommended alongside SBOM_CFLAGS:
 #   SBOM_SETTINGS_H     Settings header -include'd during the capture, so the
@@ -151,6 +153,7 @@ $(SBOM_TAB)@if [ "$($(2)NO_ARTIFACT_HASH)" = "1" ]; then \
     else \
         test -n "$(strip $($(2)SRCS))$($(2)LIB)" || \
             { echo "ERROR: set $(2)SRCS or $(2)LIB"; exit 1; }; \
+        $(if $(and $(strip $($(2)SRCS)),$($(2)LIB)),{ echo "ERROR: set $(2)SRCS or $(2)LIB but not both"; exit 1; };) \
     fi
 $(SBOM_TAB)@set -e; \
     if [ -n "$(strip $($(2)SRCS))" ]; then \
@@ -222,11 +225,16 @@ $(SBOM_TAB)@set -e; \
         $(if $($(2)DEP_LIBZ),--dep-libz "$($(2)DEP_LIBZ)") \
         $(if $($(2)DOCUMENT_NAMESPACE),--document-namespace "$($(2)DOCUMENT_NAMESPACE)") \
         $(if $($(2)CRYPTO_ONLY),--crypto-only "$($(2)CRYPTO_ONLY)") \
+        $(foreach p,$($(2)MACRO_PREFIX),--macro-prefix "$(p)") \
         $$$$dep_ver \
         $(if $(or $($(2)GEN),$(GEN_SBOM)),--gen-sbom "$(or $($(2)GEN),$(GEN_SBOM))") \
         $(if $($(2)CDX_OUT),--cdx-out "$($(2)CDX_OUT)") \
         $(if $($(2)SPDX_OUT),--spdx-out "$($(2)SPDX_OUT)")
 endef
+
+# Products vendored before the rename still call wolfglass_sbom_rule.
+# Use a recursive reference, not $(value): $(call) must expand $(1) and $(2).
+wolfglass_sbom_rule = $(wolfssl_compliance_tooling_sbom_rule)
 
 SBOM_TARGET ?= sbom
 $(eval $(call wolfssl_compliance_tooling_sbom_rule,$(SBOM_TARGET),SBOM_))

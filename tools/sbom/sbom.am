@@ -23,6 +23,17 @@
 #                       feature flags are NOT in config.h (no AC_DEFINE); when
 #                       unset the recipe derives the macros from the compiler +
 #                       config.h.  Default: unset.
+#   SBOM_USER_SETTINGS  Path to wolfssl/wolfcrypt/settings.h, for a product
+#                       configured by a user_settings.h instead of configure.
+#                       gen-sbom walks it through pcpp.  Also set
+#                       SBOM_USER_SETTINGS_INCLUDES (one directory must hold
+#                       user_settings.h) and SBOM_USER_SETTINGS_DEFINES
+#                       (include WOLFSSL_USER_SETTINGS), both space-separated.
+#                       Mutually exclusive with SBOM_OPTIONS_H.  Default: unset.
+#   SBOM_MACRO_PREFIX   Space-separated macro name prefixes.  When set, only
+#                       the captured macros starting with one of them are
+#                       recorded, e.g. WOLFCERT_ for a product that shares its
+#                       user_settings.h with wolfSSL.  Default: unset.
 #   SBOM_ARTIFACT       lib | bin - which build output to hash.  Default: lib.
 #   SBOM_LIB_STEM       Library basename w/o extension.  Default: lib$(SBOM_PKGNAME).
 #   SBOM_BIN_NAME       Program name when SBOM_ARTIFACT = bin.  Default: $(SBOM_PKGNAME).
@@ -85,8 +96,8 @@
 # (AC_PATH_PROG); git is used only to derive SOURCE_DATE_EPOCH.
 #
 # NOTE: this fragment requires GNU make.  It uses GNU conditional assignment
-# (?=) and the GNU make functions $(wildcard), $(if), $(firstword) and
-# $(addprefix); under a non-GNU make the SBOM targets will not work.
+# (?=) and the GNU make functions $(wildcard), $(if), $(firstword), $(strip)
+# and $(addprefix); under a non-GNU make the SBOM targets will not work.
 # ---------------------------------------------------------------------------
 
 SBOM_ARTIFACT ?= lib
@@ -144,15 +155,15 @@ CLEANFILES += $(SBOM_CDX) $(SBOM_SPDX) $(SBOM_SPDX_TV)
 
 # Stage a `make install` into a private tree, discover the installed artifact
 # (shared/static library or program; ELF/Mach-O/PE), hash it, capture the
-# configured build macros (from SBOM_OPTIONS_H if set, else the -D/-U/-I tokens
-# of AM_CPPFLAGS/AM_CFLAGS/CFLAGS + config.h, expanded through the HOST compiler
-# SBOM_HOSTCC so the SBOM is reproducible across cross toolchains; some products
-# carry their feature -D flags in AM_CFLAGS rather than AM_CPPFLAGS, and some
-# outside config.h entirely),
-# generate SPDX+CDX, validate
-# the SPDX, then convert to tag-value.  The staging tree and temp defines file
-# are removed unconditionally via `trap`, even on failure.  SOURCE_DATE_EPOCH is
-# honoured for reproducible output (defaults to the last git commit time).
+# configured build macros (from SBOM_USER_SETTINGS or SBOM_OPTIONS_H if set,
+# else the -D/-U/-I tokens of AM_CPPFLAGS/AM_CFLAGS/CFLAGS + config.h,
+# expanded through the HOST compiler SBOM_HOSTCC so the SBOM is reproducible
+# across cross toolchains; some products carry their feature -D flags in
+# AM_CFLAGS rather than AM_CPPFLAGS, and some outside config.h entirely),
+# generate SPDX+CDX, validate the SPDX, then convert to tag-value.  The
+# staging tree and temp defines file are removed unconditionally via `trap`,
+# even on failure.  SOURCE_DATE_EPOCH is honoured for reproducible output
+# (defaults to the last git commit time).
 sbom:
 	@test -n "$(PYTHON3)" || { \
 	    echo "ERROR: 'python3' not found in PATH. Cannot generate SBOM."; \
@@ -202,7 +213,29 @@ sbom:
 	fi; \
 	echo "SBOM: hashing $$sbom_art"; \
 	opts_h="$(SBOM_OPTIONS_H)"; \
-	if test -z "$$opts_h"; then \
+	set --; \
+	if test -n "$(SBOM_USER_SETTINGS)"; then \
+	    if test -n "$$opts_h"; then \
+	        echo "ERROR: set SBOM_USER_SETTINGS or SBOM_OPTIONS_H, not both."; \
+	        exit 1; \
+	    fi; \
+	    if test -z "$(strip $(SBOM_USER_SETTINGS_INCLUDES))"; then \
+	        echo "ERROR: SBOM_USER_SETTINGS needs SBOM_USER_SETTINGS_INCLUDES."; \
+	        exit 1; \
+	    fi; \
+	    case " $(SBOM_USER_SETTINGS_DEFINES) " in \
+	        *" WOLFSSL_USER_SETTINGS "*|*" WOLFSSL_USER_SETTINGS="*) ;; \
+	        *) echo "ERROR: SBOM_USER_SETTINGS_DEFINES must include WOLFSSL_USER_SETTINGS."; \
+	           exit 1;; \
+	    esac; \
+	    set -- --user-settings "$(SBOM_USER_SETTINGS)"; \
+	    for d in $(SBOM_USER_SETTINGS_INCLUDES); do \
+	        set -- "$$@" --user-settings-include "$$d"; \
+	    done; \
+	    for d in $(SBOM_USER_SETTINGS_DEFINES); do \
+	        set -- "$$@" --user-settings-define "$$d"; \
+	    done; \
+	elif test -z "$$opts_h"; then \
 	    opts_h="$$_defines"; \
 	    sbom_cpp=""; \
 	    for f in $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS); do \
@@ -212,8 +245,20 @@ sbom:
 	        $(if $(wildcard $(SBOM_CONFIG_H)),-include $(SBOM_CONFIG_H)) \
 	        -x c /dev/null > "$$_defines"; \
 	fi; \
+	if test $$# -eq 0; then set -- --options-h "$$opts_h"; fi; \
+	if test -n "$(SBOM_MACRO_PREFIX)"; then \
+	    if $(PYTHON3) "$(SBOM_GEN)" --help 2>/dev/null \
+	        | $(GREP) -q -- '--macro-prefix'; then \
+	        for p in $(SBOM_MACRO_PREFIX); do \
+	            set -- "$$@" --macro-prefix "$$p"; \
+	        done; \
+	    else \
+	        echo "NOTE: this gen-sbom has no --macro-prefix support; every"; \
+	        echo "      captured macro will be recorded."; \
+	    fi; \
+	fi; \
 	if test -z "$${SOURCE_DATE_EPOCH:-}" && test -n "$(GIT)" && \
-	   $(GIT) -C "$(srcdir)" rev-parse --git-dir >/dev/null 2>&1; then \
+	   $(GIT) -C "$(srcdir)" ls-files --error-unmatch -- . >/dev/null 2>&1; then \
 	    sde=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null`; \
 	    if test -n "$$sde"; then SOURCE_DATE_EPOCH="$$sde"; export SOURCE_DATE_EPOCH; fi; \
 	fi; \
@@ -291,7 +336,7 @@ sbom:
 	    --version $(PACKAGE_VERSION) \
 	    --supplier "wolfSSL Inc." \
 	    --license-file $(SBOM_LICENSE_FILE) \
-	    --options-h "$$opts_h" \
+	    "$$@" \
 	    --lib "$$sbom_art" \
 	    $$dep_args \
 	    $${ns_arg:+$$ns_arg '$(SBOM_DOCUMENT_NAMESPACE)'} \

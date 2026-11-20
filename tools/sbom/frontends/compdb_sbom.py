@@ -194,7 +194,11 @@ def main():
             continue
         if root_abs:
             real = os.path.realpath(fpath)
-            if os.path.commonpath([real, root_abs]) != root_abs:
+            try:
+                inside = os.path.commonpath([real, root_abs]) == root_abs
+            except ValueError:
+                inside = False
+            if not inside:
                 sys.stderr.write(
                     f"WARNING: skipping source outside --root: {fpath}\n")
                 continue

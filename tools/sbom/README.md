@@ -38,7 +38,7 @@ Add `--check` to find drift, including lost executable bits, without a copy.
 Every front end produces a composition input and a config input and hands them to
 the driver.
 
-Composition (at least one):
+Composition (pick one):
 
 - `--srcs-file PATH` — the source files compiled into the artifact (tier E).
 - `--lib PATH` — the built library to hash (tier R/L/S).
@@ -54,8 +54,16 @@ Config (choose one):
 - `--options-h PATH` — a pre-expanded flat `#define` header, used verbatim.
 - `--user-settings PATH` — path to `wolfssl/wolfcrypt/settings.h`. Also pass
   `--user-settings-include DIR` (the directory that contains `user_settings.h`)
-  and `--user-settings-define WOLFSSL_USER_SETTINGS`.
+  and `--user-settings-define WOLFSSL_USER_SETTINGS`. The autotools fragment
+  takes `SBOM_USER_SETTINGS`, `SBOM_USER_SETTINGS_INCLUDES` and
+  `SBOM_USER_SETTINGS_DEFINES`.
 - `--source-only` — no build-config macros (for example a Kconfig-driven build).
+
+A product that shares one `user_settings.h` with wolfSSL captures wolfSSL's
+macros along with its own. Pass `--macro-prefix PREFIX` (repeatable; Make and
+autotools `SBOM_MACRO_PREFIX`, CMake `MACRO_PREFIX`) to record only the macros
+whose name starts with that prefix, for example `WOLFCERT_`. `--crypto-only auto`
+still reads the full capture.
 
 Dependency (for linkers and bindings): `--dep-wolfssl`, `--dep-openssl`, and
 `--dep-version` are passed through only when the generator supports them.
@@ -63,6 +71,12 @@ Dependency (for linkers and bindings): `--dep-wolfssl`, `--dep-openssl`, and
 Copyright: the line reads `Copyright (C) <start>-<build year> <supplier>`.
 `--copyright-start` (Make, autotools: `SBOM_COPYRIGHT_START`; CMake:
 `COPYRIGHT_START`) sets the first year, which defaults to 2006.
+
+Timestamp: `SOURCE_DATE_EPOCH` sets the creation time and the build year. When
+it is not set and `--root` is passed, the driver uses the last commit time of
+the checkout that tracks that directory, so Make, CMake and a front end that
+passes `--root` give one checkout the same time. With no `--root`, or a tree
+that git does not track, gen-sbom uses the current time.
 
 The driver captures macros with the host compiler, so the SBOM is reproducible
 across toolchains. It scrubs absolute host paths from the captured macros unless
@@ -87,17 +101,26 @@ A product does not copy logic. It describes itself:
 - CMake: `include(tools/sbom/build/sbom.cmake)` and call `wolfssl_compliance_tooling_add_sbom()`
   with `NAME`, `VERSION_FILE`, `VERSION_MACRO`, `TARGETS`, `DEFS`, `LICENSE`.
   The same call adds `install-sbom` and `uninstall-sbom`. They copy the
-  CycloneDX and SPDX files to `CMAKE_INSTALL_FULL_DOCDIR` (or
-  `<prefix>/share/doc/<NAME>`) and read `DESTDIR` when the target runs.
+  CycloneDX and SPDX files to `CMAKE_INSTALL_DOCDIR` (or
+  `share/doc/<NAME>`) under the install or staging prefix, or to a
+  `CMAKE_INSTALL_FULL_DOCDIR` the project set itself, and read `DESTDIR` when
+  the target runs.
   Pass `CDX_OUT` / `SPDX_OUT`
   when the file name is not `<name>-<version>` (wolfBoot's config tag).
   To hash the installed library and validate the SPDX file as `make sbom`
   does, pass `STAGE_TARGET <library target>` and `VALIDATE`. Then
-  `install-sbom` also installs the tag-value file. A missing python3 or
-  pyspdxtools does not fail configure; the `sbom` target fails when it is built.
-  A product that writes the tag-value file in its own later target can pass
-  `NO_INSTALL` and call `wolfssl_compliance_tooling_add_sbom_install(DEPENDS sbom TV ...)`
-  after that target exists.
+  `install-sbom` also installs the tag-value file. The staging installs only
+  that target's binaries, through a private `EXCLUDE_FROM_ALL` install
+  component in a build directory of its own, so no other target has to be
+  built, no other install rule runs and `install_manifest.txt` is left alone. The hash is that of a plain
+  `install(TARGETS)`; a product that changes the installed file, with
+  `install(CODE)` or `install(FILES)`, passes `LIB` instead. A product that
+  packages per component with CPack sets `CPACK_COMPONENTS_ALL`. A missing
+  python3 or pyspdxtools does not fail configure; the `sbom` target fails when
+  it is built. A product that writes the tag-value file in its own later
+  target can pass `NO_INSTALL` and call
+  `wolfssl_compliance_tooling_add_sbom_install(DEPENDS sbom TV ...)` after
+  that target exists.
   `SBOM_GEN` is the canonical generator override; `GEN_SBOM` remains a legacy
   alias for compatibility.
 - Autotools: set the `SBOM_*` variables and `include tools/sbom/sbom.am`.
@@ -107,7 +130,8 @@ A product does not copy logic. It describes itself:
   actually built. Without that hook, run `zephyr_sbom.py` on the build's
   `compile_commands.json` with `--root` set to the module, and pass
   `--user-settings` with the module's settings header to record its
-  configuration.
+  configuration. A module that adds its sources with `target_sources(app
+  ...)`, as wolfTPM does, needs `--target app`.
 
 Keep only true product knowledge in the product: the route-through script, the
 module extractor, and the HAL source selector.
