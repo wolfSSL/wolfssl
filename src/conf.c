@@ -273,6 +273,7 @@ int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
     return WOLFSSL_SUCCESS;
 }
 
+WC_NO_SANITIZE_FUNCTION
 WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
         WOLFSSL_STRING *value)
 {

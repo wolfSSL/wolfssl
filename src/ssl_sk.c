@@ -165,6 +165,7 @@ static void* wolfssl_sk_node_get_data(WOLFSSL_STACK* node, int no_static)
  * @param [in]      type  Type of data.
  * @param [in]      data  Data to set.
  */
+WC_NO_SANITIZE_FUNCTION
 static void wolfssl_sk_node_set_data(WOLFSSL_STACK* node, WOLF_STACK_TYPE type,
     const void* data)
 {
@@ -962,6 +963,7 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
  * @param [in, out] sk    Stack of objects.
  * @param [in]      func  Function to use to free objects.
  */
+WC_NO_SANITIZE_FUNCTION
 void wolfSSL_sk_pop_free(WOLFSSL_STACK* stack, wolfSSL_sk_freefunc func)
 {
     WOLFSSL_ENTER("wolfSSL_sk_pop_free");
@@ -1328,6 +1330,7 @@ int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
  * @return  Data of node with the same hash as data passed in.
  * @return  NULL when no match found.
  */
+WC_NO_SANITIZE_FUNCTION
 void *wolfSSL_lh_retrieve(WOLFSSL_STACK *stack, void *data)
 {
     unsigned long hash;
