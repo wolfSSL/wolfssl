@@ -136,6 +136,196 @@ int test_wolfSSL_d2i_X509_concatenated(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_d2i_X509_fp_bio_concatenated(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    /* server-cert.der followed by ca-cert.der */
+    const char* fname = "./certs/server-cert-chain.der";
+    const int srvSz = (int)sizeof_server_cert_der_2048;
+    const int caSz = (int)sizeof_ca_cert_der_2048;
+    XFILE f = XBADFILE;
+    X509* cert = NULL;
+    const byte* der = NULL;
+    int derSz = 0;
+#ifndef NO_BIO
+    BIO* bio = NULL;
+#endif
+
+    /* Each call decodes one certificate and leaves the file after it. */
+    ExpectTrue((f = XFOPEN(fname, "rb")) != XBADFILE);
+    ExpectNotNull(cert = d2i_X509_fp(f, NULL));
+    ExpectIntEQ((int)XFTELL(f), srvSz);
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, srvSz);
+    ExpectBufEQ(der, server_cert_der_2048, srvSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNotNull(cert = d2i_X509_fp(f, NULL));
+    ExpectIntEQ((int)XFTELL(f), srvSz + caSz);
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, caSz);
+    ExpectBufEQ(der, ca_cert_der_2048, caSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNull(d2i_X509_fp(f, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+#ifndef NO_BIO
+    ExpectNotNull(bio = BIO_new_file(fname, "rb"));
+    ExpectNotNull(cert = d2i_X509_bio(bio, NULL));
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, srvSz);
+    ExpectBufEQ(der, server_cert_der_2048, srvSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNotNull(cert = d2i_X509_bio(bio, NULL));
+    ExpectNotNull(der = wolfSSL_X509_get_der(cert, &derSz));
+    ExpectIntEQ(derSz, caSz);
+    ExpectBufEQ(der, ca_cert_der_2048, caSz);
+    X509_free(cert);
+    cert = NULL;
+    ExpectNull(d2i_X509_bio(bio, NULL));
+    BIO_free(bio);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+static long test_file_sz(const char* fname)
+{
+    long sz = -1;
+    XFILE f = XFOPEN(fname, "rb");
+
+    if (f != XBADFILE) {
+        if (XFSEEK(f, 0, XSEEK_END) == 0)
+            sz = (long)XFTELL(f);
+        XFCLOSE(f);
+    }
+    return sz;
+}
+#endif
+
+int test_wolfSSL_d2i_fp_concatenated(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    XFILE f = XBADFILE;
+    long sz1 = 0;
+    long sz2 = 0;
+
+    {
+        /* Bad headers are rejected without moving the file position. */
+        ExpectIntGT(sz1 = test_file_sz("./certs/server-cert.der"), 0);
+        ExpectTrue((f = XFOPEN("./certs/server-cert.der", "rb")) != XBADFILE);
+        ExpectIntEQ(XFSEEK(f, 1, XSEEK_SET), 0);
+        ExpectNull(d2i_X509_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), 1);
+        ExpectIntEQ(XFSEEK(f, sz1 - 1, XSEEK_SET), 0);
+        ExpectNull(d2i_X509_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1 - 1);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+        ExpectTrue((f = XFOPEN("./certs/ecc-rsa-server-ber.p12", "rb")) !=
+            XBADFILE);
+        ExpectNull(d2i_X509_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), 0);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
+#ifdef HAVE_CRL
+    {
+        X509_CRL* crl = NULL;
+
+        /* crl-chain.der is crl.der followed by crl2.der */
+        ExpectIntGT(sz1 = test_file_sz("./certs/crl/crl.der"), 0);
+        ExpectIntGT(sz2 = test_file_sz("./certs/crl/crl2.der"), 0);
+        ExpectTrue((f = XFOPEN("./certs/crl/crl-chain.der", "rb")) !=
+            XBADFILE);
+        ExpectNotNull(crl = d2i_X509_CRL_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        X509_CRL_free(crl);
+        crl = NULL;
+        ExpectNotNull(crl = d2i_X509_CRL_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1 + sz2);
+        X509_CRL_free(crl);
+        crl = NULL;
+        ExpectNull(d2i_X509_CRL_fp(f, NULL));
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
+#endif
+#ifdef WOLFSSL_CERT_REQ
+    {
+        X509_REQ* req = NULL;
+
+        /* csr-chain.der is csr.signed.der followed by csr.ext.der */
+        ExpectIntGT(sz1 = test_file_sz("./certs/csr.signed.der"), 0);
+        ExpectIntGT(sz2 = test_file_sz("./certs/csr.ext.der"), 0);
+        ExpectTrue((f = XFOPEN("./certs/csr-chain.der", "rb")) != XBADFILE);
+        ExpectNotNull(req = d2i_X509_REQ_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        X509_REQ_free(req);
+        req = NULL;
+        ExpectNotNull(req = d2i_X509_REQ_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1 + sz2);
+        X509_REQ_free(req);
+        req = NULL;
+        ExpectNull(d2i_X509_REQ_fp(f, NULL));
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
+#endif
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+    {
+        WOLFSSL_X509_PKCS12* p12 = NULL;
+
+        ExpectIntGT(sz1 = test_file_sz("./certs/ecc-rsa-server.p12"), 0);
+        ExpectTrue((f = XFOPEN("./certs/ecc-rsa-server.p12", "rb")) !=
+            XBADFILE);
+        ExpectNotNull(p12 = wolfSSL_d2i_PKCS12_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        wc_PKCS12_free(p12);
+        p12 = NULL;
+        ExpectNull(wolfSSL_d2i_PKCS12_fp(f, NULL));
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+
+        /* Indefinite length: the rest of the file is read. */
+        ExpectIntGT(sz1 = test_file_sz("./certs/ecc-rsa-server-ber.p12"), 0);
+        ExpectTrue((f = XFOPEN("./certs/ecc-rsa-server-ber.p12", "rb")) !=
+            XBADFILE);
+        ExpectNotNull(p12 = wolfSSL_d2i_PKCS12_fp(f, NULL));
+        ExpectIntEQ((long)XFTELL(f), sz1);
+        wc_PKCS12_free(p12);
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+    }
+#endif
+    (void)sz1;
+    (void)sz2;
+    (void)f;
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_get_der_length_guards(void)
 {
     EXPECT_DECLS;

@@ -16,6 +16,7 @@ EXTRA_DIST += \
 		certs/crl/wolfssl.cnf \
 		certs/crl/crl.der \
 		certs/crl/crl2.der \
+		certs/crl/crl-chain.der \
 		certs/crl/crl_rsapss.pem \
 		certs/crl/crl_reason.pem \
 		certs/crl/bad_time_fmt.pem
