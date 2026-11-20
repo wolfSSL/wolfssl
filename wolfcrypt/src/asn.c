@@ -16227,8 +16227,8 @@ static int AddRDNToName(WOLFSSL_X509_NAME* dName, int nid, ASNGetData* val,
     }
     if ((nid != 0) && (dName != NULL)) {
         /* Add an entry to the X509_NAME. */
-        if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, enc, str,
-                (int)strLen, -1, -1) != WOLFSSL_SUCCESS) {
+        if (X509NameAddDecodedEntry(dName, nid, enc, str, (int)strLen) !=
+                WOLFSSL_SUCCESS) {
             ret = ASN_PARSE_E;
         }
     }

@@ -8277,6 +8277,12 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
                                             const byte* der, word32 derSz);
     WOLFSSL_LOCAL void ClearX509NameRaw(WOLFSSL_X509_NAME* name);
 #endif
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(X509NameAddDecodedEntry)
+    WOLFSSL_LOCAL int X509NameAddDecodedEntry(WOLFSSL_X509_NAME* name, int nid,
+                                              int type, const byte* data,
+                                              int dataSz);
+#endif
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
                                 void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509* x509);

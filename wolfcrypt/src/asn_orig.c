@@ -2581,9 +2581,8 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         }
 
         if (nid != WC_NID_undef) {
-            if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, enc,
-                            &input[srcIdx], strLen, -1, -1) !=
-                            WOLFSSL_SUCCESS) {
+            if (X509NameAddDecodedEntry(dName, nid, enc, &input[srcIdx],
+                            strLen) != WOLFSSL_SUCCESS) {
                 wolfSSL_X509_NAME_free(dName);
                 return ASN_PARSE_E;
             }

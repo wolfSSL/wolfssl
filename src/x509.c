@@ -15740,6 +15740,43 @@ err:
         return NULL;
     }
 
+    static int X509NamePrintable(const unsigned char* str, int len)
+    {
+        int i;
+
+        for (i = 0; i < len; i++) {
+            unsigned char c = str[i];
+            if (((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z')) ||
+                    ((c >= '0') && (c <= '9'))) {
+                continue;
+            }
+            switch (c) {
+                case ' ': case '\'': case '(': case ')': case '+': case ',':
+                case '-': case '.': case '/': case ':': case '=': case '?':
+                    break;
+                default:
+                    return 0;
+            }
+        }
+        return 1;
+    }
+
+    /* MBSTRING_UTF8 lets the library pick the string type. RFC 5280 limits
+     * countryName, serialNumber and dnQualifier to PrintableString. */
+    static int X509NameEntryType(int nid, int type, const unsigned char* data,
+        int dataSz)
+    {
+        if ((type == WOLFSSL_MBSTRING_UTF8) && (data != NULL) &&
+                ((nid == WC_NID_countryName) || (nid == WC_NID_serialNumber) ||
+                 (nid == WC_NID_dnQualifier))) {
+            if (dataSz < 0)
+                dataSz = (int)XSTRLEN((const char*)data);
+            if (X509NamePrintable(data, dataSz))
+                type = WOLFSSL_V_ASN1_PRINTABLESTRING;
+        }
+        return type;
+    }
+
     static void wolfssl_x509_name_entry_set(WOLFSSL_X509_NAME_ENTRY* ne,
         int nid, int type, const unsigned char *data, int dataSz)
     {
@@ -15764,6 +15801,7 @@ err:
             ne->value = wolfSSL_ASN1_STRING_type_new(type);
         }
         if (ne->value != NULL) {
+            ne->value->type = type;
             if (wolfSSL_ASN1_STRING_set(ne->value, (const void*)data,
                                             dataSz) == WOLFSSL_SUCCESS) {
                 ne->set = 1;
@@ -15808,7 +15846,8 @@ err:
                 }
             }
 
-            wolfssl_x509_name_entry_set(ne, nid, type, data, dataSz);
+            wolfssl_x509_name_entry_set(ne, nid,
+                X509NameEntryType(nid, type, data, dataSz), data, dataSz);
         }
 
         return ne;
@@ -15821,13 +15860,11 @@ err:
      *       if NULL then a new WOLFSSL_X509_NAME_ENTRY structure is created
      * returns a pointer to WOLFSSL_X509_NAME_ENTRY on success and NULL on fail
      */
-    WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
+    static WOLFSSL_X509_NAME_ENTRY* X509NameEntryCreate(
             WOLFSSL_X509_NAME_ENTRY** out, int nid, int type,
             const unsigned char* data, int dataSz)
     {
         WOLFSSL_X509_NAME_ENTRY* ne;
-
-        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_create_by_NID");
 
         if (!data) {
             WOLFSSL_MSG("Bad parameter");
@@ -15850,6 +15887,16 @@ err:
         wolfssl_x509_name_entry_set(ne, nid, type, data, dataSz);
 
         return ne;
+    }
+
+    WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
+            WOLFSSL_X509_NAME_ENTRY** out, int nid, int type,
+            const unsigned char* data, int dataSz)
+    {
+        WOLFSSL_ENTER_VERBOSE("wolfSSL_X509_NAME_ENTRY_create_by_NID");
+
+        return X509NameEntryCreate(out, nid,
+            X509NameEntryType(nid, type, data, dataSz), data, dataSz);
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -16012,6 +16059,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             const unsigned char* data, int dataSz, int idx)
     {
         WOLFSSL_X509_NAME_ENTRY* current = NULL;
+        WOLFSSL_X509_NAME_ENTRY* ne;
         int ret, i;
 
         if (idx >= 0) {
@@ -16046,8 +16094,9 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         ClearX509NameRaw(name);
     #endif
 
-        if ((wolfSSL_X509_NAME_ENTRY_create_by_NID(&current, nid, type, data,
-                dataSz) != NULL) && (current->value != NULL))
+        ne = current;
+        if ((X509NameEntryCreate(&ne, nid, type, data, dataSz) != NULL) &&
+                (current->value != NULL))
         {
             ret = WOLFSSL_SUCCESS;
         #ifdef OPENSSL_ALL
@@ -16147,7 +16196,17 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         }
         (void)set;
         /* Set the entry in place rather than copying a temporary one. */
-        return X509NameAddEntry(name, nid, type, bytes, len, loc);
+        return X509NameAddEntry(name, nid,
+            X509NameEntryType(nid, type, bytes, len), bytes, len, loc);
+    }
+
+    /* Add an entry decoded from a certificate, keeping its string type. */
+    int X509NameAddDecodedEntry(WOLFSSL_X509_NAME* name, int nid, int type,
+        const byte* data, int dataSz)
+    {
+        if ((name == NULL) || (data == NULL))
+            return WOLFSSL_FAILURE;
+        return X509NameAddEntry(name, nid, type, data, dataSz, -1);
     }
 
     WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_delete_entry(
