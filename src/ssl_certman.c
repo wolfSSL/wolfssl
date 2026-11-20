@@ -887,6 +887,13 @@ static int cm_verify_err_overridable(int err)
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
     defined(OPENSSL_EXTRA)
+#ifdef WOLFSSL_CHAIN_CA_DATES
+/* The walk itself. wolfssl_local_CheckChainCADates() adds the NULL test.
+ * Call this from CM_VerifyBuffer_ex(). Inlining that NULL test makes a
+ * later use of cm a null dereference under -O2. */
+static int cm_check_chain_ca_dates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
+    Signer* pending, const ChainCADate* dates);
+#endif
 /* Verify the certificate.
  *
  * Uses the verification callback if available.
@@ -972,7 +979,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         /* A CA cached from a peer's chain may have expired since. An error
          * on cert does not hide that one: the callback is asked about it
          * after it accepts the error on cert. */
-        caDateRet = wolfssl_local_CheckChainCADates(cm, cert->ca, NULL, NULL);
+        caDateRet = cm_check_chain_ca_dates(cm, cert->ca, NULL, NULL);
         if (ret == 0) {
             ret = caDateRet;
             caDateRet = 0;
@@ -2989,7 +2996,7 @@ static const ChainCADate* cm_find_chain_ca_date(const ChainCADate* dates,
  * @return  MAX_CHAIN_ERROR when the path is longer than
  *          WOLFSSL_MAX_CHAIN_DEPTH.
  */
-int wolfssl_local_CheckChainCADates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
+static int cm_check_chain_ca_dates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
     Signer* pending, const ChainCADate* dates)
 {
     int ret = 0;
@@ -3001,7 +3008,7 @@ int wolfssl_local_CheckChainCADates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
     const ChainCADate* entry;
     SignerValidity validity;
 
-    if (cm == NULL || wc_AsnGetSkipDateCheck())
+    if (wc_AsnGetSkipDateCheck())
         return 0;
 
     while (ret == 0 && ca != NULL) {
@@ -3064,6 +3071,17 @@ int wolfssl_local_CheckChainCADates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
         WOLFSSL_ERROR_VERBOSE(ret);
 
     return ret;
+}
+
+/* Returns 0 when cm is NULL. Otherwise runs the walk. The NULL test stays
+ * here so it is not inlined into CM_VerifyBuffer_ex(). */
+int wolfssl_local_CheckChainCADates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
+    Signer* pending, const ChainCADate* dates)
+{
+    if (cm == NULL)
+        return 0;
+
+    return cm_check_chain_ca_dates(cm, ca, pending, dates);
 }
 
 /* Store validity on the CA cached from a peer's chain that AddCA() filed
