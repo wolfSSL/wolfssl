@@ -7223,7 +7223,13 @@ static int test_tls13_0rtt_remove_id(WOLFSSL_CTX* ctx, const byte* id)
  * 5 caps the whole unit.test run, so every TLS 1.3 session ex_data test
  * shares this one index (it has no dup callback and a counting free callback)
  * where it can. Shared with the session ex_data tests, so no
- * WOLFSSL_EARLY_DATA here. */
+ * WOLFSSL_EARLY_DATA here.
+ *
+ * The budget is now fully used: two indexes in
+ * test_wolfSSL_CRYPTO_get_ex_new_index, this shared one, the one with a dup
+ * callback in test_tls13_session_ex_data_dup, and one in
+ * test_wolfSSL_SESSION_get_ex_new_index. A new session ex_data test must reuse
+ * an existing index, or the last allocation in the run fails. */
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
@@ -7517,8 +7523,6 @@ int test_tls13_session_ex_data_dup(void)
     }
     ExpectIntGE(test_session_exdata_dup_idx, 0);
     ExpectIntGE(test_tls13_session_ex_data_idx(), 0);
-    test_session_exdata_dup_called = 0;
-    test_session_exdata_dup_saw = NULL;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -7541,7 +7545,11 @@ int test_tls13_session_ex_data_dup(void)
         test_session_exdata_dup_idx), &test_session_exdata_dup_marker);
 
     /* Duplicating the session runs the dup callback: it must see the real
-     * pointer fetched from the cache, not the handle's empty local copy. */
+     * pointer fetched from the cache, not the handle's empty local copy.
+     * Reset right before the dup so a dup during the handshake cannot satisfy
+     * the checks below. */
+    test_session_exdata_dup_called = 0;
+    test_session_exdata_dup_saw = NULL;
     ExpectNotNull(dup = wolfSSL_SESSION_dup(wolfSSL_get_session(ssl_s)));
     ExpectIntEQ(test_session_exdata_dup_called, 1);
     ExpectPtrEq(test_session_exdata_dup_saw, &test_session_exdata_dup_marker);

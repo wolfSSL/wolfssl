@@ -46751,7 +46751,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 #ifdef HAVE_EX_DATA
             /* If we are duping a cached entry we need to maintain single
              * owner of the ex_data. The data is found in cache on request. */
-            if (sess->type == WOLFSSL_SESSION_TYPE_CACHE)
+            if (sess->type == WOLFSSL_SESSION_TYPE_CACHE || !sess->ownExData)
                 SessionDropExDataCopy(ssl->session);
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \

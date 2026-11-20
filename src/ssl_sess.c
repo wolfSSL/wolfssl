@@ -1354,11 +1354,25 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             WOLFSSL_MSG("Session found in external cache");
             found = 1;
 
-            error = wolfSSL_DupSession(extSess, output, 0);
 #ifdef HAVE_EX_DATA
-            extSess->ownExData = 1;
-            output->ownExData = 0;
+            if (!extSess->ownExData) {
+                /* The internal cache took the ex_data before new_sess_cb
+                 * handed this session out, so the internal entry owns it.
+                 * Keep it the only owner: leave extSess as it is and keep no
+                 * copy in output. The ex_data is not copied, so no dup
+                 * callbacks run for data output would not keep. */
+                error = wolfSSL_DupSessionEx(extSess, output, 0, 0, NULL, NULL,
+                        NULL);
+                SessionDropExDataCopy(output);
+            }
+            else
 #endif
+            {
+                error = wolfSSL_DupSession(extSess, output, 0);
+#ifdef HAVE_EX_DATA
+                output->ownExData = 0;
+#endif
+            }
             /* We want to restore the bogus ID for TLS compatibility */
             if (ssl->session->haveAltSessionID &&
                     output == ssl->session) {
@@ -2731,7 +2745,7 @@ void SessionDropExDataCopy(WOLFSSL_SESSION* session)
 /* Find the cache entry holding the live ex_data for a session handle that
  * does not own it.
  *
- * The Lock is held on success (1) and the found session is assigned to
+ * The lock is held on success (1) and the found session is assigned to
  * *found. Otherwise -1 means an error was hit and 0 means no cache entry
  * was found */
 static int SessionExDataCacheFind(const WOLFSSL_SESSION* session, byte write,
@@ -2817,8 +2831,8 @@ static void SessionTakeExData(WOLFSSL* ssl)
         return;
 #endif
 
-    /* Find the cache session on success (1) the lock is kept so
-     * it is safe to work with the cache entry */
+    /* On success (1) the row lock is held, so it is safe to work with the
+     * cache entry. */
     if (SessionExDataCacheFind(session, 1, &sess, &sessRow) == 1) {
         XMEMCPY(&session->ex_data, &sess->ex_data,
                 sizeof(WOLFSSL_CRYPTO_EX_DATA));
@@ -4504,11 +4518,12 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     if (ret == WOLFSSL_SUCCESS && transferExData &&
             input->type != WOLFSSL_SESSION_TYPE_CACHE &&
             output->type != WOLFSSL_SESSION_TYPE_CACHE) {
-        /* If there is a session cache the input session may not own
-         * its ex_data in that case we have to retrieve it from the cache
-         * and duplicated it to the output. This is needed with or without
-         * dup callbacks: the handle holds no copy to carry over. */
+        /* With a session cache the input session may not own its ex_data.
+         * In that case retrieve it from the cache and duplicate it to the
+         * output. This is needed with or without dup callbacks: the handle
+         * holds no copy to carry over. */
 #ifndef NO_SESSION_CACHE
+        int found = 0;
         if (!input->ownExData) {
             WOLFSSL_SESSION* cacheSess = NULL;
             SessionRow* sessRow = NULL;
@@ -4522,19 +4537,25 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
                 ret = crypto_ex_cb_dup_data(&cacheSess->ex_data,
                         &output->ex_data, crypto_ex_cb_ctx_session);
 #endif
+                found = 1;
                 SESSION_ROW_UNLOCK(sessRow);
             }
         }
-        else
-#endif/* !NO_SESSION_CACHE */
+
+        /* not found in cache so continue just duplicate directly */
+        if (!found)
+#endif /* !NO_SESSION_CACHE */
         {
 #ifdef HAVE_EX_DATA_CRYPTO
             ret = crypto_ex_cb_dup_data(&input->ex_data, &output->ex_data,
                                         crypto_ex_cb_ctx_session);
 #endif
         }
+        if (ret != WOLFSSL_SUCCESS)
+            XMEMSET(&output->ex_data, 0, sizeof(output->ex_data));
     }
 #endif /* HAVE_EX_DATA */
+
 
 #ifdef HAVE_EX_DATA
     if (!transferExData)
