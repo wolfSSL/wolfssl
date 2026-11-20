@@ -126,6 +126,86 @@
     #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but CAN_SAVE_VECTOR_REGISTERS is missing.
 #endif
 
+/* The FIPS v7 approved-mode gates (see the WC_HAVE_FIPS_INDICATOR comment in
+ * fips.c) change what the glue sees at the module boundary: refused services
+ * must not be registered, and the WC_FIPS_NOT_APPROVED indicator must be
+ * absorbed where the LKCAPI calling contract has no ride for it. */
+#if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define LKCAPI_FIPS_APPROVED_MODE_GATES
+#endif
+
+/* Success from a caller-seeded PQ keygen service: FIPS v7 returns the
+ * WC_FIPS_NOT_APPROVED indicator (CallerSeedResult() in fips.c), and the
+ * LKCAPI calling contract has no ride for it.  Inside the registration
+ * claim -- same pid, task context -- the call is this module's own KAT
+ * work and the indicator is absorbed; any other caller gets the honest
+ * FIPS_UNAPPROVED_E refusal.  The in_task() conjunct is load-bearing:
+ * an interrupt handler that fires on top of the registering task would
+ * otherwise match its pid and see self-test semantics for a runtime
+ * call.  (Registration is always a regular task -- an insmod -- by
+ * design and structural constraint, so in_task() can never wrongly
+ * refuse the claimant.)  This can't mask a failure: the indicator is
+ * the only positive return from these services.
+ */
+#ifdef LKCAPI_FIPS_APPROVED_MODE_GATES
+    #define LKCAPI_ABSORB_SEED_INDICATOR(err)              \
+        do {                                               \
+            if ((err) == WC_FIPS_NOT_APPROVED) {           \
+                int lkcapi_asi_pid_ =                      \
+                    (int)WOLFSSL_ATOMIC_LOAD(              \
+                        linuxkm_lkcapi_registering_pid);   \
+                if ((lkcapi_asi_pid_ !=                    \
+                     LINUXKM_LKCAPI_REGISTERING_NO_PID) && \
+                    in_task() &&                           \
+                    (lkcapi_asi_pid_ ==                    \
+                     (int)task_pid_nr(current)))           \
+                    (err) = 0;                             \
+                else                                       \
+                    (err) = FIPS_UNAPPROVED_E;             \
+            }                                              \
+        } while (0)
+#else
+    #define LKCAPI_ABSORB_SEED_INDICATOR(err) WC_DO_NOTHING
+#endif
+
+/* Map a wolfCrypt return to the errno an LKCAPI op callback reports,
+ * preserving the FIPS v7 refusal taxonomy (see CastClassify() in
+ * fips_test.c).  FIPS_NOT_ALLOWED_E means a FAILED module --
+ * reload-only, so the module is gone as a service, which in kernel
+ * idiom is -ENODEV (matching FIPS_rerun_self_test_handler() in
+ * module_hooks.c).  NOT_READY_E is a transient -- a self-test in
+ * flight, or an infrastructure transient -- but the errno that says
+ * "retry" is context-dependent, so those call sites pass it:
+ *   -EAGAIN  where repeating the same call is sound: setkey, one-shot
+ *            crypt/digest/sign/verify/KEM ops, import probes;
+ *   -EBUSY   from tfm-init callbacks ONLY -- never from a request op,
+ *            where crypto_wait_req() treats -EBUSY as backlogged and
+ *            sleeps on a completion that never fires -- because
+ *            -EAGAIN at tfm init makes
+ *            __crypto_alloc_tfm()/crypto_create_tfm_node() call
+ *            crypto_shoot_alg() (CRYPTO_ALG_DYING), killing the
+ *            registration so the alloc retry resolves to the
+ *            next-priority (unvalidated) implementation;
+ *   -EIO     from streaming update/final arms that destroy the
+ *            operation state on the way out: the instance is dead, and
+ *            -EAGAIN would invite a retry that silently computes on a
+ *            fresh (empty) state.
+ * Anything else maps to the caller's fallback, -EINVAL at most call
+ * sites. */
+WC_MAYBE_UNUSED static WC_INLINE int lkcapi_wc_errno_ex(int wc_ret,
+                                                        int transient,
+                                                        int fallback)
+{
+    if (wc_ret == WC_NO_ERR_TRACE(NOT_READY_E))
+        return transient;
+    if (wc_ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+        return -ENODEV;
+    return fallback;
+}
+#define lkcapi_wc_errno(wc_ret, fallback) \
+    lkcapi_wc_errno_ex(wc_ret, -EAGAIN, fallback)
+
 WC_MAYBE_UNUSED static int check_skcipher_driver_masking(struct crypto_skcipher *tfm, const char *alg_name, const char *expected_driver_name) {
 #ifdef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
     (void)tfm; (void)alg_name; (void)expected_driver_name;
@@ -225,7 +305,17 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 #endif
 }
 
-static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIALIZER(0);
+/* The pid of the task holding the registration claim,
+ * LINUXKM_LKCAPI_REGISTERING_NO_PID when none (the in_fips_test
+ * idiom): one atomic serves as both the mutual exclusion (claim by
+ * compare-exchange from the empty value) and the scope of the
+ * seed-indicator absorb, so a concurrent kernel thread's seed-form
+ * service call during the registration window gets the honest
+ * refusal -- another thread's service is not this module's
+ * self-test. */
+#define LINUXKM_LKCAPI_REGISTERING_NO_PID (-1)
+static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_pid =
+    WOLFSSL_ATOMIC_INITIALIZER(LINUXKM_LKCAPI_REGISTERING_NO_PID);
 
 /* Default builds define HAVE_ALL_CURVES rather than the individual HAVE_ECC192
  * and HAVE_ECC521, so keying on HAVE_ECC192 and HAVE_ECC521 alone would leave
@@ -240,6 +330,14 @@ static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIA
 #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
     (ECC_MIN_KEY_SZ <= 521) && !defined(LINUXKM_ECC521)
     #define LINUXKM_ECC521
+#endif
+
+/* With the approved-mode gates active, wc_ecc_shared_secret() refuses P-192
+ * (EccCurveAllowed() in fips.c admits only P-256/384/521 for ECDH), so the
+ * ECDH P-192 glue cannot work -- leave it out.  ECDSA P-192 stays
+ * registered: P-192 verify is allowed for legacy use. */
+#if defined(LINUXKM_ECC192) && !defined(LKCAPI_FIPS_APPROVED_MODE_GATES)
+    #define LINUXKM_ECDH_ECC192
 #endif
 
 #include "lkcapi_aes_glue.c"
@@ -404,7 +502,8 @@ static int linuxkm_lkcapi_register(void)
 {
     int ret = -1;
     int seen_err = 0;
-    int current_linuxkm_lkcapi_registering_now = 0;
+    int current_linuxkm_lkcapi_registering_pid =
+        LINUXKM_LKCAPI_REGISTERING_NO_PID;
 
 #if defined(CONFIG_CRYPTO_FIPS) && !defined(HAVE_FIPS)
     if (fips_enabled) {
@@ -414,9 +513,9 @@ static int linuxkm_lkcapi_register(void)
 #endif
 
     if (! wolfSSL_Atomic_Int_CompareExchange(
-            &linuxkm_lkcapi_registering_now,
-            &current_linuxkm_lkcapi_registering_now,
-            1))
+            &linuxkm_lkcapi_registering_pid,
+            &current_linuxkm_lkcapi_registering_pid,
+            task_pid_nr(current)))
     {
         return -EDEADLK;
     }
@@ -921,15 +1020,15 @@ static int linuxkm_lkcapi_register(void)
     */
     #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(WC_LINUX_CONFIG_SELFTESTS)
-        #if defined(LINUXKM_ECC192)
+        #if defined(LINUXKM_ECDH_ECC192)
         REGISTER_ALG_OPTIONAL(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
-        #endif /* LINUXKM_ECC192 */
+        #endif /* LINUXKM_ECDH_ECC192 */
         REGISTER_ALG_OPTIONAL(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
         REGISTER_ALG_OPTIONAL(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
     #else
-        #if defined(LINUXKM_ECC192)
+        #if defined(LINUXKM_ECDH_ECC192)
         REGISTER_ALG(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
-        #endif /* LINUXKM_ECC192 */
+        #endif /* LINUXKM_ECDH_ECC192 */
         REGISTER_ALG(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
         REGISTER_ALG(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
     #endif /* CONFIG_CRYPTO_FIPS && etc.. */
@@ -1112,7 +1211,8 @@ out:
 
 out_without_sig_ignored:
 
-    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                         LINUXKM_LKCAPI_REGISTERING_NO_PID);
 
     return ret;
 }
@@ -1122,12 +1222,13 @@ static int linuxkm_lkcapi_unregister(void)
     int seen_err = 0;
     int n_deregistered = 0;
     int ret;
-    int current_linuxkm_lkcapi_registering_now = 0;
+    int current_linuxkm_lkcapi_registering_pid =
+        LINUXKM_LKCAPI_REGISTERING_NO_PID;
 
     if (! wolfSSL_Atomic_Int_CompareExchange(
-            &linuxkm_lkcapi_registering_now,
-            &current_linuxkm_lkcapi_registering_now,
-            1))
+            &linuxkm_lkcapi_registering_pid,
+            &current_linuxkm_lkcapi_registering_pid,
+            task_pid_nr(current)))
     {
         return -EDEADLK;
     }
@@ -1477,9 +1578,9 @@ static int linuxkm_lkcapi_unregister(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_MLKEM */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
-    #if defined(LINUXKM_ECC192)
+    #if defined(LINUXKM_ECDH_ECC192)
         UNREGISTER_ALG(ecdh_nist_p192, kpp);
-    #endif /* LINUXKM_ECC192 */
+    #endif /* LINUXKM_ECDH_ECC192 */
     UNREGISTER_ALG(ecdh_nist_p256, kpp);
     UNREGISTER_ALG(ecdh_nist_p384, kpp);
     #ifdef LINUXKM_ECC521
@@ -1619,7 +1720,8 @@ out:
 
 out_without_sig_ignored:
 
-    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                         LINUXKM_LKCAPI_REGISTERING_NO_PID);
 
     return ret;
 }

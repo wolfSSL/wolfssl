@@ -622,7 +622,10 @@ static int km_rsa_op_init(const struct km_rsa_ctx *ctx, int need_rng,
     err = wc_InitRsaKey(&op->key, NULL);
     if (unlikely(err)) {
         free(op);
-        return -ENOMEM;
+        /* wc_InitRsaKey_fips() carries the RSA algo gate, so this is
+         * the first gated call of every RSA op -- map it, with the
+         * memory fallback for the ungated failure. */
+        return lkcapi_wc_errno(err, -ENOMEM);
     }
 
     if (ctx->priv)
@@ -649,7 +652,7 @@ static int km_rsa_op_init(const struct km_rsa_ctx *ctx, int need_rng,
         if (err == WC_NO_ERR_TRACE(MEMORY_E))
             return -ENOMEM;
         else
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
     }
 
     *op_out = op;
@@ -683,7 +686,8 @@ static int km_rsa_set_key(struct km_rsa_ctx *ctx, const void *key,
     err = wc_InitRsaKey(probe_key, NULL);
     if (unlikely(err)) {
         free(probe_key);
-        return -ENOMEM;
+        /* gated -- see km_rsa_op_init(). */
+        return lkcapi_wc_errno(err, -ENOMEM);
     }
 
     if (priv)
@@ -703,7 +707,7 @@ static int km_rsa_set_key(struct km_rsa_ctx *ctx, const void *key,
         if (err == WC_NO_ERR_TRACE(MEMORY_E))
             ret = -ENOMEM;
         else
-            ret = -EBADMSG;
+            ret = lkcapi_wc_errno(err, -EBADMSG);
 
         if (priv) {
             if (!disable_setkey_warnings) {
@@ -888,7 +892,7 @@ static int km_direct_rsa_enc(struct akcipher_request *req)
         pr_err("error: %s: direct rsa pub enc returned: %d, %d, %d\n",
                WOLFKM_RSA_DRIVER, err, out_len, ctx->key_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto rsa_enc_out;
     }
 
@@ -991,7 +995,7 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
         pr_err("error: %s: rsa pub enc returned: %d, %d, %d\n",
                WOLFKM_RSA_DRIVER, err, out_len, ctx->key_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto rsa_dec_out;
     }
 
@@ -1289,7 +1293,7 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
         pr_err("error: %s: wc_RsaSSL_Sign returned: %d\n",
                WOLFKM_RSA_DRIVER, sig_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
+        err = lkcapi_wc_errno(sig_len, -EINVAL);
         goto pkcs1pad_sign_out;
     }
 
@@ -1384,7 +1388,7 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
         pr_err("error: %s: wc_RsaSSL_Verify returned: %d\n",
                WOLFKM_RSA_DRIVER, dec_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(dec_len, -EBADMSG);
         goto pkcs1pad_verify_out;
     }
 
@@ -1535,7 +1539,7 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
         pr_err("error: %s: wc_RsaSSL_Sign returned: %d\n",
                WOLFKM_RSA_DRIVER, sig_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
+        err = lkcapi_wc_errno(sig_len, -EINVAL);
         goto pkcs1_sign_out;
     }
 
@@ -1633,7 +1637,7 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
         pr_err("error: %s: wc_RsaSSL_Verify returned: %d\n",
                WOLFKM_RSA_DRIVER, dec_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EBADMSG;
+        err = lkcapi_wc_errno(dec_len, -EBADMSG);
         goto pkcs1_verify_out;
     }
 
@@ -1777,7 +1781,7 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
         pr_err("error: %s: rsa pub enc returned: %d, %d\n",
                WOLFKM_RSA_DRIVER, err, ctx->key_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto pkcs1_enc_out;
     }
 
@@ -1870,7 +1874,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
         pr_err("error: %s: rsa private decrypt returned: %d, %d\n",
                WOLFKM_RSA_DRIVER, dec_len, ctx->key_len);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
+        err = lkcapi_wc_errno(dec_len, -EINVAL);
         goto pkcs1_dec_out;
     }
 

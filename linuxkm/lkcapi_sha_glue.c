@@ -814,7 +814,7 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno(ret, -EINVAL);                              \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
@@ -828,7 +828,7 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
         return 0;                                                          \
     else {                                                                 \
         free_f(ctx);                                                       \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
     }                                                                      \
 }                                                                          \
                                                                            \
@@ -842,7 +842,7 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
@@ -854,7 +854,7 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                                                            \
     if (ret != 0) {                                                        \
         free_f(ctx);                                                       \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
     }                                                                      \
                                                                            \
     return km_ ## name ## _final(desc, out);                               \
@@ -967,7 +967,7 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
         return 0;                                                          \
     }                                                                      \
     else                                                                   \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno(ret, -EINVAL);                              \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
@@ -985,7 +985,7 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
         return 0;                                                          \
     else {                                                                 \
         free_f(ctx);                                                       \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
     }                                                                      \
 }                                                                          \
                                                                            \
@@ -1003,7 +1003,7 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
@@ -1019,7 +1019,7 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                                                            \
     if (ret != 0) {                                                        \
         free_f(ctx);                                                       \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
     }                                                                      \
                                                                            \
     WC_LINUXKM_SHA2_PUSH_W(ctx);                                           \
@@ -1031,7 +1031,7 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
@@ -1042,7 +1042,7 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
                                                                            \
     ret = init_f(ctx);                                                     \
     if (ret != 0)                                                          \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno(ret, -EINVAL);                              \
                                                                            \
     ret = update_f(ctx, data, len);                                        \
                                                                            \
@@ -1054,7 +1054,7 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno(ret, -EINVAL);                              \
 }                                                                          \
                                                                            \
                                                                            \
@@ -1110,7 +1110,7 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
         return 0;                                                          \
     else {                                                                 \
         km_sha3_free_tstate(desc);                                         \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno(ret, -EINVAL);                              \
     }                                                                      \
 }                                                                          \
                                                                            \
@@ -1126,7 +1126,7 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
         return 0;                                                          \
     else {                                                                 \
         km_sha3_free_tstate(desc);                                         \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
     }                                                                      \
 }                                                                          \
                                                                            \
@@ -1140,7 +1140,7 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else                                                                   \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
@@ -1153,7 +1153,7 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                                                            \
     if (ret != 0) {                                                        \
         km_sha3_free_tstate(desc);                                         \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);                     \
     }                                                                      \
                                                                            \
     return km_ ## name ## _final(desc, out);                               \
@@ -1168,7 +1168,7 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
     (void)desc;                                                            \
     ret = init_f(&sha3_state. name ## _state, NULL, INVALID_DEVID);        \
     if (ret != 0)                                                          \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno(ret, -EINVAL);                              \
     ret = update_f(&sha3_state. name ## _state, data, len);                \
     if (ret == 0)                                                          \
         ret = final_f(&sha3_state. name ## _state, out);                   \
@@ -1176,7 +1176,7 @@ static int km_ ## name ## _digest(struct shash_desc *desc, const u8 *data, \
     free_f(&sha3_state. name ## _state);                                   \
     ForceZero(&sha3_state, sizeof sha3_state);                             \
                                                                            \
-    return ret == 0 ? 0 : -EINVAL;                                         \
+    return ret == 0 ? 0 : lkcapi_wc_errno(ret, -EINVAL);                   \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _import(struct shash_desc *desc,                 \
@@ -1200,7 +1200,7 @@ static int km_ ## name ## _import(struct shash_desc *desc,                 \
     ret = init_f(sha3, NULL, INVALID_DEVID);                               \
     if (ret != 0) {                                                        \
         km_sha3_free_tstate(desc);                                         \
-        return -EINVAL;                                                    \
+        return lkcapi_wc_errno(ret, -EINVAL);                              \
     }                                                                      \
                                                                            \
     XMEMCPY(sha3->s, blob->s, sizeof(sha3->s));                            \
@@ -1421,7 +1421,7 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm,
     if (ret == 0)
         return 0;
     else
-        return -EINVAL;
+        return lkcapi_wc_errno(ret, -EINVAL);
 }
 
 WC_MAYBE_UNUSED static int km_hmac_alloc_tstate(struct shash_desc *desc) {
@@ -1477,7 +1477,7 @@ WC_MAYBE_UNUSED static int km_hmac_init_tfm(struct crypto_shash *tfm)
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
     int ret = wc_HmacInit(&p_ctx->wc_hmac, NULL /* heap */, INVALID_DEVID);
     if (ret != 0)
-        return -EINVAL;
+        return lkcapi_wc_errno_ex(ret, -EBUSY, -EINVAL);
     if (wc_InitMutex(&p_ctx->desc_list_lock) != 0) {
         wc_HmacFree(&p_ctx->wc_hmac);
         return -EINVAL;
@@ -1535,7 +1535,7 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
     ret = wc_HmacCopy(&p_ctx->wc_hmac, &s_ctx->node->wc_hmac);
     if (ret != 0) {
         km_hmac_free_tstate(desc);
-        return -EINVAL;
+        return lkcapi_wc_errno(ret, -EINVAL);
     }
 
     return 0;
@@ -1552,7 +1552,7 @@ WC_MAYBE_UNUSED static int km_hmac_update(struct shash_desc *desc, const u8 *dat
         return 0;
     else {
         km_hmac_free_tstate(desc);
-        return -EINVAL;
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);
     }
 }
 
@@ -1566,7 +1566,7 @@ WC_MAYBE_UNUSED static int km_hmac_final(struct shash_desc *desc, u8 *out) {
     if (ret == 0)
         return 0;
     else
-        return -EINVAL;
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);
 }
 
 WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data,
@@ -1578,7 +1578,7 @@ WC_MAYBE_UNUSED static int km_hmac_finup(struct shash_desc *desc, const u8 *data
 
     if (ret != 0) {
         km_hmac_free_tstate(desc);
-        return -EINVAL;
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);
     }
 
     return km_hmac_final(desc, out);
@@ -1604,7 +1604,7 @@ WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *dat
     if (ret != 0) {
         ForceZero(h, sizeof *h);
         free(h);
-        return -EINVAL;
+        return lkcapi_wc_errno(ret, -EINVAL);
     }
     ret = wc_HmacUpdate(h, data, len);
     if (ret == 0)
@@ -1616,7 +1616,7 @@ WC_MAYBE_UNUSED static int km_hmac_digest(struct shash_desc *desc, const u8 *dat
 #endif
     free(h);
 
-    return ret == 0 ? 0 : -EINVAL;
+    return ret == 0 ? 0 : lkcapi_wc_errno(ret, -EINVAL);
 }
 
 /* Note that km_hmac_export() is implementing a pseudo-export -- the "out"
@@ -1648,7 +1648,7 @@ WC_MAYBE_UNUSED static int km_hmac_export(struct shash_desc *desc, void *out)
     if (ret != 0) {
         ForceZero(snapshot, sizeof(*snapshot));
         free(snapshot);
-        return -EINVAL;
+        return lkcapi_wc_errno(ret, -EINVAL);
     }
 
     if (wc_LockMutex(&p_ctx->desc_list_lock) != 0) {
