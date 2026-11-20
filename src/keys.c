@@ -755,6 +755,24 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         break;
 #endif
 
+#ifdef BUILD_TLS_ECJPAKE_WITH_AES_128_CCM_8
+    case TLS_ECJPAKE_WITH_AES_128_CCM_8 :
+        specs->bulk_cipher_algorithm = wolfssl_aes_ccm;
+        specs->cipher_type           = aead;
+        specs->mac_algorithm         = sha256_mac;
+        specs->kea                   = ecjpake_kea;
+        specs->sig_algo              = anonymous_sa_algo;
+        specs->hash_size             = WC_SHA256_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = AES_128_KEY_SIZE;
+        specs->block_size            = WC_AES_BLOCK_SIZE;
+        specs->iv_size               = AESCCM_IMP_IV_SZ;
+        specs->aead_mac_size         = AES_CCM_8_AUTH_SZ;
+
+        break;
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
     case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
         specs->bulk_cipher_algorithm = wolfssl_cipher_null;
