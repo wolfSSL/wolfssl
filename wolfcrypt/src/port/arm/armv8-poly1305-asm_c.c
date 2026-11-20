@@ -32,6 +32,7 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifdef WOLFSSL_ARMASM_INLINE
+#ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
 
 void poly1305_arm64_block_16(Poly1305* ctx, const byte* m)
@@ -658,6 +659,7 @@ void poly1305_final(Poly1305* ctx, byte* mac)
     );
 }
 
+#endif /* HAVE_POLY1305 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

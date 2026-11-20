@@ -31,6 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFSSL_RISCV_ASM
 #ifdef WOLFSSL_RISCV_ASM_INLINE
+#ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 
 #ifdef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM
@@ -81605,5 +81606,6 @@ void AES_GCM_decrypt_final_RISCV64(byte* tag_p, const byte* authTag_p,
 #endif /* HAVE_AESGCM */
 #endif /* WOLFSSL_RISCV_SCALAR_CRYPTO_ASM */
 #endif /* WOLFSSL_RISCV_VECTOR_CRYPTO_ASM */
+#endif /* NO_AES */
 #endif /* WOLFSSL_RISCV_ASM_INLINE */
 #endif /* WOLFSSL_RISCV_ASM */

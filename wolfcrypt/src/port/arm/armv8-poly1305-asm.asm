@@ -23,6 +23,7 @@
 ;  *   ruby ./poly1305/poly1305.rb arm64 \
 ;  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-poly1305-asm
 ;  */
+	IF :DEF:HAVE_POLY1305
 	AREA	|.text|, CODE, READONLY
 	ALIGN	4
 	EXPORT	poly1305_arm64_block_16
@@ -641,4 +642,5 @@ poly1305_final PROC
 	stp	xzr, xzr, [x0, #120]
 	ret
 	ENDP
+	ENDIF
 	END
