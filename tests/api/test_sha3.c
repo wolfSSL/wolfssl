@@ -927,6 +927,19 @@ int test_wc_Shake128_Absorb(void)
 
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, NULL, 0), 0);
 #endif
+#ifdef WC_HASH_CHECK_VARIANT
+    {
+        byte hash[1];
+        /* Once absorbed, only SqueezeBlocks may follow until Init. */
+        ExpectIntEQ(wc_Shake128_Absorb(&shake128, (byte*)"a", 1),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_Shake128_Update(&shake128, (byte*)"a", 1),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_Shake128_Final(&shake128, hash, sizeof(hash)),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_InitShake128(&shake128, HEAP_HINT, INVALID_DEVID), 0);
+    }
+#endif
 
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, (byte*)"a", 1), 0);
 
@@ -952,6 +965,15 @@ int test_wc_Shake128_SqueezeBlocks(void)
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(NULL     , NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+#ifdef WC_HASH_CHECK_VARIANT
+    /* Squeeze needs input padded by Absorb first. */
+    ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, hash, 1),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Shake128_Update(&shake128, (byte*)"a", 1), 0);
+    ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, hash, 1),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Shake128_Absorb(&shake128, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, NULL, 0), 0);
 #endif
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, hash, 1), 0);
@@ -1352,6 +1374,19 @@ int test_wc_Shake256_Absorb(void)
 
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, NULL, 0), 0);
 #endif
+#ifdef WC_HASH_CHECK_VARIANT
+    {
+        byte hash[1];
+        /* Once absorbed, only SqueezeBlocks may follow until Init. */
+        ExpectIntEQ(wc_Shake256_Absorb(&shake256, (byte*)"a", 1),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_Shake256_Update(&shake256, (byte*)"a", 1),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_Shake256_Final(&shake256, hash, sizeof(hash)),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_InitShake256(&shake256, HEAP_HINT, INVALID_DEVID), 0);
+    }
+#endif
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, (byte*)"a", 1), 0);
 
     wc_Shake256_Free(&shake256);
@@ -1376,6 +1411,15 @@ int test_wc_Shake256_SqueezeBlocks(void)
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(NULL     , NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+#ifdef WC_HASH_CHECK_VARIANT
+    /* Squeeze needs input padded by Absorb first. */
+    ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, hash, 1),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Shake256_Update(&shake256, (byte*)"a", 1), 0);
+    ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, hash, 1),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Shake256_Absorb(&shake256, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, NULL, 0), 0);
 #endif
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, hash, 1), 0);
@@ -2604,5 +2648,98 @@ int test_wc_Cshake_Copy(void)
     wc_Cshake128_Free(&cshake);
     wc_Cshake128_Free(&copy);
 #endif /* WOLFSSL_CSHAKE128 */
+    return EXPECT_RESULT();
+}
+
+/* Update and Final at a different rate than the first call are refused. */
+int test_wc_Sha3_MixedRate(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224) && \
+    !defined(WOLFSSL_NOSHA3_512) && defined(WC_HASH_CHECK_VARIANT)
+    wc_Sha3 sha3;
+    byte hash[WC_SHA3_512_DIGEST_SIZE];
+
+    ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sha3_224_Update(&sha3, (const byte*)"abc", 3), 0);
+    ExpectIntEQ(wc_Sha3_512_Update(&sha3, (const byte*)"abc", 3),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Sha3_512_Final(&sha3, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Sha3_224_Final(&sha3, hash), 0);
+    /* Final resets the state, so another variant may follow. */
+    ExpectIntEQ(wc_Sha3_512_Final(&sha3, hash), 0);
+    wc_Sha3_224_Free(&sha3);
+#ifdef WOLFSSL_SHAKE128
+    ExpectIntEQ(wc_InitShake128(&sha3, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Shake128_Update(&sha3, (const byte*)"abc", 3), 0);
+    ExpectIntEQ(wc_Sha3_224_Final(&sha3, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+    wc_Shake128_Free(&sha3);
+#endif
+#if defined(WOLFSSL_SHAKE128) && defined(WOLFSSL_SHAKE256)
+    {
+        /* SHAKE128("abc") and SHAKE256("abc"), 32 bytes: FIPS 202. */
+        static const byte shake128Abc[] = {
+            0x58, 0x81, 0x09, 0x2d, 0xd8, 0x18, 0xbf, 0x5c,
+            0xf8, 0xa3, 0xdd, 0xb7, 0x93, 0xfb, 0xcb, 0xa7,
+            0x40, 0x97, 0xd5, 0xc5, 0x26, 0xa6, 0xd3, 0x5f,
+            0x97, 0xb8, 0x33, 0x51, 0x94, 0x0f, 0x2c, 0xc8
+        };
+        static const byte shake256Abc[] = {
+            0x48, 0x33, 0x66, 0x60, 0x13, 0x60, 0xa8, 0x77,
+            0x1c, 0x68, 0x63, 0x08, 0x0c, 0xc4, 0x11, 0x4d,
+            0x8d, 0xb4, 0x45, 0x30, 0xf8, 0xf1, 0xe1, 0xee,
+            0x4f, 0x94, 0xea, 0x37, 0xe7, 0x8b, 0x57, 0x39
+        };
+
+        /* A refused Absorb keeps the input already buffered. */
+        ExpectIntEQ(wc_InitShake256(&sha3, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_Shake256_Update(&sha3, (const byte*)"abc", 3), 0);
+        ExpectIntEQ(wc_Shake128_Absorb(&sha3, (const byte*)"abc", 3),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_Shake256_Final(&sha3, hash, sizeof(shake256Abc)), 0);
+        ExpectBufEQ(hash, shake256Abc, sizeof(shake256Abc));
+        wc_Shake256_Free(&sha3);
+
+        ExpectIntEQ(wc_InitShake128(&sha3, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_Shake128_Update(&sha3, (const byte*)"abc", 3), 0);
+        ExpectIntEQ(wc_Shake256_Absorb(&sha3, (const byte*)"abc", 3),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(wc_Shake128_Final(&sha3, hash, sizeof(shake128Abc)), 0);
+        ExpectBufEQ(hash, shake128Abc, sizeof(shake128Abc));
+        wc_Shake128_Free(&sha3);
+    #ifndef WOLFSSL_NOSHA3_256
+        {
+            /* SHA3-256("abc"): FIPS 202. Same rate as SHAKE256. */
+            static const byte sha3_256Abc[] = {
+                0x3a, 0x98, 0x5d, 0xa7, 0x4f, 0xe2, 0x25, 0xb2,
+                0x04, 0x5c, 0x17, 0x2d, 0x6b, 0xd3, 0x90, 0xbd,
+                0x85, 0x5f, 0x08, 0x6e, 0x3e, 0x9d, 0x52, 0x5b,
+                0x46, 0xbf, 0xe2, 0x45, 0x11, 0x43, 0x15, 0x32
+            };
+
+            ExpectIntEQ(wc_InitSha3_256(&sha3, HEAP_HINT, INVALID_DEVID), 0);
+            ExpectIntEQ(wc_Sha3_256_Update(&sha3, (const byte*)"abc", 3), 0);
+            ExpectIntEQ(wc_Shake256_Update(&sha3, (const byte*)"abc", 3),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(wc_Shake256_Final(&sha3, hash, sizeof(shake256Abc)),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(wc_Sha3_256_Final(&sha3, hash), 0);
+            ExpectBufEQ(hash, sha3_256Abc, sizeof(sha3_256Abc));
+            wc_Sha3_256_Free(&sha3);
+
+            ExpectIntEQ(wc_InitShake256(&sha3, HEAP_HINT, INVALID_DEVID), 0);
+            ExpectIntEQ(wc_Shake256_Update(&sha3, (const byte*)"abc", 3), 0);
+            ExpectIntEQ(wc_Sha3_256_Update(&sha3, (const byte*)"abc", 3),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(wc_Sha3_256_Final(&sha3, hash),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(wc_Shake256_Final(&sha3, hash, sizeof(shake256Abc)), 0);
+            ExpectBufEQ(hash, shake256Abc, sizeof(shake256Abc));
+            wc_Shake256_Free(&sha3);
+        }
+    #endif
+    }
+#endif
+#endif
     return EXPECT_RESULT();
 }

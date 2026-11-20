@@ -1201,3 +1201,47 @@ int test_wc_sha512_cryptocb_free(void)
     return EXPECT_RESULT();
 }
 
+/* Final of a different variant than Init is refused. */
+int test_wc_Sha512_Family_MixedFinal(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384) && \
+    defined(WC_HASH_CHECK_VARIANT)
+    wc_Sha512 sha;
+    byte hash[WC_SHA512_DIGEST_SIZE];
+
+    ExpectIntEQ(wc_InitSha384(&sha), 0);
+    ExpectIntEQ(wc_Sha384Update(&sha, (const byte*)"abc", 3), 0);
+    ExpectIntEQ(wc_Sha512Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+#ifndef WOLFSSL_NO_HASH_RAW
+    ExpectIntEQ(wc_Sha512FinalRaw(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+#endif
+    ExpectIntEQ(wc_Sha384Final(&sha, hash), 0);
+    wc_Sha384Free(&sha);
+
+    ExpectIntEQ(wc_InitSha512(&sha), 0);
+    ExpectIntEQ(wc_Sha384Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+#ifndef WOLFSSL_NO_HASH_RAW
+    ExpectIntEQ(wc_Sha384FinalRaw(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+#endif
+#ifdef TEST_WC_SHA512_224_FALLBACK
+    ExpectIntEQ(wc_Sha512_224Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+#endif
+    ExpectIntEQ(wc_Sha512Final(&sha, hash), 0);
+    wc_Sha512Free(&sha);
+
+#if defined(TEST_WC_SHA512_224_FALLBACK) && defined(TEST_WC_SHA512_256_FALLBACK)
+    ExpectIntEQ(wc_InitSha512_224(&sha), 0);
+    ExpectIntEQ(wc_Sha512_256Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Sha512Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Sha512_224Final(&sha, hash), 0);
+    wc_Sha512_224Free(&sha);
+
+    ExpectIntEQ(wc_InitSha512_256(&sha), 0);
+    ExpectIntEQ(wc_Sha384Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Sha512_256Final(&sha, hash), 0);
+    wc_Sha512_256Free(&sha);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
