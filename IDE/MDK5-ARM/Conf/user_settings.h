@@ -58,7 +58,7 @@
 //         <5=>PThread <6=>ThreadX
 //         <7=>Micrium <8=>EBSnet <9=>MQX
 //         <10=>T-RTOS <11=>uITRON4 <12=>uTKERNEL2
-//         <13=>Frosted <14=>CMSIS RTOS <15=>CMSIS RTOSv2 <16=>Others
+//         <14=>CMSIS RTOS <15=>CMSIS RTOSv2 <16=>Others
 #define MDK_CONF_THREAD 15
 #if MDK_CONF_THREAD== 0
 #define SINGLE_THREADED
@@ -87,7 +87,7 @@
 #elif MDK_CONF_THREAD == 12
 #define WOLFSSL_uTKERNEL2
 #elif MDK_CONF_THREAD == 13
-#define WOLFSSL_FROSTED
+#error "Frosted OS support has been removed"
 #elif MDK_CONF_THREAD == 14
 #define WOLFSSL_CMSIS_RTOS
 #elif MDK_CONF_THREAD == 15
