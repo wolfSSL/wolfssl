@@ -1,0 +1,59 @@
+# OpenSSL extension sections for the IEEE 802.1AR IDevID test PKI.
+
+[ req ]
+distinguished_name = req_dn
+prompt             = no
+
+[ req_dn ]
+CN = unused
+
+[ root_ext ]
+basicConstraints     = critical, CA:TRUE
+keyUsage             = critical, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
+
+[ int_ext ]
+basicConstraints       = critical, CA:TRUE, pathlen:0
+keyUsage               = critical, keyCertSign, cRLSign
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid
+
+[ int_nc_ext ]
+basicConstraints       = critical, CA:TRUE, pathlen:0
+keyUsage               = critical, keyCertSign, cRLSign
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid
+nameConstraints        = critical, permitted;DNS:example.com
+
+[ hmn ]
+hwType      = OID:1.3.6.1.4.1.99999.1
+hwSerialNum = OCTETSTRING:SN-0001
+
+[ dev_ext ]
+keyUsage               = critical, digitalSignature
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid
+subjectAltName         = otherName:1.3.6.1.5.5.7.8.4;SEQUENCE:hmn
+1.3.6.1.5.5.7.1.32     = ASN1:IA5STRING:https://masa.example.com
+
+[ dev_dns_ext ]
+keyUsage               = critical, digitalSignature
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid
+subjectAltName         = otherName:1.3.6.1.5.5.7.8.4;SEQUENCE:hmn, DNS:dev.example.com
+1.3.6.1.5.5.7.1.32     = ASN1:IA5STRING:https://masa.example.com
+
+[ dev_masa_crit_ext ]
+keyUsage               = critical, digitalSignature
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid
+subjectAltName         = otherName:1.3.6.1.5.5.7.8.4;SEQUENCE:hmn
+1.3.6.1.5.5.7.1.32     = critical, ASN1:IA5STRING:https://masa.example.com
+
+[ dev_eku_ext ]
+keyUsage               = critical, digitalSignature
+extendedKeyUsage       = clientAuth
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid
+subjectAltName         = otherName:1.3.6.1.5.5.7.8.4;SEQUENCE:hmn
+1.3.6.1.5.5.7.1.32     = ASN1:IA5STRING:https://masa.example.com
