@@ -2944,10 +2944,10 @@ int wc_AesGcmSetIVCounter(Aes* aes, const byte* iv, word32 ivSz,
     parameters, including IV output. This is a one-shot encryption
     function that outputs the generated IV.
 
-    The IV is taken from an internal counter that is advanced whenever an IV
-    is consumed - on success, and on submission to an asynchronous device - so
-    no two encryptions under one key use the same IV. A call that fails before
-    the cipher consumes the IV leaves the counter where it was. ivOut must not
+    The IV is taken from an internal counter that is advanced on every call
+    counted against the key's invocation limit, even when the encryption then
+    fails, so no two encryptions under one key use the same IV. A call refused
+    before it is counted leaves the counter where it was. ivOut must not
     overlap out, in, authTag or authIn: the buffer is the working copy of the
     IV that was consumed, and overwriting it corrupts the counter for the next
     call. ivOut may be written even when the function returns an error.

@@ -23501,6 +23501,7 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     byte iv1[GCM_NONCE_MIN_SZ];
     byte iv2[GCM_NONCE_MIN_SZ];
     byte ext[GCM_NONCE_MID_SZ];
+    byte ext2[GCM_NONCE_MID_SZ];
     word32 ctr1;
     word32 ctr2;
 
@@ -23579,6 +23580,34 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
         ret = wc_AesGcmSetExtIV(enc, ext, sizeof(ext));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* A failed encrypt still uses up its IV: a 1-byte tag is refused. */
+    ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext, sizeof(ext),
+                              tag, 1, NULL, 0);
+    if (ret == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                              tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* A stream that output data and then failed Final uses up its IV too. */
+    ret = wc_AesGcmEncryptInit_ex(enc, NULL, 0, ext, sizeof(ext));
+    if (ret == 0)
+        ret = wc_AesGcmEncryptUpdate(enc, c, p, sizeof(p), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmEncryptFinal(enc, tag, 1);
+    if (ret == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_AesGcmEncryptInit_ex(enc, NULL, 0, ext2, sizeof(ext2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 
   out:
     if (rngInited)

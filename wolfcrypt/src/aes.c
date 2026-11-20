@@ -15630,6 +15630,10 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
     if ((ret == 0) && aes->ctrSet && ((sz > 0) || (authInSz > 0)) &&
             (aes->aSz == 0) && (aes->cSz == 0)) {
         ret = GcmCountInvocation(aes);
+        /* The next stream gets the next IV even if this one fails. */
+        if (ret == 0) {
+            IncCtr((byte*)aes->reg, aes->nonceSz);
+        }
     }
 
     if (ret == 0) {
@@ -15714,6 +15718,9 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
     /* A stream with no AAD or data has not been counted yet. */
     if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
         ret = GcmCountInvocation(aes);
+        if (ret == 0) {
+            IncCtr((byte*)aes->reg, aes->nonceSz);
+        }
     }
 
     if (ret == 0) {
@@ -15745,9 +15752,6 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
         }
     }
 
-    if ((ret == 0) && aes->ctrSet) {
-        IncCtr((byte*)aes->reg, aes->nonceSz);
-    }
     if (wipe) {
         /* The stream is finished: drop E(J0), counter, tag and keystream. */
         ForceZero(aes->streamData, AES_STREAM_DATA_SZ);
@@ -16167,20 +16171,16 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
                                ivOut, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        /* Put the nonce back unconditionally - a backend may have left scratch
-         * data in aes->reg - so a failed encrypt leaves the counter on the
-         * nonce it did not consume rather than on backend leftovers. */
+        /* Put the nonce back: a backend may have left scratch data in
+         * aes->reg. */
         XMEMCPY(aes->reg, ivOut, ivOutSz);
     #ifdef WC_AESGCM_IV_LOCK
         if (aes->gcmIvDet && aes->gcmIvMasked) {
             xorbuf(aes->reg, aes->gcmIvMask, ivOutSz);
         }
     #endif
-        /* A nonce handed to an asynchronous backend has been consumed even
-         * though the operation has not finished yet - the counter must still
-         * advance or the next record would reuse this nonce. */
-        if (ret == 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E))
-            IncCtr((byte*)aes->reg, ivOutSz);
+        /* The counted nonce is never used again, even if the encrypt failed. */
+        IncCtr((byte*)aes->reg, ivOutSz);
     }
 
     return ret;
