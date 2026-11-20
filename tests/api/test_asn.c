@@ -7075,3 +7075,76 @@ int test_wc_Pkcs8EncryptDecisionCoverage(void)
 #endif /* HAVE_AES_CBC && !NO_AES && WOLFSSL_AES_128 && !FIPS */
     return EXPECT_RESULT();
 }
+
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) && defined(WOLFSSL_CERT_REQ) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+/* Skip a SEQUENCE header with a short or two-byte length. */
+static word32 test_asn_skip_seq_hdr(const byte* der, word32 idx)
+{
+    if (der[idx] != (ASN_SEQUENCE | ASN_CONSTRUCTED))
+        return 0;
+    idx++;
+    if (der[idx] == 0x82)
+        return idx + 3;
+    if (der[idx] == 0x81)
+        return idx + 2;
+    return idx + 1;
+}
+#endif
+
+/* A CSR is always version 0 (RFC 2986), including with the wc_InitCert()
+ * default of 2 left in place. */
+int test_wc_MakeCertReq_version(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_SIGN_CERT_BOUNDS_RSA) && defined(WOLFSSL_CERT_REQ) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    WC_RNG rng;
+    Cert   req;
+    RsaKey key;
+    byte*  der = NULL;
+    word32 idx = 0;
+    int    rngInit = 0;
+    int    keyInit = 0;
+    int    derSz = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngInit = 1;
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
+    if (EXPECT_SUCCESS()) keyInit = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+        sizeof_server_key_der_2048), 0);
+    ExpectNotNull(der = (byte*)XMALLOC(SIGN_CERT_SCRATCH_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitCert(&req), 0);
+    if (EXPECT_SUCCESS()) {
+        req.sigType = CTC_SHA256wRSA;
+        XSTRNCPY(req.subject.commonName, "csr-version", CTC_NAME_SIZE);
+    }
+    ExpectIntGT(wc_MakeCertReq(&req, der, SIGN_CERT_SCRATCH_SZ, &key, NULL),
+        0);
+    ExpectIntGT(derSz = wc_SignCert(req.bodySz, req.sigType, der,
+        SIGN_CERT_SCRATCH_SZ, &key, NULL, &rng), 0);
+    if (EXPECT_SUCCESS()) {
+        idx = test_asn_skip_seq_hdr(der, 0);
+        ExpectIntGT(idx, 0);
+        idx = test_asn_skip_seq_hdr(der, idx);
+        ExpectIntGT(idx, 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntLT(idx + 3, derSz);
+        ExpectIntEQ(der[idx], ASN_INTEGER);
+        ExpectIntEQ(der[idx + 1], 1);
+        ExpectIntEQ(der[idx + 2], 0);
+    }
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyInit)
+        wc_FreeRsaKey(&key);
+    if (rngInit)
+        wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

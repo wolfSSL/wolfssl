@@ -7037,8 +7037,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     /* init */
     XMEMSET(der, 0, sizeof(DerCert));
 
-    /* version */
-    der->versionSz = SetMyVersion((word32)cert->version, der->version, FALSE);
+    /* RFC 2986 defines only v1 (0), whatever cert->version says. */
+    der->versionSz = SetMyVersion(0, der->version, FALSE);
 
     /* subject name */
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)

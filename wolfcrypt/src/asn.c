@@ -33160,8 +33160,8 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         extSz = (word32)ret;
     }
     if (ret >= 0) {
-        /* Set version. */
-        SetASN_Int8Bit(&dataASN[CERTREQBODYASN_IDX_VER], (byte)cert->version);
+        /* RFC 2986 defines only v1 (0), whatever cert->version says. */
+        SetASN_Int8Bit(&dataASN[CERTREQBODYASN_IDX_VER], 0);
     #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
         if (sbjRawSz > 0) {
             /* Put in encoded subject name. */
