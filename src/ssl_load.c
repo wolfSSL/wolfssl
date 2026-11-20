@@ -1860,9 +1860,15 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WC_RSA_PSS
             if (ssl) {
                 ssl->useRsaPss = cert->keyOID == RSAPSSk;
+                ssl->rsaPssHash = cert->keyPssHash;
+                ssl->rsaPssMgf = cert->keyPssMgf;
+                ssl->rsaPssSaltLen = cert->keyPssSaltLen;
             }
             if (ctx) {
                 ctx->useRsaPss = cert->keyOID == RSAPSSk;
+                ctx->rsaPssHash = cert->keyPssHash;
+                ctx->rsaPssMgf = cert->keyPssMgf;
+                ctx->rsaPssSaltLen = cert->keyPssSaltLen;
             }
     #endif
             break;
@@ -5457,6 +5463,12 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
         defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
         defined(WOLFSSL_HAVE_SLHDSA)
         ctx->pkCurveOID = x->pkCurveOID;
+    #endif
+    #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+        ctx->useRsaPss = (x->pubKeyOID == RSAPSSk);
+        ctx->rsaPssHash = x->keyPssHash;
+        ctx->rsaPssMgf = x->keyPssMgf;
+        ctx->rsaPssSaltLen = x->keyPssSaltLen;
     #endif
     }
 
