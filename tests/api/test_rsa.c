@@ -2871,8 +2871,7 @@ static int test_rsa_params_op(WC_RNG* rng, word32 nSz, byte top,
         if ((ret == 0) && verify) {
             XMEMSET(out, 0x01, sizeof(out));
             ret = wc_RsaSSL_Verify(out, nSz, n, sizeof(n), &key);
-        }
-        else if (ret == 0) {
+        } else if (ret == 0) {
             ret = wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out),
                 &key, rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
                 NULL, 0);
@@ -2922,6 +2921,25 @@ int test_wc_RsaPublicParams(void)
     ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e257, sizeof(e257), 0),
         WC_NO_ERR_TRACE(MP_EXPTMOD_E));
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#if defined(WOLFSSL_RSA_KEY_CHECK) && defined(WOLFSSL_KEY_GEN)
+    /* wc_CheckRsaKey reports e = 65535 as a bad e, not a pairwise failure. */
+    {
+        RsaKey key;
+        byte   der[sizeof_client_key_der_2048];
+        word32 idx = 0;
+        const byte eDer[] = { 0x02, 0x03, 0x01, 0x00, 0x01 };
+
+        XMEMCPY(der, client_key_der_2048, sizeof(der));
+        ExpectBufEQ(der + 268, eDer, sizeof(eDer));
+        der[270] = 0x00;
+        der[271] = 0xff;
+        der[272] = 0xff;
+        ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(der, &idx, &key, sizeof(der)), 0);
+        ExpectIntEQ(wc_CheckRsaKey(&key), WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+        DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 }
