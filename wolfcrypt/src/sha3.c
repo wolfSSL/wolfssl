@@ -122,12 +122,20 @@
 
     static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 
+    /* Defined only where a caller exists: the aarch64 block selection uses
+     * it under WOLFSSL_ARMASM_CRYPTO_SHA3 (the ARMv8.2 crypto SHA-3
+     * extension), so the plain __aarch64__ + WOLFSSL_ARMASM build leaves it
+     * unused and -Werror,-Wunused-function fatal. */
+    #if defined(USE_INTEL_SPEEDUP) || \
+        (defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+         defined(WOLFSSL_ARMASM_CRYPTO_SHA3))
     static WC_INLINE cpuid_flags_t sha3_cpuid_flags(void)
     {
         if (cpuid_flags == WC_CPUID_INITIALIZER)
             cpuid_get_flags_ex(&cpuid_flags);
         return cpuid_flags;
     }
+    #endif
 #ifdef WC_C_DYNAMIC_FALLBACK
     #define SHA3_BLOCK (sha3->sha3_block)
     #define SHA3_BLOCK_N (sha3->sha3_block_n)
