@@ -5562,6 +5562,9 @@ WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
 WOLFSSL_LOCAL void SetupSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
+#ifdef HAVE_EX_DATA
+WOLFSSL_LOCAL void SessionDropExDataCopy(WOLFSSL_SESSION* session);
+#endif
 #if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
 WOLFSSL_LOCAL int SessionNewAltId(WOLFSSL* ssl);
@@ -5593,6 +5596,9 @@ WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_CTX* ctx,
         WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL int wolfSSL_DupSession(const WOLFSSL_SESSION* input,
         WOLFSSL_SESSION* output, int avoidSysCalls);
+WOLFSSL_LOCAL int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
+        WOLFSSL_SESSION* output, int avoidSysCalls, int transferExData,
+        byte* ticketNonceBuf, byte* ticketNonceLen, byte* preallocUsed);
 
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);

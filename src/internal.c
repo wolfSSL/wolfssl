@@ -46796,7 +46796,18 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             /* Failure here should not interrupt the resumption. We already have
              * all the cipher material we need in `it` */
             WOLFSSL_MSG("Copying in session from passed in arg");
-            (void)wolfSSL_DupSession(sess, ssl->session, 1);
+#ifdef HAVE_EX_DATA
+            /* Only the cache keeps a copy of the ex_data */
+            if (sess->type == WOLFSSL_SESSION_TYPE_CACHE || !sess->ownExData) {
+                (void)wolfSSL_DupSessionEx(sess, ssl->session, 1, 0, NULL,
+                        NULL, NULL);
+                SessionDropExDataCopy(ssl->session);
+            }
+            else
+#endif
+            {
+                (void)wolfSSL_DupSession(sess, ssl->session, 1);
+            }
             /* Restore the fake ID */
             XMEMCPY(ssl->session->sessionID, bogusID, ID_LEN);
             ssl->session->sessionIDSz= bogusIDSz;
