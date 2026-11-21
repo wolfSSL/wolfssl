@@ -236,3 +236,45 @@ int test_wc_PortDecisionCoverage(void)
 
     return EXPECT_RESULT();
 }
+
+/* wolfSSL's own gmtime_r: no unsigned reading of a negative time and no run
+ * through years for one, and correct past 2106 with a wide time type. */
+int test_wc_gmtime_r(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_GMTIME) && !defined(NO_ASN_TIME)
+    struct tm tm;
+    WC_TIME_T t;
+
+    t = 0;
+    ExpectPtrEq(gmtime_r(&t, &tm), &tm);
+    ExpectIntEQ(tm.tm_year, 70);
+    ExpectIntEQ(tm.tm_mday, 1);
+    ExpectIntEQ(tm.tm_wday, 4);
+
+    t = (WC_TIME_T)2147483647L; /* 2038-01-19 03:14:07 */
+    ExpectPtrEq(gmtime_r(&t, &tm), &tm);
+    ExpectIntEQ(tm.tm_year, 138);
+    ExpectIntEQ(tm.tm_mon, 0);
+    ExpectIntEQ(tm.tm_mday, 19);
+    ExpectIntEQ(tm.tm_hour, 3);
+    ExpectIntEQ(tm.tm_sec, 7);
+
+    t = (WC_TIME_T)-1;
+    ExpectNull(gmtime_r(&t, &tm));
+
+    if (sizeof(WC_TIME_T) >= 8) {
+        /* 2^32 seconds: 2106-02-07 06:28:16 */
+        t = (WC_TIME_T)65536;
+        t *= 65536;
+        ExpectPtrEq(gmtime_r(&t, &tm), &tm);
+        ExpectIntEQ(tm.tm_year, 206);
+        ExpectIntEQ(tm.tm_mon, 1);
+        ExpectIntEQ(tm.tm_mday, 7);
+        ExpectIntEQ(tm.tm_hour, 6);
+        ExpectIntEQ(tm.tm_min, 28);
+        ExpectIntEQ(tm.tm_sec, 16);
+    }
+#endif
+    return EXPECT_RESULT();
+}

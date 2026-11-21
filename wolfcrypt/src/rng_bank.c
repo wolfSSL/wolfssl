@@ -35,7 +35,13 @@
  */
 #if defined(XTIME) || (defined(USER_TIME) && !defined(NO_ASN_TIME))
     #define WC_RNG_BANK_TS_START()        XTIME(0)
-    #define WC_RNG_BANK_TS_ELAPSED(ts1)   (XTIME(0) - (ts1))
+    #define WC_RNG_BANK_TS_ELAPSED(ts1)   wc_rng_bank_ts_elapsed(ts1)
+    /* A failed clock read counts as timed out. */
+    static WC_INLINE WC_TIME_T wc_rng_bank_ts_elapsed(WC_TIME_T ts1)
+    {
+        WC_TIME_T ts2 = XTIME(0);
+        return (ts2 == (WC_TIME_T)-1) ? (WC_TIME_T)INT_MAX : ts2 - ts1;
+    }
 #else
     #ifndef WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC
         #define WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC 1000
@@ -224,7 +230,7 @@ WOLFSSL_API int wc_rng_bank_init_nonce(
 #ifdef WC_VERBOSE_RNG
             int nretries = 0;
 #endif
-            time_t ts1 = WC_RNG_BANK_TS_START();
+            WC_TIME_T ts1 = WC_RNG_BANK_TS_START();
             rng_inst->bank = ctx;
             for (;;) {
                 if (flags & WC_RNG_BANK_FLAG_NO_VECTOR_OPS)
@@ -799,7 +805,7 @@ WOLFSSL_API int wc_rng_bank_checkout(
 {
     WC_RNG_lock_arg_t lock_extra_bits = 0;
     int ret = 0;
-    time_t ts1;
+    WC_TIME_T ts1;
     int n_rngs_tried = 0;
     int diverted_unusable = 0;
     WC_ATOMIC_INT_ARG new_refcount;
@@ -2073,7 +2079,7 @@ WOLFSSL_API int wc_rng_bank_inst_reinit(
     word32 flags)
 {
     int ret;
-    time_t ts1 = 0;
+    WC_TIME_T ts1 = 0;
     int devId;
     WC_RNG_lock_arg_t cur_lock = 0;
 #ifdef WC_RNG_DEBUG_STATS
@@ -2725,7 +2731,7 @@ WOLFSSL_API int wc_rng_bank_reseed_range(struct wc_rng_bank *bank,
     int n;
     int ret;
     int first_ret = 0;
-    time_t ts1 = 0;
+    WC_TIME_T ts1 = 0;
 #ifdef WC_RNG_BANK_DEFAULT_SUPPORT
     int bank_is_default = 0;
 #endif

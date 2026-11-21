@@ -110,9 +110,9 @@ static int do_acert_verify_test(const char * acert_file,
 /* Return a fixed time after the notAfter date of certs/acert/acert.pem
  * (2028-01-01), used to exercise attribute certificate validity period
  * enforcement without depending on the real system clock. */
-static time_t acert_expired_time_cb(time_t* t)
+static WC_TIME_T acert_expired_time_cb(WC_TIME_T* t)
 {
-    time_t expired = (time_t)1893456000; /* 2030-01-01 00:00:00 UTC */
+    WC_TIME_T expired = (WC_TIME_T)1893456000; /* 2030-01-01 00:00:00 UTC */
 
     if (t != NULL) {
         *t = expired;

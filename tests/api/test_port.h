@@ -25,8 +25,10 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_PortDecisionCoverage(void);
+int test_wc_gmtime_r(void);
 
 #define TEST_PORT_DECLS                                                        \
-    TEST_DECL_GROUP("port", test_wc_PortDecisionCoverage)
+    TEST_DECL_GROUP("port", test_wc_PortDecisionCoverage),                     \
+    TEST_DECL_GROUP("port", test_wc_gmtime_r)
 
 #endif /* WOLFCRYPT_TEST_PORT_H */

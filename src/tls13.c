@@ -2151,7 +2151,7 @@ end:
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
-    extern time_t XTIME(time_t * timer);
+    extern WC_TIME_T XTIME(WC_TIME_T * timer);
 
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -2402,8 +2402,16 @@ end:
     {
         struct timeval now;
 
+    #if !defined(NO_ASN)
+        /* Follow an application clock, or one gettimeofday() can't report. */
+        if (TimeCbIsSet() || gettimeofday(&now, 0) < 0) {
+            WC_TIME_T t = wc_Time(0);
+            return (t > 0) ? (word32)t * 1000 : 0;
+        }
+    #else
         if (gettimeofday(&now, 0) < 0)
             return 0;
+    #endif
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -2449,7 +2457,7 @@ end:
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
-    extern time_t XTIME(time_t * timer);
+    extern WC_TIME_T XTIME(WC_TIME_T * timer);
 
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -2712,8 +2720,16 @@ end:
     {
         struct timeval now;
 
+    #if !defined(NO_ASN)
+        /* Follow an application clock, or one gettimeofday() can't report. */
+        if (TimeCbIsSet() || gettimeofday(&now, 0) < 0) {
+            WC_TIME_T t = wc_Time(0);
+            return (t > 0) ? (sword64)t * 1000 : 0;
+        }
+    #else
         if (gettimeofday(&now, 0) < 0)
             return 0;
+    #endif
 
         /* Convert to milliseconds number. */
         return (sword64)now.tv_sec * 1000 + now.tv_usec / 1000;

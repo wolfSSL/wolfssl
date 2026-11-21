@@ -16843,8 +16843,72 @@ int ValidateGmtime(struct tm* inTime)
     return ret;
 }
 
-#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
-    !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || \
+/* Add days and seconds to a broken-down UTC time. Done in calendar terms so
+ * the result is right however wide the time type is.
+ * Returns 0 on success or ASN_TIME_E when the year leaves 1..9999. */
+int AdjustGmtime(struct tm* tm, long days, long secs)
+{
+    long y, m, d, era, yoe, doy, doe, z, sec;
+
+    if (tm == NULL)
+        return BAD_FUNC_ARG;
+    /* 10000 years of days, so nothing below can overflow a 32-bit long. */
+    if (days > 3660000L || days < -3660000L)
+        return ASN_TIME_E;
+
+    sec = tm->tm_hour * 3600L + tm->tm_min * 60L + tm->tm_sec;
+    days += secs / 86400L;
+    sec += secs % 86400L;
+    if (sec < 0) {
+        sec += 86400L;
+        days--;
+    }
+    else if (sec >= 86400L) {
+        sec -= 86400L;
+        days++;
+    }
+
+    /* Days since 1970-01-01 of the date, plus the offset. */
+    y = tm->tm_year + 1900L;
+    m = tm->tm_mon + 1L;
+    d = tm->tm_mday;
+    if (y < 1 || y > 9999)
+        return ASN_TIME_E;
+    y -= (m <= 2);
+    era = y / 400;
+    yoe = y - era * 400;
+    doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    z = era * 146097L + doe - 719468L + days;
+
+    /* Back to a calendar date. */
+    if (z < -719162L || z > 2932896L) /* 0001-01-01 .. 9999-12-31 */
+        return ASN_TIME_E;
+    era = (z + 719468L) / 146097L;
+    doe = z + 719468L - era * 146097L;
+    yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    y = yoe + era * 400;
+    doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    m = (5 * doy + 2) / 153;
+    d = doy - (153 * m + 2) / 5 + 1;
+    m = (m < 10) ? m + 3 : m - 9;
+    y += (m <= 2);
+
+    tm->tm_year = (int)(y - 1900);
+    tm->tm_mon  = (int)(m - 1);
+    tm->tm_mday = (int)d;
+    tm->tm_hour = (int)(sec / 3600);
+    tm->tm_min  = (int)((sec / 60) % 60);
+    tm->tm_sec  = (int)(sec % 60);
+    tm->tm_wday = (int)(((z % 7) + 11) % 7); /* 1970-01-01 was a Thursday */
+    tm->tm_yday = (int)((m > 2) ? doy - 306 +
+        ((y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 366 : 365) :
+        doy - 306);
+
+    return 0;
+}
+
+#if !defined(NO_ASN_TIME) && (defined(OPENSSL_EXTRA) || \
             defined(HAVE_PKCS7) || defined(HAVE_OCSP_RESPONDER) || \
             defined(WOLFSSL_TSP))
 /* Set current time string, either UTC or GeneralizedTime.
@@ -16912,8 +16976,6 @@ int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
 {
     struct tm* ts      = NULL;
     struct tm* tmpTime = NULL;
-    int year, mon, day, hour, mini, sec;
-    int ret;
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
@@ -16923,13 +16985,28 @@ int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
 
     WOLFSSL_ENTER("GetFormattedTime_ex");
 
+    if (currTime == NULL)
+        return BAD_FUNC_ARG;
+    ts = (struct tm *)XGMTIME((WC_TIME_T*)currTime, tmpTime);
+    return GetFormattedTimeTm(ts, buf, len, format);
+}
+
+/* Format a broken-down UTC time as UTCTime or GeneralizedTime digits. */
+int GetFormattedTimeTm(struct tm* ts, byte* buf, word32 len, byte format)
+{
+    int year, mon, day, hour, mini, sec;
+    int ret;
+
     if (buf == NULL || len == 0 || (format != 0 && format != ASN_UTC_TIME &&
             format != ASN_GENERALIZED_TIME))
         return BAD_FUNC_ARG;
 
-    ts = (struct tm *)XGMTIME((time_t*)currTime, tmpTime);
     if (ValidateGmtime(ts)) {
         WOLFSSL_MSG("failed to get time data.");
+        return ASN_TIME_E;
+    }
+    if (format == ASN_UTC_TIME && (ts->tm_year < 50 || ts->tm_year >= 150)) {
+        WOLFSSL_MSG("year can't be represented as UTCTime");
         return ASN_TIME_E;
     }
 
@@ -16985,8 +17062,8 @@ int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format)
     return ret;
 }
 
-#endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES &&
-        * (OPENSSL_EXTRA || HAVE_PKCS7) */
+#endif /* !NO_ASN_TIME && (OPENSSL_EXTRA || HAVE_PKCS7 ||
+        * HAVE_OCSP_RESPONDER || WOLFSSL_TSP) */
 
 #if defined(USE_WOLF_VALIDDATE)
 
@@ -17037,15 +17114,17 @@ int wc_ValidateDate(const byte* date, byte format, int dateType, int len)
 }
 
 int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
-    time_t checkTime, int len)
+    WC_TIME_T checkTime, int len)
 {
-    time_t ltime;
+    WC_TIME_T ltime;
     struct tm  certTime;
     struct tm* localTime;
+    struct tm  nowTime;
     struct tm* tmpTime;
     int    i = 0;
     int    timeDiff = 0;
     int    diffHH = 0, diffMM = 0;
+    long   adjust = 0;
 
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
@@ -17064,9 +17143,8 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
     }
 
 #ifndef NO_TIME_SIGNEDNESS_CHECK
-    if (sizeof(ltime) == sizeof(word32) && (sword32)ltime < 0){
-        /* A negative response here could be due to a 32-bit time_t
-         * where the year is 2038 or later. */
+    if (ltime <= 0) {
+        /* -1 from a failed clock, or a 32-bit time_t in 2038 or later. */
         WOLFSSL_MSG("wc_Time failed to return a valid value");
         return 0;
     }
@@ -17075,14 +17153,14 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
 #ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
     if (dateType == ASN_BEFORE) {
         WOLFSSL_MSG("Skewing local time for before date check");
-        ltime += WOLFSSL_BEFORE_DATE_CLOCK_SKEW;
+        adjust += WOLFSSL_BEFORE_DATE_CLOCK_SKEW;
     }
 #endif
 
 #ifdef WOLFSSL_AFTER_DATE_CLOCK_SKEW
     if (dateType == ASN_AFTER) {
         WOLFSSL_MSG("Skewing local time for after date check");
-        ltime -= WOLFSSL_AFTER_DATE_CLOCK_SKEW;
+        adjust -= WOLFSSL_AFTER_DATE_CLOCK_SKEW;
     }
 #endif
 
@@ -17106,11 +17184,16 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
         return 0;
     }
 
-    ltime -= (time_t)timeDiff;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (ValidateGmtime(localTime)) {
         WOLFSSL_MSG("XGMTIME failed");
+        return 0;
+    }
+    /* Skew and offset in calendar terms so the time type can't overflow. */
+    nowTime = *localTime;
+    localTime = &nowTime;
+    if (AdjustGmtime(localTime, 0, adjust - timeDiff) != 0) {
         return 0;
     }
 
@@ -17133,13 +17216,13 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
 
 int wc_GetTime(void* timePtr, word32 timeSize)
 {
-    time_t* ltime = (time_t*)timePtr;
+    WC_TIME_T* ltime = (WC_TIME_T*)timePtr;
 
     if (timePtr == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if ((word32)sizeof(time_t) > timeSize) {
+    if ((word32)sizeof(WC_TIME_T) > timeSize) {
         return BUFFER_E;
     }
 
@@ -17152,7 +17235,7 @@ int wc_GetTime(void* timePtr, word32 timeSize)
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
-    extern time_t XTIME(time_t* t);
+    extern WC_TIME_T XTIME(WC_TIME_T* t);
 #endif
 
 static wc_time_cb timeFunc = NULL;
@@ -17163,7 +17246,13 @@ int wc_SetTimeCb(wc_time_cb f)
     return 0;
 }
 
-time_t wc_Time(time_t* t)
+/* Whether wc_SetTimeCb() installed the clock. */
+int TimeCbIsSet(void)
+{
+    return timeFunc != NULL;
+}
+
+WC_TIME_T wc_Time(WC_TIME_T* t)
 {
     if (timeFunc != NULL) {
         return timeFunc(t);
@@ -29944,7 +30033,7 @@ static int SetValidityTimes(byte* before, word32* beforeSz, byte* after,
     word32* afterSz, int daysValid)
 {
     int ret = 0;
-    time_t now;
+    WC_TIME_T now;
     struct tm* ts = NULL;
     struct tm* tmpTime;
     struct tm nowTm;
@@ -29957,7 +30046,7 @@ static int SetValidityTimes(byte* before, word32* beforeSz, byte* after,
     (void)tmpTime;
 
     now = wc_Time(0);
-    if (now == (time_t)-1) {
+    if (now == (WC_TIME_T)-1) {
         WOLFSSL_MSG("Current time not available");
         return DATE_E;
     }

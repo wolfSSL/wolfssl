@@ -2704,7 +2704,7 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
 #ifdef NO_ASN_TIME
     PKCS7Attrib cannedAttribs[2];
 #else
-    time_t tm;
+    WC_TIME_T tm;
     int timeSz;
     PKCS7Attrib cannedAttribs[3];
 #endif
@@ -2727,6 +2727,8 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
             return BAD_FUNC_ARG;
 
         tm = wc_Time(0);
+        if (tm <= 0)
+            return ASN_TIME_E;
         timeSz = GetAsnTimeString(&tm, signingTime, signingTimeSz);
         if (timeSz < 0)
             return timeSz;
@@ -12087,7 +12089,7 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
 
     int timeSz = 0;
 #ifndef NO_ASN_TIME
-    time_t* tm = NULL;
+    WC_TIME_T* tm = NULL;
 #endif
 
     if (pkcs7 == NULL || kek == NULL || keyId == NULL)
@@ -12160,7 +12162,7 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
     /* KEKIdentifier: GeneralizedTime (OPTIONAL) */
 #ifndef NO_ASN_TIME
     if (timePtr != NULL) {
-        tm = (time_t*)timePtr;
+        tm = (WC_TIME_T*)timePtr;
         timeSz = GetAsnTimeString(tm, genTime, sizeof(genTime));
         if (timeSz < 0) {
             XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);

@@ -1451,6 +1451,17 @@ int test_wc_TspTstInfo_Decode(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_TSP) && !defined(NO_SHA256) && !defined(NO_ASN_TIME) && \
+    !defined(USER_TIME) && !defined(TIME_OVERRIDES) && \
+    defined(WOLFSSL_TSP_REQUESTER) && defined(WOLFSSL_TSP_RESPONDER)
+static WC_TIME_T test_tsp_bad_clock(WC_TIME_T* t)
+{
+    if (t != NULL)
+        *t = (WC_TIME_T)-1;
+    return (WC_TIME_T)-1;
+}
+#endif
+
 int test_wc_TspTstInfo_CheckGenTime(void)
 {
     EXPECT_DECLS;
@@ -1491,6 +1502,12 @@ int test_wc_TspTstInfo_CheckGenTime(void)
     tst.genTimeSz = 14;
     ExpectIntEQ(wc_TspTstInfo_CheckGenTime(&tst, 60),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    /* A failed clock. */
+    ExpectIntEQ(wc_SetTimeCb(test_tsp_bad_clock), 0);
+    ExpectIntEQ(wc_TspTstInfo_CheckGenTime(&tstDec, 10),
+        WC_NO_ERR_TRACE(ASN_TIME_E));
+    ExpectIntEQ(wc_SetTimeCb(NULL), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -1504,7 +1521,7 @@ int test_wc_TspTstInfo_GetSetGenTimeAsTime(void)
     byte buf[ASN_GENERALIZED_TIME_SIZE];
     const byte* out = NULL;
     word32 outSz = 0;
-    time_t t = 0;
+    WC_TIME_T t = 0;
 
     ExpectIntEQ(wc_TspTstInfo_Init(&tst), 0);
 
@@ -1529,7 +1546,7 @@ int test_wc_TspTstInfo_GetSetGenTimeAsTime(void)
     ExpectIntEQ((long)t, 0);
 
     /* A later time round trips through set then get. */
-    ExpectIntEQ(wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ExpectIntEQ(wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         (word32)sizeof(buf)), 0);
     ExpectIntEQ(wc_TspTstInfo_GetGenTimeAsTime(&tst, &t), 0);
     ExpectIntEQ((long)t, 1700000000L);
@@ -1550,6 +1567,22 @@ int test_wc_TspTstInfo_GetSetGenTimeAsTime(void)
     tst.genTimeSz = 14;
     ExpectIntEQ(wc_TspTstInfo_GetGenTimeAsTime(&tst, &t),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
+    /* Get: a time the time type cannot hold is an error, not a wrapped
+     * value. */
+    tst.genTime = (const byte*)"19691231235959Z";
+    tst.genTimeSz = 15;
+    ExpectIntEQ(wc_TspTstInfo_GetGenTimeAsTime(&tst, &t),
+        WC_NO_ERR_TRACE(ASN_TIME_E));
+    tst.genTime = (const byte*)"21060207062816Z"; /* 2^32 seconds */
+    if (sizeof(WC_TIME_T) >= 8) {
+        ExpectIntEQ(wc_TspTstInfo_GetGenTimeAsTime(&tst, &t), 0);
+        ExpectIntEQ((int)(t / 65536 / 65536), 1);
+        ExpectIntEQ((int)(t % 65536), 0);
+    }
+    else {
+        ExpectIntEQ(wc_TspTstInfo_GetGenTimeAsTime(&tst, &t),
+            WC_NO_ERR_TRACE(ASN_TIME_E));
+    }
     /* Get: out-of-range fields are rejected, not used to index a table.
      * A month of 00 or 13-99 would otherwise read outside the month table. */
     tst.genTime = (const byte*)"19700001000000Z"; /* month 00 */

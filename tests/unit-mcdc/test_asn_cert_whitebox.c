@@ -1094,7 +1094,7 @@ static void wb_get_asn_time_string(void)
 {
     byte buf[32];
     int ret;
-    time_t now = 1700000000; /* fixed instant, avoids year-2038 flakiness */
+    WC_TIME_T now = 1700000000; /* fixed instant, avoids year-2038 flakiness */
 
     WB_NOTE("GetAsnTimeString(): buf==NULL||len==0 [:15783]");
 
@@ -1123,8 +1123,8 @@ static void wb_get_formatted_time_ex(void)
 {
     byte buf[ASN_GENERALIZED_TIME_SIZE + 4];
     int ret;
-    time_t recent = 1700000000;   /* year ~2023 -> UTCTime range */
-    time_t farFuture;
+    WC_TIME_T recent = 1700000000;   /* year ~2023 -> UTCTime range */
+    WC_TIME_T farFuture;
     struct tm future;
 
     WB_NOTE("GetFormattedTime_ex(): buf==NULL||len==0||bad-format [:15847]; "
@@ -1156,7 +1156,7 @@ static void wb_get_formatted_time_ex(void)
     future.tm_mon = 0; future.tm_mday = 1;
     future.tm_hour = 0; future.tm_min = 0; future.tm_sec = 0;
     farFuture = mktime(&future);
-    if (farFuture != (time_t)-1) {
+    if (farFuture != (WC_TIME_T)-1) {
         ret = GetFormattedTime_ex(&farFuture, buf, sizeof(buf), 0);
         WB_CHECK(ret == ASN_GENERALIZED_TIME_SIZE - 1,
                 ":15860 2nd operand false (far future -> GeneralizedTime)");
@@ -1169,13 +1169,13 @@ static void wb_get_formatted_time_ex(void)
     /* Explicit format==ASN_UTC_TIME with a year in [50,100) (tm_year=80,
      * year 1980) -> :15870 both true (no -100 adjustment). */
     {
-        time_t past;
+        WC_TIME_T past;
         struct tm oldT;
         XMEMSET(&oldT, 0, sizeof(oldT));
         oldT.tm_year = 80; oldT.tm_mon = 0; oldT.tm_mday = 1;
         oldT.tm_hour = 0; oldT.tm_min = 0; oldT.tm_sec = 0;
         past = mktime(&oldT);
-        if (past != (time_t)-1) {
+        if (past != (WC_TIME_T)-1) {
             ret = GetFormattedTime_ex(&past, buf, sizeof(buf), ASN_UTC_TIME);
             WB_CHECK(ret == ASN_UTC_TIME_SIZE - 1,
                     ":15870 both true (year in [50,100))");
@@ -1189,26 +1189,21 @@ static void wb_get_formatted_time_ex(void)
      * forced the century adjustment is skipped as well. */
     {
         struct tm oldT;
-        time_t preEpoch;
+        WC_TIME_T preEpoch;
 
         XMEMSET(&oldT, 0, sizeof(oldT));
         oldT.tm_year = 40;  /* 1940 -> tm_year 40, below the [50,150) window */
         oldT.tm_mon = 0; oldT.tm_mday = 1;
         oldT.tm_hour = 12; oldT.tm_min = 0; oldT.tm_sec = 0;
         preEpoch = mktime(&oldT);
-        if (preEpoch != (time_t)-1) {
+        if (preEpoch != (WC_TIME_T)-1) {
             ret = GetFormattedTime_ex(&preEpoch, buf, sizeof(buf), 0);
             WB_CHECK(ret == ASN_GENERALIZED_TIME_SIZE - 1,
                     ":15914 1st operand false (pre-1950 -> GeneralizedTime)");
-            /* With UTCTime forced on a pre-1950 date the century adjustment
-             * subtracts 100 from an already-small tm_year, so the formatted
-             * year field is negative and one character wider than the
-             * canonical 13-byte UTCTime. That is the point of the row -- it
-             * shows the range test taking its else branch -- so only "an
-             * encoding was produced" is asserted. */
+            /* UTCTime cannot hold a pre-1950 year, so forcing it fails. */
             ret = GetFormattedTime_ex(&preEpoch, buf, sizeof(buf),
                     ASN_UTC_TIME);
-            WB_CHECK(ret > 0,
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_TIME_E),
                     ":15924 1st operand false (pre-1950, UTCTime forced)");
         }
         else {
@@ -1316,7 +1311,7 @@ static void wb_validate_date_with_time(void)
             "branch [:16015, residual: unreachable, see comment above]");
 
     ret = wc_ValidateDateWithTime(validUtc, ASN_UTC_TIME, ASN_BEFORE,
-            (time_t)0, sizeof(validUtc));
+            (WC_TIME_T)0, sizeof(validUtc));
     WB_CHECK(ret == 1, "valid past UTCTime, ASN_BEFORE -> accepted");
 }
 #else

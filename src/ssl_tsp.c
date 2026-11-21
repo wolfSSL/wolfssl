@@ -2339,7 +2339,7 @@ WOLFSSL_TS_RESP* wolfSSL_TS_RESP_create_response(WOLFSSL_TS_RESP_CTX* ctx,
 
         if (ctx->timeCb(ctx, ctx->timeCbData, &sec, &usec) != 1)
             goto cleanup;
-        if (wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)sec, genTime,
+        if (wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)sec, genTime,
                 (word32)sizeof(genTime)) != 0) {
             goto cleanup;
         }

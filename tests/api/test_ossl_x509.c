@@ -109,13 +109,24 @@ int test_wolfSSL_X509_get_version(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) \
+&& !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+static WC_TIME_T test_cmp_time_clock;
+static WC_TIME_T test_cmp_time_cb(WC_TIME_T* t)
+{
+    if (t != NULL)
+        *t = test_cmp_time_clock;
+    return test_cmp_time_clock;
+}
+#endif
+
 int test_wolfSSL_X509_cmp_time(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) \
 && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
     WOLFSSL_ASN1_TIME asn_time;
-    time_t t;
+    WC_TIME_T t;
 
     ExpectIntEQ(0, wolfSSL_X509_cmp_time(NULL, &t));
     XMEMSET(&asn_time, 0, sizeof(WOLFSSL_ASN1_TIME));
@@ -124,6 +135,17 @@ int test_wolfSSL_X509_cmp_time(void)
     ExpectIntEQ(ASN1_TIME_set_string(&asn_time, "000222211515Z"), 1);
     ExpectIntEQ(-1, wolfSSL_X509_cmp_time(&asn_time, NULL));
     ExpectIntEQ(-1, wolfSSL_X509_cmp_current_time(&asn_time));
+
+    /* A failed clock (-1, or a 32-bit time past 2038) is an error, not a time
+     * in 1969 that makes any expiry look in the future. */
+    ExpectIntEQ(wc_SetTimeCb(test_cmp_time_cb), 0);
+    test_cmp_time_clock = (WC_TIME_T)-1;
+    ExpectIntEQ(0, wolfSSL_X509_cmp_current_time(&asn_time));
+    test_cmp_time_clock = 0;
+    ExpectIntEQ(0, wolfSSL_X509_cmp_current_time(&asn_time));
+    test_cmp_time_clock = (WC_TIME_T)1700000000;
+    ExpectIntEQ(-1, wolfSSL_X509_cmp_current_time(&asn_time));
+    ExpectIntEQ(wc_SetTimeCb(NULL), 0);
 #endif
     return EXPECT_RESULT();
 }
@@ -136,9 +158,9 @@ int test_wolfSSL_X509_time_adj(void)
     defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && \
     !defined(NO_ASN_TIME)
     X509*  x509 = NULL;
-    time_t t;
-    time_t not_before;
-    time_t not_after;
+    WC_TIME_T t;
+    WC_TIME_T not_before;
+    WC_TIME_T not_after;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         client_cert_der_2048, sizeof_client_cert_der_2048,
@@ -151,6 +173,26 @@ int test_wolfSSL_X509_time_adj(void)
     ExpectNotNull(X509_time_adj(X509_get_notAfter(x509), not_after, &t));
     /* Check X509_gmtime_adj, too. */
     ExpectNotNull(X509_gmtime_adj(X509_get_notAfter(x509), not_after));
+
+    /* A failed clock is an error, but a caller's time of 0 is 1970. */
+    ExpectIntEQ(wc_SetTimeCb(test_cmp_time_cb), 0);
+    test_cmp_time_clock = (WC_TIME_T)-1;
+    ExpectNull(X509_gmtime_adj(X509_get_notAfter(x509), 0));
+    ExpectNull(X509_time_adj(X509_get_notAfter(x509), 0, NULL));
+    test_cmp_time_clock = 0;
+    ExpectNull(X509_gmtime_adj(X509_get_notAfter(x509), 0));
+    ExpectNotNull(X509_time_adj(X509_get_notAfter(x509), 0, &t));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(XMEMCMP(X509_get_notAfter(x509)->data, "700101000000Z",
+            13), 0);
+    }
+    test_cmp_time_clock = (WC_TIME_T)2145830400L; /* 2037-12-31 00:00:00 */
+    ExpectNotNull(X509_gmtime_adj(X509_get_notAfter(x509), 86400));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(XMEMCMP(X509_get_notAfter(x509)->data, "380101000000Z",
+            13), 0);
+    }
+    ExpectIntEQ(wc_SetTimeCb(NULL), 0);
 
     X509_free(x509);
 #endif
@@ -954,7 +996,7 @@ int test_wolfSSL_X509_set_notAfterBefore(void)
 
     /* --- notBefore: set, get, validate, print --- */
     {
-        time_t t = (time_t)49 * year + 125 * day + 20 * hour +
+        WC_TIME_T t = (WC_TIME_T)49 * year + 125 * day + 20 * hour +
                    30 * mini + 7 * day;
         asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, 7, 0);
     }
@@ -979,7 +1021,7 @@ int test_wolfSSL_X509_set_notAfterBefore(void)
     /* --- notAfter: set, get, validate, print (needs 64-bit time_t) --- */
 #if !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
     {
-        time_t t = (time_t)107 * year + 31 * day + 34 * hour +
+        WC_TIME_T t = (WC_TIME_T)107 * year + 31 * day + 34 * hour +
                    30 * mini + 7 * day;
         asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, 7, 0);
     }

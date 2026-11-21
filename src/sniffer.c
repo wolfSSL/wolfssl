@@ -609,7 +609,7 @@ typedef struct SnifferSession {
     word32         srvExpected;     /* server expected sequence (relative) */
     FinCapture     finCapture;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
-    time_t         lastUsed;        /* last used ticks */
+    WC_TIME_T      lastUsed;        /* last used ticks */
     word32         keySz;           /* size of the private key */
     PacketBuffer*  cliReassemblyList; /* client out of order packets */
     PacketBuffer*  srvReassemblyList; /* server out of order packets */
@@ -1756,7 +1756,7 @@ static word32 SessionHash(IpInfo* ipInfo, TcpInfo* tcpInfo)
 static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferSession* session;
-    time_t          currTime = wc_Time(NULL);
+    WC_TIME_T       currTime = wc_Time(NULL);
     word32          row = SessionHash(ipInfo, tcpInfo);
 
     LOCK_SESSION();
@@ -5643,12 +5643,14 @@ static void RemoveStaleSessions(void)
 {
     word32 i;
     SnifferSession* session;
+    WC_TIME_T now = wc_Time(NULL);
 
     for (i = 0; i < HASH_SIZE; i++) {
         session = SessionTable[i];
         while (session) {
             SnifferSession* next = session->next;
-            if (wc_Time(NULL) >= session->lastUsed + WOLFSSL_SNIFFER_TIMEOUT) {
+            if ((now <= 0) ||
+                    (now - session->lastUsed >= WOLFSSL_SNIFFER_TIMEOUT)) {
                 TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }
