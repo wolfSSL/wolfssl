@@ -361,7 +361,7 @@ RSA/DH 2048 and 3072 and ECC P-256 are **on by default** once the corresponding
 
 | Define | Effect |
 | --- | --- |
-| `WOLFSSL_SP_NO_2048` | Drop RSA/DH 2048 |
+| `WOLFSSL_SP_NO_2048` | Drop RSA/DH 2048. Ignored with `WOLFSSL_SP_4096` and SP assembly when the 4096-bit code needs the 2048-bit functions: always on x86_64, elsewhere for RSA private keys using CRT or a non-small build (`RSA_LOW_MEM` forces small) |
 | `WOLFSSL_SP_NO_3072` | Drop RSA/DH 3072 |
 | `WOLFSSL_SP_4096` | Add RSA/DH 4096 |
 | `WOLFSSL_SP_NO_256` | Drop ECC P-256 |

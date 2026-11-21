@@ -5481,7 +5481,8 @@ void sp_forcezero(sp_int* a)
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+    !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WC_MP_TO_RADIX)
 /* Copy value of multi-precision number a into r.
  *
  * @param [in]  a  SP integer - source.
@@ -5770,7 +5771,7 @@ int sp_abs(const sp_int* a, sp_int* r)
 #endif /* WOLFSSL_SP_INT_NEGATIVE */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    !defined(NO_RSA)
+    !defined(NO_RSA) || defined(WOLFSSL_SP_INVMOD)
 /* Compare absolute value of two multi-precision numbers.
  *
  * @param [in] a  SP integer.
@@ -5853,7 +5854,7 @@ int sp_cmp_mag(const sp_int* a, const sp_int* b)
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(HAVE_ECC) || !defined(NO_DSA) || \
-    defined(OPENSSL_EXTRA) || !defined(NO_DH) || !defined(NO_RSA)
+    !defined(NO_DH) || !defined(NO_RSA)
 /* Compare two multi-precision numbers.
  *
  * Assumes a and b are not NULL.
@@ -6325,7 +6326,7 @@ int sp_2expt(sp_int* a, int e)
  **********************/
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA) || !defined(NO_DH) || \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) || defined(WOLFSSL_SP_INVMOD)
 /* Set the multi-precision number to be the value of the digit.
  *
  * @param [out] a  SP integer to become number.
@@ -7814,7 +7815,7 @@ static void _sp_add_off(const sp_int* a, const sp_int* b, sp_int* r, int o)
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE) || \
     !defined(NO_DH) || defined(HAVE_ECC) || (!defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_SP_INVMOD)
 /* Sub offset b from a into r: r = a - (b << (o * SP_WORD_SIZE))
  * a must be greater than b.
  *
@@ -7895,7 +7896,8 @@ static void _sp_sub_off(const sp_int* a, const sp_int* b, sp_int* r,
     sp_clamp(r);
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_SP_INT_NEGATIVE || !NO_DH ||
-        * HAVE_ECC || (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
+        * HAVE_ECC || (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) ||
+        * WOLFSSL_SP_INVMOD */
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_SP_INVMOD)
 /* Add b to a into r: r = a + b
@@ -7955,7 +7957,8 @@ int sp_add(const sp_int* a, const sp_int* b, sp_int* r)
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_SP_INVMOD)
 /* Subtract b from a into r: r = a - b
  *
  * a must be greater than b unless WOLFSSL_SP_INT_NEGATIVE is defined.
@@ -8021,7 +8024,7 @@ int sp_sub(const sp_int* a, const sp_int* b, sp_int* r)
     return err;
 }
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC ||
-        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY)*/
+        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || WOLFSSL_SP_INVMOD */
 
 /****************************
  * Add/Subtract mod functions
@@ -8633,7 +8636,7 @@ int sp_lshd(sp_int* a, int s)
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
 /* Left shift the multi-precision number by n bits.
  * Bits may be larger than the word size.
  *
@@ -8699,7 +8702,8 @@ static int sp_lshb(sp_int* a, int n)
     return err;
 }
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC ||
-        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
+        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY && !WOLFSSL_RSA_PUBLIC_ONLY) ||
+        * WOLFSSL_SP_INVMOD */
 
 #ifdef WOLFSSL_SP_MATH_ALL
 /* Shift a right by c digits: a = a >> (c * SP_WORD_SIZE)
@@ -8732,7 +8736,7 @@ void sp_rshd(sp_int* a, int c)
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_HAVE_SP_DH)
+    defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_SP_INVMOD)
 /* Shift a right by n bits into r: r = a >> n
  *
  * @param [in]  a  SP integer to shift.
@@ -8800,11 +8804,12 @@ int sp_rshb(const sp_int* a, int n, sp_int* r)
     return err;
 }
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC ||
-        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || WOLFSSL_HAVE_SP_DH */
+        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || WOLFSSL_HAVE_SP_DH ||
+        * WOLFSSL_SP_INVMOD */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
 static void _sp_div_same_size(sp_int* a, const sp_int* d, sp_int* r)
 {
     sp_size_t i;
@@ -9270,11 +9275,12 @@ int sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem)
     return err;
 }
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC || \
-        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
+        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY && !WOLFSSL_RSA_PUBLIC_ONLY) ||
+        * WOLFSSL_SP_INVMOD */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
 #ifndef FREESCALE_LTC_TFM
 #ifdef WOLFSSL_SP_INT_NEGATIVE
 /* Calculate the remainder of dividing a by m: r = a mod m.
@@ -9366,10 +9372,11 @@ int sp_mod(const sp_int* a, const sp_int* m, sp_int* r)
 }
 #endif /* !FREESCALE_LTC_TFM */
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC || \
-        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
+        * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY && !WOLFSSL_RSA_PUBLIC_ONLY) || \
+        * WOLFSSL_SP_INVMOD */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-    defined(HAVE_ECC) || !defined(NO_RSA)
+    defined(HAVE_ECC) || !defined(NO_RSA) || defined(WOLFSSL_SP_INVMOD)
 
 /* START SP_MUL implementations. */
 /* This code is generated.

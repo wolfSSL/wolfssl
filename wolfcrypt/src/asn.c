@@ -31348,8 +31348,10 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     static const byte kuOID[]   = { 0x55, 0x1d, 0x0f };
     static const byte ekuOID[]  = { 0x55, 0x1d, 0x25 };
     static const byte cpOID[]   = { 0x55, 0x1d, 0x20 };
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
     static const byte nsCertOID[] = { 0x60, 0x86, 0x48, 0x01,
                                       0x86, 0xF8, 0x42, 0x01, 0x01 };
+#endif
     static const byte crlInfoOID[] = { 0x55, 0x1D, 0x1F };
 #ifdef WOLFSSL_ACME_OID
     static const byte acmeIdOID[] = { 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07,
@@ -31610,7 +31612,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     CERTEXTSASN_IDX_CRLINFO_STR);
         }
 
-    #ifdef WOLFSSL_ACME_OID
+    #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ACME_OID)
         /* id-pe-acmeIdentifier (TLS-ALPN-01 challenge cert).
          * Always critical=TRUE. */
         if (cert->acmeIdentifierSz == WC_SHA256_DIGEST_SIZE) {
@@ -31621,7 +31623,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     cert->acmeIdentifier, (word32)cert->acmeIdentifierSz);
         }
         else
-    #endif /* WOLFSSL_ACME_OID */
+    #endif /* WOLFSSL_CERT_EXT && WOLFSSL_ACME_OID */
         {
             /* Don't write out the ACME identifier extension. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_ACMEID_SEQ,

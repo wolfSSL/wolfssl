@@ -4131,6 +4131,21 @@
     #define WOLFSSL_SP_4096
 #endif
 
+/* The x86_64 SP assembly 4096-bit multiply, and elsewhere the RSA private key
+ * CRT and the non-small 4096-bit multiply, call the 2048-bit functions. */
+#if defined(WOLFSSL_SP_4096) && defined(WOLFSSL_SP_NO_2048)
+    #if defined(WOLFSSL_SP_X86_64_ASM)
+        #undef WOLFSSL_SP_NO_2048
+    #elif !defined(RSA_LOW_MEM) && (defined(WOLFSSL_SP_ARM64_ASM) || \
+        defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM_THUMB_ASM) || \
+        defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) || defined(WOLFSSL_SP_RISCV64_ASM))
+        #if !defined(WOLFSSL_SP_SMALL) || (defined(WOLFSSL_HAVE_SP_RSA) && \
+            !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(SP_RSA_PRIVATE_EXP_D))
+            #undef WOLFSSL_SP_NO_2048
+        #endif
+    #endif
+#endif
+
 /* if desktop type system and fastmath increase default max bits */
 #if defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_AARCH64_BUILD) || \
     defined(OPENSSL_EXTRA)
