@@ -36142,6 +36142,10 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
 
     if (key == NULL || key->dp == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
+    /* The read lock covers the caller's buffer; a size query passes. */
+    ret = PRIV_KEY_OUT_ALLOWED(output);
+    if (ret != 0)
+        return ret;
 
     /* set algoID, get curve OID */
     algoID = ECDSAk;
@@ -36164,7 +36168,10 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
     wc_MemZero_Add("eccToPKCS8 tmpDer", tmpDer, ECC_BUFSIZE);
 #endif
 
+    /* tmpDer never leaves this function. */
+    PRIVATE_KEY_UNLOCK();
     ret = wc_BuildEccKeyDer(key, tmpDer, &sz, includePublic, 0);
+    PRIVATE_KEY_LOCK();
     if (ret < 0) {
         goto exit;
     }
