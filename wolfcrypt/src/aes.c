@@ -9286,6 +9286,8 @@ static int AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     WC_AES_GCM_UNKEY(aes);
 #ifdef WC_AESGCM_IV_LOCK
     aes->gcmIvLock = 0;
+    aes->gcmIvDet = 0;
+    aes->gcmIvMasked = 0;
 #endif
     /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
     if (aes->nonceSz != 0) {
@@ -9512,16 +9514,22 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     int  ret;
     byte lockedH[WC_AES_BLOCK_SIZE];
     byte relock = (byte)((aes != NULL) && aes->gcmIvLock);
+    byte det = 0;
+    byte masked = 0;
 
     /* The same key again keeps the lock: only that key gives the same H. */
     if (relock) {
         XMEMCPY(lockedH, aes->gcm.H, sizeof(lockedH));
+        det = aes->gcmIvDet;
+        masked = aes->gcmIvMasked;
     }
     ret = AesGcmSetKey(aes, key, len);
     if (relock) {
         if ((ret == 0) && (ConstantCompare(lockedH, aes->gcm.H,
                                            sizeof(lockedH)) == 0)) {
             aes->gcmIvLock = 1;
+            aes->gcmIvDet = det;
+            aes->gcmIvMasked = masked;
         }
         ForceZero(lockedH, sizeof(lockedH));
     }

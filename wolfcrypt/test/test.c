@@ -23660,6 +23660,28 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
                                   tag, sizeof(tag), NULL, 0);
     if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    /* A short generated IV stays approved when the same key is set again; a
+     * caller IV after a new key is not approved. (SP 800-38D 8.2) */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret == 0)
+        ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv1, sizeof(iv1),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret == 0)
+        ret = wc_AesSetIV(enc, blk);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv1, sizeof(iv1),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
     ret = 0;
 
   out:
