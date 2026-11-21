@@ -7952,6 +7952,11 @@ AS_CASE([$FIPS_VERSION],
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed25519" != "no")],
             [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
 
+        # X25519 is in the v7 boundary for the X25519MLKEM768 hybrid only.
+        AS_IF([test "$ENABLED_CURVE25519" = "no" &&
+               (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_curve25519" != "no")],
+            [ENABLED_CURVE25519="yes"])
+
         AS_IF([test "x$ENABLED_ED448" != "xyes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed448" != "no")],
             [ENABLED_ED448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448 -DHAVE_ED448_KEY_IMPORT"])
