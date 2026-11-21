@@ -943,6 +943,43 @@ static int test_tls_fips_ems_required_ex(int serverSide)
     wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+/* After an EMS handshake, a renegotiation ClientHello without EMS is refused. */
+static int test_tls_fips_ems_required_reneg(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    byte data;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS())
+        test_ems_legacy_peer(ssl_c);
+
+    ExpectIntEQ(wolfSSL_Rehandshake(ssl_c),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_read(ssl_s, &data, 1),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+            WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
 #endif
 
 /* FIPS v7 refuses TLS 1.2 without EMS (FIPS 140-3 IG D.Q, RFC 7627 5.2):
@@ -975,6 +1012,9 @@ int test_tls_fips_ems_required(void)
     /* Server refuses a client without EMS, client refuses such a server. */
     ExpectIntEQ(test_tls_fips_ems_required_ex(1), TEST_SUCCESS);
     ExpectIntEQ(test_tls_fips_ems_required_ex(0), TEST_SUCCESS);
+#ifdef HAVE_SECURE_RENEGOTIATION
+    ExpectIntEQ(test_tls_fips_ems_required_reneg(), TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }

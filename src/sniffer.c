@@ -4058,6 +4058,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #elif !defined(WOLFSSL_AEAD_ONLY)
     session->flags.etmUnsupported = 0;
 #endif
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    /* A renegotiation ServerHello must carry EMS again. */
+    session->flags.expectEms = 0;
+#endif
 
     /* extensions */
     if ((initialBytes - *sslBytes) < msgSz) {
