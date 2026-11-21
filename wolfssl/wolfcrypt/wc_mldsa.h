@@ -627,6 +627,29 @@ typedef struct wc_MlDsaParams MlDsaParams;
     !defined(WC_MLDSA_CACHE_PUB_VECTORS)
     #define MLDSA_VERIFY_SPARSE_C
 #endif
+/* POLY64 applies to the small memory verify but not the smallest. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+    defined(WOLFSSL_MLDSA_SMALL_MEM_POLY64) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    #define MLDSA_VERIFY_POLY64
+#endif
+/* Small memory verify samples A straight into w unless it sums in 64 bits. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && !defined(MLDSA_VERIFY_POLY64)
+    #define MLDSA_VERIFY_FUSED_A
+#endif
+/* With neither A nor a sparse c to expand, w1 is encoded into the block. */
+#if defined(MLDSA_VERIFY_FUSED_A) && !defined(MLDSA_VERIFY_SPARSE_C) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    #define MLDSA_VERIFY_W1_IN_BLOCK
+#endif
+#if defined(MLDSA_VERIFY_W1_IN_BLOCK) && !defined(WOLFSSL_NO_ML_DSA_44)
+    /* A row of ML-DSA-44 w1 is larger than a SHAKE-128 block. */
+    #define MLDSA_VERIFY_BLOCK_SZ   (MLDSA_N * MLDSA_Q_HI_88_ENC_BITS / 8)
+#elif defined(MLDSA_VERIFY_FUSED_A)
+    #define MLDSA_VERIFY_BLOCK_SZ   MLDSA_GEN_A_BLOCK_BYTES
+#else
+    #define MLDSA_VERIFY_BLOCK_SZ   MLDSA_REJ_NTT_POLY_H_SIZE
+#endif
 
 #ifdef WC_MLDSA_NONBLOCK
 /* Resumable state for a non-blocking ML-DSA operation. Attach one to a key with
@@ -657,6 +680,7 @@ typedef struct wc_MlDsaNonBlock {
     /* What the operation is bound to. keygen: seed. sign: rnd||mu.
      * verify: digest of the signature||mu. */
     byte   seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    wc_Shake* shake; /* verify: w1 hash in work that is set up, or NULL */
 } wc_MlDsaNonBlock;
 #endif /* WC_MLDSA_NONBLOCK */
 
@@ -762,14 +786,17 @@ struct wc_MlDsaKey {
     sword32 c[MLDSA_N];
 #endif
     sword32 w[MLDSA_N];
-    /* One t1 polynomial, also used for a polynomial of A. Not named t1 as
-     * WC_MLDSA_CACHE_PUB_VECTORS already has a member of that name. */
+#if !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) && \
+    !defined(MLDSA_VERIFY_W1_IN_BLOCK)
+    /* NTT(c) and a row of w1, or a polynomial of A when summing in 64 bits.
+     * Not named t1 as WC_MLDSA_CACHE_PUB_VECTORS has a member of that name. */
     sword32 vt1[MLDSA_N];
-    byte w1e[MLDSA_MAX_W1_ENC_SZ];
-#ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+#endif
+#ifdef MLDSA_VERIFY_POLY64
     sword64 t64[MLDSA_N];
 #endif
-    byte h[MLDSA_REJ_NTT_POLY_H_SIZE];
+    wc_Shake w1Shake;                    /* hashes mu and w1 a poly at a time */
+    byte h[MLDSA_VERIFY_BLOCK_SZ];
 #endif /* WOLFSSL_MLDSA_VERIFY_NO_MALLOC &&
         * WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
 };

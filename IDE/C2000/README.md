@@ -401,8 +401,8 @@ algorithm build toggles is in wolfSSL Examples:
 
 Representative throughput on the F28P55X at 150 MHz: SHA-256 ~284 KiB/s; SHA3-256
 ~264 KiB/s; SHAKE128 ~319 KiB/s; RNG Hash-DRBG ~122 KiB/s. ML-DSA-87 verify
-~225 ms/op in ~10.7 KB RAM (zero heap, with `WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM`
-+ `WOLFSSL_MLDSA_ASSIGN_KEY`).
+~225 ms/op (zero heap, with `WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM` +
+`WOLFSSL_MLDSA_ASSIGN_KEY`).
 
 ## Continuous integration
 
