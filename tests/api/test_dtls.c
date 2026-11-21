@@ -3375,7 +3375,12 @@ int test_dtls_certreq_order(void)
             (const char*)certreq_before_cert_bin,
             sizeof(certreq_before_cert_bin)), 0);
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    /* The capture's ServerHello has no EMS, so it is refused first. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), EXT_MASTER_SECRET_NEEDED_E);
+#else
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
