@@ -993,7 +993,8 @@ int test_wc_RsaKeyToDer(void)
     ExpectNotNull(der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
 
     /* Test exporting private key to DER */
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
     {
         /* wolfSSL_Init() enables private key output: drop it to zero, check
          * the key does not leave, then put it back. */

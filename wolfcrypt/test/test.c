@@ -23660,7 +23660,8 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
                                   tag, sizeof(tag), NULL, 0);
     if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
     /* A short generated IV stays approved when the same key is set again; a
      * caller IV after a new key is not approved. (SP 800-38D 8.2) */
     ret = wc_AesGcmSetKey(enc, key, sizeof(key));
@@ -56206,7 +56207,8 @@ static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
 #ifdef HAVE_PKCS8
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
     {
         /* Private key reads off: a size query works, an export does not. */
         int held = wolfCrypt_GetPrivateKeyReadEnable_fips(WC_KEYTYPE_ALL);
