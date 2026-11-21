@@ -670,6 +670,12 @@
 #define FIPS_VERSION3_NE(major,minor,patch) \
     (WOLFSSL_FIPS_VERSION_CODE != WOLFSSL_MAKE_FIPS_VERSION3(major,minor,patch))
 
+/* dh.c is module code before FIPS v7 and outside the v7 module. */
+#if defined(_WC_BUILDING_DH_C) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_LT(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)
@@ -3670,7 +3676,9 @@
 /* Determine when mp_prime_gen is required. */
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
-    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || \
+    (defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+     defined(HAVE_COMP_KEY))
     #define WOLFSSL_SP_PRIME_GEN
 #endif
 
@@ -4084,6 +4092,29 @@
     #define WOLFSSL_FIPS_EXPORT_LOCAL_APIS
 #endif
 
+/* FIPS v7 module functions that are not module services: hidden from
+ * applications unless WOLFSSL_FIPS_EXPORT_LOCAL_APIS. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_EXPORT_LOCAL_APIS)
+    #define WC_FIPS_V7_HIDDEN_APIS
+    #define WC_FIPS_V7_LOCAL          WOLFSSL_LOCAL
+    #define WC_FIPS_V7_LOCAL_TEST_VIS WOLFSSL_LOCAL
+#else
+    #define WC_FIPS_V7_LOCAL          WOLFSSL_API
+    #define WC_FIPS_V7_LOCAL_TEST_VIS WOLFSSL_TEST_VIS
+#endif
+
+/* FIPS v7: a hash state remembers its variant and refuses another one. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #undef  WC_HASH_CHECK_VARIANT
+    #define WC_HASH_CHECK_VARIANT
+#endif
+
+/* FIPS v7 user space has no RNG bank. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_LINUXKM)
+    #undef HAVE_WC_RNG_BANK
+#endif
+
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12
@@ -4120,12 +4151,11 @@
     #endif
 #endif
 
-#if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && FIPS_VERSION3_LT(7,0,0) && \
+#if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && \
     defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED) && \
     !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
-    /* FIPS < v7 does not implement wc_AesGcmEncrypt() as a supported API, so it
-     * must be remapped to FIPS-supported APIs as arranged in wc_compat.h.
-     */
+    /* A one-shot GCM encrypt with a caller IV skips the module's IV accounting
+     * (SP 800-38D sec 8, IG C.H), so no FIPS version allows it. */
     #error WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED is forbidden for selected FIPS version.
 #endif
 
@@ -5626,6 +5656,15 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
     #error "WOLFSSL_EXTRA_PQC_HYBRIDS is not available in FIPS v7 builds"
 #endif
+/* FIPS v7 refuses TLS 1.2 without the extended master secret: FIPS 140-3
+ * IG D.Q, RFC 7627 sec 5.2. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+    #ifndef HAVE_EXTENDED_MASTER
+        #error "FIPS v7 TLS 1.2 needs HAVE_EXTENDED_MASTER"
+    #endif
+    #define WOLFSSL_EMS_ALWAYS_REQUIRED
+#endif
 
 /* SRTP requires DTLS */
 #if defined(WOLFSSL_SRTP) && !defined(WOLFSSL_DTLS)
@@ -6501,6 +6540,17 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error FIPS v7 needs WOLFSSL_LMS_VERIFY_ONLY and WOLFSSL_XMSS_VERIFY_ONLY
 #endif
 
+/* X25519 is approved only inside an ML-KEM hybrid the module joins, so its
+ * standalone shared secret is refused (IG D.S Scenario 2). */
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_CURVE25519)
+    #define WC_X25519_HYBRID_ONLY
+#endif
+
+/* Kyber round 3 is not FIPS 203 ML-KEM: configure refuses it for v7 too. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_MLKEM_KYBER)
+    #error FIPS v7 does not include Kyber (WOLFSSL_MLKEM_KYBER), use ML-KEM
+#endif
+
 /* The SP 800-56C one-step KDF is outside the FIPS v7 module boundary. */
 #if FIPS_VERSION3_GE(7,0,0) && defined(WC_KDF_NIST_SP_800_56C)
     #error FIPS v7 does not include WC_KDF_NIST_SP_800_56C
@@ -6513,6 +6563,15 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef HAVE_DH
 #elif !defined(HAVE_DH)
     #define HAVE_DH
+#endif
+
+/* One generated GCM IV per key (SP 800-38D 8.2, 8.3). Ports with their own
+ * wc_AesGcmSetKey() never release the lock, so software GCM only. */
+#if defined(HAVE_AESGCM) && !defined(NO_AES) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI_AES) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES) && !defined(WOLFSSL_TI_CRYPT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    #define WC_AESGCM_IV_LOCK
 #endif
 
 #ifdef __cplusplus

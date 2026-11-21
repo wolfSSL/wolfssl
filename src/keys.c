@@ -2795,6 +2795,12 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             enc->setup = 1;
         if (dec)
             dec->setup = 1;
+    #ifdef WC_AESGCM_IV_LOCK
+        /* A new key: TLS 1.3 sets the module's nonce counter on its first
+         * record. */
+        if (enc)
+            enc->gcmIvCtrSet = 0;
+    #endif
     }
 #endif /* BUILD_AESGCM */
 

@@ -4567,6 +4567,9 @@ int test_wc_AesGcmEncrypt_ex_NonceUnique(void)
     XMEMSET(extIv, 0x00, sizeof(extIv));
     extIv[GCM_NONCE_MID_SZ - 2] = 0xFF;
     extIv[GCM_NONCE_MID_SZ - 1] = 0xFF;
+    /* A different key: the IV generated above stays locked to the old one. */
+    key[0] ^= 0x01;
+    ExpectIntEQ(wc_AesGcmSetKey(aes, key, sizeof(key)), 0);
     ExpectIntEQ(wc_AesGcmSetExtIV(aes, extIv, sizeof(extIv)), 0);
 
     ret = wc_AesGcmEncrypt_ex(aes, cipher, plain, TEST_AES_NONCE_SZ,
@@ -10492,8 +10495,13 @@ int test_wc_AesGcmArgMcdc(void)
 #else
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, NULL, 0, &rng), 0);
 #endif
+        /* A key takes one IV, so each accepted row below has a new key. */
+        key[0] = 0x01;
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, NULL, 0, &rng),
             0);
+        key[0] = 0x02;
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MAX_SZ, NULL, 0, &rng),
             0);
 
@@ -10513,6 +10521,8 @@ int test_wc_AesGcmArgMcdc(void)
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, fixedIv, 0,
             &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         /* Normal fixed-IV usage: both AND terms false -> success. */
+        key[0] = 0x03;
+        ExpectIntEQ(wc_AesGcmSetKey(&aes, key, sizeof(key)), 0);
         ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MID_SZ, fixedIv,
             AES_IV_FIXED_SZ, &rng), 0);
         /* cond ivFixedSz != AES_IV_FIXED_SZ independence (ivFixed != NULL
@@ -10522,6 +10532,7 @@ int test_wc_AesGcmArgMcdc(void)
 
         wc_FreeRng(&rng);
         wc_AesFree(&aes);
+        key[0] = 0x00;
     }
 
     /* ---- wc_AesGcmEncrypt_ex(): full OR-chain ---- */
@@ -15151,12 +15162,16 @@ int test_wc_AesReworkDecisionCoverage(void)
     ExpectIntEQ(wc_AesGcmSetIV(&aes, GCM_NONCE_MIN_SZ, ivFixed,
                                sizeof(ivFixed), NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    /* ivFixed == NULL: the whole IV comes from the RNG. */
+    /* ivFixed == NULL: the whole IV comes from the RNG, under a new key
+     * since the 8.2.1 IV above takes the key's one IV. (SP 800-38D 8.2) */
+    key16[0] ^= 0x01;
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key16, sizeof(key16)), 0);
     ExpectIntEQ(wc_AesGcmSetIV(&aes, 12, NULL, 0, &rng), 0);
     /* Invalid IV size: not 8, 12, or 16. */
     ExpectIntEQ(wc_AesGcmSetIV(&aes, 13, ivFixed, 12, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     wc_AesFree(&aes);
+    key16[0] ^= 0x01;
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
 

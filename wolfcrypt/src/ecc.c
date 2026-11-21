@@ -259,6 +259,17 @@ ECC Curve Sizes:
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* Shift a right by x bits; mp_rshb returns void in tfm.c and integer.c. */
+WC_MAYBE_UNUSED static int ecc_rshb(mp_int* a, int x)
+{
+#if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH)
+    mp_rshb(a, x);
+    return MP_OKAY;
+#else
+    return mp_rshb(a, x);
+#endif
+}
+
 #if FIPS_VERSION3_GE(6,0,0)
     const unsigned int wolfCrypt_FIPS_ecc_ro_sanity[2] =
                                                      { 0x1a2b3c4d, 0x00000005 };
@@ -3068,24 +3079,27 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
         if ((mp_count_bits(modulus) == 256) &&
             (!mp_is_bit_set(modulus, 224))) {
-            err = sp_ecc_map_sm2_256(P->x, P->y, P->z);
+            return sp_ecc_map_sm2_256(P->x, P->y, P->z);
         }
-        #elif !defined(WOLFSSL_SP_NO_256)
+        #endif
+        #ifndef WOLFSSL_SP_NO_256
         if (mp_count_bits(modulus) == 256) {
-            err = sp_ecc_map_256(P->x, P->y, P->z);
+            return sp_ecc_map_256(P->x, P->y, P->z);
         }
-        #elif defined(WOLFSSL_SP_384)
+        #endif
+        #ifdef WOLFSSL_SP_384
         if (mp_count_bits(modulus) == 384) {
-            err = sp_ecc_map_384(P->x, P->y, P->z);
+            return sp_ecc_map_384(P->x, P->y, P->z);
         }
-        #elif defined(WOLFSSL_SP_521)
+        #endif
+        #ifdef WOLFSSL_SP_521
         if (mp_count_bits(modulus) == 521) {
-            err = sp_ecc_map_521(P->x, P->y, P->z);
+            return sp_ecc_map_521(P->x, P->y, P->z);
         }
-        #else
-        err = ECC_BAD_ARG_E;
         #endif
 
+        /* No SP map routine for this modulus. */
+        err = ECC_BAD_ARG_E;
         WOLFSSL_LEAVE("ecc_map_ex (SP Math)", err);
     return err;
 #endif /* WOLFSSL_SP_MATH */
@@ -4386,8 +4400,7 @@ int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if ((k != NULL) && (R != NULL) && (mp_iszero(k))) {
         mp_zero(R->x);
         mp_zero(R->y);
-        mp_set(R->z, 1);
-        return MP_OKAY;
+        return mp_set(R->z, 1);
     }
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
 }
@@ -4447,14 +4460,16 @@ static int wc_ecc_new_point_ex(ecc_point** point, void* heap)
 ecc_point* wc_ecc_new_point_h(void* heap)
 {
     ecc_point* p = NULL;
-    (void)wc_ecc_new_point_ex(&p, heap);
+    if (wc_ecc_new_point_ex(&p, heap) != MP_OKAY)
+        WOLFSSL_MSG("wc_ecc_new_point_ex failed");
     return p;
 }
 
 ecc_point* wc_ecc_new_point(void)
 {
    ecc_point* p = NULL;
-   (void)wc_ecc_new_point_ex(&p, NULL);
+   if (wc_ecc_new_point_ex(&p, NULL) != MP_OKAY)
+       WOLFSSL_MSG("wc_ecc_new_point_ex failed");
    return p;
 }
 
@@ -5461,6 +5476,7 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
 static int ecc_check_peer_point(ecc_key* key, ecc_point* point)
 {
     int err;
+    int free_err;
     WC_DECLARE_VAR(peer, ecc_key, 1, key->heap);
 
     WC_ALLOC_VAR_EX(peer, ecc_key, 1, key->heap, DYNAMIC_TYPE_ECC,
@@ -5479,7 +5495,10 @@ static int ecc_check_peer_point(ecc_key* key, ecc_point* point)
             peer->type = ECC_PUBLICKEY;
             err = wc_ecc_check_key(peer);
         }
-        wc_ecc_free(peer);
+        /* A failed wipe outranks the check's result. */
+        free_err = wc_ecc_free(peer);
+        if (free_err != 0)
+            err = free_err;
     }
     WC_FREE_VAR_EX(peer, key->heap, DYNAMIC_TYPE_ECC);
     return err;
@@ -6598,7 +6617,12 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
      * value cannot use it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
      * anything that failed a self-test. */
     if (err != MP_OKAY) {
-        wc_ecc_free(key);
+        int free_err = wc_ecc_free(key);
+        if (free_err != 0)
+            err = free_err;
+        /* wc_ecc_free() keeps the key type; clear it so sign and ECDH refuse. */
+        if (key != NULL)
+            key->type = 0;
     }
 #endif
 
@@ -6705,7 +6729,8 @@ void wc_ecc_key_free(ecc_key* key)
     if (key) {
         void* heap = key->heap;
 
-        wc_ecc_free(key);
+        if (wc_ecc_free(key) != 0)
+            WOLFSSL_MSG("wc_ecc_free failed");
         ForceZero(key, sizeof(ecc_key));
         XFREE(key, heap, DYNAMIC_TYPE_ECC);
         (void)heap;
@@ -8123,7 +8148,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * inlen) > orderBits)
-           mp_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
+           err = ecc_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
    }
 
    /* make up a key and export the public copy */
@@ -8213,8 +8238,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        /* don't use async for key, since we don't support async return here */
            err = wc_ecc_init_ex(pubkey, key->heap, INVALID_DEVID);
            if (err == MP_OKAY) {
+              int free_err;
               err = ecc_sign_hash_sw(key, pubkey, rng, curve, e, r, s);
-              wc_ecc_free(pubkey);
+              /* pubkey held the per-message secret k: a failed wipe wins. */
+              free_err = wc_ecc_free(pubkey);
+              if (free_err != 0)
+                  err = free_err;
               WC_FREE_VAR_EX(pubkey, key->heap, DYNAMIC_TYPE_ECC);
            }
        }
@@ -8432,7 +8461,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
          * byte truncation above can leave up to 7 extra low bits */
         if ((ret == 0) &&
                 (((WOLFSSL_BIT_SIZE) * hashSz) > (word32)qbits)) {
-            mp_rshb(z1, (int)((WOLFSSL_BIT_SIZE * hashSz) - (word32)qbits));
+            ret = ecc_rshb(z1,
+                (int)((WOLFSSL_BIT_SIZE * hashSz) - (word32)qbits));
         }
     #endif
     }
@@ -8529,7 +8559,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
             if ((ret == 0) && ((xSz * WOLFSSL_BIT_SIZE) != (word32)qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
                  *  k = bits2int(T) in section 3.2 h.3 */
-                mp_rshb(k, ((int)xSz * WOLFSSL_BIT_SIZE) - qbits);
+                ret = ecc_rshb(k, ((int)xSz * WOLFSSL_BIT_SIZE) - qbits);
             }
 
             /* 3.2 step h.3 the key should be smaller than the order of base
@@ -10076,7 +10106,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
-           mp_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
+           err = ecc_rshb(e, (int)(WOLFSSL_BIT_SIZE - (orderBits & 0x7)));
    }
 
    /* check for async hardware acceleration */
@@ -10795,9 +10825,8 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
                     (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                         ECC_CURVE_FIELD_BF));
 
-        #if defined(WOLFSSL_CUSTOM_CURVES) && \
-            defined(WOLFSSL_VALIDATE_ECC_IMPORT)
-            /* validate prime is prime for custom curves */
+        #ifdef WOLFSSL_CUSTOM_CURVES
+            /* SP 800-186 E.3 square root needs an odd prime modulus */
             if (err == MP_OKAY && curve_idx == ECC_CUSTOM_IDX) {
                 int isPrime = MP_NO;
                 err = mp_prime_is_prime(curve->prime, 8, &isPrime);
@@ -12123,9 +12152,8 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
                 (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                  ECC_CURVE_FIELD_BF));
 
-    #if defined(WOLFSSL_CUSTOM_CURVES) && \
-        defined(WOLFSSL_VALIDATE_ECC_IMPORT)
-        /* validate prime is prime for custom curves */
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        /* SP 800-186 E.3 square root needs an odd prime modulus */
         if (err == MP_OKAY && key->idx == ECC_CUSTOM_IDX) {
             int isPrime = MP_NO;
             err = mp_prime_is_prime(curve->prime, 8, &isPrime);
@@ -15677,8 +15705,8 @@ void wc_ecc_fp_init(void)
 #ifndef WOLFSSL_SP_MATH
 #ifndef HAVE_THREAD_LS
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-   /* Losing the election is fine - the winner finishes the init. */
-   (void)wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex);
+   if (wc_local_InitMutexOnce(&ecc_fp_lock, &initMutex) != 0)
+       WOLFSSL_MSG("ECC fixed-point mutex init failed");
 #endif
 #endif
 #endif
@@ -17462,7 +17490,10 @@ static int mp_jacobi(mp_int* a, mp_int* n, int* c)
         /* Divide by 2 until odd. */
         k = mp_cnt_lsb(t[0]);
         if (k > 0) {
-            mp_rshb(t[0], k);
+            res = ecc_rshb(t[0], k);
+            if (res != MP_OKAY) {
+                goto done;
+            }
 
             /* Negate s each time we divide by 2 if t[1] mod 8 == 3 or 5.
              * Odd number of divides results in a negate.
@@ -17529,6 +17560,7 @@ done:
     #define SQRTMOD_MOD_EXP_TMP_CNT 3
 #endif
 #endif
+/* prime must be an odd prime: the import callers check custom moduli. */
 static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
 #if defined(SQRTMOD_USE_MOD_EXP)
@@ -17777,15 +17809,6 @@ out:
       res = mp_jacobi(Z, prime, &legendre);
       if (res == MP_OKAY && legendre == -1)
         break;
-
-#if defined(WOLFSSL_CUSTOM_CURVES)
-      /* P224R1 succeeds with a value of 11. */
-      if (mp_cmp_d(Z, 22) == MP_EQ) {
-        /* This is to clamp the loop in case 'prime' is not really prime */
-        res = MP_VAL;
-        break;
-      }
-#endif
 
       /* Z = Z + 1 */
       if (res == MP_OKAY)

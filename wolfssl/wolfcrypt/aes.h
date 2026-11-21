@@ -378,6 +378,13 @@ struct Aes {
 #endif
 #ifdef HAVE_AESGCM
     Gcm gcm;
+#ifdef WC_AESGCM_IV_LOCK
+    byte gcmIvDet;  /* IV is SP 800-38D 8.2.1 fixed || invocation field */
+    byte gcmIvLock; /* an IV was generated under the current key */
+    byte gcmIvMasked; /* gcmIvMask is XORed into each 8.2.1 IV used */
+    byte gcmIvMask[GCM_NONCE_MID_SZ];
+    byte gcmIvNext[GCM_NONCE_MAX_SZ]; /* the next generated IV */
+#endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
     int ctxInitDone;
@@ -517,6 +524,7 @@ struct Aes {
     WC_BITFIELD  gcmKeySet:1;
     WC_BITFIELD  nonceSet:1;
     WC_BITFIELD  ctrSet:1;
+    WC_BITFIELD  gcmIvStream:1; /* this stream counted the generated IV */
 #endif
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     void *CipherLifecycleTag; /* used for dummy allocation and initialization,
@@ -780,6 +788,10 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
  WOLFSSL_API int  wc_AesGcmSetIV(Aes* aes, word32 ivSz,
                                    const byte* ivFixed, word32 ivFixedSz,
                                    WC_RNG* rng);
+#ifdef WC_AESGCM_IV_LOCK
+ WOLFSSL_API int  wc_AesGcmSetIVCounter(Aes* aes, const byte* iv,
+                                   word32 ivSz, word32 ctrSz, const byte* mask);
+#endif
  WOLFSSL_API int  wc_AesGcmEncrypt_ex(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    byte* ivOut, word32 ivOutSz,

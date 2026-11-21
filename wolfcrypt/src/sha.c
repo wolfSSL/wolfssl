@@ -1134,6 +1134,7 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
 int wc_ShaFinal(wc_Sha* sha, byte* hash)
 {
     int ret;
+    int resetRet;
     byte* local;
 
     if (sha == NULL || hash == NULL) {
@@ -1365,10 +1366,10 @@ if (sha->ctx.mode == ESP32_SHA_HW) {
     XMEMCPY(hash, (byte *)&sha->digest[0], WC_SHA_DIGEST_SIZE);
 #endif
 
-    /* we'll always reset state upon exit and return the error code from above,
-     * which may cause fall back to SW if HW is busy. we do not return result
-     * of initSha here */
-    (void)InitSha(sha); /* reset state */
+    /* Always reset state on exit; the first error is returned. */
+    resetRet = InitSha(sha);
+    if (ret == 0)
+        ret = resetRet;
     return ret;
 }
 

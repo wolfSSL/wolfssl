@@ -38,6 +38,22 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if !defined(NO_PWDBASED) && defined(HAVE_PBKDF1)
+/* PBKDF1 for a legacy key format. FIPS v7 does not approve PBKDF1
+ * (SP 800-132 sec 5.3): the key is still derived and the use is logged. */
+WC_MAYBE_UNUSED static int wc_Pbkdf1Legacy(byte* key, const byte* passwd,
+    int pLen, const byte* salt, int sLen, int iterations, int kLen,
+    int hashType)
+{
+    int ret;
+
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_PBKDF1(key, passwd, pLen, salt, sLen, iterations, kLen, hashType);
+    PRIVATE_KEY_LOCK();
+    return wc_FipsAcceptUnapproved(ret, "PBKDF1");
+}
+#endif
+
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
 #ifdef HAVE_AES_DECRYPT
 int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
@@ -227,8 +243,8 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
 
 #ifndef NO_PWDBASED
-    ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        (int)info->keySz, hashType);
+    ret = wc_Pbkdf1Legacy(key, password, passwordSz, info->iv, PKCS5_SALT_SZ,
+                          1, (int)info->keySz, hashType);
 #endif
 
     if (ret == 0) {
@@ -296,8 +312,8 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
 
 #ifndef NO_PWDBASED
-    ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        (int)info->keySz, hashType);
+    ret = wc_Pbkdf1Legacy(key, password, passwordSz, info->iv, PKCS5_SALT_SZ,
+                          1, (int)info->keySz, hashType);
 #endif
 
     if (ret == 0) {
@@ -495,7 +511,7 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
     #endif
     #ifndef NO_SHA
             case PKCS5:
-                ret = wc_PBKDF1(key, (const byte*)password, passwordSz,
+                ret = wc_Pbkdf1Legacy(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
                 break;
     #endif

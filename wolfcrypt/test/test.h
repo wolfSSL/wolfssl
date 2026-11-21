@@ -317,7 +317,7 @@ extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_thread_test(void);
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    !defined(HAVE_FIPS)
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
 extern WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_rbgc_test(void);

@@ -210,7 +210,7 @@ do {                                                                           \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     /* Test good args. */                                                      \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), UNAPPROVED_OK);              \
     ExpectBufEQ(hash, expHash, WC_##upper##_DIGEST_SIZE);                      \
                                                                                \
     wc_##name##Free(&dgst)
@@ -663,8 +663,9 @@ do {                                                                           \
     ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
-    ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData), 0);               \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData),                   \
+        UNAPPROVED_OK);                                                        \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), UNAPPROVED_OK);              \
     ExpectBufEQ(hash, (byte*)abcHash, WC_##upper##_DIGEST_SIZE);               \
                                                                                \
     wc_##name##Free(&dgst)
@@ -718,8 +719,9 @@ do {                                                                           \
                                                                                \
     ByteReverseWords((word32*)abc##name##DataBE, (word32*)abc##name##Data,     \
         WC_##upper##_BLOCK_SIZE);                                              \
-    ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abc##name##DataBE), 0);     \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abc##name##DataBE),         \
+        UNAPPROVED_OK);                                                        \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), UNAPPROVED_OK);              \
     ExpectBufEQ(hash, (byte*)abcHash, WC_##upper##_DIGEST_SIZE);               \
                                                                                \
     wc_##name##Free(&dgst)
@@ -746,8 +748,9 @@ do {                                                                           \
     ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
-    ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData), 0);               \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData),                   \
+        UNAPPROVED_OK);                                                        \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), UNAPPROVED_OK);              \
     ExpectBufEQ(hash, (byte*)abcHash, WC_##upper##_DIGEST_SIZE);               \
                                                                                \
     wc_##name##Free(&dgst)

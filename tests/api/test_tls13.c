@@ -152,7 +152,7 @@ int test_tls13_apis(void)
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
     char         groupList[] =
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(WC_X25519_HYBRID_ONLY)
             "X25519:"
 #endif
 #ifdef HAVE_CURVE448
@@ -6073,10 +6073,12 @@ static int test_tls13_x25519_low_order_key_share(int devId)
     ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(WOLFSSL_X25519MLKEM768,
         0, -1, 0, 1088, lowOrder, (int)sizeof(lowOrder), devId, bad),
         TEST_SUCCESS);
+#ifndef WC_X25519_HYBRID_ONLY
     /* A plain X25519 ServerHello takes the same path. */
     ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(WOLFSSL_ECC_X25519,
         0, -1, 0, 0, lowOrder, (int)sizeof(lowOrder), devId, bad),
         TEST_SUCCESS);
+#endif
     return EXPECT_RESULT();
 }
 #endif
@@ -16310,6 +16312,7 @@ int test_tls13_x25519_keyshare_masks_reserved_bit(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE25519) && \
+    !defined(WC_X25519_HYBRID_ONLY) && \
     defined(HAVE_SUPPORTED_CURVES) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
@@ -17484,7 +17487,7 @@ int test_tls13_ticket_nonce_server_reuse(void)
 int test_tls13_hs_secret_zeroized_sha384(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && \
+#if defined(WOLFSSL_TLS13) && !defined(WC_X25519_HYBRID_ONLY) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_CURVE25519) && \
     defined(BUILD_TLS_AES_256_GCM_SHA384) && \
@@ -17531,6 +17534,98 @@ int test_tls13_hs_secret_zeroized_sha384(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TLS13) && defined(WC_AESGCM_IV_LOCK) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Records flow both ways, each side's AES-GCM object refuses a caller IV
+ * (the module counts the nonces), and a key update keeps that so. */
+static int test_tls13_gcm_nonce_counter_once(method_provider method_c,
+    method_provider method_s, const char* suite, int keyUpdate)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "module counts the nonces";
+    char buf[sizeof(msg)];
+    byte iv[GCM_NONCE_MID_SZ];
+    int round;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(iv, 0, sizeof(iv));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, suite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, suite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    for (round = 0; round < (keyUpdate ? 3 : 1); round++) {
+        if (round == 1)
+            ExpectIntEQ(wolfSSL_update_keys(ssl_c), WOLFSSL_SUCCESS);
+        if (round == 2)
+            ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+            (int)sizeof(msg));
+        ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+        /* The client takes its new key on reading the server's request, so
+         * send a record under it before checking. */
+        ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+            (int)sizeof(msg));
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+            (int)sizeof(msg));
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wc_AesGcmSetExtIV(ssl_c->encrypt.aes, iv, sizeof(iv)),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+            ExpectIntEQ(wc_AesGcmSetExtIV(ssl_s->encrypt.aes, iv, sizeof(iv)),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* TLS 1.3 and DTLS 1.3 AES-GCM record nonces come from the module's counter
+ * (RFC 8446 sec 5.3, IG C.H Scenario 1). */
+int test_tls13_gcm_nonce_counter_in_module(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WC_AESGCM_IV_LOCK) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#ifdef BUILD_TLS_AES_128_GCM_SHA256
+    ExpectIntEQ(test_tls13_gcm_nonce_counter_once(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, "TLS13-AES128-GCM-SHA256", 1),
+        TEST_SUCCESS);
+#endif
+#ifdef BUILD_TLS_AES_256_GCM_SHA384
+    ExpectIntEQ(test_tls13_gcm_nonce_counter_once(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, "TLS13-AES256-GCM-SHA384", 1),
+        TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_DTLS13) && defined(BUILD_TLS_AES_128_GCM_SHA256)
+    ExpectIntEQ(test_tls13_gcm_nonce_counter_once(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method, "TLS13-AES128-GCM-SHA256", 0),
+        TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }

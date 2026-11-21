@@ -6561,7 +6561,7 @@ static int test_tls12_old_hello_resume(int useSni, int useAlpn)
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_NoTicketTLSv12(ssl_s), WOLFSSL_SUCCESS);
 #endif
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
     /* An SSLv2 ClientHello cannot request EMS. */
     ExpectIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl_c), WOLFSSL_SUCCESS);
 #endif
@@ -6603,9 +6603,16 @@ static int test_tls12_old_hello_resume(int useSni, int useAlpn)
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char*)hello,
                     (int)sizeof(hello)), 0);
     ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    /* FIPS v7 refuses a hello that cannot offer EMS, resumed or not. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WC_NO_ERR_TRACE(EXT_MASTER_SECRET_NEEDED_E));
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 0);
+#else
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
                 WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(wolfSSL_session_reused(ssl_s), !useSni && !useAlpn);
+#endif
 
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);

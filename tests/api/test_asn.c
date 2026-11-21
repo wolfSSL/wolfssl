@@ -460,10 +460,14 @@ int test_DecodeAsymKey_lenient_versions(void)
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(bundledSz = wc_Ed25519KeyToDer(&key, bundled,
         (word32)sizeof(bundled)), 0);
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(privOnlySz = wc_Ed25519PrivateKeyToDer(&key, privOnly,
         (word32)sizeof(privOnly)), 0);
+    PRIVATE_KEY_LOCK();
 
     if (EXPECT_SUCCESS() &&
         ((bundledSz  > 0) && ((size_t)bundledSz  <= sizeof(bundled)) &&
@@ -537,8 +541,10 @@ int test_DecodeAsymKey_negative(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(goodSz = wc_Ed25519KeyToDer(&key, good,
         (word32)sizeof(good)), 0);
+    PRIVATE_KEY_LOCK();
 
     if (EXPECT_SUCCESS() &&
         (goodSz > 0 && (size_t)goodSz <= sizeof(good))) {
@@ -4630,11 +4636,15 @@ int test_ToTraditional_ex_roundtrip(void)
         ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
         if (EXPECT_SUCCESS()) {
+            PRIVATE_KEY_UNLOCK();
             ExpectIntGT(derSz = wc_Ed25519KeyToDer(&key, der, sizeof(der)), 0);
+            PRIVATE_KEY_LOCK();
             EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED25519k,
                 ED25519_KEY_SIZE));
 
+            PRIVATE_KEY_UNLOCK();
             derSz = wc_Ed25519PrivateKeyToDer(&key, der, sizeof(der));
+            PRIVATE_KEY_LOCK();
             ExpectIntGT(derSz, 0);
             EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED25519k,
                 ED25519_KEY_SIZE));
@@ -4661,11 +4671,15 @@ int test_ToTraditional_ex_roundtrip(void)
         ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
 
         if (EXPECT_SUCCESS()) {
+            PRIVATE_KEY_UNLOCK();
             ExpectIntGT(derSz = wc_Ed448KeyToDer(&key, der, sizeof(der)), 0);
+            PRIVATE_KEY_LOCK();
             EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED448k,
                 ED448_KEY_SIZE));
 
+            PRIVATE_KEY_UNLOCK();
             derSz = wc_Ed448PrivateKeyToDer(&key, der, sizeof(der));
+            PRIVATE_KEY_LOCK();
             ExpectIntGT(derSz, 0);
             EXPECT_TEST(test_ToTraditional_ex_once(der, (word32)derSz, ED448k,
                 ED448_KEY_SIZE));
@@ -4763,7 +4777,9 @@ int test_ToTraditional_ex_negative(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(derSz = wc_Ed25519PrivateKeyToDer(&key, der, sizeof(der)), 0);
+    PRIVATE_KEY_LOCK();
 
     if (EXPECT_SUCCESS() && (derSz > 0) &&
         ((size_t)derSz + 1 <= sizeof(copy))) {
@@ -4798,7 +4814,9 @@ int test_ToTraditional_ex_negative(void)
     }
 
     /* v1 buffer (with publicKey) plus extra trailing garbage. */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(derSz = wc_Ed25519KeyToDer(&key, der, sizeof(der)), 0);
+    PRIVATE_KEY_LOCK();
     if (EXPECT_SUCCESS() && (derSz > 0) &&
         ((size_t)derSz + 1 <= sizeof(copy))) {
         XMEMCPY(copy, der, (size_t)derSz);

@@ -861,8 +861,10 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
         }
         else {
             /* RSA private key to DER. */
+            PRIVATE_KEY_UNLOCK();
             derSz = wc_RsaKeyToDer((RsaKey*)rsa->internal, derBuf,
                 (word32)derSz);
+            PRIVATE_KEY_LOCK();
         }
         if (derSz < 0) {
             WOLFSSL_ERROR_MSG("RSA key encoding failed");

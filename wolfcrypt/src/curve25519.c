@@ -141,6 +141,13 @@ static WC_INLINE void curve25519_copy_point(byte* out, const byte* point,
     }
 }
 
+/* RFC 7748 sec 5: copy a u-coordinate and mask its top bit. */
+static WC_INLINE void curve25519_mask_u(byte* out, const byte* u)
+{
+    XMEMCPY(out, u, CURVE25519_KEYSIZE);
+    out[CURVE25519_KEYSIZE - 1] &= 0x7f;
+}
+
 #if defined(WOLFSSL_CURVE25519_BLINDING) && !defined(FREESCALE_LTC_ECC) && \
     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
 static int curve25519_make_pub_blind_sw(int public_size, byte* pub,
@@ -378,6 +385,7 @@ static int curve25519_make_pub_blind_sw(int public_size, byte* pub,
     return ret;
 }
 
+#ifndef WC_X25519_HYBRID_ONLY
 /* Software half of wc_curve25519_generic_blind; same reason. */
 static int curve25519_generic_blind_sw(byte* pub, const byte* priv,
     const byte* basepoint, WC_RNG* rng)
@@ -386,6 +394,7 @@ static int curve25519_generic_blind_sw(byte* pub, const byte* priv,
 
     return curve25519_smul_blind(pub, priv, basepoint, rng);
 }
+#endif
 #endif /* !WOLF_CRYPTO_CB_ONLY_CURVE25519 */
 #endif
 
@@ -512,7 +521,16 @@ int wc_curve25519_generic(int public_size, byte* pub,
                           int private_size, const byte* priv,
                           int basepoint_size, const byte* basepoint)
 {
-#ifdef FREESCALE_LTC_ECC
+#if defined(WC_X25519_HYBRID_ONLY)
+    /* X25519 runs only inside the ML-KEM hybrid join (IG D.S Scenario 2). */
+    (void)public_size;
+    (void)pub;
+    (void)private_size;
+    (void)priv;
+    (void)basepoint_size;
+    (void)basepoint;
+    return FIPS_WRONG_API_E;
+#elif defined(FREESCALE_LTC_ECC)
     /* unsupported with NXP LTC, only supports single basepoint with
      * nxp_ltc_curve25519_GetBasePoint() */
     return WC_HW_E;
@@ -544,13 +562,19 @@ int wc_curve25519_generic(int public_size, byte* pub,
 #ifdef WOLF_CRYPTO_CB_ONLY_CURVE25519
     return NO_VALID_DEVID;
 #elif !defined(WOLFSSL_CURVE25519_BLINDING)
-    fe_init();
+    {
+        byte bp[CURVE25519_KEYSIZE];
 
-    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        curve25519_mask_u(bp, basepoint);
 
-    ret = curve25519(pub, priv, basepoint);
+        fe_init();
 
-    RESTORE_VECTOR_REGISTERS();
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
+        ret = curve25519(pub, priv, bp);
+
+        RESTORE_VECTOR_REGISTERS();
+    }
 
     return ret;
 #else
@@ -582,7 +606,17 @@ int wc_curve25519_generic_blind(int public_size, byte* pub,
                                 int basepoint_size, const byte* basepoint,
                                 WC_RNG* rng)
 {
-#ifdef FREESCALE_LTC_ECC
+#if defined(WC_X25519_HYBRID_ONLY)
+    /* X25519 runs only inside the ML-KEM hybrid join (IG D.S Scenario 2). */
+    (void)public_size;
+    (void)pub;
+    (void)private_size;
+    (void)priv;
+    (void)basepoint_size;
+    (void)basepoint;
+    (void)rng;
+    return FIPS_WRONG_API_E;
+#elif defined(FREESCALE_LTC_ECC)
     /* unsupported with NXP LTC, only supports single basepoint with
      * nxp_ltc_curve25519_GetBasePoint() */
     return WC_HW_E;
@@ -822,19 +856,23 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             privKey->nb_ctx->ssState = 1;
             break;
         case 1:
+        {
+            byte pubVal[CURVE25519_KEYSIZE];
+
+            curve25519_mask_u(pubVal, pubKey->p.point);
             /* Write the result directly into the caller's 'out' buffer.
              * curve25519_nb() zeroes the non-blocking context on completion,
              * so any output buffer that lives inside nb_ctx (e.g.
              * nb_ctx->o.point) would be clobbered to zero before we could
              * read it. The output is little-endian; case 2 handles the
              * optional byte-reversal for EC25519_BIG_ENDIAN. */
-            ret = curve25519_nb(out, privKey->k, pubKey->p.point,
-                      privKey->nb_ctx);
+            ret = curve25519_nb(out, privKey->k, pubVal, privKey->nb_ctx);
             if (ret == 0) {
                 ret = FP_WOULDBLOCK;
                 privKey->nb_ctx->ssState = 2;
             }
             break;
+        }
         case 2:
         #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             {
@@ -875,9 +913,11 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
 
 #endif /* WC_X25519_NONBLOCK */
 
-int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
-                                   curve25519_key* public_key,
-                                   byte* out, word32* outlen, int endian)
+/* The X25519 shared secret.  Under WC_X25519_HYBRID_ONLY only the module's
+ * ML-KEM hybrid join, wc_Tls13_HybridSharedSecretX25519(), calls this. */
+int wc_curve25519_shared_secret_internal(curve25519_key* private_key,
+                                         curve25519_key* public_key,
+                                         byte* out, word32* outlen, int endian)
 {
     int ret = 0;
 
@@ -968,8 +1008,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         #else
             byte pubVal[CURVE25519_KEYSIZE];
 
-            XMEMCPY(pubVal, public_key->p.point, CURVE25519_KEYSIZE);
-            pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+            curve25519_mask_u(pubVal, public_key->p.point);
         #endif
 
 #ifndef WOLFSSL_CURVE25519_BLINDING
@@ -1014,6 +1053,24 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 
     return ret;
 #endif /* WOLF_CRYPTO_CB_ONLY_CURVE25519 */
+}
+
+int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
+                                   curve25519_key* public_key,
+                                   byte* out, word32* outlen, int endian)
+{
+#ifdef WC_X25519_HYBRID_ONLY
+    /* X25519 runs only inside the ML-KEM hybrid join (IG D.S Scenario 2). */
+    (void)private_key;
+    (void)public_key;
+    (void)out;
+    (void)outlen;
+    (void)endian;
+    return FIPS_WRONG_API_E;
+#else
+    return wc_curve25519_shared_secret_internal(private_key, public_key, out,
+                                                outlen, endian);
+#endif
 }
 
 #endif /* HAVE_CURVE25519_SHARED_SECRET */

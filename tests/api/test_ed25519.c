@@ -286,7 +286,12 @@ int test_wc_ed25519_import_public(void)
     ExpectIntEQ(wc_ed25519_init(&pubKey), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 #ifdef HAVE_ED25519_MAKE_KEY
+    /* A trusted public key is still checked against a private key. */
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &pubKey), 0);
+    ExpectIntEQ(wc_ed25519_import_public_ex(in, inlen, &pubKey, 1),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed25519_free(&pubKey);
+    ExpectIntEQ(wc_ed25519_init(&pubKey), 0);
 #endif
 
     ExpectIntEQ(wc_ed25519_import_public_ex(in, inlen, &pubKey, 1), 0);
@@ -330,13 +335,10 @@ int test_wc_ed25519_import_private_key(void)
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 #ifdef HAVE_ED25519_MAKE_KEY
-    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
-#endif
-
+    /* A trusted public key next to a private key is still checked. */
     ExpectIntEQ(wc_ed25519_import_private_key_ex(privKey, privKeySz, pubKey,
-        pubKeySz, &key, 1), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
-    ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
+        pubKeySz, &key, 1), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
 #ifdef HAVE_ED25519_KEY_EXPORT
     PRIVATE_KEY_UNLOCK();
@@ -344,8 +346,12 @@ int test_wc_ed25519_import_private_key(void)
     PRIVATE_KEY_LOCK();
     ExpectIntEQ(wc_ed25519_import_private_key_ex(bothKeys, bothKeysSz, NULL, 0,
         &key, 1), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
-    ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
+    ExpectIntEQ(XMEMCMP(bothKeys, key.k, bothKeysSz), 0);
+    ExpectIntEQ(wc_ed25519_import_private_key_ex(bothKeys, ED25519_KEY_SIZE,
+        bothKeys + ED25519_KEY_SIZE, ED25519_PUB_KEY_SIZE, &key, 1), 0);
+    ExpectIntEQ(XMEMCMP(bothKeys + ED25519_KEY_SIZE, key.p,
+        ED25519_PUB_KEY_SIZE), 0);
+#endif
 #endif
 
     /* Test bad args. */
@@ -683,15 +689,21 @@ int test_wc_Ed25519KeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed25519KeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519KeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519KeyToDer(&ed25519Key, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good Cases */
     /* length only */
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, NULL, 0), 0);
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, NULL, inLen), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed25519_free(&ed25519Key);
@@ -725,14 +737,20 @@ int test_wc_Ed25519PrivateKeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed25519PrivateKeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519PrivateKeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good Cases */
     /* length only */
     ExpectIntGT(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, NULL, 0), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed25519_free(&ed25519PrivKey);
@@ -767,18 +785,24 @@ int test_wc_Ed25519KeyToDer_oneasymkey_version(void)
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
     /* Bundled (v=1) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed25519KeyToDer(&key, ref, (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
     idx = 0;
     ExpectIntEQ(wc_Ed25519PrivateKeyDecode(ref, &idx, &key2, (word32)refSz),
         0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(rtSz = wc_Ed25519KeyToDer(&key2, rt, (word32)sizeof(rt)),
         refSz);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
 
     /* Priv-only (v=0) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed25519PrivateKeyToDer(&key, ref,
         (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
 
     wc_ed25519_free(&key);
@@ -788,8 +812,8 @@ int test_wc_Ed25519KeyToDer_oneasymkey_version(void)
     return EXPECT_RESULT();
 }
 
-/* The trusted flag controls whether a public key bundled in the DER is
- * checked against the private key during decode. */
+/* A public key bundled in the DER is checked against the private key
+ * during decode, trusted or not. */
 int test_wc_Ed25519PrivateKeyDecode_ex(void)
 {
     EXPECT_DECLS;
@@ -813,8 +837,10 @@ int test_wc_Ed25519PrivateKeyDecode_ex(void)
 
     /* Bundled private+public DER; public key is the trailing
      * ED25519_PUB_KEY_SIZE bytes. */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(derSz = wc_Ed25519KeyToDer(&key, der, (word32)sizeof(der)),
         0);
+    PRIVATE_KEY_LOCK();
 
     /* Intact DER decodes with either trust setting. */
     idx = 0;
@@ -838,10 +864,10 @@ int test_wc_Ed25519PrivateKeyDecode_ex(void)
     ExpectIntEQ(wc_Ed25519PrivateKeyDecode(der, &idx, &key2, (word32)derSz),
         WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 
-    /* Trusted decode skips the check. */
+    /* Trusted decode still checks a public key against the private key. */
     idx = 0;
     ExpectIntEQ(wc_Ed25519PrivateKeyDecode_ex(der, &idx, &key2,
-        (word32)derSz, 1), 0);
+        (word32)derSz, 1), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 
     wc_ed25519_free(&key);
     wc_ed25519_free(&key2);
@@ -1209,6 +1235,11 @@ int test_wc_ed25519_verify_streaming(void)
     /* init: sigLen wrong. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen - 1, &key,
         (byte)Ed25519, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* init: Ed25519ph cannot stream, its prehash is a fixed 64 bytes. */
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key,
+        (byte)Ed25519ph, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     /* init: non-canonical S (top 3 bits of sig[63] set). */
     XMEMCPY(badSig, sig, sizeof(badSig));

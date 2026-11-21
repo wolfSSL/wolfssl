@@ -66,6 +66,7 @@ int test_wc_Sha384_other(void);
 int test_wc_Sha384Copy(void);
 int test_wc_Sha384GetHash(void);
 int test_wc_Sha384_Flags(void);
+int test_wc_Sha512_Family_MixedFinal(void);
 int test_wc_sha512_cryptocb_fallback(void);
 int test_wc_sha512_variants_default_devid(void);
 int test_wc_sha512_cryptocb_free(void);
@@ -118,6 +119,7 @@ int test_wc_sha512_cryptocb_free(void);
     TEST_DECL_GROUP("sha384", test_wc_Sha384_other),    \
     TEST_DECL_GROUP("sha384", test_wc_Sha384Copy),      \
     TEST_DECL_GROUP("sha384", test_wc_Sha384GetHash),   \
-    TEST_DECL_GROUP("sha384", test_wc_Sha384_Flags)
+    TEST_DECL_GROUP("sha384", test_wc_Sha384_Flags),    \
+    TEST_DECL_GROUP("sha384", test_wc_Sha512_Family_MixedFinal)
 
 #endif /* WOLFCRYPT_TEST_SHA512_H */

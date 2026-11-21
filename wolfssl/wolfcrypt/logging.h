@@ -211,6 +211,9 @@ WOLFSSL_API int  wolfSSL_CertDebugging_OFF(void);
 
 WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 
+/* Treat a FIPS v7 "completed, not approved" return as success and log it. */
+WOLFSSL_LOCAL int wc_FipsAcceptUnapproved(int ret, const char* service);
+
 #ifdef HAVE_WC_INTROSPECTION
     WOLFSSL_API const char *wolfSSL_configure_args(void);
     WOLFSSL_API const char *wolfSSL_global_cflags(void);

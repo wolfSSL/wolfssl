@@ -1209,6 +1209,10 @@ int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
      * pure Ed25519. */
     if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0))
         return BAD_FUNC_ARG;
+    /* A stream cannot hold Ed25519ph to the 64-byte prehash of FIPS 186-5
+     * sec 7.8.2: use wc_ed25519ph_verify_hash(). */
+    if (type == Ed25519ph)
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
                                         type, context, contextLen);
 }
@@ -1644,7 +1648,7 @@ int wc_ed25519_export_public(const ed25519_key* key, byte* out, word32* outLen)
     in       the byte array containing the public key
     inLen    the length of the byte array being passed in
     key      ed25519 key struct to put the public key in
-    trusted  whether the public key is trusted to match private key if set
+    trusted  when 1, skip the check unless a private key is set
  */
 int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
     int trusted)
@@ -1734,7 +1738,9 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
 
     if (ret == 0) {
         key->pubKeySet = 1;
-        if (!trusted) {
+        /* A public key next to a private key is always checked: a wrong one
+         * makes two signatures of a message reveal the private scalar. */
+        if (!trusted || key->privKeySet) {
             ret = wc_ed25519_check_key(key);
         }
         if (ret == 0) {
@@ -1815,9 +1821,8 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
  * pub      [in]  Array holding public key (or NULL).
  * pubSz    [in]  Number of bytes of data in public key array (or 0).
  * key      [in]  Ed25519 private/public key.
- * trusted  [in]  Indicates whether the public key data is trusted.
- *                When 0, checks public key matches private key.
- *                When 1, doesn't check public key matches private key.
+ * trusted  [in]  Ignored: the public key is always checked against the
+ *                private key.
  * returns BAD_FUNC_ARG when a required parameter is NULL or an invalid
  *         combination of keys/lengths is supplied, 0 otherwise.
  */

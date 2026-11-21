@@ -60,6 +60,15 @@
 #define ED448CTX_SIZE    8
 /* Context to pass to hash when signing and verifying. */
 static const byte ed448Ctx[ED448CTX_SIZE+1] = "SigEd448";
+
+/* dom4 flag is 0 or 1 only: FIPS 186-5 7.6 step 2.2, 7.8.1 step 3.2. */
+static int ed448_check_type(byte type)
+{
+    if ((type != Ed448) && (type != Ed448ph)) {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)
@@ -566,7 +575,8 @@ int wc_ed448_make_key(WC_RNG* rng, int keySz, ed448_key* key)
  *  context     [in]      Context of signing.
  *  contextLen  [in]      Length of context in bytes.
  *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
- *          context is not NULL or public key not set,
+ *          context is not NULL or public key not set or type is not
+ *          Ed448 or Ed448ph,
  *          BUFFER_E when outLen is less than ED448_SIG_SIZE,
  *          other -ve values when hash fails,
  *          0 otherwise.
@@ -600,6 +610,9 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         in = ed448_empty_msg;
     }
 
+    if (ret == 0) {
+        ret = ed448_check_type(type);
+    }
     if ((ret == 0) && (type == Ed448ph) && (inLen != ED448_PREHASH_SIZE)) {
         ret = BAD_LENGTH_E;
     }
@@ -878,7 +891,8 @@ int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
  *  context     [in]  Context of verification.
  *  contextLen  [in]  Length of context in bytes.
  *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
- *          context is not NULL or public key not set,
+ *          context is not NULL or public key not set or type is not
+ *          Ed448 or Ed448ph,
  *          BUFFER_E when sigLen is less than ED448_SIG_SIZE,
  *          other -ve values when hash fails,
  *          0 otherwise.
@@ -894,6 +908,10 @@ static int ed448_verify_msg_init_with_sha(const byte* sig, word32 sigLen,
     if ((sig == NULL) || (key == NULL) ||
         ((context == NULL) && (contextLen != 0))) {
         return BAD_FUNC_ARG;
+    }
+    ret = ed448_check_type(type);
+    if (ret != 0) {
+        return ret;
     }
 
     /* check on basics needed to verify signature */
@@ -1052,6 +1070,10 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
                         byte type, const byte* context, byte contextLen)
 {
+    /* A stream cannot hold Ed448ph to the 64-byte prehash of FIPS 186-5
+     * sec 7.8.2: use wc_ed448ph_verify_hash(). */
+    if ((key == NULL) || (type == Ed448ph))
+        return BAD_FUNC_ARG;
     return ed448_verify_msg_init_with_sha(sig, sigLen, key, &key->sha, type,
                                       context, contextLen);
 }
@@ -1082,7 +1104,8 @@ int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
  *  context     [in]  Context of verification.
  *  contextLen  [in]  Length of context in bytes.
  *  returns BAD_FUNC_ARG when a parameter is NULL or contextLen is zero when and
- *          context is not NULL or public key not set,
+ *          context is not NULL or public key not set or type is not
+ *          Ed448 or Ed448ph,
  *          BUFFER_E when sigLen is less than ED448_SIG_SIZE,
  *          other -ve values when hash fails,
  *          0 otherwise.
@@ -1113,6 +1136,10 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
         msg = ed448_empty_msg;
     }
 
+    ret = ed448_check_type(type);
+    if (ret != 0) {
+        return ret;
+    }
     if ((type == Ed448ph) &&
         (msgLen != ED448_PREHASH_SIZE))
     {
@@ -1458,9 +1485,7 @@ int wc_ed448_export_public(const ed448_key* key, byte* out, word32* outLen)
  * in       [in]  Array holding public key.
  * inLen    [in]  Number of bytes of data in array.
  * key      [in]  Ed448 public key.
- * trusted  [in]  Indicates whether the public key data is trusted.
- *                When 0, checks public key matches private key.
- *                When 1, doesn't check public key matches private key.
+ * trusted  [in]  When 1, skip the check unless a private key is set.
  * returns BAD_FUNC_ARG when a parameter is NULL or key format is not supported,
  *         0 otherwise.
  */
@@ -1505,8 +1530,9 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
 
     if (ret == 0) {
         key->pubKeySet = 1;
-        if (!trusted) {
-            /* Check untrusted public key data matches private key. */
+        /* A public key next to a private key is always checked: a wrong one
+         * makes two signatures of a message reveal the private scalar. */
+        if (!trusted || key->privKeySet) {
             ret = wc_ed448_check_key(key);
         }
     }
@@ -1592,9 +1618,8 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
  * pub      [in]  Array holding public key (or NULL).
  * pubSz    [in]  Number of bytes of data in public key array (or 0).
  * key      [in]  Ed448 private/public key.
- * trusted  [in]  Indicates whether the public key data is trusted.
- *                When 0, checks public key matches private key.
- *                When 1, doesn't check public key matches private key.
+ * trusted  [in]  Ignored: the public key is always checked against the
+ *                private key.
  * returns BAD_FUNC_ARG when a required parameter is NULL or an invalid
  *         combination of keys/lengths is supplied, 0 otherwise.
  */

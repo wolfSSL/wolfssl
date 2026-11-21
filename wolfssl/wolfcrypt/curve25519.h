@@ -211,6 +211,10 @@ WOLFSSL_API
 int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian);
+WOLFSSL_LOCAL
+int wc_curve25519_shared_secret_internal(curve25519_key* private_key,
+                                         curve25519_key* public_key,
+                                         byte* out, word32* outlen, int endian);
 #endif /* HAVE_CURVE25519_SHARED_SECRET */
 
 WOLFSSL_API

@@ -9499,11 +9499,9 @@ int wc_SlhDsaKey_MakeKeyWithRandom(SlhDsaKey* key, const byte* sk_seed,
         slhdsakey_memzero_check_hash(key);
 #endif
 
-        /* Free a key that failed the test, so a caller ignoring the return
-         * value cannot sign with it.  ISO/IEC 19790:2012 sec 7.10.1 forbids using
-         * anything that failed a self-test.  MEMORY_E is excluded: it
-         * means the test never ran, so the key is not implicated. */
-        if ((ret != 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
+        /* Free a key that failed or could not finish the test, so it cannot
+         * sign.  ISO/IEC 19790:2012 sec 7.10.1. */
+        if (ret != 0) {
             wc_SlhDsaKey_Free(key);
         }
     }
@@ -10413,6 +10411,8 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
              * Alg 20, Steps 4,6-18: Verify digest. */
             ret = slhdsakey_verify(key, md, sig);
         }
+        /* FIPS 205 sec 3.1: destroy verify intermediates. */
+        ForceZero(md, sizeof(md));
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -10518,6 +10518,8 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
         if (ret == 0) {
             ret = slhdsakey_verify(key, md, sig);
         }
+        /* FIPS 205 sec 3.1: destroy verify intermediates. */
+        ForceZero(md, sizeof(md));
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -11424,6 +11426,7 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
             ret = slhdsakey_h_msg_sha2(key, sig, hdr, ctx, ctxSz, phMsg,
                 phMsgLen, md, (word32)key->params->dl1 + key->params->dl2 +
                 key->params->dl3);
+            ForceZero(phMsg, sizeof(phMsg));
         }
     #ifndef WOLFSSL_SLHDSA_NO_SHAKE
         else
@@ -11462,6 +11465,8 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
              * Alg 20, Steps 4,6-18: Verify digest. */
             ret = slhdsakey_verify(key, md, sig);
         }
+        /* FIPS 205 sec 3.1: destroy verify intermediates. */
+        ForceZero(md, sizeof(md));
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 

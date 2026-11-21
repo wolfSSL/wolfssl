@@ -1772,6 +1772,86 @@ int test_wolfssl_EVP_aes_gcm_zeroLen(void)
     return EXPECT_RESULT();
 }
 
+/* 64-bit IV through EVP; FIPS v7 reports it as not approved. NIST CAVS 21.4
+ * gcmEncryptExtIV128: IVlen 64, PTlen 128, AADlen 128, Taglen 128, Count 0. */
+int test_wolfssl_EVP_aes_gcm_64bit_iv(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
+    !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    static const byte key[16] = {
+        0x74, 0x2c, 0xf4, 0x2d, 0xe6, 0x28, 0x40, 0xd7,
+        0xe3, 0xec, 0xe9, 0x7f, 0x46, 0xaa, 0x34, 0x3a
+    };
+    static const byte iv[8] = {
+        0x22, 0xf2, 0x62, 0x98, 0x71, 0x1d, 0xad, 0x1f
+    };
+    static const byte pt[16] = {
+        0xc1, 0x02, 0x55, 0x8a, 0x9a, 0xb2, 0x10, 0x17,
+        0x6d, 0x66, 0xa7, 0x8f, 0xfb, 0x2e, 0x87, 0x63
+    };
+    static const byte aad[16] = {
+        0x99, 0xaf, 0x80, 0x2e, 0xd2, 0x87, 0x45, 0xdb,
+        0x6e, 0x5b, 0x3a, 0x15, 0xc8, 0xfc, 0x3b, 0x71
+    };
+    static const byte ct[16] = {
+        0x3d, 0xba, 0x77, 0x67, 0xf7, 0xa3, 0xde, 0xaf,
+        0x68, 0xa9, 0x8a, 0x8b, 0xec, 0xf9, 0xfa, 0x17
+    };
+    static const byte tag[16] = {
+        0x77, 0x58, 0xc2, 0xf9, 0xbc, 0x04, 0xc8, 0x52,
+        0xaf, 0x10, 0x09, 0x29, 0xd5, 0x18, 0xcc, 0xfe
+    };
+    byte out[16];
+    byte outTag[16];
+    int len = 0;
+    EVP_CIPHER_CTX* ctx = NULL;
+    Aes aes;
+
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(outTag, 0, sizeof(outTag));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL),
+        1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN,
+        (int)sizeof(iv), NULL), 1);
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, out, &len, pt, (int)sizeof(pt)), 1);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, out, &len), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG,
+        (int)sizeof(outTag), outTag), 1);
+    ExpectBufEQ(out, ct, sizeof(ct));
+    ExpectBufEQ(outTag, tag, sizeof(tag));
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    XMEMSET(out, 0, sizeof(out));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL),
+        1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN,
+        (int)sizeof(iv), NULL), 1);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad, (int)sizeof(aad)), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct, (int)sizeof(ct)), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        (int)sizeof(tag), (void*)tag), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out, &len), 1);
+    ExpectBufEQ(out, pt, sizeof(pt));
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* The wolfCrypt call reports the indicator itself. */
+    ExpectIntEQ(wc_AesInit(&aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(&aes, key, (word32)sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmSetExtIV(&aes, iv, (word32)sizeof(iv)),
+        UNAPPROVED_OK);
+    wc_AesFree(&aes);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_aes_256_ccm(void)
 {
     EXPECT_DECLS;

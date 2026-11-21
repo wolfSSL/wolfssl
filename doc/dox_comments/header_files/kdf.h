@@ -7,7 +7,8 @@
     \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key or salt is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
-    \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
+    \return BAD_FUNC_ARG Returned when saltSz is larger than 14, or not 14
+    in FIPS v7, or when a requested key is longer than 2^20 bytes.
     \return BAD_FUNC_ARG Returned when kdrIdx is less than -1 or larger than 24.
     \return MEMORY_E on dynamic memory allocation failure.
 
@@ -60,7 +61,8 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key or salt is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
-    \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
+    \return BAD_FUNC_ARG Returned when saltSz is larger than 14, or not 14
+    in FIPS v7, or when a requested key is longer than 2^20 bytes.
     \return BAD_FUNC_ARG Returned when kdrIdx is less than -1 or larger than 24.
     \return MEMORY_E on dynamic memory allocation failure.
 
@@ -112,7 +114,8 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key, salt or outKey is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
-    \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
+    \return BAD_FUNC_ARG Returned when saltSz is larger than 14, or not 14
+    in FIPS v7, or when a requested key is longer than 2^20 bytes.
     \return BAD_FUNC_ARG Returned when kdrIdx is less than -1 or larger than 24.
     \return MEMORY_E on dynamic memory allocation failure.
 
@@ -159,7 +162,8 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     \return 0 Returned upon successful key derivation.
     \return BAD_FUNC_ARG Returned when key, salt or outKey is NULL
     \return BAD_FUNC_ARG Returned when key length is not 16, 24 or 32.
-    \return BAD_FUNC_ARG Returned when saltSz is larger than 14.
+    \return BAD_FUNC_ARG Returned when saltSz is larger than 14, or not 14
+    in FIPS v7, or when a requested key is longer than 2^20 bytes.
     \return BAD_FUNC_ARG Returned when kdrIdx is less than -1 or larger than 24.
     \return MEMORY_E on dynamic memory allocation failure.
 

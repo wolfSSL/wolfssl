@@ -24,7 +24,8 @@
 #ifndef WOLFSSL_ZEPHYR_FIPS_V7_H
 #define WOLFSSL_ZEPHYR_FIPS_V7_H
 
-/* fips.c keys its CAST owner on k_current_get() with this set. */
+/* fips.c keeps its per-thread marks in THREAD_LS_T: build with
+ * CONFIG_THREAD_LOCAL_STORAGE=y. */
 #define HAVE_THREAD_LS
 
 #define TFM_TIMING_RESISTANT
@@ -35,7 +36,6 @@
 /* RNG */
 #define HAVE_HASHDRBG
 #define WOLFSSL_DRBG_SHA512
-#define WC_RNG_EXTRAS
 #define WC_RNG_SEED_CB
 
 /* Hashes and KDFs */

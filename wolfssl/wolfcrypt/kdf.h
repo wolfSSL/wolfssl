@@ -38,6 +38,9 @@
 #ifdef HAVE_CMAC_KDF
     #include <wolfssl/wolfcrypt/cmac.h>
 #endif /* HAVE_CMAC_KDF */
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -120,10 +123,28 @@ WOLFSSL_API int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
 #define WOLFSSL_HAVE_TLS13_HYBRID_SECRET
 WOLFSSL_API int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst,
     byte* ss, word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz);
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+/* Set when wc_Tls13_HybridSharedSecretX25519() is available. */
+#define WOLFSSL_HAVE_TLS13_HYBRID_X25519
+WOLFSSL_API int wc_Tls13_HybridSharedSecretX25519(word16 group, int kemFirst,
+    curve25519_key* privKey, curve25519_key* peerKey, byte* ss, word32 ssMax,
+    word32* ssSz, const byte* kemSs, word32 kemSsSz);
+#endif
 #endif
 
 #ifdef WOLFSSL_WOLFSSH
 
+/* How wc_SSH_KDF_ex() encodes K: RFC 4251 sec 5 mpint or string. */
+enum {
+    WC_SSH_KDF_K_MPINT  = 0,
+    WC_SSH_KDF_K_STRING = 1
+};
+
+WOLFSSL_API int wc_SSH_KDF_ex(byte hashId, byte keyId,
+        byte* key, word32 keySz,
+        const byte* k, word32 kSz, int kEncoding,
+        const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz);
 WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
         byte* key, word32 keySz,
         const byte* k, word32 kSz,

@@ -233,6 +233,16 @@ int test_wc_Sha256HmacSetKey(void)
     ExpectIntEQ(ret, 0);
 #endif
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    /* A refused short key leaves a fresh object without a key. */
+    wc_HmacFree(&hmac);
+    ExpectIntEQ(wc_HmacInit(&hmac, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, (byte*)"Jefe", 4),
+        WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E));
+    ExpectIntEQ(wc_HmacUpdate(&hmac, (byte*)"abc", 3),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
     wc_HmacFree(&hmac);
 #endif
     return EXPECT_RESULT();

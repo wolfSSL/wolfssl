@@ -99,6 +99,60 @@ then
     rm $TMPFILE
     RESULT=0
 fi
+# A FIPS v7 build refuses TLS 1.2 without EMS. Rename the ServerHello EMS
+# extension in a copy of sniffer-static-rsa.pcap and check the diagnostic.
+if ./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -q 'ems_required ' && \
+        test $has_rsa == yes && test $has_tlsv12 == yes && \
+        test $has_static_rsa == yes && command -v python3 >/dev/null 2>&1
+then
+    echo -e "\nChecking the EMS required diagnostic...\n"
+    NOEMS_PCAP=$(mktemp "${TMPDIR:-/tmp}/wolfssl-sniffer.XXXXXX") || exit 1
+    TMPFILE=$(mktemp) || { rm -f "$NOEMS_PCAP"; exit 1; }
+    python3 - ./scripts/sniffer-static-rsa.pcap "$NOEMS_PCAP" <<'PY'
+import struct
+import sys
+
+source = open(sys.argv[1], 'rb').read()
+result = bytearray(source[:24])
+offset = 24
+renamed = False
+while offset < len(source):
+    header = source[offset:offset + 16]
+    caplen = struct.unpack_from('<I', header, 8)[0]
+    packet = bytearray(source[offset + 16:offset + 16 + caplen])
+    offset += 16 + caplen
+    ip = 4
+    tcp = ip + (packet[ip] & 15) * 4
+    payload = tcp + (packet[tcp + 12] >> 4) * 4
+    if not renamed and struct.unpack_from('!H', packet, tcp)[0] == 11111 \
+            and len(packet) > payload + 5 and packet[payload] == 22 \
+            and packet[payload + 5] == 2:
+        i = payload + 9 + 2 + 32
+        i += 1 + packet[i] + 3
+        end = i + 2 + struct.unpack_from('!H', packet, i)[0]
+        i += 2
+        while i + 4 <= end:
+            ext_type, ext_len = struct.unpack_from('!HH', packet, i)
+            if ext_type == 0x0017:
+                struct.pack_into('!H', packet, i, 0x0a0a)
+                renamed = True
+            i += 4 + ext_len
+    result.extend(header)
+    result.extend(packet)
+open(sys.argv[2], 'wb').write(result)
+sys.exit(0 if renamed else 1)
+PY
+    RESULT=$?
+    if test $RESULT -eq 0; then
+        ./sslSniffer/sslSnifferTest/snifftest -pcap "$NOEMS_PCAP" \
+            -key ./certs/server-key.pem -server 127.0.0.1 -port 11111 \
+            > $TMPFILE 2>&1
+        grep -q "Extended Master Secret required in this build" $TMPFILE
+        RESULT=$?
+    fi
+    rm -f "$NOEMS_PCAP" $TMPFILE
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest did not report the EMS requirement\n" && exit 1
+fi
 # ./configure --enable-sniffer CFLAGS="-DWOLFSSL_SNIFFER_KEYLOGFILE"
 has_keylog=no
 ./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'ssl_keylog_file'

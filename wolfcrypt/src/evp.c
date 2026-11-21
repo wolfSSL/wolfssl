@@ -1342,10 +1342,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                             ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
                             ctx->authIn, ctx->authInSz);
                 else
-                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
+                    ret = wc_FipsAcceptUnapproved(
+                            wc_AesGcmDecrypt(&ctx->cipher.aes, out,
                             ctx->authBuffer, ctx->authBufferLen,
                             ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                            ctx->authIn, ctx->authInSz);
+                            ctx->authIn, ctx->authInSz), "AES-GCM short IV");
 
                 if (ret == 0) {
                     ret = WOLFSSL_SUCCESS;
@@ -1389,10 +1390,11 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 ret = WOLFSSL_FAILURE;
 
             /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
-            if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
-                              (byte*)ctx->cipher.aes.reg,
-                              (word32)ctx->ivSz) != 0)
-            {
+            if (wc_FipsAcceptUnapproved(
+                    wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
+                                  (byte*)ctx->cipher.aes.reg,
+                                  (word32)ctx->ivSz),
+                    "AES-GCM short IV") != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit failed");
                 ret = WOLFSSL_FAILURE;
             }
@@ -4060,6 +4062,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                          * A blob we cannot parse back is unusable, so treat a
                          * failure here as a keygen failure rather than caching
                          * a DER whose pkcs8HeaderSz says "not PKCS#8". */
+                        PRIVATE_KEY_UNLOCK();
                         if (wc_Ed25519PrivateKeyToDer(pkey->ed25519, edDer,
                                 (word32)edDerSz) == edDerSz &&
                                 ToTraditionalInline_ex(edDer, &hdrIdx,
@@ -4075,6 +4078,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                             ForceZero(edDer, (word32)edDerSz);
                             XFREE(edDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                         }
+                        PRIVATE_KEY_LOCK();
                     }
                 }
             }
@@ -7191,8 +7195,12 @@ void wolfSSL_EVP_init(void)
         if (salt != NULL)
             saltSz = EVP_SALT_SIZE;
 
+        PRIVATE_KEY_UNLOCK();
         ret = wc_PBKDF1_ex(key, (int)info->keySz, iv, (int)info->ivSz, data, sz,
                            salt, saltSz, count, hashType, NULL);
+        PRIVATE_KEY_LOCK();
+        /* FIPS v7 does not approve PBKDF1 (SP 800-132 sec 5.3). */
+        ret = wc_FipsAcceptUnapproved(ret, "PBKDF1");
         if (ret == 0)
             ret = (int)info->keySz;
 
@@ -7309,7 +7317,9 @@ void wolfSSL_EVP_init(void)
         }
     #endif /* !WOLFSSL_AESGCM_STREAM */
         if (ret == WOLFSSL_SUCCESS && iv &&
-            wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, (word32)ctx->ivSz)) {
+            wc_FipsAcceptUnapproved(
+                wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, (word32)ctx->ivSz),
+                "AES-GCM short IV") != 0) {
             WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
             ret = WOLFSSL_FAILURE;
         }
@@ -7320,9 +7330,11 @@ void wolfSSL_EVP_init(void)
          */
         if (ret == WOLFSSL_SUCCESS &&
             (key || (iv && ctx->cipher.aes.gcmKeySet)) &&
-            wc_AesGcmInit(&ctx->cipher.aes, key,
-                          (key == NULL) ? 0 : (word32)ctx->keyLen, iv,
-                          (iv == NULL) ? 0 : (word32)ctx->ivSz) != 0) {
+            wc_FipsAcceptUnapproved(
+                wc_AesGcmInit(&ctx->cipher.aes, key,
+                              (key == NULL) ? 0 : (word32)ctx->keyLen, iv,
+                              (iv == NULL) ? 0 : (word32)ctx->ivSz),
+                "AES-GCM short IV") != 0) {
             WOLFSSL_MSG("wc_AesGcmInit() failed");
             ret = WOLFSSL_FAILURE;
         }
@@ -7358,10 +7370,11 @@ void wolfSSL_EVP_init(void)
                         ctx->authInSz);
             }
             else {
-                ret = wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src,
+                ret = wc_FipsAcceptUnapproved(
+                        wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src,
                         len, ctx->iv, ctx->ivSz, ctx->authTag,
                         ctx->authTagSz, ctx->authIn,
-                        ctx->authInSz);
+                        ctx->authInSz), "AES-GCM short IV");
             }
             if (ctx->authIncIv) {
                 IncCtr((byte*)ctx->cipher.aes.reg,
@@ -7421,9 +7434,11 @@ void wolfSSL_EVP_init(void)
                 }
             }
             /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
-            if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
-                              (byte*)ctx->cipher.aes.reg,
-                              (word32)ctx->ivSz) != 0) {
+            if (wc_FipsAcceptUnapproved(
+                    wc_AesGcmInit(&ctx->cipher.aes, NULL, 0,
+                                  (byte*)ctx->cipher.aes.reg,
+                                  (word32)ctx->ivSz),
+                    "AES-GCM short IV") != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit failed");
                 return WOLFSSL_FAILURE;
             }
@@ -9591,7 +9606,9 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
     pkey->pkey_sz = 0;
 
     if (rsa->type == RSA_PRIVATE) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_RsaKeyToDer(rsa, derBuf, (word32)derSz);
+        PRIVATE_KEY_LOCK();
         if (ret > 0) {
             derSz = ret;
         #ifdef HAVE_PKCS8
@@ -10097,7 +10114,9 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
+                    PRIVATE_KEY_UNLOCK();
                     if (wc_EccKeyToPKCS8(ecc, derBuf, &derSzOut) >= 0) {
+                        PRIVATE_KEY_LOCK();
                         derSz = (int)derSzOut;
                         if (pkey->pkey.ptr) {
                             /* The outgoing buffer can hold a private key
@@ -10115,6 +10134,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         return WOLFSSL_SUCCESS;
                     }
                     else {
+                        PRIVATE_KEY_LOCK();
                         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         derBuf = NULL;
                     }
@@ -10144,7 +10164,9 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
+                    PRIVATE_KEY_UNLOCK();
                     if (wc_EccKeyToDer(ecc, derBuf, (word32)derSz) >= 0) {
+                        PRIVATE_KEY_LOCK();
                         if (pkey->pkey.ptr) {
                             /* As above, the outgoing buffer can hold a
                              * private key encoding. */
@@ -10164,6 +10186,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         return WOLFSSL_SUCCESS;
                     }
                     else {
+                        PRIVATE_KEY_LOCK();
                         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         derBuf = NULL;
                     }
@@ -11080,7 +11103,9 @@ int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
             byte* derBuf = (byte*)XMALLOC((size_t)derSz, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER);
             if (derBuf != NULL) {
+                PRIVATE_KEY_UNLOCK();
                 ret = wc_RsaKeyToDer(rsa, derBuf, derSz);
+                PRIVATE_KEY_LOCK();
                 if (ret >= 0) {
                     pkey->pkey_sz = ret;
                     pkey->pkey.ptr = (char*)derBuf;

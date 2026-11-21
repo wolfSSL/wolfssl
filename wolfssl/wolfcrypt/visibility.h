@@ -92,6 +92,10 @@
     /* Use supplied override. */
 #elif defined(__ELF__)
     #define WC_ASM_ATT_HIDDEN(name) .hidden name
+#elif defined(__APPLE__)
+    /* Mach-O: not exported past the link, Apple Assembler Reference,
+     * "Assembler Directives", .private_extern. */
+    #define WC_ASM_ATT_HIDDEN(name) .private_extern name
 #else
     #define WC_ASM_ATT_HIDDEN(name) /* null expansion */
 #endif

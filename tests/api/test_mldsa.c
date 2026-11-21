@@ -4867,6 +4867,27 @@ int test_mldsa_make_key_from_seed(void)
         0xF0, 0xC6, 0xF6, 0xAB, 0xDD, 0x2D, 0xBB, 0x29,
         0x85, 0xFE, 0x26, 0x74, 0x82, 0x85, 0x8A, 0x1E
     };
+    /* s2[4] of this seed needs a third SHAKE256 block: FIPS 204 Alg 31, 33.
+     * Expected bytes are its BitPack encoding, Alg 17 and 24. */
+    static const byte seed_65_refill[32] = { 0x4F, 0x27 };
+    static const byte s2_4_65_refill[] = {
+        0x16, 0x13, 0x82, 0x83, 0x61, 0x52, 0x03, 0x61,
+        0x62, 0x73, 0x58, 0x75, 0x53, 0x75, 0x50, 0x16,
+        0x35, 0x07, 0x46, 0x40, 0x74, 0x88, 0x85, 0x24,
+        0x12, 0x82, 0x87, 0x42, 0x47, 0x27, 0x13, 0x41,
+        0x43, 0x33, 0x61, 0x37, 0x58, 0x11, 0x32, 0x65,
+        0x28, 0x17, 0x07, 0x24, 0x60, 0x02, 0x22, 0x05,
+        0x85, 0x15, 0x43, 0x71, 0x45, 0x46, 0x58, 0x57,
+        0x12, 0x25, 0x35, 0x50, 0x03, 0x47, 0x88, 0x44,
+        0x32, 0x67, 0x13, 0x22, 0x03, 0x53, 0x02, 0x24,
+        0x72, 0x55, 0x43, 0x83, 0x45, 0x85, 0x87, 0x57,
+        0x05, 0x62, 0x30, 0x60, 0x24, 0x78, 0x18, 0x16,
+        0x28, 0x50, 0x50, 0x38, 0x88, 0x42, 0x65, 0x13,
+        0x42, 0x48, 0x02, 0x82, 0x03, 0x37, 0x88, 0x15,
+        0x18, 0x33, 0x85, 0x65, 0x35, 0x16, 0x22, 0x76,
+        0x34, 0x66, 0x08, 0x18, 0x56, 0x82, 0x58, 0x75,
+        0x50, 0x76, 0x44, 0x74, 0x48, 0x63, 0x16, 0x67
+    };
 #endif /* WOLFSSL_NO_ML_DSA_65 */
 #ifndef WOLFSSL_NO_ML_DSA_87
     static const byte seed_87[] = {
@@ -8047,6 +8068,10 @@ int test_mldsa_make_key_from_seed(void)
         ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65), SEED_OK);
         ExpectIntEQ(XMEMCMP(key->p, pk_65, sizeof(pk_65)), 0);
         ExpectIntEQ(XMEMCMP(key->k, sk_65, sizeof(sk_65)), 0);
+        ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65_refill), SEED_OK);
+        /* rho, K, tr, then five 128-byte s1 and four s2 polys: Alg 24. */
+        ExpectIntEQ(XMEMCMP(key->k + 32 + 32 + 64 + (5 + 4) * 128,
+            s2_4_65_refill, sizeof(s2_4_65_refill)), 0);
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
         ExpectIntEQ(wc_MlDsaKey_SetParams(key, WC_ML_DSA_65_DRAFT), 0);
         ExpectIntEQ(wc_MlDsaKey_MakeKeyFromSeed(key, seed_65_draft), SEED_OK);
@@ -31695,7 +31720,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 }
 
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
-    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WC_FIPS_V7_HIDDEN_APIS)
 #define MLDSA_TEST_ENC_MAX_K    8
 #define MLDSA_TEST_ENC_GUARD    32
 #define MLDSA_TEST_ENC_SZ       \
@@ -31744,7 +31769,7 @@ int test_mldsa_vec_encode_exact_len(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
-    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WC_FIPS_V7_HIDDEN_APIS)
     static const byte etas[] = {
     #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
         2,
@@ -31855,7 +31880,7 @@ int test_mldsa_encode_w1_large_values(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WC_MLDSA_HAVE_NATIVE) && \
     (!defined(WOLFSSL_MLDSA_NO_SIGN) || \
-     !defined(WOLFSSL_MLDSA_NO_VERIFY))
+     !defined(WOLFSSL_MLDSA_NO_VERIFY)) && !defined(WC_FIPS_V7_HIDDEN_APIS)
 
     sword32 w1[MLDSA_N];
     unsigned int j, k;

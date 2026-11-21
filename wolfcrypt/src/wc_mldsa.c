@@ -1620,7 +1620,7 @@ static int mldsa_squeeze128(wc_Shake* shake128, const byte* in,
 }
 #endif /* WOLFSSL_MLDSA_SMALL */
 
-#if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
+#if !defined(WOLFSSL_MLDSA_NO_SIGN) || !defined(WOLFSSL_MLDSA_NO_VERIFY) || \
     (!defined(WOLFSSL_MLDSA_SMALL) && \
      !defined(WOLFSSL_MLDSA_NO_MAKE_KEY))
 /* 256-bit hash using SHAKE-256.
@@ -1636,8 +1636,8 @@ static int mldsa_squeeze128(wc_Shake* shake128, const byte* in,
  * @return  0 on success.
  * @return  Negative on hash error.
  */
-static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
-    word32 inLen, byte* out, word32 outBlocks)
+WC_MAYBE_UNUSED static int mldsa_squeeze256(wc_Shake* shake256,
+    const byte* in, word32 inLen, byte* out, word32 outBlocks)
 {
     int ret;
 #ifdef USE_INTEL_SPEEDUP
@@ -1698,6 +1698,12 @@ static int mldsa_squeeze256(wc_Shake* shake256, const byte* in,
         /* Squeeze out hash data. */
         ret = wc_Shake256_SqueezeBlocks(shake256, out, outBlocks);
     }
+#endif
+#if defined(WC_HASH_CHECK_VARIANT) && \
+    (defined(USE_INTEL_SPEEDUP) || defined(MLDSA_SHAKE_DIRECT))
+    /* State above is absorbed at the SHAKE256 rate, so a refill may squeeze. */
+    shake256->count = WC_SHA3_256_COUNT;
+    shake256->absorbed = 1;
 #endif
 
     return ret;
@@ -1885,8 +1891,8 @@ static int mldsa_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s, byte d,
-    byte eta, byte* p)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s,
+    byte d, byte eta, byte* p)
 {
     return mldsa_vec_encode_eta_bits(s, d, eta, p);
 }
@@ -2361,8 +2367,8 @@ static int mldsa_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t, byte d,
-    byte* t0, byte* t1)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t,
+    byte d, byte* t0, byte* t1)
 {
     return mldsa_vec_encode_t0_t1(t, d, t0, t1);
 }
@@ -3436,7 +3442,8 @@ static int mldsa_encode_w1_88(const sword32* w1, byte* w1e)
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1,
+    byte* w1e)
 {
     return mldsa_encode_w1_88(w1, w1e);
 }
@@ -3533,7 +3540,8 @@ static int mldsa_encode_w1_32(const sword32* w1, byte* w1e)
     return ret;
 }
 
-WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e)
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1,
+    byte* w1e)
 {
     return mldsa_encode_w1_32(w1, w1e);
 }
@@ -7422,18 +7430,17 @@ static int mldsa_sample_in_ball_ex(int level, wc_Shake* shake256,
     /* Set polynomial to all zeros. */
     XMEMSET(c, 0, MLDSA_POLY_SIZE);
 
-    /* Generate a block of data from seed. */
+    /* Absorb once and squeeze, so a refill below continues the same
+     * SHAKE256 context: FIPS 204 Algorithm 29 steps 2-4, 7 and 9. */
 #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
     if (level >= WC_ML_DSA_DRAFT) {
-        ret = mldsa_shake256(shake256, seed, MLDSA_SEED_SZ, block,
-            MLDSA_GEN_C_BLOCK_BYTES);
+        ret = mldsa_squeeze256(shake256, seed, MLDSA_SEED_SZ, block, 1);
     }
     else
 #endif
     {
         (void)level;
-        ret = mldsa_shake256(shake256, seed, seedLen, block,
-            MLDSA_GEN_C_BLOCK_BYTES);
+        ret = mldsa_squeeze256(shake256, seed, seedLen, block, 1);
     }
     if (ret == 0) {
         /* Copy first 8 bytes of first hash block as random sign bits. */
@@ -11560,7 +11567,8 @@ static void mldsa_shake_wipe(wc_Shake* shake)
     ForceZero(shake->t, sizeof(shake->t));
     shake->i = 0;
 #else
-    (void)wc_Shake256_Reset(shake);
+    if (wc_Shake256_Reset(shake) != 0)
+        WOLFSSL_MSG("ML-DSA SHAKE wipe failed");
 #endif
 }
 #endif /* !WOLFSSL_MLDSA_VERIFY_ONLY */
@@ -12021,8 +12029,12 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         allocSz += (unsigned int)MLDSA_POLY_SIZE * 2U;
     #endif
     #ifdef WC_MLDSA_NONBLOCK
-        (void)mldsa_nb_begin(key, MLDSA_NB_OP_MAKE, seed, 0, MLDSA_SEED_SZ,
-            NULL);
+        if (mldsa_nb_begin(key, MLDSA_NB_OP_MAKE, seed, 0, MLDSA_SEED_SZ,
+                NULL) == 1) {
+            WOLFSSL_MSG("ML-DSA non-blocking make key starting");
+        } else {
+            WOLFSSL_MSG("ML-DSA non-blocking make key resuming or unset");
+        }
         if ((key->nb != NULL) && (key->nb->work != NULL)) {
             /* Resume: reuse the working allocation from the previous call. */
             s1 = (sword32*)key->nb->work;
@@ -12952,8 +12964,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #endif
 #ifdef WC_MLDSA_NONBLOCK
     /* Resume only the sign of this rnd||mu into this buffer. */
-    (void)mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
-        MLDSA_RND_SZ + MLDSA_MU_SZ, sig);
+    if (mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
+            MLDSA_RND_SZ + MLDSA_MU_SZ, sig) == 1) {
+        WOLFSSL_MSG("ML-DSA non-blocking sign starting");
+    } else {
+        WOLFSSL_MSG("ML-DSA non-blocking sign resuming or unset");
+    }
 #endif
     /* Check the signature buffer isn't too small. */
     if (*sigLen < params->sigSz) {
@@ -13728,8 +13744,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 #endif
 #ifdef WC_MLDSA_NONBLOCK
     /* Resume only the sign of this rnd||mu into this buffer. */
-    (void)mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
-        MLDSA_RND_SZ + MLDSA_MU_SZ, sig);
+    if (mldsa_nb_begin(key, MLDSA_NB_OP_SIGN, seedMu, 0,
+            MLDSA_RND_SZ + MLDSA_MU_SZ, sig) == 1) {
+        WOLFSSL_MSG("ML-DSA non-blocking sign starting");
+    } else {
+        WOLFSSL_MSG("ML-DSA non-blocking sign resuming or unset");
+    }
 #endif
     /* Check the signature buffer isn't too small. */
     if (*sigLen < params->sigSz) {
@@ -14313,6 +14333,9 @@ static int mldsa_sign_ctx_msg_with_seed(wc_MlDsaKey* key,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14392,6 +14415,9 @@ static int mldsa_sign_msg_with_seed(wc_MlDsaKey* key, const byte* seed,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14492,6 +14518,9 @@ static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14589,6 +14618,9 @@ static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14696,6 +14728,10 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+    ForceZero(oidMsgHash, sizeof(oidMsgHash));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14924,6 +14960,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     byte* w1e = NULL;
     int valid = 0;
     sword32 hi;
+    unsigned int allocSz = 0;
 
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
@@ -14970,8 +15007,6 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
 #endif
     if (ret == 0) {
-        unsigned int allocSz;
-
         /* z, c, w, t1/t1c */
         allocSz = (unsigned int)MLDSA_POLY_SIZE + params->s1Sz +
             params->s2Sz + params->s2Sz;
@@ -15102,6 +15137,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
 
     *res = (ret == 0) ? valid : 0;
+    /* FIPS 204 3.6.3: destroy verify intermediates. */
+    ForceZero(commit_calc, sizeof(commit_calc));
+    if (z != NULL) {
+        ForceZero(z, allocSz);
+    }
     XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #else
@@ -15156,6 +15196,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #else
     unsigned int zSz = (unsigned int)params->s1Sz;
 #endif
+    unsigned int allocSz = 0;
 #endif
 
 #ifdef WC_MLDSA_NONBLOCK
@@ -15184,8 +15225,6 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
         /* z, [c-1], w-1, t1-1, [t64], block, w1e, [cSparse] */
-        unsigned int allocSz;
-
         allocSz  = zSz +
                    2U * (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
@@ -15662,9 +15701,33 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     else
 #endif
     {
+        if (z != NULL) {
+            ForceZero(z, allocSz);
+        }
         XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
     }
+#else
+#ifdef WC_MLDSA_NONBLOCK
+    if (ret != WC_NO_ERR_TRACE(MP_WOULDBLOCK))
 #endif
+    {
+        ForceZero(key->z, sizeof(key->z));
+    #ifdef MLDSA_VERIFY_SPARSE_C
+        ForceZero(key->cSparse, sizeof(key->cSparse));
+    #else
+        ForceZero(key->c, sizeof(key->c));
+    #endif
+        ForceZero(key->w, sizeof(key->w));
+        ForceZero(key->vt1, sizeof(key->vt1));
+        ForceZero(key->w1e, sizeof(key->w1e));
+    #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+        ForceZero(key->t64, sizeof(key->t64));
+    #endif
+        ForceZero(key->h, sizeof(key->h));
+    }
+#endif
+    /* FIPS 204 3.6.3: destroy verify intermediates. */
+    ForceZero(commit_calc, sizeof(commit_calc));
     return ret;
 #endif /* !WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
 }
@@ -15764,6 +15827,10 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
     mldsa_nb_bind(key, ret, msg, msgLen);
 #endif
 
+    ForceZero(tr, sizeof(tr));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
     return ret;
 }
 
@@ -15839,6 +15906,10 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
     mldsa_nb_bind(key, ret, msg, msgLen);
 #endif
 
+    ForceZero(tr, sizeof(tr));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_NO_CTX */
@@ -15938,6 +16009,11 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     mldsa_nb_bind(key, ret, hash, hashLen);
 #endif
 
+    ForceZero(tr, sizeof(tr));
+    ForceZero(oidMsgHash, sizeof(oidMsgHash));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_NO_VERIFY */
@@ -16029,9 +16105,7 @@ int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng)
 #endif /* WOLF_CRYPTO_CB_ONLY_MLDSA */
 
     /* No key-pair test here: mldsa_key_from_seed_checked(), reached from
-     * mldsa_make_key() above, already runs it on every generation path.
-     * Guarded on the version, not HAVE_FIPS: src/include.am only compiles
-     * this file under BUILD_FIPS_V7_PLUS, so the two are equivalent here. */
+     * mldsa_make_key() above, runs it whenever the build tests key pairs. */
 
     return ret;
 }
