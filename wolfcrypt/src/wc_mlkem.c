@@ -815,16 +815,15 @@ int wc_MlKemKey_set_nonblock(MlKemKey* key, wc_MlKemNonBlock* nb)
      !defined(WOLFSSL_MLKEM_NO_DECAPSULATE))
 /* Destroy operation intermediates without losing the reusable hash object
  * configuration (FIPS 203 section 3.3). */
-static void mlkemkey_hash_wipe(wc_Sha3* h)
+static int mlkemkey_hash_wipe(MlKemKey* key)
 {
-#ifndef PSOC6_HASH_SHA3
-    ForceZero(h->s, sizeof(h->s));
-    ForceZero(h->t, sizeof(h->t));
-    h->i = 0;
-#else
-    if (wc_Sha3_256_Reset(h) != 0)
-        WOLFSSL_MSG("ML-KEM hash wipe failed");
-#endif
+    int ret = wc_Sha3_256_Reset(&key->hash);
+    int ret2 = wc_Shake256_Reset(&key->prf);
+
+    if (ret == 0) {
+        ret = ret2;
+    }
+    return ret;
 }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -1475,8 +1474,11 @@ key-pair test required by ISO/IEC 19790:2012 sec 7.10.3.3"
 #endif /* FIPS v7 or WOLFSSL_VALIDATE_MLKEM_KEYGEN */
 
     if ((key != NULL) && (k != 0)) {
-        mlkemkey_hash_wipe(&key->hash);
-        mlkemkey_hash_wipe(&key->prf);
+        /* A failed wipe takes precedence over any earlier error. */
+        int wipeRet = mlkemkey_hash_wipe(key);
+        if (wipeRet != 0) {
+            ret = wipeRet;
+        }
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         mlkemkey_hash_memzero_check(key);
     #endif
@@ -2406,8 +2408,11 @@ int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, unsigned char* ct,
     }
 #endif
     if (key != NULL) {
-        mlkemkey_hash_wipe(&key->hash);
-        mlkemkey_hash_wipe(&key->prf);
+        /* A failed wipe takes precedence over any earlier error. */
+        int wipeRet = mlkemkey_hash_wipe(key);
+        if (wipeRet != 0) {
+            ret = wipeRet;
+        }
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         mlkemkey_hash_memzero_check(key);
     #endif
@@ -2958,8 +2963,11 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     wc_MemZero_Check(&fail, sizeof(fail));
 #endif
     if (key != NULL) {
-        mlkemkey_hash_wipe(&key->hash);
-        mlkemkey_hash_wipe(&key->prf);
+        /* A failed wipe takes precedence over any earlier error. */
+        int wipeRet = mlkemkey_hash_wipe(key);
+        if (wipeRet != 0) {
+            ret = wipeRet;
+        }
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         mlkemkey_hash_memzero_check(key);
     #endif
