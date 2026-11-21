@@ -16346,6 +16346,12 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     if (gmac == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* A caller IV is refused once an IV is generated for this key. */
+    if (gmac->aes.gcmIvLock) {
+        return BAD_STATE_E;
+    }
+#endif
 
     return wc_AesGcmEncrypt(&gmac->aes, NULL, NULL, 0, iv, ivSz,
                                          authTag, authTagSz, authIn, authInSz);

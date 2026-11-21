@@ -25739,6 +25739,45 @@ static wc_test_ret_t gmac_large_test(Gmac* gmac)
 #endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM && !WOLFSSL_KCAPI */
 
 #ifdef WOLFSSL_AES_128
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+/* GMAC refuses a caller IV once an IV is generated under the key. */
+static wc_test_ret_t gmac_iv_lock_test(Gmac* gmac)
+{
+    wc_test_ret_t ret;
+    WC_RNG rng;
+    WOLFSSL_SMALL_STACK_STATIC const byte key[16] = {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    byte iv[GCM_NONCE_MID_SZ];
+    byte aad[16];
+    byte tag[16];
+
+    XMEMSET(iv, 0x22, sizeof(iv));
+    XMEMSET(aad, 0x33, sizeof(aad));
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_GmacSetKey(gmac, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_GmacUpdate(gmac, iv, sizeof(iv), aad, sizeof(aad), tag,
+                            sizeof(tag));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(&gmac->aes, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret == 0) {
+        ret = wc_GmacUpdate(gmac, iv, sizeof(iv), aad, sizeof(aad), tag,
+                            sizeof(tag));
+        ret = (ret == WC_NO_ERR_TRACE(BAD_STATE_E)) ? 0 :
+                                                      WC_TEST_RET_ENC_EC(ret);
+    } else {
+        ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    wc_FreeRng(&rng);
+    return ret;
+}
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -25771,6 +25810,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && !defined(WOLFSSL_KCAPI)
     ret = gmac_large_test(gmac);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+#endif
+
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+    ret = gmac_iv_lock_test(gmac);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
