@@ -954,10 +954,11 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
          * sent flight. */
         /* On the server side, receiving the last client flight does not ACK any
          * sent new_session_ticket messages. */
-        /* We don't want to clear the buffer until we have done version
-         * negotiation in the SH or have received a unified header in the
-         * DTLS record. */
-        if (ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
+        /* The client doesn't want to clear the buffer until it has done
+         * version negotiation in the SH or has received a unified header in
+         * the DTLS record. */
+        if (ssl->options.side == WOLFSSL_SERVER_END ||
+                    ssl->options.serverState >= SERVER_HELLO_COMPLETE ||
                     ssl->options.seenUnifiedHdr)
             /* Use 1.2 API to clear 1.2 buffers too */
             DtlsMsgPoolReset(ssl);
@@ -1027,7 +1028,7 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
     isProtected = Dtls13TypeIsEncrypted(handshakeType);
     recordHeaderLength = Dtls13GetRlHeaderLength(ssl, isProtected);
 
-    if (handshakeType != hello_retry_request) {
+    if (handshakeType != hello_retry_request || ssl->options.dtlsStateful) {
         rtxRecord = Dtls13RtxNewRecord(ssl, message + recordHeaderLength,
             (word16)(length - recordHeaderLength), handshakeType,
             ssl->dtls13EncryptEpoch->nextSeqNumber);
@@ -2162,7 +2163,8 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
            was already sent. In the worst case we will ACK the server
            retranmission*/
         if (handshakeType == certificate || handshakeType == finished ||
-            handshakeType == server_hello || handshakeType == client_hello)
+            handshakeType == server_hello || handshakeType == client_hello ||
+            handshakeType == hello_retry_request)
             Dtls13RtxFlushAcks(ssl);
     }
 
