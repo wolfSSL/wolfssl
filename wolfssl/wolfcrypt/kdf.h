@@ -123,7 +123,7 @@ WOLFSSL_API int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
 #define WOLFSSL_HAVE_TLS13_HYBRID_SECRET
 WOLFSSL_API int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst,
     byte* ss, word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz);
-#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+#if defined(WC_X25519_HYBRID_ONLY) && defined(HAVE_CURVE25519_SHARED_SECRET)
 /* Set when wc_Tls13_HybridSharedSecretX25519() is available. */
 #define WOLFSSL_HAVE_TLS13_HYBRID_X25519
 WOLFSSL_API int wc_Tls13_HybridSharedSecretX25519(word16 group, int kemFirst,

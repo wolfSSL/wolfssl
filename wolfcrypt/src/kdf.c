@@ -687,7 +687,7 @@ int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
     return Tls13HybridJoin(group, kemFirst, ss, ssMax, ssSz, kemSs, kemSsSz);
 }
 
-#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+#if defined(WC_X25519_HYBRID_ONLY) && defined(HAVE_CURVE25519_SHARED_SECRET)
 /* Compute the X25519 secret and join it with the ML-KEM secret, so the X25519
  * secret only leaves the module joined (IG D.S Scenario 2, item 5). */
 int wc_Tls13_HybridSharedSecretX25519(word16 group, int kemFirst,
@@ -718,7 +718,7 @@ int wc_Tls13_HybridSharedSecretX25519(word16 group, int kemFirst,
     }
     return ret;
 }
-#endif /* HAVE_CURVE25519 && HAVE_CURVE25519_SHARED_SECRET */
+#endif /* WC_X25519_HYBRID_ONLY && HAVE_CURVE25519_SHARED_SECRET */
 #endif /* WOLFSSL_HAVE_MLKEM */
 
 
