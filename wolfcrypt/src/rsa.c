@@ -685,11 +685,10 @@ WC_MAYBE_UNUSED static int RsaCheckPublicParams(RsaKey* key)
 
     if ((mp_count_bits(&key->n) & 1) != 0) {
         ret = WC_KEY_SIZE_E;
-    }
-    /* An odd e of 17 to 256 bits is in range: 65536 is the only smaller
-     * 17-bit value and it is even. Bit counts avoid narrow mp digits. */
-    else if (mp_iseven(&key->e) || (mp_count_bits(&key->e) < 17) ||
-             (mp_count_bits(&key->e) > 256)) {
+    } else if (mp_iseven(&key->e) || (mp_count_bits(&key->e) < 17) ||
+               (mp_count_bits(&key->e) > 256)) {
+        /* An odd e of 17 to 256 bits is in range: 65536 is the only smaller
+         * 17-bit value and it is even. Bit counts avoid narrow mp digits. */
         ret = MP_EXPTMOD_E;
     }
     return ret;
