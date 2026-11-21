@@ -23498,7 +23498,8 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         for (i = (int)sizeof(randIV) - 1; i >= 0; i--) {
-            if (++randIV[i] != 0)
+            randIV[i] = WC_OCTET(randIV[i] + 1);
+            if (randIV[i] != 0)
                 break;
         }
         if (XMEMCMP(nextIV, randIV, sizeof(randIV)) != 0)
