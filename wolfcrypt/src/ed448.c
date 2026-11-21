@@ -1481,9 +1481,7 @@ int wc_ed448_export_public(const ed448_key* key, byte* out, word32* outLen)
  * in       [in]  Array holding public key.
  * inLen    [in]  Number of bytes of data in array.
  * key      [in]  Ed448 public key.
- * trusted  [in]  Indicates whether the public key data is trusted.
- *                When 0, checks public key matches private key.
- *                When 1, doesn't check public key matches private key.
+ * trusted  [in]  When 1, skip the check unless a private key is set.
  * returns BAD_FUNC_ARG when a parameter is NULL or key format is not supported,
  *         0 otherwise.
  */
@@ -1528,8 +1526,9 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
 
     if (ret == 0) {
         key->pubKeySet = 1;
-        if (!trusted) {
-            /* Check untrusted public key data matches private key. */
+        /* A public key next to a private key is always checked: a wrong one
+         * makes two signatures of a message reveal the private scalar. */
+        if (!trusted || key->privKeySet) {
             ret = wc_ed448_check_key(key);
         }
     }
@@ -1615,9 +1614,8 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
  * pub      [in]  Array holding public key (or NULL).
  * pubSz    [in]  Number of bytes of data in public key array (or 0).
  * key      [in]  Ed448 private/public key.
- * trusted  [in]  Indicates whether the public key data is trusted.
- *                When 0, checks public key matches private key.
- *                When 1, doesn't check public key matches private key.
+ * trusted  [in]  Ignored: the public key is always checked against the
+ *                private key.
  * returns BAD_FUNC_ARG when a required parameter is NULL or an invalid
  *         combination of keys/lengths is supplied, 0 otherwise.
  */

@@ -494,7 +494,12 @@ int test_wc_ed448_import_public(void)
 
     ExpectIntEQ(wc_ed448_init(&pubKey), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* A trusted public key is still checked against a private key. */
     ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &pubKey), 0);
+    ExpectIntEQ(wc_ed448_import_public_ex(in, inlen, &pubKey, 1),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed448_free(&pubKey);
+    ExpectIntEQ(wc_ed448_init(&pubKey), 0);
 
     ExpectIntEQ(wc_ed448_import_public_ex(in, inlen, &pubKey, 1), 0);
     ExpectIntEQ(XMEMCMP(in, pubKey.p, inlen), 0);
@@ -584,12 +589,10 @@ int test_wc_ed448_import_private_key(void)
 
     ExpectIntEQ(wc_ed448_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
-
+    /* A trusted public key next to a private key is still checked. */
     ExpectIntEQ(wc_ed448_import_private_key_ex(privKey, privKeySz, pubKey,
-        pubKeySz, &key, 1), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
-    ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
+        pubKeySz, &key, 1), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
 
 #ifdef HAVE_ED448_KEY_EXPORT
     PRIVATE_KEY_UNLOCK();
@@ -597,8 +600,11 @@ int test_wc_ed448_import_private_key(void)
     PRIVATE_KEY_LOCK();
     ExpectIntEQ(wc_ed448_import_private_key_ex(bothKeys, bothKeysSz, NULL, 0,
         &key, 1), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
-    ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
+    ExpectIntEQ(XMEMCMP(bothKeys, key.k, bothKeysSz), 0);
+    ExpectIntEQ(wc_ed448_import_private_key_ex(bothKeys, ED448_KEY_SIZE,
+        bothKeys + ED448_KEY_SIZE, ED448_PUB_KEY_SIZE, &key, 1), 0);
+    ExpectIntEQ(XMEMCMP(bothKeys + ED448_KEY_SIZE, key.p,
+        ED448_PUB_KEY_SIZE), 0);
 #endif
 
     /* Test bad args. */
@@ -1032,8 +1038,8 @@ int test_wc_Ed448KeyToDer_oneasymkey_version(void)
     return EXPECT_RESULT();
 }
 
-/* The trusted flag controls whether a public key bundled in the DER is
- * checked against the private key during decode. */
+/* A public key bundled in the DER is checked against the private key
+ * during decode, trusted or not. */
 int test_wc_Ed448PrivateKeyDecode_ex(void)
 {
     EXPECT_DECLS;
@@ -1083,10 +1089,10 @@ int test_wc_Ed448PrivateKeyDecode_ex(void)
     ExpectIntEQ(wc_Ed448PrivateKeyDecode(der, &idx, &key2, (word32)derSz),
         WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 
-    /* Trusted decode skips the check. */
+    /* Trusted decode still checks a public key against the private key. */
     idx = 0;
     ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
-        (word32)derSz, 1), 0);
+        (word32)derSz, 1), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 
     wc_ed448_free(&key);
     wc_ed448_free(&key2);

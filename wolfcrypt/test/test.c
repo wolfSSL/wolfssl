@@ -64562,6 +64562,11 @@ static wc_test_ret_t ed25519_kat_test(ed25519_key* key, ed25519_key* key2)
         if (wc_ed25519_export_public(key, exportPKey, &exportPSz) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), exit_ed25519_kat);
 
+        /* key2 still holds the last private key: a public key is checked
+         * against it, so start from an empty key. */
+        wc_ed25519_free(key2);
+        if (wc_ed25519_init_ex(key2, HEAP_HINT, devId) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), exit_ed25519_kat);
         if (wc_ed25519_import_public_ex(exportPKey, exportPSz, key2, 1) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), exit_ed25519_kat);
 
@@ -66936,6 +66941,13 @@ static wc_test_ret_t ed448_kat_test(ed448_key* key, ed448_key* key2)
                     break;
                 }
 
+                /* key2 still holds the last private key: a public key is
+                 * checked against it, so start from an empty key. */
+                wc_ed448_free(key2);
+                if (wc_ed448_init(key2) != 0) {
+                    ret = WC_TEST_RET_ENC_I(i);
+                    break;
+                }
                 if (wc_ed448_import_public_ex(exportPKey, exportPSz, key2, 1) != 0) {
                     ret = WC_TEST_RET_ENC_I(i);
                     break;
