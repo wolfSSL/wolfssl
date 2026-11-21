@@ -13136,6 +13136,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* authIn, word32 authInSz)
 {
     int ret;
+    word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
 #ifdef WC_AESNI_GCM
     int res = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
 #endif
@@ -13270,6 +13271,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                    authTagSz, authIn, authInSz);
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
+    /* The assembly uses aes->reg as scratch: keep this object's own IV. */
+    XMEMCPY(reg, aes->reg, sizeof(reg));
 #if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
     defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
     ret = AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
@@ -13289,25 +13292,16 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto)
   #endif
     {
-    #ifdef OPENSSL_EXTRA
-        word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
-    #endif
         /* Reflect a copy of H into the form the PMULL assembly wants - the
          * stored H must stay un-reflected for the portable GHASH. */
         byte h[WC_AES_BLOCK_SIZE];
 
-    #ifdef OPENSSL_EXTRA
-        XMEMCPY(reg, aes->reg, sizeof(reg));
-    #endif
         XMEMCPY(h, aes->gcm.H, WC_AES_BLOCK_SIZE);
         GcmReflectH(h);
         ret = AES_GCM_decrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
             authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
             (byte*)aes->reg, aes->rounds);
         ForceZero(h, sizeof(h));
-    #ifdef OPENSSL_EXTRA
-        XMEMCPY(aes->reg, reg, sizeof(reg));
-    #endif
     }
   #ifdef WOLFSSL_ARM32_AES_DISPATCH
     else
@@ -13412,6 +13406,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     VECTOR_REGISTERS_POP;
 #endif /* RISC-V asm */
+    XMEMCPY(aes->reg, reg, sizeof(reg));
 
     /* Wipe the output on a failed tag so unauthenticated plaintext is not
      * handed back.  The hardware backends above return before this point. */

@@ -23638,6 +23638,21 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
+#ifdef HAVE_AES_DECRYPT
+    /* A decrypt on the same object leaves the generated IV in place. */
+    ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext, sizeof(ext),
+                              tag, sizeof(tag), NULL, 0);
+    if (ret == 0)
+        ret = wc_AesGcmDecrypt(enc, blk, c, sizeof(c), ext, sizeof(ext),
+                               tag, sizeof(tag), NULL, 0);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
     XMEMSET(blk, 0x33, sizeof(blk));
     ret = wc_AesSetIV(enc, blk);
     if (ret == 0)
