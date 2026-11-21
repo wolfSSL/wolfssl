@@ -5708,6 +5708,10 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #undef  WOLFSSL_NO_INT_ENCODE
     #undef  WOLFSSL_NO_INT_DECODE
 #endif
+/* wc_AesGcmSetIV() seeds its invocation count with ato32(). */
+#if defined(HAVE_AESGCM) && !defined(NO_AES) && !defined(WC_NO_RNG)
+    #undef  WOLFSSL_NO_INT_DECODE
+#endif
 
 /* DTLS v1.3 requires AES ECB if using AES */
 #if defined(WOLFSSL_DTLS13) && !defined(NO_AES) && \
