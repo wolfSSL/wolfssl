@@ -344,6 +344,24 @@ int test_wc_KdfDecisionCoverage(void)
             NULL, key1, sizeof(key1), key2, sizeof(key2), key3, sizeof(key3)),
             0);
 
+    #ifndef WOLFSSL_NO_MALLOC
+        /* RFC 3711 sec 4.3.3: one derivation gives at most 2^20 bytes. */
+        {
+            byte* big = (byte*)XMALLOC((1U << 20) + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+
+            ExpectNotNull(big);
+            if (big != NULL) {
+                ExpectIntEQ(wc_SRTP_KDF(key, sizeof(key), salt, sizeof(salt),
+                    -1, NULL, big, 1U << 20, NULL, 0, NULL, 0), 0);
+                ExpectIntEQ(wc_SRTP_KDF(key, sizeof(key), salt, sizeof(salt),
+                    -1, NULL, big, (1U << 20) + 1, NULL, 0, NULL, 0),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            }
+            XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    #endif
+
         /* key1/key2/key3 independently NULL-skippable. */
         ExpectIntEQ(wc_SRTP_KDF(key, sizeof(key), salt, sizeof(salt), -1,
             NULL, NULL, 0, key2, sizeof(key2), key3, sizeof(key3)), 0);
