@@ -2537,6 +2537,42 @@ int test_wolfSSL_SetServerID_resume(void)
     return EXPECT_RESULT();
 }
 
+/* The WC_TIME_T session time accessors carry times past 2038. */
+int test_wolfSSL_SESSION_time_ex(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_ASN_TIME) && \
+    (defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE))
+    WOLFSSL_SESSION* sess = NULL;
+    WC_TIME_T t = (WC_TIME_T)2000000000L;
+
+    ExpectIntEQ(wolfSSL_SESSION_get_time_ex(NULL), 0);
+    ExpectIntEQ(wolfSSL_SESSION_set_time_ex(NULL, t), 0);
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    ExpectIntEQ(wolfSSL_SESSION_set_time_ex(sess, 0), 0);
+    ExpectTrue(wolfSSL_SESSION_set_time_ex(sess, t) == t);
+    ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+    if (sizeof(WC_TIME_T) >= 8) {
+        /* 2040-06-01: past a 32-bit long, so only the _ex API can set it. */
+        t = (WC_TIME_T)2000000000L;
+        t += (WC_TIME_T)222121600L;
+        ExpectTrue(wolfSSL_SESSION_set_time_ex(sess, t) == t);
+        ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+        /* 2106-02-07 06:28:15, the last second that fits. */
+        t = (WC_TIME_T)65536;
+        t *= 65536;
+        t -= 1;
+        ExpectTrue(wolfSSL_SESSION_set_time_ex(sess, t) == t);
+        ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+        /* One second later is rejected and leaves the time unchanged. */
+        ExpectIntEQ(wolfSSL_SESSION_set_time_ex(sess, t + 1), 0);
+        ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+    }
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Session lifetimes are measured from bornOn, so they survive a clock wrap. */
 int test_wolfSSL_session_expiry_wrap(void)
 {

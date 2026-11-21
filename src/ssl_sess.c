@@ -3532,6 +3532,27 @@ long wolfSSL_SESSION_set_time(WOLFSSL_SESSION *ses, long t)
     return t;
 }
 
+WC_TIME_T wolfSSL_SESSION_get_time_ex(const WOLFSSL_SESSION* sess)
+{
+    WC_TIME_T bornOn = 0;
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_time_ex");
+    sess = ClientSessionToSession(sess);
+    if (sess)
+        bornOn = (WC_TIME_T)sess->bornOn;
+    return bornOn;
+}
+
+WC_TIME_T wolfSSL_SESSION_set_time_ex(WOLFSSL_SESSION *ses, WC_TIME_T t)
+{
+    ses = ClientSessionToSession(ses);
+    /* bornOn is 32 bits, so 2106 and later can't be stored. */
+    if (ses == NULL || t <= 0 || ((t >> 16) >> 16) != 0) {
+        return 0;
+    }
+    ses->bornOn = (word32)t;
+    return t;
+}
+
 #endif /* !NO_SESSION_CACHE && (OPENSSL_EXTRA || HAVE_EXT_CACHE) */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \

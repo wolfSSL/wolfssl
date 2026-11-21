@@ -17119,10 +17119,12 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
     WC_TIME_T ltime;
     struct tm  certTime;
     struct tm* localTime;
+    struct tm  nowTime;
     struct tm* tmpTime;
     int    i = 0;
     int    timeDiff = 0;
     int    diffHH = 0, diffMM = 0;
+    long   adjust = 0;
 
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
@@ -17141,9 +17143,8 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
     }
 
 #ifndef NO_TIME_SIGNEDNESS_CHECK
-    if (sizeof(ltime) == sizeof(word32) && (sword32)ltime < 0){
-        /* A negative response here could be due to a 32-bit time_t
-         * where the year is 2038 or later. */
+    if (ltime <= 0) {
+        /* -1 from a failed clock, or a 32-bit time_t in 2038 or later. */
         WOLFSSL_MSG("wc_Time failed to return a valid value");
         return 0;
     }
@@ -17152,14 +17153,14 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
 #ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
     if (dateType == ASN_BEFORE) {
         WOLFSSL_MSG("Skewing local time for before date check");
-        ltime += WOLFSSL_BEFORE_DATE_CLOCK_SKEW;
+        adjust += WOLFSSL_BEFORE_DATE_CLOCK_SKEW;
     }
 #endif
 
 #ifdef WOLFSSL_AFTER_DATE_CLOCK_SKEW
     if (dateType == ASN_AFTER) {
         WOLFSSL_MSG("Skewing local time for after date check");
-        ltime -= WOLFSSL_AFTER_DATE_CLOCK_SKEW;
+        adjust -= WOLFSSL_AFTER_DATE_CLOCK_SKEW;
     }
 #endif
 
@@ -17183,11 +17184,16 @@ int wc_ValidateDateWithTime(const byte* date, byte format, int dateType,
         return 0;
     }
 
-    ltime -= (WC_TIME_T)timeDiff;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (ValidateGmtime(localTime)) {
         WOLFSSL_MSG("XGMTIME failed");
+        return 0;
+    }
+    /* Skew and offset in calendar terms so the time type can't overflow. */
+    nowTime = *localTime;
+    localTime = &nowTime;
+    if (AdjustGmtime(localTime, 0, adjust - timeDiff) != 0) {
         return 0;
     }
 

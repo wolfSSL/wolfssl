@@ -4900,8 +4900,13 @@ struct tm* gmtime_r(const WC_TIME_T* timer, struct tm *ret)
     unsigned long dayclock, dayno;
     int year = EPOCH_YEAR;
 
-    dayclock = (unsigned long)secs % SECS_DAY;
-    dayno    = (unsigned long)secs / SECS_DAY;
+    /* Only 1970 to 9999. */
+    if (((secs < (WC_TIME_T)1) && (secs != 0)) ||
+            (secs / SECS_DAY > 2932896L)) {
+        return NULL;
+    }
+    dayclock = (unsigned long)(secs % SECS_DAY);
+    dayno    = (unsigned long)(secs / SECS_DAY);
 
     ret->tm_sec  = (int) dayclock % 60;
     ret->tm_min  = (int)(dayclock % 3600) / 60;

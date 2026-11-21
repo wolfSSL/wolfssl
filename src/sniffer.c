@@ -5643,12 +5643,14 @@ static void RemoveStaleSessions(void)
 {
     word32 i;
     SnifferSession* session;
+    WC_TIME_T now = wc_Time(NULL);
 
     for (i = 0; i < HASH_SIZE; i++) {
         session = SessionTable[i];
         while (session) {
             SnifferSession* next = session->next;
-            if (wc_Time(NULL) >= session->lastUsed + WOLFSSL_SNIFFER_TIMEOUT) {
+            if ((now <= 0) ||
+                    (now - session->lastUsed >= WOLFSSL_SNIFFER_TIMEOUT)) {
                 TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }

@@ -51,6 +51,7 @@ int test_wolfSSL_get_session_default_ref(void);
 int test_wolfSSL_SetServerID_resume(void);
 int test_wolfSSL_client_cache_is_setup(void);
 int test_wolfSSL_client_cache_max_early_data(void);
+int test_wolfSSL_SESSION_time_ex(void);
 int test_wolfSSL_session_expiry_wrap(void);
 int test_wolfSSL_ticket_key_expiry_wrap(void);
 int test_wolfSSL_ticket_age_negative(void);
@@ -83,6 +84,7 @@ int test_wolfSSL_ticket_age_negative(void);
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_is_setup),            \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_max_early_data),      \
     TEST_DECL_GROUP("session", test_session_decision_coverage),                \
+    TEST_DECL_GROUP("session", test_wolfSSL_SESSION_time_ex),                  \
     TEST_DECL_GROUP("session", test_wolfSSL_session_expiry_wrap),              \
     TEST_DECL_GROUP("session", test_wolfSSL_ticket_key_expiry_wrap),           \
     TEST_DECL_GROUP("session", test_wolfSSL_ticket_age_negative)

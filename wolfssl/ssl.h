@@ -1595,6 +1595,10 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_get_error(WOLFSSL* ssl, int ret);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_API long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t);
 WOLFSSL_API long wolfSSL_SESSION_set_time(WOLFSSL_SESSION *ses, long t);
+#ifndef NO_ASN_TIME
+WOLFSSL_API WC_TIME_T wolfSSL_SESSION_set_time_ex(WOLFSSL_SESSION *ses,
+    WC_TIME_T t);
+#endif
 #if !defined(NO_SESSION_CACHE) && !defined(NO_SESSION_CACHE_REF) && \
     !defined(WOLFSSL_SESSION_CACHE_REF_WARNED)
 WC_DEPRECATED("returns a session cache reference under "
@@ -3661,6 +3665,10 @@ WOLFSSL_API unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
                               const WOLFSSL_SESSION* sess);
 WOLFSSL_API long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* session);
 WOLFSSL_API long wolfSSL_SESSION_get_time(const WOLFSSL_SESSION* session);
+#ifndef NO_ASN_TIME
+WOLFSSL_API WC_TIME_T wolfSSL_SESSION_get_time_ex(
+    const WOLFSSL_SESSION* session);
+#endif
 
 
 #ifdef SESSION_CERTS

@@ -318,9 +318,10 @@ int atmel_get_random_block(unsigned char* output, unsigned int sz)
 #include "rtc_calendar.h"
 extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
 
-long atmel_get_curr_time_and_date(long* tm)
+WC_TIME_T atmel_get_curr_time_and_date(WC_TIME_T* tm)
 {
-    long rt = 0;
+    WC_TIME_T rt = 0;
+    long days;
 
         /* Get current time */
     struct rtc_calendar_time rtcTime;
@@ -337,17 +338,13 @@ long atmel_get_curr_time_and_date(long* tm)
         year--;
     }
     yearLeap = (month > 1) ? year + 1 : year;
-    rt = rtcTime.second
-        + 60 * (rtcTime.minute
-            + 60 * (rtcTime.hour
-            + 24 * (monthDay[month] + rtcTime.day - 1
-                + 365 * (year - 70)
-                + (yearLeap - 69) / 4
-                - (yearLeap - 1) / 100
-                + (yearLeap + 299) / 400
-                )
-            )
-        );
+    days = monthDay[month] + rtcTime.day - 1
+        + 365L * (year - 70)
+        + (yearLeap - 69) / 4
+        - (yearLeap - 1) / 100
+        + (yearLeap + 299) / 400;
+    rt = (((WC_TIME_T)days * 24 + rtcTime.hour) * 60 + rtcTime.minute) * 60
+        + rtcTime.second;
 
     (void)tm;
     return rt;

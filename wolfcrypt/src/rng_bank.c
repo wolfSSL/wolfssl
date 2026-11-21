@@ -35,7 +35,13 @@
  */
 #if defined(XTIME) || (defined(USER_TIME) && !defined(NO_ASN_TIME))
     #define WC_RNG_BANK_TS_START()        XTIME(0)
-    #define WC_RNG_BANK_TS_ELAPSED(ts1)   (XTIME(0) - (ts1))
+    #define WC_RNG_BANK_TS_ELAPSED(ts1)   wc_rng_bank_ts_elapsed(ts1)
+    /* A failed clock read counts as timed out. */
+    static WC_INLINE WC_TIME_T wc_rng_bank_ts_elapsed(WC_TIME_T ts1)
+    {
+        WC_TIME_T ts2 = XTIME(0);
+        return (ts2 == (WC_TIME_T)-1) ? (WC_TIME_T)INT_MAX : ts2 - ts1;
+    }
 #else
     #ifndef WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC
         #define WC_RNG_BANK_NO_CLOCK_RETRIES_PER_SEC 1000
