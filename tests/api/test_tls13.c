@@ -6083,6 +6083,80 @@ static int test_tls13_x25519_low_order_key_share(int devId)
 }
 #endif
 
+#if defined(TEST_TLS13_BAD_KS_X25519MLKEM768) && \
+    defined(WC_X25519_HYBRID_ONLY) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
+#define TEST_TLS13_X25519_JOIN_ALLOC_FAIL
+static int test_tls13_x25519_fail_alloc = 0;
+
+/* Once armed, fails the next allocation the size of a curve25519_key. */
+static void* test_tls13_x25519_malloc(size_t size)
+{
+    if (test_tls13_x25519_fail_alloc && (size == sizeof(curve25519_key))) {
+        test_tls13_x25519_fail_alloc = 0;
+        return NULL;
+    }
+    return malloc(size);
+}
+
+static void test_tls13_x25519_free(void* ptr)
+{
+    free(ptr);
+}
+
+static void* test_tls13_x25519_realloc(void* ptr, size_t size)
+{
+    return realloc(ptr, size);
+}
+
+/* The client fails to allocate the server's X25519 key in the X25519MLKEM768
+ * join; freeing the session must free the client's own key only once. */
+static int test_tls13_x25519_join_peer_alloc_fail(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    int group = WOLFSSL_X25519MLKEM768;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, &group, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, (word16)group), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_tls13_bad_ks_negotiate(ssl_c), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_tls13_bad_ks_negotiate(ssl_s), WOLFSSL_ERROR_WANT_READ);
+
+    /* Plain calls: the allocators must be restored even after a failure. */
+    ret = wolfSSL_GetAllocators(&prevM, &prevF, &prevR);
+    if (ret == 0) {
+        ret = wolfSSL_SetAllocators(test_tls13_x25519_malloc,
+            test_tls13_x25519_free, test_tls13_x25519_realloc);
+    }
+    ExpectIntEQ(ret, 0);
+    test_tls13_x25519_fail_alloc = 1;
+    ExpectIntEQ(test_tls13_bad_ks_negotiate(ssl_c),
+        WC_NO_ERR_TRACE(MEMORY_ERROR));
+    ExpectIntEQ(test_tls13_x25519_fail_alloc, 0);
+    test_tls13_x25519_fail_alloc = 0;
+    ret = wolfSSL_SetAllocators(prevM, prevF, prevR);
+    ExpectIntEQ(ret, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
 #ifdef TEST_TLS13_BAD_KS_X448
 /* The X448 inputs that give an all-zero shared secret: u = 0, 1 and p-1, and
  * the non-canonical encodings p and p+1 of 0 and 1 (p = 2^448 - 2^224 - 1).
@@ -6195,6 +6269,9 @@ int test_tls13_mlkem_bad_key_share(void)
         wolfAsync_DevClose(&devId);
     }
 #endif
+#endif
+#ifdef TEST_TLS13_X25519_JOIN_ALLOC_FAIL
+    ExpectIntEQ(test_tls13_x25519_join_peer_alloc_fail(), TEST_SUCCESS);
 #endif
 #endif
 #ifdef TEST_TLS13_BAD_KS_SECP256R1MLKEM768

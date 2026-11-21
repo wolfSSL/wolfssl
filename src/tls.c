@@ -11291,6 +11291,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
                     ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
                     keyShareEntry->group, pqc_first, ssPqc, ssSzPqc);
             keyShareEntry->key = ecc_kse->key;
+            ecc_kse->key = NULL;
         } else {
             ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
                     ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
