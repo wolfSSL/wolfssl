@@ -56121,6 +56121,32 @@ static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
 #ifdef HAVE_PKCS8
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    {
+        /* Private key reads off: a size query works, an export does not. */
+        int held = wolfCrypt_GetPrivateKeyReadEnable_fips(WC_KEYTYPE_ALL);
+        int i;
+        word32 lenOnly = 0;
+
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_LOCK();
+        }
+        ret = wc_EccPrivateKeyToPKCS8(userA, NULL, &lenOnly);
+        if ((ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) && (lenOnly > 0)) {
+            pkcs8Sz = FOURK_BUF;
+            ret = wc_EccPrivateKeyToPKCS8(userA, der, &pkcs8Sz);
+            ret = (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) ? 0 :
+                WC_TEST_RET_ENC_EC(ret);
+        } else {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_UNLOCK();
+        }
+        if (ret != 0)
+            ERROR_OUT(ret, done);
+    }
+#endif
     /* test export of PKCS#8 unencrypted private key */
     pkcs8Sz = FOURK_BUF;
     PRIVATE_KEY_UNLOCK();
