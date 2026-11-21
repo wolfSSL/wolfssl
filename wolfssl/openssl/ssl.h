@@ -790,6 +790,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_unlock(x) 1
 
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
+#define X509_STORE_CTX_set_current_cert wolfSSL_X509_STORE_CTX_set_current_cert
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
 #define X509_STORE_CTX_new              wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
@@ -1270,6 +1271,8 @@ typedef wolfSSL_custom_ext_parse_cb custom_ext_parse_cb;
 #define ERR_print_errors_cb             wolfSSL_ERR_print_errors_cb
 #define ERR_print_errors                wolfSSL_ERR_print_errors
 #define ERR_clear_error                 wolfSSL_ERR_clear_error
+#define ERR_set_mark                    wolfSSL_ERR_set_mark
+#define ERR_pop_to_mark                 wolfSSL_ERR_pop_to_mark
 #define ERR_free_strings                wolfSSL_ERR_free_strings
 #define ERR_remove_state                wolfSSL_ERR_remove_state
 #define ERR_remove_thread_state         wolfSSL_ERR_remove_thread_state

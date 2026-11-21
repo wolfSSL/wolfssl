@@ -2453,6 +2453,8 @@ WOLFSSL_API int  wolfSSL_num_locks(void);
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                         WOLFSSL_X509_STORE_CTX* ctx);
+WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_current_cert(
+                              WOLFSSL_X509_STORE_CTX* ctx, WOLFSSL_X509* x509);
 WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
@@ -6250,6 +6252,8 @@ WOLFSSL_API int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
 WOLFSSL_API int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
     int *line, const char **data, int *flags);
+WOLFSSL_API int wolfSSL_ERR_set_mark(void);
+WOLFSSL_API int wolfSSL_ERR_pop_to_mark(void);
 WOLFSSL_API int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx,
     const unsigned char *protos, unsigned int protos_len);
 WOLFSSL_API int wolfSSL_set_alpn_protos(WOLFSSL* ssl,

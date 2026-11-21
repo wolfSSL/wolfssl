@@ -29,10 +29,12 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/x509_vfy.h>
     #include <wolfssl/openssl/pem.h>
 #endif
+#include <tests/utils.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_str.h>
 
@@ -5605,6 +5607,240 @@ int test_wolfSSL_X509_verify_cert_cb_calls(void)
     X509_free(int2);
     X509_free(int1);
     X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+static X509* test_set_cur_cert_x509; /* cert the verify cb sets */
+static int test_set_cur_cert_calls;
+static int test_set_cur_cert_bad;    /* the getter did not return it */
+
+/* Reports another cert, as an application may do. */
+static int test_set_cur_cert_cb(int ok, X509_STORE_CTX* ctx)
+{
+    test_set_cur_cert_calls++;
+    X509_STORE_CTX_set_current_cert(ctx, test_set_cur_cert_x509);
+    if (X509_STORE_CTX_get_current_cert(ctx) != test_set_cur_cert_x509)
+        test_set_cur_cert_bad = 1;
+    return ok;
+}
+#endif
+
+/* X509_STORE_CTX_set_current_cert() sets what
+ * X509_STORE_CTX_get_current_cert() returns. A verify callback that calls it
+ * does not change what X509_verify_cert() verifies. */
+int test_wolfSSL_X509_STORE_CTX_set_current_cert(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    X509* ca = NULL;
+    X509* int1 = NULL;
+    X509* int2 = NULL;
+    X509* leaf = NULL;
+    X509* other = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i;
+
+    ExpectNotNull(ca = X509_load_certificate_file(caCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(int1 = X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(int2 = X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(leaf = X509_load_certificate_file(
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(other = X509_load_certificate_file(cliCertFile,
+        SSL_FILETYPE_PEM));
+
+    X509_STORE_CTX_set_current_cert(NULL, leaf);
+    X509_STORE_CTX_set_current_cert(NULL, NULL);
+    ExpectNull(X509_STORE_CTX_get_current_cert(NULL));
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, int2), 0);
+    ExpectIntGT(sk_X509_push(untrusted, int1), 0);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted),
+        WOLFSSL_SUCCESS);
+
+    ExpectPtrEq(X509_STORE_CTX_get_current_cert(ctx), leaf);
+    X509_STORE_CTX_set_current_cert(ctx, other);
+    ExpectPtrEq(X509_STORE_CTX_get_current_cert(ctx), other);
+    X509_STORE_CTX_set_current_cert(ctx, NULL);
+    ExpectNull(X509_STORE_CTX_get_current_cert(ctx));
+    X509_STORE_CTX_set_current_cert(ctx, leaf);
+    ExpectPtrEq(X509_STORE_CTX_get_current_cert(ctx), leaf);
+
+    /* The callback sets another cert, then none. The same chain is built. */
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted),
+            WOLFSSL_SUCCESS);
+        X509_STORE_CTX_set_verify_cb(ctx, test_set_cur_cert_cb);
+        test_set_cur_cert_x509 = (i == 0) ? other : NULL;
+        test_set_cur_cert_calls = 0;
+        test_set_cur_cert_bad = 0;
+        ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_OK);
+        ExpectIntEQ(test_set_cur_cert_calls, 3);
+        ExpectIntEQ(test_set_cur_cert_bad, 0);
+        ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+        ExpectIntEQ(sk_X509_num(chain), 4);
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, 0), leaf), 0);
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, 1), int2), 0);
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, 2), int1), 0);
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, 3), ca), 0);
+        ExpectPtrEq(X509_STORE_CTX_get_current_cert(ctx), leaf);
+    }
+
+    /* The leaf has no issuer. Setting a trusted cert from the callback must
+     * not end a partial chain there. */
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN), 1);
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), WOLFSSL_SUCCESS);
+    X509_STORE_CTX_set_verify_cb(ctx, test_set_cur_cert_cb);
+    test_set_cur_cert_x509 = ca;
+    test_set_cur_cert_calls = 0;
+    ExpectIntNE(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
+    ExpectIntGT(test_set_cur_cert_calls, 0);
+    ExpectIntEQ(X509_STORE_CTX_get_error(ctx),
+        X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+    ExpectPtrEq(X509_STORE_CTX_get_current_cert(ctx), leaf);
+
+    test_set_cur_cert_x509 = NULL;
+    X509_STORE_CTX_free(ctx);
+    sk_X509_free(untrusted);
+    X509_STORE_free(store);
+    X509_free(other);
+    X509_free(leaf);
+    X509_free(int2);
+    X509_free(int1);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA)
+/* Sets the current cert on the first call only. That call is for an
+ * intermediate the handshake made a cert for. */
+static int test_set_cur_cert_hs_cb(int ok, X509_STORE_CTX* ctx)
+{
+    if (test_set_cur_cert_calls++ == 0)
+        X509_STORE_CTX_set_current_cert(ctx, test_set_cur_cert_x509);
+    return ok;
+}
+
+static int test_set_cur_cert_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, test_set_cur_cert_hs_cb);
+    return TEST_SUCCESS;
+}
+#endif
+
+/* The handshake frees the cert it made for the verify callback, not one the
+ * callback set. */
+int test_wolfSSL_X509_STORE_CTX_set_current_cert_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA)
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+    X509* cert = NULL;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.ctx_ready = test_set_cur_cert_ctx_ready;
+    server_cbs.certPemFile = "./certs/intermediate/server-chain.pem";
+
+    ExpectNotNull(cert = X509_load_certificate_file(cliCertFile,
+        SSL_FILETYPE_PEM));
+    /* A second reference keeps the cert valid if it is freed by mistake. */
+    ExpectIntEQ(X509_up_ref(cert), 1);
+    test_set_cur_cert_x509 = cert;
+    test_set_cur_cert_calls = 0;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+    ExpectIntGE(test_set_cur_cert_calls, 3);
+    if (cert != NULL)
+        ExpectIntEQ(wolfSSL_RefCur(cert->ref), 2);
+
+    test_set_cur_cert_x509 = NULL;
+    X509_free(cert);
+    X509_free(cert);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+static int test_set_cur_cert_ssl_calls;
+
+/* Called first. Sets another cert and accepts the cert. */
+static int test_set_cur_cert_cm_cb(int ok, X509_STORE_CTX* ctx)
+{
+    (void)ok;
+    test_set_cur_cert_calls++;
+    X509_STORE_CTX_set_current_cert(ctx, test_set_cur_cert_x509);
+    return 1;
+}
+
+/* Called next. Must see the cert being verified. */
+static int test_set_cur_cert_ssl_cb(int ok, X509_STORE_CTX* ctx)
+{
+    (void)ok;
+    test_set_cur_cert_ssl_calls++;
+    if (X509_STORE_CTX_get_current_cert(ctx) == test_set_cur_cert_x509)
+        test_set_cur_cert_bad = 1;
+    return 1;
+}
+#endif
+
+/* A cert set by one verify callback of the handshake is not seen by the next
+ * one. */
+int test_wolfSSL_X509_STORE_CTX_set_current_cert_cbs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    X509* cert = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectNotNull(cert = X509_load_certificate_file(cliCertFile,
+        SSL_FILETYPE_PEM));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    /* Without the CA, the SSL callback is called for every cert. */
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx_c),
+        test_set_cur_cert_cm_cb);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, test_set_cur_cert_ssl_cb);
+
+    test_set_cur_cert_x509 = cert;
+    test_set_cur_cert_calls = 0;
+    test_set_cur_cert_ssl_calls = 0;
+    test_set_cur_cert_bad = 0;
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntGT(test_set_cur_cert_calls, 0);
+    ExpectIntGT(test_set_cur_cert_ssl_calls, 0);
+    ExpectIntEQ(test_set_cur_cert_bad, 0);
+
+    test_set_cur_cert_x509 = NULL;
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    X509_free(cert);
 #endif
     return EXPECT_RESULT();
 }

@@ -1684,6 +1684,28 @@ int wolfSSL_state(WOLFSSL* ssl)
 }
 
 
+#ifdef OPENSSL_EXTRA
+/* Whether err is from a record that failed authentication or decryption.
+ * OpenSSL reports these as SSL_ERROR_SSL, with the detail on the error queue.
+ */
+static int IsRecordCorruptError(int err)
+{
+    switch (err) {
+        case WC_NO_ERR_TRACE(VERIFY_MAC_ERROR):
+        case WC_NO_ERR_TRACE(DECRYPT_ERROR):
+        case WC_NO_ERR_TRACE(SANITY_CIPHER_E):
+        case WC_NO_ERR_TRACE(AES_GCM_AUTH_E):
+        case WC_NO_ERR_TRACE(AES_CCM_AUTH_E):
+        case WC_NO_ERR_TRACE(MAC_CMP_FAILED_E):
+        case WC_NO_ERR_TRACE(SM4_GCM_AUTH_E):
+        case WC_NO_ERR_TRACE(SM4_CCM_AUTH_E):
+            return 1;
+        default:
+            return 0;
+    }
+}
+#endif
+
 WOLFSSL_ABI
 int wolfSSL_get_error(WOLFSSL* ssl, int ret)
 {
@@ -1709,6 +1731,10 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
     else if (ssl->error == WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E))
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
+    /* ssl->error keeps the detail. DTLS drops a bad record and goes on, so it
+     * keeps reporting the detail. */
+    else if (!ssl->options.dtls && IsRecordCorruptError(ssl->error))
+        return WOLFSSL_ERROR_SSL;               /* convert to OpenSSL type */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     else if (ssl->error == WC_NO_ERR_TRACE(MP_WOULDBLOCK))

@@ -707,6 +707,7 @@ struct wc_error_entry {
     char   file[WOLFSSL_MAX_ERROR_SZ];
     int    line;
     int    err;
+    word32 marks; /* ERR_set_mark() count */
 };
 
 struct wc_error_queue {
@@ -936,6 +937,39 @@ int wc_ERR_remove_state(void)
 }
 
 /**
+ * Mark the newest entry in the ERR queue.
+ * Returns 1 on success and 0 when the queue is empty.
+ */
+int wc_SetErrorNodeMark(void)
+{
+    struct wc_error_entry *entry = get_entry(-1);
+
+    if ((entry == NULL) || (entry->marks == WOLFSSL_MAX_32BIT)) {
+        return 0;
+    }
+    entry->marks++;
+    return 1;
+}
+
+/**
+ * Remove the entries added after the newest mark, then remove the mark.
+ * Returns 1 on success and 0 when there is no mark. The queue is empty then.
+ */
+int wc_PopErrorNodesToMark(void)
+{
+    struct wc_error_entry *entry;
+
+    while ((entry = get_entry(-1)) != NULL) {
+        if (entry->marks > 0) {
+            entry->marks--;
+            return 1;
+        }
+        wc_RemoveErrorNode(-1);
+    }
+    return 0;
+}
+
+/**
  * Get the first entry's values in the ERR queue that is not filtered
  * by the provided `ignore_err` callback. All ignored entries are removed,
  * making the returned entry the head of the ERR queue afterwards.
@@ -1057,6 +1091,7 @@ struct wc_error_queue {
     char   file[WOLFSSL_MAX_ERROR_SZ];
     int    value;
     int    line;
+    word32 marks; /* ERR_set_mark() count */
 };
 
 /* The global list of errors encountered */
@@ -1461,6 +1496,56 @@ int wc_ERR_remove_state(void)
     return 0;
 }
 
+/* Mark the newest node in the queue. Nodes before wc_current_node were already
+ * read and are not in the queue.
+ * Returns 1 on success and 0 when the queue is empty. */
+int wc_SetErrorNodeMark(void)
+{
+    int ret = 0;
+
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return 0;
+    }
+
+    if ((wc_current_node != NULL) && (wc_last_node != NULL) &&
+            (wc_last_node->marks != WOLFSSL_MAX_32BIT)) {
+        wc_last_node->marks++;
+        ret = 1;
+    }
+
+    ERRQ_UNLOCK();
+    return ret;
+}
+
+/* Remove the nodes added after the newest mark, then remove the mark.
+ * Returns 1 on success and 0 when there is no mark. The queue is empty then. */
+int wc_PopErrorNodesToMark(void)
+{
+    int ret = 0;
+
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return 0;
+    }
+
+    while ((wc_current_node != NULL) && (wc_last_node != NULL)) {
+        if (wc_last_node->marks > 0) {
+            wc_last_node->marks--;
+            ret = 1;
+            break;
+        }
+        removeErrorNode(-1);
+    }
+    if (ret == 0) {
+        /* Also drop the entries that were already read. */
+        clearErrorNodes();
+    }
+
+    ERRQ_UNLOCK();
+    return ret;
+}
+
 unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
                                        const char **data, int *flags,
                                        int (*ignore_err)(int err))
@@ -1655,6 +1740,18 @@ int wc_SetLoggingHeap(void* h)
 }
 
 int wc_ERR_remove_state(void)
+{
+    return 0;
+}
+
+/* The queue is always empty. */
+int wc_SetErrorNodeMark(void)
+{
+    return 0;
+}
+
+/* There is never a mark. */
+int wc_PopErrorNodesToMark(void)
 {
     return 0;
 }
