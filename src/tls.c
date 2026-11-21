@@ -10421,6 +10421,14 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
                                           word32 kemSsSz)
 {
     int ret = 0;
+#ifdef HAVE_CURVE25519
+    curve25519_key* key = (curve25519_key*)keyShareEntry->key;
+    const byte* peerPub = keyShareEntry->ke;
+    word32 peerPubLen = keyShareEntry->keLen;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte maskedPub[CURVE25519_KEYSIZE];
+#endif
+#endif
 
     /* Used only when the module joins X25519 with ML-KEM. */
     (void)group;
@@ -10429,12 +10437,6 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
     (void)kemSsSz;
 
 #ifdef HAVE_CURVE25519
-    curve25519_key* key = (curve25519_key*)keyShareEntry->key;
-    const byte* peerPub = keyShareEntry->ke;
-    word32 peerPubLen = keyShareEntry->keLen;
-#ifndef WOLFSSL_X25519_NO_MASK_PEER
-    byte maskedPub[CURVE25519_KEYSIZE];
-#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (keyShareEntry->lastRet == 0) /* don't enter here if WC_PENDING_E */

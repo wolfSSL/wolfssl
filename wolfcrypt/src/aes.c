@@ -15585,7 +15585,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
             if (ret == 0)
                 aes->nonceSet = 1;
-            aes->gcmIvStream = (byte)counted;
+            aes->gcmIvStream = (counted != 0) ? 1 : 0;
             if (counted) {
                 GcmIncIv(aes);
             }
