@@ -15460,6 +15460,7 @@ int test_tls13_early_data_AEAD_limit_exact(void)
          * the EndOfEarlyData that an accepted 0-RTT exchange still owes. */
         ssl_c->keys.sequence_number_hi = 0;
         ssl_c->keys.sequence_number_lo = 0x016A09E6 - 2;
+        ExpectIntEQ(test_tls13_restart_gcm_nonce(ssl_c), 0);
     }
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
@@ -15562,6 +15563,7 @@ int test_tls13_early_data_AEAD_limit_partial(void)
          * check, which is the partial case under test. */
         ssl_c->keys.sequence_number_hi = 0;
         ssl_c->keys.sequence_number_lo = 0x016A09E6 - 2;
+        ExpectIntEQ(test_tls13_restart_gcm_nonce(ssl_c), 0);
     }
 
     /* Refused outright, reported through the conventional idiom, and nothing

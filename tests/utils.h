@@ -123,6 +123,9 @@ int test_memio_move_message(struct test_memio_ctx *ctx, int client,
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos);
 int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int msg_pos, int new_len);
 int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz);
+#ifdef WOLFSSL_TLS13
+int test_tls13_restart_gcm_nonce(WOLFSSL* ssl);
+#endif
 #ifdef WOLFSSL_SESSION_EXPORT
 void test_export_options_v6(unsigned char* session, unsigned int* sessionSz);
 #endif

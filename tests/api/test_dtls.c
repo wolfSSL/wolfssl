@@ -13807,6 +13807,7 @@ static int test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(const char* suite,
          * comfortably below the trigger threshold. */
         test_dtls13_seq_wrap_stage(ssl_c, ssl_s,
             w64From32(limit_hi, limit_lo - 2));
+        ExpectIntEQ(test_tls13_restart_gcm_nonce(ssl_c), 0);
     }
 
     /* First write: below the limit, no KeyUpdate expected. */
