@@ -23492,6 +23492,10 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
     };
+    WOLFSSL_SMALL_STACK_STATIC const byte key2[16] = {
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
+    };
     WOLFSSL_SMALL_STACK_STATIC const byte fixed[AES_IV_FIXED_SZ] = {
         0x77, 0x6f, 0x6c, 0x66
     };
@@ -23550,7 +23554,13 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
     if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    /* Setting the same key again is not a new key. */
     ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
     if (ret == 0)
         ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
     if (ret != 0)
@@ -23576,7 +23586,7 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
-    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
     if (ret == 0)
         ret = wc_AesGcmSetExtIV(enc, ext, sizeof(ext));
     if (ret != 0)
@@ -23612,7 +23622,7 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
 
     /* A stream on the generated IV uses it up, and another mode cannot set
      * the next one. (SP 800-38D 8, 9.1) */
-    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
     if (ret == 0)
         ret = wc_AesGcmSetIV(enc, sizeof(ext), NULL, 0, &rng);
 #ifdef WOLFSSL_AESGCM_STREAM
@@ -23657,6 +23667,10 @@ static wc_test_ret_t aesgcm_ivctr_test(Aes* enc)
     WOLFSSL_SMALL_STACK_STATIC const byte key[16] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte key2[16] = {
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
     };
     /* Pad || SSRC || ROC || SEQ */
     WOLFSSL_SMALL_STACK_STATIC const byte start[GCM_NONCE_MID_SZ] = {
@@ -23725,7 +23739,7 @@ static wc_test_ret_t aesgcm_ivctr_test(Aes* enc)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* ROC||SEQ fffffffffffe is the last value; all ones would wrap. */
-    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
     if (ret == 0)
         ret = wc_AesGcmSetIVCounter(enc, last, sizeof(last), 6, NULL);
     if (ret == 0)

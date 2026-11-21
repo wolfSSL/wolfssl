@@ -9239,7 +9239,7 @@ static WC_INLINE void GcmReflectH(byte* h)
 #endif
 
 /* Software AES - GCM SetKey */
-int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
+static int AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
     int  ret;
     byte iv[WC_AES_BLOCK_SIZE];
@@ -9504,6 +9504,31 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         ForceZero(&aes->gcm, sizeof(aes->gcm));
     }
     return ret;
+}
+
+int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
+{
+#ifdef WC_AESGCM_IV_LOCK
+    int  ret;
+    byte lockedH[WC_AES_BLOCK_SIZE];
+    byte relock = (byte)((aes != NULL) && aes->gcmIvLock);
+
+    /* The same key again keeps the lock: only that key gives the same H. */
+    if (relock) {
+        XMEMCPY(lockedH, aes->gcm.H, sizeof(lockedH));
+    }
+    ret = AesGcmSetKey(aes, key, len);
+    if (relock) {
+        if ((ret == 0) && (ConstantCompare(lockedH, aes->gcm.H,
+                                           sizeof(lockedH)) == 0)) {
+            aes->gcmIvLock = 1;
+        }
+        ForceZero(lockedH, sizeof(lockedH));
+    }
+    return ret;
+#else
+    return AesGcmSetKey(aes, key, len);
+#endif
 }
 
 
