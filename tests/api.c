@@ -21438,7 +21438,7 @@ static int test_wolfSSL_set1_curves_list(void)
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "P-25X"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "P-256"), WOLFSSL_SUCCESS);
 #endif
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(WC_X25519_HYBRID_ONLY)
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "X25519"), WOLFSSL_SUCCESS);
 #else
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "X25519"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -21455,7 +21455,7 @@ static int test_wolfSSL_set1_curves_list(void)
     ExpectIntEQ(SSL_set1_curves_list(ssl, "P-256"), WOLFSSL_SUCCESS);
 #endif
 
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(WC_X25519_HYBRID_ONLY)
     ExpectIntEQ(SSL_set1_curves_list(ssl, "X25519"), WOLFSSL_SUCCESS);
 #else
     ExpectIntEQ(SSL_set1_curves_list(ssl, "X25519"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));

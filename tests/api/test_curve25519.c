@@ -29,6 +29,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/curve25519.h>
+#include <wolfssl/wolfcrypt/kdf.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/api/api.h>
 #include <tests/api/test_curve25519.h>
@@ -301,7 +302,8 @@ int test_wc_curve25519_make_key(void)
 int test_wc_curve25519_shared_secret_ex(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519)
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(HAVE_CURVE25519)
     curve25519_key private_key;
     curve25519_key public_key;
     WC_RNG         rng;
@@ -398,7 +400,8 @@ int test_wc_curve25519_shared_secret_ex(void)
 int test_wc_curve25519_shared_secret_zero_check(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT) && \
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT) && \
     !defined(WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK)
     curve25519_key private_key;
     curve25519_key public_key;
@@ -519,6 +522,13 @@ int test_wc_curve25519_shared_secret_ex_kat(void)
     byte           out[CURVE25519_KEYSIZE];
     word32         outLen;
     int i;
+#if defined(WC_X25519_HYBRID_ONLY) && defined(WOLFSSL_HAVE_TLS13_HYBRID_X25519)
+    byte           kemSs[32];
+    byte           hybrid[sizeof(kemSs) + CURVE25519_KEYSIZE];
+    word32         hybridSz;
+
+    XMEMSET(kemSs, 0xa5, sizeof(kemSs));
+#endif
 
     vec[0].pub = kPub1; vec[0].expected = kExpected1;
     vec[1].pub = kPub2; vec[1].expected = kExpected2;
@@ -540,10 +550,34 @@ int test_wc_curve25519_shared_secret_ex_kat(void)
             CURVE25519_KEYSIZE, &public_key, EC25519_LITTLE_ENDIAN), 0);
 
         outLen = sizeof(out);
+    #ifdef WC_X25519_HYBRID_ONLY
+        /* Only the module's ML-KEM hybrid join computes X25519. */
+        ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
+            out, &outLen, EC25519_LITTLE_ENDIAN),
+            WC_NO_ERR_TRACE(FIPS_WRONG_API_E));
+        ExpectIntEQ(wc_curve25519_generic(CURVE25519_KEYSIZE, out,
+            CURVE25519_KEYSIZE, kPriv, CURVE25519_KEYSIZE, vec[i].pub),
+            WC_NO_ERR_TRACE(FIPS_WRONG_API_E));
+    #ifdef WOLFSSL_HAVE_TLS13_HYBRID_X25519
+        hybridSz = sizeof(hybrid);
+        ExpectIntEQ(wc_Tls13_HybridSharedSecretX25519(4587, 0, &private_key,
+            &public_key, hybrid, sizeof(hybrid), &hybridSz, kemSs,
+            sizeof(kemSs)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        hybridSz = sizeof(hybrid);
+        ExpectIntEQ(wc_Tls13_HybridSharedSecretX25519(4588, 1, &private_key,
+            &public_key, hybrid, sizeof(hybrid), &hybridSz, kemSs,
+            sizeof(kemSs)), 0);
+        ExpectIntEQ(hybridSz, sizeof(hybrid));
+        ExpectIntEQ(XMEMCMP(hybrid, kemSs, sizeof(kemSs)), 0);
+        ExpectIntEQ(XMEMCMP(hybrid + sizeof(kemSs), vec[i].expected,
+            CURVE25519_KEYSIZE), 0);
+    #endif
+    #else
         ExpectIntEQ(wc_curve25519_shared_secret_ex(&private_key, &public_key,
             out, &outLen, EC25519_LITTLE_ENDIAN), 0);
         ExpectIntEQ(outLen, CURVE25519_KEYSIZE);
         ExpectIntEQ(XMEMCMP(out, vec[i].expected, CURVE25519_KEYSIZE), 0);
+    #endif
 
         wc_curve25519_free(&private_key);
         wc_curve25519_free(&public_key);
@@ -602,7 +636,8 @@ int test_wc_curve25519_make_pub(void)
     return EXPECT_RESULT();
 } /* END test_wc_curve25519_make_pub */
 
-#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
 /* RFC 7748 sec 5.2 vector 2, scalar clamped as in sec 5 (little endian). */
 static const byte x25519_k2[CURVE25519_KEYSIZE] = {
     0x48, 0x66, 0xe9, 0xd4, 0xd1, 0xb4, 0x67, 0x3c,
@@ -633,7 +668,8 @@ static const byte x25519_r2[CURVE25519_KEYSIZE] = {
 int test_wc_curve25519_make_pub_generic(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
     curve25519_key keyA;
     curve25519_key keyB;
     WC_RNG         rng;
@@ -1266,7 +1302,8 @@ int test_wc_curve25519_check_public_be(void)
 int test_wc_curve25519_generic_argchecks(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519)
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(HAVE_CURVE25519)
     curve25519_key key;
     WC_RNG         rng;
     byte           basepoint[CURVE25519_KEYSIZE];
@@ -1373,7 +1410,8 @@ int test_wc_curve25519_set_rng_argcheck(void)
 int test_wc_curve25519_nonblock(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519) && defined(CURVE25519_SMALL) && \
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(HAVE_CURVE25519) && defined(CURVE25519_SMALL) && \
     defined(WC_X25519_NONBLOCK)
     curve25519_key priv_key;
     curve25519_key pub_key;
@@ -1502,7 +1540,8 @@ int test_wc_curve25519_nonblock(void)
 /* WOLF_CRYPTO_CB_FIND is excluded because the find callback rewrites even an
  * explicit devId, so it, not the key, owns the routing; CB-only is excluded
  * because it has no software path for an unbound key to fall back to. */
-#if defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE25519) && \
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE25519) && \
     !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_FIND) && \
     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
 typedef struct curve25519SpyCtx {
@@ -1566,7 +1605,8 @@ static int curve25519_make_key_sync(WC_RNG* rng, curve25519_key* key)
 int test_wc_curve25519_cryptocb(void)
 {
     EXPECT_DECLS;
-#if defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE25519) && \
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(WOLF_CRYPTO_CB) && defined(HAVE_CURVE25519) && \
     !defined(WC_NO_RNG) && !defined(WOLF_CRYPTO_CB_FIND) && \
     !defined(WOLF_CRYPTO_CB_ONLY_CURVE25519)
     curve25519SpyCtx spyA;
@@ -1688,7 +1728,8 @@ int test_wc_curve25519_cryptocb(void)
 int test_wc_curve25519_shared_secret_noncanonical_kat(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT) && \
+#if !defined(WC_X25519_HYBRID_ONLY) && \
+    defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT) && \
     defined(HAVE_CURVE25519_SHARED_SECRET) && \
     !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_SE050)
     static const byte kPriv[CURVE25519_KEYSIZE] = {

@@ -152,7 +152,7 @@ int test_tls13_apis(void)
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
     char         groupList[] =
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(WC_X25519_HYBRID_ONLY)
             "X25519:"
 #endif
 #ifdef HAVE_CURVE448
@@ -6073,10 +6073,12 @@ static int test_tls13_x25519_low_order_key_share(int devId)
     ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(WOLFSSL_X25519MLKEM768,
         0, -1, 0, 1088, lowOrder, (int)sizeof(lowOrder), devId, bad),
         TEST_SUCCESS);
+#ifndef WC_X25519_HYBRID_ONLY
     /* A plain X25519 ServerHello takes the same path. */
     ExpectIntEQ(test_tls13_mlkem_bad_key_share_once_ex(WOLFSSL_ECC_X25519,
         0, -1, 0, 0, lowOrder, (int)sizeof(lowOrder), devId, bad),
         TEST_SUCCESS);
+#endif
     return EXPECT_RESULT();
 }
 #endif
@@ -16310,6 +16312,7 @@ int test_tls13_x25519_keyshare_masks_reserved_bit(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CURVE25519) && \
+    !defined(WC_X25519_HYBRID_ONLY) && \
     defined(HAVE_SUPPORTED_CURVES) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
@@ -17484,7 +17487,7 @@ int test_tls13_ticket_nonce_server_reuse(void)
 int test_tls13_hs_secret_zeroized_sha384(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_TLS13) && \
+#if defined(WOLFSSL_TLS13) && !defined(WC_X25519_HYBRID_ONLY) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_CURVE25519) && \
     defined(BUILD_TLS_AES_256_GCM_SHA384) && \

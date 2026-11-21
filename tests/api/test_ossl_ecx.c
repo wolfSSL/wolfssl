@@ -116,6 +116,13 @@ int test_EC25519(void)
          pub, pubSz), 0);
     pubSz = CURVE25519_KEYSIZE;
 
+#ifdef WC_X25519_HYBRID_ONLY
+    /* FIPS v7 computes X25519 only inside the ML-KEM hybrid. */
+    ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
+        pub2, pub2Sz), 0);
+    (void)shared2;
+    (void)shared2Sz;
+#else
     /* Good case of shared key. */
     ExpectIntEQ(wolfSSL_EC25519_shared_key(shared, &sharedSz, priv, privSz,
         pub2, pub2Sz), 1);
@@ -124,6 +131,7 @@ int test_EC25519(void)
     ExpectIntEQ(sharedSz, CURVE25519_KEYSIZE);
     ExpectIntEQ(shared2Sz, CURVE25519_KEYSIZE);
     ExpectIntEQ(XMEMCMP(shared, shared2, sharedSz), 0);
+#endif
 #endif /* HAVE_CURVE25519 && WOLFSSL_KEY_GEN */
     return EXPECT_RESULT();
 }

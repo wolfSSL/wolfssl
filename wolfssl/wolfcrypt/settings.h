@@ -6541,6 +6541,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #error FIPS v7 needs WOLFSSL_LMS_VERIFY_ONLY and WOLFSSL_XMSS_VERIFY_ONLY
 #endif
 
+/* X25519 is approved only inside an ML-KEM hybrid the module joins, so its
+ * standalone shared secret is refused (IG D.S Scenario 2). */
+#if FIPS_VERSION3_GE(7,0,0) && defined(HAVE_CURVE25519)
+    #define WC_X25519_HYBRID_ONLY
+#endif
+
 /* Kyber round 3 is not FIPS 203 ML-KEM: configure refuses it for v7 too. */
 #if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_MLKEM_KYBER)
     #error FIPS v7 does not include Kyber (WOLFSSL_MLKEM_KYBER), use ML-KEM
