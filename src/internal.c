@@ -46744,16 +46744,21 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             /* Failure here should not interrupt the resumption. We already have
              * all the cipher material we need in `it` */
             WOLFSSL_MSG("Copying in session from passed in arg");
-            (void)wolfSSL_DupSession(sess, ssl->session, 1);
+#ifdef HAVE_EX_DATA
+            /* Only the cache keeps a copy of the ex_data */
+            if (sess->type == WOLFSSL_SESSION_TYPE_CACHE || !sess->ownExData) {
+                (void)wolfSSL_DupSessionEx(sess, ssl->session, 1, 0, NULL,
+                        NULL, NULL);
+                SessionDropExDataCopy(ssl->session);
+            }
+            else
+#endif
+            {
+                (void)wolfSSL_DupSession(sess, ssl->session, 1);
+            }
             /* Restore the fake ID */
             XMEMCPY(ssl->session->sessionID, bogusID, ID_LEN);
             ssl->session->sessionIDSz= bogusIDSz;
-#ifdef HAVE_EX_DATA
-            /* If we are duping a cached entry we need to maintain single
-             * owner of the ex_data. The data is found in cache on request. */
-            if (sess->type == WOLFSSL_SESSION_TYPE_CACHE || !sess->ownExData)
-                SessionDropExDataCopy(ssl->session);
-#endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
     !defined(NO_SESSION_CACHE)
             /* A stateful ticket only resumes on a cache hit. RFC 8446 Sect. 8:

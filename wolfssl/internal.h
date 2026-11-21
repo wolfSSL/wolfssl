@@ -5594,6 +5594,9 @@ WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_CTX* ctx,
         WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL int wolfSSL_DupSession(const WOLFSSL_SESSION* input,
         WOLFSSL_SESSION* output, int avoidSysCalls);
+WOLFSSL_LOCAL int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
+        WOLFSSL_SESSION* output, int avoidSysCalls, int transferExData,
+        byte* ticketNonceBuf, byte* ticketNonceLen, byte* preallocUsed);
 
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);

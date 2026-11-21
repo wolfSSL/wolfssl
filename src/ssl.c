@@ -8322,16 +8322,41 @@ void crypto_ex_cb_setup_new_data(void *new_obj, CRYPTO_EX_cb_ctx* cb_ctx,
     }
 }
 
+/* If a dup callback fails revert current duplication progress */
+static void crypto_ex_cb_dup_undo(WOLFSSL_CRYPTO_EX_DATA* out,
+        const CRYPTO_EX_cb_ctx* cb_ctx, int failedIdx)
+{
+    int idx;
+
+    for (idx = 0; idx < MAX_EX_DATA; idx++) {
+        int keep = (idx < failedIdx && cb_ctx != NULL &&
+                    cb_ctx->dup_func != NULL);
+        if (!keep) {
+            /* Write the slot directly: wolfSSL_CRYPTO_set_ex_data() would run
+             * a cleanup routine on the borrowed pointer. */
+            out->ex_data[idx] = NULL;
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+            out->ex_data_cleanup_routines[idx] = NULL;
+#endif
+        }
+        if (cb_ctx != NULL)
+            cb_ctx = cb_ctx->next;
+    }
+}
+
 int crypto_ex_cb_dup_data(const WOLFSSL_CRYPTO_EX_DATA *in,
         WOLFSSL_CRYPTO_EX_DATA *out, CRYPTO_EX_cb_ctx* cb_ctx)
 {
+    CRYPTO_EX_cb_ctx* cb = cb_ctx;
     int idx = 0;
-    for (; cb_ctx != NULL; idx++, cb_ctx = cb_ctx->next) {
-        if (cb_ctx->dup_func != NULL) {
+
+    for (; cb != NULL; idx++, cb = cb->next) {
+        if (cb->dup_func != NULL) {
             void* ptr = wolfSSL_CRYPTO_get_ex_data(in, idx);
-            if (!cb_ctx->dup_func(out, in,
-                    &ptr, idx,
-                    cb_ctx->ctx_l, cb_ctx->ctx_ptr)) {
+            if (!cb->dup_func(out, in, &ptr, idx, cb->ctx_l, cb->ctx_ptr)) {
+                /* Release nothing the source still holds; keep what earlier
+                 * callbacks created so the caller's free releases it. */
+                crypto_ex_cb_dup_undo(out, cb_ctx, idx);
                 return WOLFSSL_FAILURE;
             }
             wolfSSL_CRYPTO_set_ex_data(out, idx, ptr);

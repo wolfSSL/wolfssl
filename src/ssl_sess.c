@@ -1180,10 +1180,6 @@ static int SessionTicketNoncePrealloc(byte** buf, byte* len, void *heap)
 }
 #endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
 
-static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
-    WOLFSSL_SESSION* output, int avoidSysCalls, int transferExData,
-    byte* ticketNonceBuf, byte* ticketNonceLen, byte* preallocUsed);
-
 /* Client entries sit one row over so both sides of a connection never share
  * a row. */
 static word32 SessionCacheRow(const byte* id, int side, int* error)
@@ -1355,24 +1351,13 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             found = 1;
 
 #ifdef HAVE_EX_DATA
-            if (!extSess->ownExData) {
-                /* The internal cache took the ex_data before new_sess_cb
-                 * handed this session out, so the internal entry owns it.
-                 * Keep it the only owner: leave extSess as it is and keep no
-                 * copy in output. The ex_data is not copied, so no dup
-                 * callbacks run for data output would not keep. */
-                error = wolfSSL_DupSessionEx(extSess, output, 0, 0, NULL, NULL,
-                        NULL);
-                SessionDropExDataCopy(output);
-            }
-            else
+            /* leave cache owning the ex_data */
+            error = wolfSSL_DupSessionEx(extSess, output, 0, 0, NULL, NULL,
+                    NULL);
+            SessionDropExDataCopy(output);
+#else
+            error = wolfSSL_DupSession(extSess, output, 0);
 #endif
-            {
-                error = wolfSSL_DupSession(extSess, output, 0);
-#ifdef HAVE_EX_DATA
-                output->ownExData = 0;
-#endif
-            }
             /* We want to restore the bogus ID for TLS compatibility */
             if (ssl->session->haveAltSessionID &&
                     output == ssl->session) {
@@ -4277,7 +4262,7 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
  * @return              WOLFSSL_SUCCESS on success
  *                      WOLFSSL_FAILURE on failure
  */
-static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
+int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     WOLFSSL_SESSION* output, int avoidSysCalls, int transferExData,
     byte* ticketNonceBuf, byte* ticketNonceLen, byte* preallocUsed)
 {
@@ -4515,7 +4500,14 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
 #endif
 
 #ifdef HAVE_EX_DATA
-    if (ret == WOLFSSL_SUCCESS && transferExData &&
+    if (ret != WOLFSSL_SUCCESS && transferExData &&
+            input->type != WOLFSSL_SESSION_TYPE_CACHE &&
+            output->type != WOLFSSL_SESSION_TYPE_CACHE) {
+        /* Failed after the bulk copy (ticket, nonce or peer) and before the
+         * ex_data was duplicated make sure no bad data is present */
+        XMEMSET(&output->ex_data, 0, sizeof(output->ex_data));
+    }
+    else if (ret == WOLFSSL_SUCCESS && transferExData &&
             input->type != WOLFSSL_SESSION_TYPE_CACHE &&
             output->type != WOLFSSL_SESSION_TYPE_CACHE) {
         /* With a session cache the input session may not own its ex_data.
@@ -4551,8 +4543,6 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
                                         crypto_ex_cb_ctx_session);
 #endif
         }
-        if (ret != WOLFSSL_SUCCESS)
-            XMEMSET(&output->ex_data, 0, sizeof(output->ex_data));
     }
 #endif /* HAVE_EX_DATA */
 
