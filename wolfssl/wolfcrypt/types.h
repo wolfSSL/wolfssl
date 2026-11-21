@@ -961,6 +961,15 @@ enum {
     #endif /* WOLFSSL_STATIC_MEMORY */
 #endif
 
+/* XREALLOC_SCRUBBED: realloc for key material.  The old block is zeroized
+ * before it is freed.  size 0 is rejected; on NULL return p is untouched.
+ * Library and test use only; a port may define its own in user_settings.h. */
+#if !defined(XREALLOC_SCRUBBED) && \
+    (defined(BUILDING_WOLFSSL) || defined(WOLFSSL_VIS_FOR_TESTS))
+    #define XREALLOC_SCRUBBED(p, oldSz, size, h, t) \
+        wc_ReallocScrubbed(p, oldSz, size, h, t)
+#endif
+
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WC_NO_CONSTRUCTORS)
     #define WC_NO_CONSTRUCTORS

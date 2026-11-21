@@ -109,6 +109,14 @@ Threading/Mutex options:
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+/* ForceZero() for the scrubbing reallocator below */
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
 #endif
@@ -807,6 +815,54 @@ WC_NO_INLINE void wc_BarrierDataSink(void* p)
     fn(p);
 }
 #endif /* WC_BARRIER_DATA_USES_SINK */
+
+/* Make sure we zero memory even when we do not have ForceZero. */
+static void wc_ReallocScrub(void* mem, size_t len)
+{
+#ifndef WOLFSSL_NO_FORCE_ZERO
+    ForceZero(mem, len);
+#else
+    volatile byte* z = (volatile byte*)mem;
+    while (len--) {
+        *z++ = 0;
+    }
+#endif
+}
+
+/* Allocates a new buffer on allocation success we copy over the data
+ * to the new buffer and zero the old one we return NULL on failure leaving
+ * original data untouched */
+void *wc_ReallocScrubbed(void *ptr, size_t oldSz, size_t size,
+                         void *heap, int type)
+{
+    void *newPtr;
+
+    (void)heap;
+    (void)type;
+
+    if (size == 0) {
+        /* rejected: freeing here would make NULL ambiguous with failure */
+        return NULL;
+    }
+    if (ptr == NULL) {
+        return XMALLOC(size, heap, type);
+    }
+    newPtr = XMALLOC(size, heap, type);
+    if (newPtr == NULL)
+        return NULL; /* original intact and unscrubbed */
+    if (newPtr == ptr) {
+        /* fixed IO pools hand back the block already in use */
+        if (oldSz > size) {
+            wc_ReallocScrub((byte*)ptr + size, oldSz - size);
+        }
+    }
+    else {
+        XMEMCPY(newPtr, ptr, (oldSz < size) ? oldSz : size);
+        wc_ReallocScrub(ptr, oldSz);
+    }
+    XFREE(ptr, heap, type);
+    return newPtr;
+}
 
 /* Used to initialize state for wolfcrypt
    return 0 on success
