@@ -43934,6 +43934,18 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
         ret = wc_CheckRsaKey(genKey);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    /* A public exponent out of range is refused before the pair-wise test,
+     * not reported as a failed one. */
+    ret = mp_set_int(&genKey->e, 3);
+    if (ret == 0)
+        ret = wc_CheckRsaKey(genKey);
+    if (ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = mp_set_int(&genKey->e, WC_RSA_EXPONENT);
+    if (ret == 0)
+        ret = wc_CheckRsaKey(genKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
 #if !defined(WC_TEST_SKIP_RSA_PRIVATE_EXPORT) && !defined(WOLFSSL_MICROCHIP)
 #ifndef WOLFSSL_NO_MALLOC
