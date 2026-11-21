@@ -8894,7 +8894,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  * block counter during the encryption.
  */
 
-#if (defined(HAVE_AESGCM) && !defined(WC_NO_RNG)) || defined(HAVE_AESCCM)
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
