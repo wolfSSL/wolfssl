@@ -54213,6 +54213,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    /* FIPS v7 takes only the 14-byte salt CAVP tests. */
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 13,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 13,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
     ret = wc_SRTP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,

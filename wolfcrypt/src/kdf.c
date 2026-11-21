@@ -1093,6 +1093,17 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
     }
 }
 
+/* RFC 3711 sec 4.3.3: the PRF output is at most 2^23 bits, which is all the
+ * 16-bit block counter can count. */
+#define WC_SRTP_KDF_MAX_OUT     (1U << 20)
+
+/* FIPS v7 takes RFC 3711's 112-bit master salt, the size CAVP tests. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #define WC_SRTP_SALT_BAD(sz)    ((sz) != WC_SRTP_MAX_SALT)
+#else
+    #define WC_SRTP_SALT_BAD(sz)    ((sz) > WC_SRTP_MAX_SALT)
+#endif
+
 /* Derive a key given the first block.
  *
  * @param [in, out] block    First block to encrypt. Need label XORed in.
@@ -1103,6 +1114,7 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
  * @param [in]      keySz    Size of key to derive in bytes.
  * @param [in]      aes      AES object to encrypt with.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when keySz is more than the PRF can output.
  */
 static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
         byte* key, word32 keySz, Aes* aes)
@@ -1111,6 +1123,10 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
     int ret = 0;
     /* Calculate the number of full blocks needed for derived key. */
     int blocks = (int)(keySz / WC_AES_BLOCK_SIZE);
+
+    if (keySz > WC_SRTP_KDF_MAX_OUT) {
+        return BAD_FUNC_ARG;
+    }
 
     /* XOR in label. */
     block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;
@@ -1164,7 +1180,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
  * @param [in]  key3Sz   Size of third key in bytes.
  * @return  BAD_FUNC_ARG when key or salt is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1180,7 +1196,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -1259,7 +1275,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  key3Sz   Size of third key in bytes.
  * @return  BAD_FUNC_ARG when key or salt is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1284,7 +1300,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -1368,7 +1384,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  outKeySz  Size of derived key in bytes.
  * @return  BAD_FUNC_ARG when key, salt or outKey is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1384,7 +1400,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -1444,7 +1460,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
  * @param [in]  outKeySz  Size of derived key in bytes.
  * @return  BAD_FUNC_ARG when key, salt or outKey is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1460,7 +1476,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
