@@ -23861,6 +23861,13 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
 
+#ifdef WC_AESGCM_IV_LOCK
+    /* An earlier test can leave enc with a generated IV under this key. */
+    wc_AesFree(enc);
+    ret = wc_AesInit(enc, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
     ret = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -63216,7 +63223,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
     x25519_nb_ctx_t nb_ctx;
     curve25519_key userA;
     curve25519_key userB;
-#ifdef HAVE_CURVE25519_SHARED_SECRET
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && !defined(WC_X25519_HYBRID_ONLY)
     byte    sharedA[32];
     byte    sharedB[32];
     word32  x;
@@ -63277,7 +63284,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
         return -10726;
     }
 
-#ifdef HAVE_CURVE25519_SHARED_SECRET
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && !defined(WC_X25519_HYBRID_ONLY)
     x = sizeof(sharedA);
     do {
         ret = wc_curve25519_shared_secret(&userA, &userB, sharedA, &x);
@@ -63599,8 +63606,16 @@ static wc_test_ret_t curve25519_hybrid_only_test(WC_RNG* rng,
 #endif
 
     ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, userA);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret == 0)
         ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, userB);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     ret = wc_curve25519_shared_secret(userA, userB, out, &outSz);

@@ -844,7 +844,8 @@ int wc_curve25519_shared_secret(curve25519_key* private_key,
                                           out, outlen, EC25519_BIG_ENDIAN);
 }
 
-#ifdef WC_X25519_NONBLOCK
+/* Hybrid-only X25519 is computed in one call: the join never yields. */
+#if defined(WC_X25519_NONBLOCK) && !defined(WC_X25519_HYBRID_ONLY)
 
 static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
     curve25519_key* pubKey, byte* out, word32* outlen, int endian)
@@ -960,7 +961,7 @@ int wc_curve25519_shared_secret_internal(curve25519_key* private_key,
     /* software path stripped; callback is the only provider */
     return NO_VALID_DEVID;
 #else
-#ifdef WC_X25519_NONBLOCK
+#if defined(WC_X25519_NONBLOCK) && !defined(WC_X25519_HYBRID_ONLY)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_X25519) && \
     defined(WOLFSSL_ASYNC_CRYPT_SW)
