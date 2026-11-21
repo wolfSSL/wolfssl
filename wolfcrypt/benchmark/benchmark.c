@@ -14545,6 +14545,11 @@ static void bench_xmss_verify(void)
                                         sizeof_bench_xmss_sha2_10_256_sig,
                                         bench_xmss_sha2_10_256_msg,
                                         sizeof_bench_xmss_sha2_10_256_msg);
+            #if defined(WC_HAVE_FIPS_INDICATOR) && !defined(FIPS_NO_WRAPPERS)
+                /* FIPS v7 verifies XMSS without approval (IG C.N). */
+                if (ret == WC_FIPS_NOT_APPROVED)
+                    ret = 0;
+            #endif
                 if (ret != 0) {
                     printf("wc_XmssKey_Verify failed: %d\n", ret);
                     break;

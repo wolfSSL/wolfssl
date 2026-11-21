@@ -19342,6 +19342,11 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     ret = wc_XmssKey_Verify(sigCtx->key.xmss, sig, sigSz,
                         buf, (int)bufSz);
+                #if defined(WC_HAVE_FIPS_INDICATOR) && !defined(FIPS_NO_WRAPPERS)
+                    /* FIPS v7 verifies XMSS without approval (IG C.N). */
+                    if (ret == WC_FIPS_NOT_APPROVED)
+                        ret = 0;
+                #endif
                     sigCtx->verify = (ret == 0);
                     break;
                 }

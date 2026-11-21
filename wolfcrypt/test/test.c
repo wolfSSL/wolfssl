@@ -80990,10 +80990,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     ret = wc_XmssKey_ImportPubRaw(&verifyKey, xmss_pub, XMSS_SHA256_PUBLEN);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
+    /* FIPS v7 verifies XMSS without approval (IG C.N): UNAPPROVED_OK. */
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
-    if (ret != 0) {
-        printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
+    if (ret != UNAPPROVED_OK) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               UNAPPROVED_OK);
         return WC_TEST_RET_ENC_EC(ret);
     }
 
@@ -81029,12 +81031,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
 
     /* Flip it back. This should pass again. */
     xmss_msg[sizeof(xmss_msg) / 2] ^= 1;
+    /* FIPS v7 verifies XMSS without approval (IG C.N): UNAPPROVED_OK. */
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
-    if (ret != 0) {
-        printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
+    if (ret != UNAPPROVED_OK) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               UNAPPROVED_OK);
         return WC_TEST_RET_ENC_EC(ret);
     }
+    ret = 0;
 
     /* Flip bits in a few places throughout the signature, stepping in multiple
      * of hash size. These should all fail with -1. */
