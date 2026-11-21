@@ -1,0 +1,56 @@
+name: ThreadSanitizer Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'release/**' ]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+jobs:
+  tsan:
+    name: unit tests under ThreadSanitizer
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout wolfSSL
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake libtool build-essential
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      # libtsan rejects the kernel's default address space randomization.
+      - name: Lower ASLR entropy for ThreadSanitizer
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+      # --enable-rwlock: without it wolfSSL_RwLock is a mutex and readers
+      # never run in parallel.
+      - name: Build wolfSSL
+        run: |
+          ./autogen.sh
+          ./configure --enable-dtls --enable-dtls13 --enable-dtls-mtu \
+            --enable-dtls-frag-ch --enable-hrrcookie --enable-session-ticket \
+            --enable-rwlock --enable-curve25519 --enable-opensslextra \
+            --enable-debug \
+            CFLAGS="-fsanitize=thread -g -O1 -fno-omit-frame-pointer" \
+            LDFLAGS="-fsanitize=thread"
+          make -j$(nproc)
+
+      # The groups holding every threaded test. A report fails the run.
+      - name: Run threaded test groups
+        run: |
+          TSAN_OPTIONS=halt_on_error=1 ./tests/unit.test \
+            --group dtls --group dtls13 --group tls13 --group session
