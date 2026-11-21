@@ -1813,6 +1813,7 @@ int test_wolfssl_EVP_aes_gcm_64bit_iv(void)
 
     XMEMSET(out, 0, sizeof(out));
     XMEMSET(outTag, 0, sizeof(outTag));
+    XMEMSET(&aes, 0, sizeof(aes));
     ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
     ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL),
         1);
