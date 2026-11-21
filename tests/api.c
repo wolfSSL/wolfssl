@@ -34060,9 +34060,9 @@ static int test_wolfSSL_d2i_X509_REQ(void)
         /*
          * Verify the signature in the CSR
          */
-#ifdef WC_FIPS_RSA_VERIFY_MIN_2048
-        /* certs/csr.ext.der has a 1024-bit RSA key; IG C.F requires at least
-         * 2048 bits for FIPS 186-5 signature verification. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+        /* certs/csr.ext.der has a 1024-bit RSA key, and FIPS v7 refuses every
+         * RSA operation under 2048 bits. */
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 0);
 #else
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 1);
