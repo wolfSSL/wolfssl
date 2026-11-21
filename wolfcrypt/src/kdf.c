@@ -627,8 +627,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 #ifdef WOLFSSL_HAVE_MLKEM
 /* Puts the ML-KEM secret after the ECDH secret in ss, or before it if kemFirst.
- * FIPS builds allow only the groups, orders and sizes of
- * draft-ietf-tls-ecdhe-mlkem-03 sec 4.3. */
+ * FIPS allows only the groups, orders and sizes of RFC 10024 sec 4.3. */
 static int Tls13HybridJoin(word16 group, int kemFirst, byte* ss,
     word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz)
 {
