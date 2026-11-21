@@ -903,6 +903,20 @@ int wc_CheckRsaKey(RsaKey* key)
             ret = MP_INIT_E;
     }
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    /* Modulus at least 2048 bits (FIPS 186-5 sec 5.1), not RSA_MIN_SIZE, which
+     * drops to 1024 under HAVE_WOLFENGINE / HAVE_WOLFPROVIDER. */
+    if ((ret == 0) && (mp_count_bits(&key->n) < 2048)) {
+        ret = WC_KEY_SIZE_E;
+    }
+    /* Even modulus length and e in range (crt_pkv items B and D, step 3c).
+     * Checked before the pairwise test so a refusal is not reported as one. */
+    if (ret == 0) {
+        ret = RsaCheckPublicParams(key);
+    }
+#endif
+
     if (ret == 0)
         ret = _ifc_pairwise_consistency_test(key, rng);
 
@@ -934,16 +948,6 @@ int wc_CheckRsaKey(RsaKey* key)
     if (ret == 0) {
         int nBits = mp_count_bits(&key->n);
         int isPrime = 0;
-
-        /* Modulus at least 2048 bits (FIPS 186-5 sec 5.1), not RSA_MIN_SIZE,
-         * which drops to 1024 under HAVE_WOLFENGINE / HAVE_WOLFPROVIDER. */
-        if (nBits < 2048) {
-            ret = WC_KEY_SIZE_E;
-        }
-        /* Even modulus length (item D, step 3c) and e in range (item B). */
-        if (ret == 0) {
-            ret = RsaCheckPublicParams(key);
-        }
 
         /* Primes: right size, coprime to e, far enough apart, and actually
          * prime (steps 5a to 5g).  Two calls because steps 5f/5g want a
