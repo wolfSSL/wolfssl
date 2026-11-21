@@ -12214,6 +12214,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* authIn, word32 authInSz)
 {
     int ret;
+    word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
 
     /* argument checks */
     /* If sz is non-zero, both in and out must be set; if sz is 0, in and
@@ -12346,16 +12347,20 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                    authTagSz, authIn, authInSz);
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
+    /* The assembly uses aes->reg as scratch: keep this object's own IV. */
+    XMEMCPY(reg, aes->reg, sizeof(reg));
 #if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
     defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
     AES_GCM_encrypt_RISCV64(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
         authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp, (byte*)aes->reg,
         (int)aes->rounds);
+    XMEMCPY(aes->reg, reg, sizeof(reg));
     return 0;
 #elif defined(WOLFSSL_RISCV_ASM)
     AES_GCM_encrypt_RISCV64(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
         authInSz, (byte*)aes->key, AES_GCM_H_PTR(aes), (byte*)aes->tmp,
         (byte*)aes->reg, (int)aes->rounds);
+    XMEMCPY(aes->reg, reg, sizeof(reg));
     return 0;
 #endif
 
@@ -12479,6 +12484,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     VECTOR_REGISTERS_POP;
+    XMEMCPY(aes->reg, reg, sizeof(reg));
 
     return ret;
 }

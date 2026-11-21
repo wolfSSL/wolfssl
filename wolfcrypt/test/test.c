@@ -23466,13 +23466,24 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
         ret = 0;
     }
 
-    /* A decrypt on the encrypt object must leave its next IV in place. */
+#ifndef HAVE_FIPS
+    /* A decrypt or a one-shot encrypt on this object must leave its next IV
+     * in place. FIPS builds take aes.c from the module tag, so skip them. */
     {
         byte nextIV[sizeof(randIV)];
+        byte ownIV[GCM_NONCE_MID_SZ];
         int i;
 
         ret = wc_AesGcmDecrypt(enc, resultP, resultC, sizeof(p),
                                randIV, sizeof(randIV), resultT, 16, a, sizeof(a));
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        XMEMSET(ownIV, 0xA5, sizeof(ownIV));
+        ret = wc_AesGcmEncrypt(enc, resultC, p, sizeof(p),
+                               ownIV, sizeof(ownIV), resultT, 16, a, sizeof(a));
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
@@ -23493,6 +23504,7 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
         if (XMEMCMP(nextIV, randIV, sizeof(randIV)) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
+#endif /* !HAVE_FIPS */
 #endif /* HAVE_AES_DECRYPT */
 
   out:
