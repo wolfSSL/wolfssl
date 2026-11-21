@@ -1173,12 +1173,18 @@ int test_wc_Tls13_HybridSharedSecret(void)
     /* X25519MLKEM768: ML-KEM (32) then X25519 (32), exact fit */
     XMEMCPY(ss, ec, 32);
     ssSz = 32;
+#ifdef WC_X25519_HYBRID_ONLY
+    /* Only the join that computes X25519 itself takes X25519MLKEM768. */
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_X25519MLKEM768, 1, ss,
+        64, &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
     ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_X25519MLKEM768, 1, ss,
         64, &ssSz, kem, sizeof(kem)), 0);
     ExpectIntEQ(ssSz, 64);
     XMEMCPY(want, kem, sizeof(kem));
     XMEMCPY(want + 32, ec, 32);
     ExpectBufEQ(ss, want, 64);
+#endif
 
     /* Bad arguments and a result that does not fit. */
     ssSz = 32;

@@ -62391,7 +62391,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 #else
 #define X25519_TEST_CNT    1
 #endif
-static wc_test_ret_t curve25519_overflow_test(WC_RNG* rng)
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_overflow_test(WC_RNG* rng)
 {
     /* secret key for party a */
     byte sa[X25519_TEST_CNT][32] = {
@@ -62757,7 +62757,7 @@ static wc_test_ret_t curve25519_check_public_test(void)
  *
  * returns 0 on success and -ve on failure.
  */
-static wc_test_ret_t curve25519_noncanonical_test(WC_RNG* rng)
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_noncanonical_test(WC_RNG* rng)
 {
     wc_test_ret_t ret;
     WOLFSSL_SMALL_STACK_STATIC const byte priv[CURVE25519_KEYSIZE] = {
@@ -63239,7 +63239,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
 
 #endif /* WC_X25519_NONBLOCK */
 
-static wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
         curve25519_key* userA, curve25519_key* userB, curve25519_key* pubKey)
 {
     wc_test_ret_t ret;
@@ -63351,7 +63351,7 @@ static wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
 
 #if defined(HAVE_CURVE25519_SHARED_SECRET) && \
                                              defined(HAVE_CURVE25519_KEY_IMPORT)
-static wc_test_ret_t curve25519_kat_test(WC_RNG* rng,
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_kat_test(WC_RNG* rng,
         curve25519_key* userA, curve25519_key* userB)
 {
     wc_test_ret_t ret;
@@ -63492,6 +63492,49 @@ static wc_test_ret_t curve25519_kat_test(WC_RNG* rng,
 }
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
 
+#ifdef WC_X25519_HYBRID_ONLY
+/* X25519 is refused alone and computed only by the ML-KEM hybrid join. */
+static wc_test_ret_t curve25519_hybrid_only_test(WC_RNG* rng,
+        curve25519_key* userA, curve25519_key* userB)
+{
+    wc_test_ret_t ret;
+    byte   out[CURVE25519_KEYSIZE];
+    word32 outSz = sizeof(out);
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_X25519
+    byte   kemSs[32];
+    byte   ssA[sizeof(kemSs) + CURVE25519_KEYSIZE];
+    byte   ssB[sizeof(kemSs) + CURVE25519_KEYSIZE];
+    word32 ssASz = sizeof(ssA);
+    word32 ssBSz = sizeof(ssB);
+#endif
+
+    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, userA);
+    if (ret == 0)
+        ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, userB);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_curve25519_shared_secret(userA, userB, out, &outSz);
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        return WC_TEST_RET_ENC_EC(ret);
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_X25519
+    /* X25519MLKEM768 puts the ML-KEM secret first (RFC 10024 sec 4.3). */
+    XMEMSET(kemSs, 0x5a, sizeof(kemSs));
+    ret = wc_Tls13_HybridSharedSecretX25519(4588, 1, userA, userB, ssA,
+              sizeof(ssA), &ssASz, kemSs, sizeof(kemSs));
+    if (ret == 0)
+        ret = wc_Tls13_HybridSharedSecretX25519(4588, 1, userB, userA, ssB,
+                  sizeof(ssB), &ssBSz, kemSs, sizeof(kemSs));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if ((ssASz != sizeof(ssA)) || (ssBSz != ssASz) ||
+            (XMEMCMP(ssA, ssB, ssASz) != 0) ||
+            (XMEMCMP(ssA, kemSs, sizeof(kemSs)) != 0))
+        return WC_TEST_RET_ENC_NC;
+#endif
+    return 0;
+}
+#endif /* WC_X25519_HYBRID_ONLY */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
 {
     WC_RNG  rng;
@@ -63534,6 +63577,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     wc_curve25519_set_rng(userB, &rng);
 #endif
 
+#ifdef WC_X25519_HYBRID_ONLY
+    ret = curve25519_hybrid_only_test(&rng, userA, userB);
+    if (ret != 0)
+        goto cleanup;
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && \
+                                             defined(HAVE_CURVE25519_KEY_IMPORT)
+    ret = curve25519_check_public_test();
+    if (ret != 0)
+        goto cleanup;
+#endif
+#else
     ret = curve25519_keyagree_test(&rng, userA, userB, pubKey);
     if (ret != 0)
         goto cleanup;
@@ -63556,6 +63610,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
         goto cleanup;
 #endif
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
+#endif /* WC_X25519_HYBRID_ONLY */
 
 #if !defined(NO_ASN) && defined(HAVE_CURVE25519_KEY_EXPORT) && \
     defined(HAVE_CURVE25519_KEY_IMPORT)

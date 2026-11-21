@@ -629,7 +629,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 /* Puts the ML-KEM secret after the ECDH secret in ss, or before it if kemFirst.
  * FIPS builds allow only the groups, orders and sizes of
  * draft-ietf-tls-ecdhe-mlkem-03 sec 4.3. */
-int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
+static int Tls13HybridJoin(word16 group, int kemFirst, byte* ss,
     word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz)
 {
 #ifdef HAVE_FIPS
@@ -676,6 +676,50 @@ int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
 
     return 0;
 }
+
+int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
+    word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz)
+{
+#ifdef WC_X25519_HYBRID_ONLY
+    /* X25519MLKEM768 is joined only where the module computes the X25519. */
+    if (group == 4588)
+        return BAD_FUNC_ARG;
+#endif
+    return Tls13HybridJoin(group, kemFirst, ss, ssMax, ssSz, kemSs, kemSsSz);
+}
+
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_SHARED_SECRET)
+/* Compute the X25519 secret and join it with the ML-KEM secret, so the X25519
+ * secret only leaves the module joined (IG D.S Scenario 2, item 5). */
+int wc_Tls13_HybridSharedSecretX25519(word16 group, int kemFirst,
+    curve25519_key* privKey, curve25519_key* peerKey, byte* ss, word32 ssMax,
+    word32* ssSz, const byte* kemSs, word32 kemSsSz)
+{
+    int ret;
+    word32 ecSz = CURVE25519_KEYSIZE;
+
+    if ((ss == NULL) || (ssSz == NULL) || (kemSs == NULL) ||
+            (ssMax < CURVE25519_KEYSIZE))
+        return BAD_FUNC_ARG;
+#ifdef HAVE_FIPS
+    /* X25519MLKEM768 is the only hybrid with X25519 (RFC 10024 sec 4.3). */
+    if (group != 4588)
+        return BAD_FUNC_ARG;
+#endif
+
+    ret = wc_curve25519_shared_secret_internal(privKey, peerKey, ss, &ecSz,
+                                               EC25519_LITTLE_ENDIAN);
+    if (ret == 0) {
+        *ssSz = ecSz;
+        ret = Tls13HybridJoin(group, kemFirst, ss, ssMax, ssSz, kemSs,
+                              kemSsSz);
+    }
+    if (ret != 0) {
+        ForceZero(ss, ssMax);
+    }
+    return ret;
+}
+#endif /* HAVE_CURVE25519 && HAVE_CURVE25519_SHARED_SECRET */
 #endif /* WOLFSSL_HAVE_MLKEM */
 
 
