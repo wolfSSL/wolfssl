@@ -54075,6 +54075,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     unsigned char keyE[32];
     unsigned char keyA[20];
     unsigned char keyS[14];
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    unsigned char salt14[14];
+#endif
 #ifdef SRTP_KDF_LONG_KEY
     WC_DECLARE_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
     WC_DECLARE_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
@@ -54221,7 +54224,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
-    /* FIPS v7 takes only the 14-byte salt CAVP tests. */
+    /* FIPS v7 takes only a 12 or 14-byte salt. */
     ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 13,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
         keyS, tv[i].ksSz);
@@ -54232,6 +54235,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    /* A 12-byte salt is right-aligned (RFC 3711 sec 4.3.1). */
+    XMEMSET(salt14, 0, 2);
+    XMEMCPY(salt14 + 2, tv[i].salt + 2, 12);
+    ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, salt14, 14,
+        tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_ENCRYPTION, keyE, 16);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt + 2, 12,
+        tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_ENCRYPTION, keyA, 16);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(keyE, keyA, 16) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
     ret = wc_SRTP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,

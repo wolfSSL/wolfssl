@@ -1097,9 +1097,9 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
  * 16-bit block counter can count. */
 #define WC_SRTP_KDF_MAX_OUT     (1U << 20)
 
-/* FIPS v7 takes RFC 3711's 112-bit master salt, the size CAVP tests. */
+/* FIPS v7 takes the 112-bit (RFC 3711) or 96-bit (RFC 7714) master salt. */
 #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
-    #define WC_SRTP_SALT_BAD(sz)    ((sz) != WC_SRTP_MAX_SALT)
+    #define WC_SRTP_SALT_BAD(sz)    (((sz) != WC_SRTP_MAX_SALT) && ((sz) != 12))
 #else
     #define WC_SRTP_SALT_BAD(sz)    ((sz) > WC_SRTP_MAX_SALT)
 #endif
@@ -1180,7 +1180,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
  * @param [in]  key3Sz   Size of third key in bytes.
  * @return  BAD_FUNC_ARG when key or salt is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1275,7 +1275,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  key3Sz   Size of third key in bytes.
  * @return  BAD_FUNC_ARG when key or salt is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1384,7 +1384,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  outKeySz  Size of derived key in bytes.
  * @return  BAD_FUNC_ARG when key, salt or outKey is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1460,7 +1460,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
  * @param [in]  outKeySz  Size of derived key in bytes.
  * @return  BAD_FUNC_ARG when key, salt or outKey is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 14 in FIPS v7.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
