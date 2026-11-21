@@ -21317,6 +21317,10 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
     GetASN_OID(&hwDataASN[HWNAMEASN_IDX_TYPE], oidIgnoreType);
     ret = GetASN_Items(hwNameASN, hwDataASN, (int)hwNameASN_Length, 1, seq,
                        &idx, seqLen);
+    if ((ret == 0) && (idx != seqLen)) {
+        WOLFSSL_MSG("\tData after Hardware Module Name serial number");
+        ret = ASN_PARSE_E;
+    }
     if (ret == 0) {
         oidLen = hwDataASN[HWNAMEASN_IDX_TYPE].data.oid.length;
         serialLen = hwDataASN[HWNAMEASN_IDX_NUM].data.ref.length;
@@ -21422,6 +21426,10 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         ret = GetASN_Items(otherNameASN, dataASN, otherNameASN_Length, 1, input,
                            inOutIdx, maxIdx);
     }
+    if ((ret == 0) && (*inOutIdx != maxIdx)) {
+        WOLFSSL_MSG("\tData after other name value");
+        ret = ASN_PARSE_E;
+    }
     if (ret == 0) {
         /* Ensure expected OID. */
         switch (dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum) {
@@ -21450,6 +21458,25 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
     return ret;
 }
 #endif /* WOLFSSL_SEP || WOLFSSL_FPKI */
+
+/* An otherName is a type-id and a [0] EXPLICIT value, with nothing after. */
+static int CheckOtherNameForm(const byte* input, word32 idx, word32 len)
+{
+    word32 end = idx + len;
+    int l = 0;
+
+    if ((idx >= end) || (input[idx] != ASN_OBJECT_ID))
+        return ASN_PARSE_E;
+    idx++;
+    if ((GetLength(input, &idx, &l, end) < 0) || (l == 0))
+        return ASN_PARSE_E;
+    idx += (word32)l;
+    if (GetASNHeader(input, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+            ASN_OTHERNAME_VALUE, &idx, &l, end) < 0)
+        return ASN_PARSE_E;
+    idx += (word32)l;
+    return (idx == end) ? 0 : ASN_PARSE_E;
+}
 
 /* Decode a GeneralName.
  *
@@ -21648,6 +21675,12 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
      * the public altNames view (used by OpenSSL-compat APIs) reflects
      * exactly what the SAN extension carries. */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
+    #if !defined(WOLFSSL_SEP) && !defined(WOLFSSL_FPKI)
+        if (CheckOtherNameForm(input, idx, (word32)len) != 0) {
+            WOLFSSL_MSG("\tBad other name");
+            return ASN_PARSE_E;
+        }
+    #endif
         ret = SetDNSEntry(cert->heap, WC_DNS_POOL(cert),
                 (const char*)(input + idx), len, ASN_OTHER_TYPE,
                 &cert->altOtherNamesRaw);
@@ -21675,6 +21708,12 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
 #endif
     /* GeneralName choice: dNSName, x400Address, ediPartyName */
     else {
+        if ((tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+                ASN_OTHER_TYPE)) &&
+                (CheckOtherNameForm(input, idx, (word32)len) != 0)) {
+            WOLFSSL_MSG("\tBad other name");
+            return ASN_PARSE_E;
+        }
         WOLFSSL_MSG("\tUnsupported name type, skipping");
         idx += (word32)len;
     }
