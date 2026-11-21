@@ -4004,7 +4004,7 @@ static int crl_unk_ext_cb_accept(const word16* oid, word32 oidSz,
     if (ctx != NULL) {
         ctx->calls++;
         if (crit)
-            ctx->sawCritical = 1;
+            ctx->sawCritical = crit;
         /* Expect OID arc starts at {2, 5, 29, ...}. */
         if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
             ctx->oidMatched = 1;
@@ -4023,7 +4023,7 @@ static int crl_unk_ext_cb_accept32(const word32* oid, word32 oidSz,
     if (ctx != NULL) {
         ctx->calls++;
         if (crit)
-            ctx->sawCritical = 1;
+            ctx->sawCritical = crit;
         /* Expect OID arc starts at {2, 5, 29, ...}. */
         if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
             ctx->oidMatched = 1;
@@ -4082,7 +4082,7 @@ static int crl_unk_ext_cb_noctx_accept(const word16* oid, word32 oidSz,
     (void)derSz;
     crl_unk_ext_noctx_calls++;
     if (crit)
-        crl_unk_ext_noctx_sawCritical = 1;
+        crl_unk_ext_noctx_sawCritical = crit;
     /* Expect OID arc starts at {2, 5, 29, ...}. */
     if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
         crl_unk_ext_noctx_oidMatched = 1;
@@ -4096,7 +4096,7 @@ static int crl_unk_ext_cb_noctx_accept32(const word32* oid, word32 oidSz,
     (void)derSz;
     crl_unk_ext_noctx_calls++;
     if (crit)
-        crl_unk_ext_noctx_sawCritical = 1;
+        crl_unk_ext_noctx_sawCritical = crit;
     /* Expect OID arc starts at {2, 5, 29, ...}. */
     if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
         crl_unk_ext_noctx_oidMatched = 1;

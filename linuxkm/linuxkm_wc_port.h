@@ -1199,6 +1199,10 @@
                                                int len, int loc, int set);
             extern void wolfSSL_X509_NAME_free(struct WOLFSSL_X509_NAME* name);
             extern struct WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap);
+            extern int X509NameAddDecodedEntry(struct WOLFSSL_X509_NAME* name,
+                                               int nid, int type,
+                                               const unsigned char* data,
+                                               int dataSz);
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
         #ifdef HAVE_OCSP
@@ -1563,6 +1567,7 @@
         typeof(wolfSSL_X509_NAME_add_entry_by_NID) *wolfSSL_X509_NAME_add_entry_by_NID;
         typeof(wolfSSL_X509_NAME_free) *wolfSSL_X509_NAME_free;
         typeof(wolfSSL_X509_NAME_new_ex) *wolfSSL_X509_NAME_new_ex;
+        typeof(X509NameAddDecodedEntry) *X509NameAddDecodedEntry;
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
         #ifdef HAVE_OCSP
@@ -1863,6 +1868,7 @@
             #define wolfSSL_X509_NAME_add_entry_by_NID WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_add_entry_by_NID)
             #define wolfSSL_X509_NAME_free WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_free)
             #define wolfSSL_X509_NAME_new_ex WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_new_ex)
+            #define X509NameAddDecodedEntry WC_PIE_INDIRECT_SYM(X509NameAddDecodedEntry)
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
         #ifdef HAVE_OCSP

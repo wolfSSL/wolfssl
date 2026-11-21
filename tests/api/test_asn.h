@@ -77,6 +77,8 @@ int test_wc_AsnFeatureCoverage(void);
 int test_wc_Pkcs8EncryptDecisionCoverage(void);
 int test_wc_AltNameNewEx(void);
 
+int test_wc_MakeCertReq_version(void);
+
 #define TEST_ASN_DECLS                                              \
     TEST_DECL_GROUP("asn", test_SetAsymKeyDer),                     \
     TEST_DECL_GROUP("asn", test_DecodeAsymKey_lenient_versions),    \
@@ -129,6 +131,7 @@ int test_wc_AltNameNewEx(void);
     TEST_DECL_GROUP("asn", test_wc_AsnDecisionCoverage),           \
     TEST_DECL_GROUP("asn", test_wc_AsnFeatureCoverage),             \
     TEST_DECL_GROUP("asn", test_wc_Pkcs8EncryptDecisionCoverage),   \
-    TEST_DECL_GROUP("asn", test_wc_AltNameNewEx)
+    TEST_DECL_GROUP("asn", test_wc_AltNameNewEx),                   \
+    TEST_DECL_GROUP("asn", test_wc_MakeCertReq_version)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */

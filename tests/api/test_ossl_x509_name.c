@@ -1474,3 +1474,113 @@ int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_CERTS)
+/* Return the string tag following the attribute OID 2.5.4.<attr>. */
+static int test_x509_name_attr_tag(const byte* der, int sz, byte attr)
+{
+    int i;
+
+    for (i = 0; i + 5 < sz; i++) {
+        if ((der[i] == ASN_OBJECT_ID) && (der[i + 1] == 3) &&
+                (der[i + 2] == 0x55) && (der[i + 3] == 0x04) &&
+                (der[i + 4] == attr)) {
+            return der[i + 5];
+        }
+    }
+    return -1;
+}
+
+static int test_x509_name_der(const char* serial, byte* der, int derSz)
+{
+    X509_NAME* name;
+    unsigned char* p = der;
+    int sz = -1;
+
+    name = X509_NAME_new();
+    if ((name != NULL) &&
+        (X509_NAME_add_entry_by_NID(name, NID_countryName, MBSTRING_UTF8,
+            (const unsigned char*)"US", -1, -1, 0) == 1) &&
+        (X509_NAME_add_entry_by_NID(name, NID_organizationName,
+            MBSTRING_UTF8, (const unsigned char*)"Example", -1, -1, 0) == 1) &&
+        (X509_NAME_add_entry_by_NID(name, NID_serialNumber, MBSTRING_UTF8,
+            (const unsigned char*)serial, -1, -1, 0) == 1) &&
+    #ifdef WOLFSSL_CERT_NAME_ALL
+        (X509_NAME_add_entry_by_NID(name, NID_dnQualifier, MBSTRING_UTF8,
+            (const unsigned char*)"dq-1", -1, -1, 0) == 1) &&
+    #endif
+        (i2d_X509_NAME(name, NULL) <= derSz)) {
+        sz = i2d_X509_NAME(name, &p);
+    }
+    X509_NAME_free(name);
+    return sz;
+}
+#endif
+
+int test_wolfSSL_X509_NAME_printable_attrs(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_CERTS)
+    static const byte utf8Name[] = {
+        0x30, 0x1E, 0x31, 0x0B, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06,
+        0x0C, 0x02, 'U', 'S', 0x31, 0x0F, 0x30, 0x0D, 0x06, 0x03, 0x55,
+        0x04, 0x05, 0x0C, 0x06, 'S', 'N', '-', '0', '0', '1'
+    };
+    byte der[256];
+    byte in[sizeof(utf8Name)];
+    unsigned char* p = in;
+    unsigned char* out = der;
+    X509_NAME* name = NULL;
+    X509_NAME* copy = NULL;
+    int sz = 0;
+
+    /* MBSTRING_UTF8 still gives PrintableString where RFC 5280 requires it. */
+    ExpectIntGT(sz = test_x509_name_der("SN-0001", der, (int)sizeof(der)), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_COUNTRY_NAME),
+        ASN_PRINTABLE_STRING);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_SERIAL_NUMBER),
+        ASN_PRINTABLE_STRING);
+#ifdef WOLFSSL_CERT_NAME_ALL
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_DNQUALIFIER),
+        ASN_PRINTABLE_STRING);
+#endif
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_ORG_NAME),
+        ASN_UTF8STRING);
+
+    /* '_' is outside the PrintableString set, so the value stays UTF8. */
+    ExpectIntGT(sz = test_x509_name_der("SN_0001", der, (int)sizeof(der)), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_SERIAL_NUMBER),
+        ASN_UTF8STRING);
+
+    /* add_entry_by_txt, then a UTF8 CN reusing the deleted C slot. */
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "C", MBSTRING_UTF8,
+        (const unsigned char*)"DE", -1, -1, 0), 1);
+    ExpectIntGT(sz = i2d_X509_NAME(name, &out), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_COUNTRY_NAME),
+        ASN_PRINTABLE_STRING);
+    ExpectNotNull(X509_NAME_delete_entry(name, 0));
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_UTF8,
+        (const unsigned char*)"M\xC3\xBCller", -1, -1, 0), 1);
+    out = der;
+    ExpectIntGT(sz = i2d_X509_NAME(name, &out), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_COMMON_NAME),
+        ASN_UTF8STRING);
+    X509_NAME_free(name);
+    name = NULL;
+
+    /* A decoded or copied name keeps its UTF8String C and serialNumber. */
+    XMEMCPY(in, utf8Name, sizeof(utf8Name));
+    ExpectNotNull(name = d2i_X509_NAME(NULL, &p, sizeof(utf8Name)));
+    out = der;
+    ExpectIntEQ(i2d_X509_NAME(name, &out), (int)sizeof(utf8Name));
+    ExpectBufEQ(der, utf8Name, sizeof(utf8Name));
+    ExpectNotNull(copy = X509_NAME_dup(name));
+    out = der;
+    ExpectIntEQ(i2d_X509_NAME(copy, &out), (int)sizeof(utf8Name));
+    ExpectBufEQ(der, utf8Name, sizeof(utf8Name));
+    X509_NAME_free(copy);
+    X509_NAME_free(name);
+#endif
+    return EXPECT_RESULT();
+}
