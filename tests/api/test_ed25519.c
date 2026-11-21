@@ -1235,6 +1235,30 @@ int test_wc_ed25519_verify_streaming(void)
     /* init: sigLen wrong. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen - 1, &key,
         (byte)Ed25519, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    {
+        /* An Ed25519ph stream takes exactly the 64-byte prehash. */
+        byte   phHash[WC_SHA512_DIGEST_SIZE];
+        byte   phSig[ED25519_SIG_SIZE];
+        word32 phSigLen = sizeof(phSig);
+        int    phRes = 0;
+
+        XMEMSET(phHash, 0x55, sizeof(phHash));
+        ExpectIntEQ(wc_ed25519ph_sign_hash(phHash, sizeof(phHash), phSig,
+            &phSigLen, &key, NULL, 0), 0);
+        ExpectIntEQ(wc_ed25519_verify_msg_init(phSig, phSigLen, &key,
+            (byte)Ed25519ph, NULL, 0), 0);
+        ExpectIntEQ(wc_ed25519_verify_msg_update(phHash, 32, &key), 0);
+        ExpectIntEQ(wc_ed25519_verify_msg_final(phSig, phSigLen, &phRes, &key),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ed25519_verify_msg_update(phHash, 33, &key),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ed25519_verify_msg_update(phHash + 32, 32, &key), 0);
+        ExpectIntEQ(wc_ed25519_verify_msg_final(phSig, phSigLen, &phRes, &key),
+            0);
+        ExpectIntEQ(phRes, 1);
+    }
+#endif
 
     /* init: non-canonical S (top 3 bits of sig[63] set). */
     XMEMCPY(badSig, sig, sizeof(badSig));

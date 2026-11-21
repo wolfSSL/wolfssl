@@ -105,6 +105,10 @@ struct ed448_key {
     wc_Shake sha;
     unsigned int sha_clean_flag : 1;
 #endif
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
+    byte   phStream; /* the verify stream is an Ed448ph prehash */
+    word32 phLen;    /* prehash bytes streamed so far */
+#endif
 #ifdef WOLF_PRIVATE_KEY_ID
     byte id[ED448_MAX_ID_LEN];
     int  idLen;

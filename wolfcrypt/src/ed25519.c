@@ -1203,27 +1203,43 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 
 int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen) {
+    int ret;
+
     if (key == NULL)
         return BAD_FUNC_ARG;
     /* see wc_ed25519_sign_msg_ex(): RFC 8032 defines no context for
      * pure Ed25519. */
     if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0))
         return BAD_FUNC_ARG;
-    return ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
+    ret = ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
                                         type, context, contextLen);
+    /* An Ed25519ph stream is exactly the 64-byte prehash (FIPS 186-5 7.8.2). */
+    key->phStream = (byte)((ret == 0) && (type == Ed25519ph));
+    key->phLen = 0;
+    return ret;
 }
 
 int wc_ed25519_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
                                         ed25519_key* key) {
+    int ret;
+
     if (key == NULL)
         return BAD_FUNC_ARG;
-    return ed25519_verify_msg_update_with_sha(msgSegment, msgSegmentLen,
+    if (key->phStream &&
+            (msgSegmentLen > WC_SHA512_DIGEST_SIZE - key->phLen))
+        return BAD_FUNC_ARG;
+    ret = ed25519_verify_msg_update_with_sha(msgSegment, msgSegmentLen,
                                           key, &key->sha);
+    if ((ret == 0) && key->phStream)
+        key->phLen += msgSegmentLen;
+    return ret;
 }
 
 int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
                                 ed25519_key* key) {
     if (key == NULL)
+        return BAD_FUNC_ARG;
+    if (key->phStream && (key->phLen != WC_SHA512_DIGEST_SIZE))
         return BAD_FUNC_ARG;
     return ed25519_verify_msg_final_with_sha(sig, sigLen, res,
                                          key, &key->sha);
