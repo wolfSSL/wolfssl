@@ -206,6 +206,7 @@ int test_tls13_ticket_nonce_server_reuse(void);
 int test_tls13_ignore_legacy_record_version(void);
 int test_tls13_hs_secret_zeroized_psk_ke(void);
 int test_tls13_hs_secret_zeroized_sha384(void);
+int test_tls13_gcm_nonce_counter_in_module(void);
 int test_tls13_early_secret_zeroized(void);
 int test_tls13_psk_key_zeroized(void);
 int test_tls13_export_server_ticket_after_import(void);
@@ -404,6 +405,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_ignore_legacy_record_version), \
     TEST_DECL_GROUP("tls13", test_tls13_hs_secret_zeroized_psk_ke), \
     TEST_DECL_GROUP("tls13", test_tls13_hs_secret_zeroized_sha384), \
+    TEST_DECL_GROUP("tls13", test_tls13_gcm_nonce_counter_in_module), \
     TEST_DECL_GROUP("tls13", test_tls13_early_secret_zeroized), \
     TEST_DECL_GROUP("tls13", test_tls13_psk_key_zeroized), \
     TEST_DECL_GROUP("tls13", test_tls13_export_server_ticket_after_import), \

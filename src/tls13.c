@@ -3093,6 +3093,40 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                         ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
                             dataSz, ssl->encrypt.nonce, nonceSz,
                             output + dataSz, macSz, aad, aadSz);
+                #elif defined(WC_AESGCM_IV_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT)
+                        /* The module counts nonces: write_iv XOR (0^32 ||
+                         * seq), RFC 8446 sec 5.3, IG C.H Scenario 1. */
+                        byte ivOut[AESGCM_NONCE_SZ];
+
+                        ret = 0;
+                        if (!ssl->encrypt.gcmIvCtrSet) {
+                            /* Start the count at this record's sequence. */
+                            byte start[AESGCM_NONCE_SZ];
+
+                            XMEMSET(start, 0, AESGCM_NONCE_SZ - SEQ_SZ);
+                            XMEMCPY(start + AESGCM_NONCE_SZ - SEQ_SZ,
+                                ssl->encrypt.nonce + AESGCM_NONCE_SZ - SEQ_SZ,
+                                SEQ_SZ);
+                            xorbuf(start + AESGCM_NONCE_SZ - SEQ_SZ,
+                                ssl->keys.aead_enc_imp_IV + AESGCM_NONCE_SZ -
+                                SEQ_SZ, SEQ_SZ);
+                            ret = wc_AesGcmSetIVCounter(ssl->encrypt.aes,
+                                    start, AESGCM_NONCE_SZ, SEQ_SZ,
+                                    ssl->keys.aead_enc_imp_IV);
+                            if (ret == 0)
+                                ssl->encrypt.gcmIvCtrSet = 1;
+                        }
+                        if (ret == 0) {
+                            ret = wc_AesGcmEncrypt_ex(ssl->encrypt.aes, output,
+                                    input, dataSz, ivOut, nonceSz,
+                                    output + dataSz, macSz, aad, aadSz);
+                        }
+                        /* The module's nonce must be this record's. */
+                        if ((ret == 0) && (XMEMCMP(ivOut, ssl->encrypt.nonce,
+                                                   nonceSz) != 0)) {
+                            WOLFSSL_MSG("TLS 1.3 record nonce mismatch");
+                            ret = BAD_STATE_E;
+                        }
                 #else
                         ret = wc_AesGcmSetExtIV(ssl->encrypt.aes,
                                 ssl->encrypt.nonce, nonceSz);
