@@ -14333,6 +14333,9 @@ static int mldsa_sign_ctx_msg_with_seed(wc_MlDsaKey* key,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14412,6 +14415,9 @@ static int mldsa_sign_msg_with_seed(wc_MlDsaKey* key, const byte* seed,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14512,6 +14518,9 @@ static int mldsa_sign_ctx_msg(wc_MlDsaKey* key, WC_RNG* rng,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14609,6 +14618,9 @@ static int mldsa_sign_msg(wc_MlDsaKey* key, WC_RNG* rng,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14716,6 +14728,10 @@ static int mldsa_sign_ctx_hash_with_seed(wc_MlDsaKey* key,
 #endif
 
     ForceZero(seedMu, sizeof(seedMu));
+    ForceZero(oidMsgHash, sizeof(oidMsgHash));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(seedMu, sizeof(seedMu));
 #endif
@@ -14944,6 +14960,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     byte* w1e = NULL;
     int valid = 0;
     sword32 hi;
+    unsigned int allocSz = 0;
 
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
@@ -14990,8 +15007,6 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
 #endif
     if (ret == 0) {
-        unsigned int allocSz;
-
         /* z, c, w, t1/t1c */
         allocSz = (unsigned int)MLDSA_POLY_SIZE + params->s1Sz +
             params->s2Sz + params->s2Sz;
@@ -15122,6 +15137,11 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     }
 
     *res = (ret == 0) ? valid : 0;
+    /* FIPS 204 3.6.3: destroy verify intermediates. */
+    ForceZero(commit_calc, sizeof(commit_calc));
+    if (z != NULL) {
+        ForceZero(z, allocSz);
+    }
     XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
     return ret;
 #else
@@ -15176,6 +15196,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #else
     unsigned int zSz = (unsigned int)params->s1Sz;
 #endif
+    unsigned int allocSz = 0;
 #endif
 
 #ifdef WC_MLDSA_NONBLOCK
@@ -15204,8 +15225,6 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
         /* z, [c-1], w-1, t1-1, [t64], block, w1e, [cSparse] */
-        unsigned int allocSz;
-
         allocSz  = zSz +
                    2U * (unsigned int)MLDSA_POLY_SIZE +
                    (unsigned int)MLDSA_REJ_NTT_POLY_H_SIZE +
@@ -15682,9 +15701,33 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
     else
 #endif
     {
+        if (z != NULL) {
+            ForceZero(z, allocSz);
+        }
         XFREE(z, key->heap, DYNAMIC_TYPE_MLDSA);
     }
+#else
+#ifdef WC_MLDSA_NONBLOCK
+    if (ret != WC_NO_ERR_TRACE(MP_WOULDBLOCK))
 #endif
+    {
+        ForceZero(key->z, sizeof(key->z));
+    #ifdef MLDSA_VERIFY_SPARSE_C
+        ForceZero(key->cSparse, sizeof(key->cSparse));
+    #else
+        ForceZero(key->c, sizeof(key->c));
+    #endif
+        ForceZero(key->w, sizeof(key->w));
+        ForceZero(key->vt1, sizeof(key->vt1));
+        ForceZero(key->w1e, sizeof(key->w1e));
+    #ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+        ForceZero(key->t64, sizeof(key->t64));
+    #endif
+        ForceZero(key->h, sizeof(key->h));
+    }
+#endif
+    /* FIPS 204 3.6.3: destroy verify intermediates. */
+    ForceZero(commit_calc, sizeof(commit_calc));
     return ret;
 #endif /* !WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
 }
@@ -15784,6 +15827,10 @@ static int mldsa_verify_ctx_msg(wc_MlDsaKey* key, const byte* ctx,
     mldsa_nb_bind(key, ret, msg, msgLen);
 #endif
 
+    ForceZero(tr, sizeof(tr));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
     return ret;
 }
 
@@ -15859,6 +15906,10 @@ static int mldsa_verify_msg(wc_MlDsaKey* key, const byte* msg,
     mldsa_nb_bind(key, ret, msg, msgLen);
 #endif
 
+    ForceZero(tr, sizeof(tr));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_NO_CTX */
@@ -15958,6 +16009,11 @@ static int mldsa_verify_ctx_hash(wc_MlDsaKey* key, const byte* ctx,
     mldsa_nb_bind(key, ret, hash, hashLen);
 #endif
 
+    ForceZero(tr, sizeof(tr));
+    ForceZero(oidMsgHash, sizeof(oidMsgHash));
+#ifdef WC_MLDSA_NONBLOCK
+    ForceZero(muChk, sizeof(muChk));
+#endif
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_NO_VERIFY */
