@@ -289,6 +289,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -304,8 +309,16 @@ impl Ed25519 {
     pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does, private first.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        if self.ws_key.pubKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_PUBLIC_KEY_E);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_key(&self.ws_key,
+            sys::wc_ed25519_export_key(crate::ptr_for_read(&self.ws_key),
                 private.as_mut_ptr(), &mut private_size,
                 public.as_mut_ptr(), &mut public_size)
         };
@@ -344,8 +357,13 @@ impl Ed25519 {
     #[cfg(ed25519_export)]
     pub fn export_public(&self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.pubKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_PUBLIC_KEY_E);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_public(&self.ws_key, public.as_mut_ptr(),
+            sys::wc_ed25519_export_public(crate::ptr_for_read(&self.ws_key), public.as_mut_ptr(),
                 &mut public_size)
         };
         if rc != 0 {
@@ -370,6 +388,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -383,8 +406,13 @@ impl Ed25519 {
     #[cfg(ed25519_export)]
     pub fn export_private(&self, keyout: &mut [u8]) -> Result<usize, i32> {
         let mut keyout_size = crate::buffer_len_to_u32(keyout.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_private(&self.ws_key, keyout.as_mut_ptr(),
+            sys::wc_ed25519_export_private(crate::ptr_for_read(&self.ws_key), keyout.as_mut_ptr(),
                 &mut keyout_size)
         };
         if rc != 0 {
@@ -409,6 +437,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -422,8 +455,13 @@ impl Ed25519 {
     #[cfg(ed25519_export)]
     pub fn export_private_only(&self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_private_only(&self.ws_key,
+            sys::wc_ed25519_export_private_only(crate::ptr_for_read(&self.ws_key),
                 private.as_mut_ptr(), &mut private_size)
         };
         if rc != 0 {
@@ -450,6 +488,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -494,6 +537,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -534,6 +582,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -578,6 +631,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -629,6 +687,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -678,6 +741,11 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed25519_make_key, ed25519_export, ed25519_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -695,12 +763,24 @@ impl Ed25519 {
     #[cfg(ed25519_make_key)]
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
         let pubkey_size = crate::buffer_len_to_u32(pubkey.len())?;
+        // The C code keeps a public half that is already set, so a later
+        // check_key can still catch a mismatched pair.
+        // We store the public half here (if present).
+        let had_public = self.ws_key.pubKeySet() != 0;
         let rc = unsafe {
             sys::wc_ed25519_make_public(&mut self.ws_key,
                 pubkey.as_mut_ptr(), pubkey_size)
         };
         if rc != 0 {
             return Err(rc);
+        }
+        // Older modules such as FIPS v6 return the public key without storing
+        // it in the key, so store it here like newer wolfSSL does, but only
+        // when the key had no public half before.
+        if !had_public {
+            let public = &pubkey[..Self::PUB_KEY_SIZE];
+            self.ws_key.p.copy_from_slice(public);
+            self.ws_key.k[Self::KEY_SIZE..].copy_from_slice(public);
         }
         Ok(())
     }
@@ -958,6 +1038,10 @@ impl Ed25519 {
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
+        // Older modules such as FIPS v6 take a prehash of any length.
+        if typ == Self::ED25519PH && din.len() != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E);
+        }
         let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
             sys::wc_ed25519_sign_msg_ex(din.as_ptr(), din_size,
@@ -1253,6 +1337,10 @@ impl Ed25519 {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
+        // Older modules such as FIPS v6 take a prehash of any length.
+        if typ == Self::ED25519PH && din.len() != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E);
+        }
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_ex(signature.as_ptr(), signature_size,
@@ -1468,7 +1556,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1496,7 +1584,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn priv_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_priv_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_priv_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1524,7 +1612,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn pub_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_pub_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_pub_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1552,7 +1640,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn sig_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_sig_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_sig_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1693,6 +1781,11 @@ mod signature_impl {
         /// # Example
         ///
         /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
         /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_sign, ed25519_export, random))]
         /// {
         /// use wolfssl_wolfcrypt::random::RNG;
@@ -1720,6 +1813,11 @@ mod signature_impl {
         /// # Example
         ///
         /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
         /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_import, ed25519_export, ed25519_sign, random))]
         /// {
         /// use wolfssl_wolfcrypt::random::RNG;
@@ -1757,6 +1855,11 @@ mod signature_impl {
         /// # Example
         ///
         /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
         /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_import, ed25519_export, ed25519_sign, random))]
         /// {
         /// use wolfssl_wolfcrypt::random::RNG;
@@ -1799,6 +1902,11 @@ mod signature_impl {
         /// # Example
         ///
         /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
         /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_export, ed25519_sign, random))]
         /// {
         /// use wolfssl_wolfcrypt::random::RNG;

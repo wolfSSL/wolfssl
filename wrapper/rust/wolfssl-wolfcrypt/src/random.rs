@@ -402,7 +402,12 @@ impl RNG {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let seed = [1u8, 2, 3, 4];
-    /// rng.reseed(&seed).expect("Error with reseed()");
+    /// let result = rng.reseed(&seed);
+    /// // Newer FIPS modules refuse a caller supplied seed, FIPS v6 accepts it.
+    /// #[cfg(all(fips, not(fips_v6)))]
+    /// assert_eq!(result, Err(wolfssl_wolfcrypt::sys::wolfCrypt_ErrorCodes_WRONG_TYPE_OBJECT_E));
+    /// #[cfg(not(all(fips, not(fips_v6))))]
+    /// result.expect("Error with reseed()");
     /// ```
     #[cfg(all(random_hashdrbg, not(fips_v5)))]
     pub fn reseed(&self, seed: &[u8]) -> Result<(), i32> {

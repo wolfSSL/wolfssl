@@ -38,6 +38,11 @@ construction time:
 # Examples
 
 ```rust
+#[cfg(fips)]
+{
+use wolfssl_wolfcrypt::fips;
+fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+}
 #[cfg(all(mlkem_768, mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
 {
 use wolfssl_wolfcrypt::random::RNG;
@@ -591,6 +596,11 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(mlkem_make_key, mlkem_encapsulate, mlkem_decapsulate, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -686,6 +696,11 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -762,6 +777,11 @@ impl MlKem {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(mlkem_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
