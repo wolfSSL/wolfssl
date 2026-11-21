@@ -4151,12 +4151,11 @@
     #endif
 #endif
 
-#if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && FIPS_VERSION3_LT(7,0,0) && \
+#if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && \
     defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED) && \
     !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
-    /* FIPS < v7 does not implement wc_AesGcmEncrypt() as a supported API, so it
-     * must be remapped to FIPS-supported APIs as arranged in wc_compat.h.
-     */
+    /* A one-shot GCM encrypt with a caller IV skips the module's IV accounting
+     * (SP 800-38D sec 8, IG C.H), so no FIPS version allows it. */
     #error WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED is forbidden for selected FIPS version.
 #endif
 
