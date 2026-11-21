@@ -6620,6 +6620,9 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
         int free_err = wc_ecc_free(key);
         if (free_err != 0)
             err = free_err;
+        /* wc_ecc_free() keeps the key type; clear it so sign and ECDH refuse. */
+        if (key != NULL)
+            key->type = 0;
     }
 #endif
 
