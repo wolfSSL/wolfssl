@@ -799,8 +799,8 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
 
 #if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-/* Check d * e = 1 mod LCM(p - 1, q - 1).
- * SP 800-56B Rev2 sec 6.4.1.2.1 step 6b. */
+/* Check d < LCM(p - 1, q - 1) and d * e = 1 mod LCM(p - 1, q - 1).
+ * SP 800-56B Rev2 sec 6.4.1.2.1 step 6a (upper bound) and 6b. */
 static int RsaCheckPrivExp(RsaKey* key)
 {
     int ret;
@@ -824,6 +824,9 @@ static int RsaCheckPrivExp(RsaKey* key)
         }
         if (ret == MP_OKAY) {
             ret = mp_lcm(&t[0], &t[1], &t[2]);
+        }
+        if ((ret == MP_OKAY) && (mp_cmp(&key->d, &t[2]) != MP_LT)) {
+            ret = MP_EXPTMOD_E;
         }
         if (ret == MP_OKAY) {
             ret = mp_mulmod(&key->d, &key->e, &t[2], &t[0]);

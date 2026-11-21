@@ -43934,6 +43934,40 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
         ret = wc_CheckRsaKey(genKey);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#ifndef WOLFSSL_NO_MALLOC
+    /* d + LCM(p - 1, q - 1) still inverts e but is not below the LCM:
+     * SP 800-56B Rev2 sec 6.4.1.2.1 step 6a. */
+    {
+        mp_int* t = (mp_int*)XMALLOC(sizeof(mp_int) * 3, HEAP_HINT,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+        if (t == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
+        ret = mp_init_multi(&t[0], &t[1], &t[2], NULL, NULL, NULL);
+        if (ret == 0)
+            ret = mp_sub_d(&genKey->p, 1, &t[0]);
+        if (ret == 0)
+            ret = mp_sub_d(&genKey->q, 1, &t[1]);
+        if (ret == 0)
+            ret = mp_lcm(&t[0], &t[1], &t[2]);
+        if (ret == 0)
+            ret = mp_copy(&genKey->d, &t[0]);
+        if (ret == 0)
+            ret = mp_add(&genKey->d, &t[2], &genKey->d);
+        if (ret == 0) {
+            ret = wc_CheckRsaKey(genKey);
+            ret = (ret == WC_NO_ERR_TRACE(MP_EXPTMOD_E)) ? 0 :
+                                                          WC_TEST_RET_ENC_EC(ret);
+            if (mp_copy(&t[0], &genKey->d) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        mp_forcezero(&t[0]);
+        mp_forcezero(&t[1]);
+        mp_forcezero(&t[2]);
+        XFREE(t, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret != 0)
+            ERROR_OUT(ret, exit_rsa);
+    }
+#endif
     /* A public exponent out of range is refused before the pair-wise test,
      * not reported as a failed one. */
     ret = mp_set_int(&genKey->e, 3);
