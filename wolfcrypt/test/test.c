@@ -38406,7 +38406,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             XMEMSET(user_seed, 0xa5, WC_DRBG_SEED_SZ);
         #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
             !defined(FIPS_NO_WRAPPERS)
-            /* The v7 Reseed takes module entropy; AddIn credits the caller. */
+            /* The v7 Reseed takes module entropy; this variant takes the
+             * caller's seed. */
             api_ret = wc_RNG_DRBG_Reseed_AddIn(&u, user_seed, WC_DRBG_SEED_SZ,
                                                NULL, 0);
         #else
