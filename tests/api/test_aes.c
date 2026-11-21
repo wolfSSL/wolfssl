@@ -13228,6 +13228,17 @@ int test_wc_CryptoCb_AesSetKey(void)
     /* Verify round-trip */
     ExpectIntEQ(XMEMCMP(plain, decrypted, 16), 0);
 
+#ifdef WC_AESGCM_IV_LOCK
+    /* A device-held key has no H: a new key must not keep the old IV lock. */
+    ExpectIntEQ(wc_AesGcmSetIVCounter(aes, iv, GCM_NONCE_MID_SZ, 8, NULL), 0);
+    key[1] ^= 0xff;
+    ExpectIntEQ(wc_AesGcmSetKey(aes, key, AES_128_KEY_SIZE), 0);
+    ExpectIntEQ(wc_AesGcmSetIVCounter(aes, iv, GCM_NONCE_MID_SZ, 8, NULL), 0);
+    key[1] ^= 0xff;
+    ExpectIntEQ(wc_AesGcmSetKey(aes, key, AES_128_KEY_SIZE), 0);
+    ExpectPtrEq(aes->devCtx, cryptoCbAesMockHandle);
+#endif
+
 #if defined(WOLFSSL_AESGCM_STREAM) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
     /* A declined re-key to a new key: the device drops the old one. */

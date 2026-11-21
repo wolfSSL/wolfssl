@@ -9516,17 +9516,23 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     byte relock = (byte)((aes != NULL) && aes->gcmIvLock);
     byte det = 0;
     byte masked = 0;
+    byte hSet = 0;
+    word32 i;
 
     /* The same key again keeps the lock: only that key gives the same H. */
     if (relock) {
         XMEMCPY(lockedH, aes->gcm.H, sizeof(lockedH));
         det = aes->gcmIvDet;
         masked = aes->gcmIvMasked;
+        /* A key held by a device has H wiped to zero, so it never relocks. */
+        for (i = 0; i < sizeof(lockedH); i++) {
+            hSet |= lockedH[i];
+        }
     }
     ret = AesGcmSetKey(aes, key, len);
     if (relock) {
-        if ((ret == 0) && (ConstantCompare(lockedH, aes->gcm.H,
-                                           sizeof(lockedH)) == 0)) {
+        if ((ret == 0) && (hSet != 0) && (ConstantCompare(lockedH,
+                aes->gcm.H, sizeof(lockedH)) == 0)) {
             aes->gcmIvLock = 1;
             aes->gcmIvDet = det;
             aes->gcmIvMasked = masked;
