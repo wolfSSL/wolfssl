@@ -32116,6 +32116,61 @@ static int test_sk_X509_CRL_decode(void)
 
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+static WC_TIME_T test_crl_new_clock;
+static WC_TIME_T test_crl_new_clock_cb(WC_TIME_T* t)
+{
+    if (t != NULL)
+        *t = test_crl_new_clock;
+    return test_crl_new_clock;
+}
+
+/* A new CRL takes its dates from wc_SetTimeCb and may run past 2038. A
+ * failed clock is an error rather than a 1969 date. */
+static int test_wolfSSL_X509_CRL_new_dates(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_X509_CRL* badCrl = NULL;
+    WOLFSSL_ASN1_TIME* t = NULL;
+    WOLFSSL_ASN1_INTEGER* serial = NULL;
+    WOLFSSL_X509_REVOKED revoked;
+    byte serialData[] = { 0x01 };
+
+    XMEMSET(&revoked, 0, sizeof(revoked));
+    ExpectIntEQ(wc_SetTimeCb(test_crl_new_clock_cb), 0);
+
+    test_crl_new_clock = (WC_TIME_T)2145830400L; /* 2037-12-31 00:00:00 */
+    ExpectNotNull(crl = wolfSSL_X509_CRL_new());
+    ExpectNotNull(t = wolfSSL_X509_CRL_get_lastUpdate(crl));
+    if (t != NULL) {
+        ExpectIntEQ(XMEMCMP(t->data, "371231000000Z", 13), 0);
+    }
+    ExpectNotNull(t = wolfSSL_X509_CRL_get_nextUpdate(crl));
+    if (t != NULL) {
+        ExpectIntEQ(XMEMCMP(t->data, "390515000000Z", 13), 0);
+    }
+
+    test_crl_new_clock = (WC_TIME_T)-1;
+    ExpectNull(badCrl = wolfSSL_X509_CRL_new());
+    ExpectNotNull(serial = wolfSSL_ASN1_INTEGER_new());
+    if (serial != NULL) {
+        serial->data = serialData;
+        serial->dataMax = (int)sizeof(serialData);
+        serial->length = (int)sizeof(serialData);
+        serial->isDynamic = 0;
+    }
+    revoked.serialNumber = serial;
+    revoked.reason = CRL_REASON_NONE;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &revoked),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    (void)wc_SetTimeCb(NULL);
+    wolfSSL_ASN1_INTEGER_free(serial);
+    wolfSSL_X509_CRL_free(badCrl);
+    wolfSSL_X509_CRL_free(crl);
+    return EXPECT_RESULT();
+}
+
 /* Ensure oversized caller-provided revocationDate is rejected. */
 static int test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date(void)
 {
@@ -48703,6 +48758,7 @@ TEST_CASE testCases[] = {
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && !defined(NO_CERTS) && \
     defined(HAVE_CRL) && defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
     TEST_DECL(test_wolfSSL_X509_CRL_add_revoked_oversized_revocation_date),
+    TEST_DECL(test_wolfSSL_X509_CRL_new_dates),
 #endif
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
     !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \

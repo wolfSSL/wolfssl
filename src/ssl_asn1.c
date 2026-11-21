@@ -4194,16 +4194,28 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* a, WC_TIME_T t,
     int offset_day, long offset_sec)
 {
     WOLFSSL_ASN1_TIME* ret = NULL;
-    const WC_TIME_T sec_per_day = 24*60*60;
-    int time_get;
+    int time_get = ASN_TIME_E;
     char time_str[MAX_TIME_STRING_SZ];
-    WC_TIME_T offset_day_sec = offset_day * sec_per_day;
-    WC_TIME_T t_adj          = t + offset_day_sec + offset_sec;
+    struct tm* ts;
+    struct tm* tmpTs = NULL;
+    struct tm adj;
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+    tmpTs = &tmpTimeStorage;
+#endif
+    (void)tmpTs;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_adj");
 
-    /* Get time string as either UTC or GeneralizedTime. */
-    time_get = GetFormattedTime(&t_adj, (byte*)time_str, MAX_TIME_STRING_SZ);
+    /* Offset in calendar terms, not bounded by the time type. */
+    ts = XGMTIME(&t, tmpTs);
+    if (ts != NULL) {
+        adj = *ts;
+        if (AdjustGmtime(&adj, offset_day, offset_sec) == 0) {
+            time_get = GetFormattedTimeTm(&adj, (byte*)time_str,
+                MAX_TIME_STRING_SZ, 0);
+        }
+    }
     if (time_get > 0) {
         ret = a;
         if (ret == NULL) {

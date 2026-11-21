@@ -1200,15 +1200,10 @@ static void wb_get_formatted_time_ex(void)
             ret = GetFormattedTime_ex(&preEpoch, buf, sizeof(buf), 0);
             WB_CHECK(ret == ASN_GENERALIZED_TIME_SIZE - 1,
                     ":15914 1st operand false (pre-1950 -> GeneralizedTime)");
-            /* With UTCTime forced on a pre-1950 date the century adjustment
-             * subtracts 100 from an already-small tm_year, so the formatted
-             * year field is negative and one character wider than the
-             * canonical 13-byte UTCTime. That is the point of the row -- it
-             * shows the range test taking its else branch -- so only "an
-             * encoding was produced" is asserted. */
+            /* UTCTime cannot hold a pre-1950 year, so forcing it fails. */
             ret = GetFormattedTime_ex(&preEpoch, buf, sizeof(buf),
                     ASN_UTC_TIME);
-            WB_CHECK(ret > 0,
+            WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_TIME_E),
                     ":15924 1st operand false (pre-1950, UTCTime forced)");
         }
         else {

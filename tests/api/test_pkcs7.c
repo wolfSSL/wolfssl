@@ -689,6 +689,15 @@ static int StreamOutputCB(PKCS7* pkcs7, const byte* output, word32 outputSz,
 /*
  * Testing wc_PKCS7_EncodeSignedData()
  */
+#if defined(HAVE_PKCS7) && !defined(NO_ASN_TIME)
+static WC_TIME_T test_pkcs7_bad_clock(WC_TIME_T* t)
+{
+    if (t != NULL)
+        *t = (WC_TIME_T)-1;
+    return (WC_TIME_T)-1;
+}
+#endif
+
 int test_wc_PKCS7_EncodeSignedData(void)
 {
     EXPECT_DECLS;
@@ -780,6 +789,32 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
     XMEMSET(output, 0, outputSz);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+
+#ifndef NO_ASN_TIME
+    /* A failed clock gives no signingTime rather than one in 1969. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = data;
+        pkcs7->contentSz = (word32)sizeof(data);
+        pkcs7->privateKey = key;
+        pkcs7->privateKeySz = (word32)sizeof(key);
+        pkcs7->encryptOID = encryptOid;
+    #if defined(NO_SHA) || defined(WC_FIPS_186_5_PLUS)
+        pkcs7->hashOID = SHA256h;
+    #else
+        pkcs7->hashOID = SHAh;
+    #endif
+        pkcs7->rng = &rng;
+    }
+    ExpectIntEQ(wc_SetTimeCb(test_pkcs7_bad_clock), 0);
+    ExpectIntEQ(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz),
+        WC_NO_ERR_TRACE(ASN_TIME_E));
+    ExpectIntEQ(wc_SetTimeCb(NULL), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    XMEMSET(output, 0, outputSz);
+#endif
 
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);

@@ -719,10 +719,12 @@ int wc_TspTstInfo_SetGenTime(TspTstInfo* tstInfo, const byte* genTime,
  * @param [in] hour  Hour of day. 0-23.
  * @param [in] min   Minute of hour. 0-59.
  * @param [in] sec   Second of minute. 0-60.
- * @return  Seconds since 00:00:00 UTC, 1 January 1970.
+ * @param [out] t    Seconds since 00:00:00 UTC, 1 January 1970.
+ * @return  0 on success.
+ * @return  ASN_TIME_E when the time is before 1970 or does not fit in t.
  */
-static WC_TIME_T TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
-    int sec)
+static int TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
+    int sec, WC_TIME_T* t)
 {
     /* Cumulative days before each month in a non-leap year. */
     static const int monthDays[12] = {
@@ -732,9 +734,19 @@ static WC_TIME_T TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
     int y = year - ((mon <= 2) ? 1 : 0);
     int leapDays = y / 4 - y / 100 + y / 400 -
                    (1969 / 4 - 1969 / 100 + 1969 / 400);
+    long days = (long)(year - 1970) * 365 + leapDays + monthDays[mon - 1] +
+                day - 1;
+    long secs = ((long)hour * 60 + min) * 60 + sec;
 
-    return (WC_TIME_T)(((((WC_TIME_T)(year - 1970) * 365 + leapDays +
-        monthDays[mon - 1] + day - 1) * 24 + hour) * 60 + min) * 60 + sec);
+    if (days < 0)
+        return ASN_TIME_E;
+    if (sizeof(WC_TIME_T) < 8) {
+        word32 max = ((WC_TIME_T)-1 > 0) ? 0xFFFFFFFFUL : 0x7FFFFFFFUL;
+        if ((word32)days > (max - (word32)secs) / 86400)
+            return ASN_TIME_E;
+    }
+    *t = (WC_TIME_T)days * 86400 + (WC_TIME_T)secs;
+    return 0;
 }
 
 /* Get the time of the time-stamp of a TSTInfo as a time_t.
@@ -750,6 +762,7 @@ static WC_TIME_T TspGenTimeToUnix(int year, int mon, int day, int hour, int min,
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when tstInfo, its genTime or t is NULL.
  * @return  ASN_PARSE_E when the genTime string is not valid.
+ * @return  ASN_TIME_E when the time does not fit in t.
  */
 int wc_TspTstInfo_GetGenTimeAsTime(const TspTstInfo* tstInfo, WC_TIME_T* t)
 {
@@ -768,14 +781,14 @@ int wc_TspTstInfo_GetGenTimeAsTime(const TspTstInfo* tstInfo, WC_TIME_T* t)
     if (ret == 0) {
         /* Date and time digits checked by TspCheckGenTimeSyntax. */
         g = tstInfo->genTime;
-        *t = TspGenTimeToUnix(
+        ret = TspGenTimeToUnix(
             (g[0] - '0') * 1000 + (g[1] - '0') * 100 + (g[2] - '0') * 10 +
                 (g[3] - '0'),
             (g[4] - '0') * 10 + (g[5] - '0'),
             (g[6] - '0') * 10 + (g[7] - '0'),
             (g[8] - '0') * 10 + (g[9] - '0'),
             (g[10] - '0') * 10 + (g[11] - '0'),
-            (g[12] - '0') * 10 + (g[13] - '0'));
+            (g[12] - '0') * 10 + (g[13] - '0'), t);
     }
 
     return ret;
@@ -1120,9 +1133,16 @@ int wc_TspTstInfo_CheckGenTime(const TspTstInfo* tstInfo, word32 tolerance)
 {
     int ret = 0;
     WC_TIME_T now;
-    WC_TIME_T bound;
+    struct tm* nowTm = NULL;
+    struct tm bound;
+    struct tm* tmpTs = NULL;
     byte lo[ASN_GENERALIZED_TIME_SIZE];
     byte hi[ASN_GENERALIZED_TIME_SIZE];
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+    tmpTs = &tmpTimeStorage;
+#endif
+    (void)tmpTs;
 
     WOLFSSL_ENTER("wc_TspTstInfo_CheckGenTime");
 
@@ -1138,13 +1158,27 @@ int wc_TspTstInfo_CheckGenTime(const TspTstInfo* tstInfo, word32 tolerance)
     if (ret == 0) {
         /* Format the bounds of the acceptable period. */
         now = wc_Time(0);
-        bound = now - (WC_TIME_T)tolerance;
-        if (GetFormattedTime_ex(&bound, lo, sizeof(lo),
-                ASN_GENERALIZED_TIME) <= 0) {
+        if (now > 0) {
+            nowTm = XGMTIME(&now, tmpTs);
+        }
+        if (nowTm == NULL) {
             ret = ASN_TIME_E;
         }
-        bound = now + (WC_TIME_T)tolerance;
-        if ((ret == 0) && (GetFormattedTime_ex(&bound, hi, sizeof(hi),
+    }
+    if (ret == 0) {
+        bound = *nowTm;
+        if ((AdjustGmtime(&bound, -(long)(tolerance / 86400),
+                -(long)(tolerance % 86400)) != 0) ||
+                (GetFormattedTimeTm(&bound, lo, sizeof(lo),
+                ASN_GENERALIZED_TIME) <= 0)) {
+            ret = ASN_TIME_E;
+        }
+    }
+    if (ret == 0) {
+        bound = *nowTm;
+        if ((AdjustGmtime(&bound, (long)(tolerance / 86400),
+                (long)(tolerance % 86400)) != 0) ||
+                (GetFormattedTimeTm(&bound, hi, sizeof(hi),
                 ASN_GENERALIZED_TIME) <= 0)) {
             ret = ASN_TIME_E;
         }

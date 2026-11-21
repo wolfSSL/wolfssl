@@ -6844,6 +6844,13 @@ typedef struct {
 } OcspResponderTestConfig;
 
 /* Helper function to run a single OCSP responder test configuration */
+static WC_TIME_T ocspResponderTest_BadClock(WC_TIME_T* t)
+{
+    if (t != NULL)
+        *t = (WC_TIME_T)-1;
+    return (WC_TIME_T)-1;
+}
+
 static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
 {
     EXPECT_DECLS;
@@ -6960,6 +6967,13 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
                                                config->revocationTime,
                                                config->revocationReason,
                                                config->validityPeriod), 0);
+
+    /* A failed clock gives no response rather than one dated 1969. */
+    ExpectIntEQ(wc_SetTimeCb(ocspResponderTest_BadClock), 0);
+    ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
+                                               NULL, &respSz),
+                WC_NO_ERR_TRACE(ASN_TIME_E));
+    ExpectIntEQ(wc_SetTimeCb(NULL), 0);
 
     /* Get required response size */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,

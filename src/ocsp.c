@@ -2753,6 +2753,12 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
     OcspEntry entry;
     int ret = 0;
     WC_TIME_T now;
+    struct tm* nowTm;
+    struct tm nextTm;
+    struct tm* tmpTs = NULL;
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+#endif
     RsaKey* rsaKey = NULL;
     ecc_key* eccKey = NULL;
     int respInited = 0;
@@ -2789,9 +2795,14 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
         status.revocationReason = (byte)certStatus->revocationReason;
     }
 
+#if defined(NEED_TMP_TIME)
+    tmpTs = &tmpTimeStorage;
+#endif
+    (void)tmpTs;
     now = wc_Time(NULL);
-    ret = GetFormattedTime_ex(&now, status.thisDate, sizeof(status.thisDate),
-            ASN_GENERALIZED_TIME);
+    nowTm = (now > 0) ? XGMTIME(&now, tmpTs) : NULL;
+    ret = (nowTm == NULL) ? ASN_TIME_E : GetFormattedTimeTm(nowTm,
+            status.thisDate, sizeof(status.thisDate), ASN_GENERALIZED_TIME);
     if (ret <= 0) {
         WOLFSSL_MSG("Failed to format thisUpdate time");
         goto out;
@@ -2802,9 +2813,14 @@ static int OcspResponse_WriteResponse(OcspResponder* responder, byte* response,
 
     /* Set nextUpdate if validity period is specified (for CERT_GOOD) */
     if (certStatus->status == CERT_GOOD && certStatus->validityPeriod > 0) {
-        WC_TIME_T nextTime = now + (WC_TIME_T)certStatus->validityPeriod;
-        ret = GetFormattedTime_ex(&nextTime, status.nextDate,
-                sizeof(status.nextDate), ASN_GENERALIZED_TIME);
+        nextTm = *nowTm;
+        ret = AdjustGmtime(&nextTm,
+                (long)(certStatus->validityPeriod / 86400),
+                (long)(certStatus->validityPeriod % 86400));
+        if (ret == 0) {
+            ret = GetFormattedTimeTm(&nextTm, status.nextDate,
+                    sizeof(status.nextDate), ASN_GENERALIZED_TIME);
+        }
         if (ret <= 0) {
             WOLFSSL_MSG("Failed to format nextUpdate time");
             goto out;

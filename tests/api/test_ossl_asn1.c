@@ -2157,6 +2157,19 @@ int test_wolfSSL_ASN1_TIME_adj(void)
         XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
         asn_time = NULL;
     }
+
+    /* The offset is applied in calendar terms, so the result may lie past
+     * 2038 whatever the width of the time type: 2037-12-31 + 400 days. */
+    t = (WC_TIME_T)2145830400L;
+    ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, 400, 3600));
+    if (asn_time != NULL) {
+        ExpectTrue(asn_time->type == asn_utc_time);
+        ExpectIntEQ(0, XMEMCMP(asn_time->data, "390204010000Z", 13));
+        XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
+        asn_time = NULL;
+    }
+    /* Past year 9999 there is no encoding. */
+    ExpectNull(wolfSSL_ASN1_TIME_adj(NULL, t, 3000000, 0));
 #endif
     return EXPECT_RESULT();
 }

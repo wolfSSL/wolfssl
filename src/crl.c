@@ -2572,6 +2572,7 @@ WOLFSSL_X509_CRL* wolfSSL_X509_CRL_new(void)
     WOLFSSL_X509_CRL* crl;
     CRL_Entry* entry;
     WOLFSSL_ASN1_TIME asnTime;
+    WC_TIME_T now;
 
     WOLFSSL_ENTER("wolfSSL_X509_CRL_new");
 
@@ -2607,7 +2608,8 @@ WOLFSSL_X509_CRL* wolfSSL_X509_CRL_new(void)
     crl->crlList = entry;
 
     /* Set thisUpdate to current time */
-    if (wolfSSL_ASN1_TIME_adj(&asnTime, XTIME(NULL), 0, 0) == NULL) {
+    now = wc_Time(NULL);
+    if (now <= 0 || wolfSSL_ASN1_TIME_adj(&asnTime, now, 0, 0) == NULL) {
         WOLFSSL_MSG("Failed to get current time");
         FreeCRL(crl, 1);
         return NULL;
@@ -2620,7 +2622,7 @@ WOLFSSL_X509_CRL* wolfSSL_X509_CRL_new(void)
 
     /* Set next update date to 500 days from now,
      * following convention from wc_InitCert() */
-    if (wolfSSL_ASN1_TIME_adj(&asnTime, XTIME(NULL), 500, 0) == NULL) {
+    if (wolfSSL_ASN1_TIME_adj(&asnTime, now, 500, 0) == NULL) {
         WOLFSSL_MSG("Failed to get next update time");
         FreeCRL(crl, 1);
         return NULL;
@@ -2710,8 +2712,10 @@ int wolfSSL_X509_CRL_add_revoked(WOLFSSL_X509_CRL* crl,
     }
     else {
         WOLFSSL_ASN1_TIME revDate;
+        WC_TIME_T now = wc_Time(NULL);
         XMEMSET(&revDate, 0, sizeof(revDate));
-        if (wolfSSL_ASN1_TIME_adj(&revDate, XTIME(NULL), 0, 0) == NULL) {
+        if (now <= 0 ||
+                wolfSSL_ASN1_TIME_adj(&revDate, now, 0, 0) == NULL) {
             WOLFSSL_MSG("Failed to get current time");
             XFREE(rc, crl->heap, DYNAMIC_TYPE_REVOKED);
             return BAD_STATE_E;

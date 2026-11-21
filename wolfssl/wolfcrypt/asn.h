@@ -2738,11 +2738,14 @@ WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len,
 WOLFSSL_LOCAL int GetFormattedTime(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int GetFormattedTime_ex(void* currTime, byte* buf, word32 len, byte format);
+WOLFSSL_LOCAL int GetFormattedTimeTm(struct tm* ts, byte* buf, word32 len,
+    byte format);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                 wolfssl_tm* certTime, int* idx, int len);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
 WOLFSSL_LOCAL int ValidateGmtime(struct tm* inTime);
+WOLFSSL_LOCAL int AdjustGmtime(struct tm* tm, long days, long secs);
 WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType,
                                   int len);
 #ifndef NO_ASN_TIME

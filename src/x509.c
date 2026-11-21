@@ -11937,6 +11937,9 @@ WOLFSSL_ASN1_TIME *wolfSSL_X509_time_adj_ex(WOLFSSL_ASN1_TIME *asnTime,
 {
     /* get current time if in_tm is null */
     WC_TIME_T t = in_tm ? *in_tm : wc_Time(0);
+
+    if (in_tm == NULL && t <= 0)
+        return NULL;
     return wolfSSL_ASN1_TIME_adj(asnTime, t, offset_day, offset_sec);
 }
 

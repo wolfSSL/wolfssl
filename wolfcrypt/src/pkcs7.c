@@ -2727,6 +2727,8 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
             return BAD_FUNC_ARG;
 
         tm = wc_Time(0);
+        if (tm <= 0)
+            return ASN_TIME_E;
         timeSz = GetAsnTimeString(&tm, signingTime, signingTimeSz);
         if (timeSz < 0)
             return timeSz;
