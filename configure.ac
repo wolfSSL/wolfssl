@@ -90,9 +90,25 @@ AC_SUBST([WOLFSSL_BUILD_DATE])
 # The library checks add the library to subsequent test compiles
 # and in some rare cases, the networking check causes these sizeof
 # checks to fail.
+# 64-bit time_t where the C library offers both (32-bit glibc >= 2.34).
+# Applications must use the same definitions; options.h records them.
+AC_ARG_ENABLE([year2038],
+    [AS_HELP_STRING([--enable-year2038],[Use a 64-bit time_t where the C library offers both, such as 32-bit glibc (default: disabled)])],
+    [ ENABLED_YEAR2038=$enableval ],
+    [ ENABLED_YEAR2038=no ]
+    )
+if test "$ENABLED_YEAR2038" = "yes"
+then
+    CPPFLAGS="$CPPFLAGS -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64"
+fi
+
 AC_CHECK_SIZEOF([long long])
 AC_CHECK_SIZEOF([long])
 AC_CHECK_SIZEOF([time_t])
+if test "$ac_cv_sizeof_time_t" != "0" && test -n "$ac_cv_sizeof_time_t"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TIME_T_SIZE=$ac_cv_sizeof_time_t"
+fi
 AC_CHECK_TYPES([__uint128_t])
 
 
@@ -15298,6 +15314,7 @@ echo "   * FIPS:                       $ENABLED_FIPS"
 fi
 echo "   * Single threaded:            $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
+echo "   * 64-bit time_t (year 2038):  $ENABLED_YEAR2038"
 echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
 echo "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
 echo "   * OpenSSL Coexist:            $ENABLED_OPENSSLCOEXIST"

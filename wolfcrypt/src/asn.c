@@ -17240,6 +17240,12 @@ int wc_SetTimeCb(wc_time_cb f)
     return 0;
 }
 
+/* Whether wc_SetTimeCb() installed the clock. */
+int TimeCbIsSet(void)
+{
+    return timeFunc != NULL;
+}
+
 WC_TIME_T wc_Time(WC_TIME_T* t)
 {
     if (timeFunc != NULL) {
