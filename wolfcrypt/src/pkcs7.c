@@ -2254,7 +2254,10 @@ static int wc_PKCS7_ImportRSA(wc_PKCS7* pkcs7, RsaKey* privKey)
             /* If not using old FIPS or CAVP selftest, or not using FAST,
              * or USER RSA, able to check RSA key. */
             if (ret == 0) {
-        #ifdef WOLFSSL_RSA_KEY_CHECK
+        /* Any d with d * e = 1 mod LCM(p-1, q-1) signs the same; v7 leaves the
+         * SP 800-56B d < LCM check to callers of wc_CheckRsaKey(). */
+        #if defined(WOLFSSL_RSA_KEY_CHECK) && \
+            !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
                 /* verify imported private key is a valid key before using it */
                 ret = wc_CheckRsaKey(privKey);
                 if (ret != 0) {
