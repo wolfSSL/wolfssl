@@ -1070,6 +1070,10 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
                         byte type, const byte* context, byte contextLen)
 {
+    /* A stream cannot hold Ed448ph to the 64-byte prehash of FIPS 186-5
+     * sec 7.8.2: use wc_ed448ph_verify_hash(). */
+    if ((key == NULL) || (type == Ed448ph))
+        return BAD_FUNC_ARG;
     return ed448_verify_msg_init_with_sha(sig, sigLen, key, &key->sha, type,
                                       context, contextLen);
 }

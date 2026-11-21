@@ -1235,6 +1235,11 @@ int test_wc_ed25519_verify_streaming(void)
     /* init: sigLen wrong. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen - 1, &key,
         (byte)Ed25519, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* init: Ed25519ph cannot stream, its prehash is a fixed 64 bytes. */
+    ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key,
+        (byte)Ed25519ph, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     /* init: non-canonical S (top 3 bits of sig[63] set). */
     XMEMCPY(badSig, sig, sizeof(badSig));

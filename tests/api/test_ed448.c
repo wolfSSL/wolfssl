@@ -1682,6 +1682,11 @@ int test_wc_Ed448FeatureCoverage(void)
      * final NULL res. */
     ExpectIntEQ(wc_ed448_verify_msg_init(NULL, sigLen, &key, (byte)Ed448, NULL,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* Ed448ph cannot stream, its prehash is a fixed 64 bytes. */
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448ph,
+        NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
     ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, NULL,
         0), 0);
     ExpectIntEQ(wc_ed448_verify_msg_update(NULL, msgLen, &key),

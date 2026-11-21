@@ -1209,6 +1209,10 @@ int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
      * pure Ed25519. */
     if ((type != Ed25519ctx) && (type != Ed25519ph) && (contextLen != 0))
         return BAD_FUNC_ARG;
+    /* A stream cannot hold Ed25519ph to the 64-byte prehash of FIPS 186-5
+     * sec 7.8.2: use wc_ed25519ph_verify_hash(). */
+    if (type == Ed25519ph)
+        return BAD_FUNC_ARG;
     return ed25519_verify_msg_init_with_sha(sig, sigLen, key, &key->sha,
                                         type, context, contextLen);
 }
