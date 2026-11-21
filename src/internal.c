@@ -45207,6 +45207,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
          * RFC 8422 abort below. */
         ssl->options.peerNoUncompPF = 0;
 #endif
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+        /* A renegotiation ClientHello must offer EMS again. */
+        ssl->options.haveEMS = 0;
+#endif
 
         /* tls extensions */
         if ((i - begin) < helloSz) {

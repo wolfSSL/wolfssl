@@ -47274,6 +47274,44 @@ static int test_sniffer_hello_session_id_len(void)
 
     return EXPECT_RESULT();
 }
+
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+/* EMS is checked on every ServerHello of a session, as renegotiation sends
+ * another one. */
+static int test_sniffer_ems_required_each_hello(void)
+{
+    EXPECT_DECLS;
+    char err[WOLFSSL_MAX_ERROR_SZ];
+    /* cipher suite list of one, then one compression method */
+    static const byte cliTail[6] = { 0x00, 0x02, 0x00, 0x2f, 0x01, 0x00 };
+    /* suite, compression, then extensions holding only EMS */
+    static const byte srvTail[9] = { 0x00, 0x2f, 0x00,
+                                     0x00, 0x04, 0x00, 0x17, 0x00, 0x00 };
+    word32 seq = 13001 + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
+                 VERSION_SZ + RAN_LEN + ENUM_LEN + (word32)sizeof(srvTail);
+
+    XMEMSET(err, 0, sizeof(err));
+    ssl_InitSniffer();
+    ExpectIntEQ(ssl_SetPrivateKey("127.0.0.1", wolfSSLPort,
+        svrKeyFile, FILETYPE_PEM, NULL, err), 0);
+
+    ExpectIntEQ(SnifferTestTcp(40008, 12000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestTcp(40008, 13000, 0,
+        SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
+    ExpectIntEQ(SnifferTestHello(40008, 12001, 1, client_hello, 0,
+        cliTail, (int)sizeof(cliTail), err), 0);
+    ExpectIntEQ(SnifferTestHello(40008, 13001, 0, server_hello, 0,
+        srvTail, (int)sizeof(srvTail), err), 0);
+    /* Same suite and compression, no extensions. */
+    ExpectIntEQ(SnifferTestHello(40008, seq, 0, server_hello, 0,
+        srvTail, 3, err), WOLFSSL_SNIFFER_FATAL_ERROR);
+    ExpectNotNull(XSTRSTR(err, "Extended Master Secret required"));
+
+    ssl_FreeSniffer();
+
+    return EXPECT_RESULT();
+}
+#endif
 #endif /* WOLFSSL_SNIFFER && !WOLFSSL_SNIFFER_WATCH && WOLFSSL_PEM_TO_DER &&
         * !NO_RSA && !NO_FILESYSTEM && !WOLFSSL_NO_TLS12 */
 
@@ -49452,6 +49490,9 @@ TEST_CASE testCases[] = {
     defined(WOLFSSL_PEM_TO_DER) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12)
     TEST_DECL(test_sniffer_hello_session_id_len),
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    TEST_DECL(test_sniffer_ems_required_each_hello),
+#endif
 #endif
 
     /* This test needs to stay at the end to clean up any caches allocated. */
