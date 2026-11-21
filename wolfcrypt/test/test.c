@@ -42512,6 +42512,11 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #else
         for (i = 0; i < (int)(sizeof(mgf)/sizeof(*mgf)); i++) {
 #endif
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+            /* FIPS v7 signs PSS only with MGF1 on the message hash. */
+            if (i != j)
+                continue;
+#endif
             outSz = RSA_TEST_BYTES;
             WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
                 wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz,
