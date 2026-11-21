@@ -19,4 +19,5 @@ gcc-9
 gcc-multilib
 libpcap-dev
 libtool
+python3-cryptography
 zlib1g-dev

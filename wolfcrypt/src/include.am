@@ -215,6 +215,33 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp_crt_bundle/gen_crt_bundle.py \
               wolfcrypt/src/port/Espressif/esp_crt_bundle/pio_install_cryptography.py \
               wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_local.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/cmn_crt_authorities.csv \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test_gen_crt_bundle.sh \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/test_esp_crt_bundle.sh \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/test_esp_crt_bundle.c \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/stub/sdkconfig.h \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/stub/esp_log.h \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/stub/esp_idf_version.h \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/stub/freertos/FreeRTOS.h \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/stub/freertos/task.h \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/stub/freertos/event_groups.h \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/gen_test_certs.sh \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/test_roots.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/gts_root_r1_by_globalsign.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/gts_root_r4_by_globalsign.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/usertrust_ecc_by_aaa.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/usertrust_ecc_by_aaa_with_root.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/amazon_by_starfield_g2.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/emudhra_by_emsign_ecc_g3.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/emudhra_by_aaa.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_ok.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_other_key.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_other_skid.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_pathlen.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_name_constraints.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_policy_constraints.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_not_self_issued.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/test/certs/x_not_ca.pem \
               wolfcrypt/src/port/Espressif/README.md \
               wolfcrypt/src/port/Renesas/renesas_tsip_aes.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_sha.c \
