@@ -13513,8 +13513,10 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
         ExpectIntEQ(wc_ed25519_init(&v2Key), 0);
         ExpectIntEQ(wc_ed25519_import_private_key(ed25519Seed,
             ED25519_KEY_SIZE, ed25519SeedPub, ED25519_PUB_KEY_SIZE, &v2Key), 0);
+        PRIVATE_KEY_UNLOCK();
         ExpectIntGT((v2DerSz = wc_Ed25519KeyToDer(&v2Key, v2Der,
             (word32)sizeof(v2Der))), 0);
+        PRIVATE_KEY_LOCK();
         /* This form carries the public key after the privateKey OCTET STRING,
          * so it is longer than the seed-only v1 form (48 bytes) -- that is the
          * whole point of the case. */
@@ -38706,7 +38708,9 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                 der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 if (der == NULL) { ret = MEMORY_E; break; }
 
+                PRIVATE_KEY_UNLOCK();
                 derSz = wc_RsaKeyToDer(rsaTmp, der, (word32)derSz);
+                PRIVATE_KEY_LOCK();
                 if (derSz <= 0) {
                     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     ret = derSz; break;
@@ -38826,7 +38830,9 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     der = (byte*)XMALLOC(derSz, NULL,
                         DYNAMIC_TYPE_TMP_BUFFER);
                     if (der == NULL) { ret = MEMORY_E; break; }
+                    PRIVATE_KEY_UNLOCK();
                     derSz = wc_RsaKeyToDer(src, der, (word32)derSz);
+                    PRIVATE_KEY_LOCK();
                     if (derSz > 0) {
                         ret = wc_RsaPrivateKeyDecode(der, &idx, dst,
                             (word32)derSz);

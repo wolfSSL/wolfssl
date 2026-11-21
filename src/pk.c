@@ -7599,7 +7599,9 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         if (*keySz < (word32)ret)   /* honour the caller's buffer size */
             return BUFFER_E;
 
+        PRIVATE_KEY_UNLOCK();
         ret = wc_Ed25519PrivateKeyToDer(pkey->ed25519, key, *keySz);
+        PRIVATE_KEY_LOCK();
         if (ret > 0)
             *keySz = (word32)ret;   /* only set on success */
         return ret;

@@ -3670,6 +3670,7 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
             }
         }
         /* Encode the internal EC key as a private key in DER format. */
+        PRIVATE_KEY_UNLOCK();
         if ((!err) && wc_EccPrivateKeyToDer((ecc_key*)key->internal, *out,
                 len) < 0) {
             WOLFSSL_MSG("wc_EccPrivateKeyToDer error");
@@ -3679,6 +3680,7 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
             /* Move the reference to byte past encoded private key. */
             *out += len;
         }
+        PRIVATE_KEY_LOCK();
 
         /* Dispose of any allocated buffer on error. */
         if (err && (*out == buf)) {
@@ -4253,7 +4255,9 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
 
     if (ret == 1) {
         /* Encode EC private key as DER. */
+        PRIVATE_KEY_UNLOCK();
         derSz = wc_EccKeyToDer((ecc_key*)ec->internal, derBuf, der_max_len);
+        PRIVATE_KEY_LOCK();
         if (derSz < 0) {
             WOLFSSL_MSG("wc_EccKeyToDer failed");
             ForceZero(derBuf, der_max_len);

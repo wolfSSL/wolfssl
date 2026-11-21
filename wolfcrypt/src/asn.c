@@ -372,6 +372,23 @@ ASN Options:
     #define WOLFSSL_X509_NAME_AVAILABLE
 #endif
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+/* A private key is written out only while private key output is enabled,
+ * the same gate as the module's raw key export services. */
+static int PrivKeyOutAllowed(const byte* output)
+{
+    if ((output != NULL) &&
+            (wolfCrypt_GetPrivateKeyReadEnable_fips(WC_KEYTYPE_ALL) <= 0)) {
+        return FIPS_PRIVATE_KEY_LOCKED_E;
+    }
+    return 0;
+}
+    #define PRIV_KEY_OUT_ALLOWED(output) PrivKeyOutAllowed(output)
+#else
+    #define PRIV_KEY_OUT_ALLOWED(output) 0
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of XSTRNCPY */
     #pragma warning(disable: 4996)
@@ -29382,6 +29399,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 outLen)
 
     if ((key == NULL) || (key->type != RSA_PRIVATE)) {
         ret = BAD_FUNC_ARG;
+    } else {
+        ret = PRIV_KEY_OUT_ALLOWED(output);
     }
 
     if (ret == 0)
@@ -35946,6 +35965,9 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *outLen,
     if ((ret == 0) && (key->dp == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    if (ret == 0) {
+        ret = PRIV_KEY_OUT_ALLOWED(output);
+    }
     if (ret == 0)
         CALLOC_ASNSETDATA(dataASN, eccKeyASN_Length, ret, key->heap);
 
@@ -36940,6 +36962,9 @@ int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output, word32 outLen)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+    if (PRIV_KEY_OUT_ALLOWED(output) != 0) {
+        return FIPS_PRIVATE_KEY_LOCKED_E;
+    }
     return SetAsymKeyDer(key->k, ED25519_KEY_SIZE,
         key->p, ED25519_PUB_KEY_SIZE, output, outLen, ED25519k);
 }
@@ -36950,6 +36975,9 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output, word32 outLe
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
+    }
+    if (PRIV_KEY_OUT_ALLOWED(output) != 0) {
+        return FIPS_PRIVATE_KEY_LOCKED_E;
     }
     return SetAsymKeyDer(key->k, ED25519_KEY_SIZE,
         NULL, 0, output, outLen, ED25519k);
@@ -37162,6 +37190,9 @@ int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 outLen)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+    if (PRIV_KEY_OUT_ALLOWED(output) != 0) {
+        return FIPS_PRIVATE_KEY_LOCKED_E;
+    }
     return SetAsymKeyDer(key->k, ED448_KEY_SIZE,
         key->p, ED448_KEY_SIZE, output, outLen, ED448k);
 }
@@ -37172,6 +37203,9 @@ int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output, word32 outLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
+    }
+    if (PRIV_KEY_OUT_ALLOWED(output) != 0) {
+        return FIPS_PRIVATE_KEY_LOCKED_E;
     }
     return SetAsymKeyDer(key->k, ED448_KEY_SIZE,
         NULL, 0, output, outLen, ED448k);

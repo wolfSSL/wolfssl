@@ -683,15 +683,21 @@ int test_wc_Ed25519KeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed25519KeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519KeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519KeyToDer(&ed25519Key, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good Cases */
     /* length only */
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, NULL, 0), 0);
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, NULL, inLen), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed25519_free(&ed25519Key);
@@ -725,14 +731,20 @@ int test_wc_Ed25519PrivateKeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed25519PrivateKeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519PrivateKeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good Cases */
     /* length only */
     ExpectIntGT(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, NULL, 0), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed25519_free(&ed25519PrivKey);
@@ -767,18 +779,24 @@ int test_wc_Ed25519KeyToDer_oneasymkey_version(void)
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
     /* Bundled (v=1) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed25519KeyToDer(&key, ref, (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
     idx = 0;
     ExpectIntEQ(wc_Ed25519PrivateKeyDecode(ref, &idx, &key2, (word32)refSz),
         0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(rtSz = wc_Ed25519KeyToDer(&key2, rt, (word32)sizeof(rt)),
         refSz);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
 
     /* Priv-only (v=0) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed25519PrivateKeyToDer(&key, ref,
         (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
 
     wc_ed25519_free(&key);
@@ -813,8 +831,10 @@ int test_wc_Ed25519PrivateKeyDecode_ex(void)
 
     /* Bundled private+public DER; public key is the trailing
      * ED25519_PUB_KEY_SIZE bytes. */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(derSz = wc_Ed25519KeyToDer(&key, der, (word32)sizeof(der)),
         0);
+    PRIVATE_KEY_LOCK();
 
     /* Intact DER decodes with either trust setting. */
     idx = 0;

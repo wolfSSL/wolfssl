@@ -4062,6 +4062,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                          * A blob we cannot parse back is unusable, so treat a
                          * failure here as a keygen failure rather than caching
                          * a DER whose pkcs8HeaderSz says "not PKCS#8". */
+                        PRIVATE_KEY_UNLOCK();
                         if (wc_Ed25519PrivateKeyToDer(pkey->ed25519, edDer,
                                 (word32)edDerSz) == edDerSz &&
                                 ToTraditionalInline_ex(edDer, &hdrIdx,
@@ -4077,6 +4078,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                             ForceZero(edDer, (word32)edDerSz);
                             XFREE(edDer, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                         }
+                        PRIVATE_KEY_LOCK();
                     }
                 }
             }
@@ -9604,7 +9606,9 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
     pkey->pkey_sz = 0;
 
     if (rsa->type == RSA_PRIVATE) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_RsaKeyToDer(rsa, derBuf, (word32)derSz);
+        PRIVATE_KEY_LOCK();
         if (ret > 0) {
             derSz = ret;
         #ifdef HAVE_PKCS8
@@ -10110,7 +10114,9 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
+                    PRIVATE_KEY_UNLOCK();
                     if (wc_EccKeyToPKCS8(ecc, derBuf, &derSzOut) >= 0) {
+                        PRIVATE_KEY_LOCK();
                         derSz = (int)derSzOut;
                         if (pkey->pkey.ptr) {
                             /* The outgoing buffer can hold a private key
@@ -10128,6 +10134,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         return WOLFSSL_SUCCESS;
                     }
                     else {
+                        PRIVATE_KEY_LOCK();
                         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         derBuf = NULL;
                     }
@@ -10157,7 +10164,9 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
+                    PRIVATE_KEY_UNLOCK();
                     if (wc_EccKeyToDer(ecc, derBuf, (word32)derSz) >= 0) {
+                        PRIVATE_KEY_LOCK();
                         if (pkey->pkey.ptr) {
                             /* As above, the outgoing buffer can hold a
                              * private key encoding. */
@@ -10177,6 +10186,7 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         return WOLFSSL_SUCCESS;
                     }
                     else {
+                        PRIVATE_KEY_LOCK();
                         XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
                         derBuf = NULL;
                     }
@@ -11093,7 +11103,9 @@ int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
             byte* derBuf = (byte*)XMALLOC((size_t)derSz, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER);
             if (derBuf != NULL) {
+                PRIVATE_KEY_UNLOCK();
                 ret = wc_RsaKeyToDer(rsa, derBuf, derSz);
+                PRIVATE_KEY_LOCK();
                 if (ret >= 0) {
                     pkey->pkey_sz = ret;
                     pkey->pkey.ptr = (char*)derBuf;

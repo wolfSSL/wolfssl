@@ -941,12 +941,16 @@ int test_wc_ecc_order_wider_than_field(void)
 
     #if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
         /* DER holds the private key at the size of the order. */
+        PRIVATE_KEY_UNLOCK();
         ExpectIntGT(derSz = wc_EccKeyToDer(&key, der, (word32)sizeof(der)), 0);
+        PRIVATE_KEY_LOCK();
         ExpectIntEQ(wc_EccKeyDerSize(&key, 1), derSz);
         ExpectIntEQ(test_ecc_order_key_ecdh(NULL, 0, der, (word32)derSz,
             &peer, curves[i], &rng, gx, gxSz), TEST_SUCCESS);
+        PRIVATE_KEY_UNLOCK();
         ExpectIntGT(derSz = wc_EccPrivateKeyToDer(&key, der,
             (word32)sizeof(der)), 0);
+        PRIVATE_KEY_LOCK();
         ExpectIntEQ(wc_EccKeyDerSize(&key, 0), derSz);
         ExpectIntEQ(der[5], ASN_OCTET_STRING);
         ExpectIntEQ(der[6], gxSz + 1);
@@ -957,7 +961,9 @@ int test_wc_ecc_order_wider_than_field(void)
             ExpectIntEQ(test_ecc_order_key_ecdh(der + 7, gxSz + 1, NULL, 0,
                 &peer, ECC_CURVE_DEF, &rng, gx, gxSz), TEST_SUCCESS);
         }
+        PRIVATE_KEY_UNLOCK();
         ExpectIntLT(wc_EccPrivateKeyToDer(&key, der, (word32)derSz - 1), 0);
+        PRIVATE_KEY_LOCK();
     #endif
 
         /* A small key exports raw at the prime size, which
@@ -981,7 +987,9 @@ int test_wc_ecc_order_wider_than_field(void)
         ExpectIntEQ(privSz, gxSz);
         ExpectIntEQ(priv[privSz - 1], 1);
     #if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+        PRIVATE_KEY_UNLOCK();
         ExpectIntGT(wc_EccPrivateKeyToDer(&key, der, (word32)sizeof(der)), 0);
+        PRIVATE_KEY_LOCK();
         ExpectIntEQ(der[6], gxSz + 1);
         ExpectIntEQ(der[7], 0);
     #endif
@@ -5330,16 +5338,22 @@ int test_wc_EccPrivateKeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_EccPrivateKeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_EccPrivateKeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
     inLen = wc_EccPrivateKeyToDer(&eccKey, NULL, 0);
     ExpectIntGT(inLen, 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_EccPrivateKeyToDer(&eccKey, output, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
 
     /* Good Case */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(outLen = (word32)wc_EccPrivateKeyToDer(&eccKey, output, inLen),
         0);
+    PRIVATE_KEY_LOCK();
 
     wc_ecc_free(&eccKey);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);

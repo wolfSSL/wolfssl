@@ -914,14 +914,20 @@ int test_wc_Ed448KeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed448KeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448KeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448KeyToDer(&ed448Key, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good Cases */
     /* length only */
     ExpectIntGT(wc_Ed448KeyToDer(&ed448Key, NULL, 0), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed448KeyToDer(&ed448Key, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&ed448Key);
@@ -954,14 +960,20 @@ int test_wc_Ed448PrivateKeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed448PrivateKeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448PrivateKeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good cases */
     /* length only */
     ExpectIntGT(wc_Ed448PrivateKeyToDer(&ed448PrivKey, NULL, 0), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&ed448PrivKey);
@@ -995,16 +1007,22 @@ int test_wc_Ed448KeyToDer_oneasymkey_version(void)
     ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
 
     /* Bundled (v=1) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed448KeyToDer(&key, ref, (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
     idx = 0;
     ExpectIntEQ(wc_Ed448PrivateKeyDecode(ref, &idx, &key2, (word32)refSz), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(rtSz = wc_Ed448KeyToDer(&key2, rt, (word32)sizeof(rt)), refSz);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
 
     /* Private only (v=0) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed448PrivateKeyToDer(&key, ref,
         (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
 
     wc_ed448_free(&key);
@@ -1039,7 +1057,9 @@ int test_wc_Ed448PrivateKeyDecode_ex(void)
 
     /* Bundled private+public DER; public key is the trailing
      * ED448_PUB_KEY_SIZE bytes. */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(derSz = wc_Ed448KeyToDer(&key, der, (word32)sizeof(der)), 0);
+    PRIVATE_KEY_LOCK();
 
     /* Intact DER decodes with either trust setting. */
     idx = 0;

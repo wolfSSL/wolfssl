@@ -43865,7 +43865,9 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #else
     derSz = sizeof(der);
 #endif
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_RsaKeyToDer(genKey, der, derSz);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(derSz), exit_rsa);
     }
@@ -44757,7 +44759,9 @@ static wc_test_ret_t rsa_se050_onlykeyid_test(WC_RNG* rng)
     /* Export and promote the same key material into the SE050. */
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) { ret = WC_TEST_RET_ENC_ERRNO; goto done; }
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_RsaKeyToDer(&swKey, der, FOURK_BUF);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) { ret = WC_TEST_RET_ENC_EC(derSz); goto done; }
 
     /* Erase any object a prior interrupted run may have left at this ID;
@@ -55863,7 +55867,9 @@ static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
     }
 
     tmpSz = ECC_BUFSIZE;
+    PRIVATE_KEY_UNLOCK();
     ret = wc_EccKeyToDer(eccKey, tmpBuf, tmpSz);
+    PRIVATE_KEY_LOCK();
     wc_ecc_free(eccKey);
     if (ret < 0) {
         goto done;
@@ -55952,7 +55958,9 @@ static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
     TEST_SLEEP();
 #endif
 
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_EccKeyToDer(userA, der, ECC_BUFSIZE);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_I(derSz), done);
     }
@@ -55989,7 +55997,9 @@ static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
 #ifdef HAVE_PKCS8
     /* test export of PKCS#8 unencrypted private key */
     pkcs8Sz = FOURK_BUF;
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_EccPrivateKeyToPKCS8(userA, der, &pkcs8Sz);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_I(derSz), done);
     }
@@ -59723,7 +59733,9 @@ static wc_test_ret_t se050_onlykeyid_promote_ecc(ecc_key* swKey, ecc_key* hwKey,
     byte   der[256];
     word32 derSz;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_EccKeyToDer(swKey, der, (word32)sizeof(der));
+    PRIVATE_KEY_LOCK();
     if (ret < 0)
         return WC_TEST_RET_ENC_EC(ret);
     derSz = (word32)ret;
@@ -106186,7 +106198,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 }
 
                 /* Export private key from temp to DER */
+                PRIVATE_KEY_UNLOCK();
                 derSz = wc_RsaKeyToDer(rsaTmp, der, (word32)derSz);
+                PRIVATE_KEY_LOCK();
                 if (derSz <= 0) {
                     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     ret = derSz;
@@ -106317,7 +106331,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         ret = MEMORY_E;
                         break;
                     }
+                    PRIVATE_KEY_UNLOCK();
                     derSz = wc_RsaKeyToDer(src, der, (word32)derSz);
+                    PRIVATE_KEY_LOCK();
                     if (derSz > 0) {
                         ret = wc_RsaPrivateKeyDecode(der, &idx, dst,
                             (word32)derSz);

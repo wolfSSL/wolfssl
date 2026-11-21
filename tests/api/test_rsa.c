@@ -993,7 +993,26 @@ int test_wc_RsaKeyToDer(void)
     ExpectNotNull(der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
 
     /* Test exporting private key to DER */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    {
+        /* wolfSSL_Init() enables private key output: drop it to zero, check
+         * the key does not leave, then put it back. */
+        int held = wolfCrypt_GetPrivateKeyReadEnable_fips(WC_KEYTYPE_ALL);
+        int i;
+
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_LOCK();
+        }
+        ExpectIntEQ(wc_RsaKeyToDer(&key, der, derSz),
+            WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E));
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_UNLOCK();
+        }
+    }
+#endif
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_RsaKeyToDer(&key, der, derSz), 0);
+    PRIVATE_KEY_LOCK();
 
     /* Pass good/bad args. */
     ExpectIntEQ(wc_RsaKeyToDer(NULL, der, derSz),
