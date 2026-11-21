@@ -41798,8 +41798,8 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     if (ret != 0 && ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
     #endif
     #endif
-#elif defined(HAVE_FIPS) || !defined(WC_RSA_BLINDING)
-    /* FIPS140 implementation does not do blinding */
+#elif !defined(WC_RSA_BLINDING)
+    /* Without blinding no RNG is needed. */
     if (ret != 0)
 #elif defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY)
     if (ret != WC_NO_ERR_TRACE(SIG_TYPE_E))
@@ -43906,6 +43906,10 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #if !defined(WC_TEST_SKIP_RSA_PRIVATE_EXPORT) && !defined(WOLFSSL_MICROCHIP)
     int    derSz = 0;
 #endif
+#if defined(WOLFSSL_RSA_KEY_CHECK) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RSA_BLINDING)
+    int    i;
+#endif
 
 #if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_SWDEV)
     if (devId == INVALID_DEVID) {
@@ -43947,6 +43951,29 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     ret = wc_CheckRsaKey(genKey);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#endif
+#if defined(WOLFSSL_RSA_KEY_CHECK) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RSA_BLINDING)
+    /* Blinded keygen keeps d < LCM(p - 1, q - 1) (FIPS 186-5 A.1.1); a d mod
+     * (p - 1)(q - 1) passes for one key with chance at most 1/2. */
+    for (i = 0; i < 8; i++) {
+        ret = wc_FreeRsaKey(genKey);
+        if (ret == 0)
+            ret = test_RsaInit(genKey, HEAP_HINT, devId);
+        while (ret == 0) {
+            ret = wc_MakeRsaKey(genKey, keySz, WC_RSA_EXPONENT, rng);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &genKey->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != WC_NO_ERR_TRACE(PRIME_GEN_E))
+                break;
+            ret = 0;
+        }
+        if (ret == 0)
+            ret = wc_CheckRsaKey(genKey);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    }
 #endif
 #if defined(WOLFSSL_RSA_KEY_CHECK) && FIPS_VERSION3_GE(7,0,0) && \
     defined(WOLFSSL_PUBLIC_MP)

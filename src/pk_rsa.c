@@ -186,7 +186,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
     #endif
 
         if (rsa->internal != NULL) {
-        #if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+        #if defined(WC_RSA_BLINDING)
             /* Check if RNG is owned before freeing it. */
             if (rsa->ownRng) {
                 WC_RNG* rng = ((RsaKey*)(rsa->internal))->rng;
@@ -285,7 +285,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
             rsaKeyInited = 1;
         }
     }
-    #if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+    #if defined(WC_RSA_BLINDING)
     if (!err) {
         WC_RNG* rng;
 
@@ -314,7 +314,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
             /* Won't fail as key and rng are not NULL. */
         }
     }
-    #endif /* !HAVE_FIPS && WC_RSA_BLINDING */
+    #endif /* WC_RSA_BLINDING */
     if (!err) {
         /* Set wolfCrypt RSA key into RSA key. */
         rsa->internal = key;
@@ -2420,7 +2420,7 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA* rsa, WC_RNG** tmpRng, int* initTmpRng)
         /* Haven't initialized any RNG passed through tmpRng. */
         *initTmpRng = 0;
 
-    #if !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+    #if defined(WC_RSA_BLINDING)
         /* Use wolfCrypt RSA key's RNG if available/set. */
         rng = ((RsaKey*)rsa->internal)->rng;
     #endif

@@ -1131,7 +1131,7 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     /* Pass bad args - tested in another testing function.*/
 
     /* Decrypt */
-#if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
+#if defined(WC_RSA_BLINDING)
     /* Bind rng */
     ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
 #endif
@@ -1214,7 +1214,7 @@ int test_wc_RsaPublicEncryptDecrypt_ex(void)
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     /* Decrypt */
-    #if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
+    #if defined(WC_RSA_BLINDING)
         ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
     #endif
     ExpectIntGE(wc_RsaPrivateDecrypt_ex(cipher, (word32)idx, plain, plainSz,
@@ -1733,7 +1733,7 @@ int test_wc_RsaDecisionCoverage(void)
         &key, &rng), 0);
 
     /* ---- wc_RsaPrivateDecrypt: argument-check + short-buffer branches ---- */
-#if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
+#if defined(WC_RSA_BLINDING)
     ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
     /* wc_RsaSetRNG NULL arg decision branches. */
     ExpectIntEQ(wc_RsaSetRNG(NULL, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));

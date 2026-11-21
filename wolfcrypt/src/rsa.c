@@ -6139,10 +6139,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = mp_sub_d(p, 1, tmp1);
     if (err == MP_OKAY)                /* tmp2 = q-1 */
         err = mp_sub_d(q, 1, tmp2);
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
     if (err == MP_OKAY)                /* tmp3 = order of n */
         err = mp_mul(tmp1, tmp2, tmp3);
 #else
+    /* FIPS 186-5 A.1.1 step 3: d = 1/e mod LCM(p-1, q-1). */
     if (err == MP_OKAY)                /* tmp3 = lcm(p-1, q-1), last loop */
         err = mp_lcm(tmp1, tmp2, tmp3);
 #endif

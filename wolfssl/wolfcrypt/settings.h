@@ -713,8 +713,10 @@
             #define RNG WC_RNG
         #endif
     #endif
-    /* blinding adds API not available yet in FIPS mode */
-    #undef WC_RSA_BLINDING
+    /* FIPS before v7 has no wc_RsaSetRNG() service, so no RSA blinding. */
+    #if FIPS_VERSION3_LT(7,0,0)
+        #undef WC_RSA_BLINDING
+    #endif
 #endif
 
 /* old FIPS has only AES_BLOCK_SIZE. */
