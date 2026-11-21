@@ -1303,6 +1303,11 @@ if BUILD_ED25519
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ed25519.c
 endif
 
+# Inside the boundary, but X25519 is not an approved service: no wrappers.
+if BUILD_CURVE25519
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
+endif
+
 if BUILD_ARMASM
 if BUILD_ARMASM_NEON
 if BUILD_ARMASM_INLINE
@@ -1470,12 +1475,9 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/entropy-timers.c
 endif
 
-# Past wolfcrypt_last.c: X25519, X448 and DH are not v7 module services.
+# Past wolfcrypt_last.c: X448 and DH are outside the v7 module.
 if BUILD_DH
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dh.c
-endif
-if BUILD_CURVE25519
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
 endif
 if BUILD_CURVE448
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve448.c
