@@ -4155,9 +4155,10 @@
 
 #if defined(HAVE_FIPS) && defined(HAVE_AESGCM) && \
     defined(WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED) && \
-    !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+    !defined(WOLFSSL_EXPERIMENTAL_SETTINGS) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
     /* A one-shot GCM encrypt with a caller IV skips the module's IV accounting
-     * (SP 800-38D sec 8, IG C.H), so no FIPS version allows it. */
+     * (SP 800-38D sec 8, IG C.H); only uncertified dev-no-post allows it. */
     #error WC_FIPS_AESGCM_ONE_SHOT_EXT_IV_ALLOWED is forbidden for selected FIPS version.
 #endif
 

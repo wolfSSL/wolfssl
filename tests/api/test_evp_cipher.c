@@ -1781,7 +1781,7 @@ int test_wolfssl_EVP_aes_gcm_64bit_iv(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
     defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
     !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
-    !defined(WOLFSSL_AFALG)
+    !defined(WOLFSSL_AFALG) && !defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
     static const byte key[16] = {
         0x74, 0x2c, 0xf4, 0x2d, 0xe6, 0x28, 0x40, 0xd7,
         0xe3, 0xec, 0xe9, 0x7f, 0x46, 0xaa, 0x34, 0x3a
