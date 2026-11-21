@@ -10413,6 +10413,8 @@ int wc_SlhDsaKey_Verify(SlhDsaKey* key, const byte* ctx, byte ctxSz,
              * Alg 20, Steps 4,6-18: Verify digest. */
             ret = slhdsakey_verify(key, md, sig);
         }
+        /* FIPS 205 sec 3.1: destroy verify intermediates. */
+        ForceZero(md, sizeof(md));
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -10518,6 +10520,8 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
         if (ret == 0) {
             ret = slhdsakey_verify(key, md, sig);
         }
+        /* FIPS 205 sec 3.1: destroy verify intermediates. */
+        ForceZero(md, sizeof(md));
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
@@ -11424,6 +11428,7 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
             ret = slhdsakey_h_msg_sha2(key, sig, hdr, ctx, ctxSz, phMsg,
                 phMsgLen, md, (word32)key->params->dl1 + key->params->dl2 +
                 key->params->dl3);
+            ForceZero(phMsg, sizeof(phMsg));
         }
     #ifndef WOLFSSL_SLHDSA_NO_SHAKE
         else
@@ -11462,6 +11467,8 @@ int wc_SlhDsaKey_VerifyHash(SlhDsaKey* key, const byte* ctx, byte ctxSz,
              * Alg 20, Steps 4,6-18: Verify digest. */
             ret = slhdsakey_verify(key, md, sig);
         }
+        /* FIPS 205 sec 3.1: destroy verify intermediates. */
+        ForceZero(md, sizeof(md));
     }
 #endif /* WOLF_CRYPTO_CB_ONLY_SLHDSA */
 
