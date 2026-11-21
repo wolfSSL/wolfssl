@@ -44582,7 +44582,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
 
 #if !defined(WOLFSSL_NO_TICKET_EXPIRE) && !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
-        if (LowResTimer() > session->bornOn + ssl->timeout) {
+        if (ELAPSED_SEC(LowResTimer(), session->bornOn) > ssl->timeout) {
             WOLFSSL_MSG("Expired session, fall back to full handshake.");
             ssl->options.resuming = 0;
             /* A declined ticket must not satisfy client auth. */
@@ -46662,9 +46662,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         if (now == 0)
             return GETTIME_ERROR;
         /* Difference between now and time ticket constructed
-         * (from decrypted ticket). */
-        diff = now;
-        diff -= ticketSeen;
+         * (from decrypted ticket). The clock may wrap. */
+        diff = (word32)(now - ticketSeen);
         if (diff > timeout * 1000 ||
             diff > (sword64)TLS13_MAX_TICKET_AGE * 1000)
             return WOLFSSL_FATAL_ERROR;
@@ -46683,7 +46682,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         /* Difference between now and time ticket constructed
          * (from decrypted ticket). */
         diff -= ticketSeen;
-        if (diff > timeout * 1000 ||
+        /* A ticket from the future means the clock went back. */
+        if (diff < 0 || diff > timeout * 1000 ||
             diff > (sword64)TLS13_MAX_TICKET_AGE * 1000)
             return WOLFSSL_FATAL_ERROR;
 #endif
@@ -47737,6 +47737,16 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
     #error "No encryption algorithm available for default ticket encryption."
 #endif
 
+/* Whether a key can still protect a ticket valid for hint seconds. */
+static int TicketKeyUsable(word32 expirary, word32 now, int hint)
+{
+    word32 age = ELAPSED_SEC(now, expirary - WOLFSSL_TICKET_KEY_LIFETIME);
+
+    return (expirary != 0) && (hint >= 0) &&
+           ((word32)hint < (word32)WOLFSSL_TICKET_KEY_LIFETIME) &&
+           (age < (word32)WOLFSSL_TICKET_KEY_LIFETIME - (word32)hint);
+}
+
 /* Choose a key to use for encryption.
  *
  * Generate a new key if the current ones are expired.
@@ -47758,11 +47768,11 @@ static int TicketEncCbCtx_ChooseKey(TicketEncCbCtx* keyCtx, int ticketHint,
     word32 now = LowResTimer();
 
     /* Check expirary of primary key for encrypt. */
-    if (keyCtx->expirary[0] >= now + ticketHint) {
+    if (TicketKeyUsable(keyCtx->expirary[0], now, ticketHint)) {
         *keyIdx = 0;
     }
     /* Check expirary of primary key for encrypt. */
-    else if (keyCtx->expirary[1] >= now + ticketHint) {
+    else if (TicketKeyUsable(keyCtx->expirary[1], now, ticketHint)) {
         *keyIdx = 1;
     }
     /* No key available to use. */
@@ -47770,10 +47780,10 @@ static int TicketEncCbCtx_ChooseKey(TicketEncCbCtx* keyCtx, int ticketHint,
         int genKey;
 
         /* Generate which ever key is expired for decrypt - primary first. */
-        if (keyCtx->expirary[0] < now) {
+        if (!TicketKeyUsable(keyCtx->expirary[0], now, 0)) {
             genKey = 0;
         }
-        else if (keyCtx->expirary[1] < now) {
+        else if (!TicketKeyUsable(keyCtx->expirary[1], now, 0)) {
             genKey = 1;
         }
         /* Timeouts and expirary should not allow this to happen. */
@@ -47910,10 +47920,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
         now = LowResTimer();
         /* As long as encryption expirary isn't imminent - no lock. */
-        if (keyCtx->expirary[0] > now + ctx->ticketHint) {
+        if (TicketKeyUsable(keyCtx->expirary[0], now, ctx->ticketHint)) {
             keyIdx = 0;
         }
-        else if (keyCtx->expirary[1] > now + ctx->ticketHint) {
+        else if (TicketKeyUsable(keyCtx->expirary[1], now, ctx->ticketHint)) {
             keyIdx = 1;
         }
         else {
@@ -47959,7 +47969,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         }
 #endif
         /* Check expirary */
-        if (keyCtx->expirary[keyIdx] <= LowResTimer()) {
+        if (!TicketKeyUsable(keyCtx->expirary[keyIdx], LowResTimer(), 0)) {
 #ifndef SINGLE_THREADED
             wc_UnLockMutex(&keyCtx->mutex);
 #endif

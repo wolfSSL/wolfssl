@@ -51,6 +51,8 @@ int test_wolfSSL_get_session_default_ref(void);
 int test_wolfSSL_SetServerID_resume(void);
 int test_wolfSSL_client_cache_is_setup(void);
 int test_wolfSSL_client_cache_max_early_data(void);
+int test_wolfSSL_session_expiry_wrap(void);
+int test_wolfSSL_ticket_key_expiry_wrap(void);
 
 #define TEST_SESSION_DECLS                                                     \
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_add_session),                  \
@@ -79,6 +81,8 @@ int test_wolfSSL_client_cache_max_early_data(void);
     TEST_DECL_GROUP("session", test_wolfSSL_SetServerID_resume),               \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_is_setup),            \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_max_early_data),      \
-    TEST_DECL_GROUP("session", test_session_decision_coverage)
+    TEST_DECL_GROUP("session", test_session_decision_coverage),                \
+    TEST_DECL_GROUP("session", test_wolfSSL_session_expiry_wrap),              \
+    TEST_DECL_GROUP("session", test_wolfSSL_ticket_key_expiry_wrap)
 
 #endif /* WOLFCRYPT_TEST_SESSION_H */

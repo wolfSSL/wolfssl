@@ -11902,6 +11902,10 @@ int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, WC_TIME_T* cmpTime)
     if (cmpTime == NULL) {
         /* Use current time */
         *pTime = wc_Time(0);
+        if (*pTime <= 0) {
+            WOLFSSL_MSG("Invalid current time");
+            return WOLFSSL_FAILURE;
+        }
     }
     else {
         pTime = cmpTime;

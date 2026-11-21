@@ -947,7 +947,7 @@ void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm)
                 s != NULL &&
 #endif
                 s->sessionIDSz > 0 &&
-                s->bornOn + s->timeout < (word32)tm
+                ELAPSED_SEC(tm, s->bornOn) > s->timeout
                 )
             {
                 EvictSessionFromCache(s);
@@ -1115,7 +1115,8 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         if (current && current->idLen == (word16)len &&
                 XMEMCMP(current->serverID, id, (unsigned long)len) == 0) {
             WOLFSSL_MSG("Found a serverid match for client");
-            if (LowResTimer() < (current->bornOn + current->timeout)) {
+            if (ELAPSED_SEC(LowResTimer(), current->bornOn) <
+                    current->timeout) {
                 WOLFSSL_MSG("Session valid");
                 ret = current;
                 SESSION_ROW_UNLOCK(sessRow);
@@ -1453,7 +1454,7 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             TlsSessionCacheUnlockRow(row);
             error = WOLFSSL_FAILURE;
         }
-        else if (LowResTimer() >= (sess->bornOn + sess->timeout)) {
+        else if (ELAPSED_SEC(LowResTimer(), sess->bornOn) >= sess->timeout) {
             WOLFSSL_SESSION* wrSess = NULL;
             WOLFSSL_MSG("Invalid session: timed out");
             sess = NULL;
@@ -1683,7 +1684,8 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
 #endif /* WOLFSSL_SESSION_ID_CTX */
 
-    if (LowResTimer() >= (ssl->session->bornOn + ssl->session->timeout)) {
+    if (ELAPSED_SEC(LowResTimer(), ssl->session->bornOn) >=
+            ssl->session->timeout) {
 #if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
         return WOLFSSL_FAILURE;  /* session timed out */
 #else /* defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL) */
@@ -2560,11 +2562,11 @@ static int get_locked_session_stats(word32* active, word32* total, word32* peak)
             /* if not expired then good */
 #ifdef SESSION_CACHE_DYNAMIC_MEM
             if (row->Sessions[idx] &&
-                ticks < (row->Sessions[idx]->bornOn +
-                            row->Sessions[idx]->timeout) )
+                ELAPSED_SEC(ticks, row->Sessions[idx]->bornOn) <
+                            row->Sessions[idx]->timeout)
 #else
-            if (ticks < (row->Sessions[idx].bornOn +
-                            row->Sessions[idx].timeout) )
+            if (ELAPSED_SEC(ticks, row->Sessions[idx].bornOn) <
+                            row->Sessions[idx].timeout)
 #endif
             {
                 now++;
