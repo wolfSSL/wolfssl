@@ -23653,6 +23653,16 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
+#ifndef HAVE_FIPS
+    /* A one-shot encrypt with its own IV leaves the generated IV in place. */
+    ret = wc_AesGcmEncrypt(enc, c, p, sizeof(p), blk, GCM_NONCE_MID_SZ,
+                           tag, sizeof(tag), NULL, 0);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
     XMEMSET(blk, 0x33, sizeof(blk));
     ret = wc_AesSetIV(enc, blk);
     if (ret == 0)
