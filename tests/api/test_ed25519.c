@@ -324,7 +324,7 @@ int test_wc_ed25519_import_private_key(void)
     const byte  pubKey[] = "Ed25519PublicKeyUnitTest......\n";
     word32      privKeySz = sizeof(privKey);
     word32      pubKeySz = sizeof(pubKey);
-#ifdef HAVE_ED25519_KEY_EXPORT
+#if defined(HAVE_ED25519_MAKE_KEY) && defined(HAVE_ED25519_KEY_EXPORT)
     byte        bothKeys[sizeof(privKey) + sizeof(pubKey)];
     word32      bothKeysSz = sizeof(bothKeys);
 #endif

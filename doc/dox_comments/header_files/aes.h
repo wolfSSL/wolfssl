@@ -2852,7 +2852,8 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz);
     With a fixed part the IV is the SP 800-38D 8.2.1 construction; without
     one it is the 8.2.2 RBG-based construction. A key takes one IV from this
     function or wc_AesGcmSetIVCounter(): a second one returns BAD_STATE_E
-    until wc_AesGcmSetKey() is called again (SP 800-38D 8.2, 8.3).
+    until wc_AesGcmSetKey() sets a different key. Setting the same key again
+    keeps the generated IV (SP 800-38D 8.2, 8.3).
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes or rng is NULL, or if parameters are invalid.
@@ -2899,7 +2900,8 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz, const byte* ivFixed,
     If mask is not NULL it is XORed into every IV used and returned, as the
     SRTP salt is in RFC 7714 8.1; the counter itself is kept unmasked.
     A key takes one IV from this function or wc_AesGcmSetIV(): a second one
-    returns BAD_STATE_E until wc_AesGcmSetKey() is called again. A masked IV is
+    returns BAD_STATE_E until wc_AesGcmSetKey() sets a different key; the same
+    key again keeps the generated IV. A masked IV is
     used only by wc_AesGcmEncrypt_ex(); wc_AesGcmInit() refuses it.
 
     \return 0 On success.
