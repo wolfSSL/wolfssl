@@ -541,13 +541,28 @@ MODULE_PARM_DESC(rodata_dump_path,
 
 #endif /* WC_LINUXKM_SUPPORT_DUMP_TO_FILE */
 
-/* No self-test machinery exists in dev-no-post builds, so the rerun
- * node must not either. */
+/* No self-test machinery exists in dev-no-post builds, so the trigger
+ * nodes must not either. */
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
+    /* Within-boot-session trigger of the pre-operational self-tests:
+     * gated out of default builds.  The on-demand mechanism of record
+     * for the pre-operational tests is module unload+reload -- the
+     * architecture settled by the issued kernel-module certificates.
+     */
     static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
     static struct module_attribute FIPS_rerun_self_test_attr = __ATTR(FIPS_rerun_self_test, 0220, NULL, FIPS_rerun_self_test_handler);
     static int installed_sysfs_FIPS_files = 0;
+#endif /* WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK */
+    /* RunAllCast triggers wc_RunAllCast_fips() -- the operator CAST
+     * service, complete in itself: verdicts latch through the
+     * standard DoCAST() machinery.  Ungated: a supported service
+     * interface in current and historical submissions. */
+    static ssize_t RunAllCast_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
+                                       const char *buf, size_t count);
+    static struct module_attribute RunAllCast_attr = __ATTR(RunAllCast, 0220, NULL, RunAllCast_handler);
+    static int installed_sysfs_RunAllCast_files = 0;
 #endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef LINUXKM_LKCAPI_REGISTER
@@ -1780,7 +1795,10 @@ static int wolfssl_init(void)
 #endif /* LINUXKM_LKCAPI_REGISTER */
 
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
     (void)linuxkm_sysfs_install_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
+#endif
+    (void)linuxkm_sysfs_install_attr(&RunAllCast_attr.attr, &installed_sysfs_RunAllCast_files);
 #endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
@@ -1830,7 +1848,10 @@ module_init(wolfssl_init);
 
 static void wc_linuxkm_deinstall(void) {
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
+#endif
+    (void)linuxkm_sysfs_deinstall_attr(&RunAllCast_attr.attr, &installed_sysfs_RunAllCast_files);
 #ifdef FIPS_OPTEST
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
@@ -2769,6 +2790,8 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
 
 static wolfSSL_Atomic_Int in_fips_test = WOLFSSL_ATOMIC_INITIALIZER(-1);
 
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
+
 static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, size_t count)
 {
@@ -2929,6 +2952,76 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
 
     pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
+
+    return count;
+}
+
+#endif /* WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK */
+
+static ssize_t RunAllCast_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
+                                  const char *buf, size_t count)
+{
+    int ret;
+
+    (void)mattr;
+    (void)mk;
+
+    /* only recognize "1" and "1\n". */
+    if ((count < 1) || (count > 2) ||
+        (buf[0] != '1') ||
+        ((count == 2) && (buf[1] != '\n')))
+    {
+        return -EINVAL;
+    }
+
+    {
+        WC_ATOMIC_INT_ARG expected_in_fips_test = -1;
+        if (! wolfSSL_Atomic_Int_CompareExchange(
+                &in_fips_test, &expected_in_fips_test, task_pid_nr(current)))
+        {
+            pr_err("ERROR: %s called by pid %d while pid %d is running a FIPS test in another thread.\n",
+                   __func__, task_pid_nr(current), expected_in_fips_test);
+            return -EBUSY;
+        }
+    }
+
+    pr_info("wolfCrypt: running all CASTs on command.\n");
+
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        ret = wc_RunAllCast_fips();
+        (void)WC_SIG_IGNORE_END();
+    }
+    else {
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        ret = WC_FAILURE;
+    }
+
+    WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
+
+    if (ret != 0) {
+        if (ret < 0) {
+            pr_err("ERROR: wc_RunAllCast_fips() refused: %s\n", wc_GetErrorString(ret));
+            if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+                return -EAGAIN;
+            else if (ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+                /* FAILED is reload-only: until a power cycle the
+                 * module is gone as a service, which in kernel idiom
+                 * is -ENODEV, not an argument problem. */
+                return -ENODEV;
+            else
+                return -EINVAL;
+        }
+        else {
+            /* Per-algorithm FAILURE records and degraded-mode entry
+             * are already latched by the DoCAST() machinery; the
+             * errno only reports them. */
+            pr_err("ERROR: wc_RunAllCast_fips(): %d CAST%s failed\n",
+                   ret, ret == 1 ? "" : "s");
+            return -EIO;
+        }
+    }
+
+    pr_info("wolfCrypt: all CASTs passed.\n");
 
     return count;
 }
