@@ -1679,7 +1679,7 @@ int test_tls_msgtype_sni_parse_ech_public(void)
 /* if (len < MIN_PSK_ID_LEN || length - idx < len) return BUFFER_E;
  * ...
  * if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
- *         identityLen > MAX_PSK_ID_LEN) return BUFFER_E; */
+ *         identityLen > MAX_PSK_ID_WIRE_LEN) return BUFFER_E; */
 int test_tls_msgtype_psk_ch_id_gates(void)
 {
     EXPECT_DECLS;
@@ -1687,8 +1687,8 @@ int test_tls_msgtype_psk_ch_id_gates(void)
     defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    byte buf[MAX_PSK_ID_LEN + 64];
-    byte body[MAX_PSK_ID_LEN + 48];
+    byte buf[MAX_PSK_ID_WIRE_LEN + 64];
+    byte body[MAX_PSK_ID_WIRE_LEN + 48];
     word16 len;
     Suites suites;
 
@@ -1748,12 +1748,12 @@ int test_tls_msgtype_psk_ch_id_gates(void)
     ctx = NULL;
 
     /* Per-identity op0 false, op1 true: identityLen is one more than
-     * MAX_PSK_ID_LEN, with enough buffer supplied to hold it in full. */
+     * MAX_PSK_ID_WIRE_LEN, with enough buffer supplied to hold it in full. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     XMEMSET(&suites, 0, sizeof(suites));
     {
-        word16 idLen = MAX_PSK_ID_LEN + 1;
+        word16 idLen = (word16)(MAX_PSK_ID_WIRE_LEN + 1);
         word16 identitiesLen = (word16)(OPAQUE16_LEN + idLen + OPAQUE32_LEN);
         word16 idx = 0;
 
@@ -2135,6 +2135,43 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
                 (word16)sizeof(oneIdTwoBinders));
         ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
                     WC_NO_ERR_TRACE(BUFFER_E));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Trailing "idx != length" gate: a complete, valid OfferedPsks followed
+     * by one extra byte inside the extension data must be rejected
+     * (RFC 8446 Section 4.2). */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    {
+        Suites suites;
+
+        XMEMCPY(body, psk_ch_body, sizeof(psk_ch_body));
+        body[sizeof(psk_ch_body)] = 0xAA;
+        XMEMSET(&suites, 0, sizeof(suites));
+        len = build_ext_with_body(buf, TLSX_PRE_SHARED_KEY, body,
+                (word16)(sizeof(psk_ch_body) + 1));
+        ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Control: the same OfferedPsks without the trailing byte is accepted. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    {
+        Suites suites;
+
+        XMEMSET(&suites, 0, sizeof(suites));
+        len = build_ext_with_body(buf, TLSX_PRE_SHARED_KEY, psk_ch_body,
+                (word16)sizeof(psk_ch_body));
+        ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     }
     wolfSSL_free(ssl);
     ssl = NULL;

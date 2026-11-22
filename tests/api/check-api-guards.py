@@ -64,6 +64,13 @@ API = {
     'wolfSSL_CertManagerVerify':     (['NO_FILESYSTEM'], []),
     'wolfSSL_CertManagerLoadCRL':    (['NO_FILESYSTEM'], []),
     'wolfSSL_CertManagerLoadCRLFile': (['NO_FILESYSTEM'], []),
+    # src/ssl.c: implemented under HAVE_SECURE_RENEGOTIATION ||
+    # HAVE_SERVER_RENEGOTIATION_INFO; the substring match passes a call
+    # site guarded by the full disjunction.
+    'wolfSSL_SSL_renegotiate_pending':  ([], ['HAVE_SECURE_RENEGOTIATION']),
+    # src/ssl_load.c: implemented under !NO_FILESYSTEM && !NO_CERTS
+    'wolfSSL_CTX_use_PrivateKey_file':  (['NO_FILESYSTEM', 'NO_CERTS'], []),
+    'wolfSSL_CTX_use_certificate_file': (['NO_FILESYSTEM', 'NO_CERTS'], []),
 }
 
 

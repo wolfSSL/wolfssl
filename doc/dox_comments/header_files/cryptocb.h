@@ -1,5 +1,5 @@
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief This function registers a unique device identifier (devID) and
     callback function for offloading crypto operations to external
@@ -120,7 +120,7 @@
 int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief This function reports whether a crypto callback device identifier
     (devID) is currently registered. It is useful for checking registration
@@ -146,7 +146,7 @@ int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 int wc_CryptoCb_IsDeviceRegistered(int devId);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief This function un-registers a unique device identifier (devID)
     callback function.
@@ -169,7 +169,7 @@ int wc_CryptoCb_IsDeviceRegistered(int devId);
 void wc_CryptoCb_UnRegisterDevice(int devId);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief This function returns the default device ID for crypto
     callbacks. This is useful when you want to get the device ID that
     was set as the default for the library.
@@ -190,7 +190,7 @@ void wc_CryptoCb_UnRegisterDevice(int devId);
 int wc_CryptoCb_DefaultDevID(void);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief This function sets a callback for finding crypto devices.
     The callback is invoked when a device ID needs to be resolved to
     a device context. This is useful for dynamic device management.
@@ -215,7 +215,7 @@ int wc_CryptoCb_DefaultDevID(void);
 void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
     \brief This function converts a wc_CryptoInfo structure to a
     human-readable string for debugging purposes. The string is printed
     to stdout and describes the cryptographic operation being performed.
@@ -240,7 +240,7 @@ void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Import an AES key into a CryptoCB device for hardware offload.
 
@@ -252,18 +252,28 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
     (WOLF_CRYPTO_CB_AES_SETKEY), wolfCrypt routes AES-GCM operations
     through the CryptoCB interface.
 
-    **TLS Builds (Default):**
-    - Key bytes ARE stored in wolfCrypt memory (devKey) for fallback
-    - GCM tables ARE generated for software fallback
-    - Provides hardware acceleration with automatic fallback
+    If the callback returns success (0), the device owns the key. A callback
+    that keeps the key only on the device must leave aes->rounds at 0:
+    wolfCrypt takes a non-zero aes->rounds to mean the callback also built a
+    software key schedule, by calling wc_AesSetKey() on the same object with
+    aes->devId set to a devId no device is registered under, then restoring
+    it. INVALID_DEVID only works without WOLF_CRYPTO_CB_FIND, whose find
+    callback can map it back to the device. Without a schedule, wolfCrypt
+    keeps no copy in devKey and derives no GCM hash subkey or tables, so the
+    callback must handle SetKey, Encrypt, Decrypt, and Free. The streaming
+    GCM API then returns MISSING_KEY, and so does a mode the callback
+    declines when WOLFSSL_AES_REQUIRE_KEY_SET is in effect (the default). The
+    same applies to a WOLF_CRYPTO_CB_SETKEY callback for WC_SETKEY_AES. Only
+    that request carries the key direction, so only such a callback can build
+    a software key schedule.
 
-    **Crypto-Only Builds (--disable-tls):**
-    - Key bytes NOT stored in wolfCrypt memory (true key isolation)
-    - GCM tables skipped (true hardware offload)
-    - Callback must handle all GCM operations (SetKey, Encrypt, Decrypt, Free)
-
-    If the callback returns success (0), full AES-GCM offload is assumed.
-    The callback must handle SetKey, Encrypt, Decrypt, and Free operations.
+    A callback that returns CRYPTOCB_UNAVAILABLE for a new key must first
+    release any key it holds for this object and set aes->devCtx to NULL.
+    wolfCrypt sets the new key up in software and leaves aes->devCtx alone,
+    so a stale handle would keep the operations the callback accepts on the
+    old key. A WOLF_CRYPTO_CB_SETKEY callback must do the same before it
+    returns an error, since wolfCrypt clears aes->devCtx only after an
+    error from this request.
 
     \param aes          AES context
     \param key          Pointer to raw AES key material
@@ -300,7 +310,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload deriving an ECC public key Q = d*G from its private key to a
     CryptoCB device.
@@ -329,7 +339,7 @@ int wc_CryptoCb_AesSetKey(Aes* aes, const byte* key, word32 keySz);
 int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload validating an ECC key to a CryptoCB device.
 
@@ -360,7 +370,7 @@ int wc_CryptoCb_EccMakePub(ecc_key* key, ecc_point* pubOut);
 int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload deriving an Ed25519 public key from its private key to a
     CryptoCB device.
@@ -389,7 +399,7 @@ int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
     word32 pubKeySz);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload validating an Ed25519 key to a CryptoCB device.
 
@@ -413,13 +423,40 @@ int wc_CryptoCb_Ed25519MakePub(ed25519_key* key, byte* pubKey,
 int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
+
+    \brief Offload Ed448 key generation to a CryptoCB device.
+
+    Used by wc_ed448_make_key. The device receives wc_CryptoInfo.pk.ed448kg
+    (\c rng, \c size, \c key). On success it stores the private key followed
+    by the public key in key->k, the public key in key->p, and sets
+    key->privKeySet and key->pubKeySet. For a key bound by id or label, the
+    device may keep the private key and leave key->k and key->privKeySet
+    clear. No make-public callback follows a device-generated key.
+
+    \param rng     random number generator for the device to use
+    \param keySize private key size, ED448_KEY_SIZE
+    \param key     Ed448 key providing the device id, receives the new key
+
+    \return 0 on success
+    \return CRYPTOCB_UNAVAILABLE if no device handles the operation (wolfCrypt
+            falls back to software key generation)
+    \return other negative values are device errors, returned to the caller
+            without a software fallback
+
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wc_ed448_make_key
+*/
+int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize, ed448_key* key);
+
+/*!
+    \ingroup Crypto
 
     \brief Offload deriving an Ed448 public key from its private key to a
     CryptoCB device.
 
-    Used by wc_ed448_make_public (and so by key generation and private-key
-    import). The device writes the compressed public key into
+    Used by wc_ed448_make_public (and so by software key generation and
+    private-key import). The device writes the compressed public key into
     wc_CryptoInfo.pk.ed448makepub (\c pubOut / \c pubOutSz, always
     ED448_PUB_KEY_SIZE).
 
@@ -439,7 +476,7 @@ int wc_CryptoCb_Ed25519CheckKey(ed25519_key* key);
 int wc_CryptoCb_Ed448MakePub(ed448_key* key, byte* pubKey, word32 pubKeySz);
 
 /*!
-    \ingroup CryptoCb
+    \ingroup Crypto
 
     \brief Offload validating an Ed448 key to a CryptoCB device.
 

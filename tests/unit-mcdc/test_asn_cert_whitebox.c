@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef __clang__
+/* Fixed-length DER fixtures deliberately omit the C string NUL. */
+#pragma clang diagnostic ignored "-Wunterminated-string-initialization"
+#endif
+
 /*
  * White-box MC/DC supplement for wolfcrypt/src/asn.c (Part 5, "cert" wave).
  *
@@ -1934,21 +1939,6 @@ static void wb_parse_cert_relative_bad_date(void)
  *     serialNumber attribute into cert->serial at asn.c:23034 -- but needs a
  *     from-scratch CSR carrying that attribute; not built.
  * ------------------------------------------------------------------------- */
-/* Read a DER file into `buf`; returns 0 on success. */
-static int wb_load_der(const char* path, byte* buf, size_t cap, size_t* outSz)
-{
-    FILE* f = fopen(path, "rb");
-    size_t n;
-
-    if (f == NULL) {
-        return -1;
-    }
-    n = fread(buf, 1, cap, f);
-    fclose(f);
-    *outSz = n;
-    return (n > 0) ? 0 : -1;
-}
-
 static int wb_zero_serial(byte* buf, word32* sz)
 {
     word32 co, cl, lo, lw;

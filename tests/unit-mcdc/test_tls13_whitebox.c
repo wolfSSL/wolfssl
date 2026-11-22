@@ -3,7 +3,7 @@
  * White-box MC/DC supplement for src/tls13.c.
  *
  * This is the FIRST white-box driver in the harness that targets a src/ file
- * rather than wolfcrypt/src/*.c. The build contract is identical (see
+ * rather than a wolfcrypt source file. The build contract is identical (see
  * tests/unit-mcdc/README.md): this TU #includes the target .c verbatim, is
  * compiled with the exact flags the instrumented library used for it, and is
  * linked against that variant's libwolfssl.a with the target's own object

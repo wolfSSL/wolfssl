@@ -71,10 +71,17 @@ extern unsigned long my_time(unsigned long* timer);
 #define HAVE_HASHDRBG
 
 /* Custom Seed Source */
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "AURIX example counter seed is predictable: provide a secure custom seed; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
 #define CUSTOM_RAND_TYPE      unsigned int
 extern unsigned int my_rng_seed_gen(void);
-#undef  CUSTOM_RAND_GENERATE
 #define CUSTOM_RAND_GENERATE  my_rng_seed_gen
+#endif
 
 /* Standard Lib - C89 */
 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))

@@ -29,6 +29,13 @@
 #include <wolfssl/wolfcrypt/port/kcapi/kcapi_hmac.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #if !defined(NO_SHA) && !defined(WOLFSSL_NO_KCAPI_HMAC_SHA1)
 static const char WC_NAME_HMAC_SHA1[] = "hmac(sha1)";
 #endif
@@ -52,6 +59,11 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
     if (hmac == NULL) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    else if (!WC_CTX_IS_ALIGNED(hmac, Hmac)) {
+        ret = BAD_ALIGN_E;
+    }
+#endif
 
     if (ret == 0) {
         XMEMSET(hmac, 0, sizeof(*hmac));
@@ -66,6 +78,12 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 
 void wc_HmacFree(Hmac* hmac)
 {
+#ifdef WC_CTX_IS_ALIGNED
+    if (hmac != NULL && !WC_CTX_IS_ALIGNED(hmac, Hmac)) {
+        ForceZero(hmac, sizeof(*hmac));
+        return;
+    }
+#endif
     if (hmac != NULL) {
         if (hmac->handle != NULL) {
             kcapi_md_destroy(hmac->handle);
@@ -82,6 +100,11 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     if ((hmac == NULL || (key == NULL && length != 0))) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(hmac, Hmac)) {
+        return BAD_ALIGN_E;
+    }
+#endif
 
 #ifdef HAVE_FIPS
     if (length < HMAC_FIPS_MIN_KEY)

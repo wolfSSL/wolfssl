@@ -212,6 +212,10 @@ Threading/Mutex options:
     #include <wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h>
 #endif
 
+#ifdef WOLFSSL_TI_AM64X_R5
+    #include <wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h>
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -233,6 +237,10 @@ Threading/Mutex options:
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
 #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
+#ifdef WOLFSSL_ELS_PKC
+#include <wolfssl/wolfcrypt/port/nxp/els_pkc_port.h>
 #endif
 
 #ifdef WOLFSSL_SCE
@@ -777,6 +785,24 @@ WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken)
 }
 #endif
 
+#ifdef WC_BARRIER_DATA_USES_SINK
+/* Callee of the portable WC_BARRIER_DATA() arm. It is reached through a
+ * pointer read with a volatile load, so link time optimization cannot see
+ * that the body is empty and drop the escape of the buffer address. */
+static void wc_BarrierDataSinkImpl(void* p)
+{
+    (void)p;
+}
+static void (* const wc_BarrierDataSinkPtr)(void*) = wc_BarrierDataSinkImpl;
+
+WC_NO_INLINE void wc_BarrierDataSink(void* p)
+{
+    void (*fn)(void*) =
+        *(void (* const volatile *)(void*))&wc_BarrierDataSinkPtr;
+    fn(p);
+}
+#endif /* WC_BARRIER_DATA_USES_SINK */
+
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
@@ -908,15 +934,6 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
-        !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        ret = wc_DrbgState_MutexInit();
-        if (ret != 0) {
-            WOLFSSL_MSG("DRBG state mutex init failed");
-            WOLFCRYPT_INIT_RAISE_BAD_STATE();
-        }
-    #endif
     #ifdef WC_RNG_LOCK_ATFORK
         /* here, before the app has threads, so no fork can race it */
         ret = wc_ForkLockInit();
@@ -979,19 +996,19 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #if defined(WOLFSSL_TI_AM64X_R5)
+        ret = ti_sa2ul_port_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("TI AM64x Init Failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
     #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
         defined(WOLFSSL_ATECC608A) || defined(WOLFSSL_MICROCHIP_TA100)
         ret = atmel_init();
         if (ret != 0) {
             WOLFSSL_MSG("CryptoAuthLib init failed");
-            WOLFCRYPT_INIT_RAISE_BAD_STATE();
-        }
-    #endif
-    #if defined(WOLFSSL_CRYPTOCELL)
-        /* enable and initialize the ARM CryptoCell 3xx runtime library */
-        ret = cc310_Init();
-        if (ret != 0) {
-            WOLFSSL_MSG("CRYPTOCELL init failed");
             WOLFCRYPT_INIT_RAISE_BAD_STATE();
         }
     #endif
@@ -1047,6 +1064,14 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #ifdef WOLFSSL_ELS_PKC
+        ret = wc_ElsPkc_Init();
+        if (ret != 0) {
+            WOLFSSL_MSG("EdgeLock (ELS/PKC) init failed");
+            WOLFCRYPT_INIT_RAISE_BAD_STATE();
+        }
+    #endif
+
     #ifdef WOLFSSL_ARMASM
         WOLFSSL_MSG("Using ARM hardware acceleration");
     #endif
@@ -1072,7 +1097,8 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
+    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK)
         /* A failure here should not happen, but if it does the actual RNG seed
          * call will fail. This init is for a shared crypt provider handle for
          * RNG */
@@ -1285,14 +1311,21 @@ int wolfCrypt_Cleanup(void)
         WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
     #endif
 
+    #ifdef WOLFSSL_ELS_PKC
+        {
+            int ret2 = wc_ElsPkc_Cleanup();
+            if (ret == 0)
+                ret = ret2;
+        }
+    #endif
     #if defined(WOLFSSL_CAAM)
         wc_caamFree();
     #endif
     #if defined(WOLFSSL_SEC_QORIQ)
         wc_SecQoriqFree();
     #endif
-    #if defined(WOLFSSL_CRYPTOCELL)
-        cc310_Free();
+    #if defined(WOLFSSL_TI_AM64X_R5)
+        ti_sa2ul_port_cleanup();
     #endif
     /* Unregister before sl_se_deinit(). wc_CryptoCb_Cleanup() further down
      * would also clear the device, but it runs after the SE is torn down, so
@@ -1342,14 +1375,9 @@ int wolfCrypt_Cleanup(void)
         Entropy_Final();
     #endif
 
-    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
+    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK)
         wc_WinCryptHandleCleanup();
-    #endif
-
-    #if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG) && \
-        !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-        wc_DrbgState_MutexFree();
     #endif
 
     #if defined(WOLFSSL_MEM_FAIL_COUNT) && defined(WOLFCRYPT_ONLY)
@@ -2612,6 +2640,12 @@ int wolfSSL_Atomic_Ptr_CompareExchange(
 #endif
 
 #endif /* WOLFSSL_ATOMIC_OPS */
+
+/* Make sure the pointer size assumptions of
+ * wolfSSL_Atomic_Func_Ptr_CompareExchange() are met. */
+#ifdef wolfSSL_Atomic_Func_Ptr_CompareExchange
+    wc_static_assert(sizeof(void (*)(void)) == sizeof(void *));
+#endif
 
 #if !defined(SINGLE_THREADED)
 
@@ -4733,22 +4767,6 @@ time_t windows_time(time_t* timer)
 }
 #endif /*  _WIN32_WCE */
 
-#if defined(WOLFSSL_APACHE_MYNEWT)
-#include "os/os_time.h"
-
-time_t mynewt_time(time_t* timer)
-{
-    time_t now;
-    struct os_timeval tv;
-    os_gettimeofday(&tv, NULL);
-    now = (time_t)tv.tv_sec;
-    if(timer != NULL) {
-        *timer = now;
-    }
-    return now;
-}
-#endif /* WOLFSSL_APACHE_MYNEWT */
-
 #if defined(WOLFSSL_GMTIME)
 struct tm* gmtime_r(const time_t* timer, struct tm *ret)
 {
@@ -4913,6 +4931,25 @@ time_t fsl_time(time_t* t)
     return ret;
 }
 #endif
+
+/* Matches the XTIME mapping's gate in wc_port.h, so this is not built when
+ * that mapping is excluded. */
+#if defined(WOLFSSL_OPTEE) && !defined(NO_ASN_TIME)
+
+time_t optee_time(time_t* timer)
+{
+    TEE_Time reeTime;
+
+    /* Normal-world clock, so not a trusted time source. See wc_port.h. */
+    TEE_GetREETime(&reeTime);
+
+    if (timer != NULL)
+        *timer = (time_t)reeTime.seconds;
+
+    return (time_t)reeTime.seconds;
+}
+
+#endif /* WOLFSSL_OPTEE && !NO_ASN_TIME */
 
 #if defined(MICRIUM)
 
@@ -5250,16 +5287,6 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */
     #include <wolfcrypt/src/port/ti/ti-hash.c> /* md5, sha1, sha224, sha256 */
 #endif
-
-#if defined(WOLFSSL_CRYPTOCELL)
-    #define WOLFSSL_CRYPTOCELL_C
-    #include <wolfcrypt/src/port/arm/cryptoCell.c> /* CC310, RTC and RNG */
-    #if !defined(NO_SHA256)
-        #define WOLFSSL_CRYPTOCELL_HASH_C
-        #include <wolfcrypt/src/port/arm/cryptoCellHash.c> /* sha256 */
-    #endif
-#endif
-
 
 #ifndef SINGLE_THREADED
 
@@ -6146,7 +6173,7 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
 
 #if (defined(__unix__) || defined(__APPLE__)) && \
     !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_ZEPHYR) && \
-    !defined(WOLFSSL_SGX)
+    !defined(WOLFSSL_SGX) && !defined(WOLFSSL_OPTEE)
 
 #include <fcntl.h>
 #include <errno.h>

@@ -34,12 +34,6 @@ namespace wolfSSL.CSharp.Fips
          * read from the size helper. */
         public static int MaxRequest => FipsObject.StructSize(FipsStructType.RngMaxBlockLen);
 
-#if FIPS_TEST_HOOKS
-        /* Output length of the module's DRBG health test
-         * (RNG_HEALTH_TEST_CHECK_SIZE in random.c: 4 SHA-256 blocks). */
-        internal const int HealthTestOutputSize = 128;
-#endif
-
         /* SP 800-90A 8.6.7: a caller nonce needs at least
          * security_strength / 2 = 128 bits. */
         public const int MinNonceSize = 16;
@@ -160,35 +154,5 @@ namespace wolfSSL.CSharp.Fips
             Generate(buf);
             return buf;
         }
-
-#if FIPS_TEST_HOOKS
-        /* DRBG KAT: seeds with seedA (reseeds with seedB), returns the second block for
-         * SP 800-90A vectors. Deterministic test output, never key material, so internal. */
-        internal static byte[] HealthTest(bool reseed, byte[] seedA, byte[]? seedB,
-                                          int outputLen = HealthTestOutputSize)
-        {
-            if (seedA == null)
-            {
-                throw new ArgumentNullException(nameof(seedA));
-            }
-
-            if (reseed && seedB == null)
-            {
-                throw new ArgumentNullException(nameof(seedB), "reseed requires seedB");
-            }
-
-            if (outputLen != HealthTestOutputSize)
-            {
-                throw new ArgumentOutOfRangeException(nameof(outputLen),
-                    "the module DRBG health test returns exactly " + HealthTestOutputSize + " bytes");
-            }
-
-            byte[] output = new byte[outputLen];
-            WolfCryptFipsException.Check("wc_RNG_HealthTest_fips",
-                Native.wc_RNG_HealthTest_fips(reseed ? 1 : 0, seedA, (uint)seedA.Length,
-                    seedB, seedB == null ? 0u : (uint)seedB.Length, output, (uint)outputLen));
-            return output;
-        }
-#endif
     }
 }

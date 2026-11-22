@@ -93,7 +93,11 @@ static long wb_intr_count = 0;      /* SAVE_VECTOR_REGISTERS2() calls seen */
 static long wb_intr_fail_from = -1; /* >= 0: refuse from this call index on */
 static void (*wb_intr_action)(long ix) = 0; /* runs on every call */
 
+#if defined(__GNUC__) || defined(__clang__)
+static int __attribute__((unused)) wb_intr_hook(void)
+#else
 static int wb_intr_hook(void)
+#endif
 {
     long ix = wb_intr_count++;
 
@@ -202,7 +206,12 @@ static int          wb_rej_lane = -1;
  * the grouping turns out to be. */
 static long         wb_rej_abs = -1;
 
+#if defined(__GNUC__) || defined(__clang__)
+static unsigned int __attribute__((unused)) wb_rej_trim(unsigned int got,
+        unsigned int len)
+#else
 static unsigned int wb_rej_trim(unsigned int got, unsigned int len)
+#endif
 {
     long ix = (long)wb_rej_ix++;
     int  hit = 0;

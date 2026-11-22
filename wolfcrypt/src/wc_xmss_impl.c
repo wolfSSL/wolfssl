@@ -673,6 +673,9 @@ static WC_INLINE void wc_xmss_hash(XmssState* state, const byte* in,
     /* Partial SHA-256 digest. */
     else if (params->hash == WC_HASH_TYPE_SHA256) {
         byte buf[WC_SHA256_DIGEST_SIZE];
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_xmss_hash buf", buf, sizeof(buf));
+#endif
         ret = wc_Sha256Update(&state->digest.sha256, in, inlen);
         if (ret == 0) {
             ret = wc_Sha256Final(&state->digest.sha256, buf);
@@ -680,6 +683,12 @@ static WC_INLINE void wc_xmss_hash(XmssState* state, const byte* in,
         if (ret == 0) {
             XMEMCPY(out, buf, params->n);
         }
+        /* Prefix may be a WOTS+ secret element
+         * (ISO/IEC 19790:2012 7.9.7). */
+        ForceZero(buf, sizeof(buf));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(buf, sizeof(buf));
+#endif
     }
 #endif
     else
@@ -2503,7 +2512,7 @@ static void wc_xmss_n_way_fused_get(XmssState* state, word32 lanes, word32 l,
          * the state that way too. */
         for (i = 0; i < 4; i++) {
             word64 v = state->n_way_state[i * lanes + l];
-            int k;
+            word32 k;
 
             for (k = 0; k < 8; k++) {
                 out[i * 8 + k] = (byte)(v >> (8 * k));
@@ -2516,7 +2525,7 @@ static void wc_xmss_n_way_fused_get(XmssState* state, word32 lanes, word32 l,
     if (state->params->n == XMSS_SHA512_64_N) {
         for (i = 0; i < 8; i++) {
             word64 v = state->n_way_st512[i * lanes + l];
-            int k;
+            word32 k;
 
             for (k = 0; k < 8; k++) {
                 out[i * 8 + k] = (byte)(v >> ((7 - k) * 8));
@@ -2556,7 +2565,7 @@ static void wc_xmss_n_way_fused_set(XmssState* state, word32 lanes, word32 l,
             int k;
 
             for (k = 7; k >= 0; k--) {
-                t = (t << 8) | (word64)v[i * 8 + k];
+                t = (t << 8) | (word64)v[i * 8 + (word32)k];
             }
             state->n_way_state[i * lanes + l] = t;
         }
@@ -2567,7 +2576,7 @@ static void wc_xmss_n_way_fused_set(XmssState* state, word32 lanes, word32 l,
     if (state->params->n == XMSS_SHA512_64_N) {
         for (i = 0; i < 8; i++) {
             word64 t = 0;
-            int k;
+            word32 k;
 
             for (k = 0; k < 8; k++) {
                 t = (t << 8) | (word64)v[i * 8 + k];
@@ -2643,13 +2652,13 @@ static void wc_xmss_n_way_fused_step(XmssState* state, const byte* addr,
         for (i = 0; i < 2U * XMSS_SHA256_32_N / 8U; i++) {
             pfx[i] = 0;
             for (k = 7; k >= 0; k--) {
-                pfx[i] = (pfx[i] << 8) | (word64)state->prf_buf[i * 8 + k];
+                pfx[i] = (pfx[i] << 8) | (word64)state->prf_buf[i * 8 + (word32)k];
             }
         }
         for (i = 0; i < (WC_XMSS_ADDR_LEN / 8); i++) {
             adrs[i] = 0;
             for (k = 7; k >= 0; k--) {
-                adrs[i] = (adrs[i] << 8) | (word64)addr[i * 8 + k];
+                adrs[i] = (adrs[i] << 8) | (word64)addr[i * 8 + (word32)k];
             }
         }
         /* The kernel masks out the two bytes that vary between lanes; the

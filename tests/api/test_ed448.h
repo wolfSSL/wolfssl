@@ -49,6 +49,9 @@ int test_wc_ed448_import_private_only(void);
 int test_wc_ed448_check_key_decisions(void);
 int test_wc_ed448_cryptocb(void);
 int test_wc_ed448_make_public_dev_key(void);
+int test_wc_ed448_make_key_dev_error(void);
+int test_wc_ed448_make_key_id_dev(void);
+int test_wc_ed448_separate_import_roundtrip(void);
 
 #define TEST_ED448_DECLS                                          \
     TEST_DECL_GROUP("ed448", test_wc_ed448_make_key),             \
@@ -75,6 +78,9 @@ int test_wc_ed448_make_public_dev_key(void);
     TEST_DECL_GROUP("ed448", test_wc_ed448_check_key_decisions),  \
     TEST_DECL_GROUP("ed448", test_wc_Ed448PrivateKeyDecode_ex),   \
     TEST_DECL_GROUP("ed448", test_wc_ed448_cryptocb),             \
-    TEST_DECL_GROUP("ed448", test_wc_ed448_make_public_dev_key)
+    TEST_DECL_GROUP("ed448", test_wc_ed448_make_public_dev_key),  \
+    TEST_DECL_GROUP("ed448", test_wc_ed448_make_key_dev_error),   \
+    TEST_DECL_GROUP("ed448", test_wc_ed448_make_key_id_dev),      \
+    TEST_DECL_GROUP("ed448", test_wc_ed448_separate_import_roundtrip)
 
 #endif /* WOLFCRYPT_TEST_ED448_H */

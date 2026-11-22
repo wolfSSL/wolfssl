@@ -29,6 +29,13 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    /* Must come after sha3.h here, unlike the other override sites: sha3.h
+    * processes first with SHAKE off, so shake.h's own fallback typedef and
+    * prototypes are what actually declare wc_Shake here. Moving it ahead
+    * breaks the build. */
+    #include <wolfssl/wolfcrypt/shake.h>
+#endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
 
@@ -425,10 +432,10 @@ struct MlKemKey {
     byte z[WC_ML_KEM_SYM_SZ];
 #ifdef WOLFSSL_MLKEM_CACHE_A
 #ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
-    /* A matrix from key generation. */
+    /* Cached matrix A. */
     sword16 a[WC_ML_KEM_MAX_K * WC_ML_KEM_MAX_K * MLKEM_N];
 #else
-    /* A matrix from key generation (dynamically allocated). */
+    /* Cached matrix A (dynamically allocated). */
     sword16* a;
 #endif
 #endif
@@ -549,7 +556,7 @@ int mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
 #else
 WOLFSSL_LOCAL
 int mlkem_keygen_seeds(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
-    sword16* e, int kp, byte* seed, byte* noiseSeed);
+    sword16* e, sword16* cacheA, int kp, byte* seed, byte* noiseSeed);
 #endif
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
@@ -558,9 +565,10 @@ int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* m, int kp);
 #else
 WOLFSSL_LOCAL
-int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* bp,
-    sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed,
-    byte* coins);
+int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, byte* c,
+    const byte* cmp, int* fail, sword16* bp, sword16* tp, sword16* sp, int kp,
+    const byte* msg, byte* seed, byte* coins, const sword16* cacheA,
+    sword16* fillA);
 #endif
 WOLFSSL_LOCAL
 int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
@@ -605,7 +613,7 @@ int mlkem_cmp(const byte* a, const byte* b, int sz, int* fail);
 WOLFSSL_LOCAL
 int mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-int mlkem_vec_compress_11(byte* r, sword16* v);
+int mlkem_vec_compress_11(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
 int mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp);
@@ -859,16 +867,6 @@ WOLFSSL_LOCAL void mlkem_add3_reduce(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_rsub_reduce(sword16* r, const sword16* a);
 WOLFSSL_LOCAL void mlkem_to_mont(sword16* p);
 WOLFSSL_LOCAL void mlkem_to_mont_sqrdmlsh(sword16* p);
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_neon(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed);
-#ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_crypto(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-#endif
 WOLFSSL_LOCAL unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len,
     const byte* r, unsigned int rLen);
 WOLFSSL_LOCAL int mlkem_cmp_neon(const byte* a, const byte* b, int sz);
@@ -889,6 +887,10 @@ WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b);
 WOLFSSL_LOCAL void mlkem_thumb2_csubq(sword16* p);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_10(byte* r, sword16* v,
+    unsigned int k);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_11(byte* r, sword16* v,
+    unsigned int k);
 WOLFSSL_LOCAL unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen);
 #elif defined(WOLFSSL_ARMASM)

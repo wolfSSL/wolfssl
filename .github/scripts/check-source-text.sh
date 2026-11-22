@@ -77,7 +77,8 @@ is_scrubbable() {
         *.in|*.ac|*.am|*.m4|*.mk) return 0 ;;
         *.yml|*.sh|*.css|*.js|*.dox|*.tex|*.html|*.md) return 0 ;;
         CMakeLists.txt) return 0 ;;
-        scripts/*.test) return 0 ;;
+        Makefile.test|*/Makefile.test) return 1 ;;
+        *.test) return 0 ;;
     esac
     return 1
 }
@@ -92,7 +93,8 @@ is_c_like() {
 
 is_makelike() {
     case "$1" in
-        Makefile|Makefile.*|*.am|*.mk) return 0 ;;
+        Makefile|Makefile.*|*/Makefile|*/Makefile.*) return 0 ;;
+        *.am|*.mk) return 0 ;;
     esac
     return 1
 }

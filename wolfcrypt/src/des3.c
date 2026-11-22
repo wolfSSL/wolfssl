@@ -563,7 +563,8 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             if ((desc==SEC_DESC_DES3_CBC_ENCRYPT)||(desc==SEC_DESC_DES_CBC_ENCRYPT)) {
                 XMEMCPY((void*)iv, (void*)&(out[size-secDesc->length2]), secDesc->length2);
             } else {
-                XMEMCPY((void*)iv, (void*)&(in[size-secDesc->length2]), secDesc->length2);
+                /* read from the input copy; in may alias out */
+                XMEMCPY((void*)iv, (void*)&(desBuffIn[size-secDesc->length2]), secDesc->length2);
             }
 
             in  += size;

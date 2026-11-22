@@ -153,6 +153,18 @@ downstream tooling filters on — which **input** the checksum came from:
 is what an integrator keys on without needing to know the hashing
 internals.
 
+#### Weak entropy opt-in
+
+If the recorded build defines `WOLFSSL_ACCEPT_WEAK_ENTROPY`, the generator
+prints a warning and marks the wolfSSL component with
+`wolfssl:security:weak-entropy=permitted`. CycloneDX stores this in the
+component's `properties`; SPDX stores it in the package's `annotations`.
+Both formats also carry a `wolfssl:security:weak-entropy-note` explaining
+that keys and nonces may be predictable. The marker means the build permits
+a weak seed source; it does not prove which seed source the application used.
+Deployment policy can reject SBOMs containing this marker. Verify the
+actual entropy source and remove the opt-in before release.
+
 #### No hashable artefact (`--no-artifact-hash`)
 
 For ROM images, HSM firmware, or binary-only redistributions where

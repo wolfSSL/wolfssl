@@ -79,6 +79,12 @@ config WOLFCRYPT_FIPS
 	  dropped into wolfcrypt/src/ - the CMake FIPS-boundary block compiles them.
 	  Select the version that matches the bundle under "wolfCrypt FIPS version".
 
+	  Set CONFIG_LINKER_SORT_BY_ALIGNMENT=n, which Zephyr defaults on. The
+	  integrity check hashes the boundary as two ranges, so its sections
+	  must stay in file order; the build stops while sorting is on.
+
+	  Needs Zephyr 3.7 or later, for STATIC_INIT_GNU.
+
 choice
 	prompt "wolfCrypt FIPS version"
 	depends on WOLFCRYPT_FIPS
@@ -98,6 +104,15 @@ config WOLFCRYPT_FIPS_V5
 	bool "FIPS 140-3 (Cert #4718)"
 	help
 	  wolfCrypt FIPS 140-3 validated module, Certificate #4718 (version 5.2.1).
+	  A 5.2.3 bundle is selected under "wolfCrypt FIPS v5 bundle".
+
+	  The v5 random.c seeds from a bare sys_rand_get(), so the DRBG is
+	  seeded through a callback instead (zephyr_init.c): the Zephyr CSPRNG,
+	  which reads the zephyr,entropy device. A board without an entropy
+	  driver fails the build unless CONFIG_TEST_RANDOM_GENERATOR is set, and
+	  so does any CSPRNG but CONFIG_HARDWARE_DEVICE_CS_GENERATOR or the test
+	  one: the seed must come straight from the driver, not through a DRBG
+	  outside the module, as the CTR-DRBG and PSA generators route it.
 
 config WOLFCRYPT_FIPS_V6
 	bool "FIPS 140-3 (SRTP-KDF full submission)"
@@ -119,6 +134,35 @@ config WOLFCRYPT_FIPS_READY
 
 endchoice
 
+choice
+	prompt "wolfCrypt FIPS v5 bundle"
+	depends on WOLFCRYPT_FIPS_V5
+	default WOLFCRYPT_FIPS_V5_2_1
+	help
+	  Select the v5 bundle dropped into the tree. Like the version above,
+	  it must match the bundle.
+
+config WOLFCRYPT_FIPS_V5_2_1
+	bool "5.2.1"
+	help
+	  wolfCrypt 5.2.1. The algorithm set follows the Kconfig options.
+
+config WOLFCRYPT_FIPS_V5_2_3
+	bool "5.2.3"
+	select WOLFSSL_RSA
+	select WOLFSSL_ECC
+	select WOLFSSL_ECC_256
+	help
+	  wolfCrypt 5.2.3. The algorithm set is that of
+	  ./configure --enable-fips=v5.2.3, from user_settings-fips-v5.2.3.h.
+	  RSA, ECC and P-256 are selected here because user_settings.h would
+	  otherwise disable them after that file; the other algorithm options
+	  cannot remove what it enables either, and WOLFSSL_ECC_384 and
+	  WOLFSSL_ECC_521 only add the single-precision code for curves the set
+	  already has.
+
+endchoice
+
 config WOLFSSL_CRYPTO_CB
   bool "wolfCrypt crypto callbacks"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
@@ -128,6 +172,46 @@ config WOLFSSL_CRYPTO_CB
     routes wolfCrypt operations to it. Also enables key references
     (WOLF_PRIVATE_KEY_ID), which is what lets a TLS key live on that device
     instead of in the application's memory.
+
+config WOLFSSL_SYS_INIT
+	bool "Initialize wolfSSL from a SYS_INIT hook"
+	depends on WOLFSSL_BUILTIN
+	help
+	  Call wolfSSL_Init() at boot, from POST_KERNEL, instead of leaving it
+	  to whichever library call happens to run first. A wolfCrypt-only
+	  build calls wolfCrypt_Init() instead, since wolfSSL_Init() is not
+	  compiled without the TLS layer.
+
+	  wolfCrypt initializes and seeds its DRBG lazily either way, so this
+	  matters only when initialization also brings up a peripheral. A port
+	  that does selects this itself; a settings-file build gets no such
+	  select and has to set it by hand.
+
+config WOLFSSL_ELS_PKC
+	bool "NXP EdgeLock (ELS) hardware offload"
+	depends on WOLFSSL_BUILTIN
+	depends on !BUILD_WITH_TFM
+	depends on SOC_SERIES_RW6XX
+	select MCUX_ELS_PKC
+	select WOLFSSL_SYS_INIT
+	help
+	  Route wolfCrypt operations to the on-chip EdgeLock secure subsystem
+	  through the crypto callback interface. Operations the hardware does
+	  not implement fall back to software.
+
+	  Selects MCUX_ELS_PKC, which is what puts the vendor headers on the
+	  include path, and WOLFSSL_SYS_INIT, which brings the subsystem up at
+	  boot. Neither is expressible in a settings file, so this option stays
+	  available there; what it will not do is write WOLFSSL_ELS_PKC and
+	  WOLF_CRYPTO_CB into a build whose settings file is authoritative.
+	  Both go in the settings file, and user_settings.h fails the build if
+	  either is missing.
+
+	  Not selectable in a TF-M build, where els_pkc does not create its
+	  McuxElsPkc CMake target.
+
+	  Restricted to RW6XX because els_pkc exports src/platforms/<soc>, where
+	  mcux_els.h lives, only under CONFIG_SOC_SERIES_RW6XX.
 
 config WOLFSSL_CRYPTO_ONLY
 	bool "Build wolfCrypt only (no TLS layer)"
@@ -167,8 +251,26 @@ config WOLFSSL_TLS_VERSION_1_3
 config WOLFSSL_DTLS
   bool "wolfSSL DTLS support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on WOLFSSL_TLS_VERSION_1_2 || WOLFSSL_TLS_VERSION_1_3
+  select WOLFSSL_DTLS_VERSION_1_3 if !WOLFSSL_TLS_VERSION_1_2
   help
-    Enable DTLS support
+    Enable DTLS (WOLFSSL_DTLS). DTLS 1.2 is built with
+    WOLFSSL_TLS_VERSION_1_2 and DTLS 1.3 with WOLFSSL_DTLS_VERSION_1_3.
+
+config WOLFSSL_DTLS_VERSION_1_3
+  bool "DTLS 1.3"
+  depends on WOLFSSL_DTLS && WOLFSSL_TLS_VERSION_1_3
+  help
+    Enable DTLS 1.3 (WOLFSSL_DTLS13). Zephyr's socket API offers DTLS 1.2
+    only, so this serves applications that use the wolfSSL API directly.
+
+config WOLFSSL_DTLS_CID
+  bool "DTLS Connection ID"
+  depends on WOLFSSL_DTLS
+  help
+    Enable the DTLS Connection ID extension (WOLFSSL_DTLS_CID) for DTLS 1.2
+    (RFC 9146) and DTLS 1.3 (RFC 9147), which lets a peer keep its session
+    when its address changes.
 
 config WOLFSSL_ALPN
   bool "wolfSSL ALPN support"
@@ -185,14 +287,18 @@ config WOLFSSL_PSK
 config WOLFSSL_MLKEM
   bool "wolfSSL PQC ML-KEM support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
-    Enable PQC ML-KEM support for Key Exchange
+    Enable PQC ML-KEM support for Key Exchange. Needs SHAKE, which the
+    FIPS v2 and v5 boundaries do not build.
 
 config WOLFSSL_MLDSA
   bool "wolfSSL PQC ML-DSA support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
-    Enable PQC ML-DSA (Dilithium) signatures.
+    Enable PQC ML-DSA (Dilithium) signatures. Needs SHAKE, which the FIPS
+    v2 and v5 boundaries do not build.
 
 config WOLFSSL_LMS
   bool "wolfSSL LMS/HSS hash-based signatures"
@@ -203,14 +309,19 @@ config WOLFSSL_LMS
 config WOLFSSL_XMSS
   bool "wolfSSL XMSS/XMSS^MT hash-based signatures"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
     Enable XMSS/XMSS^MT stateful hash-based signature verification (verify-only).
+    Its SHAKE parameter sets need SHAKE, which the FIPS v2 and v5 boundaries
+    do not build.
 
 config WOLFSSL_FALCON
   bool "wolfSSL PQC Falcon signatures"
   depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
   help
-    Enable PQC Falcon (FN-DSA) signatures.
+    Enable PQC Falcon (FN-DSA) signatures. Needs SHAKE, which the FIPS v2
+    and v5 boundaries do not build.
 
 config WOLFSSL_RSA
   bool "wolfCrypt RSA support"
@@ -218,6 +329,30 @@ config WOLFSSL_RSA
   default y
   help
     Enable RSA (define RSA support; NO_RSA when off).
+
+choice WOLFSSL_RSA_MAX_BITS
+  prompt "Largest RSA key size"
+  depends on WOLFSSL_RSA && !WOLFCRYPT_FIPS
+  default WOLFSSL_RSA_MAX_BITS_4096
+  help
+    Largest RSA modulus wolfCrypt can sign, verify or decrypt with, so
+    also the largest RSA key a certificate chain may carry. The big
+    integers of the RSA and DH math are sized for this length, so a
+    smaller choice saves stack and heap in each handshake. The
+    single-precision math handles 2048, 3072 and 4096-bit keys up to the
+    chosen size; other sizes need WOLFSSL_SP_MATH_ALL.
+    A FIPS build takes its math sizes from the module settings instead.
+
+config WOLFSSL_RSA_MAX_BITS_2048
+  bool "2048 bits"
+
+config WOLFSSL_RSA_MAX_BITS_3072
+  bool "3072 bits"
+
+config WOLFSSL_RSA_MAX_BITS_4096
+  bool "4096 bits"
+
+endchoice
 
 config WOLFSSL_ECC
   bool "wolfCrypt ECC support"
@@ -265,7 +400,7 @@ config WOLFSSL_ECC_521
     Its SP implementation is also the most stack-hungry: a thread signing on
     P-521 overflowed a 16 KB stack during bring-up and needed roughly three
     times that. Raise CONFIG_MAIN_STACK_SIZE and any relevant thread stack,
-    or set WOLFSSL_SMALL_STACK to move the intermediates onto the heap.
+    or set CONFIG_WOLFSSL_SMALL_STACK to move the intermediates onto the heap.
 
 config WOLFSSL_ECC_BRAINPOOL
   bool "Brainpool curves"
@@ -287,12 +422,23 @@ endif # WOLFSSL_ECC
 config WOLFSSL_ECC_ALLOW_ZERO_HASH
   bool
 
+# v2, v5 and v6 keep their symmetric assembly in the armv8-aes.c and
+# armv8-sha256.c of their own boundary (src/include.am's LEGACY_ARMASM_*),
+# which this module does not build: their aes.c and sha256.c compile the C
+# code out under WOLFSSL_ARMASM, so the link fails, and on x86_64 their
+# sha256.c would call the tree's sha256_asm.S from outside the boundary. v7
+# and FIPS Ready carry the asm_c form, which the CMake boundary block builds
+# in place.
+config WOLFCRYPT_FIPS_PRE_V7_ASM
+  bool
+  default y if WOLFCRYPT_FIPS && !WOLFCRYPT_FIPS_V7 && !WOLFCRYPT_FIPS_READY
+
 # Thumb2 needs UBFX and LDRD, so ARMv6-M and ARMv8-M baseline keep the C code
 # and take only the SP speedup.
 config WOLFCRYPT_ARM_SYMMETRIC_ASM
   bool
-  default y if WOLFCRYPT_ASM && (ARM64 || ARMV7_M_ARMV8_M_MAINLINE || \
-                                 (ARM && !CPU_CORTEX_M))
+  default y if WOLFCRYPT_ASM && !WOLFCRYPT_FIPS_PRE_V7_ASM && \
+               (ARM64 || ARMV7_M_ARMV8_M_MAINLINE || (ARM && !CPU_CORTEX_M))
 
 # Not under FIPS v2 or v5, whose pinned aes.c has neither backend, nor with the
 # Arm assembly, which indexes its AES and GHASH tables with secret data.
@@ -663,6 +809,10 @@ config WOLFCRYPT_ASM
 	  32-bit x86 is not offered: only the AES sources have an
 	  implementation at that width, and the rest are guarded to x86_64.
 
+	  Under FIPS v2, v5 and v6 only the single-precision math is
+	  accelerated. Those modules carry their symmetric assembly inside the
+	  boundary in a form this module does not build.
+
 config WOLFCRYPT_SP_SMALL
 	bool "Smaller single-precision math"
 	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE
@@ -678,6 +828,27 @@ config WOLFCRYPT_SP_SMALL
 	  therefore keeps the smaller, slower half of the assembly, so
 	  turning it off is what makes WOLFCRYPT_ASM pay off on a part with
 	  the flash to spare.
+
+config WOLFSSL_SMALL_STACK
+	bool "Large wolfSSL temporaries on the heap"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE && !WOLFCRYPT_FIPS
+	help
+	  Allocate the large temporaries of wolfSSL and wolfCrypt on the heap
+	  (WOLFSSL_SMALL_STACK) instead of the stack of the calling thread. A
+	  TLS handshake then needs about 2 KB of stack instead of about 5 KB,
+	  for a little more heap and run time.
+
+config WOLFCRYPT_SP_SMALL_STACK
+	bool "Single-precision math temporaries on the heap"
+	depends on WOLFSSL_BUILTIN && !WOLFSSL_HAS_SETTINGS_FILE && !WOLFCRYPT_FIPS
+	default y
+	help
+	  Allocate the temporaries of the fixed-size single-precision RSA, DH
+	  and ECC routines (sp_c32.c, sp_c64.c and the assembly sources) on
+	  the heap (WOLFSSL_SP_SMALL_STACK) instead of the stack of the calling
+	  thread. An RSA-3072 operation otherwise needs over 4 KB of stack. The
+	  generic sp_int.c math and the rest of wolfSSL keep their stack use
+	  unless WOLFSSL_SMALL_STACK is set as well.
 
 config WOLFSSL_NO_HAVE_MIN_MAX
 	bool "Force wolfSSL to use its own min/max"

@@ -277,6 +277,8 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
         wc_Memory*  inBuf;
         byte        haFlag; /* flag used for checking handshake count */
     #endif
+        word32      refCount; /* SSL + each allocated block */
+        byte        sslOwned; /* created by InitSSL_StaticMemory */
     } WOLFSSL_HEAP_HINT;
 
     WOLFSSL_API void* wolfSSL_SetGlobalHeapHint(void* heap);
@@ -298,6 +300,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     WOLFSSL_API int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
             unsigned char* buf, unsigned int sz, int flag, int max);
     WOLFSSL_API void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
+    WOLFSSL_LOCAL void wc_HeapHint_Release(void* heap);
 
     WOLFSSL_API int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
                                                       WOLFSSL_MEM_STATS* stats);
@@ -321,6 +324,9 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
 #ifdef WOLFSSL_MEM_FAIL_COUNT
 WOLFSSL_LOCAL void wc_MemFailCount_Init(void);
 WOLFSSL_LOCAL void wc_MemFailCount_Free(void);
+WOLFSSL_LOCAL int wc_MemFailCount_AllocMem(void);
+WOLFSSL_LOCAL void wc_MemFailCount_AllocFailed(void);
+WOLFSSL_LOCAL void wc_MemFailCount_FreeMem(void);
 #endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -331,8 +337,18 @@ WOLFSSL_LOCAL void wc_MemZero_Add(const char* name, const void* addr,
 WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
 #endif
 
-#ifndef WOLFSSL_NO_FORCE_ZERO
-WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
+/* wc_compat.h may have declared this first; -Wredundant-decls rejects both */
+#ifndef WC_FORCE_ZERO_DECLARED
+    #define WC_FORCE_ZERO_DECLARED
+    #ifdef WOLFSSL_NO_FORCE_ZERO
+        /* NOLINTNEXTLINE(readability-redundant-declaration) */
+        void ForceZero(void* mem, size_t len);
+        #undef wc_ForceZero
+        #define wc_ForceZero ForceZero
+    #else
+        /* NOLINTNEXTLINE(readability-redundant-declaration) */
+        WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
+    #endif
 #endif
 
 #ifndef WOLFSSL_NO_CONST_CMP

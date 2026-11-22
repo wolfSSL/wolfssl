@@ -698,7 +698,7 @@ void wc_ReadDirClose(ReadDirCtx* ctx);
 int wc_FileExists(const char* fname);
 
 /*!
-    \ingroup Callback
+    \ingroup DSP
     \brief Checks if handle callback is set.
 
     \return 1 if set
@@ -718,7 +718,7 @@ int wc_FileExists(const char* fname);
 int wolfSSL_GetHandleCbSet(void);
 
 /*!
-    \ingroup Callback
+    \ingroup DSP
     \brief Sets handle callback.
 
     \return 0 on success

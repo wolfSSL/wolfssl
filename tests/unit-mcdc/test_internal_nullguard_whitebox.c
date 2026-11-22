@@ -145,10 +145,10 @@ static void wb_supported_hash_sig_algo(WbFix* f)
 
 /* ---------------------------------------------------------- GetCtxOcspLock
  *
- * `if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocsp_stapling == NULL)`. On a
- * real CTX both are non-NULL for the whole life of the object, so neither
- * operand can flip from the API. Both are fields of driver-owned structs
- * here. */
+ * `if (ctx->cm == NULL || ctx->cm->ocsp_stapling == NULL)`, for the SSL's
+ * CTX. On a real CTX both are non-NULL for the whole life of the object, so
+ * neither operand can flip from the API. Both are fields of driver-owned
+ * structs here. */
 #if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && !defined(WOLFSSL_NO_TLS12)
 #ifndef NO_WOLFSSL_SERVER
@@ -164,18 +164,18 @@ static void wb_get_ctx_ocsp_lock(WbFix* f)
     /* operand 0: no cert manager on the CTX at all */
     wb_reset(f);
     f->ctx->cm = NULL;
-    (void)GetCtxOcspLock(f->ssl);
+    (void)GetCtxOcspLock(f->ssl->ctx);
     g_calls++;
 
     /* operand 1: a cert manager, but no stapling responder on it */
     wb_reset(f);
     f->cm->ocsp_stapling = NULL;
-    (void)GetCtxOcspLock(f->ssl);
+    (void)GetCtxOcspLock(f->ssl->ctx);
     g_calls++;
 
     /* false partner: both present, the lock address is returned */
     f->cm->ocsp_stapling = ocsp;
-    (void)GetCtxOcspLock(f->ssl);
+    (void)GetCtxOcspLock(f->ssl->ctx);
     g_calls++;
 
     f->cm->ocsp_stapling = NULL;

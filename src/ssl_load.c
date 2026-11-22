@@ -1097,8 +1097,8 @@ static int ProcessBufferTryDecodeSlhDsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         return MEMORY_E;
     }
 
-    /* wc_SlhDsaKey_Init returns NOT_COMPILED_IN before it zeroes the key, so
-     * clear it here to keep the unconditional Free below well defined. */
+    /* Clear the key so the unconditional Free below is well defined whatever
+     * wc_SlhDsaKey_Init returns. */
     XMEMSET(key, 0, sizeof(SlhDsaKey));
 
     /* Initialise with an always-present placeholder parameter set;
@@ -1426,7 +1426,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if (ssl != NULL) {
             /* Dispose of previous key if not context's. */
             if (ssl->buffers.weOwnAltKey) {
-                FreeDer(&ssl->buffers.altKey);
+                FreeKeyDer(&ssl->buffers.altKey);
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                 FreeDer(&ssl->buffers.altKeyMask);
             #endif
@@ -1443,7 +1443,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         else if (ctx != NULL) {
             /* Dispose of previous key. */
-            FreeDer(&ctx->altPrivateKey);
+            FreeKeyDer(&ctx->altPrivateKey);
             ctx->altPrivateKeyId = 0;
             ctx->altPrivateKeyLabel = 0;
             ctx->altPrivateKeyDevId = INVALID_DEVID;
@@ -1459,7 +1459,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (ssl != NULL) {
         /* Dispose of previous key if not context's. */
         if (ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
+            FreeKeyDer(&ssl->buffers.key);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
         #endif
@@ -1476,7 +1476,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
     else if (ctx != NULL) {
         /* Dispose of previous key. */
-        FreeDer(&ctx->privateKey);
+        FreeKeyDer(&ctx->privateKey);
         ctx->privateKeyId = 0;
         ctx->privateKeyLabel = 0;
         ctx->privateKeyDevId = INVALID_DEVID;
@@ -2535,6 +2535,8 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Store certificate as ours. */
             ctx->certificate = der;
             /* ourCert is created on demand. */
+            /* The cached OCSP request was built from the old certificate. */
+            FreeCtxOcspRequestCache(ctx);
         }
     }
     else {
@@ -2584,7 +2586,7 @@ static int ProcessBufferCertTypes(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if ((ctx != NULL) && (ctx->cm != NULL) &&
                 (ctx->cm->verifyCallback != NULL)) {
             /* Verify and use callback. */
-            ret = CM_VerifyBuffer_ex(ctx->cm, buff, sz, format, ret);
+            ret = CM_VerifyBuffer_ex(ctx->cm, buff, sz, format, ret, NULL);
             /* Convert error. */
             if (ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;
@@ -4576,7 +4578,7 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     }
 
     /* Dispose of old private key and allocate and copy in id. */
-    FreeDer(&ctx->privateKey);
+    FreeKeyDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, id, (word32)sz, PRIVATEKEY_TYPE,
             ctx->heap) != 0) {
         ret = 0;
@@ -4654,7 +4656,7 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     sz = (word32)XSTRLEN(label) + 1;
 
     /* Dispose of old private key and allocate and copy in label. */
-    FreeDer(&ctx->privateKey);
+    FreeKeyDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, (const byte*)label, (word32)sz,
             PRIVATEKEY_TYPE, ctx->heap) != 0) {
         ret = 0;
@@ -4695,7 +4697,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     }
 
     if (ret == 1) {
-        FreeDer(&ctx->altPrivateKey);
+        FreeKeyDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ctx->heap) != 0) {
             ret = 0;
@@ -4746,7 +4748,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
-        FreeDer(&ctx->altPrivateKey);
+        FreeKeyDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ctx->heap) != 0) {
             ret = 0;
@@ -4989,7 +4991,7 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
 
     /* Dispose of old private key if owned and allocate and copy in id. */
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -5065,7 +5067,7 @@ int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
 
     /* Dispose of old private key if owned and allocate and copy in label. */
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -5110,7 +5112,7 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
 
     if (ret == 1) {
         if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
         #endif
@@ -5158,7 +5160,7 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
         if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
         #endif
@@ -5413,6 +5415,8 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if (res == 1) {
         /* Replace certificate buffer with one holding the new certificate. */
         FreeDer(&ctx->certificate);
+        /* The cached OCSP request was built from the old certificate. */
+        FreeCtxOcspRequestCache(ctx);
         ret = AllocCopyDer(&ctx->certificate, x->derCert->buffer,
             x->derCert->length, CERT_TYPE, ctx->heap);
         if (ret != 0) {
@@ -5691,12 +5695,19 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
     if (ret == 1) {
         switch (pkey->type) {
-    #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+    #ifndef NO_RSA
         case WC_EVP_PKEY_RSA:
+        #ifdef WOLFSSL_KEY_TO_DER
             WOLFSSL_MSG("populating RSA key");
             ret = PopulateRSAEvpPkeyDer(pkey);
+        #else
+            /* No RSA key encoder (FIPS or selftest without WOLFSSL_KEY_GEN):
+             * use the DER the key was decoded from, as
+             * wolfSSL_use_PrivateKey() does. */
+            WOLFSSL_MSG("using stored RSA key DER");
+        #endif
             break;
-    #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+    #endif /* !NO_RSA */
     #if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
             defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
         case WC_EVP_PKEY_DSA:

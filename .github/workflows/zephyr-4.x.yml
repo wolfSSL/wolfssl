@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        zephyr-ref: [ v4.1.0, v4.3.0, v4.4.0 ]
+        zephyr-ref: [ v4.3.0, v4.4.0, v4.5.0 ]
     steps:
       - name: Checkout test driver
         uses: actions/checkout@v5

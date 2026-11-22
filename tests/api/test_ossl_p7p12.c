@@ -1466,6 +1466,131 @@ int test_wolfSSL_SMIME_write_PKCS7(void)
     return EXPECT_RESULT();
 }
 
+/* PKCS7_NOINTERN means the signer must be found in the certs argument, not
+ * among the certificates embedded in the message.
+ */
+int test_wolfSSL_PKCS7_verify_nointern(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_RSA) && \
+    !defined(NO_BIO) && !defined(NO_FILESYSTEM) && defined(HAVE_SMIME)
+    byte data[] = "Test data to encode.";
+    const char* cert = "./certs/server-cert.pem";
+    const char* key  = "./certs/server-key.pem";
+    const char* ca   = "./certs/ca-cert.pem";
+    int signFlags = PKCS7_DETACHED | PKCS7_STREAM;
+    WOLFSSL_BIO* certBio = NULL;
+    WOLFSSL_BIO* keyBio  = NULL;
+    WOLFSSL_BIO* caBio   = NULL;
+    WOLFSSL_BIO* inBio   = NULL;
+    WOLFSSL_BIO* smimeBio = NULL;
+    WOLFSSL_BIO* readBio = NULL;
+    WOLFSSL_BIO* content = NULL;
+    X509* signCert = NULL;
+    EVP_PKEY* signKey = NULL;
+    X509* caCert = NULL;
+    X509_STORE* store = NULL;
+    STACK_OF(X509)* signerSk = NULL;
+    STACK_OF(X509)* caSk = NULL;
+    STACK_OF(X509)* signers = NULL;
+    PKCS7* p7 = NULL;
+    PKCS7* p7Ver = NULL;
+    const byte* smime = NULL;
+    int smimeSz = 0;
+    int i;
+    struct {
+        int certsSel;   /* 0 = NULL, 1 = { ca-cert }, 2 = { server-cert } */
+        int useStore;
+        int flags;
+        int expectOk;
+    } cases[] = {
+        /* Signer only embedded in the message: rejected. */
+        { 1, 0, PKCS7_NOVERIFY | PKCS7_NOINTERN, 0 },
+        { 0, 0, PKCS7_NOVERIFY | PKCS7_NOINTERN, 0 },
+        { 1, 1, PKCS7_NOINTERN,                  0 },
+        /* Signer present in certs: accepted. */
+        { 2, 0, PKCS7_NOVERIFY | PKCS7_NOINTERN, 1 },
+        { 2, 1, PKCS7_NOINTERN,                  1 },
+        /* Without PKCS7_NOINTERN the embedded signer may be used. */
+        { 1, 0, PKCS7_NOVERIFY,                  1 },
+    };
+
+    ExpectNotNull(certBio = BIO_new_file(cert, "r"));
+    ExpectNotNull(keyBio  = BIO_new_file(key, "r"));
+    ExpectNotNull(caBio   = BIO_new_file(ca, "r"));
+    ExpectNotNull(signCert = PEM_read_bio_X509(certBio, NULL, 0, NULL));
+    ExpectNotNull(signKey  = PEM_read_bio_PrivateKey(keyBio, NULL, 0, NULL));
+    ExpectNotNull(caCert   = PEM_read_bio_X509(caBio, NULL, 0, NULL));
+    ExpectNotNull(store    = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, caCert), 1);
+
+    /* Stacks only borrow the certs; freed with sk_X509_free(). */
+    ExpectNotNull(signerSk = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(signerSk, signCert), 0);
+    ExpectNotNull(caSk = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(caSk, caCert), 0);
+
+    /* Detached S/MIME message signed by server-cert, which is embedded. */
+    ExpectNotNull(inBio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+    ExpectNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, signFlags));
+    ExpectNotNull(smimeBio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(SMIME_write_PKCS7(smimeBio, p7, inBio, signFlags), 1);
+    ExpectIntGT((smimeSz = BIO_get_mem_data(smimeBio, &smime)), 0);
+
+    /* Run through the various combinations of flags and test against the
+     * expected results. */
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        STACK_OF(X509)* certs = (cases[i].certsSel == 1) ? caSk :
+                                (cases[i].certsSel == 2) ? signerSk : NULL;
+
+        ExpectNotNull(readBio = BIO_new_mem_buf(smime, smimeSz));
+        ExpectNotNull(p7Ver = SMIME_read_PKCS7(readBio, &content));
+        ExpectIntEQ(PKCS7_verify(p7Ver, certs,
+                                 cases[i].useStore ? store : NULL,
+                                 content, NULL, cases[i].flags),
+                    cases[i].expectOk ? WOLFSSL_SUCCESS :
+                                        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+        BIO_free(content);
+        content = NULL;
+        BIO_free(readBio);
+        readBio = NULL;
+        PKCS7_free(p7Ver);
+        p7Ver = NULL;
+    }
+
+    /* PKCS7_get0_signers() honors PKCS7_NOINTERN after a verify. */
+    ExpectNotNull(readBio = BIO_new_mem_buf(smime, smimeSz));
+    ExpectNotNull(p7Ver = SMIME_read_PKCS7(readBio, &content));
+    ExpectIntEQ(PKCS7_verify(p7Ver, NULL, NULL, content, NULL,
+                             PKCS7_NOVERIFY), WOLFSSL_SUCCESS);
+    ExpectNull(PKCS7_get0_signers(p7Ver, caSk, PKCS7_NOINTERN));
+    ExpectNull(PKCS7_get0_signers(p7Ver, NULL, PKCS7_NOINTERN));
+    ExpectNotNull(signers = PKCS7_get0_signers(p7Ver, signerSk,
+                                               PKCS7_NOINTERN));
+    ExpectIntEQ(sk_X509_num(signers), 1);
+    sk_X509_pop_free(signers, X509_free);
+
+    BIO_free(content);
+    BIO_free(readBio);
+    PKCS7_free(p7Ver);
+    PKCS7_free(p7);
+    BIO_free(smimeBio);
+    BIO_free(inBio);
+    sk_X509_free(caSk);
+    sk_X509_free(signerSk);
+    X509_STORE_free(store);
+    X509_free(caCert);
+    X509_free(signCert);
+    EVP_PKEY_free(signKey);
+    BIO_free(keyBio);
+    BIO_free(certBio);
+    BIO_free(caBio);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Testing functions dealing with PKCS12 parsing out X509 certs */
 int test_wolfSSL_PKCS12(void)
 {
@@ -1479,7 +1604,7 @@ int test_wolfSSL_PKCS12(void)
     !defined(NO_STDIO_FILESYSTEM) && !defined(NO_TLS) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
     !defined(NO_SHA) && defined(HAVE_PKCS12) && !defined(NO_BIO) && \
-    defined(WOLFSSL_AES_256)
+    defined(WOLFSSL_AES_256) && defined(HAVE_PBKDF2)
     byte buf[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
@@ -1869,3 +1994,57 @@ int test_wolfSSL_PKCS12(void)
     return EXPECT_RESULT();
 }
 
+/* PKCS12_create() mac_iter: 0 selects the default count, -1 omits the MAC,
+ * and below -1 fails */
+int test_wolfSSL_PKCS12_create_mac(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_PKCS12) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED) && !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && \
+    defined(USE_CERT_BUFFERS_2048) && \
+    (!defined(NO_SHA256) || !defined(NO_SHA) || defined(WOLFSSL_SHA384) || \
+     defined(WOLFSSL_SHA512))
+    char pass[] = "test_PKCS12_create_mac";
+    int passSz = (int)XSTRLEN(pass);
+    const unsigned char* p;
+    EVP_PKEY* pkey = NULL;
+    X509* cert = NULL;
+    PKCS12* pkcs12 = NULL;
+    byte* der = NULL;
+    int derSz = 0;
+    /* MacData iterations is the last field of the PFX: INTEGER 2048 */
+    const byte defaultItt[] = { ASN_INTEGER, 2,
+        (byte)(WC_PKCS12_ITT_DEFAULT >> 8), (byte)WC_PKCS12_ITT_DEFAULT };
+
+    p = server_key_der_2048;
+    ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &p,
+            sizeof_server_key_der_2048));
+    p = server_cert_der_2048;
+    ExpectNotNull(cert = d2i_X509(NULL, &p, sizeof_server_cert_der_2048));
+
+    ExpectNotNull(pkcs12 = PKCS12_create(pass, NULL, pkey, cert, NULL,
+            -1, -1, 0, 0, 0));
+    ExpectIntEQ(PKCS12_verify_mac(pkcs12, pass, passSz), WOLFSSL_SUCCESS);
+    ExpectIntGE(derSz = wc_i2d_PKCS12(pkcs12, &der, NULL),
+            (int)sizeof(defaultItt));
+    ExpectBufEQ(der + derSz - (int)sizeof(defaultItt), defaultItt,
+            sizeof(defaultItt));
+    XFREE(der, NULL, DYNAMIC_TYPE_PKCS);
+    der = NULL;
+    PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    ExpectNotNull(pkcs12 = PKCS12_create(pass, NULL, pkey, cert, NULL,
+            -1, -1, 0, -1, 0));
+    ExpectIntEQ(PKCS12_verify_mac(pkcs12, pass, passSz), WOLFSSL_FAILURE);
+    PKCS12_free(pkcs12);
+    pkcs12 = NULL;
+
+    ExpectNull(PKCS12_create(pass, NULL, pkey, cert, NULL, -1, -1, 0, -2, 0));
+
+    X509_free(cert);
+    EVP_PKEY_free(pkey);
+#endif
+    return EXPECT_RESULT();
+}

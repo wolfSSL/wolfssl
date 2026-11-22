@@ -81,6 +81,12 @@
 #ifndef MCDC_FAULT_ALLOC_H
 #define MCDC_FAULT_ALLOC_H
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define MCDC_FA_MAYBE_UNUSED __attribute__((unused))
+#else
+    #define MCDC_FA_MAYBE_UNUSED
+#endif
+
 #include <stdlib.h>
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/memory.h>
@@ -135,7 +141,7 @@ static void* mcdc_fa_realloc(void* ptr, size_t size)
 }
 
 /* Install the injector, saving whatever allocators were active. */
-static void mcdc_fa_install(void)
+MCDC_FA_MAYBE_UNUSED static void mcdc_fa_install(void)
 {
     if (!mcdc_fa_saved) {
         (void)wolfSSL_GetAllocators(&mcdc_fa_orig_mf, &mcdc_fa_orig_ff,
@@ -148,7 +154,7 @@ static void mcdc_fa_install(void)
 }
 
 /* Arm: the n-th allocation from now on returns NULL (n >= 1). */
-static void mcdc_fa_arm(int n)
+MCDC_FA_MAYBE_UNUSED static void mcdc_fa_arm(int n)
 {
     mcdc_fa_count   = 0;
     mcdc_fa_only    = 0;
@@ -172,7 +178,7 @@ static void mcdc_fa_arm(int n)
  * same reason it is safe under the monotone arm: the guard skips every mp_clear
  * on the MEMORY_E path, and XFREE of an allocated-but-uninitialised block is
  * well defined. */
-static void mcdc_fa_arm_only(int n)
+MCDC_FA_MAYBE_UNUSED static void mcdc_fa_arm_only(int n)
 {
     mcdc_fa_count   = 0;
     mcdc_fa_only    = 1;
@@ -191,7 +197,7 @@ static void mcdc_fa_disarm(void)
  * default build has non-NULL wolfSSL internal callbacks; if the originals were
  * NULL (allocators never set) SetAllocators would reject them, so the mock is
  * simply left disarmed-and-installed for the remainder of the process. */
-static void mcdc_fa_restore(void)
+MCDC_FA_MAYBE_UNUSED static void mcdc_fa_restore(void)
 {
     mcdc_fa_disarm();
     if (mcdc_fa_saved && mcdc_fa_orig_mf != NULL && mcdc_fa_orig_ff != NULL

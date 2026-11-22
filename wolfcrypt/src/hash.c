@@ -21,6 +21,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    #include <wolfssl/wolfcrypt/shake.h>
+#endif
+
 #ifndef NO_ASN
 #include <wolfssl/wolfcrypt/asn.h>
 #endif

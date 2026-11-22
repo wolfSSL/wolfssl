@@ -82,8 +82,9 @@ jobs:
           done
           if [ -n "$missing" ]; then
             grep -rn 'algif_' /etc/modprobe.d /lib/modprobe.d || true
-            sudo apt-get update -qq || true
-            sudo apt-get install -y "linux-modules-extra-$(uname -r)" || true
+            .github/actions/install-apt-deps/apt-install.sh --tries 2 \
+              --warn-only --drop-vendor-sources \
+              "linux-modules-extra-$(uname -r)" || true
             for m in $missing; do
               if sudo modprobe --ignore-install "$m"; then
                 echo "modprobe $m: ok after modules-extra"
@@ -166,14 +167,14 @@ jobs:
           [
           {"name": "defaults-afalg", "minutes": 2,
            "configure": ["--enable-afalg"],
-           "cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"},
+           "extra_cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"},
           {"name": "all-afalg", "minutes": 5,
            "configure": ["--enable-all", "--enable-testcert", "--enable-acert",
             "--enable-dtls13", "--enable-dtls-mtu", "--enable-dtls-frag-ch",
             "--enable-dtlscid", "--enable-quic", "--enable-afalg",
             "--disable-srtp", "--disable-sha224", "--disable-hashflags",
             "--disable-cryptocb", "--disable-aesgcm-stream"],
-           "cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"}
+           "extra_cflags": "-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings"}
           ]
           EOF
           .github/scripts/parallel-make-check.py \

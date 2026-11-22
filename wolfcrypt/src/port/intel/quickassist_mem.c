@@ -551,6 +551,9 @@ void* IntelQaRealloc(void *ptr, size_t size, void* heap, int type
     byte allocNew = 1;
     int newIsNuma = -1, ptrIsNuma = -1;
     size_t copySize = 0;
+    /* The port asks for a DMA copy of a buffer the caller keeps */
+    int isCopy = (type == DYNAMIC_TYPE_ASYNC_NUMA ||
+                  type == DYNAMIC_TYPE_ASYNC_NUMA64);
 
 #ifndef USE_QAE_THREAD_LS
     int ret = pthread_mutex_lock(&g_memLock);
@@ -593,8 +596,9 @@ void* IntelQaRealloc(void *ptr, size_t size, void* heap, int type
                 else
             #endif
                 {
-                    /* use existing pointer and increment counter */
-                    header->count++;
+                    /* use existing pointer, with a reference for a copy */
+                    if (isCopy)
+                        header->count++;
                     newPtr = origPtr;
                     allocNew = 0;
                 }
@@ -619,10 +623,8 @@ void* IntelQaRealloc(void *ptr, size_t size, void* heap, int type
                 copySize = size;
             XMEMCPY(newPtr, ptr, copySize);
 
-            if (ptrIsNuma == 0) {
-                /* old pointer is a qae-headed non-NUMA buffer (software
-                 * fallback) -- free it. Caller-owned (ptrIsNuma == -1) and
-                 * NUMA (== 1) buffers are handled by their own paths. */
+            if (!isCopy && ptrIsNuma >= 0) {
+                /* normal REALLOC: free old pointer */
                 _qaeMemFree(ptr, heap, type
                 #ifdef WOLFSSL_DEBUG_MEMORY
                     , func, line

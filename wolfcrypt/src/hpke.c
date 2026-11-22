@@ -370,7 +370,16 @@ int wc_HpkeSerializePublicKey(Hpke* hpke, void* key, byte* out, word16* outSz)
         case DHKEM_P384_HKDF_SHA384:
         case DHKEM_P521_HKDF_SHA512:
             /* export x963 uncompressed */
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+            /* in FIPS v6, but only v6, wc_ecc_export_x963_ex_fips() checks
+             * privateKeyReadEnable. */
+            PRIVATE_KEY_UNLOCK();
+#endif
             ret = wc_ecc_export_x963_ex((ecc_key*)key, out, &tmpOutSz, 0);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+            PRIVATE_KEY_LOCK();
+#endif
+
             break;
 #endif
 #if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
@@ -961,6 +970,8 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
 int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
     void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz)
 {
+    int ret;
+
     if (hpke == NULL || context == NULL || ephemeralKey == NULL ||
         receiverKey == NULL || (info == NULL && infoSz != 0)) {
         return BAD_FUNC_ARG;
@@ -969,8 +980,14 @@ int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
     /* zero out all fields */
     XMEMSET(context, 0, sizeof(HpkeBaseContext));
 
-    return wc_HpkeSetupBaseSender(hpke, context, ephemeralKey, receiverKey,
+    /* the derived secrets are consumed internally -- do the FIPS
+     * private-key unlock for the caller, as wc_HpkeSealBase() does. */
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_HpkeSetupBaseSender(hpke, context, ephemeralKey, receiverKey,
         info, infoSz);
+    PRIVATE_KEY_LOCK();
+
+    return ret;
 }
 
 /* encrypt a message using an hpke base context, return 0 or error.
@@ -1403,13 +1420,21 @@ int wc_HpkeInitOpenContext(Hpke* hpke, HpkeBaseContext* context,
     void* receiverKey, const byte* pubKey, word16 pubKeySz, byte* info,
     word32 infoSz)
 {
+    int ret;
+
     if (hpke == NULL || context == NULL || receiverKey == NULL || pubKey == NULL
         || (info == NULL && infoSz != 0)) {
         return BAD_FUNC_ARG;
     }
 
-    return wc_HpkeSetupBaseReceiver(hpke, context, receiverKey, pubKey,
+    /* the derived secrets are consumed internally -- do the FIPS
+     * private-key unlock for the caller, as wc_HpkeOpenBase() does. */
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_HpkeSetupBaseReceiver(hpke, context, receiverKey, pubKey,
         pubKeySz, info, infoSz);
+    PRIVATE_KEY_LOCK();
+
+    return ret;
 }
 
 /* decrypt a message using a setup hpke context, return 0 or error */

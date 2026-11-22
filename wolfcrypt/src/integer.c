@@ -1971,6 +1971,11 @@ int mp_reduce_is_2k(mp_int *a)
    } else if (a->used == 1) {
       return MP_YES;
    } else if (a->used > 1) {
+      /* When a->dp[0] == 0, a cannot be reduced */
+      if (a->dp[0] == 0) {
+        return MP_NO;
+      }
+
       iy = mp_count_bits(a);
       iz = 1;
       iw = 1;
@@ -5133,7 +5138,7 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
         }
     } while (res == MP_NO);
 
-    XMEMSET(buf, 0, len);
+    ForceZero(buf, len);
     XFREE(buf, heap, DYNAMIC_TYPE_RSA);
 
     return MP_OKAY;

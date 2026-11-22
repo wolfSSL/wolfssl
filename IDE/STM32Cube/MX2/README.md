@@ -10,7 +10,9 @@ rendered by a Handlebars template through `cube codegen`, producing
   STM32CubeMX2 (JSON-Forms). Includes the `STM32 Hardware Crypto` toggle:
   on devices where wolfSSL has register-level STM32 support (independent
   of the HAL1 to HAL2 API change), the generated configuration enables the
-  RNG, HASH, AES and PKA peripherals.
+  HASH, AES and PKA peripherals. The hardware RNG remains enabled for seeding
+  even when acceleration is off. Devices without an RNG require a custom
+  entropy source such as `CUSTOM_RAND_GENERATE_SEED`.
 - `mx_wolfSSL_conf_template.h.hbs` - the Handlebars template that renders
   `mx_wolfSSL_conf.h`.
 

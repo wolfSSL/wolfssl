@@ -33,6 +33,43 @@ tests:
     extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
     integration_platforms:
       - qemu_x86
+  sample.crypto.wolfssl_test_rsa_2048:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_2048=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_2048_ecc_custom:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_2048=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_3072:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_3072=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_3072_ecc_custom:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_3072=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_sp_stack:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFCRYPT_SP_SMALL_STACK=n
+    integration_platforms:
+      - qemu_x86
   sample.crypto.wolfssl_test_ghash_table_4bit:
     timeout: 120
     platform_allow: qemu_x86
@@ -143,3 +180,21 @@ tests:
       - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
     integration_platforms:
       - qemu_cortex_a53
+  sample.crypto.wolfssl_test_els_pkc:
+    # Not in boards/frdm_rw612.conf, which every build for the board would
+    # merge.
+    timeout: 600
+    platform_allow: frdm_rw612
+    extra_configs:
+      - CONFIG_WOLFSSL_ELS_PKC=y
+      # wc_port.c calls clock_gettime(). POSIX_TIMERS is gated behind
+      # POSIX_SYSTEM_INTERFACES and silently does nothing without it.
+      - CONFIG_POSIX_SYSTEM_INTERFACES=y
+      - CONFIG_POSIX_TIMERS=y
+      # The board has a real entropy source, so drop prj.conf's placeholder.
+      - CONFIG_TEST_RANDOM_GENERATOR=n
+      - CONFIG_ENTROPY_GENERATOR=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - frdm_rw612

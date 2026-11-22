@@ -173,6 +173,12 @@
 #ifdef WOLFSSL_HAVE_SLHDSA
     #include <wolfssl/wolfcrypt/wc_slhdsa.h>
 #endif
+#ifdef HAVE_FALCON
+    #include <wolfssl/wolfcrypt/falcon.h>
+#endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    #include <wolfssl/wolfcrypt/wc_frodokem.h>
+#endif
 
 #ifdef OPENSSL_EXTRA
   #ifndef WOLFCRYPT_ONLY

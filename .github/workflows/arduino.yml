@@ -301,6 +301,13 @@ jobs:
 
           # ** END ** Install wolfSSL Arduino library
 
+      - name: Opt in to test-only Arduino entropy
+        if: matrix.fqbn != 'arduino:sam:arduino_due_x'
+        run: |
+          settings="$ARDUINO_ROOT/wolfssl/src/user_settings.h"
+          test -f "$settings"
+          sed -i '1i#define WOLFSSL_ACCEPT_WEAK_ENTROPY /* CI compile test only */' "$settings"
+
       - name: List installed Arduino libraries
         run: arduino-cli lib list
 

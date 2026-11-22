@@ -215,7 +215,9 @@
         #define WOLFSSL_HAVE_LMS            /* LMS     (SP 800-208) */
         #define WOLFSSL_LMS_SHA256_192
         #define WOLFSSL_LMS_SHAKE256
+        #define WOLFSSL_LMS_VERIFY_ONLY     /* SP 800-208 sec 8.1 */
         #define WOLFSSL_HAVE_XMSS           /* XMSS    (SP 800-208) */
+        #define WOLFSSL_XMSS_VERIFY_ONLY    /* SP 800-208 sec 8.1 */
         #define WOLFSSL_HAVE_SLHDSA         /* SLH-DSA (FIPS 205) */
         #define WOLFSSL_WC_SLHDSA
         #define WOLFSSL_SLHDSA_PARAM_128S

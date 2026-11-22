@@ -679,7 +679,7 @@ no inline alternative.
 Whichever toolchain you use, the defines must reach the assembler as well as
 the compiler when building `.S` files. See the first row of section 13.
 
-Sample projects for several of these live under `IDE/` — `IDE/MDK-ARM`,
+Sample projects for several of these live under `IDE/`, including
 `IDE/MDK5-ARM`, `IDE/IAR-EWARM`, `IDE/GCC-ARM` and others.
 
 ---

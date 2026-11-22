@@ -720,18 +720,18 @@ static int esp_clean_result(MATH_INT_T* Z, int used_padding)
 #else
     #undef MP_SIZE
     #define MP_SIZE 128
-    dp_length = SP_INT_DIGITS;
+    dp_length = Z->size;
 #endif
 /* TODO end */
 
     this_extra = Z->used;
-    if (this_extra > MP_SIZE) {
-        ESP_LOGW(TAG, "Warning (Z->used: %d) > (MP_SIZE: %d); adjusting...",
-                                Z->used,        MP_SIZE);
-        this_extra = MP_SIZE;
+    if (this_extra > dp_length) {
+        ESP_LOGW(TAG, "Warning (Z->used: %d) > (dp_length: %d); adjusting...",
+                                Z->used,        dp_length);
+        this_extra = dp_length;
     }
 
-    while (Z->dp[this_extra] > 0 && (this_extra < MP_SIZE)) {
+    while ((this_extra < dp_length) && (Z->dp[this_extra] > 0)) {
         ESP_LOGV(TAG, "Adjust! %d", this_extra);
         Z->dp[this_extra] = 0;
         this_extra++;

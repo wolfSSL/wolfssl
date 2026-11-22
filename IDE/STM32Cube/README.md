@@ -115,6 +115,11 @@ To disable hardware crypto acceleration you can define:
 * `NO_STM32_CRYPTO`
 * `NO_STM32_RNG`
 
+The STM32 RNG is used by `wc_GenerateSeed()` when available. Keep it enabled
+even if AES, HASH, and PKA acceleration are disabled. STM32F107, STM32F401,
+and STM32G071 have no RNG; their sample configurations require a real external
+seed source, such as `CUSTOM_RAND_GENERATE_SEED`.
+
 To enable the latest Cube HAL support please define `STM32_HAL_V2`.
 
 If you'd like to use the older Standard Peripheral library undefine `WOLFSSL_STM32_CUBEMX`.

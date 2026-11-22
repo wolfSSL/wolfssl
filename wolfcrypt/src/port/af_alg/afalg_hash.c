@@ -65,6 +65,11 @@ static int AfalgHashInit(wolfssl_AFALG_Hash* hash, void* heap, int devId,
     if (hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(hash, wolfssl_AFALG_Hash)) {
+        return BAD_ALIGN_E;
+    }
+#endif
 
     (void)devId; /* no async for now */
     XMEMSET(hash, 0, sizeof(wolfssl_AFALG_Hash));
@@ -213,6 +218,11 @@ static int AfalgHashCopy(wolfssl_AFALG_Hash* src, wolfssl_AFALG_Hash* dst)
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(dst, wolfssl_AFALG_Hash)) {
+        return BAD_ALIGN_E;
+    }
+#endif
 
     XMEMCPY(dst, src, sizeof(wolfssl_AFALG_Hash));
 

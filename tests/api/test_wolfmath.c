@@ -170,6 +170,53 @@ int test_mp_rand(void)
     return EXPECT_RESULT();
 } /* End test_mp_rand */
 
+/* An even modulus with a zero low digit must not use single-digit 2k
+ * reduction: its setup value is 2^DIGIT_BIT and does not fit in a digit. */
+int test_mp_exptmod_even_2k(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_INTEGER_HEAP_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(BN_MP_REDUCE_IS_2K_C) && defined(BN_S_MP_EXPTMOD_C)
+    mp_int g, x, p, y;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&y, 0, sizeof(y));
+    ExpectIntEQ(mp_init_multi(&g, &x, &p, &y, NULL, NULL), MP_OKAY);
+
+    /* p = 2^DIGIT_BIT, then p = 3 * 2^DIGIT_BIT. */
+    ExpectIntEQ(mp_set(&p, 1), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&p, DIGIT_BIT, &p), MP_OKAY);
+    ExpectIntEQ(mp_reduce_is_2k(&p), MP_NO);
+    /* (p - 1)^2 mod p = 1. */
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_set(&x, 2), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    ExpectIntEQ(mp_set(&p, 3), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&p, DIGIT_BIT, &p), MP_OKAY);
+    ExpectIntEQ(mp_reduce_is_2k(&p), MP_NO);
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    /* The adjacent modulus has a representable single-digit setup value. */
+    ExpectIntEQ(mp_add_d(&p, 1, &p), MP_OKAY);
+    ExpectIntEQ(mp_reduce_is_2k(&p), MP_YES);
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&y);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Testing wc_export_int
  */

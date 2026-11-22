@@ -72,7 +72,8 @@ jobs:
   # reused by every later connection on it, with the CTX owning it. None of the
   # jobs above reach that cache: it is only populated when the SSL shares the
   # CTX certificate buffer (ssl->buffers.weOwnCert == 0), and OPENSSL_ALL
-  # implies WOLFSSL_COPY_CERT, which gives every SSL its own copy instead.
+  # implies WOLFSSL_COPY_CERT, which gives every SSL its own reference to, or
+  # copy of, it instead.
   ocsp_ctx_request_cache:
     name: ocsp ctx request cache (${{ matrix.name }})
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}

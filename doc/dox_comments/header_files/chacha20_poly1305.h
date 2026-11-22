@@ -397,38 +397,50 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
 /*!
     \ingroup ChaCha20Poly1305
     \brief Initializes XChaCha20-Poly1305 AEAD with extended nonce.
-    XChaCha20 uses a 24-byte nonce instead of 12-byte.
+    XChaCha20 uses a 24-byte nonce instead of 12-byte. Any AAD passed here is
+    authenticated exactly as if it had been passed to
+    wc_ChaCha20Poly1305_UpdateAad; more AAD may still be added with that call
+    before the first wc_ChaCha20Poly1305_UpdateData. Continue with
+    wc_ChaCha20Poly1305_UpdateData and wc_ChaCha20Poly1305_Final.
 
     \return 0 On success
     \return BAD_FUNC_ARG If parameters are invalid
 
     \param aead Pointer to ChaChaPoly_Aead structure
-    \param ad Additional authenticated data
+    \param ad Additional authenticated data (may be NULL when ad_len is 0)
     \param ad_len Length of AAD
-    \param inKey Encryption key
-    \param inKeySz Key size (must be 32)
-    \param inIV Initialization vector
-    \param inIVSz IV size (must be 24 for XChaCha20)
+    \param nonce Nonce
+    \param nonce_len Nonce size (must be 24 for XChaCha20)
+    \param key Encryption key
+    \param key_len Key size (must be 32)
     \param isEncrypt 1 for encryption, 0 for decryption
 
     _Example_
     \code
     ChaChaPoly_Aead aead;
     byte key[32];
-    byte iv[24];
+    byte nonce[24];
     byte aad[]; // AAD
+    byte tag[16];
 
     int ret = wc_XChaCha20Poly1305_Init(&aead, aad, sizeof(aad),
-                                        key, 32, iv, 24, 1);
+                                        nonce, 24, key, 32, 1);
+    if (ret == 0)
+        ret = wc_ChaCha20Poly1305_UpdateData(&aead, plain, cipher, len);
+    if (ret == 0)
+        ret = wc_ChaCha20Poly1305_Final(&aead, tag);
     \endcode
 
+    \sa wc_ChaCha20Poly1305_UpdateAad
+    \sa wc_ChaCha20Poly1305_UpdateData
+    \sa wc_ChaCha20Poly1305_Final
     \sa wc_XChaCha20Poly1305_Encrypt
     \sa wc_XChaCha20Poly1305_Decrypt
 */
 int wc_XChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
                 const byte *ad, word32 ad_len,
-                const byte *inKey, word32 inKeySz,
-                const byte *inIV, word32 inIVSz,
+                const byte *nonce, word32 nonce_len,
+                const byte *key, word32 key_len,
                 int isEncrypt);
 
 /*!

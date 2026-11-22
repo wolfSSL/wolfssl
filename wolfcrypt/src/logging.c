@@ -132,13 +132,6 @@ static int loggingCertEnabled = WOLFSSL_CERT_LOG_ENABLED_DEFAULT;
 #endif
 THREAD_LS_T const char* log_prefix = NULL;
 
-#if defined(WOLFSSL_APACHE_MYNEWT)
-#include "log/log.h"
-static struct log mynewt_log;
-#define WOLFSSL_APACHE_MYNEWT_NOT_INITALIZED 0
-#define WOLFSSL_APACHE_MYNEWT_INITALIZED     1
-static int loggingApacheNewtRegistered = WOLFSSL_APACHE_MYNEWT_NOT_INITALIZED;
-#endif /* WOLFSSL_APACHE_MYNEWT */
 #endif /* DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS */
 
 int wolfSSL_CertDebugging_ON(void)
@@ -150,13 +143,6 @@ int wolfSSL_CertDebugging_ON(void)
     #else
         loggingCertEnabled = 1;
     #endif
-    #if defined(WOLFSSL_APACHE_MYNEWT)
-        if (loggingApacheNewtRegistered != WOLFSSL_APACHE_MYNEWT_INITALIZED) {
-            log_register("wolfcrypt", &mynewt_log, &log_console_handler,
-                                      NULL, LOG_SYSLEVEL);
-            loggingApacheNewtRegistered = WOLFSSL_APACHE_MYNEWT_INITALIZED;
-        }
-    #endif /* WOLFSSL_APACHE_MYNEWT */
     return 0;
 #else
     return NOT_COMPILED_IN;
@@ -209,13 +195,6 @@ int wolfSSL_Debugging_ON(void)
          * unless explicitly disabled with NO_WOLFSSL_DEBUG_CERTS */
         loggingCertEnabled = 1;
     #endif
-    #if defined(WOLFSSL_APACHE_MYNEWT)
-        if (loggingApacheNewtRegistered != WOLFSSL_APACHE_MYNEWT_INITALIZED) {
-            log_register("wolfcrypt", &mynewt_log, &log_console_handler,
-                                      NULL, LOG_SYSLEVEL);
-            loggingApacheNewtRegistered = WOLFSSL_APACHE_MYNEWT_INITALIZED;
-        }
-    #endif /* WOLFSSL_APACHE_MYNEWT */
     return 0;
 #else
     return NOT_COMPILED_IN;

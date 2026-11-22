@@ -39,9 +39,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # The PR merge commit and its base parent are all the diff needs.
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       # python3-yaml backs check-workflows.py, which measures run: steps
       # from the parsed YAML rather than from the raw text.
@@ -58,20 +59,22 @@ jobs:
         id: files
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" \
-              > changed.txt || true
-            grep -E '\.sh$' changed.txt > changed-sh.txt || true
+            git diff --name-only --diff-filter=ACMR HEAD^1 HEAD > changed.txt
+            # .test too: the automake test scripts under scripts/ are shell,
+            # and were silently skipping both gates below.
+            # IDE/GCC-ARM/Makefile.test is a Makefile, not a shell script.
+            grep -E '\.(sh|test)$' changed.txt \
+              | grep -v -E '(^|/)Makefile\.test$' > changed-sh.txt || true
             echo "Files changed in PR:"
             cat changed.txt
-            echo "Shell scripts changed:"
+            echo "Shell scripts changed (.sh/.test):"
             cat changed-sh.txt
             echo "count=$(wc -l < changed.txt)"     >> "$GITHUB_OUTPUT"
             echo "sh_count=$(wc -l < changed-sh.txt)" >> "$GITHUB_OUTPUT"
           else
             : > changed.txt
-            git ls-files '*.sh' > changed-sh.txt
+            git ls-files '*.sh' '*.test' \
+              | grep -v -E '(^|/)Makefile\.test$' > changed-sh.txt || true
             echo "count=0" >> "$GITHUB_OUTPUT"
             echo "sh_count=$(wc -l < changed-sh.txt)" >> "$GITHUB_OUTPUT"
           fi

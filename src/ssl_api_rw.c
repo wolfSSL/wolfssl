@@ -133,14 +133,23 @@ static int wolfssl_write_dup_take_tls13_work(WOLFSSL* ssl)
  *
  * @param [in, out] ssl  SSL/TLS object of the write side.
  * @return  0 on success.
- * @return  BAD_MUTEX_E when the write duplicate could not be locked. Returned
- *          as-is by the caller, so ssl->error is not set for it.
  * @return  WOLFSSL_FATAL_ERROR on error. Call wolfSSL_get_error() for the
  *          reason.
  */
 static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
 {
     int ret = 0;
+
+    if (IsWriteClosed(ssl)) {
+        WOLFSSL_MSG("Dropping delegated responses after close_notify");
+        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        ssl->postHandshakeAuthPending = 0;
+        #endif
+        ssl->keys.keyUpdateRespond = 0;
+        #ifdef WOLFSSL_DTLS13
+        ssl->dtls13DoKeyUpdate = 0;
+        #endif
+    }
 
     if (IsAtLeastTLSv1_3(ssl->version)) {
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
@@ -150,6 +159,7 @@ static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
         if (ssl->postHandshakeAuthPending) {
             /* reset handshake states */
             ssl->postHandshakeAuthPending = 0;
+            ssl->postHandshakeAuthPublish = 1;
             ssl->options.clientState = CLIENT_HELLO_COMPLETE;
             ssl->options.connectState = FIRST_REPLY_DONE;
             ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
@@ -161,34 +171,6 @@ static int wolfssl_write_dup_do_tls13_work(WOLFSSL* ssl)
                     ssl->error = POST_HAND_AUTH_ERROR;
                 }
                 ret = WOLFSSL_FATAL_ERROR;
-            }
-            /* PHA response fully sent: publish the write side's updated
-             * transcript to the read side for the next PHA round. */
-            else if ((ssl->hsHashes != NULL) && (ssl->dupWrite != NULL)) {
-                if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0) {
-                    ret = BAD_MUTEX_E;
-                }
-                else {
-                    int syncRet = InitHandshakeHashesAndCopy(ssl,
-                        ssl->hsHashes,
-                        &ssl->dupWrite->postHandshakeSyncedHashState);
-                    if (syncRet != 0) {
-                        /* On failure the copy may have left a partially
-                         * initialized transcript. The read side only checks
-                         * for non-NULL before consuming it, so drop it here to
-                         * avoid hashing onto a corrupt transcript, and surface
-                         * the error to the caller. */
-                        Free_HS_Hashes(
-                            ssl->dupWrite->postHandshakeSyncedHashState,
-                            ssl->heap);
-                        ssl->dupWrite->postHandshakeSyncedHashState = NULL;
-                    }
-                    wc_UnLockMutex(&ssl->dupWrite->dupMutex);
-                    if (syncRet != 0) {
-                        ssl->error = syncRet;
-                        ret = WOLFSSL_FATAL_ERROR;
-                    }
-                }
             }
         }
         #endif /* WOLFSSL_POST_HANDSHAKE_AUTH */
@@ -1001,6 +983,8 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
         ret = WOLFSSL_SHUTDOWN_NOT_DONE;
     }
     else {
+        if (ssl->error == WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E))
+            ssl->error = WOLFSSL_ERROR_NONE;
         ret = ProcessReply(ssl);
         if ((ret == WC_NO_ERR_TRACE(ZERO_RETURN)) ||
                 (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))) {
@@ -1010,11 +994,10 @@ static int wolfssl_shutdown_recv_close_notify(WOLFSSL* ssl)
             ssl->error = WOLFSSL_ERROR_NONE;
             ret = WOLFSSL_SUCCESS;
         }
-        else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-        else if (ret == WC_NO_ERR_TRACE(WANT_READ)) {
+        else if ((ret < 0) && (ret != WC_NO_ERR_TRACE(APP_DATA_READY))) {
+            /* Retry would process the same bad record again, error out. */
             ssl->error = ret;
+            WOLFSSL_ERROR(ret);
             ret = WOLFSSL_FATAL_ERROR;
         }
         else if (ssl->error == WOLFSSL_ERROR_NONE) {
@@ -1270,6 +1253,13 @@ int wolfSSL_has_pending(const WOLFSSL* ssl)
      * select()/poll() loop keeps draining until wolfSSL_read() reports
      * WANT_READ, instead of stalling on buffered data. */
     else if (ssl->buffers.inputBuffer.length > ssl->buffers.inputBuffer.idx) {
+        ret = 1;
+    }
+    #elif defined(WOLFSSL_DTLS)
+    /* A DTLS read takes a whole datagram, which can hold more records. They
+     * may carry no application data, so wolfSSL_read() can still WANT_READ. */
+    else if (ssl->options.dtls &&
+             ssl->buffers.inputBuffer.length > ssl->buffers.inputBuffer.idx) {
         ret = 1;
     }
     #endif

@@ -46,6 +46,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz);
     \return 0 Returned on successfully updating the message to authenticate
     \return MEMORY_E Returned if there is an error allocating memory for
     use with a hashing algorithm
+    \return MISSING_KEY Returned for an Hmac named by id or label with no
+    key bytes set when no device performs the operation
 
     \param hmac pointer to the Hmac object for which to update the message
     \param msg pointer to the buffer containing the message to append
@@ -78,6 +80,8 @@ int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz);
     \return 0 Returned on successfully computing the final hash
     \return MEMORY_E Returned if there is an error allocating memory for
     use with a hashing algorithm
+    \return MISSING_KEY Returned for an Hmac named by id or label with no
+    key bytes set when no device performs the operation
 
     \param hmac pointer to the Hmac object for which to calculate the
     final hash

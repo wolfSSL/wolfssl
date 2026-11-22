@@ -247,7 +247,7 @@ turns that into an entropy source: a DCC counts PLLRAWCLK edges inside a
 window of INTOSC cycles, and the **LSB of that count** is one noise bit,
 carrying the relative phase drift of two physically distinct oscillators. Raw
 noise is oversampled far past its measured min-entropy, health-tested per
-SP800-90B 4.4, conditioned with SHA-256, and handed to the SP800-90A
+SP800-90B 4.4, conditioned with SHA3-256, and handed to the SP800-90A
 Hash-DRBG.
 
 The work is split in two. The port file owns only the hardware -- DCC setup,
@@ -323,9 +323,11 @@ The hardware-selection group is what to reach for if the board already uses a DC
 ### The generic `wc_NoiseSrc_*` layer
 
 None of the SP800-90B machinery is C2000-specific, so it lives in
-`wolfcrypt/src/random.c` behind `WOLFSSL_NOISE_SRC` (declarations in
-`wolfssl/wolfcrypt/random.h`) and this port configures it. A port that has a
-raw noise source but no TRNG supplies one callback:
+`wolfcrypt/src/rng_noisesrc.c` behind `WOLFSSL_NOISE_SRC` (declarations in
+`wolfssl/wolfcrypt/rng_noisesrc.h`), outside the FIPS module boundary, and this
+port configures it. It follows wolfEntropy's SP800-90B health-test and
+failure semantics and conditions with SHA3-256, so it turns `WOLFSSL_SHA3`
+on. A port that has a raw noise source but no TRNG supplies one callback:
 
 ```c
 int my_sample(void* ctx, int srcIdx, byte* octet);
@@ -333,58 +335,54 @@ int my_sample(void* ctx, int srcIdx, byte* octet);
 
 fills a `wc_NoiseSrc` with the callback, a domain-separation tag, a
 caller-owned work buffer, the entropy budget (`hmin`, `margin`) and the
-health-test cutoffs, and gets back:
+health-test cutoffs -- any of those left zero selects wolfEntropy's defaults --
+and gets back:
 
 | Call | Does |
 |---|---|
 | `wc_NoiseSrc_Init` | Validates the config, derives the gather size, runs the SP800-90B 4.3 startup test |
-| `wc_NoiseSrc_GenerateSeed` | Gathers, health-tests, SHA-256 conditions, wipes the output on any failure |
+| `wc_NoiseSrc_GenerateSeed` | Gathers, health-tests, SHA3-256 conditions, wipes the output on any failure |
 | `wc_NoiseSrc_GetRaw` | Unconditioned noise for characterization only |
 | `wc_NoiseSrc_SelfTest` | Liveness: gathers must differ and must not be a constant octet |
-| `wc_NoiseSrc_Free` | Zeroes state and clears the latched failure |
+| `wc_NoiseSrc_Free` | Zeroes state and resets the health-test state |
 
 `WC_NOISE_RAW_PER_SRC(hmin, margin)` sizes the work buffer from the entropy
 budget so the port does not duplicate the formula. Source 0 is the credited
 one; any further source is hashed in as defence in depth and is not budgeted.
 The layer takes no locks -- the instance is caller-owned state, so a port that
 shares one across threads provides its own mutual exclusion.
-`WOLFSSL_C2000_ENTROPY` turns `WOLFSSL_NOISE_SRC` on implicitly.
+`WOLFSSL_C2000_ENTROPY` turns `WOLFSSL_NOISE_SRC` on implicitly. Each source
+carries its own health-test state, about 0.8 KW of `.bss` on the C28x.
 
 ### Health tests
 
 SP800-90B 4.4.1 Repetition Count and 4.4.2 Adaptive Proportion run
 continuously over every octet drawn from each source, with a startup test over
-a full gather before anything is released. Cutoffs are derived for 4 bits of
-min-entropy per octet at alpha = 2^-30 and are overridable. A failure returns
-`ENTROPY_RT_E` / `ENTROPY_APT_E` and **no seed material is produced** -- the
-source fails closed rather than degrading silently, and the failure is latched
-until `wc_NoiseSrc_Free()`, because a source that trips and then passes is
-exactly what continuous testing exists to catch.
+`STARTUP_OCTETS` per source before anything is released. The APT uses a
+sliding 512-sample window. Cutoffs are derived for 4 bits of min-entropy per
+octet at alpha = 2^-30 and are overridable.
 
-Latching applies to the **credited** source only. Source 0 carries the entire
-entropy budget, so its failure denies output. Sources 1 and up are unaccounted
-extra hash input, and the cutoffs are derived for source 0's assumed
-min-entropy rather than theirs, so one of them tripping is not evidence the
-seed is weak: it is dropped for the life of the instance and stops
-contributing. Output stays fully seeded because the budget never counted it,
-and a source the budget ignores cannot deny service. On this part that means a
-failing INTOSC2 degrades the source to INTOSC1 alone -- exactly the
-`WOLFSSL_C2000_ENTROPY_NUM_SRC 1` configuration -- instead of killing the RNG.
+A failure on any source returns `ENTROPY_RT_E` / `ENTROPY_APT_E` and **no seed
+material is produced**. The failing source's test state is reset, so the next
+call reruns its startup test (~210 ms per source at the defaults) before
+anything is released again; a source that stays broken fails every call. This
+is the same reset-and-retry handling wolfEntropy uses. It applies to the
+uncredited source too, so a failing INTOSC2 fails the call even though the
+budget never counted it. If INTOSC2 proves marginal on a board, build with
+`WOLFSSL_C2000_ENTROPY_NUM_SRC 1`.
 
 Because those paths only fire on genuinely broken hardware, `noisesrc_test()`
 in `wolfcrypt/test/test.c` drives them with synthetic sources -- stuck, biased,
 sampler-error, and periodic -- on the host:
 
 ```sh
-./configure --enable-all CFLAGS="-DWOLFSSL_NOISE_SRC" && make check
+./configure --enable-noisesrc --enable-all && make check
 ```
 
-Note `wolfentropy.c`'s `HAVE_ENTROPY_MEMUSE` is *not* a usable substitute
-here: its noise is memory-access timing jitter, which presumes a cache, and
-the C28x is in-order and cacheless with deterministic RAM timing. Its default
-state array is also ~256 KW on this target against ~100 KW of RAM. Its health
-tests are `static` and hardcoded to 1 bit of min-entropy per sample, so they
-are not reusable at this source's cutoffs either.
+Note wolfEntropy's MemUse source (`HAVE_ENTROPY_MEMUSE`) is *not* a usable
+substitute here: its noise is memory-access timing jitter, which presumes a
+cache, and the C28x is in-order and cacheless with deterministic RAM timing.
+Its default state array is also ~256 KW on this target against ~100 KW of RAM.
 
 ## Enabling on your build
 

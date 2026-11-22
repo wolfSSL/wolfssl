@@ -526,7 +526,8 @@ generate_port() {
 
     while true; do
         if [[ "$OSTYPE" == "linux"* || "$OSTYPE" == "msys"
-                                    || "$OSTYPE" == "cygwin"* ]]; then
+                                    || "$OSTYPE" == "cygwin"*
+                                    || "$OSTYPE" == "solaris"* ]]; then
             p=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             p=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))

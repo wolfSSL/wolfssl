@@ -46,6 +46,8 @@ int test_wc_ed25519_check_key_edgecases(void);
 int test_wc_ed25519_import_variants(void);
 int test_wc_ed25519_make_public_argchecks(void);
 int test_wc_ed25519_make_public_dev_key(void);
+int test_wc_ed25519_make_key_id_dev(void);
+int test_wc_ed25519_separate_import_roundtrip(void);
 
 #define TEST_ED25519_DECLS                                          \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key),           \
@@ -69,6 +71,8 @@ int test_wc_ed25519_make_public_dev_key(void);
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_import_variants),     \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_public_argchecks), \
     TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_public_dev_key), \
-    TEST_DECL_GROUP("ed25519", test_wc_Ed25519PrivateKeyDecode_ex)
+    TEST_DECL_GROUP("ed25519", test_wc_Ed25519PrivateKeyDecode_ex),  \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_make_key_id_dev), \
+    TEST_DECL_GROUP("ed25519", test_wc_ed25519_separate_import_roundtrip)
 
 #endif /* WOLFCRYPT_TEST_ED25519_H */

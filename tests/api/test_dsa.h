@@ -36,6 +36,7 @@ int test_wc_DsaExportParamsRaw(void);
 int test_wc_DsaExportKeyRaw(void);
 int test_wc_DsaCheckPubKey(void);
 int test_wc_DsaSign_bad_digestSz(void);
+int test_wc_DsaSign_digest_truncation(void);
 int test_wc_DsaImportParamsRaw_individual_args(void);
 int test_wc_DsaExportParamsRaw_individual_args(void);
 int test_wc_DsaExportKeyRaw_individual_args(void);
@@ -54,6 +55,7 @@ int test_wc_DsaVerify_cert_sig_narrower_than_q(void);
     TEST_DECL_GROUP("dsa", test_wc_DsaExportKeyRaw),            \
     TEST_DECL_GROUP("dsa", test_wc_DsaCheckPubKey),             \
     TEST_DECL_GROUP("dsa", test_wc_DsaSign_bad_digestSz),       \
+    TEST_DECL_GROUP("dsa", test_wc_DsaSign_digest_truncation), \
     TEST_DECL_GROUP("dsa", test_wc_DsaImportParamsRaw_individual_args), \
     TEST_DECL_GROUP("dsa", test_wc_DsaExportParamsRaw_individual_args), \
     TEST_DECL_GROUP("dsa", test_wc_DsaExportKeyRaw_individual_args),    \

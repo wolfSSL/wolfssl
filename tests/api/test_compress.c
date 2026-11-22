@@ -49,6 +49,64 @@
 #endif
 
 /*
+ * testing wc_DeCompressDynamic maxSz handling: -1 is unlimited, values >= 1
+ * are a multiplier on inSz, and 0 / other negative values are rejected
+ */
+int test_wc_DeCompressDynamic_maxSz(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_LIBZ
+    byte  plain[4096];
+    byte  comp[sizeof(plain) + 64];
+    byte* out = NULL;
+    int   compSz = 0;
+
+    /* Highly compressible input so the output is far larger than inSz. */
+    XMEMSET(plain, 0, sizeof(plain));
+    ExpectIntGT(compSz = wc_Compress(comp, (word32)sizeof(comp), plain,
+                (word32)sizeof(plain), 0), 0);
+
+    /* 0 and negative values other than -1 are invalid. */
+    ExpectIntEQ(wc_DeCompressDynamic(&out, 0, DYNAMIC_TYPE_TMP_BUFFER,
+                comp, (word32)compSz, 0, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DeCompressDynamic(&out, -2, DYNAMIC_TYPE_TMP_BUFFER,
+                comp, (word32)compSz, 0, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_DeCompressDynamic(&out, INT_MIN, DYNAMIC_TYPE_TMP_BUFFER,
+                comp, (word32)compSz, 0, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectNull(out);
+
+    /* -1: no limit, decompresses fully. */
+    ExpectIntEQ(wc_DeCompressDynamic(&out, -1, DYNAMIC_TYPE_TMP_BUFFER,
+                comp, (word32)compSz, 0, NULL), (int)sizeof(plain));
+    ExpectNotNull(out);
+    if (out != NULL) {
+        ExpectIntEQ(XMEMCMP(out, plain, sizeof(plain)), 0);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
+    }
+
+    /* 1 and 2: limit (inSz * maxSz) is far below the output size. */
+    ExpectIntEQ(wc_DeCompressDynamic(&out, 1, DYNAMIC_TYPE_TMP_BUFFER,
+                comp, (word32)compSz, 0, NULL), WC_NO_ERR_TRACE(DECOMPRESS_E));
+    ExpectIntEQ(wc_DeCompressDynamic(&out, 2, DYNAMIC_TYPE_TMP_BUFFER,
+                comp, (word32)compSz, 0, NULL), WC_NO_ERR_TRACE(DECOMPRESS_E));
+    ExpectNull(out);
+
+    /* Large enough multiplier: decompresses fully. */
+    ExpectIntEQ(wc_DeCompressDynamic(&out, (int)sizeof(plain),
+                DYNAMIC_TYPE_TMP_BUFFER, comp, (word32)compSz, 0, NULL),
+                (int)sizeof(plain));
+    ExpectNotNull(out);
+    if (out != NULL) {
+        ExpectIntEQ(XMEMCMP(out, plain, sizeof(plain)), 0);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_DeCompressDynamic_maxSz */
+
+/*
  * MC/DC decision coverage for the zlib wrapper (wolfcrypt/src/compress.c).
  * compress_test() in testwolfcrypt exercises the round trips; this drives the
  * argument guards, each operand flipped independently:

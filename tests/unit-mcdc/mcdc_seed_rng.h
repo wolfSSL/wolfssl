@@ -126,6 +126,12 @@ static int mcdc_sr_active = 0;
 
 #ifndef MCDC_SR_UNAVAILABLE
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define MCDC_SR_MAYBE_UNUSED __attribute__((unused))
+#else
+    #define MCDC_SR_MAYBE_UNUSED
+#endif
+
 #undef wc_RNG_GenerateBlock
 
 static wc_Shake mcdc_sr_shake;
@@ -173,13 +179,13 @@ static void mcdc_sr_disarm(void)
 }
 
 /* Rewind to the start of the pinned stream without re-absorbing. */
-static void mcdc_sr_rewind(unsigned long seed)
+static void MCDC_SR_MAYBE_UNUSED mcdc_sr_rewind(unsigned long seed)
 {
     mcdc_sr_left = 0;
     mcdc_sr_arm(seed);
 }
 
-static void mcdc_sr_restore(void)
+static void MCDC_SR_MAYBE_UNUSED mcdc_sr_restore(void)
 {
     mcdc_sr_active = 0;
     mcdc_sr_left = 0;

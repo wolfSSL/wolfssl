@@ -52,7 +52,9 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \
                          wolfssl/wolfcrypt/wolfentropy.h \
+                         wolfssl/wolfcrypt/entropy-timers.h \
                          wolfssl/wolfcrypt/rng_bank.h \
+                         wolfssl/wolfcrypt/rng_noisesrc.h \
                          wolfssl/wolfcrypt/ripemd.h \
                          wolfssl/wolfcrypt/rsa.h \
                          wolfssl/wolfcrypt/rc2.h \
@@ -102,12 +104,14 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h \
                          wolfssl/wolfcrypt/port/ti/ti-c2000.h \
                          wolfssl/wolfcrypt/port/ti/ti-c2000-entropy.h \
+                         wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
                          wolfssl/wolfcrypt/port/nxp/dcp_port.h \
                          wolfssl/wolfcrypt/port/nxp/casper_port.h \
                          wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h \
                          wolfssl/wolfcrypt/port/nxp/hwpuf_port.h \
+                         wolfssl/wolfcrypt/port/nxp/els_pkc_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h \
@@ -131,11 +135,11 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
                          wolfssl/wolfcrypt/port/realtek/rtl8735b.h \
+                         wolfssl/wolfcrypt/port/microchip/mpfs_athena.h \
                          wolfssl/wolfcrypt/port/tropicsquare/tropic01.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
                          wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h \
-                         wolfssl/wolfcrypt/port/arm/cryptoCell.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-types.h \
@@ -168,8 +172,18 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_settings.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_shim.h
 
+if BUILD_SHA3
+if BUILD_V5_NONFIPS_SHAKE
+nobase_nodist_include_HEADERS=wolfssl/wolfcrypt/shake.h
+endif
+endif
+
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h
+endif
+
+if BUILD_MPFS_ATHENA
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/microchip/mpfs_athena.h
 endif
 
 if BUILD_AFALG
@@ -282,6 +296,10 @@ if BUILD_ELE
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/ele.h
 else
 noinst_HEADERS+= wolfssl/wolfcrypt/port/nxp/ele.h
+endif
+
+if BUILD_ELS_PKC
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/els_pkc_port.h
 endif
 
 if BUILD_TROPIC01

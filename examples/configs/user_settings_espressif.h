@@ -219,10 +219,9 @@
     #define WOLFSSL_SHAKE256
 
     /* Old code points to keep compatibility with Kyber Round 3. */
-    /*   ./configure --enable-kyber=all --enable-experimental    */
+    /*   ./configure --enable-mlkem=all,original                 */
     #if defined(CONFIG_WOLFSSL_ENABLE_KYBER)
         #define WOLFSSL_MLKEM_KYBER
-        #define WOLFSSL_EXPERIMENTAL_SETTINGS
     #endif
 
     #if defined(CONFIG_IDF_TARGET_ESP8266)

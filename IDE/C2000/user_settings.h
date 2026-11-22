@@ -40,7 +40,9 @@
 #define WOLFSSL_IGNORE_FILE_WARN
 #define BENCH_EMBEDDED
 #define NO_WOLFSSL_MEMORY
-#define WOLFSSL_GENSEED_FORTEST     /* dev-only seed; no TRNG on this part */
+/* Use the DCC oscillator-noise source for wc_GenerateSeed(). Hardware builds
+ * must also compile rng_noisesrc.c and port/ti/ti-c2000-entropy.c. */
+#define WOLFSSL_C2000_ENTROPY
 
 /* Hashes (SHA-1 is on by default - NO_SHA is not set) */
 #define WOLFSSL_SHA512

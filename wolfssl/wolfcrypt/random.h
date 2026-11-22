@@ -71,8 +71,7 @@
     defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && \
     defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
     !defined(WOLFSSL_NO_MALLOC) && !defined(HAVE_ENTROPY_MEMUSE) && \
-    !defined(WOLFSSL_STATIC_MEMORY) && \
-    !defined(HAVE_WNR) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
     !defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_MEM_FAIL_COUNT)
     #define WC_RNG_LOCK_ATFORK
 #else
@@ -199,9 +198,9 @@
  /* Maximum generate block length */
 #ifndef RNG_MAX_BLOCK_LEN
     #ifdef HAVE_INTEL_QA
-        #define RNG_MAX_BLOCK_LEN (0xFFFFl)
+        #define RNG_MAX_BLOCK_LEN 0xFFFFL
     #else
-        #define RNG_MAX_BLOCK_LEN (0x10000l)
+        #define RNG_MAX_BLOCK_LEN 0x10000L
     #endif
 #endif
 
@@ -272,18 +271,12 @@
     #ifdef WOLFSSL_DRBG_SHA512
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
-#elif defined(HAVE_WNR)
-     /* allow whitewood as direct RNG source using wc_GenerateSeed directly */
 #elif defined(HAVE_INTEL_RDRAND)
     /* Intel RDRAND or RDSEED */
 #elif defined(WOLF_CRYPTO_CB)
     /* Requires registered Crypto Callback to service RNG, with devId set */
 #elif !defined(WC_NO_RNG)
     #error No RNG source defined!
-#endif
-
-#ifdef HAVE_WNR
-    #include <wnr.h>
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -346,7 +339,7 @@ struct OS_Seed {
 /* RNG_SECURITY_STRENGTH is unprefixed for backward compat. */
 #ifndef RNG_SECURITY_STRENGTH
     /* SHA-256 requires a minimum of 256-bits of entropy. */
-    #define RNG_SECURITY_STRENGTH (256)
+    #define RNG_SECURITY_STRENGTH 256
 #endif
 
 /* wolfentropy.h will define for HAVE_ENTROPY_MEMUSE */
@@ -369,7 +362,7 @@ struct OS_Seed {
          * 2024 specifies 0.656 to 1.312 bits of entropy per 128 bit block of
          * RDSEED output, depending on CPU family.
          */
-        #define ENTROPY_SCALE_FACTOR  (512)
+        #define ENTROPY_SCALE_FACTOR  512
     #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
         /* The value of 2 applies to Intel's RDSEED which provides about
          * 0.5 bits minimum of entropy per bit. The value of 4 gives a
@@ -379,17 +372,17 @@ struct OS_Seed {
             #define ENTROPY_SCALE_FACTOR (2*4)
         #else
             /* Not FIPS, but Intel RDSEED, only double. */
-            #define ENTROPY_SCALE_FACTOR (2)
+            #define ENTROPY_SCALE_FACTOR 2
         #endif
     #elif defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
         (HAVE_FIPS_VERSION >= 2)
         /* If doing a FIPS build without a specific scale factor, default
          * to 4. This will give 1024 bits of entropy. More is better, but
          * more is also slower. */
-        #define ENTROPY_SCALE_FACTOR (4)
+        #define ENTROPY_SCALE_FACTOR 4
     #else
         /* Setting the default to 1. */
-        #define ENTROPY_SCALE_FACTOR (1)
+        #define ENTROPY_SCALE_FACTOR 1
     #endif
     /* tells test.c the seed-callback known answers apply */
     #define WC_DRBG_ENTROPY_SCALE_FACTOR_DEFAULTED
@@ -446,7 +439,8 @@ struct OS_Seed {
 /* The maximum seed size will be the seed size plus a seed block for the
  * test, and an additional half of the seed size. This additional half
  * is in case the user does not supply a nonce. A nonce will be obtained
- * from the NDRNG. */
+ * from the NDRNG. FIPS builds draw it from the seed source even when a
+ * nonce is supplied. */
 #define WC_DRBG_MAX_SEED_SZ    (WC_DRBG_SEED_SZ + WC_DRBG_SEED_SZ/2 + \
                                 SEED_BLOCK_SZ)
 
@@ -566,10 +560,15 @@ wc_static_assert(WC_RNG_RBGC_USER_SEED_STRATUM >= 256);
     #endif
 #endif
 
-#if ((defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)) || \
+#if ((defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED) && \
+      defined(WORD64_AVAILABLE)) || \
      defined(WC_RNG_WANT_ENTROPY_EPOCH)) && \
     !defined(WC_RNG_NO_ENTROPY_EPOCH) && !defined(WC_NO_RNG)
+    #if !defined(WOLFSSL_ATOMIC_OPS) || !defined(WORD64_AVAILABLE)
+        #error WC_RNG_HAVE_ENTROPY_EPOCH requires WOLFSSL_ATOMIC_OPS and WORD64_AVAILABLE.
+    #endif
     #define WC_RNG_HAVE_ENTROPY_EPOCH
+    typedef word64 wc_RNG_entropy_epoch_t;
 #endif
 
 /* RNG context */
@@ -579,7 +578,7 @@ struct WC_RNG {
     byte status;
     word32 flags;
   #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    WC_ATOMIC_UINT_ARG entropy_epoch;
+    wc_RNG_entropy_epoch_t entropy_epoch;
   #endif
     #ifdef WC_RNG_DEBUG_STATS
         wc_rng_debug_counter_t _stats_total_bytes_requested;
@@ -750,110 +749,6 @@ struct WC_RNG {
 
 WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz);
 
-/* Ports layered on the generic noise source turn it on implicitly, so a
- * user_settings.h only has to name the port. */
-#if defined(WOLFSSL_C2000_ENTROPY) && !defined(WOLFSSL_NOISE_SRC)
-    #define WOLFSSL_NOISE_SRC
-#endif
-
-#ifdef WOLFSSL_NOISE_SRC
-
-/* Generic SP800-90B noise source, for parts with a raw physical noise source
- * but no TRNG.  The port supplies one callback returning an unconditioned
- * octet; this layer adds the 4.3 startup test, the 4.4.1 RCT and 4.4.2 APT
- * continuous tests, a latched fail-closed state, entropy-budget oversampling
- * and a SHA-256 conditioner suitable for feeding wc_GenerateSeed().
- * Implementation and entropy model: wolfcrypt/src/random.c.  Worked example:
- * wolfcrypt/src/port/ti/ti-c2000-entropy.c. */
-
-/* Noise sources one instance can combine. */
-#ifndef WC_NOISE_SRC_MAX
-    #define WC_NOISE_SRC_MAX 2
-#endif
-#if (WC_NOISE_SRC_MAX) < 1 || (WC_NOISE_SRC_MAX) > 16
-    /* wc_NoiseSrc.degraded is a word16 bitmask of dropped sources. */
-    #error "WC_NOISE_SRC_MAX must be 1..16"
-#endif
-
-/* Conditioner output per chunk in octets (SHA-256).  random.c asserts this
- * against WC_SHA256_DIGEST_SIZE so the two cannot drift; kept as a literal
- * here to avoid pulling sha256.h into random.h. */
-#define WC_NOISE_CHUNK_SZ 32
-
-/* Raw octets drawn per source per chunk, from the assumed min-entropy hmin
- * (hundredths of a bit per raw bit) and the oversample factor margin, rounded
- * up so an hmin that does not divide evenly never under-gathers.  Sizes the
- * gather of the credited source (index 0); any further source is extra hash
- * input and is not budgeted.  Exposed so a port can size its work buffer
- * without duplicating the formula. */
-#define WC_NOISE_RAW_PER_SRC(hmin, margin)                                    \
-    ((word32)((WC_NOISE_CHUNK_SZ *                                            \
-        (((8UL * 100UL * (unsigned long)(margin)) +                           \
-          ((unsigned long)(hmin) - 1UL)) / (unsigned long)(hmin))) / 8U))
-
-/* Fill *octet with one raw, unconditioned noise octet from source srcIdx.
- * Returns 0 on success, negative on hardware failure. */
-typedef int (*wc_NoiseSampleCb)(void* ctx, int srcIdx, byte* octet);
-
-/* SP800-90B 4.4 state, one per source.  Persists across calls by design: the
- * tests are continuous, not per-request. */
-typedef struct wc_NoiseHealth {
-    word16 rctCount;
-    word16 rctLast;
-    word16 aptCount;
-    word16 aptRef;
-    word16 aptPos;
-    byte   started;
-} wc_NoiseHealth;
-
-/* Caller-owned instance.  Fill the configuration members, then call
- * wc_NoiseSrc_Init(); it derives rawPerSrc and owns everything after it. */
-typedef struct wc_NoiseSrc {
-    wc_NoiseSampleCb sampleCb;      /* required */
-    void*            ctx;           /* opaque, passed to sampleCb */
-    const char*      tag;           /* domain separation string, required */
-    byte*            work;          /* caller owned, >= numSrc * rawPerSrc */
-    word32           workSz;
-    word32           startupOctets; /* SP800-90B 4.3, per source */
-    word32           chunkCtr;      /* hashed in so chunks cannot repeat */
-    word32           rawPerSrc;     /* derived by wc_NoiseSrc_Init */
-    wc_NoiseHealth   health[WC_NOISE_SRC_MAX];
-    int              failed;        /* latched, cleared only by _Free */
-    word16           rctCutoff;     /* SP800-90B 4.4.1 */
-    word16           aptWindow;     /* SP800-90B 4.4.2 */
-    word16           aptCutoff;
-    word16           degraded;      /* bitmask of uncredited sources dropped */
-    byte             numSrc;        /* 1 .. WC_NOISE_SRC_MAX */
-    byte             hmin;          /* 1..100, hundredths of a bit per raw bit */
-    byte             margin;        /* oversample factor, >= 1 */
-    byte             inited;
-} wc_NoiseSrc;
-
-WOLFSSL_API int  wc_NoiseSrc_Init(wc_NoiseSrc* src);
-WOLFSSL_API void wc_NoiseSrc_Free(wc_NoiseSrc* src);
-WOLFSSL_API int  wc_NoiseSrc_GenerateSeed(wc_NoiseSrc* src, byte* output,
-                                          word32 sz);
-/* Raw, unconditioned octets for characterization and self-test only: these run
- * no health tests, so the output is not fit for keying material.
- *
- * They also do not advance the continuous-test state, which has a consequence
- * worth knowing: SP800-90B 4.4 scores a repetition run across consecutive
- * samples, and the octets drawn here are invisible to that accounting.  A run
- * that straddles one of these calls is therefore under-counted.  Draw
- * characterization data before seeding starts, or accept that a stuck source
- * spanning the call may take longer to be caught. */
-WOLFSSL_API int  wc_NoiseSrc_GetRaw(wc_NoiseSrc* src, byte* output, word32 len,
-                                    int srcIdx);
-WOLFSSL_API int  wc_NoiseSrc_SelfTest(wc_NoiseSrc* src);
-
-#endif /* WOLFSSL_NOISE_SRC */
-
-
-#ifdef HAVE_WNR
-    /* Whitewood netRandom client library */
-    WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
-    WOLFSSL_API int  wc_FreeNetRandom(void);
-#endif /* HAVE_WNR */
 
 #ifndef WC_NO_RNG
 
@@ -890,6 +785,8 @@ WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, const byte* nonce, word32 nonceSz)
 #define WC_RNG_INIT_FLAG_NO_PRIMARY_SEED (1U << 7)
 #define WC_RNG_INIT_FLAG_TEST_USER_SEED  (1U << 8)
 #define WC_RNG_INIT_FLAG_FAIL_FAST       (1U << 9)
+#define WC_RNG_INIT_FLAG_DRBG_SHA256     (1U << 10)
+#define WC_RNG_INIT_FLAG_DRBG_SHA512     (1U << 11)
 
 /* Codes from the seed source or the instance that mean "not now", not
  * "not ever": a caller that can wait may retry the instantiation, reseed or
@@ -965,6 +862,12 @@ WOLFSSL_API int  wc_FreeRng_PreLocked(WC_RNG* rng);
 #define wc_FreeRng(rng) (void)NOT_COMPILED_IN
 #endif
 
+#ifdef WOLFSSL_FIPS_EXPORT_LOCAL_APIS
+    #define WC_FIPS_LOCAL_API   WOLFSSL_API
+#else
+    #define WC_FIPS_LOCAL_API   WOLFSSL_LOCAL
+#endif
+
 #ifdef WC_RNG_SEED_CB
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
 #endif
@@ -982,9 +885,9 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
-    WOLFSSL_API int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed,
-                                             word32 seedSz, const byte *nonce,
-                                             word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed,
+                                             word32 seedSz, const byte *addIn,
+                                             word32 addInSz);
     /* Capability markers for code compiled against a random.h of uncertain
      * vintage (FIPS builds substitute the module's pinned random.[ch] for
      * the tree's): consumers outside the boundary gate on these rather than
@@ -993,14 +896,14 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     WOLFSSL_API int wc_RNG_DRBG_Stir(WC_RNG* rng,
                                      const byte* seed,
                                      word32 seedSz);
-    WOLFSSL_API int wc_RNG_DRBG_Stir_Nonce(
+    WOLFSSL_API int wc_RNG_DRBG_Stir_AddIn(
                                  WC_RNG* rng, const byte* seed, word32 seedSz,
-                                 const byte *nonce, word32 nonceSz);
+                                 const byte *addIn, word32 addInSz);
     #define WC_RNG_HAVE_RESEED_NOW
-    WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce,
-                                           word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn,
+                                           word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
-                                             const byte* nonce, word32 nonceSz);
+                                             const byte* addIn, word32 addInSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -1024,11 +927,11 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     /* SHA-256 Hash_DRBG health test entry points. SHA-512-only builds
      * (NO_SHA256 + WOLFSSL_DRBG_SHA512) use wc_RNG_HealthTest_SHA512_ex
      * declared below. */
-    WOLFSSL_API int wc_RNG_HealthTest(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz);
-    WOLFSSL_API int wc_RNG_HealthTest_ex(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_ex(int reseed,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
@@ -1040,7 +943,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     /* Extended SHA-256 Hash_DRBG health test per SP 800-90A.
      * Flexible output size, prediction resistance, personalization
      * strings, and additional input support. */
-    WOLFSSL_API int wc_RNG_HealthTest_SHA256_ex(
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA256_ex(
                                         int predResistance,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* persoString,
@@ -1062,11 +965,11 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #endif /* !NO_SHA256 && !HAVE_SELFTEST && FIPS v7+ */
 #if defined(WOLFSSL_DRBG_SHA512) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    WOLFSSL_API int wc_RNG_HealthTest_SHA512(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA512(int reseed,
                                         const byte* seedA, word32 seedASz,
                                         const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz);
-    WOLFSSL_API int wc_RNG_HealthTest_SHA512_ex(int reseed,
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA512_ex(int reseed,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* persoString,
                                             word32 persoStringSz,
@@ -1084,7 +987,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
      *                   Generate gets NULL additional input.
      * predResistance=0: additionalReseed goes to Reseed, additionalA/B go
      *                   to Generate calls 1 and 2 respectively. */
-    WOLFSSL_API int wc_RNG_HealthTest_SHA512_ex2(
+    WC_FIPS_LOCAL_API int wc_RNG_HealthTest_SHA512_ex2(
                                         int predResistance,
                                         const byte* nonce, word32 nonceSz,
                                         const byte* persoString,
@@ -1106,8 +1009,6 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #endif /* WOLFSSL_DRBG_SHA512 && !HAVE_SELFTEST && FIPS v7+ */
 
     /* Runtime DRBG disable/enable API */
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     WOLFSSL_API int wc_Sha256Drbg_Disable(void);
     WOLFSSL_API int wc_Sha256Drbg_Enable(void);
     WOLFSSL_API int wc_Sha256Drbg_IsDisabled(void);
@@ -1115,15 +1016,6 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     WOLFSSL_API int wc_Sha512Drbg_Disable(void);
     WOLFSSL_API int wc_Sha512Drbg_Enable(void);
     WOLFSSL_API int wc_Sha512Drbg_IsDisabled(void);
-#endif
-#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
-
-    /* DRBG state mutex init/free, called from wolfCrypt_Init/Cleanup.
-     * Only in v7+ or non-FIPS/non-selftest; older modules lack these. */
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
-    WOLFSSL_LOCAL int wc_DrbgState_MutexInit(void);
-    WOLFSSL_LOCAL int wc_DrbgState_MutexFree(void);
 #endif
 
 #endif /* HAVE_HASHDRBG */
@@ -1148,11 +1040,11 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
                                             word32 flags);
     #endif /* !WC_NO_CONSTRUCTORS */
     WOLFSSL_API int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root,
-                                           const byte* nonce, word32 nonceSz);
+                                           const byte* addIn, word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_StirRBGC(WC_RNG* rng,
                                          WC_RNG* root,
-                                         const byte* nonce,
-                                         word32 nonceSz);
+                                         const byte* addIn,
+                                         word32 addInSz);
 #endif /* WC_RNG_HAVE_RBGC */
 
 #ifdef WC_RNG_HAVE_NEXT_SEED
@@ -1174,12 +1066,12 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
 #endif
     WOLFSSL_API int wc_RNG_DRBG_NextSeedCurrent(const WC_RNG* rng,
                                                 WC_ATOMIC_INT_ARG* n);
-    WOLFSSL_API int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng,
-                                                   const byte* nonce,
-                                                   word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_NextSeedNow_AddIn(WC_RNG* rng,
+                                                   const byte* addIn,
+                                                   word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
-    WOLFSSL_API int wc_RNG_DRBG_NextStirStore(WC_RNG* rng,
-                                              const byte *nonce, word32 nonceSz);
+    WOLFSSL_API int wc_RNG_DRBG_NextStirStore(
+        WC_RNG* rng, const byte *addIn, word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_NextStirNow(WC_RNG* rng);
 
 #endif /* WC_RNG_HAVE_NEXT_SEED */
@@ -1226,8 +1118,90 @@ WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng);
 WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng);
 
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
-    WOLFSSL_API WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
-    WOLFSSL_API WC_ATOMIC_UINT_ARG wc_RNG_get_global_entropy_epoch(void);
+    struct wc_RNG_entropy_epoch_atomic {
+        wolfSSL_Atomic_Uint high;
+        wolfSSL_Atomic_Uint low;
+    };
+    #define WC_RNG_ENTROPY_EPOCH_ATOMIC_INITIALIZER { \
+        WOLFSSL_ATOMIC_INITIALIZER(0U), \
+        WOLFSSL_ATOMIC_INITIALIZER(1U)  \
+    }
+    #define WC_RNG_ENTROPY_EPOCH_ATOMIC_INVALID { \
+        WOLFSSL_ATOMIC_INITIALIZER(0U), \
+        WOLFSSL_ATOMIC_INITIALIZER(0U)  \
+    }
+    #define WC_RNG_ENTROPY_EPOCH_INVALID 0
+    static WC_INLINE wc_RNG_entropy_epoch_t wc_RNG_entropy_epoch_export(
+        struct wc_RNG_entropy_epoch_atomic *epoch)
+    {
+        wc_RNG_entropy_epoch_t epoch_export;
+        epoch_export = WOLFSSL_ATOMIC_LOAD(epoch->low);
+        /* A tear here will always preserve the epoch mismatch via the low word,
+         * and at worst have the wrong high word. */
+        epoch_export |=
+            (wc_RNG_entropy_epoch_t)WOLFSSL_ATOMIC_LOAD(epoch->high) <<
+            (wc_RNG_entropy_epoch_t)32;
+        return epoch_export;
+    }
+    static WC_INLINE int wc_RNG_entropy_epoch_import(
+        wc_RNG_entropy_epoch_t old_epoch,
+        wc_RNG_entropy_epoch_t new_epoch,
+        struct wc_RNG_entropy_epoch_atomic *dest)
+    {
+        int ret = 1;
+        WC_ATOMIC_UINT_ARG expected_low = (WC_ATOMIC_UINT_ARG)old_epoch;
+        WC_ATOMIC_UINT_ARG expected_high =
+            (WC_ATOMIC_UINT_ARG)(old_epoch >>
+                                 (wc_RNG_entropy_epoch_t)32);
+        if (! wolfSSL_Atomic_Uint_CompareExchange(
+                &dest->low,
+                &expected_low,
+                (WC_ATOMIC_UINT_ARG)new_epoch))
+            ret = 0;
+        if (((new_epoch >> 32) != (old_epoch >> 32)) &&
+            (! wolfSSL_Atomic_Uint_CompareExchange(
+                &dest->high,
+                &expected_high,
+                (WC_ATOMIC_UINT_ARG)(new_epoch >> (wc_RNG_entropy_epoch_t)32))))
+            ret = 0;
+        return ret;
+    }
+    static WC_INLINE wc_RNG_entropy_epoch_t wc_RNG_entropy_epoch_increment_atomic(
+        struct wc_RNG_entropy_epoch_atomic *epoch)
+    {
+        wc_RNG_entropy_epoch_t new_epoch =
+            wolfSSL_Atomic_Uint_AddFetch(&epoch->low, 1U);
+        if (new_epoch == 0)
+            new_epoch +=
+                (wc_RNG_entropy_epoch_t)wolfSSL_Atomic_Uint_AddFetch(
+                    &epoch->high, 1U) <<
+                (wc_RNG_entropy_epoch_t)32;
+        else {
+            /* Note this is a benign tear between .low and .high here -- worst
+             * case, the returned value glitches high by 2^32 - 1, resulting in
+             * an extra cycle of invalidation and recovery. */
+            new_epoch +=
+                (wc_RNG_entropy_epoch_t)WOLFSSL_ATOMIC_LOAD(epoch->high) <<
+                (wc_RNG_entropy_epoch_t)32;
+        }
+        return new_epoch;
+    }
+    WOLFSSL_API wc_RNG_entropy_epoch_t wc_RNG_global_invalidate_entropy(void);
+    WOLFSSL_API wc_RNG_entropy_epoch_t wc_RNG_get_global_entropy_epoch(void);
+    typedef void (*wc_RNG_entropy_epoch_extra_inv_handler_t)(
+        wc_RNG_entropy_epoch_t epoch, void *arg);
+    WOLFSSL_API int wc_RNG_entropy_epoch_extra_inv_init(
+        wc_RNG_entropy_epoch_extra_inv_handler_t handler, void *arg);
+    WOLFSSL_TEST_VIS int wc_RNG_entropy_epoch_extra_inv_reset(
+        wc_RNG_entropy_epoch_extra_inv_handler_t *handler, void **arg);
+    typedef wc_RNG_entropy_epoch_t (*wc_RNG_extra_entropy_epoch_get_handler_t)(
+        void *arg);
+    WOLFSSL_API int wc_RNG_extra_entropy_epoch_init(
+        wc_RNG_extra_entropy_epoch_get_handler_t handler,
+        void *arg);
+    WOLFSSL_TEST_VIS int wc_RNG_extra_entropy_epoch_reset(
+        wc_RNG_extra_entropy_epoch_get_handler_t *handler,
+        void **arg);
 #endif
 
 #ifdef WC_RNG_HAVE_FREE_HOOK

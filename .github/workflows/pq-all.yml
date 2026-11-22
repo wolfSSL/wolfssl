@@ -56,7 +56,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential bubblewrap crossbuild-essential-arm64 crossbuild-essential-armhf
+          packages: autoconf automake libtool build-essential bubblewrap crossbuild-essential-arm64 crossbuild-essential-armhf qemu-user
           ghcr-debs-tag: ubuntu-24.04-cross
           # Kept for the apt path this no longer normally takes: the default
           # budget caps each attempt at 250s and hard-fails a download that

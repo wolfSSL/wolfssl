@@ -909,7 +909,7 @@ typedef struct {
  * SHA-512 callback; that callback fills a recognisable digest and deliberately
  * leaves the SHA-512 IV in the caller's state, forcing the dispatcher to reset
  * the state back to the variant IV. */
-static int sha512_dev_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+static WC_MAYBE_UNUSED int sha512_dev_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     Sha512DevCbCtx* cbCtx = (Sha512DevCbCtx*)ctx;
     int i;

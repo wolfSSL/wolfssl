@@ -31,6 +31,10 @@
     ecc key
     \return MP_MEM may be returned if there is an error while computing the
     ecc key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param rng pointer to an initialized RNG object with which to generate
     the key
@@ -85,6 +89,10 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
     ecc key
     \return MP_MEM may be returned if there is an error while computing the
     ecc key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param key Pointer to store the created key.
     \param keysize size of key to be created in bytes, set based on curveId
@@ -1019,6 +1027,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     \return MP_OKAY Returns on successful operation.
     \return MP_INIT_E Returned if there is an error initializing an integer
     for use with the multiple precision integer (mp_int) library.
+    \return ECC_OUT_OF_RANGE_E Returned if k is negative or too large.
 
     \param k The multiplicand.
     \param G Base point to multiply.
@@ -2465,13 +2474,26 @@ const char* wc_ecc_get_name(int curve_id);
     \brief Makes ECC key with extended options.
 
     \return 0 on success
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
+    \return BAD_STATE_E when the key has an id or label and its PKCS#11 token
+    has no session from wc_Pkcs11Token_Open; a key with neither is generated
+    in software instead
+    \return WC_HW_E when a PKCS#11 token cannot give a key with an id or label
+    the usages its flags ask for
     \return negative on error
 
     \param rng Random number generator
     \param keysize Key size in bytes
     \param key ECC key structure
     \param curve_id Curve identifier
-    \param flags Additional flags
+    \param flags WC_ECC_FLAG_* flags. For a key generated on a PKCS#11 token,
+    WC_ECC_FLAG_DEC_SIGN asks for sign and WC_ECC_FLAG_DERIVE for derive. With
+    neither it gets derive, plus sign when the key has an id or label, or only
+    sign when PKCS#11 ECDH is not compiled in, as far as the token supports
+    them.
 
     _Example_
     \code
@@ -2578,11 +2600,14 @@ int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag,
     \brief Generates deterministic k value for signing.
 
     \return 0 on success
+    \return BAD_FUNC_ARG when hashSz is not the digest size of hashType
     \return negative on error
 
     \param hash Hash value
-    \param hashSz Hash size
-    \param hashType Hash algorithm type
+    \param hashSz Hash size, must be the digest size of hashType, or 32, 48
+    or 64 when hashType is WC_HASH_TYPE_NONE
+    \param hashType Hash algorithm type, or WC_HASH_TYPE_NONE to select
+    SHA-256, SHA-384 or SHA-512 from hashSz
     \param priv Private key
     \param k Output k value
     \param order Curve order
@@ -2852,7 +2877,7 @@ int wc_ecc_get_curve_id_from_name(const char* curveName);
     \return Curve ID on success
     \return negative on error
 
-    \param fieldSize Field size
+    \param fieldSize Field size in bits
     \param prime Prime modulus
     \param primeSz Prime size
     \param Af Curve parameter A
@@ -3393,13 +3418,14 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp);
     \return ecEncCtx pointer on success
     \return NULL on failure
 
-    \param flags Context flags
+    \param flags Either REQ_RESP_CLIENT or REQ_RESP_SERVER; any other
+    value fails and NULL is returned
     \param rng Random number generator
 
     _Example_
     \code
     WC_RNG rng;
-    ecEncCtx* ctx = wc_ecc_ctx_new(0, &rng);
+    ecEncCtx* ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
     \endcode
 
     \sa wc_ecc_ctx_free
@@ -3413,14 +3439,15 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
     \return ecEncCtx pointer on success
     \return NULL on failure
 
-    \param flags Context flags
+    \param flags Either REQ_RESP_CLIENT or REQ_RESP_SERVER; any other
+    value fails and NULL is returned
     \param rng Random number generator
     \param heap Heap hint
 
     _Example_
     \code
     WC_RNG rng;
-    ecEncCtx* ctx = wc_ecc_ctx_new_ex(0, &rng, NULL);
+    ecEncCtx* ctx = wc_ecc_ctx_new_ex(REQ_RESP_CLIENT, &rng, NULL);
     \endcode
 
     \sa wc_ecc_ctx_new

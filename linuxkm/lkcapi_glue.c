@@ -227,15 +227,38 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 
 static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIALIZER(0);
 
+/* Default builds define HAVE_ALL_CURVES rather than the individual HAVE_ECC192
+ * and HAVE_ECC521, so keying on HAVE_ECC192 and HAVE_ECC521 alone would leave
+ * those curves out of default builds. */
+#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS) && \
+    !defined(LINUXKM_ECC192)
+    /* only register p192 if enabled specifically or via _ALL, and not if the
+     * target kernel is FIPS. */
+    #define LINUXKM_ECC192
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 521) && !defined(LINUXKM_ECC521)
+    #define LINUXKM_ECC521
+#endif
+
 #include "lkcapi_aes_glue.c"
 #include "lkcapi_sha_glue.c" /* must be included before the PK glue, to make the
                               * crypto_default_rng usable therein when
                               * LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT.
                               */
 #include "lkcapi_ecdsa_glue.c"
+#include "lkcapi_ed_glue.c"
+#include "lkcapi_mldsa_glue.c"
+#include "lkcapi_slhdsa_glue.c"
+#include "lkcapi_falcon_glue.c"
+#include "lkcapi_lms_glue.c"
+#include "lkcapi_xmss_glue.c"
+#include "lkcapi_mlkem_glue.c"
 #include "lkcapi_ecdh_glue.c"
 #include "lkcapi_rsa_glue.c"
 #include "lkcapi_dh_glue.c"
+#include "lkcapi_frodokem_glue.c"
 
 static int linuxkm_lkcapi_register(void);
 static int linuxkm_lkcapi_unregister(void);
@@ -637,10 +660,10 @@ static int linuxkm_lkcapi_register(void)
         REGISTER_ALG(ecdsa_nist_p384, sig,
                      linuxkm_test_ecdsa_nist_p384);
 
-        #if defined(HAVE_ECC521)
+        #if defined(LINUXKM_ECC521)
         REGISTER_ALG(ecdsa_nist_p521, sig,
                      linuxkm_test_ecdsa_nist_p521);
-        #endif /* HAVE_ECC521 */
+        #endif /* LINUXKM_ECC521 */
     #elif (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&  \
         defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(WC_LINUX_CONFIG_SELFTESTS)
@@ -659,10 +682,10 @@ static int linuxkm_lkcapi_register(void)
         REGISTER_ALG_OPTIONAL(ecdsa_nist_p384, akcipher,
                               linuxkm_test_ecdsa_nist_p384);
 
-        #if defined(HAVE_ECC521)
+        #if defined(LINUXKM_ECC521)
         REGISTER_ALG_OPTIONAL(ecdsa_nist_p521, akcipher,
                               linuxkm_test_ecdsa_nist_p521);
-        #endif /* HAVE_ECC521 */
+        #endif /* LINUXKM_ECC521 */
     #else /* kernel 6.3-6.12 */
         #if defined(LINUXKM_ECC192)
         REGISTER_ALG(ecdsa_nist_p192, akcipher,
@@ -675,10 +698,10 @@ static int linuxkm_lkcapi_register(void)
         REGISTER_ALG(ecdsa_nist_p384, akcipher,
                      linuxkm_test_ecdsa_nist_p384);
 
-        #if defined(HAVE_ECC521)
+        #if defined(LINUXKM_ECC521)
         REGISTER_ALG(ecdsa_nist_p521, akcipher,
                      linuxkm_test_ecdsa_nist_p521);
-        #endif /* HAVE_ECC521 */
+        #endif /* LINUXKM_ECC521 */
     #endif /* kernel 6.3-6.12 */
 
     #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
@@ -687,6 +710,198 @@ static int linuxkm_lkcapi_register(void)
     #endif
 
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ED25519
+    /* the "ed25519"/"ed448" cra_names have no crypto/testmgr.c entries, so
+     * alg_test() takes its "notest" path and passes them, with or without
+     * fips_enabled -- no REGISTER_ALG_OPTIONAL needed.
+     */
+    #ifdef LINUXKM_EDDSA_SIG_ALG
+    REGISTER_ALG(ed25519, sig, linuxkm_test_ed25519);
+    #else /* !LINUXKM_EDDSA_SIG_ALG */
+    REGISTER_ALG(ed25519, akcipher, linuxkm_test_ed25519);
+    #endif /* !LINUXKM_EDDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_ED25519 */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ED448
+    #ifdef LINUXKM_EDDSA_SIG_ALG
+    REGISTER_ALG(ed448, sig, linuxkm_test_ed448);
+    #else /* !LINUXKM_EDDSA_SIG_ALG */
+    REGISTER_ALG(ed448, akcipher, linuxkm_test_ed448);
+    #endif /* !LINUXKM_EDDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_ED448 */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_MLDSA
+    /* the "mldsa44"/"mldsa65"/"mldsa87" cra_names currently have no
+     * crypto/testmgr.c entries, so alg_test() takes its "notest" path and
+     * passes them, with or without fips_enabled -- no REGISTER_ALG_OPTIONAL
+     * needed.  If/when testmgr vectors land upstream, registration will
+     * transparently become subject to them.
+     */
+    #ifdef LINUXKM_MLDSA_SIG_ALG
+        #ifdef LINUXKM_MLDSA44
+        REGISTER_ALG(mldsa44, sig, linuxkm_test_mldsa44);
+        #endif /* LINUXKM_MLDSA44 */
+        #ifdef LINUXKM_MLDSA65
+        REGISTER_ALG(mldsa65, sig, linuxkm_test_mldsa65);
+        #endif /* LINUXKM_MLDSA65 */
+        #ifdef LINUXKM_MLDSA87
+        REGISTER_ALG(mldsa87, sig, linuxkm_test_mldsa87);
+        #endif /* LINUXKM_MLDSA87 */
+    #else /* !LINUXKM_MLDSA_SIG_ALG */
+        #ifdef LINUXKM_MLDSA44
+        REGISTER_ALG(mldsa44, akcipher, linuxkm_test_mldsa44);
+        #endif /* LINUXKM_MLDSA44 */
+        #ifdef LINUXKM_MLDSA65
+        REGISTER_ALG(mldsa65, akcipher, linuxkm_test_mldsa65);
+        #endif /* LINUXKM_MLDSA65 */
+        #ifdef LINUXKM_MLDSA87
+        REGISTER_ALG(mldsa87, akcipher, linuxkm_test_mldsa87);
+        #endif /* LINUXKM_MLDSA87 */
+    #endif /* !LINUXKM_MLDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_MLDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SLHDSA
+    /* as with mldsa, the slh-dsa-* cra_names have no crypto/testmgr.c
+     * entries on any kernel version, so alg_test() takes its "notest"
+     * path and passes them, with or without fips_enabled. */
+    #ifdef LINUXKM_SLHDSA_SIG_ALG
+        #ifdef LINUXKM_SLHDSA_SHAKE_128S
+        REGISTER_ALG(slhdsa_shake_128s, sig, linuxkm_test_slhdsa_shake_128s);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_128F
+        REGISTER_ALG(slhdsa_shake_128f, sig, linuxkm_test_slhdsa_shake_128f);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192S
+        REGISTER_ALG(slhdsa_shake_192s, sig, linuxkm_test_slhdsa_shake_192s);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192F
+        REGISTER_ALG(slhdsa_shake_192f, sig, linuxkm_test_slhdsa_shake_192f);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256S
+        REGISTER_ALG(slhdsa_shake_256s, sig, linuxkm_test_slhdsa_shake_256s);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256F
+        REGISTER_ALG(slhdsa_shake_256f, sig, linuxkm_test_slhdsa_shake_256f);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256F */
+        #ifdef LINUXKM_SLHDSA_SHA2_128S
+        REGISTER_ALG(slhdsa_sha2_128s, sig, linuxkm_test_slhdsa_sha2_128s);
+        #endif /* LINUXKM_SLHDSA_SHA2_128S */
+        #ifdef LINUXKM_SLHDSA_SHA2_128F
+        REGISTER_ALG(slhdsa_sha2_128f, sig, linuxkm_test_slhdsa_sha2_128f);
+        #endif /* LINUXKM_SLHDSA_SHA2_128F */
+        #ifdef LINUXKM_SLHDSA_SHA2_192S
+        REGISTER_ALG(slhdsa_sha2_192s, sig, linuxkm_test_slhdsa_sha2_192s);
+        #endif /* LINUXKM_SLHDSA_SHA2_192S */
+        #ifdef LINUXKM_SLHDSA_SHA2_192F
+        REGISTER_ALG(slhdsa_sha2_192f, sig, linuxkm_test_slhdsa_sha2_192f);
+        #endif /* LINUXKM_SLHDSA_SHA2_192F */
+        #ifdef LINUXKM_SLHDSA_SHA2_256S
+        REGISTER_ALG(slhdsa_sha2_256s, sig, linuxkm_test_slhdsa_sha2_256s);
+        #endif /* LINUXKM_SLHDSA_SHA2_256S */
+        #ifdef LINUXKM_SLHDSA_SHA2_256F
+        REGISTER_ALG(slhdsa_sha2_256f, sig, linuxkm_test_slhdsa_sha2_256f);
+        #endif /* LINUXKM_SLHDSA_SHA2_256F */
+    #else /* !LINUXKM_SLHDSA_SIG_ALG */
+        #ifdef LINUXKM_SLHDSA_SHAKE_128S
+        REGISTER_ALG(slhdsa_shake_128s, akcipher, linuxkm_test_slhdsa_shake_128s);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_128F
+        REGISTER_ALG(slhdsa_shake_128f, akcipher, linuxkm_test_slhdsa_shake_128f);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192S
+        REGISTER_ALG(slhdsa_shake_192s, akcipher, linuxkm_test_slhdsa_shake_192s);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192F
+        REGISTER_ALG(slhdsa_shake_192f, akcipher, linuxkm_test_slhdsa_shake_192f);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256S
+        REGISTER_ALG(slhdsa_shake_256s, akcipher, linuxkm_test_slhdsa_shake_256s);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256F
+        REGISTER_ALG(slhdsa_shake_256f, akcipher, linuxkm_test_slhdsa_shake_256f);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256F */
+        #ifdef LINUXKM_SLHDSA_SHA2_128S
+        REGISTER_ALG(slhdsa_sha2_128s, akcipher, linuxkm_test_slhdsa_sha2_128s);
+        #endif /* LINUXKM_SLHDSA_SHA2_128S */
+        #ifdef LINUXKM_SLHDSA_SHA2_128F
+        REGISTER_ALG(slhdsa_sha2_128f, akcipher, linuxkm_test_slhdsa_sha2_128f);
+        #endif /* LINUXKM_SLHDSA_SHA2_128F */
+        #ifdef LINUXKM_SLHDSA_SHA2_192S
+        REGISTER_ALG(slhdsa_sha2_192s, akcipher, linuxkm_test_slhdsa_sha2_192s);
+        #endif /* LINUXKM_SLHDSA_SHA2_192S */
+        #ifdef LINUXKM_SLHDSA_SHA2_192F
+        REGISTER_ALG(slhdsa_sha2_192f, akcipher, linuxkm_test_slhdsa_sha2_192f);
+        #endif /* LINUXKM_SLHDSA_SHA2_192F */
+        #ifdef LINUXKM_SLHDSA_SHA2_256S
+        REGISTER_ALG(slhdsa_sha2_256s, akcipher, linuxkm_test_slhdsa_sha2_256s);
+        #endif /* LINUXKM_SLHDSA_SHA2_256S */
+        #ifdef LINUXKM_SLHDSA_SHA2_256F
+        REGISTER_ALG(slhdsa_sha2_256f, akcipher, linuxkm_test_slhdsa_sha2_256f);
+        #endif /* LINUXKM_SLHDSA_SHA2_256F */
+    #endif /* !LINUXKM_SLHDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_SLHDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_FALCON
+    /* as with mldsa, the falcon* cra_names have no crypto/testmgr.c
+     * entries on any kernel version, so alg_test() takes its "notest"
+     * path and passes them, with or without fips_enabled -- no
+     * REGISTER_ALG_OPTIONAL needed.
+     */
+    #ifdef LINUXKM_FALCON_SIG_ALG
+        #ifdef LINUXKM_FALCON512
+        REGISTER_ALG(falcon512, sig, linuxkm_test_falcon512);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+        REGISTER_ALG(falcon1024, sig, linuxkm_test_falcon1024);
+        #endif /* LINUXKM_FALCON1024 */
+    #else /* !LINUXKM_FALCON_SIG_ALG */
+        #ifdef LINUXKM_FALCON512
+        REGISTER_ALG(falcon512, akcipher, linuxkm_test_falcon512);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+        REGISTER_ALG(falcon1024, akcipher, linuxkm_test_falcon1024);
+        #endif /* LINUXKM_FALCON1024 */
+    #endif /* !LINUXKM_FALCON_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_FALCON */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_LMS
+    #ifdef LINUXKM_LMS_SIG_ALG
+        REGISTER_ALG(lms, sig, linuxkm_test_lms);
+    #else
+        REGISTER_ALG(lms, akcipher, linuxkm_test_lms);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_LMS */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_XMSS
+    #ifdef LINUXKM_XMSS_SIG_ALG
+        REGISTER_ALG(xmss, sig, linuxkm_test_xmss);
+    #else
+        REGISTER_ALG(xmss, akcipher, linuxkm_test_xmss);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_XMSS */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_XMSS_MT
+    #ifdef LINUXKM_XMSS_SIG_ALG
+        REGISTER_ALG(xmssmt, sig, linuxkm_test_xmssmt);
+    #else
+        REGISTER_ALG(xmssmt, akcipher, linuxkm_test_xmssmt);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_XMSS_MT */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_MLKEM
+    /* kpp: single arm, no sig/akcipher edition fork (kpp is
+     * version-stable). */
+    #ifdef LINUXKM_MLKEM512
+    REGISTER_ALG(mlkem512, kpp, linuxkm_test_mlkem512);
+    #endif
+    #ifdef LINUXKM_MLKEM768
+    REGISTER_ALG(mlkem768, kpp, linuxkm_test_mlkem768);
+    #endif
+    #ifdef LINUXKM_MLKEM1024
+    REGISTER_ALG(mlkem1024, kpp, linuxkm_test_mlkem1024);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_MLKEM */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
 
@@ -718,6 +933,11 @@ static int linuxkm_lkcapi_register(void)
         REGISTER_ALG(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
         REGISTER_ALG(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
     #endif /* CONFIG_CRYPTO_FIPS && etc.. */
+    #ifdef LINUXKM_ECC521
+    /* no upstream P-521 ECDH, hence no testmgr entry: alg_test() takes
+     * its "notest" path (PQC-glue precedent). */
+    REGISTER_ALG(ecdh_nist_p521, kpp, linuxkm_test_ecdh_nist_p521);
+    #endif /* LINUXKM_ECC521 */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
@@ -811,6 +1031,49 @@ static int linuxkm_lkcapi_register(void)
     #endif
     }
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_FRODOKEM
+    /* The frodokem* and efrodokem* cra_names are unknown to
+     * crypto/testmgr.c, so alg_test() takes its "notest" path with or
+     * without fips_enabled -- no REGISTER_ALG_OPTIONAL needed.
+     */
+    #ifdef LINUXKM_FRODOKEM640SHAKE
+    REGISTER_ALG(frodokem640shake, kpp, linuxkm_test_frodokem640shake);
+    #endif
+    #ifdef LINUXKM_FRODOKEM640AES
+    REGISTER_ALG(frodokem640aes, kpp, linuxkm_test_frodokem640aes);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976SHAKE
+    REGISTER_ALG(frodokem976shake, kpp, linuxkm_test_frodokem976shake);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976AES
+    REGISTER_ALG(frodokem976aes, kpp, linuxkm_test_frodokem976aes);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344SHAKE
+    REGISTER_ALG(frodokem1344shake, kpp, linuxkm_test_frodokem1344shake);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344AES
+    REGISTER_ALG(frodokem1344aes, kpp, linuxkm_test_frodokem1344aes);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640SHAKE
+    REGISTER_ALG(efrodokem640shake, kpp, linuxkm_test_efrodokem640shake);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640AES
+    REGISTER_ALG(efrodokem640aes, kpp, linuxkm_test_efrodokem640aes);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976SHAKE
+    REGISTER_ALG(efrodokem976shake, kpp, linuxkm_test_efrodokem976shake);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976AES
+    REGISTER_ALG(efrodokem976aes, kpp, linuxkm_test_efrodokem976aes);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344SHAKE
+    REGISTER_ALG(efrodokem1344shake, kpp, linuxkm_test_efrodokem1344shake);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344AES
+    REGISTER_ALG(efrodokem1344aes, kpp, linuxkm_test_efrodokem1344aes);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_FRODOKEM */
 
 #undef REGISTER_ALG
 #undef REGISTER_ALG_OPTIONAL
@@ -1026,20 +1289,192 @@ static int linuxkm_lkcapi_unregister(void)
         #endif /* LINUXKM_ECC192 */
         UNREGISTER_ALG(ecdsa_nist_p256, sig);
         UNREGISTER_ALG(ecdsa_nist_p384, sig);
-        #if defined(HAVE_ECC521)
+        #if defined(LINUXKM_ECC521)
             UNREGISTER_ALG(ecdsa_nist_p521, sig);
-        #endif /* HAVE_ECC521 */
+        #endif /* LINUXKM_ECC521 */
     #else /* !LINUXKM_ECDSA_SIG_ALG */
         #if defined(LINUXKM_ECC192)
             UNREGISTER_ALG(ecdsa_nist_p192, akcipher);
         #endif /* LINUXKM_ECC192 */
         UNREGISTER_ALG(ecdsa_nist_p256, akcipher);
         UNREGISTER_ALG(ecdsa_nist_p384, akcipher);
-        #if defined(HAVE_ECC521)
+        #if defined(LINUXKM_ECC521)
             UNREGISTER_ALG(ecdsa_nist_p521, akcipher);
-        #endif /* HAVE_ECC521 */
+        #endif /* LINUXKM_ECC521 */
     #endif /* !LINUXKM_ECDSA_SIG_ALG */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ED25519
+    #ifdef LINUXKM_EDDSA_SIG_ALG
+        UNREGISTER_ALG(ed25519, sig);
+    #else /* !LINUXKM_EDDSA_SIG_ALG */
+        UNREGISTER_ALG(ed25519, akcipher);
+    #endif /* !LINUXKM_EDDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_ED25519 */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ED448
+    #ifdef LINUXKM_EDDSA_SIG_ALG
+        UNREGISTER_ALG(ed448, sig);
+    #else /* !LINUXKM_EDDSA_SIG_ALG */
+        UNREGISTER_ALG(ed448, akcipher);
+    #endif /* !LINUXKM_EDDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_ED448 */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_MLDSA
+    #ifdef LINUXKM_MLDSA_SIG_ALG
+        #ifdef LINUXKM_MLDSA44
+            UNREGISTER_ALG(mldsa44, sig);
+        #endif /* LINUXKM_MLDSA44 */
+        #ifdef LINUXKM_MLDSA65
+            UNREGISTER_ALG(mldsa65, sig);
+        #endif /* LINUXKM_MLDSA65 */
+        #ifdef LINUXKM_MLDSA87
+            UNREGISTER_ALG(mldsa87, sig);
+        #endif /* LINUXKM_MLDSA87 */
+    #else /* !LINUXKM_MLDSA_SIG_ALG */
+        #ifdef LINUXKM_MLDSA44
+            UNREGISTER_ALG(mldsa44, akcipher);
+        #endif /* LINUXKM_MLDSA44 */
+        #ifdef LINUXKM_MLDSA65
+            UNREGISTER_ALG(mldsa65, akcipher);
+        #endif /* LINUXKM_MLDSA65 */
+        #ifdef LINUXKM_MLDSA87
+            UNREGISTER_ALG(mldsa87, akcipher);
+        #endif /* LINUXKM_MLDSA87 */
+    #endif /* !LINUXKM_MLDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_MLDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SLHDSA
+    #ifdef LINUXKM_SLHDSA_SIG_ALG
+        #ifdef LINUXKM_SLHDSA_SHAKE_128S
+            UNREGISTER_ALG(slhdsa_shake_128s, sig);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_128F
+            UNREGISTER_ALG(slhdsa_shake_128f, sig);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192S
+            UNREGISTER_ALG(slhdsa_shake_192s, sig);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192F
+            UNREGISTER_ALG(slhdsa_shake_192f, sig);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256S
+            UNREGISTER_ALG(slhdsa_shake_256s, sig);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256F
+            UNREGISTER_ALG(slhdsa_shake_256f, sig);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256F */
+        #ifdef LINUXKM_SLHDSA_SHA2_128S
+            UNREGISTER_ALG(slhdsa_sha2_128s, sig);
+        #endif /* LINUXKM_SLHDSA_SHA2_128S */
+        #ifdef LINUXKM_SLHDSA_SHA2_128F
+            UNREGISTER_ALG(slhdsa_sha2_128f, sig);
+        #endif /* LINUXKM_SLHDSA_SHA2_128F */
+        #ifdef LINUXKM_SLHDSA_SHA2_192S
+            UNREGISTER_ALG(slhdsa_sha2_192s, sig);
+        #endif /* LINUXKM_SLHDSA_SHA2_192S */
+        #ifdef LINUXKM_SLHDSA_SHA2_192F
+            UNREGISTER_ALG(slhdsa_sha2_192f, sig);
+        #endif /* LINUXKM_SLHDSA_SHA2_192F */
+        #ifdef LINUXKM_SLHDSA_SHA2_256S
+            UNREGISTER_ALG(slhdsa_sha2_256s, sig);
+        #endif /* LINUXKM_SLHDSA_SHA2_256S */
+        #ifdef LINUXKM_SLHDSA_SHA2_256F
+            UNREGISTER_ALG(slhdsa_sha2_256f, sig);
+        #endif /* LINUXKM_SLHDSA_SHA2_256F */
+    #else /* !LINUXKM_SLHDSA_SIG_ALG */
+        #ifdef LINUXKM_SLHDSA_SHAKE_128S
+            UNREGISTER_ALG(slhdsa_shake_128s, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_128F
+            UNREGISTER_ALG(slhdsa_shake_128f, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHAKE_128F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192S
+            UNREGISTER_ALG(slhdsa_shake_192s, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_192F
+            UNREGISTER_ALG(slhdsa_shake_192f, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHAKE_192F */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256S
+            UNREGISTER_ALG(slhdsa_shake_256s, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256S */
+        #ifdef LINUXKM_SLHDSA_SHAKE_256F
+            UNREGISTER_ALG(slhdsa_shake_256f, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHAKE_256F */
+        #ifdef LINUXKM_SLHDSA_SHA2_128S
+            UNREGISTER_ALG(slhdsa_sha2_128s, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHA2_128S */
+        #ifdef LINUXKM_SLHDSA_SHA2_128F
+            UNREGISTER_ALG(slhdsa_sha2_128f, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHA2_128F */
+        #ifdef LINUXKM_SLHDSA_SHA2_192S
+            UNREGISTER_ALG(slhdsa_sha2_192s, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHA2_192S */
+        #ifdef LINUXKM_SLHDSA_SHA2_192F
+            UNREGISTER_ALG(slhdsa_sha2_192f, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHA2_192F */
+        #ifdef LINUXKM_SLHDSA_SHA2_256S
+            UNREGISTER_ALG(slhdsa_sha2_256s, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHA2_256S */
+        #ifdef LINUXKM_SLHDSA_SHA2_256F
+            UNREGISTER_ALG(slhdsa_sha2_256f, akcipher);
+        #endif /* LINUXKM_SLHDSA_SHA2_256F */
+    #endif /* !LINUXKM_SLHDSA_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_SLHDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_FALCON
+    #ifdef LINUXKM_FALCON_SIG_ALG
+        #ifdef LINUXKM_FALCON512
+            UNREGISTER_ALG(falcon512, sig);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+            UNREGISTER_ALG(falcon1024, sig);
+        #endif /* LINUXKM_FALCON1024 */
+    #else /* !LINUXKM_FALCON_SIG_ALG */
+        #ifdef LINUXKM_FALCON512
+            UNREGISTER_ALG(falcon512, akcipher);
+        #endif /* LINUXKM_FALCON512 */
+        #ifdef LINUXKM_FALCON1024
+            UNREGISTER_ALG(falcon1024, akcipher);
+        #endif /* LINUXKM_FALCON1024 */
+    #endif /* !LINUXKM_FALCON_SIG_ALG */
+#endif /* LINUXKM_LKCAPI_REGISTER_FALCON */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_LMS
+    #ifdef LINUXKM_LMS_SIG_ALG
+        UNREGISTER_ALG(lms, sig);
+    #else
+        UNREGISTER_ALG(lms, akcipher);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_LMS */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_XMSS
+    #ifdef LINUXKM_XMSS_SIG_ALG
+        UNREGISTER_ALG(xmss, sig);
+    #else
+        UNREGISTER_ALG(xmss, akcipher);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_XMSS */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_XMSS_MT
+    #ifdef LINUXKM_XMSS_SIG_ALG
+        UNREGISTER_ALG(xmssmt, sig);
+    #else
+        UNREGISTER_ALG(xmssmt, akcipher);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_XMSS_MT */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_MLKEM
+    #ifdef LINUXKM_MLKEM512
+        UNREGISTER_ALG(mlkem512, kpp);
+    #endif
+    #ifdef LINUXKM_MLKEM768
+        UNREGISTER_ALG(mlkem768, kpp);
+    #endif
+    #ifdef LINUXKM_MLKEM1024
+        UNREGISTER_ALG(mlkem1024, kpp);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_MLKEM */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
     #if defined(LINUXKM_ECC192)
@@ -1047,7 +1482,9 @@ static int linuxkm_lkcapi_unregister(void)
     #endif /* LINUXKM_ECC192 */
     UNREGISTER_ALG(ecdh_nist_p256, kpp);
     UNREGISTER_ALG(ecdh_nist_p384, kpp);
-    /* no ecdh p521 in kernel. */
+    #ifdef LINUXKM_ECC521
+    UNREGISTER_ALG(ecdh_nist_p521, kpp);
+    #endif /* LINUXKM_ECC521 */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
@@ -1120,6 +1557,45 @@ static int linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(ffdhe8192, kpp);
     #endif /* HAVE_FFDHE_8192 */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_FRODOKEM
+    #ifdef LINUXKM_FRODOKEM640SHAKE
+    UNREGISTER_ALG(frodokem640shake, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM640AES
+    UNREGISTER_ALG(frodokem640aes, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976SHAKE
+    UNREGISTER_ALG(frodokem976shake, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM976AES
+    UNREGISTER_ALG(frodokem976aes, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344SHAKE
+    UNREGISTER_ALG(frodokem1344shake, kpp);
+    #endif
+    #ifdef LINUXKM_FRODOKEM1344AES
+    UNREGISTER_ALG(frodokem1344aes, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640SHAKE
+    UNREGISTER_ALG(efrodokem640shake, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM640AES
+    UNREGISTER_ALG(efrodokem640aes, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976SHAKE
+    UNREGISTER_ALG(efrodokem976shake, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM976AES
+    UNREGISTER_ALG(efrodokem976aes, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344SHAKE
+    UNREGISTER_ALG(efrodokem1344shake, kpp);
+    #endif
+    #ifdef LINUXKM_EFRODOKEM1344AES
+    UNREGISTER_ALG(efrodokem1344aes, kpp);
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_FRODOKEM */
 
 #undef UNREGISTER_ALG
 

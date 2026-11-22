@@ -1,6 +1,6 @@
 [package]
 name = "wolfssl-wolfcrypt"
-version = "2.2.0"
+version = "3.0.0"
 edition = "2024"
 description = "Rust wrapper for wolfssl C library cryptographic functionality"
 license = "GPL-3.0"
@@ -14,6 +14,7 @@ links = "wolfssl"
 [features]
 alloc = []
 rand_core = ["dep:rand_core"]
+rand_core_0_9 = ["dep:rand_core_0_9"]
 aead = ["dep:aead"]
 cipher = ["dep:cipher"]
 mac = ["digest/mac"]
@@ -24,6 +25,7 @@ kem = ["dep:kem", "hybrid-array/extra-sizes"]
 
 [dependencies]
 rand_core = { version = "0.10", optional = true, default-features = false }
+rand_core_0_9 = { package = "rand_core", version = "0.9", optional = true, default-features = false }
 aead = { version = "0.5", optional = true, default-features = false }
 cipher = { version = "0.5", optional = true, default-features = false }
 digest = { version = "0.11", optional = true, default-features = false, features = ["block-api"] }

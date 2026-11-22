@@ -57,6 +57,29 @@
  */
 
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+/*
+ * Register a point's coordinates so freeing it checks they were wiped.
+ *
+ * @param  [in]  name  Name of point to report.
+ * @param  [in]  p     ECC point.
+ */
+static void sakke_memzero_add_point(const char* name, ecc_point* p)
+{
+#if defined(USE_FAST_MATH) && defined(ALT_ECC_SIZE)
+    /* Coordinates are alt_fp_ints: register only the digits they hold, not
+     * the full fp_int size, which would run into the next coordinate. */
+    wc_MemZero_Add(name, p->x->dp, (size_t)p->x->size * sizeof(mp_digit));
+    wc_MemZero_Add(name, p->y->dp, (size_t)p->y->size * sizeof(mp_digit));
+    wc_MemZero_Add(name, p->z->dp, (size_t)p->z->size * sizeof(mp_digit));
+#else
+    mp_memzero_add(name, p->x);
+    mp_memzero_add(name, p->y);
+    mp_memzero_add(name, p->z);
+#endif
+}
+#endif
+
 #ifdef WOLFCRYPT_SAKKE_CLIENT
 /*
  * Initialize the client components of the SAKKE key.
@@ -97,6 +120,14 @@ static int sakke_init_client(SakkeKey* key)
             err = MEMORY_E;
         }
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (err == 0) {
+        sakke_memzero_add_point("SAKKE tmp p1", key->tmp.p1);
+        sakke_memzero_add_point("SAKKE tmp p2", key->tmp.p2);
+        sakke_memzero_add_point("SAKKE tmp p3", key->tmp.p3);
+        sakke_memzero_add_point("SAKKE rsk", key->rsk.rsk);
+    }
+#endif
 
     return err;
 }
@@ -143,6 +174,11 @@ int wc_InitSakkeKey_ex(SakkeKey* key, int keySize, int curveId, void* heap,
         if (params->base == NULL) {
             err = MEMORY_E;
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        else {
+            sakke_memzero_add_point("SAKKE base", params->base);
+        }
+    #endif
 #ifdef WOLFCRYPT_SAKKE_CLIENT
         if (err == 0) {
             err = sakke_init_client(key);
@@ -160,6 +196,12 @@ int wc_InitSakkeKey_ex(SakkeKey* key, int keySize, int curveId, void* heap,
         }
         if (err == 0) {
             key->mpInit = 1;
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            mp_memzero_add("SAKKE tmp m1", &key->tmp.m1);
+            #ifdef WOLFCRYPT_SAKKE_CLIENT
+            mp_memzero_add("SAKKE tmp m2", &key->tmp.m2);
+            #endif
+        #endif
         }
 
         if (err != 0) {
@@ -206,9 +248,16 @@ void wc_FreeSakkeKey(SakkeKey* key)
             mp_free(&params->q);
             mp_free(&params->g);
             mp_free(&params->a);
-            mp_free(&key->tmp.m1);
+            /* Temporaries hold secrets such as (a + z_T)^-1, w and r. */
+            mp_forcezero(&key->tmp.m1);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            mp_memzero_check(&key->tmp.m1);
+        #endif
 #ifdef WOLFCRYPT_SAKKE_CLIENT
-            mp_free(&key->tmp.m2);
+            mp_forcezero(&key->tmp.m2);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            mp_memzero_check(&key->tmp.m2);
+        #endif
 #endif
             key->mpInit = 0;
         }
@@ -218,27 +267,42 @@ void wc_FreeSakkeKey(SakkeKey* key)
             key->i.i = NULL;
         }
         if (key->rsk.rsk != NULL) {
+            wc_ecc_forcezero_point(key->rsk.rsk);
             wc_ecc_del_point_h(key->rsk.rsk, key->ecc.heap);
             key->rsk.rsk = NULL;
         }
         if (key->tmp.p3 != NULL) {
+            wc_ecc_forcezero_point(key->tmp.p3);
             wc_ecc_del_point_h(key->tmp.p3, key->ecc.heap);
             key->tmp.p3 = NULL;
         }
         if (key->tmp.p2 != NULL) {
+            wc_ecc_forcezero_point(key->tmp.p2);
             wc_ecc_del_point_h(key->tmp.p2, key->ecc.heap);
             key->tmp.p2 = NULL;
         }
         if (key->tmp.p1 != NULL) {
+            wc_ecc_forcezero_point(key->tmp.p1);
             wc_ecc_del_point_h(key->tmp.p1, key->ecc.heap);
             key->tmp.p1 = NULL;
         }
 #endif
         if (params->base != NULL) {
+            /* Without SP ECC, the pairing accumulates into the base point. */
+            wc_ecc_forcezero_point(params->base);
             wc_ecc_del_point_h(params->base, key->ecc.heap);
             params->base = NULL;
         }
+        /* Wipes the private scalar. Leave the rest of the ECC key as
+         * wc_ecc_free() does: it checks fields such as devId and slot against
+         * non-zero sentinels, so zeroing them would make a second free act on
+         * device 0 or slot 0. */
         wc_ecc_free(&key->ecc);
+#ifdef WOLFCRYPT_SAKKE_CLIENT
+        /* The data buffer and hash state can hold r, g^r, w and the SSV. */
+        ForceZero(key->data, sizeof(key->data));
+        ForceZero(&key->hash, sizeof(key->hash));
+#endif
     }
 }
 

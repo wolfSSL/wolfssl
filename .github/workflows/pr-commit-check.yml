@@ -19,9 +19,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # Full history but commits only: the checks read messages, not files.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          filter: tree:0
 
       - name: Reject AI attribution trailers
         env:

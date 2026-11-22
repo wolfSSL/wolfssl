@@ -55,7 +55,8 @@
 /* ------------------------------------------------------------------ */
 /* WOLF_CRYPTO_CB support for wc_KDA_KDF_twostep_cmac's dispatch guard */
 /* ------------------------------------------------------------------ */
-#if defined(HAVE_CMAC_KDF) && defined(WOLF_CRYPTO_CB)
+#if defined(HAVE_CMAC_KDF) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_USER_SETTINGS)
 #define TEST_KDF_CRYPTOCB_DEVID 0x4b444630 /* "KDF0" */
 
 /* Toggled by the test below: when set, the callback fails outright instead
@@ -64,7 +65,7 @@
  * dispatch-taken-and-succeeds), both within this one registered devId. */
 static int test_kdf_cryptocb_force_fail = 0;
 
-static int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, void* ctx)
+static WC_MAYBE_UNUSED int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, void* ctx)
 {
     (void)ctx;
     if (cbDevId != TEST_KDF_CRYPTOCB_DEVID)
@@ -83,7 +84,7 @@ static int test_kdf_cryptocb(int cbDevId, wc_CryptoInfo* info, void* ctx)
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
-#endif /* HAVE_CMAC_KDF && WOLF_CRYPTO_CB */
+#endif /* HAVE_CMAC_KDF && WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
 
 /*
  * MC/DC decision coverage: negative / argument-check / bad-selector /
@@ -391,6 +392,12 @@ int test_wc_KdfDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)), 0);
+        /* A 15-byte key passes the outer size check, then fails AES setup.
+         * This exercises the initialized-AES error cleanup. */
+        XMEMSET(outKey, 0xA5, sizeof(outKey));
+        ExpectIntEQ(wc_SRTP_KDF_label(key, sizeof(key) - 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTP_KDF_label(NULL, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -400,6 +407,10 @@ int test_wc_KdfDecisionCoverage(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)), 0);
+        XMEMSET(outKey, 0xA5, sizeof(outKey));
+        ExpectIntEQ(wc_SRTCP_KDF_label(key, sizeof(key) - 1, salt,
+            sizeof(salt), -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey,
+            sizeof(outKey)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_SRTCP_KDF_label(NULL, sizeof(key), salt, sizeof(salt),
             -1, NULL, WC_SRTCP_LABEL_ENCRYPTION, outKey, sizeof(outKey)),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -631,7 +642,7 @@ int test_wc_KdfDecisionCoverage(void)
             sizeof(z), fixedInfo, sizeof(fixedInfo), output, sizeof(output),
             HEAP_HINT, INVALID_DEVID), 0);
 
-#if defined(WOLF_CRYPTO_CB)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS)
         /* devId != INVALID_DEVID: dispatch taken. Independence pair for
          * the CRYPTOCB_UNAVAILABLE fall-through guard: succeeds, then fails
          * outright, both via the SAME registered devId. */
@@ -651,7 +662,7 @@ int test_wc_KdfDecisionCoverage(void)
         test_kdf_cryptocb_force_fail = 0;
 
         wc_CryptoCb_UnRegisterDevice(TEST_KDF_CRYPTOCB_DEVID);
-#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
     }
 #endif /* HAVE_CMAC_KDF && WOLFSSL_AES_128 */
 
@@ -929,3 +940,295 @@ int test_wc_KdfFeatureCoverage(void)
 #endif /* !HAVE_FIPS && !HAVE_SELFTEST */
     return EXPECT_RESULT();
 } /* END test_wc_KdfFeatureCoverage */
+
+/* RFC 4253 section 7.2 fixtures computed independently with Python hashlib:
+ * K = a5 * 32 (positive mpint with a leading zero), H = 39 * 32,
+ * session_id = 17 * 32, key ID = A. K1 = HASH(mpint(K)||H||A||session_id),
+ * Kn = HASH(mpint(K)||H||K1||...||K(n-1)). The 133-byte output exercises
+ * repeated Final/reuse and the partial last block for every supported hash.
+ */
+int test_wc_SshKdfReuse(void)
+{
+    EXPECT_DECLS;
+    /* Note, must skip on old FIPS with _SMALL_STACK_CACHE, due to leak in
+     * wc_SSH_KDF() via _HashInit() over already-initialized hash, fixed by
+     * 827807d2efd. */
+#if defined(WOLFSSL_WOLFSSH) && !defined(NO_HMAC) && \
+    (!defined(HAVE_FIPS) || \
+     FIPS_VERSION3_GE(7,0,0) || \
+     !defined(WOLFSSL_SMALL_STACK_CACHE))
+    static const struct {
+        byte hashId;
+        const char* expected;
+    } vectors[] = {
+#if !defined(NO_SHA)
+        { WC_SHA,
+            "\x1c\x9f\x61\x4a\x3b\xa5\x27\x49\x39\xc0\x53\x1d\x22\xe5\xf3\xa2"
+            "\xe4\x07\xd3\x28\x19\xe0\xc7\xa4\x82\x83\x16\x15\x5c\x0c\x31\xe5"
+            "\x78\xe4\xe8\x24\x70\x0e\xf8\x66\xe2\x66\x9b\x3a\xac\x26\xa1\x2c"
+            "\xd4\x5e\xb7\x58\xeb\xbf\xaf\x6f\xb9\x09\xa2\x25\xe8\xf9\x3c\x1f"
+            "\x23\x3c\x08\xfc\x4e\x78\x5c\x35\x10\x51\x4c\x0a\x6e\x85\xf5\x94"
+            "\xcc\xaf\x3d\xf8\xb5\x61\x79\xd4\x3c\x9e\x3c\x18\xa0\x19\x55\x54"
+            "\xce\x85\x86\xbc\x6e\x74\x30\x4a\xf6\x00\x5a\x08\x15\x70\xeb\x35"
+            "\xb1\x20\xc4\xca\xd7\xc3\x66\xe9\xe0\x83\x38\x61\x34\x39\x36\x2a"
+            "\xda\xaa\x28\xbb\x22"
+        },
+#endif
+#if !defined(NO_SHA256)
+        { WC_SHA256,
+            "\x34\xb2\x16\x40\xeb\x59\x97\x50\x70\x19\x97\x5c\x8c\xc0\x0c\xfb"
+            "\x1a\xef\x39\xcc\x7a\x25\x8a\x6c\x33\xb0\x7b\xe4\xe9\x0f\x81\xfa"
+            "\x20\xed\x94\xb1\xe1\x26\x97\x58\x1d\xe8\x94\x04\xb9\x7e\x52\x03"
+            "\x79\x8a\xf1\x91\x38\x62\x15\x65\xd2\x5e\x9e\xa7\x96\x70\x51\x75"
+            "\x3d\x8a\x11\x41\x77\xdd\x7a\x33\x32\x12\x78\x69\xcd\xfc\x69\x55"
+            "\xed\xa9\xdd\x87\xea\xef\xe1\x0b\x28\xb6\x71\x72\xdb\xc8\x9d\x08"
+            "\x45\xbc\x2d\x85\x9c\x4c\xa0\x33\x80\x99\xcc\x1f\x9f\x23\x82\x68"
+            "\x32\xbf\xad\x27\x1d\x0c\xfe\x43\xa4\xf9\xbc\xb6\xd6\xee\x6a\x70"
+            "\xf9\xdf\x8f\xa1\xe3"
+        },
+#endif
+#if defined(WOLFSSL_SHA384)
+        { WC_SHA384,
+            "\x82\x6a\xb6\x8b\x6d\x81\x42\xa2\x85\x12\x32\x61\x8c\xaf\xf4\x3b"
+            "\xad\xad\x88\x2d\x7f\x9d\xea\x63\x75\x40\x66\xe9\x9f\xb3\x42\x1e"
+            "\x26\x30\x4e\xb2\x99\xda\xe3\x56\x2e\x5a\xde\x44\xc7\x8d\x3d\x59"
+            "\x45\xf9\xe1\x5c\xe8\x8b\x01\x55\xc9\x87\xb7\x95\x74\x32\x9b\xe8"
+            "\xcc\x12\x69\x25\xba\x88\x43\x5f\x27\x78\xc3\x35\x18\x6e\x3d\x32"
+            "\x36\x74\xa0\x44\xd8\x84\xb6\x2a\x1b\xdf\x01\x23\x7f\x62\x38\xb8"
+            "\xca\x9e\x55\x08\xf6\x3b\x60\xce\x1b\x2b\xe1\x0c\xdb\x15\x90\x54"
+            "\x16\x3b\x04\xbb\x71\x98\x6d\x20\xc9\x9e\xd6\x3b\xf2\xd1\x8f\xf4"
+            "\xbb\x0d\xaf\x6a\xf1"
+        },
+#endif
+#if defined(WOLFSSL_SHA512)
+        { WC_SHA512,
+            "\xb9\xcb\x49\xf0\x5f\xac\x25\xca\x6d\x9a\xfa\x68\x87\x57\xa2\x17"
+            "\x2a\x61\xcc\x56\xea\x71\x0f\xef\x07\xac\xb1\x7e\x7e\xaf\x54\x8f"
+            "\x15\x3b\x12\x9f\xbd\x6f\x79\xc9\x89\x14\xe6\x40\x43\x07\x27\x01"
+            "\x93\x1d\xda\xc8\x4b\x8b\xeb\xdf\x6a\xa3\xf8\xed\x8a\x8d\x9d\x49"
+            "\xc4\x5d\x90\xdd\x56\xd3\x64\x83\x5a\x63\x47\x3a\x69\xf9\x11\xaf"
+            "\x50\x7f\x3b\x18\xbc\x37\xec\xf9\xdd\xad\x98\x80\xab\x58\xb5\xd3"
+            "\x72\x6e\x2c\xce\xae\x7f\xde\x5e\x4f\xb9\xf5\x57\x5a\x65\x2d\x88"
+            "\xb0\xc8\xc9\x74\x9e\x75\xec\x51\xb9\x23\x64\x26\xb8\x7c\x05\x74"
+            "\xa2\xe7\x3d\x30\xf8"
+        },
+#endif
+        { 0, NULL }
+    };
+    static const word32 lengths[] = { 1, 32, 64, 96, 128, 133 };
+    byte k[32], h[32], sessionId[32], key[133];
+    word32 i, j;
+
+    XMEMSET(k, 0xa5, sizeof(k));
+    XMEMSET(h, 0x39, sizeof(h));
+    XMEMSET(sessionId, 0x17, sizeof(sessionId));
+    for (i = 0; vectors[i].expected != NULL; i++) {
+        for (j = 0; j < sizeof(lengths) / sizeof(lengths[0]); j++) {
+            ExpectIntEQ(wc_SSH_KDF(vectors[i].hashId, 'A', key, lengths[j],
+                k, sizeof(k), h, sizeof(h), sessionId, sizeof(sessionId)), 0);
+            ExpectBufEQ(key, vectors[i].expected, lengths[j]);
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* draft-ietf-tls-ecdhe-mlkem-03 sec 4.3: X25519MLKEM768 puts the ML-KEM secret
+ * first, SecP256r1MLKEM768 and SecP384r1MLKEM1024 put the ECDH secret first. */
+int test_wc_Tls13_HybridSharedSecret(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+    byte ec[48], kem[32], ss[96], want[96];
+    word32 ssSz;
+    word32 i;
+
+    /* Distinct bytes, so a wrong offset or length inside a part shows. */
+    for (i = 0; i < sizeof(ec); i++)
+        ec[i] = (byte)i;
+    for (i = 0; i < sizeof(kem); i++)
+        kem[i] = (byte)(0x80 | i);
+
+    /* SecP256r1MLKEM768: ECDH (32) then ML-KEM (32), exact fit */
+    XMEMCPY(ss, ec, 32);
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        64, &ssSz, kem, sizeof(kem)), 0);
+    ExpectIntEQ(ssSz, 64);
+    XMEMCPY(want, ec, 32);
+    XMEMCPY(want + 32, kem, sizeof(kem));
+    ExpectBufEQ(ss, want, 64);
+
+    /* SecP384r1MLKEM1024: ECDH (48) then ML-KEM (32) */
+    XMEMCPY(ss, ec, 48);
+    ssSz = 48;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP384R1MLKEM1024, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), 0);
+    ExpectIntEQ(ssSz, 80);
+    XMEMCPY(want, ec, 48);
+    XMEMCPY(want + 48, kem, sizeof(kem));
+    ExpectBufEQ(ss, want, 80);
+
+    /* X25519MLKEM768: ML-KEM (32) then X25519 (32), exact fit */
+    XMEMCPY(ss, ec, 32);
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_X25519MLKEM768, 1, ss,
+        64, &ssSz, kem, sizeof(kem)), 0);
+    ExpectIntEQ(ssSz, 64);
+    XMEMCPY(want, kem, sizeof(kem));
+    XMEMCPY(want + 32, ec, 32);
+    ExpectBufEQ(ss, want, 64);
+
+    /* Bad arguments and a result that does not fit. */
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, NULL,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), NULL, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, NULL, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        63, &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BUFFER_E));
+    ssSz = 0;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef HAVE_FIPS
+    ssSz = 97;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BUFFER_E));
+#else
+    /* FIPS: only the module's groups, each in its own order and sizes. */
+    ssSz = 32;
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 1, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_X25519MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM512, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP384R1MLKEM1024, 0, ss,
+        sizeof(ss), &ssSz, kem, sizeof(kem)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_Tls13_HybridSharedSecret(WOLFSSL_SECP256R1MLKEM768, 0, ss,
+        sizeof(ss), &ssSz, kem, 16), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+/*
+ * MC/DC decision coverage for the wolfcrypt/src/cryptocb.c dispatch guards:
+ * each wc_CryptoCb_* operation starts with
+ *     dev = wc_CryptoCb_FindDevice(devId, algoType);
+ *     if (dev && dev->cb) { ... }
+ * The four decisions below had never seen a registered device, so both
+ * operands were uncovered. Three calls per site:
+ *   - an unregistered devId: dev == NULL (operand 0 false)
+ *   - a registered device with a real, declining callback: both operands
+ *     true, the body runs and the callback declines
+ *   - a registered device with a NULL callback: operand 1 false
+ * Every call returns CRYPTOCB_UNAVAILABLE in all three rows.
+ */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
+#define TEST_CRYPTOCB_DISPATCH_DEVID 0x44495350 /* "DISP" */
+
+static int test_cryptocb_dispatch_decline_cb(int cbDevId, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)cbDevId;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
+
+int test_wc_CryptoCbDispatchDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_USER_SETTINGS) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
+    byte   in[8] = {0};
+    byte   out[16] = {0};
+    byte   tag[16] = {0};
+    byte   passwd[8] = {0};
+    byte   salt[8] = {0};
+    word32 agreeSz = 0;
+
+#ifndef NO_DH
+    DhKey dh;
+    XMEMSET(&dh, 0, sizeof(dh));
+
+    /* --- wc_CryptoCb_Dh: (dev) && (dev->cb). --- */
+    dh.devId = TEST_CRYPTOCB_DISPATCH_DEVID + 1; /* unregistered slot */
+    agreeSz = sizeof(out);
+    ExpectIntEQ(wc_CryptoCb_Dh(&dh, in, 1, in, 1, out, &agreeSz),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    dh.devId = TEST_CRYPTOCB_DISPATCH_DEVID;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        test_cryptocb_dispatch_decline_cb, NULL), 0);
+    agreeSz = sizeof(out);
+    ExpectIntEQ(wc_CryptoCb_Dh(&dh, in, 1, in, 1, out, &agreeSz),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        NULL, NULL), 0);
+    agreeSz = sizeof(out);
+    ExpectIntEQ(wc_CryptoCb_Dh(&dh, in, 1, in, 1, out, &agreeSz),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+#endif /* !NO_DH */
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    /* --- wc_CryptoCb_Chacha20Poly1305Encrypt / Decrypt: (dev) && (dev->cb).
+     *     The buffers are never dereferenced: the declining callback and the
+     *     skipped body both leave them untouched. --- */
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Encrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID + 1, in, in, NULL, 0, in, sizeof(in),
+        out, tag), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        test_cryptocb_dispatch_decline_cb, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Encrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        out, tag), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Decrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        tag, out), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Encrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        out, tag), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_Chacha20Poly1305Decrypt(
+        TEST_CRYPTOCB_DISPATCH_DEVID, in, in, NULL, 0, in, sizeof(in),
+        tag, out), WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+
+#if defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED)
+    /* --- wc_CryptoCb_Pbkdf2: (dev) && (dev->cb). --- */
+    ExpectIntEQ(wc_CryptoCb_Pbkdf2(out, passwd, (int)sizeof(passwd), salt,
+        (int)sizeof(salt), 1000, 32, WC_HASH_TYPE_SHA256,
+        TEST_CRYPTOCB_DISPATCH_DEVID + 1),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        test_cryptocb_dispatch_decline_cb, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Pbkdf2(out, passwd, (int)sizeof(passwd), salt,
+        (int)sizeof(salt), 1000, 32, WC_HASH_TYPE_SHA256,
+        TEST_CRYPTOCB_DISPATCH_DEVID),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID,
+        NULL, NULL), 0);
+    ExpectIntEQ(wc_CryptoCb_Pbkdf2(out, passwd, (int)sizeof(passwd), salt,
+        (int)sizeof(salt), 1000, 32, WC_HASH_TYPE_SHA256,
+        TEST_CRYPTOCB_DISPATCH_DEVID),
+        WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE));
+    wc_CryptoCb_UnRegisterDevice(TEST_CRYPTOCB_DISPATCH_DEVID);
+#endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
+
+    (void)out;
+    (void)tag;
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_USER_SETTINGS */
+    return EXPECT_RESULT();
+} /* END test_wc_CryptoCbDispatchDecisionCoverage */

@@ -226,6 +226,7 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_rsa_2expt(mp_int* a, int b)
 #include <wolfcrypt/src/rsa.c>
 
 #include "mcdc_fault_alloc.h"
+#include "mcdc_fault_cryptocb.h"
 #include <time.h>
 
 #include <wolfssl/wolfcrypt/random.h>
@@ -1029,6 +1030,331 @@ static void wb_rsafunction_state_operand(RsaKey* key, WC_RNG* rng,
 #endif
 }
 
+/* --------------------------------------------------------------------------
+ * Async PENDING rows of the RSA state machines:
+ *
+ *   wc_RsaDirect():         3486 (ret>=0||PENDING, cond 1), 3507 (PENDING
+ *                           early return)
+ *   wc_RsaFunction() raw:   3784 (ret<0 && ret!=PENDING, cond 1) in
+ *                           wc_RsaFunction_ex
+ *   wc_RsaPublicEncrypt():  3990/4009 (RsaPublicEncryptEx machine)
+ *   wc_RsaPrivateDecrypt(): 4221/4244/4326 (RsaPrivateDecryptEx machine)
+ *
+ * WC_PENDING_E (-108) can enter these rets only from the crypto-callback
+ * dispatch, so the device answers WC_PENDING_E ONCE for WC_PK_TYPE_RSA
+ * (mcdc_cb_pending_once): the state machine saves its state, the second
+ * re-invocation runs in software and completes. A persistent PENDING answer
+ * would loop forever; an all-software build never produces the code at all.
+ * The 3784 (T,T) row comes from the sync dispatch's over-length guard
+ * (BAD_FUNC_ARG); the 3990/3486 clause-2 F rows from an even-modulus
+ * rejection (MP_VAL) -- the SP backend routes the sync dispatch through
+ * RsaFunction_SP, so the generic mp-guarded path is not compiled in here
+ * and the mp lever sees nothing.
+ * 4244 clause-1 F needs a NEGATIVE unpad return: the private-decrypt
+ * unpad paths are constant-time and return 0 on invalid padding, so the
+ * verify path (type-1 unpad, RSA_PAD_E) supplies it.
+ * Documented residuals: 3784 clause-2 F (PENDING reaching that point
+ * requires the async dispatch, not compiled in any campaign variant) and
+ * 4244 clause-2 F (pad==NULL with ret>=0 is structurally unreachable,
+ * same argument as the documented 4097:1 record).
+ * ----------------------------------------------------------------------- */
+#if defined(WOLF_CRYPTO_CB)
+static void wb_async_pending_state_machine(void)
+{
+    RsaKey  key;
+    WC_RNG  rng;
+    byte    msg[32];
+    byte    in[WB_RSA_BYTES];
+    byte    out[WB_RSA_BYTES];
+    byte    ct[WB_RSA_BYTES];
+    byte    bad[WB_RSA_BYTES];
+    word32  outLen;
+    word32  i;
+    int     ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(msg, 0x2b, sizeof(msg));
+    for (i = 0; i < sizeof(in); i++)
+        in[i] = (byte)((i * 7u) + 1u);
+
+    /* devId on the key is what routes the dispatch to the device. */
+    if (wc_InitRsaKey_ex(&key, NULL, MCDC_CB_DEVID) != 0 ||
+        wc_InitRng(&rng) != 0) {
+        WB_NOTE("setup failed; RSA PENDING vectors skipped");
+        return;
+    }
+    if (wc_MakeRsaKey(&key, WB_RSA_BITS, 65537, &rng) != 0) {
+        WB_NOTE("keygen failed; RSA PENDING vectors skipped");
+        wc_FreeRng(&rng);
+        return;
+    }
+#ifndef WC_NO_RNG
+    /* Private decrypt blinds; the key must carry the RNG. */
+    (void)wc_RsaSetRNG(&key, &rng);
+#endif
+
+    if (mcdc_cb_install() != 0) {
+        WB_NOTE("device registration failed; RSA PENDING vectors skipped");
+        return;
+    }
+
+#if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* ---- wc_RsaDirect() (3486/3507) ---- */
+    outLen = sizeof(out);
+    ret = wc_RsaDirect(in, sizeof(in), out, &outLen, &key, RSA_PUBLIC_ENCRYPT,
+                       &rng);
+    if (ret < 0) {
+        WB_NOTE("RsaDirect baseline failed");
+        wb_fail = 1;
+    }
+    mcdc_cb_pending_once(WC_PK_TYPE_RSA);
+    outLen = sizeof(out);
+    ret = wc_RsaDirect(in, sizeof(in), out, &outLen, &key, RSA_PUBLIC_ENCRYPT,
+                       &rng);
+    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        WB_NOTE("RsaDirect did not report PENDING");
+        wb_fail = 1;
+    }
+    outLen = sizeof(out);
+    ret = wc_RsaDirect(in, sizeof(in), out, &outLen, &key, RSA_PUBLIC_ENCRYPT,
+                       &rng);
+    if (ret < 0) {
+        WB_NOTE("RsaDirect resume failed");
+        wb_fail = 1;
+    }
+    mcdc_cb_reset();
+
+    /* 3486 clause-2 F row: a non-PENDING negative ret reaching the state
+     * machine. Over-length input returns before the switch, so use the
+     * even-modulus trick: the sync dispatch rejects it (MP_VAL). */
+    {
+        mp_int nSave;
+        mp_int nEven;
+
+        XMEMSET(&nSave, 0, sizeof(nSave));
+        XMEMSET(&nEven, 0, sizeof(nEven));
+        if ((mp_init(&nSave) == MP_OKAY) &&
+            (mp_init(&nEven) == MP_OKAY) &&
+            (mp_copy(&key.n, &nSave) == MP_OKAY) &&
+            (mp_sub_d(&key.n, 1, &nEven) == MP_OKAY) &&
+            (mp_copy(&nEven, &key.n) == MP_OKAY)) {
+            outLen = sizeof(out);
+            ret = wc_RsaDirect(in, sizeof(in), out, &outLen, &key,
+                               RSA_PUBLIC_ENCRYPT, &rng);
+            if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                WB_NOTE("RsaDirect even-modulus did not fail");
+                wb_fail = 1;
+            }
+            (void)mp_copy(&nSave, &key.n);
+        }
+        mp_clear(&nSave);
+        mp_clear(&nEven);
+    }
+#endif
+
+    /* ---- raw wc_RsaFunction() (3784 in wc_RsaFunction_ex) ---- */
+    outLen = sizeof(out);
+    ret = wc_RsaFunction(in, sizeof(in), out, &outLen,
+                         RSA_PRIVATE_ENCRYPT, &key, &rng);
+    if (ret < 0) {
+        WB_NOTE("RsaFunction baseline failed");
+        wb_fail = 1;
+    }
+    mcdc_cb_pending_once(WC_PK_TYPE_RSA);
+    outLen = sizeof(out);
+    ret = wc_RsaFunction(in, sizeof(in), out, &outLen,
+                         RSA_PRIVATE_ENCRYPT, &key, &rng);
+    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        WB_NOTE("RsaFunction did not report PENDING");
+        wb_fail = 1;
+    }
+    outLen = sizeof(out);
+    ret = wc_RsaFunction(in, sizeof(in), out, &outLen,
+                         RSA_PRIVATE_ENCRYPT, &key, &rng);
+    if (ret < 0) {
+        WB_NOTE("RsaFunction resume failed");
+        wb_fail = 1;
+    }
+    mcdc_cb_reset();
+
+    /* 3784 (T,T) row: a real (non-PENDING) error out of the dispatch. The
+     * sync dispatch rejects an input longer than the key (BAD_FUNC_ARG);
+     * no lever needed, and it works whichever backend (SP or generic)
+     * computes the exponentiation. */
+    {
+        byte big[WB_RSA_BYTES + 1];
+
+        XMEMSET(big, 0x5a, sizeof(big));
+        outLen = sizeof(out);
+        ret = wc_RsaFunction(big, sizeof(big), out, &outLen,
+                             RSA_PRIVATE_ENCRYPT, &key, &rng);
+        if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            WB_NOTE("RsaFunction over-length did not fail");
+            wb_fail = 1;
+        }
+    }
+
+    /* ---- wc_RsaPublicEncrypt() (3990/4009) ---- */
+    outLen = sizeof(out);
+    ret = wc_RsaPublicEncrypt(msg, sizeof(msg), out, outLen, &key, &rng);
+    if (ret <= 0) {
+        WB_NOTE("RsaPublicEncrypt baseline failed");
+        wb_fail = 1;
+    }
+    mcdc_cb_pending_once(WC_PK_TYPE_RSA);
+    outLen = sizeof(out);
+    ret = wc_RsaPublicEncrypt(msg, sizeof(msg), out, outLen, &key, &rng);
+    if (ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        WB_NOTE("RsaPublicEncrypt did not report PENDING");
+        wb_fail = 1;
+    }
+    outLen = sizeof(out);
+    ret = wc_RsaPublicEncrypt(msg, sizeof(msg), out, outLen, &key, &rng);
+    if (ret <= 0) {
+        WB_NOTE("RsaPublicEncrypt resume failed");
+        wb_fail = 1;
+    }
+    mcdc_cb_reset();
+
+    /* 3990 clause-2 F row: the inner dispatch must return a real
+     * (non-PENDING) error. The sync dispatch rejects an even modulus
+     * (MP_VAL), so borrow n, make it even, call, restore. */
+    {
+        mp_int nSave;
+        mp_int nEven;
+
+        XMEMSET(&nSave, 0, sizeof(nSave));
+        XMEMSET(&nEven, 0, sizeof(nEven));
+        if ((mp_init(&nSave) == MP_OKAY) &&
+            (mp_init(&nEven) == MP_OKAY) &&
+            (mp_copy(&key.n, &nSave) == MP_OKAY) &&
+            (mp_sub_d(&key.n, 1, &nEven) == MP_OKAY) &&
+            (mp_copy(&nEven, &key.n) == MP_OKAY)) {
+            outLen = sizeof(out);
+            ret = wc_RsaPublicEncrypt(msg, sizeof(msg), out, outLen, &key,
+                                      &rng);
+            if (ret >= 0) {
+                WB_NOTE("even-modulus public encrypt did not fail");
+                wb_fail = 1;
+            }
+            (void)mp_copy(&nSave, &key.n);
+        }
+        mp_clear(&nSave);
+        mp_clear(&nEven);
+    }
+
+    /* ---- wc_RsaPrivateDecrypt() (4221/4244/4326) ----
+     * Build a valid ciphertext first (unarmed). */
+    outLen = sizeof(ct);
+    ret = wc_RsaPublicEncrypt(msg, sizeof(msg), ct, outLen, &key, &rng);
+    if (ret <= 0) {
+        WB_NOTE("ciphertext build failed; decrypt PENDING rows skipped");
+    }
+    else {
+        word32 ctLen = (word32)ret;
+
+        outLen = sizeof(out);
+        ret = wc_RsaPrivateDecrypt(ct, ctLen, out, outLen, &key);
+        if (ret < 0) {
+            WB_NOTE("RsaPrivateDecrypt baseline failed");
+            wb_fail = 1;
+        }
+        mcdc_cb_pending_once(WC_PK_TYPE_RSA);
+        outLen = sizeof(out);
+        ret = wc_RsaPrivateDecrypt(ct, ctLen, out, outLen, &key);
+        if (ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            WB_NOTE("RsaPrivateDecrypt did not report PENDING");
+            wb_fail = 1;
+        }
+        /* The resume is expected to fail here: the CRYPTOCB dispatch
+         * short-circuits the inner call BEFORE the exponentiation, so the
+         * saved state is DECRYPT_UNPAD and the resume unpads the raw
+         * ciphertext. Every row the machine needs (4221/4326 armed +
+         * baseline, 4244 baseline) is already taken; the library's tail
+         * cleanup resets the key, which is all the resume has to do. */
+        outLen = sizeof(out);
+        ret = wc_RsaPrivateDecrypt(ct, ctLen, out, outLen, &key);
+        (void)ret;
+        mcdc_cb_reset();
+
+        /* 4244 clause-1 F row: the inner dispatch must SUCCEED and the
+         * unpad must fail. A raw-exponentiated junk value (m0^e mod n) is
+         * < n, so it passes the bounds check, and decrypts to the junk,
+         * which fails the pad structure. (A mangled valid ciphertext would
+         * be >= n and break out at the bounds check, before UNPAD.) */
+        {
+            byte m0[WB_RSA_BYTES];
+
+            XMEMSET(m0, 0x5a, sizeof(m0));
+            outLen = sizeof(bad);
+            (void)wc_RsaFunction(m0, sizeof(m0), bad, &outLen,
+                                 RSA_PUBLIC_ENCRYPT, &key, &rng);
+            outLen = sizeof(out);
+            ret = wc_RsaPrivateDecrypt(bad, sizeof(bad), out, outLen, &key);
+            if (ret >= 0) {
+                WB_NOTE("junk-decrypt unpad unexpectedly succeeded");
+                wb_fail = 1;
+            }
+        }
+
+#if !defined(WC_NO_RSA_OAEP)
+        /* 4244 clause-1 F row: the constant-time PKCS1 v1.5 unpad returns
+         * 0 (never a negative) on invalid padding, so the F row needs the
+         * OAEP unpad, which fails with a real error on junk. */
+        {
+            byte m0[WB_RSA_BYTES];
+
+            XMEMSET(m0, 0x5a, sizeof(m0));
+            outLen = sizeof(bad);
+            (void)wc_RsaFunction(m0, sizeof(m0), bad, &outLen,
+                                 RSA_PUBLIC_ENCRYPT, &key, &rng);
+            outLen = sizeof(out);
+            ret = wc_RsaPrivateDecrypt_ex(bad, sizeof(bad), out, outLen,
+                                          &key, WC_RSA_OAEP_PAD,
+                                          WC_HASH_TYPE_SHA, WC_MGF1SHA1,
+                                          NULL, 0);
+            if (ret >= 0) {
+                WB_NOTE("OAEP junk-decrypt unpad unexpectedly succeeded");
+                wb_fail = 1;
+            }
+        }
+#endif
+
+        /* 4244 clause-1 F row: the private-decrypt unpad paths are
+         * constant-time and return 0 (never a negative) on invalid
+         * padding. The VERIFY path (RSA_PUBLIC_DECRYPT) uses the
+         * non-constant-time type-1 unpad, which returns RSA_PAD_E on
+         * junk -- the F row. */
+#if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+        {
+            byte m0[WB_RSA_BYTES];
+
+            XMEMSET(m0, 0x5a, sizeof(m0));
+            outLen = sizeof(bad);
+            (void)wc_RsaFunction(m0, sizeof(m0), bad, &outLen,
+                                 RSA_PRIVATE_ENCRYPT, &key, &rng);
+            outLen = sizeof(out);
+            ret = wc_RsaSSL_Verify(bad, sizeof(bad), out, outLen, &key);
+            if (ret >= 0) {
+                WB_NOTE("junk-verify unpad unexpectedly succeeded");
+                wb_fail = 1;
+            }
+        }
+#endif
+    }
+
+    mcdc_cb_uninstall();
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    WB_NOTE("RSA state-machine PENDING rows driven");
+}
+#else
+static void wb_async_pending_state_machine(void)
+{ WB_NOTE("WOLF_CRYPTO_CB off; RSA PENDING vectors skipped"); }
+#endif
+
 int main(int argc, char** argv)
 {
     int      do_baseline = (argc > 1 && strcmp(argv[1], "baseline") == 0);
@@ -1122,6 +1448,7 @@ int main(int argc, char** argv)
     wb_priv_zero_crt_components(&key, &rng);
     if (ctLen > 0)
         wb_rsafunction_state_operand(&key, &rng, ct, ctLen);
+    wb_async_pending_state_machine();
 
     /* Scratch-mp_int lifecycle sweeps and the q-loop vector. Counted sweeps,
      * no wall clock, and every armed call aborts its entry point within a

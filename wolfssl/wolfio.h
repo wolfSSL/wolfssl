@@ -84,7 +84,7 @@
     #include <winsock2.h>
     #include <ws2tcpip.h>
 #else
-    #if defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
+    #if defined(WOLFSSL_LWIP)
         /* lwIP needs to be configured to use sockets API in this mode */
         /* LWIP_SOCKET 1 in lwip/opt.h or in build */
         #include "lwip/sockets.h"
@@ -169,8 +169,6 @@
         #include <fcntl.h>
     #elif defined(WOLFSSL_SGX)
         #include <errno.h>
-    #elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-        #include <mn_socket/mn_socket.h>
     #elif defined(WOLFSSL_DEOS)
         #include <socketapi.h>
         #include <lwip-socket.h>
@@ -234,8 +232,8 @@
         #elif defined(NUCLEUS_PLUS_2_3)
             #define SO_TYPE     17  /* Socket type */
             #define SO_RCVTIMEO 13  /* Recv Timeout */
-        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
-                && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
+        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_CONTIKI) \
+                && !defined(WOLFSSL_WICED) \
                 && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
             #include <sys/socket.h>
             #include <arpa/inet.h>
@@ -364,15 +362,6 @@
         #define SOCKET_EPIPE       BSD_ERROR
         #define SOCKET_ECONNREFUSED BSD_ERROR
         #define SOCKET_ECONNABORTED BSD_ERROR
-#elif defined(WOLFSSL_PICOTCP)
-    #define SOCKET_EWOULDBLOCK  PICO_ERR_EAGAIN
-    #define SOCKET_EAGAIN       PICO_ERR_EAGAIN
-    #define SOCKET_ETIMEDOUT    PICO_ERR_ETIMEDOUT
-    #define SOCKET_ECONNRESET   PICO_ERR_ECONNRESET
-    #define SOCKET_EINTR        PICO_ERR_EINTR
-    #define SOCKET_EPIPE        PICO_ERR_EIO
-    #define SOCKET_ECONNREFUSED PICO_ERR_ECONNREFUSED
-    #define SOCKET_ECONNABORTED PICO_ERR_ESHUTDOWN
 #elif defined(FREERTOS_TCP)
     #define SOCKET_EWOULDBLOCK FREERTOS_EWOULDBLOCK
     #define SOCKET_EAGAIN       FREERTOS_EWOULDBLOCK
@@ -470,12 +459,9 @@
     #if !defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_SOCK)
         #define HAVE_SOCKADDR
     #endif
-#elif defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
+#elif defined(WOLFSSL_LWIP)
     #define SEND_FUNCTION lwip_send
     #define RECV_FUNCTION lwip_recv
-#elif defined(WOLFSSL_PICOTCP)
-    #define SEND_FUNCTION pico_send
-    #define RECV_FUNCTION pico_recv
 #elif defined(FREERTOS_TCP)
     #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
     #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
@@ -518,6 +504,10 @@
     #else
         #define SEND_FUNCTION send
         #define RECV_FUNCTION recv
+    #endif
+    #if defined(HAVE_HTTP_CLIENT) && !defined(HAVE_SOCKADDR) && \
+        !defined(WOLFSSL_NO_SOCK)
+        #define HAVE_SOCKADDR
     #endif
 #elif defined(WOLFSSL_LINUXKM)
     #define SEND_FUNCTION linuxkm_send
@@ -562,9 +552,6 @@
         #elif defined(NUCLEUS_PLUS_2_3)
             typedef int socklen_t;
             #define XSOCKLENT socklen_t
-        #elif defined(WOLFSSL_APACHE_MYNEWT)
-            /* mn_socket doesn't provide socklen_t */
-            #define XSOCKLENT int
         #else
             #define XSOCKLENT socklen_t
         #endif
@@ -595,6 +582,9 @@
     #endif /* HAVE_SOCKADDR */
 
     #if defined(WOLFSSL_ZEPHYR)
+        #ifndef HAVE_GETADDRINFO
+            #define HAVE_GETADDRINFO
+        #endif
         typedef struct zsock_addrinfo   ADDRINFO;
         #define getaddrinfo             zsock_getaddrinfo
         #define freeaddrinfo            zsock_freeaddrinfo
@@ -862,13 +852,6 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
                                          void* ctx);
     WOLFSSL_LOCAL int MicriumSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #endif /* MICRIUM */
-
-#if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-    WOLFSSL_LOCAL int Mynewt_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-    WOLFSSL_LOCAL int Mynewt_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx);
-    WOLFSSL_API void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
-                                          struct mn_sockaddr_in* mnSockAddrIn);
-#endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 
 #ifdef WOLFSSL_UIP
 

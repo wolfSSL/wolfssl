@@ -201,6 +201,11 @@ enum wc_SetKeyType {
     WC_SETKEY_ECC_PRIV  = 5,
     WC_SETKEY_AES       = 6,
 };
+
+/* Where a key given to a SetKey callback is kept; see
+ * wc_CryptoCb_SetKeyLocation() */
+#define WC_KEY_SW_STORED    0   /* default: software has the key */
+#define WC_KEY_HW_STORED    1   /* the key is on the device only */
 #endif /* WOLF_CRYPTO_CB_SETKEY */
 
 #ifdef WOLF_CRYPTO_CB_KEYSTORE
@@ -602,6 +607,11 @@ typedef struct wc_CryptoInfo {
                 word32       pubKeySz;
                 int          checkPriv;
             } ed448checkkey;
+            struct {
+                WC_RNG*      rng;
+                int          size;
+                ed448_key*   key;
+            } ed448kg;
         #endif
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
             struct {
@@ -1199,6 +1209,12 @@ WOLFSSL_API int  wc_CryptoCb_UnRegisterDeviceEx(int devId);
 WOLFSSL_API int wc_CryptoCb_DefaultDevID(void);
 WOLFSSL_API int wc_CryptoCb_IsDeviceRegistered(int devId);
 
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK)
+#define WC_CRYPTOCB_KEYGEN_ID_CHECK
+WOLFSSL_LOCAL int wc_CryptoCb_HasPkDevice(int devId);
+#define WC_CRYPTOCB_HAS_ID(key) (((key)->idLen > 0) || ((key)->labelLen > 0))
+#endif
+
 #ifdef WOLF_CRYPTO_CB_FIND
 typedef int (*CryptoDevCallbackFind)(int devId, int algoType);
 WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
@@ -1347,6 +1363,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_Curve448Generic(int devId, int public_size,
 #endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize,
+    ed448_key* key);
 WOLFSSL_LOCAL int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen,
     byte* out, word32 *outLen, ed448_key* key, byte type, const byte* context,
     byte contextLen);
@@ -1681,6 +1699,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_Free(int devId, int algo, int type, int subType,
     void* obj);
 #endif /* WOLF_CRYPTO_CB_FREE */
 #ifdef WOLF_CRYPTO_CB_SETKEY
+WOLFSSL_API int wc_CryptoCb_SetKeyLocation(wc_CryptoInfo* info,
+                                           int location);
 WOLFSSL_LOCAL int wc_CryptoCb_SetKey(int devId, int type, void* obj,
                                       void* key, word32 keySz,
                                       void* aux, word32 auxSz,

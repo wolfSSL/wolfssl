@@ -261,7 +261,6 @@ int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
 {
     WOLFSSL_ENTER("wolfSSL_TXT_DB_create_index");
     (void)qual;
-    (void)cmp;
 
     if (!db || !hash || !cmp || field >= db->num_fields || field < 0) {
         WOLFSSL_MSG("Bad parameter");
@@ -269,6 +268,7 @@ int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
     }
 
     db->hash_fn[field] = hash;
+    db->cmp_fn[field] = cmp;
 
     return WOLFSSL_SUCCESS;
 }
@@ -276,15 +276,19 @@ int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
 WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
         WOLFSSL_STRING *value)
 {
+    WOLF_STACK_OF(WOLFSSL_STRING)* data;
+    WOLFSSL_STRING* row = NULL;
+    unsigned long hash;
+
     WOLFSSL_ENTER("wolfSSL_TXT_DB_get_by_index");
 
-    if (!db || !db->data || idx < 0 || idx >= db->num_fields) {
+    if (!db || !db->data || !value || idx < 0 || idx >= db->num_fields) {
         WOLFSSL_MSG("Bad parameter");
         return NULL;
     }
 
-    if (!db->hash_fn[idx]) {
-        WOLFSSL_MSG("Missing hash functions");
+    if (!db->hash_fn[idx] || !db->cmp_fn[idx]) {
+        WOLFSSL_MSG("Missing hash or compare functions");
         return NULL;
     }
 
@@ -292,7 +296,7 @@ WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
      * then assume others do too */
     if (db->data->hash_fn != db->hash_fn[idx]) {
         /* Set the hash and comp functions */
-        WOLF_STACK_OF(WOLFSSL_STRING)* data = db->data;
+        data = db->data;
         while (data) {
             if (data->hash_fn != db->hash_fn[idx]) {
                 data->hash_fn = db->hash_fn[idx];
@@ -301,7 +305,22 @@ WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
             data= data->next;
         }
     }
-    return (WOLFSSL_STRING*) wolfSSL_lh_retrieve(db->data, value);
+
+    hash = db->hash_fn[idx](value);
+    for (data = db->data; data != NULL; data = data->next) {
+        row = (WOLFSSL_STRING*)wolfssl_sk_node_get_data(data, 0);
+        if (row != NULL) {
+            if (data->hash == 0) {
+                data->hash = db->hash_fn[idx](row);
+            }
+            if ((data->hash == hash) && (db->cmp_fn[idx](row, value) == 0)) {
+                break;
+            }
+        }
+        row = NULL;
+    }
+
+    return row;
 }
 
 #endif /* OPENSSL_ALL && !NO_BIO */

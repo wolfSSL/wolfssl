@@ -25,17 +25,15 @@
  *
  * This file owns only the hardware: DCC setup, one measurement, and the noise
  * bit.  The SP800-90B startup and continuous health tests, the entropy budget,
- * the SHA-256 conditioner and the latched failure state are the generic
- * wc_NoiseSrc_* layer in wolfcrypt/src/random.c, which this configures.
+ * the SHA3-256 conditioner and the failure handling are the generic
+ * wc_NoiseSrc_* layer in wolfcrypt/src/rng_noisesrc.c, which this configures.
  *
  * Noise bit = LSB of a DCC measurement (PLL edges counted inside a window of
  * INTOSC cycles), i.e. the relative phase drift of two independent
  * oscillators.  Both sources are hashed in, but only source 0 is credited with
  * entropy: source 1 estimates lower and fails a chi-square uniformity check,
  * so it is defence-in-depth only.  Extra hash input can never subtract
- * entropy, and because source 1 is unbudgeted the generic layer drops it
- * rather than failing closed if its health tests trip - see the latch policy
- * in wolfcrypt/src/random.c.
+ * entropy.
  *
  * Build options (all #ifndef-guarded in ti-c2000-entropy.h, documented with
  * defaults in IDE/C2000/README.md):
@@ -68,7 +66,7 @@
 #include <stdint.h>
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/rng_noisesrc.h>
 
 #include "dcc.h"
 #include "sysctl.h"
@@ -85,7 +83,7 @@
     WC_NOISE_RAW_PER_SRC(WOLFSSL_C2000_ENTROPY_HMIN,                          \
                          WOLFSSL_C2000_ENTROPY_MARGIN)
 
-/* Domain separation from any other SHA-256 use in the system. */
+/* Domain separation from any other SHA3-256 use in the system. */
 static const char c2000_entropyTag[] = "wolfssl-c2000-osc-entropy-v1";
 
 /* .bss, not stack: the C28x stack is 16 KW below 0x10000. */
@@ -239,8 +237,10 @@ static int c2000_sampleOctet(void* ctx, int srcIdx, byte* octet)
 
 int wc_c2000_Entropy_Init(void)
 {
+    /* Already configured: reruns the startup test of any source a failure
+     * has reset, so a retry reports the real state. */
     if (c2000_src.inited) {
-        return 0;
+        return wc_NoiseSrc_Init(&c2000_src);
     }
 
 #ifndef WOLFSSL_C2000_ENTROPY_NO_CLK_INIT
@@ -286,7 +286,7 @@ void wc_c2000_Entropy_Free(void)
     /* Teardown has to be idempotent: a second Free(), or a Free() with no
      * Init(), would otherwise write DCC registers with the peripheral clock
      * already gated off.  Guard on c2000_clkOn rather than inited - a
-     * startup-test failure returns before inited is set, but the clocks are
+     * configuration error returns before inited is set, but the clocks are
      * on by then, so inited would skip a teardown that is still owed. */
     if (c2000_clkOn)
 #endif

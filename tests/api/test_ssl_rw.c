@@ -173,9 +173,9 @@ int test_wolfSSL_writev(void)
 
     /* A total length that overflows is rejected. The buffers are never read
      * so the bogus length is safe. */
-    iov[0].iov_base = msg;
+    iov[0].iov_base = (void*)msg;
     iov[0].iov_len  = (size_t)-1;
-    iov[1].iov_base = msg;
+    iov[1].iov_base = (void*)msg;
     iov[1].iov_len  = 2;
     ExpectIntEQ(wolfSSL_writev(ssl_c, iov, 2), WC_NO_ERR_TRACE(BUFFER_E));
 
@@ -193,11 +193,11 @@ int test_wolfSSL_writev(void)
 
     /* Segments totalling less than FILE_BUFFER_SIZE use the static buffer. */
     small_sz = 96;
-    iov[0].iov_base = msg;
+    iov[0].iov_base = (void*)msg;
     iov[0].iov_len  = 32;
-    iov[1].iov_base = msg + 32;
+    iov[1].iov_base = (void*)(msg + 32);
     iov[1].iov_len  = 32;
-    iov[2].iov_base = msg + 64;
+    iov[2].iov_base = (void*)(msg + 64);
     iov[2].iov_len  = 32;
     ExpectIntEQ(wolfSSL_writev(ssl_c, iov, 3), small_sz);
     XMEMSET(reply, 0, sizeof(reply));
@@ -206,9 +206,9 @@ int test_wolfSSL_writev(void)
 
     /* Segments totalling more than FILE_BUFFER_SIZE allocate from the heap. */
     large_sz = (int)sizeof(msg);
-    iov[0].iov_base = msg;
+    iov[0].iov_base = (void*)msg;
     iov[0].iov_len  = 64;
-    iov[1].iov_base = msg + 64;
+    iov[1].iov_base = (void*)(msg + 64);
     iov[1].iov_len  = (size_t)large_sz - 64;
     ExpectIntEQ(wolfSSL_writev(ssl_c, iov, 2), large_sz);
     XMEMSET(reply, 0, sizeof(reply));
@@ -404,6 +404,88 @@ int test_wolfSSL_pending_api(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test wolfSSL_has_pending() with two DTLS records in one datagram.
+ *
+ * A DTLS read takes the whole datagram, so the second record is still
+ * buffered, though not decrypted, after the first one is read.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_has_pending_dtls_datagram(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_DTLS13))
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte reply[1];
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* cipher;
+    } params[] = {
+#ifndef WOLFSSL_NO_TLS12
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, NULL },
+#if !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && !defined(NO_SHA256) && defined(HAVE_ECC)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+          "ECDHE-RSA-AES128-SHA256" },
+#endif
+#endif
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, NULL },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, params[i].client_meth, params[i].server_meth), 0);
+        if (params[i].cipher != NULL) {
+            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i].cipher),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i].cipher),
+                WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        test_memio_clear_buffer(&test_ctx, 1);
+
+        ExpectIntEQ(wolfSSL_write(ssl_s, "A", 1), 1);
+        ExpectIntEQ(wolfSSL_write(ssl_s, "B", 1), 1);
+
+        /* Deliver both records in one datagram */
+        ExpectIntEQ(test_ctx.c_msg_count, 2);
+        if (EXPECT_SUCCESS()) {
+            test_ctx.c_msg_sizes[0] += test_ctx.c_msg_sizes[1];
+            test_ctx.c_msg_count = 1;
+        }
+
+        ExpectIntEQ(wolfSSL_read(ssl_c, reply, sizeof(reply)), 1);
+        ExpectIntEQ(reply[0], 'A');
+        ExpectIntEQ(wolfSSL_pending(ssl_c), 0);
+        ExpectIntEQ(wolfSSL_has_pending(ssl_c), 1);
+
+        ExpectIntEQ(wolfSSL_read(ssl_c, reply, sizeof(reply)), 1);
+        ExpectIntEQ(reply[0], 'B');
+        ExpectIntEQ(wolfSSL_has_pending(ssl_c), 0);
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -1494,6 +1576,106 @@ int test_wolfSSL_shutdown_no_notify(void)
     }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+/* Shut a connection down when the peer's next record cannot be processed.
+ *
+ * @param [in] method_c   Client method.
+ * @param [in] method_s   Server method.
+ * @param [in] peerAlert  0 to corrupt a record from the server, 1 to have the
+ *                        server send a fatal alert instead.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_ssl_rw_shutdown_bad_record(method_provider method_c,
+    method_provider method_s, int peerAlert)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[16];
+    int sentLen = 0;
+    int retryRet = WOLFSSL_FATAL_ERROR;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Read any session tickets so the next record is the bad one. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    if (peerAlert) {
+        /* An unknown record type gets a fatal alert with any cipher. */
+        ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+        ExpectIntEQ(test_ctx.s_buff[0], application_data);
+        if (EXPECT_SUCCESS()) {
+            test_ctx.s_buff[0] = no_type;
+        }
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+            WOLFSSL_FATAL_ERROR);
+        ExpectIntGT(test_ctx.c_len, 0);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_write(ssl_s, "hello", 5), 5);
+        if (EXPECT_SUCCESS()) {
+            test_ctx.c_buff[test_ctx.c_len - 1] ^= 0xff;
+        }
+    }
+
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    /* The record cannot be processed, so the shutdown fails. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntLT(ssl_c->error, 0);
+    ExpectIntNE(ssl_c->error, WC_NO_ERR_TRACE(WANT_READ));
+    sentLen = test_ctx.s_len;
+#ifdef WOLFSSL_SHUTDOWNONCE
+    if ((ssl_c != NULL) &&
+            (ssl_c->options.isClosed || ssl_c->options.connReset)) {
+        retryRet = WC_NO_ERR_TRACE(SSL_SHUTDOWN_ALREADY_DONE_E);
+    }
+#endif
+    /* Trying again still fails and sends nothing more. */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), retryRet);
+    ExpectIntLT(ssl_c->error, 0);
+    ExpectIntEQ(test_ctx.s_len, sentLen);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Test that a shutdown fails when the peer's next record is bad.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_shutdown_bad_record(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+#ifndef WOLFSSL_NO_TLS12
+    ExpectIntEQ(test_ssl_rw_shutdown_bad_record(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_rw_shutdown_bad_record(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 1), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+    ExpectIntEQ(test_ssl_rw_shutdown_bad_record(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_rw_shutdown_bad_record(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 1), TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }

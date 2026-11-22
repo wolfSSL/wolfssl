@@ -342,6 +342,9 @@ int wolfAsync_DevOpenThread(int *pDevId, void* threadId)
     int ret = 0;
     int devId = INVALID_DEVID;
 
+    if (pDevId == NULL)
+        return BAD_FUNC_ARG;
+
 #ifdef HAVE_CAVIUM
     ret = NitroxOpenDeviceDefault();
     if (ret >= 0)
@@ -363,9 +366,7 @@ int wolfAsync_DevOpenThread(int *pDevId, void* threadId)
 
     (void)threadId;
 
-    /* return devId if requested */
-    if (*pDevId)
-        *pDevId = devId;
+    *pDevId = devId;
 
     return ret;
 }
@@ -988,6 +989,9 @@ int wc_AsyncThreadCreate_ex(pthread_t *thread,
     int status = 1;
     pthread_attr_t attr;
     struct sched_param param;
+
+    if (thread == NULL || function == NULL)
+        return BAD_FUNC_ARG;
 
     status = pthread_attr_init(&attr);
     if (status !=0) {

@@ -64,9 +64,16 @@ static int wb_send_sink(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
 /* ------------------------------------------------- CsrDoStatusVerifyCb */
 
-#if !defined(NO_WOLFSSL_SERVER) && \
-    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+#if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+    (!defined(WOLFSSL_NO_TLS12) || \
+     (defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) && \
+      defined(HAVE_CERTIFICATE_STATUS_REQUEST))) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    #define WB_HAVE_CSR_VERIFY_CB
+#endif
+
+#ifdef WB_HAVE_CSR_VERIFY_CB
 
 static int g_verRet;    /* what the mock callback returns */
 
@@ -207,9 +214,7 @@ int main(void)
         goto done;
     }
 
-#if !defined(NO_WOLFSSL_SERVER) && \
-    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+#ifdef WB_HAVE_CSR_VERIFY_CB
     wb_csr_status_verify(ssl, ctx);
 #endif
     wb_do_certificate_status(ssl, ctx);

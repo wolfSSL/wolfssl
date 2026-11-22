@@ -25,8 +25,12 @@
 /* #define WOLFSSL_SCE_NO_HASH */
 
 #if defined(WOLFSSL_SCE_NO_TRNG)
-    /* use unsafe test seed if TRNG not used (not for production) */
-    #define WOLFSSL_GENSEED_FORTEST
+    #if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+        !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+        !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+        #error "SCE TRNG disabled: provide a real custom seed; test only: define WOLFSSL_GENSEED_FORTEST and WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
 #endif
 
 #define HAVE_ECC

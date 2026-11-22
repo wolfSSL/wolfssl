@@ -346,6 +346,9 @@ typedef const char wcchar[];
  * octets per cell, low octet first.  Convert at the boundary with
  * wc_UnpackOctets()/wc_PackOctets(), declared only where a cell is wider than
  * an octet - elsewhere the two layouts coincide and there is nothing to do. */
+#if (CHAR_BIT <= 0) || (CHAR_BIT % 8 != 0)
+    #error CHAR_BIT must be a positive multiple of 8.
+#endif
 #define WC_OCTETS_PER_BYTE       ((word32)(CHAR_BIT / 8))
 /* Cells needed to hold octetSz octets packed.  Divides before adding the
  * round-up so a near-WORD32_MAX octetSz cannot wrap.  octetSz is evaluated
@@ -893,7 +896,7 @@ enum {
                 wolfSSL_Malloc((s), (h), (t), __func__, __LINE__)
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                 #define XFREE(p, h, t)   \
-                    wolfSSL_Free(xp, h, t, __func__, __LINE__)
+                    wolfSSL_Free((p), h, t, __func__, __LINE__)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t, __func__, __LINE__); } while (0)
@@ -903,7 +906,7 @@ enum {
         #else
             #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                #define XFREE(p, h, t)   wolfSSL_Free(xp, h, t)
+                #define XFREE(p, h, t)   wolfSSL_Free((p), h, t)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t); } while (0)
@@ -1151,7 +1154,7 @@ enum {
             #define XSTRCASECMP(s1,s2) _stricmp((s1),(s2))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
@@ -1185,7 +1188,7 @@ enum {
             #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
@@ -1815,8 +1818,9 @@ enum wc_PkType {
 #endif
     WC_PK_TYPE_ED448_MAKE_PUB  = 54,
     WC_PK_TYPE_ED448_CHECK_KEY = 55,
+    WC_PK_TYPE_ED448_KEYGEN    = 56,
     #undef _WC_PK_TYPE_MAX
-    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_CHECK_KEY
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_KEYGEN
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
@@ -2028,6 +2032,30 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #endif
 #ifndef ALIGN256
     #define ALIGN256 WOLFSSL_ALIGN(256)
+#endif
+
+#ifndef WC_ALIGNOF
+    #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+        #define WC_ALIGNOF(T) _Alignof(T)
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define WC_ALIGNOF(T) __alignof__(T)
+    #elif defined(_MSC_VER)
+        #define WC_ALIGNOF(T) __alignof(T)
+    #endif
+#endif
+
+#ifndef WC_IS_ALIGNED
+    #define WC_IS_ALIGNED(p, a) \
+        ((((wc_ptr_t)(p)) & ((wc_ptr_t)(a) - 1)) == 0)
+#endif
+
+/* Capped at 16, the alignment malloc() guarantees on x86_64. */
+#if defined(WC_ALIGNOF) && (defined(__x86_64__) || defined(_M_X64)) && \
+    !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    (!defined(__STDC_HOSTED__) || (__STDC_HOSTED__ != 0)) && \
+    !defined(WC_NO_CTX_ALIGN_CHECK)
+    #define WC_CTX_IS_ALIGNED(p, T) \
+        WC_IS_ALIGNED(p, (WC_ALIGNOF(T) < 16) ? WC_ALIGNOF(T) : 16)
 #endif
 
 /* Define the unaligned type modifier across different compilers */
@@ -2368,7 +2396,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define __GNUC_PREREQ(maj, min) \
             ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
     #else
-        #define __GNUC_PREREQ(maj, min) (0) /* not GNUC */
+        #define __GNUC_PREREQ(maj, min) 0 /* not GNUC */
     #endif
 #endif
 
@@ -2426,7 +2454,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_GCC_DIAG_POP /* null expansion */
 #endif
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__ti__)
     #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
     #define PRAGMA_CLANG(str) _Pragma(str)
     #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
@@ -2443,7 +2471,10 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_DIAG_PUSH /* null expansion */
 #endif
 #ifndef PRAGMA
+/* for ti, PRAGMA is defined in the mcu plus sdk... */
+# if !(defined(__ti__) && defined(TI_MCU_PLUS_SDK))
     #define PRAGMA(str) /* null expansion */
+# endif
 #endif
 #ifndef PRAGMA_DIAG_POP
     #define PRAGMA_DIAG_POP /* null expansion */

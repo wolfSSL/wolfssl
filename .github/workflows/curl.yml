@@ -84,4 +84,9 @@ jobs:
 
     - name: Test curl
       working-directory: curl
-      run: make -j $(nproc) test-nonflaky
+      # Test 1964 segfaults on x86_64: curl's Curl_HMAC_init() places the
+      # wc_Sha256 contexts 8 bytes off 16-byte alignment. Drop the skip once
+      # curl fixes the HMAC context alignment.
+      env:
+        TFLAGS: ${{ matrix.curl_ref == 'master' && '!1964' || '' }}
+      run: make -j $(nproc) test-nonflaky TFLAGS="$TFLAGS"

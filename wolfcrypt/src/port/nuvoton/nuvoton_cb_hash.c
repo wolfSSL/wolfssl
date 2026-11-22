@@ -479,8 +479,13 @@ static int nuvoton_hash_dup_owned(int type, void* src, void* dst)
             wc_Sha256* d = (wc_Sha256*)dst;
             (void)s; (void)d;
     #ifdef NUVOTON_HASH_OWNS_W
+      #ifdef WC_SHA256_TSCRATCH_SIZE
+            d->W = (word32*)XMALLOC(WC_SHA256_TSCRATCH_SIZE,
+                d->heap, DYNAMIC_TYPE_DIGEST);
+      #else /* old FIPS */
             d->W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
                 d->heap, DYNAMIC_TYPE_DIGEST);
+      #endif
             if (d->W == NULL) {
                 ret = MEMORY_E;
             }
@@ -517,8 +522,13 @@ static int nuvoton_hash_dup_owned(int type, void* src, void* dst)
             wc_Sha512* d = (wc_Sha512*)dst;
             (void)s; (void)d;
     #ifdef NUVOTON_HASH_OWNS_W
+      #ifdef WC_SHA512_TSCRATCH_SIZE
+            d->W = (word64*)XMALLOC(WC_SHA512_TSCRATCH_SIZE +
+                WC_SHA512_BLOCK_SIZE, d->heap, DYNAMIC_TYPE_DIGEST);
+      #else /* old FIPS */
             d->W = (word64*)XMALLOC((sizeof(word64) * 16) +
                 WC_SHA512_BLOCK_SIZE, d->heap, DYNAMIC_TYPE_DIGEST);
+      #endif
             if (d->W == NULL) {
                 ret = MEMORY_E;
             }

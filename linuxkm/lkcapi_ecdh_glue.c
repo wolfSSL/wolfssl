@@ -82,6 +82,9 @@
 #define WOLFKM_ECDH_P384_NAME    ("ecdh-nist-p384")
 #define WOLFKM_ECDH_P384_DRIVER  ("ecdh-nist-p384" WOLFKM_ECDH_DRIVER_SUFFIX)
 
+#define WOLFKM_ECDH_P521_NAME    ("ecdh-nist-p521")
+#define WOLFKM_ECDH_P521_DRIVER  ("ecdh-nist-p521" WOLFKM_ECDH_DRIVER_SUFFIX)
+
 static int linuxkm_test_ecdh_nist_driver(const char * driver,
                                          const byte * b_pub,
                                          const byte * expected_a_pub,
@@ -96,12 +99,42 @@ static int ecdh_nist_p192_loaded = 0;
 #endif /* LINUXKM_ECC192 */
 static int ecdh_nist_p256_loaded = 0;
 static int ecdh_nist_p384_loaded = 0;
+#if defined(LINUXKM_ECC521)
+static int ecdh_nist_p521_loaded = 0;
+#endif /* LINUXKM_ECC521 */
 
+#if defined(LINUXKM_ECC521)
+    #define KM_ECDH_MAX_CURVE_LEN 66
+#else
+    #define KM_ECDH_MAX_CURVE_LEN 48
+#endif
+
+/* The kernel crypto API permits concurrent operations on a single tfm,
+ * with no serialization by the core, so the tfm context must be
+ * effectively read-only after set_secret (cf. the ML-DSA glue, the
+ * model for this pattern).  The former tfm-resident ecc_key and WC_RNG
+ * were each a race under that contract -- the key doubly so, since
+ * km_ecdh_gen_pub() promoted a private-only resident key in place with
+ * wc_ecc_make_pub().  The ctx now holds only the raw key octets: the
+ * private scalar, and the public point derived once at set_secret time
+ * (generated or imported), so km_ecdh_gen_pub() is a straight copy and
+ * each private-key operation deserializes a heap-transient ecc_key
+ * wired to its own transient WC_RNG (struct km_ecdh_op_state below). */
 struct km_ecdh_ctx {
-    WC_RNG       rng; /* needed for keypair gen and timing resistance*/
-    ecc_key *    key;
     int          curve_id;
     word32       curve_len;
+    byte         key_set; /* nonzero: priv and pub below are populated. */
+    byte         priv[KM_ECDH_MAX_CURVE_LEN];
+    byte         pub[2 * KM_ECDH_MAX_CURVE_LEN];
+};
+
+/* Per-operation state: a transient ecc_key deserialized from the ctx's
+ * stored octets (or generated into, at set_secret time), plus its own
+ * WC_RNG. */
+struct km_ecdh_op_state {
+    ecc_key key;
+    WC_RNG  rng;
+    byte    rng_inited;
 };
 
 /* shared ecdh callbacks */
@@ -118,6 +151,9 @@ static int          km_ecdh_nist_p192_init(struct crypto_kpp *tfm);
 #endif /* LINUXKM_ECC192 */
 static int          km_ecdh_nist_p256_init(struct crypto_kpp *tfm);
 static int          km_ecdh_nist_p384_init(struct crypto_kpp *tfm);
+#if defined(LINUXKM_ECC521)
+static int          km_ecdh_nist_p521_init(struct crypto_kpp *tfm);
+#endif /* LINUXKM_ECC521 */
 
 #if defined(LINUXKM_ECC192)
 static struct kpp_alg ecdh_nist_p192 = {
@@ -162,6 +198,27 @@ static struct kpp_alg ecdh_nist_p384 = {
     .init                  = km_ecdh_nist_p384_init,
     .exit                  = km_ecdh_exit,
 };
+
+#if defined(LINUXKM_ECC521)
+/* Note, the upstream kernel implementation (crypto/ecdh.c) has no
+ * P-521 arm, so the "ecdh-nist-p521" cra_name is unknown to
+ * crypto/testmgr.c: alg_test() takes its "notest" path and returns
+ * success at registration time, with or without fips_enabled.  KATs
+ * are instead supplied by linuxkm_test_ecdh_nist_p521() below. */
+static struct kpp_alg ecdh_nist_p521 = {
+    .base.cra_name         = WOLFKM_ECDH_P521_NAME,
+    .base.cra_driver_name  = WOLFKM_ECDH_P521_DRIVER,
+    .base.cra_priority     = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
+    .base.cra_module       = THIS_MODULE,
+    .base.cra_ctxsize      = sizeof(struct km_ecdh_ctx),
+    .set_secret            = km_ecdh_set_secret,
+    .generate_public_key   = km_ecdh_gen_pub,
+    .compute_shared_secret = km_ecdh_compute_shared_secret,
+    .max_size              = km_ecdh_max_size,
+    .init                  = km_ecdh_nist_p521_init,
+    .exit                  = km_ecdh_exit,
+};
+#endif /* LINUXKM_ECC521 */
 
 /* The ecdh secret is passed in this format:
  *    __________________________________________________________
@@ -226,6 +283,96 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
     return 0;
 }
 
+static void km_ecdh_op_free(struct km_ecdh_op_state *op)
+{
+    if (op == NULL)
+        return;
+    wc_ecc_free(&op->key);
+    if (op->rng_inited)
+        wc_FreeRng(&op->rng);
+    ForceZero(op, sizeof(*op));
+    free(op);
+}
+
+/* Allocate per-operation state with a freshly initialized ecc_key.
+ * need_rng selects whether a transient WC_RNG is initialized (and,
+ * under ECC_TIMING_RESISTANT, wired to the key).  Returns 0, -EINVAL,
+ * or -ENOMEM; *op_out is non-NULL only on success, and must be passed
+ * to km_ecdh_op_free() when done. */
+static int km_ecdh_op_new(int need_rng, struct km_ecdh_op_state **op_out)
+{
+    struct km_ecdh_op_state *op = NULL;
+    int                      err;
+
+    *op_out = NULL;
+
+    op = (struct km_ecdh_op_state *)malloc(sizeof(*op));
+    if (unlikely(op == NULL))
+        return -ENOMEM;
+    XMEMSET(op, 0, sizeof(*op));
+
+    err = wc_ecc_init(&op->key);
+    if (unlikely(err < 0)) {
+        free(op);
+        return -ENOMEM;
+    }
+
+    if (need_rng) {
+        err = LKCAPI_INITRNG(&op->rng);
+        if (err == 0) {
+            op->rng_inited = 1;
+            #ifdef ECC_TIMING_RESISTANT
+            err = wc_ecc_set_rng(&op->key, &op->rng);
+            #endif /* ECC_TIMING_RESISTANT */
+        }
+        if (unlikely(err)) {
+            km_ecdh_op_free(op);
+            if (err == WC_NO_ERR_TRACE(MEMORY_E))
+                return -ENOMEM;
+            else
+                return -EINVAL;
+        }
+    }
+
+    *op_out = op;
+    return 0;
+}
+
+/* Materialize per-operation state from the ctx's stored private scalar
+ * (see struct km_ecdh_op_state). */
+static int km_ecdh_op_init(const struct km_ecdh_ctx *ctx, int need_rng,
+                           struct km_ecdh_op_state **op_out)
+{
+    struct km_ecdh_op_state *op = NULL;
+    int                      err;
+
+    *op_out = NULL;
+
+    if (! ctx->key_set)
+        return -EINVAL;
+
+    err = km_ecdh_op_new(need_rng, &op);
+    if (err)
+        return err;
+
+    err = wc_ecc_import_private_key_ex(ctx->priv, ctx->curve_len, NULL, 0,
+                                       &op->key, ctx->curve_id);
+    if ((err == 0) && unlikely(op->key.type != ECC_PRIVATEKEY_ONLY))
+        err = WC_NO_ERR_TRACE(WC_FAILURE);
+
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_ECDH
+        pr_err("%s: per-op key materialization failed: %d\n",
+               WOLFKM_ECDH_DRIVER, err);
+        #endif /* WOLFKM_DEBUG_ECDH */
+        km_ecdh_op_free(op);
+        return -EINVAL;
+    }
+
+    *op_out = op;
+    return 0;
+}
+
 /*
  * Set the secret. Kernel crypto expects secret is passed with
  * struct kpp_secret as header, followed by secret data as payload.
@@ -238,9 +385,10 @@ static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
 static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                               unsigned int len)
 {
-    int                  err = 0;
-    struct km_ecdh_ctx * ctx = NULL;
-    struct ecdh          params;
+    int                       err = 0;
+    struct km_ecdh_ctx *      ctx = NULL;
+    struct km_ecdh_op_state * op = NULL;
+    struct ecdh               params;
 
     ctx = kpp_tfm_ctx(tfm);
     XMEMSET(&params, 0, sizeof(params));
@@ -251,7 +399,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
     #endif
     case 32: /* p256 */
     case 48: /* p384 */
-    #if defined(HAVE_ECC521)
+    #if defined(LINUXKM_ECC521)
     case 66: /* p521 */
     #endif
         break;
@@ -259,6 +407,13 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
         /* key has not been inited or not supported. */
         return -EINVAL;
     }
+
+    /* destroy-first, per kernel setkey semantics, and ahead of all
+     * validation including the secret decode, matching the other glues'
+     * setters: any rejected set_secret leaves the transform keyless. */
+    ctx->key_set = 0;
+    ForceZero(ctx->priv, sizeof(ctx->priv));
+    ForceZero(ctx->pub, sizeof(ctx->pub));
 
     if (km_ecdh_decode_secret(buf, len, &params) < 0) {
         #ifdef WOLFKM_DEBUG_ECDH
@@ -268,27 +423,17 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
         return -EINVAL;
     }
 
-    if (ctx->key->type == ECC_PRIVATEKEY ||
-        ctx->key->type == ECC_PRIVATEKEY_ONLY) {
-        /* private key already set. force clear it. */
-        wc_ecc_free(ctx->key);
-
-        err = wc_ecc_init(ctx->key);
-        if (unlikely(err < 0)) {
-            return -ENOMEM;
-        }
-
-        #ifdef ECC_TIMING_RESISTANT
-        err = wc_ecc_set_rng(ctx->key, &ctx->rng);
-        if (unlikely(err < 0)) {
-            return -ENOMEM;
-        }
-        #endif /* ECC_TIMING_RESISTANT */
-    }
-
     if (!params.key || !params.key_size) {
-        /* Empty secret payload. Generate our own ecc key pair */
-        err = wc_ecc_make_key_ex(&ctx->rng, ctx->curve_len, ctx->key,
+        /* Empty secret payload. Generate our own ecc key pair, on a
+         * transient key (see struct km_ecdh_op_state), and store its
+         * raw octets. */
+        word32 priv_len = ctx->curve_len;
+
+        err = km_ecdh_op_new(1 /* need_rng */, &op);
+        if (err)
+            return err;
+
+        err = wc_ecc_make_key_ex(&op->rng, ctx->curve_len, &op->key,
                                  ctx->curve_id);
 
         if (unlikely(err)) {
@@ -296,15 +441,31 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
             pr_err("%s: wc_ecc_make_key_ex failed: %d\n",
                    WOLFKM_ECDH_DRIVER, err);
             #endif
+            km_ecdh_op_free(op);
             return -EINVAL;
         }
 
         /* We should get back ecc private key type. */
-        if (unlikely(ctx->key->type != ECC_PRIVATEKEY)) {
+        if (unlikely(op->key.type != ECC_PRIVATEKEY)) {
             #ifdef WOLFKM_DEBUG_ECDH
-            pr_err("%s: wc_ecc_import_unsigned bad key type: %d\n",
-                   WOLFKM_ECDH_DRIVER, ctx->key->type);
+            pr_err("%s: wc_ecc_make_key_ex bad key type: %d\n",
+                   WOLFKM_ECDH_DRIVER, op->key.type);
             #endif
+            km_ecdh_op_free(op);
+            return -EINVAL;
+        }
+
+        PRIVATE_KEY_UNLOCK();
+        err = wc_ecc_export_private_only(&op->key, ctx->priv, &priv_len);
+        PRIVATE_KEY_LOCK();
+        if (unlikely(err || (priv_len != ctx->curve_len))) {
+            #ifdef WOLFKM_DEBUG_ECDH
+            pr_err("%s: wc_ecc_export_private_only returned: %d, %d\n",
+                   WOLFKM_ECDH_DRIVER, err, priv_len);
+            #endif
+            /* scrub any partial export. */
+            ForceZero(ctx->priv, sizeof(ctx->priv));
+            km_ecdh_op_free(op);
             return -EINVAL;
         }
     }
@@ -318,27 +479,75 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
             return -EINVAL;
         }
 
-        /* finally import private key */
+        /* Validate the private scalar by a transient import (see
+         * struct km_ecdh_op_state), derive the public point from it
+         * while we are at it, and store the scalar verbatim.  need_rng
+         * for the timing-resistant point multiplication in
+         * wc_ecc_make_pub(). */
+        err = km_ecdh_op_new(1 /* need_rng */, &op);
+        if (err)
+            return err;
+
         err = wc_ecc_import_private_key_ex((byte *)params.key, ctx->curve_len,
-                                           NULL, 0, ctx->key, ctx->curve_id);
+                                           NULL, 0, &op->key, ctx->curve_id);
 
         if (unlikely(err)) {
             #ifdef WOLFKM_DEBUG_ECDH
-            pr_err("%s: wc_ecc_import_unsigned failed: %d\n",
+            pr_err("%s: wc_ecc_import_private_key_ex failed: %d\n",
                    WOLFKM_ECDH_DRIVER, err);
             #endif
+            km_ecdh_op_free(op);
             return -EINVAL;
         }
 
         /* We should get back ecc priv only key type. */
-        if (unlikely(ctx->key->type != ECC_PRIVATEKEY_ONLY)) {
+        if (unlikely(op->key.type != ECC_PRIVATEKEY_ONLY)) {
             #ifdef WOLFKM_DEBUG_ECDH
-            pr_err("%s: wc_ecc_import_unsigned bad key type: %d\n",
-                   WOLFKM_ECDH_DRIVER, ctx->key->type);
+            pr_err("%s: wc_ecc_import_private_key_ex bad key type: %d\n",
+                   WOLFKM_ECDH_DRIVER, op->key.type);
             #endif
+            km_ecdh_op_free(op);
+            return -EINVAL;
+        }
+
+        err = wc_ecc_make_pub(&op->key, NULL);
+        if (unlikely(err)) {
+            #ifdef WOLFKM_DEBUG_ECDH
+            pr_err("%s: wc_ecc_make_pub failed: %d\n",
+                   WOLFKM_ECDH_DRIVER, err);
+            #endif
+            km_ecdh_op_free(op);
+            return -EINVAL;
+        }
+
+        XMEMCPY(ctx->priv, params.key, ctx->curve_len);
+    }
+
+    /* Both paths now hold a full keypair in op->key: capture the public
+     * point so km_ecdh_gen_pub() needs no ECC operations. */
+    {
+        word32 pub_x_len = ctx->curve_len;
+        word32 pub_y_len = ctx->curve_len;
+
+        err = wc_ecc_export_public_raw(&op->key,
+                        /* x coord */  ctx->pub, &pub_x_len,
+                        /* y coord */  ctx->pub + ctx->curve_len, &pub_y_len);
+        if (unlikely(err || (pub_x_len != ctx->curve_len) ||
+                     (pub_y_len != ctx->curve_len)))
+        {
+            #ifdef WOLFKM_DEBUG_ECDH
+            pr_err("%s: wc_ecc_export_public_raw returned: %d, %d, %d\n",
+                   WOLFKM_ECDH_DRIVER, err, pub_x_len, pub_y_len);
+            #endif
+            ForceZero(ctx->priv, sizeof(ctx->priv));
+            km_ecdh_op_free(op);
             return -EINVAL;
         }
     }
+
+    km_ecdh_op_free(op);
+    ctx->key_set = 1;
+    err = 0;
 
     #ifdef WOLFKM_DEBUG_ECDH
     pr_info("info: exiting km_ecdh_set_secret\n");
@@ -364,13 +573,8 @@ static void km_ecdh_exit(struct crypto_kpp *tfm)
 
     ctx = kpp_tfm_ctx(tfm);
 
-    if (ctx->key) {
-        wc_ecc_free(ctx->key);
-        free(ctx->key);
-        ctx->key = NULL;
-    }
-
-    wc_FreeRng(&ctx->rng);
+    /* the ctx holds the raw private scalar. */
+    ForceZero(ctx, sizeof(*ctx));
 
     #ifdef WOLFKM_DEBUG_ECDH
     pr_info("info: exiting km_ecdh_exit\n");
@@ -382,7 +586,6 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
 {
     struct km_ecdh_ctx * ctx = NULL;
     int                   ret = 0;
-    int key_inited = 0;
 
     ctx = kpp_tfm_ctx(tfm);
     XMEMSET(ctx, 0, sizeof(struct km_ecdh_ctx));
@@ -390,7 +593,7 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     ctx->curve_len = 0;
 
     ret = wc_ecc_get_curve_size_from_id(curve_id);
-    if (ret <= 0) {
+    if ((ret <= 0) || (ret > KM_ECDH_MAX_CURVE_LEN)) {
         #ifdef WOLFKM_DEBUG_ECDH
         pr_err("%s: unsupported curve_id: %d\n",
                WOLFKM_ECDH_DRIVER, curve_id);
@@ -401,54 +604,12 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
         ctx->curve_len = (word32) ret;
     }
 
-    ret = LKCAPI_INITRNG(&ctx->rng);
-    if (ret) {
-        #ifdef WOLFKM_DEBUG_ECDH
-        pr_err("%s: init rng returned: %d\n", WOLFKM_ECDH_DRIVER, ret);
-        #endif /* WOLFKM_DEBUG_ECDH */
-        return -ENOMEM;
-    }
-
-    ctx->key = (ecc_key *)malloc(sizeof(ecc_key));
-    if (!ctx->key) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    ret = wc_ecc_init(ctx->key);
-    if (ret < 0) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    key_inited = 1;
-
-    #ifdef ECC_TIMING_RESISTANT
-    ret = wc_ecc_set_rng(ctx->key, &ctx->rng);
-    if (ret < 0) {
-        ret = -ENOMEM;
-        goto out;
-    }
-    #endif /* ECC_TIMING_RESISTANT */
-
     #ifdef WOLFKM_DEBUG_ECDH
     pr_info("info: exiting km_ecdh_init: curve_id %d,  curve_len %d\n",
             ctx->curve_id, ctx->curve_len);
     #endif /* WOLFKM_DEBUG_ECDH */
 
-out:
-
-    if (ret != 0) {
-        if (ctx->key) {
-            if (key_inited)
-                wc_ecc_free(ctx->key);
-            free(ctx->key);
-            ctx->key = NULL;
-        }
-        wc_FreeRng(&ctx->rng);
-    }
-
-    return ret;
+    return 0;
 }
 
 #if defined(LINUXKM_ECC192)
@@ -468,6 +629,13 @@ static int km_ecdh_nist_p384_init(struct crypto_kpp *tfm)
     return km_ecdh_init(tfm, ECC_SECP384R1);
 }
 
+#if defined(LINUXKM_ECC521)
+static int km_ecdh_nist_p521_init(struct crypto_kpp *tfm)
+{
+    return km_ecdh_init(tfm, ECC_SECP521R1);
+}
+#endif /* LINUXKM_ECC521 */
+
 /*
  * Generate the ecc public key:
  *   - req->src should be null
@@ -479,10 +647,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
     struct crypto_kpp *  tfm = NULL;
     struct km_ecdh_ctx * ctx = NULL;
     int                  err = -1;
-    byte *               pub = NULL;
     word32               raw_pub_len = 0;
-    word32               pub_x_len = 0;
-    word32               pub_y_len = 0;
 
     if (req->src != NULL || req->dst == NULL) {
         return -EINVAL;
@@ -497,7 +662,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
     #endif
     case 32: /* p256 */
     case 48: /* p384 */
-    #if defined(HAVE_ECC521)
+    #if defined(LINUXKM_ECC521)
     case 66: /* p521 */
     #endif
         break;
@@ -507,8 +672,12 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
     }
 
     raw_pub_len = (ctx->curve_len << 1);
-    pub_x_len = ctx->curve_len;
-    pub_y_len = ctx->curve_len;
+
+    if (! ctx->key_set) {
+        /* no secret has been set. */
+        err = -EINVAL;
+        goto ecdh_gen_pub_end;
+    }
 
     if (raw_pub_len > req->dst_len) {
         #ifdef WOLFKM_DEBUG_ECDH
@@ -519,51 +688,12 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
         goto ecdh_gen_pub_end;
     }
 
-    pub = malloc(raw_pub_len);
-    if (!pub) {
-        err = -ENOMEM;
-        goto ecdh_gen_pub_end;
-    }
-
-    XMEMSET(pub, 0, raw_pub_len);
-
-    if (ctx->key->type == ECC_PRIVATEKEY_ONLY) {
-        /* ecc key was imported as priv only.
-         * generate the public part. */
-        err = wc_ecc_make_pub(ctx->key, NULL);
-        if (err) {
-            #ifdef WOLFKM_DEBUG_ECDH
-            pr_err("error: ecc_make_pub returned: %d\n", err);
-            #endif /* WOLFKM_DEBUG_ECDH */
-            goto ecdh_gen_pub_end;
-        }
-    }
-
-    /* ecc key must have priv and pub now. */
-    if (ctx->key->type != ECC_PRIVATEKEY) {
-        err = -EINVAL;
-        goto ecdh_gen_pub_end;
-    }
-
-    err = wc_ecc_export_public_raw(ctx->key,
-                    /* x coord */  pub, &pub_x_len,
-                    /* y coord */  pub + ctx->curve_len, &pub_y_len);
-
-    if (err || pub_x_len != ctx->curve_len || pub_y_len != ctx->curve_len) {
-        #ifdef WOLFKM_DEBUG_ECDH
-        pr_err("error: ecc export pub returned: err=%d, x=%d, y=%d\n", err,
-               pub_x_len, pub_y_len);
-        #endif /* WOLFKM_DEBUG_ECDH */
-        err = -EINVAL;
-        goto ecdh_gen_pub_end;
-    }
-
-    /* copy generated pub to req->dst */
-    scatterwalk_map_and_copy(pub, req->dst, 0, raw_pub_len, 1);
+    /* the public point was derived and stored at set_secret time --
+     * copy it out directly. */
+    scatterwalk_map_and_copy(ctx->pub, req->dst, 0, raw_pub_len, 1);
 
     err = 0;
 ecdh_gen_pub_end:
-    if (pub) { free(pub); pub = NULL; }
 
     #ifdef WOLFKM_DEBUG_ECDH
     pr_info("info: exiting km_ecdh_gen_pub: %d\n", err);
@@ -578,14 +708,15 @@ ecdh_gen_pub_end:
  */
 static int km_ecdh_compute_shared_secret(struct kpp_request *req)
 {
-    struct crypto_kpp *  tfm = NULL;
-    struct km_ecdh_ctx * ctx = NULL;
-    int                  err = -1;
-    byte *               pub = NULL;
-    word32               raw_pub_len = 0;
-    ecc_key *            ecc_pub = NULL;
-    byte *               shared_secret = NULL;
-    word32               shared_secret_len = 0;
+    struct crypto_kpp *       tfm = NULL;
+    struct km_ecdh_ctx *      ctx = NULL;
+    struct km_ecdh_op_state * op = NULL;
+    int                       err = -1;
+    byte *                    pub = NULL;
+    word32                    raw_pub_len = 0;
+    ecc_key *                 ecc_pub = NULL;
+    byte *                    shared_secret = NULL;
+    word32                    shared_secret_len = 0;
 
     if (req->src == NULL || req->dst == NULL) {
         return -EINVAL;
@@ -600,7 +731,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
     #endif
     case 32: /* p256 */
     case 48: /* p384 */
-    #if defined(HAVE_ECC521)
+    #if defined(LINUXKM_ECC521)
     case 66: /* p521 */
     #endif
         break;
@@ -657,8 +788,15 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
         goto ecdh_shared_secret_end;
     }
 
+    /* per-operation key, deserialized locally from the ctx's stored
+     * private scalar (see struct km_ecdh_op_state); need_rng for
+     * ECC_TIMING_RESISTANT point operations. */
+    err = km_ecdh_op_init(ctx, 1 /* need_rng */, &op);
+    if (err)
+        goto ecdh_shared_secret_end;
+
     PRIVATE_KEY_UNLOCK();
-    err = wc_ecc_shared_secret(ctx->key, ecc_pub, shared_secret,
+    err = wc_ecc_shared_secret(&op->key, ecc_pub, shared_secret,
                                &shared_secret_len);
     PRIVATE_KEY_LOCK();
 
@@ -693,6 +831,8 @@ ecdh_shared_secret_end:
         free(ecc_pub);
         ecc_pub = NULL;
     }
+
+    km_ecdh_op_free(op);
 
     #ifdef WOLFKM_DEBUG_ECDH
     pr_info("info: exiting km_ecdh_compute_shared_secret: %d\n", err);
@@ -884,6 +1024,100 @@ static int linuxkm_test_ecdh_nist_p384(void)
     return rc;
 }
 
+
+#if defined(LINUXKM_ECC521)
+static int linuxkm_test_ecdh_nist_p521(void)
+{
+    int rc = 0;
+    /* No reference values exist in kernel crypto/testmgr.h (the
+     * upstream kernel has no P-521 ECDH); these vectors were generated
+     * with wolfCrypt, with the shared secret computed through the same
+     * import-private-only + wc_ecc_make_pub + wc_ecc_shared_secret
+     * sequence the glue uses. */
+    static const byte secret[] = {
+#ifdef LITTLE_ENDIAN_ORDER
+        0x02, 0x00, /* type */
+        0x48, 0x00, /* len */
+        0x42, 0x00, /* key_size */
+#else
+        0x00, 0x02, /* type */
+        0x00, 0x48, /* len */
+        0x00, 0x42, /* key_size */
+#endif
+        0x00, 0x09, 0xF0, 0x7E, 0xCA, 0xD3, 0xD6, 0xE1,
+        0xCA, 0x8C, 0x7A, 0x12, 0xE5, 0x11, 0x66, 0x25,
+        0x72, 0x70, 0xCC, 0xBF, 0x38, 0x22, 0x99, 0xE9,
+        0x0C, 0x67, 0xFF, 0x36, 0x3E, 0x39, 0xE6, 0x0D,
+        0xA2, 0xCA, 0xAF, 0xF2, 0x2E, 0x3C, 0x24, 0x66,
+        0xC3, 0x7C, 0xB2, 0xE8, 0x34, 0x66, 0x35, 0xEB,
+        0x3C, 0x2B, 0xDF, 0xBF, 0x27, 0x01, 0xF0, 0x74,
+        0x2F, 0x74, 0x93, 0x42, 0x29, 0xE2, 0x5B, 0x20,
+        0xED, 0xEB
+    };
+
+    /* 132 byte pub key */
+    static const byte b_pub[] = {
+        0x01, 0x09, 0x23, 0x72, 0xB7, 0x0B, 0x9A, 0x0E,
+        0xDC, 0xC2, 0xC3, 0xE5, 0xC4, 0xEF, 0x2C, 0x82,
+        0xD0, 0xC2, 0xC0, 0x1A, 0x27, 0xC9, 0xCD, 0x87,
+        0x08, 0xFC, 0x63, 0x67, 0x14, 0x8B, 0x70, 0x48,
+        0x17, 0x65, 0x07, 0xF8, 0x8E, 0x7F, 0x88, 0xD6,
+        0x61, 0xD8, 0x5E, 0x3B, 0x82, 0x3A, 0x60, 0x66,
+        0xE6, 0xF9, 0xFF, 0x4D, 0x86, 0xA3, 0x6E, 0x0B,
+        0xA1, 0xCE, 0x2A, 0x16, 0x1E, 0x23, 0x73, 0xDA,
+        0x3D, 0x6C, 0x00, 0x85, 0xA3, 0x4B, 0xB2, 0x7E,
+        0xAF, 0xB2, 0xD6, 0x6F, 0xB4, 0x1B, 0x84, 0x77,
+        0x26, 0xC9, 0x67, 0x57, 0x93, 0x67, 0x7A, 0x32,
+        0x85, 0xE0, 0x6B, 0xA9, 0x58, 0xDC, 0x2D, 0x79,
+        0x8E, 0xE1, 0x88, 0x45, 0x98, 0x5F, 0x47, 0x73,
+        0xF0, 0x62, 0x7A, 0xC5, 0xD1, 0xD9, 0xAC, 0x25,
+        0x64, 0xAE, 0xD2, 0x53, 0x46, 0x97, 0x31, 0x75,
+        0x0E, 0x6E, 0x5A, 0xEB, 0x57, 0xD0, 0x58, 0xD5,
+        0xDD, 0xC3, 0x32, 0x8E
+    };
+
+    /* 132 byte pub key */
+    static const byte expected_a_pub[] = {
+        0x00, 0x90, 0xF5, 0x3C, 0x1A, 0xE3, 0xAF, 0x05,
+        0x1E, 0xD7, 0xDB, 0xDA, 0x3C, 0x50, 0xC8, 0x8F,
+        0x32, 0x1F, 0x3F, 0x29, 0xE3, 0x3C, 0xFF, 0xCD,
+        0x3A, 0xE9, 0x30, 0x69, 0x5A, 0x09, 0xA6, 0xAC,
+        0xD7, 0x61, 0x25, 0xB0, 0xD5, 0x54, 0xDA, 0xC8,
+        0x0A, 0x8E, 0xB9, 0x63, 0x32, 0x04, 0xAF, 0x82,
+        0x2C, 0x99, 0xE9, 0x68, 0xE9, 0xF1, 0x53, 0xE7,
+        0x03, 0xB3, 0x6D, 0x45, 0xB1, 0x4D, 0xBB, 0xEF,
+        0xC5, 0xA8, 0x01, 0x07, 0x4F, 0xB4, 0x6E, 0x43,
+        0x2D, 0x82, 0xB0, 0xF0, 0xAF, 0x6B, 0x77, 0x9E,
+        0x9A, 0x7F, 0xDD, 0x53, 0x3F, 0xB8, 0x4A, 0xF8,
+        0x60, 0x81, 0xBA, 0x88, 0x6E, 0x84, 0x14, 0xB1,
+        0xA5, 0x28, 0xCD, 0xF4, 0x2C, 0x87, 0x26, 0x04,
+        0x7C, 0x51, 0x46, 0x0E, 0x24, 0x5A, 0x75, 0xE3,
+        0xE8, 0xB6, 0xA1, 0x1D, 0x31, 0x01, 0xDB, 0x12,
+        0x24, 0xEC, 0xF1, 0x1A, 0x4A, 0x1A, 0xFD, 0x5C,
+        0x5F, 0x33, 0x5A, 0xC0
+    };
+
+    /* 66 byte shared secret */
+    static const byte shared_secret[] = {
+        0x01, 0xBC, 0x92, 0xA0, 0xE5, 0x47, 0x6F, 0xB7,
+        0xEF, 0xE3, 0xB7, 0x2D, 0xB6, 0x52, 0xC2, 0x4D,
+        0xD8, 0xD1, 0x37, 0xD0, 0xA7, 0x5C, 0x34, 0x02,
+        0x7E, 0xAA, 0xC2, 0xD0, 0x94, 0x11, 0x3C, 0xCB,
+        0x4F, 0xBF, 0x23, 0xBB, 0x23, 0x8E, 0xC0, 0x74,
+        0x52, 0x55, 0x22, 0xF9, 0xBC, 0xBD, 0xBD, 0xE5,
+        0x96, 0x05, 0x56, 0xE0, 0x4F, 0x5F, 0xF6, 0x5B,
+        0x06, 0xAA, 0xE5, 0x09, 0xD4, 0xB1, 0x7C, 0x86,
+        0x75, 0x00
+    };
+
+    rc = linuxkm_test_ecdh_nist_driver(WOLFKM_ECDH_P521_DRIVER,
+                                       b_pub, expected_a_pub, sizeof(b_pub),
+                                       secret, sizeof(secret),
+                                       shared_secret, sizeof(shared_secret));
+    return rc;
+}
+#endif /* LINUXKM_ECC521 */
+
 static int linuxkm_test_ecdh_nist_driver(const char * driver,
                                          const byte * b_pub,
                                          const byte * expected_a_pub,
@@ -1003,6 +1237,50 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
 
     if (memcmp(shared_secret, sg_virt(req->dst), shared_s_len)) {
         pr_err("error: shared secret does not match\n");
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+
+    /* a rejected set_secret must leave the transform keyless -- no
+     * operation against the previously installed key -- and a restored
+     * secret must work again.  the truncated blob fails the secret
+     * decode, which with the destroy-first ordering still clears the
+     * resident key octets. */
+    err = crypto_kpp_set_secret(tfm, secret, secret_len - 1);
+    if (err != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_kpp_set_secret (truncated) returned %d, "
+               "expected %d\n", err, -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    kpp_request_set_input(req, NULL, 0);
+    sg_init_one(&dst, dst_buf, dst_len);
+    kpp_request_set_output(req, &dst, dst_len);
+    err = crypto_kpp_generate_public_key(req);
+    if (err != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_kpp_generate_public_key after rejected "
+               "set_secret returned %d, expected %d\n", err,
+               -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    err = crypto_kpp_set_secret(tfm, secret, secret_len);
+    if (err) {
+        pr_err("error: crypto_kpp_set_secret (restore) returned: %d\n",
+               err);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    err = crypto_kpp_generate_public_key(req);
+    if (err) {
+        pr_err("error: crypto_kpp_generate_public_key after restored "
+               "set_secret returned: %d\n", err);
+        test_rc = BAD_FUNC_ARG;
+        goto test_ecdh_nist_end;
+    }
+    if (memcmp(expected_a_pub, sg_virt(req->dst), pub_len)) {
+        pr_err("error: crypto_kpp_generate_public_key after restored "
+               "set_secret: wrong output\n");
         test_rc = BAD_FUNC_ARG;
         goto test_ecdh_nist_end;
     }

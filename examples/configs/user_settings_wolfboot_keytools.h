@@ -113,7 +113,13 @@ extern "C" {
 /* ------------------------------------------------- */
 /* Post-Quantum Algorithms */
 /* ------------------------------------------------- */
-#define WOLFSSL_EXPERIMENTAL_SETTINGS
+/* WOLFSSL_EXPERIMENTAL_SETTINGS is not needed for ML-DSA, LMS or XMSS. Only
+ * define it for features that are still experimental; see the
+ * WOLFSSL_EXPERIMENTAL_SETTINGS check in wolfssl/wolfcrypt/settings.h and the
+ * options that require --enable-experimental in configure.ac. */
+#if 0
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 
 #if 1 /* ML-DSA (FIPS 204) */
     #define WOLFSSL_HAVE_MLDSA

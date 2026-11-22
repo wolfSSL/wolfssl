@@ -2209,7 +2209,7 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
                              word32* outLen);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH parameters to DER format.
 
     \return 0 on success
@@ -2232,7 +2232,7 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
 int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH public key to DER format.
 
     \return 0 on success
@@ -2255,7 +2255,7 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH private key to DER format.
 
     \return 0 on success
@@ -2830,7 +2830,7 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 outLen,
                           int withAlg);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 private key from DER format.
 
     \return 0 on success
@@ -2856,7 +2856,7 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                 ed25519_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 private key from DER format with control over
     validation of a bundled public key. When the DER contains a public key
     and trusted is 0, the public key is validated with
@@ -2893,7 +2893,7 @@ int wc_Ed25519PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
                                   ed25519_key* key, word32 inSz, int trusted);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 public key from DER format.
 
     \return 0 on success
@@ -2918,7 +2918,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
                                ed25519_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 key to DER format.
     The [1] publicKey is written as an RFC 5958 BIT STRING, which
     wolfSSL releases before this change cannot read; wc_Ed25519PrivateKeyToDer()
@@ -2944,7 +2944,7 @@ int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
                        word32 outLen);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 private key to DER format.
 
     \return Size on success
@@ -2968,7 +2968,7 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
                                word32 outLen);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 public key to DER format.
 
     \return Size on success
@@ -2993,7 +2993,7 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
         word32 outLen, int withAlg);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 private key from DER format.
 
     \return 0 on success
@@ -3019,7 +3019,7 @@ int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
                               ed448_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 private key from DER format with control over
     validation of a bundled public key. When the DER contains a public key
     and trusted is 0, the public key is validated with wc_ed448_check_key(),
@@ -3056,7 +3056,7 @@ int wc_Ed448PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
                                 ed448_key* key, word32 inSz, int trusted);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 public key from DER format.
 
     \return 0 on success
@@ -3081,7 +3081,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
                              ed448_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 key to DER format.
     The [1] publicKey is written as an RFC 5958 BIT STRING, which
     wolfSSL releases before this change cannot read; wc_Ed448PrivateKeyToDer()
@@ -3106,7 +3106,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 outLen);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 private key to DER format.
 
     \return Size on success
@@ -3130,7 +3130,7 @@ int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output,
                              word32 outLen);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 public key to DER format.
 
     \return Size on success
@@ -3639,7 +3639,15 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     This function copies the subject name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    The format is similar to, but not byte-identical with, OpenSSL's
+    X509_NAME_oneline(): wolfSSL also escapes "\\", does not hex-escape
+    bytes outside 0x20-0x7E (OpenSSL writes them as "\\xHH"), and always
+    separates attributes with "/", even within a multi-valued RDN (OpenSSL
+    uses "+"). Compare against strings produced by this library rather
+    than by OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.
@@ -3673,7 +3681,15 @@ int wc_GetDecodedCertSubject(const struct DecodedCert* cert,
     This function copies the issuer name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    The format is similar to, but not byte-identical with, OpenSSL's
+    X509_NAME_oneline(): wolfSSL also escapes "\\", does not hex-escape
+    bytes outside 0x20-0x7E (OpenSSL writes them as "\\xHH"), and always
+    separates attributes with "/", even within a multi-valued RDN (OpenSSL
+    uses "+"). Compare against strings produced by this library rather
+    than by OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.
@@ -4205,7 +4221,12 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     \param cert the DecodedCert struct that is to be associated with this
     callback.
-    \param cb function to register as the time callback.
+    \param cb function to register as the unknown extension callback.
+
+    \note Each OID arc is passed to the callback as a word16, so arcs with
+    values > 65535 are truncated. Use wc_SetUnknownExtCallback32() in new
+    code. When both a word16 and a word32 callback are registered on the same
+    DecodedCert, only the word32 callback is invoked.
 
     _Example_
     \code
@@ -4220,13 +4241,13 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         // failed to set the callback
     }
 
-    // oid: Array of integers that are the dot separated values in an oid.
+    // oid: Array of word16 that are the dot separated values in an oid.
     // oidSz: Number of values in oid.
-    // crit: Whether the extension was mark critical.
+    // crit: Whether the extension was marked critical.
     // der: The der encoding of the content of the extension.
     // derSz: The size in bytes of the der encoding.
-    int myCustomExtCallback(const word16* oid, word32 oidSz, int crit,
-                            const unsigned char* der, word32 derSz) {
+    int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
+                             const unsigned char* der, word32 derSz) {
 
         // Logic to parse extension goes here.
 
@@ -4243,9 +4264,71 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     \sa ParseCert
     \sa wc_SetCustomExtension
+    \sa wc_SetUnknownExtCallback32
 */
 int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
+
+/*!
+    \ingroup ASN
+
+    \brief This function registers a callback that will be used anytime
+    wolfSSL encounters an unknown X.509 extension in a certificate while
+    parsing a certificate. It behaves exactly like wc_SetUnknownExtCallback()
+    except that each OID arc is passed to the callback as a word32, so arcs
+    with values > 65535 are represented without truncation.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned if cert is NULL.
+
+    \param cert the DecodedCert struct that is to be associated with this
+    callback.
+    \param cb function to register as the unknown extension callback.
+
+    \note A word32 callback takes precedence over a word16 one: when both
+    wc_SetUnknownExtCallback() and wc_SetUnknownExtCallback32() have been
+    called on the same DecodedCert, only the word32 callback is invoked.
+
+    _Example_
+    \code
+    int ret = 0;
+    // Unknown extension callback prototype
+    int myUnknownExtCallback32(const word32* oid, word32 oidSz, int crit,
+                               const unsigned char* der, word32 derSz);
+
+    // Register it
+    ret = wc_SetUnknownExtCallback32(cert, myUnknownExtCallback32);
+    if (ret != 0) {
+        // failed to set the callback
+    }
+
+    // oid: Array of word32 that are the dot separated values in an oid.
+    // oidSz: Number of values in oid.
+    // crit: Whether the extension was marked critical.
+    // der: The der encoding of the content of the extension.
+    // derSz: The size in bytes of the der encoding.
+    int myUnknownExtCallback32(const word32* oid, word32 oidSz, int crit,
+                               const unsigned char* der, word32 derSz) {
+
+        // Logic to parse extension goes here.
+
+        // NOTE: by returning zero, we are accepting this extension and
+        // informing wolfSSL that it is acceptable. If you find an extension
+        // that you do not find acceptable, you should return an error. The
+        // standard behavior upon encountering an unknown extension with the
+        // critical flag set is to return ASN_CRIT_EXT_E.
+        return 0;
+    }
+    \endcode
+
+    \sa ParseCert
+    \sa wc_SetCustomExtension
+    \sa wc_SetUnknownExtCallback
+    \sa wc_SetUnknownExtCallback32Ex
+*/
+int wc_SetUnknownExtCallback32(DecodedCert* cert,
+                                             wc_UnknownExtCallback32 cb);
+
 /*!
     \ingroup ASN
 

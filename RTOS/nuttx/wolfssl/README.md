@@ -90,6 +90,11 @@ Skip to step 6
     nsh> wolfssl_client_server
     ```
 ## Notes
+- `user_settings.h` now requires a real seed source. For supported STM32
+  boards, enable the NuttX RNG peripheral and define `STM32_NUTTX_RNG` for both
+  wolfSSL and the application. This path requires wolfSSL 5.9.4 or newer; the
+  Kconfig fallback archive still defaults to 5.5.4. Alternatively provide
+  `CUSTOM_RAND_GENERATE_SEED` from the board integration.
 - Developed using the following targets:
     - STM NUCLEO-L552ZE-Q (Cortex-M33)
     - STM NUCLEO-H753ZI

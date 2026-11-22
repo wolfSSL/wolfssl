@@ -1289,7 +1289,6 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
     return ret;
 }
 
-#ifndef NO_WOLFSSL_SERVER
 /* Set the callback that verifies a stapled OCSP response.
  *
  * @param [in, out] ctx    SSL/TLS context.
@@ -1304,7 +1303,6 @@ void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
         ctx->ocspStatusVerifyCbArg = cbArg;
     }
 }
-#endif /* NO_WOLFSSL_SERVER */
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST ||
         * HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 

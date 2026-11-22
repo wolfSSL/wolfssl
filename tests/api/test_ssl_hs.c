@@ -1072,6 +1072,23 @@ int test_wolfSSL_set_connect_state_dh(void)
     return EXPECT_RESULT();
 }
 
+#ifdef HAVE_SUPPORTED_CURVES
+/* Offer the first compiled-in group that is not FFDHE. */
+static WC_MAYBE_UNUSED int test_dh_use_non_ffdhe_group(WOLFSSL* ssl)
+{
+    static const word16 groups[] = {
+        WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_X25519, WOLFSSL_ML_KEM_768
+    };
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    size_t i;
+
+    for (i = 0; (i < XELEM_CNT(groups)) && (ret != WOLFSSL_SUCCESS); i++) {
+        ret = wolfSSL_UseSupportedCurve(ssl, groups[i]);
+    }
+    return ret;
+}
+#endif
+
 /* DH parameters taken from the context are the object's own copy, given back
  * at the end of the handshake and taken again when next needed.
  *
@@ -1148,8 +1165,7 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
      * without supported curves sends no groups at all, so there is nothing to
      * narrow down. */
 #ifdef HAVE_SUPPORTED_CURVES
-    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl_c, WOLFSSL_ECC_SECP256R1),
-        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dh_use_non_ffdhe_group(ssl_c), WOLFSSL_SUCCESS);
 #endif
 
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
@@ -1172,8 +1188,7 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
     wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
     wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
 #ifdef HAVE_SUPPORTED_CURVES
-    ExpectIntEQ(wolfSSL_UseSupportedCurve(ssl_c, WOLFSSL_ECC_SECP256R1),
-        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dh_use_non_ffdhe_group(ssl_c), WOLFSSL_SUCCESS);
 #endif
     test_memio_clear_buffer(&test_ctx, 0);
     test_memio_clear_buffer(&test_ctx, 1);

@@ -1480,6 +1480,15 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         case WC_ARIA_128_GCM_TYPE:
         case WC_ARIA_192_GCM_TYPE:
         case WC_ARIA_256_GCM_TYPE:
+            if (ctx->enc && (ctx->cipher.aria.nonceSz == 0 ||
+                             ctx->authIvUsed)) {
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+                ctx->authBufferLen = 0;
+                *outl = 0;
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
             if ((ctx->authBuffer && ctx->authBufferLen > 0)
              || (ctx->authBufferLen == 0)) {
                 if (ctx->enc)
@@ -1520,8 +1529,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ctx->authIncIv = 0;
                 }
                 else {
-                    /* Clear IV, since IV reuse is not recommended for AES GCM. */
+                    /* Clear IV since ARIA GCM must not reuse an IV. */
                     XMEMSET(ctx->iv, 0, ARIA_BLOCK_SIZE);
+                    ctx->authIvUsed = 1;
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
@@ -3228,23 +3238,33 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA)
     case WC_EVP_PKEY_RSA:
-        if (out == NULL) {
-            if (ctx->pkey->rsa == NULL) {
-                WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
-                return WOLFSSL_FAILURE;
-            }
-            len = wolfSSL_RSA_size(ctx->pkey->rsa);
-            if (len <= 0) {
-                WOLFSSL_MSG("Error getting RSA size.");
-                return WOLFSSL_FAILURE;
-            }
-            if (outLen == NULL) {
-                WOLFSSL_MSG("outLen is NULL.");
-                return WOLFSSL_FAILURE;
-            }
+    {
+        int rsaSz;
 
-            *outLen = (size_t)len;
+        if (ctx->pkey->rsa == NULL) {
+            WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        if (outLen == NULL) {
+            WOLFSSL_MSG("outLen is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        rsaSz = wolfSSL_RSA_size(ctx->pkey->rsa);
+        if (rsaSz <= 0) {
+            WOLFSSL_MSG("Error getting RSA size.");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (out == NULL) {
+            *outLen = (size_t)rsaSz;
             return WOLFSSL_SUCCESS;
+        }
+
+        /* wolfSSL_RSA_private_decrypt() writes into a buffer of RSA_size()
+         * bytes. */
+        if (*outLen < (size_t)rsaSz) {
+            WOLFSSL_MSG("Output buffer too small.");
+            return WOLFSSL_FAILURE;
         }
 
         len = wolfSSL_RSA_private_decrypt((int)inLen, (unsigned char*)in, out,
@@ -3254,6 +3274,7 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
             *outLen = (size_t)len;
             return WOLFSSL_SUCCESS;
         }
+    }
 #endif /* NO_RSA */
 
     case WC_EVP_PKEY_EC:
@@ -3308,6 +3329,9 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      const unsigned char *in, size_t inLen)
 {
     int len = 0;
+#if !defined(NO_RSA)
+    int rsaSz;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_encrypt");
 
@@ -3331,23 +3355,28 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA)
     case WC_EVP_PKEY_RSA:
-        if (out == NULL) {
-            if (ctx->pkey->rsa == NULL) {
-                WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
-                return WOLFSSL_FAILURE;
-            }
-            len = wolfSSL_RSA_size(ctx->pkey->rsa);
-            if (len <= 0) {
-                WOLFSSL_MSG("Error getting RSA size.");
-                return WOLFSSL_FAILURE;
-            }
-            if (outLen == NULL) {
-                WOLFSSL_MSG("outLen is NULL.");
-                return WOLFSSL_FAILURE;
-            }
+        if (ctx->pkey->rsa == NULL) {
+            WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        if (outLen == NULL) {
+            WOLFSSL_MSG("outLen is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+        rsaSz = wolfSSL_RSA_size(ctx->pkey->rsa);
+        if (rsaSz <= 0) {
+            WOLFSSL_MSG("Error getting RSA size.");
+            return WOLFSSL_FAILURE;
+        }
 
-            *outLen = (size_t)len;
+        if (out == NULL) {
+            *outLen = (size_t)rsaSz;
             return WOLFSSL_SUCCESS;
+        }
+
+        if (*outLen < (size_t)rsaSz) {
+            WOLFSSL_MSG("Output buffer too small.");
+            return WOLFSSL_FAILURE;
         }
 
         len = wolfSSL_RSA_public_encrypt((int)inLen, (unsigned char *)in, out,
@@ -3499,8 +3528,12 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         }
         if ((int)*siglen < bytes)
             return WOLFSSL_FAILURE;
-        ret = wolfSSL_DSA_do_sign(tbs, sig, ctx->pkey->dsa);
-        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        /* wolfssl_local_dsa_do_sign() takes the length as an int, and wolfCrypt
+         * rejects anything longer than this anyway. */
+        if (tbslen > WC_MAX_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
+        ret = wolfssl_local_dsa_do_sign(tbs, (int)tbslen, sig, ctx->pkey->dsa);
+        /* wolfssl_local_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
             return ret;
         if (bytes == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
@@ -3630,8 +3663,12 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
         if (bytes <= 0 || siglen < (size_t)bytes * 2)
             return WOLFSSL_FAILURE;
-        if (wolfSSL_DSA_do_verify(tbs, (unsigned char *)sig, ctx->pkey->dsa,
-            &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
+        /* wolfssl_local_dsa_do_verify() takes the length as an int, and wolfCrypt
+         * rejects anything longer than this anyway. */
+        if (tbslen > WC_MAX_DIGEST_SIZE)
+            return WOLFSSL_FAILURE;
+        if (wolfssl_local_dsa_do_verify(tbs, (int)tbslen, (unsigned char *)sig,
+            ctx->pkey->dsa, &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
      }
@@ -4649,8 +4686,8 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         {
             return WOLFSSL_FAILURE;
         }
-        ret = wolfSSL_DSA_do_sign(md, sigret, pkey->dsa);
-        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        ret = wolfssl_local_dsa_do_sign(md, (int)mdsize, sigret, pkey->dsa);
+        /* wolfssl_local_dsa_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
             return ret;
         *siglen = (unsigned int)(bytes * 2);
@@ -5206,9 +5243,17 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
 #ifdef HAVE_ECC
     else if (ctx->pctx->pkey->type == WC_EVP_PKEY_EC) {
         if (sig == NULL) {
-            /* SEQ + INT + INT */
-            *siglen = (size_t)ecc_sets[ctx->pctx->pkey->ecc->group->curve_idx].
-                size * 2 + 8;
+            WOLFSSL_EC_KEY* key = ctx->pctx->pkey->ecc;
+            int sigSz;
+
+            if (key == NULL || (key->inSet == 0 &&
+                    SetECKeyInternal(key) != WOLFSSL_SUCCESS)) {
+                return WOLFSSL_FAILURE;
+            }
+            sigSz = wc_ecc_sig_size((ecc_key*)key->internal);
+            if (sigSz <= 0)
+                return WOLFSSL_FAILURE;
+            *siglen = (size_t)sigSz;
             return WOLFSSL_SUCCESS;
         }
     }
@@ -5258,8 +5303,10 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
             len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, NULL);
             if (len > 0 && (size_t)len <= *siglen)
                 len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
+            else
+                len = 0;
             wolfSSL_ECDSA_SIG_free(ecdsaSig);
-            if (len == 0)
+            if (len <= 0)
                 break;
             *siglen = (size_t)len;
             ret = WOLFSSL_SUCCESS;
@@ -5480,7 +5527,8 @@ int wolfSSL_EVP_read_pw_string(char* buf, int bufSz, const char* banner, int v)
 }
 #endif /* WOLFSSL_APACHE_HTTPD */
 
-#if !defined(NO_PWDBASED) && !defined(NO_SHA) && !defined(NO_HMAC)
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_SHA) && \
+    !defined(NO_HMAC)
 int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
                                                const unsigned char *salt,
                                                int saltlen, int iter,
@@ -5499,14 +5547,21 @@ int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
 
     ret = wc_PBKDF2((byte*)out, (byte*)pass, passlen, (byte*)salt, saltlen,
                     iter, keylen, WC_SHA);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* Key is derived; a salt under 128 bits is the expected indicator
+     * (SP 800-132 sec 5.1). Any other one fails below. */
+    if (ret == WC_FIPS_NOT_APPROVED && saltlen < 16)
+        ret = 0;
+#endif
     if (ret == 0)
         return WOLFSSL_SUCCESS;
     else
         return WOLFSSL_FAILURE;
 }
-#endif /* !NO_PWDBASED !NO_SHA*/
+#endif /* HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA && !NO_HMAC */
 
-#if !defined(NO_PWDBASED) && !defined(NO_HMAC)
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_HMAC)
 int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const unsigned char *salt,
                                            int saltlen, int iter,
@@ -5528,12 +5583,19 @@ int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 
     ret = wc_PBKDF2((byte*)out, (byte*)pass, passlen, (byte*)salt, saltlen,
                     iter, keylen, pbkdf2HashType);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* Key is derived; a salt under 128 bits is the expected indicator
+     * (SP 800-132 sec 5.1). Any other one fails below. */
+    if (ret == WC_FIPS_NOT_APPROVED && saltlen < 16)
+        ret = 0;
+#endif
     if (ret == 0)
         return WOLFSSL_SUCCESS;
     else
         return WOLFSSL_FAILURE;
 }
-#endif /* !NO_PWDBASED */
+#endif /* HAVE_PBKDF2 && !NO_PWDBASED && !NO_HMAC */
 
 
 #if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
@@ -7597,6 +7659,9 @@ void wolfSSL_EVP_init(void)
                                const byte* iv, int enc)
     {
         int ret = 0;
+#ifdef HAVE_ARIA
+        int ivProvided = (iv != NULL);
+#endif
         (void)key;
         (void)iv;
         (void)enc;
@@ -8416,9 +8481,12 @@ void wolfSSL_EVP_init(void)
                 != WOLFSSL_SUCCESS) {
                 return WOLFSSL_FAILURE;
             }
+            if (ivProvided)
+                ctx->authIvUsed = 0;
+            else if (type != NULL)
+                ctx->authIvUsed = 1;
         }
-    #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
-            * HAVE_FIPS_VERSION >= 2 */
+    #endif /* HAVE_ARIA */
 
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -9139,9 +9207,13 @@ void wolfSSL_EVP_init(void)
             case WC_ARIA_256_GCM_TYPE :
                 WOLFSSL_MSG("ARIA GCM");
                 if (ctx->enc) {
+                    if (ctx->cipher.aria.nonceSz == 0 || ctx->authIvUsed)
+                        return WC_NO_ERR_TRACE(BAD_STATE_E);
                     ret = wc_AriaEncrypt(&ctx->cipher.aria, dst, src, len,
                                          ctx->iv, ctx->ivSz, NULL, 0,
                                          ctx->authTag, ctx->authTagSz);
+                    if (ret == 0)
+                        ctx->authIvUsed = 1;
                 }
                 else {
                     ret = wc_AriaDecrypt(&ctx->cipher.aria, dst, src, len,
@@ -13600,6 +13672,54 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 }
 #endif /* WOLFSSL_DH_EXTRA */
 
+#if (defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+     !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
+     defined(WC_ENABLE_ASYM_KEY_IMPORT)) || \
+    (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT))
+/* PrintPubKeyRaw is a helper function for wolfSSL_EVP_PKEY_print_public
+ * to print a public key held as a single byte string.
+ * Parameters:
+ * out     bio to output dump data
+ * keyType key OID sum, used for the name
+ * pub     public key data
+ * pubSz   public key data size
+ * indent  the number of spaces for indent
+ * Returns 1 on success, 0 on failure.
+*/
+static int PrintPubKeyRaw(WOLFSSL_BIO* out, int keyType, const byte* pub,
+    word32 pubSz, int indent)
+{
+    const char* nameStr;
+    int res;
+
+    nameStr = wolfSSL_OBJ_nid2ln(oid2nid((word32)keyType, oidKeyType));
+    res = nameStr != NULL;
+    if (res == WOLFSSL_SUCCESS) {
+        res = Indent(out, indent) >= 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = wolfSSL_BIO_write(out, nameStr, (int)XSTRLEN(nameStr)) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = wolfSSL_BIO_write(out, " Public-Key:\n", 13) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        res = Indent(out, indent) >= 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        /* print pub element */
+        res = wolfSSL_BIO_write(out, "pub:\n", 5) > 0;
+    }
+    if (res == WOLFSSL_SUCCESS) {
+        /* upper case */
+        res = PrintHexWithColon(out, pub, (int)pubSz, indent + 4, 0);
+    }
+
+    return res;
+}
+#endif
+
 #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
     !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT)
@@ -13617,12 +13737,10 @@ static int PrintPubKeyMlDsa(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, WOLFSSL_ASN1_PCTX* pctx)
 {
     const byte* pub = NULL;
-    const char* nameStr = NULL;
     word32  pubSz = 0;
     word32  inOutIdx = 0;
     int     keyType = ANONk;
     int     res = WOLFSSL_SUCCESS;
-    char    line[32] = { 0 };
     (void)pctx;
 
     if (out == NULL || pkey == NULL || pkeySz <= 0) {
@@ -13646,30 +13764,7 @@ static int PrintPubKeyMlDsa(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
               ;
     }
     if (res == WOLFSSL_SUCCESS) {
-        nameStr = wolfSSL_OBJ_nid2ln(oid2nid((word32)keyType, oidKeyType));
-        res = nameStr != NULL;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        res = Indent(out, indent) >= 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        res = wolfSSL_BIO_write(out, nameStr, (int)XSTRLEN(nameStr)) > 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        XSTRNCPY(line, " Public-Key:\n", sizeof(line));
-        res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        res = Indent(out, indent) >= 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        /* print pub element */
-        XSTRNCPY(line, "pub:\n", sizeof(line));
-        res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
-    }
-    if (res == WOLFSSL_SUCCESS) {
-        /* upper case */
-        res = PrintHexWithColon(out, pub, (int)pubSz, indent + 4, 0);
+        res = PrintPubKeyRaw(out, keyType, pub, pubSz, indent);
     }
 
     return res;
@@ -13709,7 +13804,9 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     defined(WOLFSSL_DH_EXTRA) || \
     (defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
      !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
-     defined(WC_ENABLE_ASYM_KEY_IMPORT))
+     defined(WC_ENABLE_ASYM_KEY_IMPORT)) || \
+    (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) || \
+    (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT))
     if (indent < 0) {
         indent = 0;
     }
@@ -13798,6 +13895,36 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
             res = WOLFSSL_UNKNOWN;       /* not supported algo */
 #endif
             break;
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        case WC_EVP_PKEY_ED25519:
+            if (pkey->ed25519 == NULL) {
+                res = WOLFSSL_FAILURE;
+            }
+            else if (!pkey->ed25519->pubKeySet) {
+                res = WOLFSSL_UNKNOWN;
+            }
+            else {
+                res = PrintPubKeyRaw(out, ED25519k, pkey->ed25519->p,
+                    ED25519_PUB_KEY_SIZE, indent);
+            }
+            break;
+#endif
+
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+        case WC_EVP_PKEY_ED448:
+            if (pkey->ed448 == NULL) {
+                res = WOLFSSL_FAILURE;
+            }
+            else if (!pkey->ed448->pubKeySet) {
+                res = WOLFSSL_UNKNOWN;
+            }
+            else {
+                res = PrintPubKeyRaw(out, ED448k, pkey->ed448->p,
+                    ED448_PUB_KEY_SIZE, indent);
+            }
+            break;
+#endif
 
         default:
             res = WOLFSSL_UNKNOWN;      /* not supported algo */

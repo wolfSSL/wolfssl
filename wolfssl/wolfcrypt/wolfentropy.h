@@ -30,6 +30,8 @@
 
 #ifdef HAVE_ENTROPY_MEMUSE
 
+#include <wolfssl/wolfcrypt/entropy-timers.h>
+
 #if defined(ENTROPY_SCALE_FACTOR) && FIPS_VERSION3_GE(5,2,4) && \
     FIPS_VERSION3_NE(6,0,0)
     #error "ENTROPY_SCALE_FACTOR defined elsewhere than wolfEntropy.h"
@@ -47,9 +49,9 @@
     /* Full strength, conditioned entropy is requested of MemUse Entropy. */
     #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
         (HAVE_FIPS_VERSION >= 2)
-        #define ENTROPY_SCALE_FACTOR (4)
+        #define ENTROPY_SCALE_FACTOR 4
     #else
-        #define ENTROPY_SCALE_FACTOR (1)
+        #define ENTROPY_SCALE_FACTOR 1
     #endif
 #endif
 

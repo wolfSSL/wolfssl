@@ -157,6 +157,78 @@ int test_wc_ecc_get_curve_id_from_params(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_ECC) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+/* Decode an ecc_sets[] hex parameter, length can be odd */
+static word32 ecc_curve_param_to_bin(const char* hex, byte* bin)
+{
+    word32 hexSz;
+    word32 binSz = 0;
+    word32 i;
+
+    hexSz = (word32)XSTRLEN(hex);
+    i = hexSz % 2;
+
+    if (i == 1) {
+        bin[binSz] = (byte)HexCharToByte(hex[0]);
+        binSz++;
+    }
+
+    for (; i < hexSz; i += 2) {
+        bin[binSz] = (byte)(((byte)HexCharToByte(hex[i]) << 4) |
+            (byte)HexCharToByte(hex[i + 1]));
+        binSz++;
+    }
+
+    return binSz;
+}
+#endif
+
+/* Test that wc_ecc_get_curve_id_from_params() finds every enabled curve */
+int test_wc_ecc_get_curve_id_from_params_all(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST)
+    const ecc_set_type* dp;
+    byte prime[MAX_ECC_ORDER_BYTES];
+    byte Af[MAX_ECC_ORDER_BYTES];
+    byte Bf[MAX_ECC_ORDER_BYTES];
+    byte order[MAX_ECC_ORDER_BYTES];
+    byte Gx[MAX_ECC_ORDER_BYTES];
+    byte Gy[MAX_ECC_ORDER_BYTES];
+    word32 primeSz, AfSz, BfSz, orderSz, GxSz, GySz;
+    int primeBits;
+    byte topByte;
+
+    XMEMSET(prime, 0, sizeof(prime));
+
+    for (dp = ecc_sets; dp->size != 0; dp++) {
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp->id == ECC_CURVE_CUSTOM) {
+            continue;
+        }
+    #endif
+        primeSz = ecc_curve_param_to_bin(dp->prime, prime);
+        AfSz    = ecc_curve_param_to_bin(dp->Af, Af);
+        BfSz    = ecc_curve_param_to_bin(dp->Bf, Bf);
+        orderSz = ecc_curve_param_to_bin(dp->order, order);
+        GxSz    = ecc_curve_param_to_bin(dp->Gx, Gx);
+        GySz    = ecc_curve_param_to_bin(dp->Gy, Gy);
+
+        /* fieldSize is the prime's exact bit length, 521 for P-521 */
+        primeBits = (int)(primeSz - 1) * 8;
+        for (topByte = prime[0]; topByte != 0; topByte >>= 1) {
+            primeBits++;
+        }
+        ExpectIntEQ(wc_ecc_get_curve_id_from_params(primeBits, prime, primeSz,
+            Af, AfSz, Bf, BfSz, order, orderSz, Gx, GxSz, Gy, GySz,
+            dp->cofactor), dp->id);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_ecc_get_curve_id_from_dp_params(void)
 {
     EXPECT_DECLS;
@@ -317,7 +389,7 @@ int test_wc_ecc_check_key_invalid_pubkey(void)
     (ECC_MIN_KEY_SZ <= 224) && \
     !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_KCAPI_ECC)
     ecc_key key;
@@ -538,6 +610,61 @@ int test_wc_ecc_signVerify_hash(void)
     return EXPECT_RESULT();
 } /*  END test_wc_ecc_sign_hash */
 
+/* Testing deterministic signing with a digest length that does not match the
+ * hash type. */
+int test_wc_ecc_deterministic_hash_type(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(WC_NO_RNG) && \
+    (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) && \
+    !defined(NO_ECC256) && !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(PLUTON_CRYPTO_ECC) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA)
+    ecc_key key;
+    WC_RNG  rng;
+    byte    digest[WC_SHA384_DIGEST_SIZE];
+    byte    sig[ECC_BUFSIZE];
+    word32  sigLen;
+
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(digest, 0x5c, sizeof(digest));
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, KEY32, &key), 0);
+
+    /* SHA-256 hash type with a SHA-256 sized digest. */
+    ExpectIntEQ(wc_ecc_set_deterministic_ex(&key, 1, WC_HASH_TYPE_SHA256), 0);
+    sigLen = (word32)sizeof(sig);
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_SHA256_DIGEST_SIZE, sig, &sigLen,
+        &rng, &key), 0);
+
+    /* SHA-256 hash type with a SHA-384 sized digest. */
+    sigLen = (word32)sizeof(sig);
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_SHA384_DIGEST_SIZE, sig, &sigLen,
+        &rng, &key), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    /* SHA-384 hash type with a SHA-256 sized digest. */
+    ExpectIntEQ(wc_ecc_set_deterministic_ex(&key, 1, WC_HASH_TYPE_SHA384), 0);
+    sigLen = (word32)sizeof(sig);
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_SHA256_DIGEST_SIZE, sig, &sigLen,
+        &rng, &key), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&key);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Testing wc_ecc_shared_secret()
  */
@@ -639,6 +766,201 @@ int test_wc_ecc_shared_secret(void)
     return EXPECT_RESULT();
 } /* END tests_wc_ecc_shared_secret */
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && !defined(NO_ECC_MAKE_PUB)
+#define TEST_ECC_ORDER_WIDER_THAN_FIELD
+/* Load a private key from raw bytes or DER and check its ECDH result with
+ * peer is expected. */
+static int test_ecc_order_key_ecdh(const byte* priv, word32 privSz,
+    const byte* der, word32 derSz, ecc_key* peer, int curveId, WC_RNG* rng,
+    const byte* expected, word32 expectedSz)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    byte    secret[MAX_ECC_ORDER_BYTES];
+    word32  secretSz = (word32)sizeof(secret);
+    word32  idx = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    if (der == NULL) {
+        ExpectIntEQ(wc_ecc_import_private_key_ex(priv, privSz, NULL, 0, &key,
+            curveId), 0);
+    }
+#if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+    else {
+        ExpectIntEQ(wc_EccPrivateKeyDecode(der, &idx, &key, derSz), 0);
+    }
+#else
+    (void)derSz;
+    (void)idx;
+#endif
+#ifdef ECC_TIMING_RESISTANT
+    ExpectIntEQ(wc_ecc_set_rng(&key, rng), 0);
+#else
+    (void)rng;
+#endif
+    ExpectIntEQ(wc_ecc_shared_secret(&key, peer, secret, &secretSz), 0);
+    ExpectIntEQ(secretSz, expectedSz);
+    ExpectBufEQ(secret, expected, expectedSz);
+    wc_ecc_free(&key);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/*
+ * Testing the private key n - 1 on curves whose order has one bit more than
+ * the field. [n - 1]G is -G, so its x-ordinate is Gx.
+ */
+int test_wc_ecc_order_wider_than_field(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_ORDER_WIDER_THAN_FIELD
+    static const int curves[] = {
+        ECC_SECP160R1, ECC_SECP160R2, ECC_SECP160K1, ECC_SECP224K1
+    };
+    const ecc_set_type* dp = NULL;
+    ecc_key key;
+    ecc_key peer;
+    WC_RNG  rng;
+    char    d[2 * MAX_ECC_ORDER_BYTES + 1];
+    byte    secret[MAX_ECC_ORDER_BYTES];
+    byte    gx[MAX_ECC_ORDER_BYTES];
+    byte    gy[MAX_ECC_ORDER_BYTES];
+    byte    x[MAX_ECC_ORDER_BYTES];
+    byte    y[MAX_ECC_ORDER_BYTES];
+    byte    priv[MAX_ECC_ORDER_BYTES];
+#if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+    byte    der[ECC_BUFSIZE];
+    int     derSz = 0;
+#endif
+    word32  privSz;
+    word32  secretSz;
+    word32  gxSz;
+    word32  gySz;
+    word32  xSz;
+    word32  ySz;
+    size_t  len = 0;
+    int     i;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < (int)(sizeof(curves) / sizeof(curves[0])); i++) {
+        if (wc_ecc_get_curve_idx(curves[i]) < 0) {
+            continue;
+        }
+        ExpectNotNull(dp = wc_ecc_get_curve_params(
+            wc_ecc_get_curve_idx(curves[i])));
+        if (dp == NULL) {
+            break;
+        }
+        /* The order is prime, so n - 1 only changes the last hex digit. */
+        if (dp != NULL) {
+            len = XSTRLEN(dp->order);
+        }
+        ExpectIntGT(len, 0);
+        ExpectIntLT(len, sizeof(d));
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(d, dp->order, len + 1);
+            d[len - 1]--;
+        }
+
+        XMEMSET(&key, 0, sizeof(key));
+        XMEMSET(&peer, 0, sizeof(peer));
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_ecc_init(&peer), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&peer, dp->Gx, dp->Gy, NULL,
+            curves[i]), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key, dp->Gx, dp->Gy, d, curves[i]),
+            0);
+    #ifdef ECC_TIMING_RESISTANT
+        ExpectIntEQ(wc_ecc_set_rng(&key, &rng), 0);
+    #endif
+        gxSz = (word32)sizeof(gx);
+        gySz = (word32)sizeof(gy);
+        ExpectIntEQ(wc_ecc_export_public_raw(&peer, gx, &gxSz, gy, &gySz), 0);
+
+        secretSz = (word32)sizeof(secret);
+        ExpectIntEQ(wc_ecc_shared_secret(&key, &peer, secret, &secretSz), 0);
+        ExpectIntEQ(secretSz, gxSz);
+        ExpectBufEQ(secret, gx, gxSz);
+
+        /* The public key made from n - 1 is -G: same x, other y. */
+        ExpectIntEQ(wc_ecc_make_pub(&key, NULL), 0);
+        xSz = (word32)sizeof(x);
+        ySz = (word32)sizeof(y);
+        ExpectIntEQ(wc_ecc_export_public_raw(&key, x, &xSz, y, &ySz), 0);
+        ExpectIntEQ(xSz, gxSz);
+        ExpectBufEQ(x, gx, gxSz);
+        ExpectIntEQ(ySz, gySz);
+        ExpectBufNE(y, gy, gySz);
+
+        /* The raw export stays at the prime size, which n - 1 exceeds. */
+        privSz = (word32)sizeof(priv);
+        ExpectIntEQ(wc_ecc_export_private_only(&key, priv, &privSz),
+            WC_NO_ERR_TRACE(BUFFER_E));
+
+    #if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+        /* DER holds the private key at the size of the order. */
+        ExpectIntGT(derSz = wc_EccKeyToDer(&key, der, (word32)sizeof(der)), 0);
+        ExpectIntEQ(wc_EccKeyDerSize(&key, 1), derSz);
+        ExpectIntEQ(test_ecc_order_key_ecdh(NULL, 0, der, (word32)derSz,
+            &peer, curves[i], &rng, gx, gxSz), TEST_SUCCESS);
+        ExpectIntGT(derSz = wc_EccPrivateKeyToDer(&key, der,
+            (word32)sizeof(der)), 0);
+        ExpectIntEQ(wc_EccKeyDerSize(&key, 0), derSz);
+        ExpectIntEQ(der[5], ASN_OCTET_STRING);
+        ExpectIntEQ(der[6], gxSz + 1);
+        ExpectIntEQ(test_ecc_order_key_ecdh(NULL, 0, der, (word32)derSz,
+            &peer, curves[i], &rng, gx, gxSz), TEST_SUCCESS);
+        /* Without a curve id the order size still selects the curve. */
+        if ((curves[i] == ECC_SECP160R1) || (curves[i] == ECC_SECP224K1)) {
+            ExpectIntEQ(test_ecc_order_key_ecdh(der + 7, gxSz + 1, NULL, 0,
+                &peer, ECC_CURVE_DEF, &rng, gx, gxSz), TEST_SUCCESS);
+        }
+        ExpectIntLT(wc_EccPrivateKeyToDer(&key, der, (word32)derSz - 1), 0);
+    #endif
+
+        /* A small key exports raw at the prime size, which
+         * wc_ecc_import_unsigned() reads, and in DER at the order size. */
+        wc_ecc_free(&key);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ecc_init(&key), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key, dp->Gx, dp->Gy, "01",
+            curves[i]), 0);
+        privSz = (word32)sizeof(priv);
+        ExpectIntEQ(wc_ecc_export_private_only(&key, priv, &privSz), 0);
+        ExpectIntEQ(privSz, gxSz);
+        ExpectIntEQ(priv[privSz - 1], 1);
+        ExpectIntEQ(test_ecc_order_key_ecdh(priv, privSz, NULL, 0, &peer,
+            curves[i], &rng, gx, gxSz), TEST_SUCCESS);
+        xSz = (word32)sizeof(x);
+        ySz = (word32)sizeof(y);
+        privSz = (word32)sizeof(priv);
+        ExpectIntEQ(wc_ecc_export_private_raw(&key, x, &xSz, y, &ySz, priv,
+            &privSz), 0);
+        ExpectIntEQ(privSz, gxSz);
+        ExpectIntEQ(priv[privSz - 1], 1);
+    #if !defined(NO_ASN) && !defined(NO_ASN_CRYPT)
+        ExpectIntGT(wc_EccPrivateKeyToDer(&key, der, (word32)sizeof(der)), 0);
+        ExpectIntEQ(der[6], gxSz + 1);
+        ExpectIntEQ(der[7], 0);
+    #endif
+
+        wc_ecc_free(&peer);
+        wc_ecc_free(&key);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_order_wider_than_field */
+
 /* ECC_INF_E rejection is not present in the frozen ecc.c of older
  * FIPS-certified modules, so restrict to non-FIPS or FIPS v7 and later, and
  * skip the CAVP selftest build. The hardware ports listed here either do not
@@ -649,7 +971,7 @@ int test_wc_ecc_shared_secret(void)
     defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 #define TEST_ECC_SHARED_SECRET_AT_INFINITY
@@ -736,9 +1058,13 @@ int test_wc_ecc_shared_secret_at_infinity(void)
     EXPECT_DECLS;
 #ifdef TEST_ECC_SHARED_SECRET_AT_INFINITY
 #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
-    (ECC_MIN_KEY_SZ <= 224) && !defined(WOLFSSL_SP_MATH)
+    (ECC_MIN_KEY_SZ <= 224) && !defined(WOLFSSL_SP_MATH) && \
+    !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+      !defined(FIPS_NO_WRAPPERS))
     /* secp224r1 is not single precision accelerated, so this drives the
-     * software ECDH path even in SP builds that offload P-256. */
+     * software ECDH path even in SP builds that offload P-256.  The v7
+     * module refuses ECDH on P-224 (outside its KAS-ECC-SSC curve set), so
+     * there the P-256 case below carries the identity check. */
     ExpectIntEQ(ecc_shared_secret_inf_case(
         "b70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21",
         "bd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34",
@@ -843,7 +1169,7 @@ int test_wc_ecc_shared_secret_ex_peer_point(void)
     defined(HAVE_ECC_KEY_IMPORT) && !defined(WC_NO_RNG) && \
     !defined(NO_ECC256) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
-    !defined(PLUTON_CRYPTO_ECC) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(PLUTON_CRYPTO_ECC) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_NO_ECC_SW)
     /* P-256 base point G, uncompressed X9.63 encoding. Not const: older
@@ -1172,6 +1498,214 @@ int test_wc_ecc_import_x963(void)
     return EXPECT_RESULT();
 } /* END wc_ecc_import_x963 */
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_COMP_KEY) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(NO_ECC_SECP) && \
+    (((!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 256) || \
+     ((defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 384) || \
+     ((defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+      ECC_MIN_KEY_SZ <= 521))
+/* Import a compressed x ordinate that no point on the curve has through the
+ * trusted importer and expect it to be refused, import an x whose right-hand
+ * side sits on a reduction boundary of the SP Montgomery arithmetic and expect
+ * it to be accepted, then round trip a generated key through the same importer
+ * to show a valid compressed point still decompresses to the right y. */
+static int test_ecc_import_compressed_no_root(int curveId, const byte* noRoot,
+    word32 noRootSz, const byte* boundary, word32 boundarySz)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    ecc_point* pt = NULL;
+    WC_RNG rng;
+    byte out[ECC_ASN963_MAX_BUF_SZ];
+    word32 outLen = (word32)sizeof(out);
+    int idx = wc_ecc_get_curve_idx(curveId);
+    int ret;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntNE(idx, ECC_CURVE_INVALID);
+    ExpectNotNull(pt = wc_ecc_new_point());
+
+    ExpectIntEQ(wc_ecc_import_point_der_ex(noRoot, noRootSz, idx, pt, 0),
+        WC_NO_ERR_TRACE(MP_VAL));
+    if (boundary != NULL) {
+        ExpectIntEQ(wc_ecc_import_point_der_ex(boundary, boundarySz, idx, pt,
+            0), 0);
+    }
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ret = wc_ecc_make_key_ex(&rng, 0, &key, curveId);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ecc_export_x963_ex(&key, out, &outLen, 1), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ecc_import_point_der_ex(out, outLen, idx, pt, 0), 0);
+    ExpectIntEQ(wc_ecc_cmp_point(&key.pubkey, pt), MP_EQ);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&key);
+    wc_ecc_del_point(pt);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/*
+ * testing compressed point import on each class of field prime: P-224
+ * (p = 1 mod 8) and secp224k1 (p = 5 mod 8) decompress to the generator's y,
+ * and an x ordinate with no square root is refused on P-256, P-384 and P-521.
+ */
+int test_wc_ecc_import_compressed_sqrt(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_COMP_KEY) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(NO_ECC_SECP)
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 224 && !defined(WOLFSSL_SP_MATH)
+#ifndef SQRTMOD_USE_MOD_EXP
+    /* 02 || Gx of P-224 and the expected Gy. The single exponentiation
+     * square root does not support this prime (1 mod 8). */
+    static const byte p224G[] = {
+        0x02, 0xb7, 0x0e, 0x0c, 0xbd, 0x6b, 0xb4, 0xbf, 0x7f, 0x32, 0x13,
+        0x90, 0xb9, 0x4a, 0x03, 0xc1, 0xd3, 0x56, 0xc2, 0x11, 0x22, 0x34,
+        0x32, 0x80, 0xd6, 0x11, 0x5c, 0x1d, 0x21
+    };
+    static const byte p224Gy[] = {
+        0xbd, 0x37, 0x63, 0x88, 0xb5, 0xf7, 0x23, 0xfb, 0x4c, 0x22, 0xdf,
+        0xe6, 0xcd, 0x43, 0x75, 0xa0, 0x5a, 0x07, 0x47, 0x64, 0x44, 0xd5,
+        0x81, 0x99, 0x85, 0x00, 0x7e, 0x34
+    };
+#endif
+#if defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC)
+    /* 03 || Gx of secp224k1 and the expected Gy. */
+    static const byte k224G[] = {
+        0x03, 0xa1, 0x45, 0x5b, 0x33, 0x4d, 0xf0, 0x99, 0xdf, 0x30, 0xfc,
+        0x28, 0xa1, 0x69, 0xa4, 0x67, 0xe9, 0xe4, 0x70, 0x75, 0xa9, 0x0f,
+        0x7e, 0x65, 0x0e, 0xb6, 0xb7, 0xa4, 0x5c
+    };
+    static const byte k224Gy[] = {
+        0x7e, 0x08, 0x9f, 0xed, 0x7f, 0xba, 0x34, 0x42, 0x82, 0xca, 0xfb,
+        0xd6, 0xf7, 0xe3, 0x19, 0xf7, 0xc0, 0xb0, 0xbd, 0x59, 0xe2, 0xca,
+        0x4b, 0xdb, 0x55, 0x6d, 0x61, 0xa5
+    };
+#endif
+#if !defined(SQRTMOD_USE_MOD_EXP) || \
+    (defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC))
+    ecc_key key;
+    byte out[ECC_ASN963_MAX_BUF_SZ];
+    word32 outLen;
+#endif
+#endif
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    /* 02 || x with x^3 - 3x + b congruent to R^-1 mod p, so its Montgomery
+     * form is 1 and a non-canonical helper may hold it as p + 1. */
+    static const byte p256Boundary[] = {
+        0x02, 0xa0, 0x4a, 0x5c, 0xf3, 0x2f, 0x3a, 0x01, 0xbc, 0x8a, 0xba,
+        0x5d, 0x63, 0xfa, 0x20, 0x7c, 0x70, 0x53, 0xaf, 0xd9, 0xf4, 0x9c,
+        0xa1, 0x01, 0xc8, 0x19, 0x24, 0xc5, 0x74, 0xf5, 0x3c, 0x1e, 0x49
+    };
+    /* 02 || x with x = 1: x^3 - 3x + b has no square root mod p. */
+    static const byte p256NoRoot[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    /* 02 || x with x = 1. */
+    static const byte p384NoRoot[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x01
+    };
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+    /* 02 || x with x = 0x5701500: the square of the recovered y carries an
+     * unpropagated limb in the 32-bit SP arithmetic. */
+    static const byte p521Boundary[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x70, 0x15,
+        0x00
+    };
+    /* 02 || x with x = 3. */
+    static const byte p521NoRoot[] = {
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x03
+    };
+#endif
+
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 224 && !defined(WOLFSSL_SP_MATH)
+#ifndef SQRTMOD_USE_MOD_EXP
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(p224G, (word32)sizeof(p224G), &key,
+        ECC_SECP224R1), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_export_x963(&key, out, &outLen), 0);
+    ExpectIntEQ(outLen, 1 + 2 * (word32)sizeof(p224Gy));
+    ExpectBufEQ(out + 1 + sizeof(p224Gy), p224Gy, sizeof(p224Gy));
+    wc_ecc_free(&key);
+#endif
+
+#if defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC)
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(k224G, (word32)sizeof(k224G), &key,
+        ECC_SECP224K1), 0);
+    outLen = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_export_x963(&key, out, &outLen), 0);
+    ExpectIntEQ(outLen, 1 + 2 * (word32)sizeof(k224Gy));
+    ExpectBufEQ(out + 1 + sizeof(k224Gy), k224Gy, sizeof(k224Gy));
+    wc_ecc_free(&key);
+#endif
+#endif
+
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    ExpectIntEQ(test_ecc_import_compressed_no_root(ECC_SECP256R1, p256NoRoot,
+        (word32)sizeof(p256NoRoot), p256Boundary, (word32)sizeof(p256Boundary)),
+        TEST_SUCCESS);
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+    ExpectIntEQ(test_ecc_import_compressed_no_root(ECC_SECP384R1, p384NoRoot,
+        (word32)sizeof(p384NoRoot), NULL, 0), TEST_SUCCESS);
+#endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+    ExpectIntEQ(test_ecc_import_compressed_no_root(ECC_SECP521R1, p521NoRoot,
+        (word32)sizeof(p521NoRoot), p521Boundary, (word32)sizeof(p521Boundary)),
+        TEST_SUCCESS);
+#endif
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_import_compressed_sqrt */
+
 /*
  * testing wc_ecc_import_x963() rejects an off-curve public point.
  *
@@ -1419,6 +1953,25 @@ int test_wc_ecc_import_private_key(void)
         x963KeySz, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ecc_import_private_key(NULL, privKeySz, x963Key, x963KeySz,
         &keyImp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !(defined(WOLF_CRYPTO_CB_SETKEY) && defined(WOLF_CRYPTO_CB_FIND))
+    /* Rejecting a private scalar must also revoke private-key capability.
+     * The device set-key path imports into a temporary key first, so a
+     * rejected scalar never touches this key and its type stays as it was.
+     * Use a fresh key: importing over a live one is not a supported path. */
+    wc_ecc_free(&keyImp);
+    ExpectIntEQ(wc_ecc_init(&keyImp), 0);
+    XMEMSET(privKey, 0, privKeySz);
+    ExpectIntEQ(wc_ecc_import_private_key(privKey, privKeySz, x963Key,
+        x963KeySz, &keyImp), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(keyImp.type, ECC_PUBLICKEY);
+    ExpectIntEQ(wc_ecc_import_private_key(privKey, privKeySz, NULL, 0,
+        &keyImp), WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(keyImp.type, 0);
+#endif
     PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -1554,7 +2107,7 @@ int test_wc_ecc_import_privkey_range(void)
     defined(HAVE_ECC_KEY_IMPORT) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_IMXRT1170_CAAM)
@@ -1822,7 +2375,12 @@ int test_wc_ecc_ctx_new(void)
     /* Test bad args. */
     /* wc_ecc_ctx_new_ex() will free if returned NULL. */
     ExpectNull(cli = wc_ecc_ctx_new(0, &rng));
+    ExpectNull(cli = wc_ecc_ctx_new(100, &rng));
+    ExpectNull(cli = wc_ecc_ctx_new(-3, &rng));
+    /* Must not be truncated to a valid (byte) flag value. */
+    ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT + 256, &rng));
     ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT, NULL));
+    ExpectNull(cli = wc_ecc_ctx_new(REQ_RESP_CLIENT | REQ_RESP_SERVER, &rng));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_ctx_free(cli);
@@ -3253,7 +3811,7 @@ int test_wc_ecc_pointFns(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_NO_ECC_SW)
     ecc_key    key;
     WC_RNG     rng;
@@ -3357,7 +3915,7 @@ int test_wc_ecc_shared_secret_ssh(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_NO_ECC_SW)
     ecc_key key;
     ecc_key key2;
@@ -3533,7 +4091,7 @@ int test_wc_ecc_mulmod(void)
       defined(WOLFSSL_MICROCHIP_TA100) || \
       defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
-    !defined(HAVE_FIPS) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(HAVE_FIPS) && \
     !defined(WOLFSSL_NO_ECC_SW)
     ecc_key     key1;
     ecc_key     key2;
@@ -3600,6 +4158,526 @@ int test_wc_ecc_mulmod(void)
 #endif /* HAVE_ECC && !WOLFSSL_ATECC508A */
     return EXPECT_RESULT();
 } /* END test_wc_ecc_mulmod */
+
+/*
+ * Testing wc_ecc_mulmod() with base point ordinates that are not reduced
+ * modulo the prime.
+ *
+ * P-521's prime is 2^521 - 1 so, with SP int math, the Montgomery
+ * normalizer is 1 and the base point was not converted (and so not reduced)
+ * before being used in the point arithmetic. An unreduced y, or a negative
+ * ordinate, always failed and an unreduced x failed for some scalars, such as
+ * the one below.
+ */
+int test_wc_ecc_mulmod_unreduced(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WOLFSSL_SP_MATH) && \
+    (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+    static const byte kBin[] = {
+        0x01, 0xDE, 0x4A, 0xF6, 0xFB, 0xF8, 0x87, 0x41,
+        0x33, 0x94, 0xD4, 0x05, 0x67, 0xFC, 0xAD, 0x4E,
+        0x5F, 0x61, 0x98, 0xC9, 0xDE, 0x3D, 0x23, 0x1A,
+        0xE0, 0x9A, 0xEE, 0x35, 0xB3, 0x24, 0x6D, 0xFF,
+        0x6B, 0xC8, 0x77, 0x46, 0x6C, 0x6A, 0xB3, 0x74,
+        0xAF, 0x48, 0xE3, 0x28, 0x68, 0xA4, 0xE7, 0x96,
+        0x77, 0x27, 0xE1, 0x76, 0x27, 0x75, 0x5D, 0xB8,
+        0x5D, 0x12, 0x7A, 0xCA, 0x91, 0xBD, 0x5A, 0xC3,
+        0x20, 0x48
+    };
+    const ecc_set_type* dp = NULL;
+    ecc_key     base;
+    ecc_key     curve;
+    ecc_point*  g = NULL;
+    ecc_point*  r = NULL;
+    ecc_point*  expected = NULL;
+    mp_int      k;
+    mp_int*     ord = NULL;
+    int         i;
+    int         cnt = 3;
+
+    XMEMSET(&base, 0, sizeof(ecc_key));
+    XMEMSET(&curve, 0, sizeof(ecc_key));
+    XMEMSET(&k, 0, sizeof(mp_int));
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(ECC_SECP521R1)));
+    ExpectIntEQ(wc_ecc_init(&base), 0);
+    ExpectIntEQ(wc_ecc_init(&curve), 0);
+    ExpectIntEQ(mp_init(&k), 0);
+    ExpectIntEQ(mp_read_unsigned_bin(&k, kBin, (word32)sizeof(kBin)), 0);
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(r = wc_ecc_new_point());
+    ExpectNotNull(expected = wc_ecc_new_point());
+
+    /* base carries the base point; curve carries a and the prime as x and y,
+     * as in test_wc_ecc_mulmod(). */
+    if (dp != NULL) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&base, dp->Gx, dp->Gy, NULL,
+            ECC_SECP521R1), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&curve, dp->Af, dp->prime, NULL,
+            ECC_SECP521R1), 0);
+    }
+
+    /* Expected result from the reduced base point. */
+    ExpectIntEQ(wc_ecc_mulmod(&k, &base.pubkey, expected, curve.pubkey.x,
+        curve.pubkey.y, 1), 0);
+
+#if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    /* Also subtract the prime, making each ordinate negative in turn. */
+    cnt = 6;
+#endif
+
+    /* Change each ordinate in turn by the prime: still the same point. */
+    for (i = 0; i < cnt; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, g), 0);
+        if (g != NULL) {
+            ord = ((i % 3) == 0) ? g->x : (((i % 3) == 1) ? g->y : g->z);
+        }
+        if (i < 3) {
+            ExpectIntEQ(mp_add(ord, curve.pubkey.y, ord), 0);
+        }
+        else {
+            ExpectIntEQ(mp_sub(ord, curve.pubkey.y, ord), 0);
+        }
+    #ifdef FP_ECC
+        /* Don't let a cached table hide the result of the normal path. */
+        wc_ecc_fp_free();
+    #endif
+        ExpectIntEQ(wc_ecc_mulmod(&k, g, r, curve.pubkey.x, curve.pubkey.y,
+            1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(r, expected), MP_EQ);
+    }
+
+    wc_ecc_del_point(expected);
+    wc_ecc_del_point(r);
+    wc_ecc_del_point(g);
+    mp_free(&k);
+    wc_ecc_free(&curve);
+    wc_ecc_free(&base);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_unreduced */
+
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(WOLFSSL_PUBLIC_ECC_ADD_DBL) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(FREESCALE_LTC_ECC) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+#define TEST_ECC_MULMOD_ZERO
+/* Point at infinity is (0, 0, 1). */
+static int test_ecc_point_is_inf(ecc_point* p)
+{
+    return (p != NULL) && mp_iszero(p->x) && mp_iszero(p->y) &&
+           (mp_cmp_d(p->z, 1) == MP_EQ);
+}
+
+static void test_ecc_fp_reset(void)
+{
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+}
+#endif
+
+/*
+ * Testing scalar multiplication with a scalar that is 0 modulo the order.
+ */
+int test_wc_ecc_mulmod_zero(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_MULMOD_ZERO
+    const ecc_set_type* dp = NULL;
+    ecc_key     base;
+    ecc_key     curve;
+    ecc_point*  g = NULL;
+    ecc_point*  b = NULL;
+    ecc_point*  r = NULL;
+    mp_int      zero;
+    mp_int      two;
+    mp_int      order;
+    mp_int      order2;
+    mp_int      orderm2;
+    mp_int      three;
+    int         i;
+
+    XMEMSET(&base, 0, sizeof(ecc_key));
+    XMEMSET(&curve, 0, sizeof(ecc_key));
+    XMEMSET(&zero, 0, sizeof(mp_int));
+    XMEMSET(&two, 0, sizeof(mp_int));
+    XMEMSET(&order, 0, sizeof(mp_int));
+    XMEMSET(&order2, 0, sizeof(mp_int));
+    XMEMSET(&orderm2, 0, sizeof(mp_int));
+    XMEMSET(&three, 0, sizeof(mp_int));
+
+    test_ecc_fp_reset();
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(ECC_SECP256R1)));
+    ExpectIntEQ(wc_ecc_init(&base), 0);
+    ExpectIntEQ(wc_ecc_init(&curve), 0);
+    ExpectIntEQ(mp_init_multi(&zero, &two, &order, &order2, &orderm2,
+        &three), 0);
+    ExpectIntEQ(mp_set(&two, 2), 0);
+    ExpectIntEQ(mp_set(&three, 3), 0);
+    ExpectNotNull(g = wc_ecc_new_point());
+    ExpectNotNull(b = wc_ecc_new_point());
+    ExpectNotNull(r = wc_ecc_new_point());
+
+    /* base carries the base point; curve carries a and the prime as x and y,
+     * as in test_wc_ecc_mulmod(). */
+    if (dp != NULL) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&base, dp->Gx, dp->Gy, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&curve, dp->Af, dp->prime, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(mp_read_radix(&order, dp->order, MP_RADIX_HEX), 0);
+    }
+    /* 2n has one bit more than the prime and is 0 modulo the order. */
+    ExpectIntEQ(mp_add(&order, &order, &order2), 0);
+    ExpectIntEQ(mp_sub_d(&order, 2, &orderm2), 0);
+    /* Second base point for ecc_mul2add(): 2G. */
+    ExpectIntEQ(wc_ecc_mulmod(&two, &base.pubkey, b, curve.pubkey.x,
+        curve.pubkey.y, 1), 0);
+
+    /* k == 0, with R holding a point beforehand. */
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(wc_ecc_mulmod_ex(&zero, &base.pubkey, r, curve.pubkey.x,
+            curve.pubkey.y, i, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(wc_ecc_mulmod_ex2(&zero, &base.pubkey, r, curve.pubkey.x,
+            curve.pubkey.y, &order, NULL, i, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+
+    /* k == 0 with R the same point as G. */
+    ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, g), 0);
+    ExpectIntEQ(wc_ecc_mulmod_ex(&zero, g, g, curve.pubkey.x, curve.pubkey.y,
+        1, NULL), 0);
+    ExpectTrue(test_ecc_point_is_inf(g));
+
+    /* k == 2n. */
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(wc_ecc_mulmod_ex(&order2, &base.pubkey, r, curve.pubkey.x,
+            curve.pubkey.y, 1, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+
+#ifdef ECC_SHAMIR
+    /* kA == kB == 0, and kA == kB == 2n. */
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(ecc_mul2add(&base.pubkey, &zero, b, &zero, r,
+            curve.pubkey.x, curve.pubkey.y, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_ecc_copy_point(&base.pubkey, r), 0);
+        ExpectIntEQ(ecc_mul2add(&base.pubkey, &order2, b, &order2, r,
+            curve.pubkey.x, curve.pubkey.y, NULL), 0);
+        ExpectTrue(test_ecc_point_is_inf(r));
+    }
+    /* (n - 2)G + 3G = G. With FP_ECC the comb's last column adds kA's part
+     * to reach infinity, then adds kB's part to that. */
+    test_ecc_fp_reset();
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(ecc_mul2add(&base.pubkey, &orderm2, &base.pubkey, &three,
+            r, curve.pubkey.x, curve.pubkey.y, NULL), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(r, &base.pubkey), MP_EQ);
+    }
+#endif
+
+    wc_ecc_del_point(r);
+    wc_ecc_del_point(b);
+    wc_ecc_del_point(g);
+    mp_free(&three);
+    mp_free(&orderm2);
+    mp_free(&order2);
+    mp_free(&order);
+    mp_free(&two);
+    mp_free(&zero);
+    wc_ecc_free(&curve);
+    wc_ecc_free(&base);
+
+    test_ecc_fp_reset();
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_zero */
+
+#if defined(HAVE_ECC) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(WOLFSSL_PUBLIC_ECC_ADD_DBL) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256)) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(FREESCALE_LTC_ECC) && \
+    !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW) && (defined(USE_FAST_MATH) || \
+    defined(USE_INTEGER_HEAP_MATH) || defined(WOLFSSL_SP_INT_NEGATIVE))
+#define TEST_ECC_MULMOD_NEGATIVE
+#endif
+
+/*
+ * Testing that scalar multiplication rejects a negative or oversized scalar.
+ */
+int test_wc_ecc_mulmod_negative(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_MULMOD_NEGATIVE
+    const ecc_set_type* dp = NULL;
+    ecc_key     base;
+    ecc_key     curve;
+    ecc_point*  r = NULL;
+    mp_int      neg;
+    mp_int      five;
+    mp_int      order;
+    mp_int      wide;
+
+    XMEMSET(&base, 0, sizeof(ecc_key));
+    XMEMSET(&curve, 0, sizeof(ecc_key));
+    XMEMSET(&neg, 0, sizeof(mp_int));
+    XMEMSET(&five, 0, sizeof(mp_int));
+    XMEMSET(&order, 0, sizeof(mp_int));
+    XMEMSET(&wide, 0, sizeof(mp_int));
+
+    ExpectNotNull(dp = wc_ecc_get_curve_params(
+        wc_ecc_get_curve_idx(ECC_SECP256R1)));
+    ExpectIntEQ(wc_ecc_init(&base), 0);
+    ExpectIntEQ(wc_ecc_init(&curve), 0);
+    ExpectIntEQ(mp_init_multi(&neg, &five, &order, &wide, NULL, NULL), 0);
+    ExpectIntEQ(mp_read_radix(&neg, "-5", MP_RADIX_HEX), 0);
+    /* 2^258 */
+    ExpectIntEQ(mp_read_radix(&wide, "4"
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        MP_RADIX_HEX), 0);
+    ExpectIntEQ(mp_set(&five, 5), 0);
+    ExpectNotNull(r = wc_ecc_new_point());
+
+    if (dp != NULL) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&base, dp->Gx, dp->Gy, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&curve, dp->Af, dp->prime, NULL,
+            ECC_SECP256R1), 0);
+        ExpectIntEQ(mp_read_radix(&order, dp->order, MP_RADIX_HEX), 0);
+    }
+    ExpectTrue(mp_isneg(&neg));
+
+    ExpectIntEQ(wc_ecc_mulmod(&neg, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod_ex(&neg, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 0, NULL), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod_ex2(&neg, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, &order, NULL, 1, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod(&wide, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod_ex2(&wide, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, &order, NULL, 1, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+#if defined(ECC_SHAMIR) && !defined(WOLFSSL_SP_MATH)
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &neg, &base.pubkey, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, &neg, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, NULL, &base.pubkey, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL), 0);
+#endif
+    /* Positive scalars are still accepted. */
+    ExpectIntEQ(wc_ecc_mulmod(&five, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1), 0);
+
+    wc_ecc_del_point(r);
+    mp_free(&wide);
+    mp_free(&order);
+    mp_free(&five);
+    mp_free(&neg);
+    wc_ecc_free(&curve);
+    wc_ecc_free(&base);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_negative */
+
+/*
+ * Testing that wc_ecc_mulmod() of the private key and the base point gives
+ * the public key, on every curve compiled in. This covers curves the SP code
+ * implements and other curves of the same size, which must not be handed to
+ * the SP code.
+ */
+int test_wc_ecc_mulmod_curves(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_MICROCHIP_TA100) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_NO_ECC_SW)
+    static const int curves[] = {
+        ECC_SECP256R1, ECC_SECP384R1, ECC_SECP521R1, ECC_SECP256K1,
+        ECC_BRAINPOOLP256R1, ECC_BRAINPOOLP384R1, ECC_BRAINPOOLP512R1
+    };
+    ecc_key     key1;
+    ecc_key     key2;
+    ecc_key     key3;
+    ecc_key     key4;
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
+    mp_int      negY;
+#endif
+    WC_RNG      rng;
+    int         ret;
+    int         i;
+    int         tested = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    for (i = 0; i < (int)(sizeof(curves) / sizeof(curves[0])); i++) {
+        const ecc_set_type* dp;
+        int idx = wc_ecc_get_curve_idx(curves[i]);
+
+        if (idx < 0) {
+            continue;
+        }
+        dp = wc_ecc_get_curve_params(idx);
+        ExpectNotNull(dp);
+        if (dp == NULL) {
+            break;
+        }
+
+        XMEMSET(&key1, 0, sizeof(ecc_key));
+        XMEMSET(&key2, 0, sizeof(ecc_key));
+        XMEMSET(&key3, 0, sizeof(ecc_key));
+        XMEMSET(&key4, 0, sizeof(ecc_key));
+        ExpectIntEQ(wc_ecc_init(&key1), 0);
+        ExpectIntEQ(wc_ecc_init(&key2), 0);
+        ExpectIntEQ(wc_ecc_init(&key3), 0);
+        ExpectIntEQ(wc_ecc_init(&key4), 0);
+
+        ret = wc_ecc_make_key_ex(&rng, dp->size, &key1, curves[i]);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key1.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        ExpectIntEQ(ret, 0);
+
+        /* As in test_wc_ecc_mulmod(): the base point, the result point, and
+         * the curve parameter A and the prime as public coordinates. */
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key2, dp->Gx, dp->Gy, NULL,
+            curves[i]), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key3, dp->Gx, dp->Gy, NULL,
+            curves[i]), 0);
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key4, dp->Af, dp->prime, NULL,
+            curves[i]), 0);
+
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
+        /* The same base point with z = 1 + prime, a coordinate that is not
+         * reduced (and wider than the curve for most primes), must give the
+         * same result. WOLFSSL_SP_MATH builds reject coordinates wider than
+         * the curve instead. */
+        ExpectIntEQ(mp_add(key2.pubkey.z, key4.pubkey.y, key2.pubkey.z),
+            MP_OKAY);
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+
+        /* With z = prime - 1 the base point is its negation, (x, -y), so the
+         * result is the negated public key. The SP code's FP_ECC cache
+         * matches tables by x and y only, so this must not leave a table for
+         * the negation that the affine base point then uses: multiply the
+         * affine point again, with the generic code's cache emptied so that
+         * the SP code is reached. */
+        XMEMSET(&negY, 0, sizeof(negY));
+        ExpectIntEQ(mp_init(&negY), MP_OKAY);
+        ExpectIntEQ(mp_sub_d(key4.pubkey.y, 1, key2.pubkey.z), MP_OKAY);
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(mp_sub(key4.pubkey.y, key1.pubkey.y, &negY), MP_OKAY);
+        ExpectIntEQ(mp_cmp(key3.pubkey.x, key1.pubkey.x), MP_EQ);
+        ExpectIntEQ(mp_cmp(key3.pubkey.y, &negY), MP_EQ);
+        ExpectIntEQ(mp_cmp_d(key3.pubkey.z, 1), MP_EQ);
+        mp_free(&negY);
+        ExpectIntEQ(mp_set(key2.pubkey.z, 1), MP_OKAY);
+    #ifdef FP_ECC
+        wc_ecc_fp_free();
+    #endif
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+        /* A result point with negative ordinates must be given the result
+         * with positive ordinates. */
+        mp_zero(key3.pubkey.x);
+        mp_zero(key3.pubkey.y);
+        mp_zero(key3.pubkey.z);
+        ExpectIntEQ(mp_sub(key3.pubkey.x, key4.pubkey.y, key3.pubkey.x),
+            MP_OKAY);
+        ExpectIntEQ(mp_sub(key3.pubkey.y, key4.pubkey.y, key3.pubkey.y),
+            MP_OKAY);
+        ExpectIntEQ(mp_sub(key3.pubkey.z, key4.pubkey.y, key3.pubkey.z),
+            MP_OKAY);
+    #ifdef FP_ECC
+        wc_ecc_fp_free();
+    #endif
+        ExpectIntEQ(wc_ecc_mulmod(wc_ecc_key_get_priv(&key1), &key2.pubkey,
+            &key3.pubkey, key4.pubkey.x, key4.pubkey.y, 1), 0);
+        ExpectIntEQ(wc_ecc_cmp_point(&key3.pubkey, &key1.pubkey), MP_EQ);
+    #endif
+    #endif
+        tested++;
+
+        wc_ecc_free(&key1);
+        wc_ecc_free(&key2);
+        wc_ecc_free(&key3);
+        wc_ecc_free(&key4);
+    }
+    ExpectIntGT(tested, 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_mulmod_curves */
 
 /*
  * Testing wc_ecc_is_valid_idx()
@@ -3785,6 +4863,76 @@ int test_wc_EccPrivateKeyToDer(void)
     return EXPECT_RESULT();
 } /* End test_wc_EccPrivateKeyToDer */
 
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+/* RNG device that returns the 8 bytes in ctx, so gen_k sees a chosen c. */
+static int ecc_gen_k_fixed_rng_cb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    if (info->algo_type != WC_ALGO_TYPE_RNG || info->rng.sz != 8)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    XMEMCPY(info->rng.out, ctx, 8);
+    return 0;
+}
+#endif
+
+/* wc_ecc_gen_k maps c to (c mod (n - 1)) + 1, FIPS 186-5 A.4.1. */
+int test_wc_ecc_gen_k_boundaries(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_ECC_GEN_REJECT_SAMPLING) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    int    devId = 4486;
+    byte   c[8];
+    byte   n[4]   = { 0xFF, 0xFF, 0xFF, 0xFF };
+    byte   nm1[4] = { 0xFF, 0xFF, 0xFF, 0xFE };
+    WC_RNG rng;
+    mp_int k, order, want;
+
+    XMEMSET(c, 0, sizeof(c));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&k, 0, sizeof(k));
+    XMEMSET(&order, 0, sizeof(order));
+    XMEMSET(&want, 0, sizeof(want));
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ecc_gen_k_fixed_rng_cb, c),
+        0);
+    ExpectIntEQ(wc_InitRng_ex(&rng, NULL, devId), 0);
+    ExpectIntEQ(mp_init(&k), MP_OKAY);
+    ExpectIntEQ(mp_init(&order), MP_OKAY);
+    ExpectIntEQ(mp_init(&want), MP_OKAY);
+
+    /* n = 0xFFFFFFFF, read from bytes so any digit size holds it; size 0
+     * makes gen_k read 8 bytes. */
+    ExpectIntEQ(mp_read_unsigned_bin(&order, n, sizeof(n)), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&want, nm1, sizeof(nm1)), MP_OKAY);
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order), 0); /* c = 0 */
+    ExpectIntEQ(mp_cmp_d(&k, 1), MP_EQ);
+    c[4] = 0xFF; c[5] = 0xFF; c[6] = 0xFF; c[7] = 0xFD; /* c = n - 2 */
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order), 0);
+    ExpectIntEQ(mp_cmp(&k, &want), MP_EQ);
+    c[7] = 0xFE; /* c = n - 1 */
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order), 0);
+    ExpectIntEQ(mp_cmp_d(&k, 1), MP_EQ);
+
+    ExpectIntEQ(mp_set(&order, 1), MP_OKAY);
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    mp_zero(&order);
+    ExpectIntEQ(wc_ecc_gen_k(&rng, 0, &k, &order),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    mp_clear(&k);
+    mp_clear(&order);
+    mp_clear(&want);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_gen_k_boundaries */
+
 /*
  * MC/DC wave 1 - decision-targeted negative/edge paths for wolfcrypt/src/
  * ecc.c that the existing (already extensive) API tests above do not drive.
@@ -3809,7 +4957,7 @@ int test_wc_EccDecisionCoverage(void)
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_NO_ECC_SW)
+    !defined(WOLFSSL_NO_ECC_SW)
     WC_RNG  rng;
     ecc_key key;
     int     ret = WC_NO_ERR_TRACE(MEMORY_E);
@@ -4819,3 +5967,196 @@ int test_wc_EccPublicKeyDecode_specifiedOverflow(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_EccPublicKeyDecode_specifiedOverflow */
+
+#if defined(HAVE_ECC) && defined(WOLF_CRYPTO_CB) && \
+    defined(WOLF_PRIVATE_KEY_ID) && !defined(WC_NO_RNG) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256)) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #define TEST_ECC_KEYGEN_ID
+#endif
+
+#ifdef TEST_ECC_KEYGEN_ID
+#define ECC_KEYGEN_ID_DEVID 2401
+
+static int ecc_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+static int ecc_keygen_clear_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)ctx;
+
+    if ((info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_EC_KEYGEN)) {
+        info->pk.eckg.key->devId = INVALID_DEVID;
+    }
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+#ifdef WOLF_CRYPTO_CB_FIND
+#ifdef WOLFSSL_SWDEV
+    #include <tests/swdev/swdev_loader.h>
+#endif
+static int ecc_keygen_find_cb(int devIdArg, int algoType)
+{
+    if ((devIdArg == INVALID_DEVID) && (algoType == WC_ALGO_TYPE_PK))
+        return ECC_KEYGEN_ID_DEVID;
+    return devIdArg;
+}
+#endif
+
+#if defined(HAVE_ECC_DHE) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+/* Generates in software on the caller's key, as many device callbacks do. */
+static int ecc_keygen_sw_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+
+    (void)ctx;
+
+    if ((info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_EC_KEYGEN)) {
+        info->pk.eckg.key->devId = INVALID_DEVID;
+        ret = wc_ecc_make_key_ex(info->pk.eckg.rng, info->pk.eckg.size,
+            info->pk.eckg.key, info->pk.eckg.curveId);
+        info->pk.eckg.key->devId = devIdArg;
+    }
+    return ret;
+}
+#endif
+#endif /* WC_CRYPTOCB_KEYGEN_ID_CHECK */
+#endif /* TEST_ECC_KEYGEN_ID */
+
+/*
+ * Testing wc_ecc_make_key() on an id or label key whose device declines keygen.
+ */
+int test_wc_ecc_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_ECC_KEYGEN_ID) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK)
+    int devId = ECC_KEYGEN_ID_DEVID;
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+    int ret;
+#endif
+    ecc_key key;
+    WC_RNG rng;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ecc_keygen_decline_cb, NULL),
+        0);
+
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId + 300, ecc_keygen_clear_cb,
+        NULL), 0);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 300),
+        0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+    wc_CryptoCb_UnRegisterDevice(devId + 300);
+
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_ex(&key, NULL, devId), 0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, 0);
+    wc_ecc_free(&key);
+#endif
+
+#ifdef WOLF_CRYPTO_CB_FIND
+    wc_CryptoCb_SetDeviceFindCb(ecc_keygen_find_cb);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ecc_free(&key);
+#ifdef WOLFSSL_SWDEV
+    wc_CryptoCb_SetDeviceFindCb(wc_SwDev_FindCb);
+#else
+    wc_CryptoCb_SetDeviceFindCb(NULL);
+#endif
+#endif
+
+#if defined(HAVE_ECC_DHE) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId + 200, ecc_keygen_sw_cb,
+        NULL), 0);
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId + 200),
+        0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    wc_ecc_free(&key);
+    wc_CryptoCb_UnRegisterDevice(devId + 200);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#elif defined(TEST_ECC_KEYGEN_ID)
+    int devId = ECC_KEYGEN_ID_DEVID;
+    int ret;
+    ecc_key key;
+    WC_RNG rng;
+    byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+    int expRet = WC_NO_ERR_TRACE(NO_VALID_DEVID);
+#else
+    int expRet = 0;
+#endif
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ecc_keygen_decline_cb, NULL),
+        0);
+
+    ExpectIntEQ(wc_ecc_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, expRet);
+    wc_ecc_free(&key);
+
+    ExpectIntEQ(wc_ecc_init_label(&key, "dev-key", NULL, devId), 0);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    ExpectIntEQ(ret, expRet);
+    wc_ecc_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}

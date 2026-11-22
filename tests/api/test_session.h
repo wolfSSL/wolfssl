@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_CTX_add_session(void);
+int test_session_decision_coverage(void);
 int test_wolfSSL_CTX_add_session_ext_tls13(void);
 int test_wolfSSL_CTX_add_session_ext_dtls13(void);
 int test_wolfSSL_CTX_add_session_ext_tls12(void);
@@ -48,6 +49,8 @@ int test_wolfSSL_session_cache_restore(void);
 int test_wolfSSL_session_cache_client_geometry(void);
 int test_wolfSSL_get_session_default_ref(void);
 int test_wolfSSL_SetServerID_resume(void);
+int test_wolfSSL_client_cache_is_setup(void);
+int test_wolfSSL_client_cache_max_early_data(void);
 
 #define TEST_SESSION_DECLS                                                     \
     TEST_DECL_GROUP("session", test_wolfSSL_CTX_add_session),                  \
@@ -73,6 +76,9 @@ int test_wolfSSL_SetServerID_resume(void);
     TEST_DECL_GROUP("session", test_wolfSSL_session_cache_restore),            \
     TEST_DECL_GROUP("session", test_wolfSSL_session_cache_client_geometry),    \
     TEST_DECL_GROUP("session", test_wolfSSL_get_session_default_ref),          \
-    TEST_DECL_GROUP("session", test_wolfSSL_SetServerID_resume)
+    TEST_DECL_GROUP("session", test_wolfSSL_SetServerID_resume),               \
+    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_is_setup),            \
+    TEST_DECL_GROUP("session", test_wolfSSL_client_cache_max_early_data),      \
+    TEST_DECL_GROUP("session", test_session_decision_coverage)
 
 #endif /* WOLFCRYPT_TEST_SESSION_H */

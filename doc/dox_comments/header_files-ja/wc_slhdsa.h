@@ -473,6 +473,7 @@ int wc_SlhDsaKey_VerifyMsg(SlhDsaKey* key, const byte* mprime,
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG key、hash、sig、sigSzのいずれかがNULLの場合に返されます。
+    \return BAD_FUNC_ARG hashTypeがWC_HASH_TYPE_NONEの場合、または事前ハッシュの衝突耐性がパラメータセットのセキュリティカテゴリより低い場合に返されます(FIPS 205セクション10.2)。
     \return BAD_LENGTH_E hashSzがhashTypeのダイジェストサイズと一致しない場合に返されます(FIPS 205セクション10.2.2に従い、SHAKE128では32、SHAKE256では64)。
     \return NOT_COMPILED_IN hashTypeがこのビルドでサポートされていない場合に返されます。
     \return MISSING_KEY 秘密鍵が設定されていない場合に返されます。
@@ -516,6 +517,7 @@ int wc_SlhDsaKey_SignHashDeterministic(SlhDsaKey* key,
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG key、hash、sig、sigSz、addRndのいずれかがNULLの場合に返されます。
+    \return BAD_FUNC_ARG hashTypeがWC_HASH_TYPE_NONEの場合、または事前ハッシュの衝突耐性がパラメータセットのセキュリティカテゴリより低い場合に返されます(FIPS 205セクション10.2)。
     \return BAD_LENGTH_E hashSzがhashTypeのダイジェストサイズと一致しない場合に返されます(FIPS 205セクション10.2.2に従い、SHAKE128では32、SHAKE256では64)。
     \return NOT_COMPILED_IN hashTypeがこのビルドでサポートされていない場合に返されます。
 
@@ -544,6 +546,7 @@ int wc_SlhDsaKey_SignHashWithRandom(SlhDsaKey* key,
 
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG key、hash、sig、sigSz、rngのいずれかがNULLの場合に返されます。
+    \return BAD_FUNC_ARG hashTypeがWC_HASH_TYPE_NONEの場合、または事前ハッシュの衝突耐性がパラメータセットのセキュリティカテゴリより低い場合に返されます(FIPS 205セクション10.2)。
     \return BAD_LENGTH_E hashSzがhashTypeのダイジェストサイズと一致しない場合に返されます(FIPS 205セクション10.2.2に従い、SHAKE128では32、SHAKE256では64)。
     \return NOT_COMPILED_IN hashTypeがこのビルドでサポートされていない場合に返されます。
 
@@ -572,6 +575,7 @@ int wc_SlhDsaKey_SignHash(SlhDsaKey* key, const byte* ctx,
 
     \return 0 成功した場合(署名が有効)に返されます。
     \return BAD_FUNC_ARG key、hash、sigのいずれかがNULLの場合に返されます。
+    \return BAD_FUNC_ARG hashTypeがWC_HASH_TYPE_NONEの場合、または事前ハッシュの衝突耐性がパラメータセットのセキュリティカテゴリより低い場合に返されます(FIPS 205セクション10.2)。
     \return BAD_LENGTH_E sigSzがパラメータセットと一致しない場合、またはhashSzがhashTypeのダイジェストサイズと一致しない場合に返されます(FIPS 205セクション10.2.2に従い、SHAKE128では32、SHAKE256では64)。
     \return NOT_COMPILED_IN hashTypeがこのビルドでサポートされていない場合に返されます。
     \return MISSING_KEY 公開鍵が設定されていない場合に返されます。

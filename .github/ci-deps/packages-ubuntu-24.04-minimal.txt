@@ -17,5 +17,6 @@ gcc-11
 gcc-12
 gcc-9
 gcc-multilib
+libpcap-dev
 libtool
 zlib1g-dev

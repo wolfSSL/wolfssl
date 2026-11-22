@@ -772,12 +772,50 @@ const char *wolfSSL_OCSP_cert_status_str(long s)
 int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
     WOLFSSL_ASN1_TIME* nextupd, long sec, long maxsec)
 {
+#ifndef NO_ASN_TIME
+    int ret = WOLFSSL_SUCCESS;
+    time_t now = wc_Time(0);
+    time_t cmp;
+
+    /* Same semantics as OpenSSL's OCSP_check_validity: sec is the allowed
+     * clock skew and maxsec, when non-negative, the maximum age of thisUpdate.
+     * wolfSSL_X509_cmp_time() returns 0 for a NULL or malformed time. */
+    if (sec < 0)
+        sec = 0;
+
+    cmp = now + sec;
+    if (wolfSSL_X509_cmp_time(thisupd, &cmp) != -1) {
+        WOLFSSL_MSG("OCSP thisUpdate missing, malformed or in the future");
+        ret = WOLFSSL_FAILURE;
+    }
+    else if (maxsec >= 0) {
+        cmp = now - maxsec;
+        if (wolfSSL_X509_cmp_time(thisupd, &cmp) != 1) {
+            WOLFSSL_MSG("OCSP thisUpdate is too old");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if ((ret == WOLFSSL_SUCCESS) && (nextupd != NULL)) {
+        cmp = now - sec;
+        if (wolfSSL_X509_cmp_time(nextupd, &cmp) != 1) {
+            WOLFSSL_MSG("OCSP nextUpdate has passed or is malformed");
+            ret = WOLFSSL_FAILURE;
+        }
+        else if (wolfSSL_ASN1_TIME_compare(nextupd, thisupd) < 0) {
+            WOLFSSL_MSG("OCSP nextUpdate precedes thisUpdate");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    return ret;
+#else
     (void)thisupd;
     (void)nextupd;
     (void)sec;
     (void)maxsec;
-    /* Dates validated in DecodeSingleResponse. */
     return WOLFSSL_SUCCESS;
+#endif /* !NO_ASN_TIME */
 }
 
 void wolfSSL_OCSP_CERTID_free(WOLFSSL_OCSP_CERTID* certId)
@@ -1233,22 +1271,37 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         goto error;
 
     if (resp->single != NULL) {
-        FreeOcspEntry(resp->single, NULL);
-        XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        OcspEntry* s = resp->single;
+
+        /* Release the whole SingleResponse chain, as
+         * wolfSSL_OCSP_RESPONSE_free() does. Every entry after the first was
+         * allocated by the previous decode and FreeOcspEntry() on its own
+         * only reaches the head. */
+        while (s != NULL) {
+            OcspEntry* sNext = s->next;
+
+            FreeOcspEntry(s, NULL);
+            XFREE(s, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+            s = sNext;
+        }
     }
     resp->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
                                       DYNAMIC_TYPE_OCSP_ENTRY);
     if (resp->single == NULL)
         goto error;
+    /* Zeroed before the next allocation can fail: the error path walks it. */
     XMEMSET(resp->single, 0, sizeof(OcspEntry));
     resp->single->status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
                                       DYNAMIC_TYPE_OCSP_STATUS);
     if (resp->single->status == NULL)
         goto error;
+    /* Leave the object in the state a fresh one is in. On reuse the response,
+     * cert, sig, sigParams and nonce references all pointed into the source
+     * buffer released above, and the new encoding need not set them again. */
+    InitOcspResponse(resp, resp->single, resp->single->status, resp->source,
+                     (word32)len, resp->heap);
     resp->single->ownStatus = 1;
-    XMEMSET(resp->single->status, 0, sizeof(CertStatus));
     XMEMCPY(resp->source, *data, (size_t)len);
-    resp->maxIdx = (word32)len;
 
     ret = OcspResponseDecode(resp, NULL, NULL, 1, 1);
     if (ret != 0 && ret != WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E)) {

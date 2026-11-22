@@ -280,12 +280,15 @@ static void wb_set_cert_policies(void)
 #if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES)
 static void wb_flatten_alt_names(void)
 {
-    DNS_entry dns   = { NULL, ASN_DNS_TYPE,   9, "host.com", 0 };
-    DNS_entry dir   = { NULL, ASN_DIR_TYPE,   4, "abcd",     0 };
-    DNS_entry other = { NULL, ASN_OTHER_TYPE, 4, "abcd",     0 };
+    DNS_entry dns   = { 0 };
+    DNS_entry dir   = { 0 };
+    DNS_entry other = { 0 };
     byte out[128];
     int ret;
 
+    dns.type = ASN_DNS_TYPE; dns.len = 9; dns.name = "host.com";
+    dir.type = ASN_DIR_TYPE; dir.len = 4; dir.name = "abcd";
+    other.type = ASN_OTHER_TYPE; other.len = 4; other.name = "abcd";
     WB_NOTE("FlattenAltNames(): DIR/OTHER constructed-tag OR [~27837]");
 
     /* type==ASN_DNS_TYPE: both operands false. */
@@ -1594,7 +1597,6 @@ static void wb_mime_single_canonicalize(void) { }
  * stdout isn't flooded with dump text.
  *   wc_Asn1_SetFile         :~38812  asn1==NULL || file==XBADFILE
  *   wc_Asn1_SetOidToNameCb  :~38834  asn1==NULL || nameCb==NULL
- *   EncodedDottedForm       :~38862  in==NULL || outSz==NULL
  *   PrintObjectIdText       :~39022,39033
  *   PrintAsn1Text           :~39143-39152,39166-39168
  *   DumpData                :~39179,39195,39201
@@ -1882,26 +1884,6 @@ static void wb_asn1_print(void)
     }
 
     fclose(devnull);
-
-    WB_NOTE("EncodedDottedForm(): NULL-arg OR [~38862] (via PrintObjectIdNum path, "
-            "exercised indirectly above through the OID item; direct call for the "
-            "NULL-arg operand pair since no PrintObjectIdNum wrapper is public)");
-    {
-        word32 dotted[8];
-        word32 num = 8;
-        int ret;
-        static const byte oidBytes[] = { 0x55, 0x04, 0x03 };
-        ret = EncodedDottedForm(NULL, 3, dotted, &num);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38862 1st operand true (in==NULL)");
-        num = 8;
-        ret = EncodedDottedForm(oidBytes, sizeof(oidBytes), dotted, NULL);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":38862 2nd operand true (outSz==NULL)");
-        num = 8;
-        /* 55 04 03 decodes to the four arcs 2.5.4.3: the first byte carries
-         * two of them. */
-        ret = EncodedDottedForm(oidBytes, sizeof(oidBytes), dotted, &num);
-        WB_CHECK(ret == 0 && num == 4, ":38862 both false (valid decode)");
-    }
 }
 #else
 static void wb_asn1_print(void) { WB_NOTE("ASN.1 print (no WOLFSSL_ASN_PRINT); skipped"); }
@@ -2342,7 +2324,11 @@ static void wb_parse_acert_bad_dates(void)
 #else
                 XMEMSET(acert, 0, sizeof(DecodedAcert));
 #endif
+#ifdef WOLFSSL_SMALL_STACK
                 if (acert != NULL) {
+#else
+                {
+#endif
                     wc_InitDecodedAcert(acert, shortDer, sz, NULL);
                     ret = wc_ParseX509Acert(acert, modes[m]);
                     /* CheckDate()'s tag/length checks are outside the

@@ -483,6 +483,16 @@ int test_wolfSSL_X509_check_host_len(void)
     return EXPECT_RESULT();
 }
 
+#if defined(IGNORE_NAME_CONSTRAINTS) || \
+    (defined(WOLFSSL_X509_TINY) && !defined(WOLFSSL_X509_TINY_SAN_EMAIL))
+/* rfc822Name SANs are not decoded in this build, so
+ * wolfSSL_X509_check_email() fails for any certificate with a SAN extension
+ * rather than trusting the subject emailAddress. */
+#define EMAIL_SAN_RES(r) WC_NO_ERR_TRACE(WOLFSSL_FAILURE)
+#else
+#define EMAIL_SAN_RES(r) (r)
+#endif
+
 int test_wolfSSL_X509_check_email(void)
 {
     EXPECT_DECLS;
@@ -506,12 +516,13 @@ int test_wolfSSL_X509_check_email(void)
     /* Should fail on non-matching email address */
     ExpectIntEQ(wolfSSL_X509_check_email(x509, badEmail, XSTRLEN(badEmail), 0),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
-    /* Should succeed on matching email address */
+    /* Should succeed on matching email address (the certificate has only
+     * dNSName and iPAddress SANs) */
     ExpectIntEQ(wolfSSL_X509_check_email(x509, goodEmail, XSTRLEN(goodEmail),
-        0), WOLFSSL_SUCCESS);
+        0), EMAIL_SAN_RES(WOLFSSL_SUCCESS));
     /* Should compute length internally when not provided */
     ExpectIntEQ(wolfSSL_X509_check_email(x509, goodEmail, 0, 0),
-        WOLFSSL_SUCCESS);
+        EMAIL_SAN_RES(WOLFSSL_SUCCESS));
     /* Should fail when email address is NULL */
     ExpectIntEQ(wolfSSL_X509_check_email(x509, NULL, 0, 0),
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -523,6 +534,155 @@ int test_wolfSSL_X509_check_email(void)
     ExpectIntEQ(wolfSSL_X509_check_email(NULL, goodEmail, 0, 0),
             WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 #endif /* OPENSSL_EXTRA && WOLFSSL_CERT_GEN */
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(HAVE_ECC) && \
+    !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
+    defined(HAVE_ECC_SIGN) && !defined(WC_NO_RNG) && !defined(NO_SHA256)
+/* Make a self-signed certificate whose subject emailAddress is subjEmail
+ * (omitted when NULL) and whose SubjectAltName holds the GeneralNames in
+ * sans: each entry is a tag byte ('@' for rfc822Name, 'd' for dNSName)
+ * followed by the name, and the list ends with NULL. */
+static X509* make_email_cert(ecc_key* key, WC_RNG* rng, const char* subjEmail,
+    const char* const* sans)
+{
+    Cert cert;
+    byte der[FOURK_BUF];
+    const byte* p = der;
+    word32 sanSz = 2;
+    int derSz;
+    size_t len;
+    int i;
+
+    if (wc_InitCert(&cert) != 0)
+        return NULL;
+    cert.sigType = CTC_SHA256wECDSA;
+    XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.org, "wolfSSL_test", CTC_NAME_SIZE - 1);
+    XSTRNCPY(cert.subject.commonName, "check_email", CTC_NAME_SIZE - 1);
+    if (subjEmail != NULL)
+        XSTRNCPY(cert.subject.email, subjEmail, CTC_NAME_SIZE - 1);
+    for (i = 0; sans != NULL && sans[i] != NULL; i++) {
+        len = XSTRLEN(sans[i] + 1);
+        if (sanSz + 2 + len > 0x7f + 2)
+            return NULL;
+        cert.altNames[sanSz++] = (sans[i][0] == '@') ?
+            (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE) :
+            (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE);
+        cert.altNames[sanSz++] = (byte)len;
+        XMEMCPY(cert.altNames + sanSz, sans[i] + 1, len);
+        sanSz += (word32)len;
+    }
+    if (sanSz > 2) {
+        cert.altNames[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+        cert.altNames[1] = (byte)(sanSz - 2);
+        cert.altNamesSz = (int)sanSz;
+    }
+    if (wc_MakeCert(&cert, der, sizeof(der), NULL, key, rng) < 0)
+        return NULL;
+    derSz = wc_SignCert(cert.bodySz, cert.sigType, der, sizeof(der), NULL, key,
+        rng);
+    if (derSz < 0)
+        return NULL;
+    return d2i_X509(NULL, &p, derSz);
+}
+#endif
+
+/* Regression: wolfSSL_X509_check_email() must check rfc822Name SANs and only
+ * fall back to the subject emailAddress when the certificate has no
+ * rfc822Name SAN (RFC 6125 6.4.4, as OpenSSL's X509_check_email() does). */
+int test_wolfSSL_X509_check_email_san(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_ALT_NAMES) && defined(HAVE_ECC) && \
+    !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
+    defined(HAVE_ECC_SIGN) && !defined(WC_NO_RNG) && !defined(NO_SHA256)
+    static const char target[] = "a@target.example";
+    static const char nulTarget[] = "a@target.example\0junk";
+    static const char upperDomain[] = "a@TARGET.Example";
+    static const char upperLocal[] = "A@target.example";
+    static const char* const sanTarget[] = { "@a@target.example", NULL };
+    static const char* const sanAttacker[] = { "@a@attacker.example", NULL };
+    static const char* const sanOther[] = { "@b@other.example", NULL };
+    static const char* const sanSecond[] = { "@b@other.example",
+        "@a@target.example", NULL };
+    static const char* const sanDnsOnly[] = { "dtarget.example", NULL };
+    static const struct {
+        const char* subjEmail;
+        const char* const* sans;
+        int expect;
+    } cases[] = {
+        /* Subject and SAN both match. */
+        { target,            sanTarget,   EMAIL_SAN_RES(WOLFSSL_SUCCESS) },
+        /* Subject matches but the rfc822Name SAN names another mailbox. */
+        { target,            sanAttacker, WC_NO_ERR_TRACE(WOLFSSL_FAILURE) },
+        /* SAN matches, subject does not. */
+        { "b@other.example", sanTarget,   EMAIL_SAN_RES(WOLFSSL_SUCCESS) },
+        /* SAN matches, no subject emailAddress. */
+        { NULL,              sanTarget,   EMAIL_SAN_RES(WOLFSSL_SUCCESS) },
+        /* Neither matches. */
+        { "b@other.example", sanOther,    WC_NO_ERR_TRACE(WOLFSSL_FAILURE) },
+        /* Second of two rfc822Name SANs matches. */
+        { NULL,              sanSecond,   EMAIL_SAN_RES(WOLFSSL_SUCCESS) },
+        /* No SAN: subject fallback. */
+        { target,            NULL,        WOLFSSL_SUCCESS },
+        /* Only a dNSName SAN: subject fallback still applies. */
+        { target,            sanDnsOnly,  EMAIL_SAN_RES(WOLFSSL_SUCCESS) },
+    };
+    WC_RNG rng;
+    ecc_key key;
+    int rngI = 0, keyI = 0;
+    X509* x509 = NULL;
+    size_t i;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) rngI = 1;
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    if (EXPECT_SUCCESS()) keyI = 1;
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        ExpectNotNull(x509 = make_email_cert(&key, &rng, cases[i].subjEmail,
+            cases[i].sans));
+        ExpectIntEQ(wolfSSL_X509_check_email(x509, target, 0, 0),
+            cases[i].expect);
+        X509_free(x509);
+        x509 = NULL;
+    }
+
+    /* chkLen handling matches OpenSSL: one trailing NUL is dropped and an
+     * embedded NUL never matches. The domain is compared case-insensitively
+     * and the local-part exactly (RFC 5280 7.5). Checked against both the SAN
+     * and the subject paths. */
+    ExpectNotNull(x509 = make_email_cert(&key, &rng, NULL, sanTarget));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, target, sizeof(target), 0),
+        EMAIL_SAN_RES(WOLFSSL_SUCCESS));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, nulTarget,
+        sizeof(nulTarget) - 1, 0), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperDomain, 0, 0),
+        EMAIL_SAN_RES(WOLFSSL_SUCCESS));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperLocal, 0, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    X509_free(x509);
+    x509 = NULL;
+    ExpectNotNull(x509 = make_email_cert(&key, &rng, target, NULL));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, target, sizeof(target), 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, nulTarget,
+        sizeof(nulTarget) - 1, 0), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperDomain, 0, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_check_email(x509, upperLocal, 0, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    X509_free(x509);
+    x509 = NULL;
+
+    if (keyI) wc_ecc_free(&key);
+    if (rngI) wc_FreeRng(&rng);
+#endif
     return EXPECT_RESULT();
 }
 
@@ -1737,6 +1897,12 @@ int test_wolfSSL_X509_name_match3(void)
     return EXPECT_RESULT();
 }
 
+#ifdef WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME
+    #define SINGLE_LABEL_OK 1
+#else
+    #define SINGLE_LABEL_OK 0
+#endif
+
 int test_wolfssl_local_IsValidFQDN(void) {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
@@ -1754,8 +1920,10 @@ int test_wolfssl_local_IsValidFQDN(void) {
         {"ex--ample.com",                1},   /* double hyphen inside label (allowed) */
         {"A.B.C",                        1},   /* uppercase OK (case-insensitive rules) */
 
-        {"example",                      0},   /* single label (not fully qualified) */
-        {"example.",                     0},   /* becomes single label after dot strip */
+        {"example",                      SINGLE_LABEL_OK}, /* single label (not fully qualified) */
+        {"example.",                     SINGLE_LABEL_OK}, /* becomes single label after dot strip */
+        {"12345",                        0},   /* all-numeric single label */
+        {"host_1",                       0},   /* underscore in single label */
         {".example.com",                 0},   /* leading dot -- empty first label */
         {"example..com",                 0},   /* empty label (consecutive dots) */
         {"-example.com",                 0},   /* label starts with '-' */
@@ -1767,10 +1935,10 @@ int test_wolfssl_local_IsValidFQDN(void) {
         {"example com.com",              0},   /* illegal character ' ' */
         {"",                             0},   /* empty string */
         {NULL,                           0},   /* NULL pointer */
-        {"com",                          0},   /* single label */
+        {"com",                          SINGLE_LABEL_OK}, /* single label */
         {"123.456",                      0},   /* all-numeric final label (no alpha) */
         {"example.123",                  0},   /* all-numeric TLD (no alpha) */
-        {"a",                            0},   /* single label, too short */
+        {"a",                            SINGLE_LABEL_OK}, /* single label, one character */
         {"example.123a",                 1},   /* TLD with at least one letter -- valid */
     };
 
@@ -2036,6 +2204,13 @@ int test_wolfSSL_MatchDomainName_wildcard(void)
         /* A wildcard never spans a label separator. */
         { "*.example.com",       "foo.bar.example.com", 0, 0,
           "wildcard does not cross a dot" },
+
+        { "HOST",                "host",
+          WOLFSSL_LEFT_MOST_WILDCARD_ONLY, SINGLE_LABEL_OK,
+          "single-label host, case folded" },
+        { "h*",                  "host",
+          WOLFSSL_LEFT_MOST_WILDCARD_ONLY, 0,
+          "single-label host, partial wildcard" },
     };
     size_t i;
 
@@ -2109,6 +2284,48 @@ int test_wolfSSL_X509_max_name_constraints(void)
     ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, over_max_nc,
             NULL, WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
     wolfSSL_CTX_free(ctx);
+#endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_max_name_entries(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_TLS) && !defined(NO_RSA)
+
+    /* Only test if max name entries has not been modified */
+#if WC_MAX_NAME_ENTRIES == 16
+
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    /* Self-signed CAs with 16 and 17 attributes in the subject and issuer */
+    const char* max_entries = "./certs/test/cert-max-name-entries.pem";
+    const char* over_max_entries = "./certs/test/cert-over-max-name-entries.pem";
+
+    /* The X509_NAME entries are added straight to the X509. */
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(max_entries,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectIntEQ(wolfSSL_X509_NAME_entry_count(
+        wolfSSL_X509_get_subject_name(x509)), WC_MAX_NAME_ENTRIES);
+    ExpectIntEQ(wolfSSL_X509_NAME_entry_count(
+        wolfSSL_X509_get_issuer_name(x509)), WC_MAX_NAME_ENTRIES);
+    wolfSSL_X509_free(x509);
+    x509 = NULL;
+    ExpectNull(x509 = wolfSSL_X509_load_certificate_file(over_max_entries,
+        WOLFSSL_FILETYPE_PEM));
+    wolfSSL_X509_free(x509);
+
+    /* Loading a CA doesn't build the X509_NAMEs, but still rejects names
+     * that they can't hold. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, max_entries, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerLoadCA(cm, over_max_entries, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerFree(cm);
 #endif
 
 #endif

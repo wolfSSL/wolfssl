@@ -4,6 +4,7 @@
 EXTRA_DIST += examples/configs/README.md
 EXTRA_DIST += examples/configs/user_settings_all.h
 EXTRA_DIST += examples/configs/user_settings_arduino.h
+EXTRA_DIST += examples/configs/user_settings_arm_thumb2_aes.h
 EXTRA_DIST += examples/configs/user_settings_baremetal.h
 EXTRA_DIST += examples/configs/user_settings_ca.h
 EXTRA_DIST += examples/configs/user_settings_curve25519nonblock.h

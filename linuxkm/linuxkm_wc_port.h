@@ -1265,6 +1265,14 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
+#if defined(CONFIG_X86_32) && defined(CONFIG_SMP) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+    /* this_cpu_read() expands the generic 8-byte read, whose nested __ret
+     * locals shadow (linux-4.19.325 asm-generic/percpu.h:121,139). */
+    #undef raw_smp_processor_id
+    #define raw_smp_processor_id() this_cpu_read_4(cpu_number)
+#endif
+
 #ifdef CONFIG_X86_32
     /* asm/string_32.h #defines memcmp, which would rename its slot below. */
     #undef memcmp
@@ -2386,6 +2394,10 @@
         #define realloc(ptr, newsize) (in_nmi() ? NULL : krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC)))
     #endif
     #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
+
+    /* Scatterlist-safe allocation -- see wc_linuxkm_sg_malloc() in
+     * module_hooks.c.  Pairs with free() in all configurations. */
+    void *wc_linuxkm_sg_malloc(size_t size);
 
     #ifndef static_assert
         #define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)

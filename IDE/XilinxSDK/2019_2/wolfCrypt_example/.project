@@ -861,6 +861,16 @@
 			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-poly1305-asm.c</locationURI>
 		</link>
 		<link>
+			<name>src/wolfcrypt/src/port/arm/armv8-sha1-asm.S</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha1-asm.S</locationURI>
+		</link>
+		<link>
+			<name>src/wolfcrypt/src/port/arm/armv8-sha1-asm_c.c</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha1-asm_c.c</locationURI>
+		</link>
+		<link>
 			<name>src/wolfcrypt/src/port/arm/armv8-sha256-asm.S</name>
 			<type>1</type>
 			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha256-asm.S</locationURI>
@@ -889,16 +899,6 @@
 			<name>src/wolfcrypt/src/port/arm/armv8-sha512-asm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha512-asm.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/port/arm/cryptoCell.c</name>
-			<type>1</type>
-			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/port/arm/cryptoCell.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/port/arm/cryptoCellHash.c</name>
-			<type>1</type>
-			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/port/arm/cryptoCellHash.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/port/xilinx/xil-aesgcm.c</name>

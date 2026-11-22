@@ -73,7 +73,7 @@
  *   - Table 2 of Kampanakis, Fluhrer, IACR, 2017.
  * */
 
-#define XMSS_SHA256_PUBLEN (68)
+#define XMSS_SHA256_PUBLEN 68
 
 /* Supported XMSS/XMSS^MT parameter set names:
  * We are supporting all SHA256 parameter sets with n=32 and
@@ -102,9 +102,9 @@
  *   2. RFC 8391
  * */
 
-#define XMSS_NAME_LEN       (16) /* strlen("XMSS-SHA2_10_256") */
-#define XMSSMT_NAME_MIN_LEN (20) /* strlen("XMSSMT-SHA2_20/2_256") */
-#define XMSSMT_NAME_MAX_LEN (21) /* strlen("XMSSMT-SHA2_60/12_256") */
+#define XMSS_NAME_LEN       16 /* strlen("XMSS-SHA2_10_256") */
+#define XMSSMT_NAME_MIN_LEN 20 /* strlen("XMSSMT-SHA2_20/2_256") */
+#define XMSSMT_NAME_MAX_LEN 21 /* strlen("XMSSMT-SHA2_60/12_256") */
 
 #if defined(HAVE_FIPS)
     #undef WOLFSSL_WC_XMSS_NO_SHA512

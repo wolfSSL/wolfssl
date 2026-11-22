@@ -76,10 +76,12 @@
  * HMAC, RNG (RandomBlock/RandomSeed), GetCert, CMAC,
  * HKDF (extract/expand/two-step-CMAC), the generic Copy/Free/SetKey/
  * ExportKey callbacks, and the ML-KEM / ML-DSA PQC dispatch functions.
- * wc_SHE (WOLFSSL_SHE) and the LMS/XMSS/FALCON/SLHDSA/FRODOKEM PQC families
- * are left as residuals - they need family-specific key setup (wc_SHE,
- * LmsKey, XmssKey, falcon_key, SlhDsaKey) that is out of scope for this
- * pass; see the WB_NOTE calls below for exactly which are skipped.
+ * LMS PqcStatefulSigVerify is also driven, from a zeroed LmsKey.
+ * wc_SHE (WOLFSSL_SHE), the rest of the LMS/XMSS stateful family and the
+ * FALCON/SLHDSA/FRODOKEM PQC families are left as residuals - they need
+ * family-specific key setup (wc_SHE, LmsKey, XmssKey, falcon_key, SlhDsaKey)
+ * that is out of scope for this pass; see the WB_NOTE calls below for
+ * exactly which are skipped.
  *
  * Crash-safety: wb_cb() always returns CRYPTOCB_UNAVAILABLE before touching
  * `info`, so every `if (dev && dev->cb)` body returns immediately after the
@@ -216,6 +218,32 @@ static int wb_cb_hash_fallback_ok(int devId, wc_CryptoInfo* info, void* ctx)
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
+
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_LMS)
+/* A device that reports a PQC verify as completed without touching info,
+ * so the post-dev->cb `ret != 0` decision that clears *res in
+ * wc_CryptoCb_PqcVerify{,Msg} and wc_CryptoCb_PqcStatefulSigVerify can be
+ * shown FALSE. Registered only around those calls. */
+#define WB_DEVID_VERIFY_OK 4
+
+static int wb_cb_pqc_verify_ok(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_PK)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+#ifdef WOLFSSL_HAVE_MLDSA
+    if (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY ||
+            info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY_MSG)
+        return 0;
+#endif
+#ifdef WOLFSSL_HAVE_LMS
+    if (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY)
+        return 0;
+#endif
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_LMS */
 
 #ifdef WOLF_CRYPTO_CB_FIND
 /* Find callback used ONLY by the :1159/:1189 (F,F) vectors. It rewrites the
@@ -1019,6 +1047,40 @@ int main(void)
         WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in,
             sizeof(in), &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa));
 
+        /* `ret != 0 && res != NULL` after dev->cb: (T,T) a declining
+         * device clears *res, (T,F) res is NULL, (F,-) a device that
+         * completes leaves *res as it wrote it. */
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_VERIFY_OK,
+                wb_cb_pqc_verify_ok, NULL) != 0)
+            wb_fail = 1;
+        mldsa.devId = WB_DEVID;
+        res = 1;
+        (void)wc_CryptoCb_PqcVerify(out, sizeof(out), in, sizeof(in), NULL,
+            0, 0, &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 0)
+            wb_bad = 1;
+        (void)wc_CryptoCb_PqcVerify(out, sizeof(out), in, sizeof(in), NULL,
+            0, 0, NULL, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        res = 1;
+        (void)wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in, sizeof(in),
+            &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 0)
+            wb_bad = 1;
+        (void)wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in, sizeof(in),
+            NULL, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        mldsa.devId = WB_DEVID_VERIFY_OK;
+        res = 1;
+        (void)wc_CryptoCb_PqcVerify(out, sizeof(out), in, sizeof(in), NULL,
+            0, 0, &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 1)
+            wb_bad = 1;
+        res = 1;
+        (void)wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in, sizeof(in),
+            &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 1)
+            wb_bad = 1;
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_VERIFY_OK);
+
         /* bonus: an unrecognized algorithm type leaves GetDevId at
          * INVALID_DEVID, which then finds no device */
         mldsa.devId = WB_DEVID;
@@ -1068,10 +1130,51 @@ int main(void)
             "defined; PQC signature dispatch skipped");
 #endif
 
+    /* ---- PQC stateful: PqcStatefulSigVerify ----
+     * Only key->devId is read before dev->cb, so a zeroed LmsKey is enough
+     * for the dev&&dev->cb guard and the *res clear after it. */
+#ifdef WOLFSSL_HAVE_LMS
+    {
+        LmsKey lms;
+        XMEMSET(&lms, 0, sizeof(lms));
+
+        WB_DRIVE3(lms.devId, wc_CryptoCb_PqcStatefulSigVerify(out,
+            sizeof(out), in, sizeof(in), &res, WC_PQC_STATEFUL_SIG_TYPE_LMS,
+            &lms));
+
+        /* *res clear: same three vectors as the ML-DSA block above. */
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_VERIFY_OK,
+                wb_cb_pqc_verify_ok, NULL) != 0)
+            wb_fail = 1;
+        lms.devId = WB_DEVID;
+        res = 1;
+        (void)wc_CryptoCb_PqcStatefulSigVerify(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_STATEFUL_SIG_TYPE_LMS, &lms);
+        if (res != 0)
+            wb_bad = 1;
+        (void)wc_CryptoCb_PqcStatefulSigVerify(out, sizeof(out), in,
+            sizeof(in), NULL, WC_PQC_STATEFUL_SIG_TYPE_LMS, &lms);
+        lms.devId = WB_DEVID_VERIFY_OK;
+        res = 1;
+        (void)wc_CryptoCb_PqcStatefulSigVerify(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_STATEFUL_SIG_TYPE_LMS, &lms);
+        if (res != 1)
+            wb_bad = 1;
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_VERIFY_OK);
+
+        WB_NOTE("PQC LMS: PqcStatefulSigVerify dev&&dev->cb and "
+                "ret!=0&&res!=NULL driven");
+    }
+#endif
+
     /* ---- residuals: not driven in this pass ---- */
-#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
-    WB_NOTE("RESIDUAL: PqcStatefulSig{KeyGen,Sign,Verify,SigsLeft} "
+#ifdef WOLFSSL_HAVE_LMS
+    WB_NOTE("RESIDUAL: PqcStatefulSig{KeyGen,Sign,SigsLeft} "
             "(LMS/XMSS) not driven - needs LmsKey/XmssKey-specific setup, "
+            "out of scope for this pass");
+#elif defined(WOLFSSL_HAVE_XMSS)
+    WB_NOTE("RESIDUAL: PqcStatefulSig{KeyGen,Sign,Verify,SigsLeft} "
+            "(XMSS) not driven - needs XmssKey-specific setup, "
             "out of scope for this pass");
 #endif
 #ifdef WOLFSSL_SHE

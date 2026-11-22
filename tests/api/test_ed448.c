@@ -2046,3 +2046,231 @@ int test_wc_ed448_make_public_dev_key(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ed448_make_public_dev_key */
+
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+typedef struct ed448DevKgCtx {
+    int decline;
+    int calls;
+    int makePubCalls;
+} ed448DevKgCtx;
+
+/* Device that fails key generation unless told to decline it. */
+static int ed448_dev_kg_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    ed448DevKgCtx* dev = (ed448DevKgCtx*)ctx;
+
+    (void)devIdArg;
+
+    if (info->algo_type != WC_ALGO_TYPE_PK) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type == WC_PK_TYPE_ED448_MAKE_PUB) {
+        dev->makePubCalls++;
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type != WC_PK_TYPE_ED448_KEYGEN) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    dev->calls++;
+    if (dev->decline) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    return WC_NO_ERR_TRACE(WC_HW_E);
+}
+#endif
+
+/*
+ * Testing wc_ed448_make_key() with a device that fails or declines keygen.
+ */
+int test_wc_ed448_make_key_dev_error(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+    int devId = 4481;
+    ed448DevKgCtx dev;
+    WC_RNG rng;
+    ed448_key key;
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_dev_kg_cb, &dev), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ed448_init_ex(&key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(dev.calls, 1);
+    ExpectIntEQ(dev.makePubCalls, 0);
+    ExpectIntEQ(key.privKeySet, 0);
+    ExpectIntEQ(key.pubKeySet, 0);
+    wc_ed448_free(&key);
+
+    /* Declined by the device, software generates the key. */
+    dev.decline = 1;
+    ExpectIntEQ(wc_ed448_init_ex(&key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    ExpectIntEQ(dev.calls, 2);
+    ExpectIntEQ(dev.makePubCalls, 1);
+    ExpectIntEQ(key.privKeySet, 1);
+    ExpectIntEQ(key.pubKeySet, 1);
+    ExpectIntEQ(wc_ed448_check_key(&key), 0);
+    wc_ed448_free(&key);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_make_key_dev_error */
+
+#if defined(HAVE_ED448) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+static int ed448_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_ed448_make_key() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_ed448_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    int devId = 2404;
+    ed448_key key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed448_free(&key);
+
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_ex(&key, NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify that separately imported Ed448 keys export a valid key pair. */
+int test_wc_ed448_separate_import_roundtrip(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    ed448_key original;
+    ed448_key imported;
+    ed448_key restored;
+    WC_RNG rng;
+    byte seed[ED448_KEY_SIZE];
+    byte wrongSeed[ED448_KEY_SIZE];
+    byte pub[ED448_PUB_KEY_SIZE];
+    byte combined[ED448_PRV_KEY_SIZE];
+    word32 seedSz = sizeof(seed);
+    word32 pubSz = sizeof(pub);
+    word32 combinedSz;
+    int order;
+
+    XMEMSET(&original, 0, sizeof(original));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_ed448_init(&original), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &original), 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private_only(&original, seed,
+        &seedSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ed448_export_public(&original, pub, &pubSz), 0);
+    ExpectIntEQ(seedSz, ED448_KEY_SIZE);
+    ExpectIntEQ(pubSz, ED448_PUB_KEY_SIZE);
+
+    XMEMCPY(wrongSeed, seed, sizeof(seed));
+    wrongSeed[0] ^= 1;
+
+    for (order = 0; order < 2 && EXPECT_SUCCESS(); order++) {
+        XMEMSET(&imported, 0, sizeof(imported));
+        XMEMSET(&restored, 0, sizeof(restored));
+        ExpectIntEQ(wc_ed448_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed448_import_private_only(seed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+        }
+        else {
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed448_import_private_only(seed, seedSz,
+                &imported), 0);
+        }
+        ExpectIntEQ(wc_ed448_check_key(&imported), 0);
+        combinedSz = sizeof(combined);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ed448_export_private(&imported, combined,
+            &combinedSz), 0);
+        PRIVATE_KEY_LOCK();
+        ExpectIntEQ(combinedSz, ED448_PRV_KEY_SIZE);
+        ExpectBufEQ(combined, seed, ED448_KEY_SIZE);
+        ExpectBufEQ(combined + ED448_KEY_SIZE, pub, ED448_PUB_KEY_SIZE);
+
+        ExpectIntEQ(wc_ed448_init(&restored), 0);
+        ExpectIntEQ(wc_ed448_import_private_key(combined, combinedSz,
+            NULL, 0, &restored), 0);
+        ExpectIntEQ(wc_ed448_check_key(&restored), 0);
+        wc_ed448_free(&restored);
+        wc_ed448_free(&imported);
+
+        /* A different seed must not be accepted with the public key. */
+        XMEMSET(&imported, 0, sizeof(imported));
+        ExpectIntEQ(wc_ed448_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed448_import_private_only(wrongSeed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported),
+                WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        else {
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed448_import_private_only(wrongSeed, seedSz,
+                &imported), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        wc_ed448_free(&imported);
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&original);
+    ForceZero(seed, sizeof(seed));
+    ForceZero(wrongSeed, sizeof(wrongSeed));
+    ForceZero(combined, sizeof(combined));
+#endif
+    return EXPECT_RESULT();
+}

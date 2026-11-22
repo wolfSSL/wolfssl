@@ -146,6 +146,30 @@
 #endif
 #endif
 
+/* Restrict-qualified pointer parameter: a promise to the compiler that, within
+ * the callee, no object modified through this pointer is accessed through any
+ * other pointer.  Lets the callee keep values loaded through other pointers in
+ * registers across stores through this one, recovering the codegen of a local
+ * array for caller-supplied scratch.  On compilers with no restrict support it
+ * expands to nothing, which only forfeits the optimization. */
+#ifndef WC_RESTRICT
+    #ifdef __cplusplus
+        /* C++ has no standard restrict; the major compilers accept
+         * __restrict. */
+        #if defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+            #define WC_RESTRICT __restrict
+        #else
+            #define WC_RESTRICT
+        #endif
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+        #define WC_RESTRICT restrict
+    #elif defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+        #define WC_RESTRICT __restrict
+    #else
+        #define WC_RESTRICT
+    #endif
+#endif
+
 #if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
     #define INLINE WC_INLINE
     #if defined(__GNUC__) || defined(__clang__)
@@ -168,7 +192,7 @@
 #endif
 
 #ifndef WC_OMIT_FRAME_POINTER
-    #if defined(__GNUC__)
+    #if defined(__GNUC__) && !defined(__clang__)
         #define WC_OMIT_FRAME_POINTER  \
             __attribute__((optimize("-fomit-frame-pointer")))
     #else
@@ -237,22 +261,18 @@
     #if defined(WOLFSSL_PTHREADS)
         #include <pthread.h>
     #endif
-    #ifdef WOLFSSL_GAME_BUILD
-        #include "system/xtl.h"
-    #else
-        #ifndef WIN32_LEAN_AND_MEAN
-            #define WIN32_LEAN_AND_MEAN
-        #endif
-        #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
-            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
-            #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
-            #ifndef WOLFSSL_USER_IO
-                #include <winsock2.h>
-                #include <ws2tcpip.h> /* required for InetPton */
-            #endif
-        #endif /* WOLFSSL_SGX */
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
     #endif
+    #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
+        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
+        #include <windows.h>
+        #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
+        #ifndef WOLFSSL_USER_IO
+            #include <winsock2.h>
+            #include <ws2tcpip.h> /* required for InetPton */
+        #endif
+    #endif /* WOLFSSL_SGX */
     #if !defined(SINGLE_THREADED) && !defined(_WIN32_WCE)
         #include <process.h>
     #endif
@@ -317,8 +337,6 @@
     #define NU_DEBUG
     #include "plus/nucleus.h"
     #include "nucleus.h"
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
         }  /* extern "C" */
@@ -813,6 +831,12 @@
     }
 #endif
 
+#define wolfSSL_Atomic_Func_Ptr_CompareExchange(c, expected_ptr, new_ptr) \
+        wolfSSL_Atomic_Ptr_CompareExchange(                               \
+            (void * volatile *)(c),                                       \
+            (void **)(expected_ptr),                                      \
+            (void *)(wc_ptr_t)(new_ptr))
+
 /*** Macro abstractions for compare-and-exchange retry loops, allowing ***/
 /*** platform-specific instrumentation and failure paths.              ***/
 
@@ -1291,20 +1315,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSNPRINTF rtp_snprintf
     #define XFPRINTF fprintf
 
-#elif defined(LSR_FS)
-    #include <fs.h>
-    #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME)
-    #define XFSEEK(F, O, W)         (void)F
-    #define XFTELL(F)               (F)->len
-    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, (char*)BUF, SZ*AMT)
-    #define XFWRITE(BUF, SZ, AMT, F) fs_write(F, (char*)BUF, SZ*AMT)
-    #define XFCLOSE                 fs_close
-    #define XSEEK_SET               0
-    #define XSEEK_END               0
-    #define XBADFILE                NULL
-    #define XFGETS(b,s,f)           -2 /* Not ported yet */
-
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XFILE                   MQX_FILE_PTR
     #define XFOPEN                  fopen
@@ -1348,21 +1358,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_SET  PSEEK_SET
     #define XSEEK_END  PSEEK_END
     #define XBADFILE   NULL
-
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include <fs/fs.h>
-    #define XFILE  struct fs_file*
-
-    #define XFOPEN     mynewt_fopen
-    #define XFSEEK     mynewt_fseek
-    #define XFTELL     mynewt_ftell
-    #define XFREAD     mynewt_fread
-    #define XFWRITE    mynewt_fwrite
-    #define XFCLOSE    mynewt_fclose
-    #define XSEEK_SET  0
-    #define XSEEK_END  2
-    #define XBADFILE   NULL
-    #define XFGETS(b,s,f) -2 /* Not ported yet */
 
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
@@ -1757,7 +1752,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #include "dc_rtc_api.h"   /* to get current time */
 
     /* uses partial <time.h> structures */
-    #define XTIME(tl)       (0)
+    #define XTIME(tl)       0
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
 #elif defined(WOLFSSL_DEOS) || defined(WOLFSSL_DEOS_RTEMS)
@@ -1766,6 +1761,20 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             extern time_t deos_time(time_t* timer);
             #define XTIME(t1) deos_time((t1))
         #endif
+#elif defined(WOLFSSL_OPTEE)
+    /* The TA is built -nostdinc, so this is libutils' time.h: time_t only,
+     * no struct tm. */
+    #include <time.h>
+    /* The normal world owns this clock, so it is attacker influenced: fit
+     * for freshness, not for certificate validity. Hence NO_ASN_TIME in the
+     * WOLFSSL_OPTEE settings block. */
+    #ifndef XTIME
+        extern time_t optee_time(time_t* timer);
+        #define XTIME(t1)   optee_time((t1))
+    #endif
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+
 #elif defined(MICRIUM)
     #include <clk.h>
     #include <time.h>
@@ -1856,15 +1865,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             };
             #define _TM_DEFINED
     #endif
-
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include "os/os_time.h"
-    typedef long time_t;
-    extern time_t mynewt_time(time_t* timer);
-    #define XTIME(t1)       mynewt_time((t1))
-    #define WOLFSSL_GMTIME
-    #define USE_WOLF_TM
-    #define USE_WOLF_TIME_T
 
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
@@ -1959,7 +1959,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* Map default time functions */
 #if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)
     #ifdef TEST_BEFORE_DATE
-    #define XTIME(tl)       (946681200UL) /* Jan 1, 2000 */
+    #define XTIME(tl)       946681200UL /* Jan 1, 2000 */
     #else
     #define XTIME(tl)       time((tl))
     #endif
@@ -2168,7 +2168,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* Compiler barrier that also treats the memory at ptr as read, so a wipe of
  * that memory cannot be dropped as a dead store. The GNU form emits no CPU
  * fence; cross-thread ordering is the caller's job. Without GNU asm (other
- * compilers, or WOLFSSL_NO_ASM) it falls back to WC_BARRIER(). */
+ * compilers, or WOLFSSL_NO_ASM) ptr escapes to an out-of-line call in
+ * wc_port.c, since a bare compiler barrier does not cover a local whose
+ * address never escaped. */
 #ifdef WC_BARRIER_DATA
     /* use user-supplied WC_BARRIER_DATA() definition. */
 #elif defined(__CC_ARM)
@@ -2179,7 +2181,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WC_BARRIER_DATA(ptr) \
         __asm__ __volatile__("" : : "r"(ptr) : "memory")
 #else
-    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); WC_BARRIER(); } while (0)
+    #define WC_BARRIER_DATA_USES_SINK
+    /* Internal to WC_BARRIER_DATA(). ptr is never dereferenced. */
+    WOLFSSL_API void wc_BarrierDataSink(void* ptr);
+    #define WC_BARRIER_DATA(ptr) do { wc_BarrierDataSink((ptr)); } while (0)
 #endif
 
 

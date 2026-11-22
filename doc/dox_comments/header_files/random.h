@@ -1,68 +1,17 @@
 /*!
     \ingroup Random
 
-    \brief Init global Whitewood netRandom context
-
-    \return 0 Success
-    \return BAD_FUNC_ARG Either configFile is null or timeout is negative.
-    \return RNG_FAILURE_E There was a failure initializing the rng.
-
-    \param configFile Path to configuration file
-    \param hmac_cb Optional to create HMAC callback.
-    \param timeout A timeout duration.
-
-    _Example_
-    \code
-    char* config = "path/to/config/example.conf";
-    int time = // Some sufficient timeout value;
-
-    if (wc_InitNetRandom(config, NULL, time) != 0)
-    {
-        // Some error occurred
-    }
-    \endcode
-
-    \sa wc_FreeNetRandom
-*/
-int  wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout);
-
-/*!
-    \ingroup Random
-
-    \brief Free global Whitewood netRandom context.
-
-    \return 0 Success
-    \return BAD_MUTEX_E Error locking mutex on wnr_mutex
-
-    \param none No returns.
-
-    _Example_
-    \code
-    int ret = wc_FreeNetRandom();
-    if(ret != 0)
-    {
-        // Handle the error
-    }
-    \endcode
-
-    \sa wc_InitNetRandom
-*/
-int  wc_FreeNetRandom(void);
-
-/*!
-    \ingroup Random
-
     \brief Gets the seed (from OS) and key cipher for rng.  rng->drbg
     (deterministic random bit generator) allocated (should be deallocated
     with wc_FreeRng).  This is a blocking operation.
 
     One WC_RNG may be shared between threads for generating and reseeding:
-    wc_RNG_GenerateBlock(), wc_RNG_DRBG_Reseed(), wc_RNG_DRBG_Reseed_Nonce()
+    wc_RNG_GenerateBlock(), wc_RNG_DRBG_Reseed(), wc_RNG_DRBG_Reseed_AddIn()
     and wc_RNG_DRBG_Reseed_Now() each hold the instance lock.  So do the DRBG
-    management calls: wc_RNG_DRBG_Stir(), wc_RNG_DRBG_Stir_Nonce() and
+    management calls: wc_RNG_DRBG_Stir(), wc_RNG_DRBG_Stir_AddIn() and
     wc_RNG_DRBG_ScheduleReseed(), and in --enable-rng-extras builds
     wc_RNG_DRBG_NextStirNow(), wc_RNG_DRBG_NextSeedNow() and
-    wc_RNG_DRBG_NextSeedNow_Nonce().  The generate path calls their internal
+    wc_RNG_DRBG_NextSeedNow_AddIn().  The generate path calls their internal
     cores, which already run under the lock.
 
     wc_RNG_DRBG_ReseedRBGC() and wc_RNG_DRBG_StirRBGC() are the exception:
@@ -817,19 +766,43 @@ int wc_RNG_HealthTest_SHA512_ex(int reseed, const byte* nonce, word32 nonceSz,
 /*!
     \ingroup Random
 
-    \brief Disables the SHA-256 Hash_DRBG at runtime.  When disabled,
-    newly initialized WC_RNG instances will not use the SHA-256 DRBG.
-    If the SHA-512 DRBG is enabled (WOLFSSL_DRBG_SHA512), new RNG
-    instances will use SHA-512 instead.  Requires HAVE_HASHDRBG.
+    \brief Disables the SHA-256 Hash_DRBG in the process-wide runtime setting.  The setting decides the DRBG flavor of every WC_RNG whose
+    constructor was not told one explicitly: all of the constructors with no
+    flags argument, and the flags-bearing ones (wc_InitRng_ex2() and the
+    others taking WC_RNG_INIT_FLAG_* flags) when neither
+    WC_RNG_INIT_FLAG_DRBG_SHA256 nor WC_RNG_INIT_FLAG_DRBG_SHA512 is given;
+    either of those flags overrides the setting for that instance.  The
+    setting is read once, at instantiation, so instances already alive are
+    unaffected.  Both compiled-in flavors start enabled, with SHA-512
+    preferred where WOLFSSL_DRBG_SHA512 is defined, except that
+    WOLFSSL_NO_SHA256_DRBG starts SHA-256 disabled (still compiled in, and
+    enable-able); after this call the setting is SHA-512 only.  The last
+    enabled flavor cannot be disabled.
+
+    The setting is an atomic word, and the enable/disable calls update it
+    by compare-and-swap, so concurrent calls serialize: the guard against
+    disabling the last enabled flavor is evaluated against the value the
+    update replaces, never a stale one, and no call's effect can be lost to
+    another's.  A constructor reads the setting once, at instantiation, so
+    a change made while another thread is constructing an instance applies
+    to that instance or not according to which happened first; nothing
+    orders the two.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
+    \return BAD_STATE_E SHA-256 is the only enabled flavor, so it stays
+    enabled.
+    \return NOT_COMPILED_IN WOLFSSL_DRBG_SHA512 is not defined, so there is
+    no other flavor to leave enabled.
 
     _Example_
     \code
     wc_Sha256Drbg_Disable();
-    // New WC_RNG instances will now use SHA-512 DRBG if available
+    // New instances without an explicit flavor flag now use SHA-512 ...
     WC_RNG rng;
     wc_InitRng(&rng);
+    // ... unless the constructor is told otherwise.
+    WC_RNG rng2;
+    wc_InitRng_ex2(&rng2, NULL, INVALID_DEVID, WC_RNG_INIT_FLAG_DRBG_SHA256);
     \endcode
 
     \sa wc_Sha256Drbg_Enable
@@ -841,8 +814,10 @@ int wc_Sha256Drbg_Disable(void);
 /*!
     \ingroup Random
 
-    \brief Re-enables the SHA-256 Hash_DRBG at runtime after a prior
-    call to wc_Sha256Drbg_Disable().  Requires HAVE_HASHDRBG.
+    \brief Re-enables the SHA-256 Hash_DRBG in the process-wide runtime setting after a prior call to wc_Sha256Drbg_Disable().  Affects only
+    instances created after the call, and not those whose constructor was
+    given an explicit flavor flag; see wc_Sha256Drbg_Disable() for the
+    setting's scope and concurrency.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
 
@@ -862,8 +837,11 @@ int wc_Sha256Drbg_Enable(void);
 /*!
     \ingroup Random
 
-    \brief Returns whether the SHA-256 Hash_DRBG is currently disabled.
-    Requires HAVE_HASHDRBG.
+    \brief Returns whether the SHA-256 Hash_DRBG is currently disabled in
+    the process-wide runtime setting (see wc_Sha256Drbg_Disable()).  Says
+    nothing about instances already alive, or about ones whose constructor
+    was given an explicit flavor flag.  In a build without SHA-256 it is
+    always 1.  Requires HAVE_HASHDRBG.
 
     \return 1 SHA-256 DRBG is disabled
     \return 0 SHA-256 DRBG is enabled (not disabled)
@@ -883,13 +861,19 @@ int wc_Sha256Drbg_IsDisabled(void);
 /*!
     \ingroup Random
 
-    \brief Disables the SHA-512 Hash_DRBG at runtime.  When disabled,
-    newly initialized WC_RNG instances will not use the SHA-512 DRBG.
-    If the SHA-256 DRBG is still enabled, new RNG instances will fall
-    back to SHA-256.  Available when WOLFSSL_DRBG_SHA512 is defined.
-    Requires HAVE_HASHDRBG.
+    \brief Disables the SHA-512 Hash_DRBG in the process-wide runtime setting, so that instances created after the call without an explicit
+    flavor flag use SHA-256.  The setting's scope -- that it is read once at
+    instantiation, and that WC_RNG_INIT_FLAG_DRBG_SHA256 /
+    WC_RNG_INIT_FLAG_DRBG_SHA512 override it per instance -- and its
+    concurrency are described at wc_Sha256Drbg_Disable().  The last
+    enabled flavor cannot be disabled.  Available when WOLFSSL_DRBG_SHA512
+    is defined.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
+    \return BAD_STATE_E SHA-512 is the only enabled flavor, so it stays
+    enabled.
+    \return NOT_COMPILED_IN NO_SHA256 is defined, so there is no other
+    flavor to leave enabled.
 
     _Example_
     \code
@@ -908,9 +892,11 @@ int wc_Sha512Drbg_Disable(void);
 /*!
     \ingroup Random
 
-    \brief Re-enables the SHA-512 Hash_DRBG at runtime after a prior
-    call to wc_Sha512Drbg_Disable().  Available when WOLFSSL_DRBG_SHA512
-    is defined.  Requires HAVE_HASHDRBG.
+    \brief Re-enables the SHA-512 Hash_DRBG in the process-wide runtime setting after a prior call to wc_Sha512Drbg_Disable().  Affects only
+    instances created after the call, and not those whose constructor was
+    given an explicit flavor flag; see wc_Sha256Drbg_Disable() for the
+    setting's scope and concurrency.  Available when
+    WOLFSSL_DRBG_SHA512 is defined.  Requires HAVE_HASHDRBG.
 
     \return 0 On success
 
@@ -930,8 +916,11 @@ int wc_Sha512Drbg_Enable(void);
 /*!
     \ingroup Random
 
-    \brief Returns whether the SHA-512 Hash_DRBG is currently disabled.
-    Available when WOLFSSL_DRBG_SHA512 is defined.  Requires HAVE_HASHDRBG.
+    \brief Returns whether the SHA-512 Hash_DRBG is currently disabled in
+    the process-wide runtime setting (see wc_Sha256Drbg_Disable()).  Says
+    nothing about instances already alive, or about ones whose constructor
+    was given an explicit flavor flag.  Available when WOLFSSL_DRBG_SHA512
+    is defined.  Requires HAVE_HASHDRBG.
 
     \return 1 SHA-512 DRBG is disabled
     \return 0 SHA-512 DRBG is enabled (not disabled)
@@ -1035,10 +1024,28 @@ int wc_Sha512Drbg_IsDisabled(void);
     WC_RNG_INIT_FLAG_TEST_USER_SEED qualifies caller-supplied seed material
     only (see wc_InitRngNonce_UserSeed()); here, with none, it is refused.
 
+    Two flags fix the Hash_DRBG flavor for this instance:
+    WC_RNG_INIT_FLAG_DRBG_SHA512 selects the SHA-512 DRBG
+    (WOLFSSL_DRBG_SHA512) and WC_RNG_INIT_FLAG_DRBG_SHA256 the SHA-256 DRBG,
+    each overriding the process-wide runtime setting for this instance
+    alone, whatever any thread has done to the setting with
+    wc_Sha256Drbg_Disable() or wc_Sha512Drbg_Disable().  Naming neither
+    leaves the choice to that setting, exactly as every constructor did
+    before these flags existed: SHA-512 where it is compiled in and enabled,
+    SHA-256 otherwise, and BAD_STATE_E if nothing is enabled.  The override
+    reaches any compiled-in flavor, including one the setting has disabled
+    -- by a runtime call, or initially by WOLFSSL_NO_SHA256_DRBG, which
+    starts SHA-256 disabled but still builds it.  Naming both is
+    BAD_FUNC_ARG, and naming a flavor the build lacks (NO_SHA256, or no
+    WOLFSSL_DRBG_SHA512) is NOT_COMPILED_IN.
+
     \return 0 Success
     \return BAD_FUNC_ARG rng is null, or the flags contradict each other,
-    or WC_RNG_INIT_FLAG_TEST_USER_SEED with no user seed.
-    \return NOT_COMPILED_IN A requested flag is not compiled in.
+    or WC_RNG_INIT_FLAG_TEST_USER_SEED with no user seed, or both DRBG
+    flavor flags.
+    \return NOT_COMPILED_IN A requested flag is not compiled in, including a
+    DRBG flavor flag for a flavor the build lacks.
+    \return BAD_STATE_E No DRBG flavor flag was given and the runtime setting has none enabled.
     \return OBJECT_NOT_LOCKED_E WC_RNG_INIT_FLAG_PRESERVE_LOCK with
     WC_RNG_INIT_FLAG_LOCK_REQUIRED, but the lock is not held.
     \return UNEXPECTED_STATE_E WC_RNG_INIT_FLAG_PRESERVE_LOCK, but the lock
@@ -1309,7 +1316,7 @@ int wc_RNG_global_fallback_free(void);
     \endcode
 
     \sa wc_InitRngNonce_ex2
-    \sa wc_RNG_DRBG_Reseed_Nonce
+    \sa wc_RNG_DRBG_Reseed_AddIn
     \sa wc_RNG_TestSeed
     \sa wc_RNG_DRBG_GetRBGCStratum
 */
@@ -1410,7 +1417,7 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
     \ingroup Random
 
     \brief Immediately reseed rng from the module's built-in, registered, or
-    associated seed source, with an optional nonce as additional input.  The
+    associated seed source, with an optional addIn as additional input.  The
     credited reseed resets the reseed counter.
 
     \details For an SP 800-90C chain member (RBGC stratum > 0, in builds with
@@ -1425,7 +1432,7 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
 
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.
-    \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng is null, or addIn is null with addInSz nonzero.
     \return OBJECT_NOT_LOCKED_E The instance requires its lock and the
     caller does not hold it.
     \return BAD_MUTEX_E The rng's lock could not be taken.
@@ -1446,21 +1453,21 @@ int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
     remains usable until its reseed interval is reached.
 
     \param rng The RNG object to reseed.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_ScheduleReseed
-    \sa wc_RNG_DRBG_Reseed_Nonce
+    \sa wc_RNG_DRBG_Reseed_AddIn
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
+int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* addIn, word32 addInSz);
 
 /*!
     \ingroup Random
 
     \brief The forced-primary form of wc_RNG_DRBG_Reseed_Now(): reseed rng
     directly from the module's primary (initial) randomness source, bypassing
-    the chain fallback ladder, with an optional nonce as additional input.
+    the chain fallback ladder, with an optional addIn as additional input.
     This is the SP 800-90A prediction-resistance primitive -- a reseed from a
     live entropy source immediately ahead of generation -- and is available
     to SP 800-90C chain members (RBGC stratum > 0) as well: the initial
@@ -1494,7 +1501,7 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
     retryable from a blockable context.
 
     \return 0 Success
-    \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng is null, or addIn is null with addInSz nonzero.
     \return OBJECT_NOT_LOCKED_E The instance requires its lock and the
     caller does not hold it.
     \return WRONG_TYPE_OBJECT_E The instance does not assert
@@ -1511,8 +1518,8 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
 
     \param rng The RNG object to reseed; in builds with instance locking it
     must assert WC_RNG_LOCK_REQUIRED and be held by the caller.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     _Example_
     \code
@@ -1530,14 +1537,14 @@ int wc_RNG_DRBG_Reseed_Now(WC_RNG* rng, const byte* nonce, word32 nonceSz);
     \sa wc_RNG_DRBG_Present
     \sa wc_RNG_DRBG_NextSeedGenerate_Primary
 */
-int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* nonce,
-                                   word32 nonceSz);
+int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* addIn,
+                                   word32 addInSz);
 
 /*!
     \ingroup Random
 
     \brief Reseed rng's DRBG with caller-supplied seed material and an
-    optional nonce as additional input, folded in a single derivation pass.
+    optional addIn as additional input, folded in a single derivation pass.
     The material is credited: the reseed counter resets.
 
     \details The single pass is one reseed operation over both inputs, not
@@ -1550,7 +1557,7 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* nonce,
     \return RNG_FAILURE_E rng is condemned (status DRBG_FAILED): a
     condemned instance does not accept a credited reseed; recover with
     wc_FreeRng() then wc_InitRng*().  Also, the reseed itself failed.
-    \return BAD_FUNC_ARG rng or seed is null, or nonce is null with nonceSz
+    \return BAD_FUNC_ARG rng or seed is null, or addIn is null with addInSz
     nonzero.
     \return OBJECT_NOT_LOCKED_E The instance requires its lock and the
     caller does not hold it.
@@ -1567,15 +1574,15 @@ int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng, const byte* nonce,
     \param rng The RNG object to reseed.
     \param seed Seed material.
     \param seedSz Length of seed in bytes.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
     \sa wc_RNG_DRBG_Present
 
     \sa wc_RNG_DRBG_Reseed
-    \sa wc_RNG_DRBG_Stir_Nonce
+    \sa wc_RNG_DRBG_Stir_AddIn
 */
-int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
-                             const byte *nonce, word32 nonceSz);
+int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed, word32 seedSz,
+                             const byte *addIn, word32 addInSz);
 
 /*!
     \ingroup Random
@@ -1611,7 +1618,7 @@ int wc_RNG_DRBG_Reseed_Nonce(WC_RNG* rng, const byte* seed, word32 seedSz,
     \param seedSz Length of seed in bytes.
 
     \sa wc_RNG_DRBG_Reseed
-    \sa wc_RNG_DRBG_Stir_Nonce
+    \sa wc_RNG_DRBG_Stir_AddIn
     \sa wc_RNG_entropy_needs_recovery
     \sa wc_RNG_DRBG_Present
 */
@@ -1620,12 +1627,12 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
 /*!
     \ingroup Random
 
-    \brief The nonce-bearing form of wc_RNG_DRBG_Stir(): the nonce is
+    \brief The addIn-bearing form of wc_RNG_DRBG_Stir(): the addIn is
     mixed in as a second, separate generate with additional input.
 
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.
-    \return BAD_FUNC_ARG rng or seed is null, or nonce is null with nonceSz
+    \return BAD_FUNC_ARG rng or seed is null, or addIn is null with addInSz
     nonzero.
     \return OBJECT_NOT_LOCKED_E, NEEDS_RECOVERY_E, NOT_READY_E,
     RNG_FAILURE_E, BAD_MUTEX_E As for wc_RNG_DRBG_Stir().
@@ -1633,16 +1640,16 @@ int wc_RNG_DRBG_Stir(WC_RNG* rng, const byte* seed, word32 seedSz);
     \param rng The RNG object to stir.
     \param seed Material to mix in.
     \param seedSz Length of seed in bytes.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_Stir
-    \sa wc_RNG_DRBG_Reseed_Nonce
+    \sa wc_RNG_DRBG_Reseed_AddIn
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_Stir_Nonce(WC_RNG* rng, const byte* seed,
-                                        word32 seedSz, const byte *nonce,
-                                        word32 nonceSz);
+int wc_RNG_DRBG_Stir_AddIn(WC_RNG* rng, const byte* seed,
+                                        word32 seedSz, const byte *addIn,
+                                        word32 addInSz);
 
 /*!
     \ingroup Random
@@ -1741,7 +1748,7 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
     \ingroup Random
 
     \brief Reseed rng from root's generate output -- the SP 800-90C chain
-    reseed -- with an optional nonce as additional input.  The reseed is
+    reseed -- with an optional addIn as additional input.  The reseed is
     credited (the reseed counter resets); rng's stratum is updated to root's
     stratum + 1, unless built with WC_RNG_RBGC_STRATUM_IMMUTABLE (required for
     FIPS).  The caller must hold exclusive access to both instances.
@@ -1772,8 +1779,8 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.  (Refusals below take
     precedence.)
-    \return BAD_FUNC_ARG rng or root is null, rng equals root, nonce is
-    null with nonceSz nonzero, or the no-downgrade rule refuses root as a
+    \return BAD_FUNC_ARG rng or root is null, rng equals root, addIn is
+    null with addInSz nonzero, or the no-downgrade rule refuses root as a
     chain parent (see \details).
     \return WRONG_TYPE_OBJECT_E rng is primary-class (stratum 0) and the
     build is WC_RNG_RBGC_STRATUM_IMMUTABLE, or (under FIPS) root is neither
@@ -1791,16 +1798,16 @@ int wc_InitRngNonceRBGC_New(WC_RNG** child, WC_RNG* parent, const byte* nonce,
 
     \param rng The chain member to reseed.
     \param root The chain parent to draw seed material from.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_InitRngRBGC
     \sa wc_RNG_DRBG_StirRBGC
     \sa wc_RNG_DRBG_Reseed_Now
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
-                           word32 nonceSz);
+int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* addIn,
+                           word32 addInSz);
 
 /*!
     \ingroup Random
@@ -1810,8 +1817,8 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
 
     \return 0 Success -- or no-op: an instance with no DRBG (RDRAND et al.)
     reports success without action; wc_RNG_DRBG_Present() disambiguates.
-    \return BAD_FUNC_ARG rng or root is null, rng equals root, or nonce is
-    null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng or root is null, rng equals root, or addIn is
+    null with addInSz nonzero.
     \return OBJECT_NOT_LOCKED_E rng or root requires its lock and the
     caller does not hold it.
     \return NEEDS_RECOVERY_E A recovery obligation stands on rng; see
@@ -1821,8 +1828,8 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
 
     \param rng The chain member to stir.
     \param root The chain parent to draw material from.
-    \param nonce Optional additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Optional additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_ReseedRBGC
     \sa wc_RNG_DRBG_Stir
@@ -1837,7 +1844,7 @@ int wc_RNG_DRBG_ReseedRBGC(WC_RNG* rng, WC_RNG* root, const byte* nonce,
 
 */
 int wc_RNG_DRBG_StirRBGC(WC_RNG* rng, WC_RNG* root,
-                                      const byte* nonce, word32 nonceSz);
+                                      const byte* addIn, word32 addInSz);
 
 /*!
     \ingroup Random
@@ -1891,7 +1898,18 @@ int wc_RNG_DRBG_GetNextSeedRBGCStratum(const WC_RNG* rng);
     instance -- the single-writer fill and the atomic aperture hand-off
     make it safe alongside a concurrent consumer.
 
-    \details For an SP 800-90C chain member (RBGC stratum > 0, in builds
+    \details The next-seed bank is an intermediate staging buffer in the
+    seed pipeline -- the ordinary decoupling of entropy gather from seed
+    consumption, as in any entropy source with an internal FIFO or
+    collector thread.  Banked material is not DRBG state: it becomes
+    state only in the consuming thread's reseed transition
+    (wc_RNG_DRBG_NextSeedNow(), or an opportunistic generate-path
+    consumption), is zeroized on consumption, and is purged unpublished
+    if its source crossed an invalidation event mid-fill.  The aperture
+    protocol (WC_RNG.nextSeedLen) guarantees single production and
+    single consumption.
+
+    For an SP 800-90C chain member (RBGC stratum > 0, in builds
     with instance locking), the material is drawn by the same fallback
     ladder as wc_RNG_DRBG_Reseed_Now(): the retained parent first
     (nonblocking acquisition), then the global fallback instance (under
@@ -2073,14 +2091,14 @@ int wc_RNG_DRBG_NextSeedCurrent(const WC_RNG* rng, WC_ATOMIC_INT_ARG* n);
     \endcode
 
     \sa wc_RNG_DRBG_NextSeedGenerate
-    \sa wc_RNG_DRBG_NextSeedNow_Nonce
+    \sa wc_RNG_DRBG_NextSeedNow_AddIn
 */
 int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
 
 /*!
     \ingroup Random
 
-    \brief The nonce-bearing form of wc_RNG_DRBG_NextSeedNow(): the nonce is
+    \brief The addIn-bearing form of wc_RNG_DRBG_NextSeedNow(): the addIn is
     mixed in as uncredited additional input alongside the banked seed.
 
     \return 0 Success
@@ -2091,18 +2109,18 @@ int wc_RNG_DRBG_NextSeedNow(WC_RNG* rng);
     (re-)asserted, and a recovery reseed is scheduled.
     \return NOT_READY_E No bank is ready, or the reseed failed retryably
     with reseed runway remaining.
-    \return BAD_FUNC_ARG rng is null, or nonce is null with nonceSz nonzero.
+    \return BAD_FUNC_ARG rng is null, or addIn is null with addInSz nonzero.
     \return WRONG_TYPE_OBJECT_E, OBJECT_NOT_LOCKED_E, BAD_MUTEX_E,
     RNG_FAILURE_E, DRBG_CONT_FIPS_E As for wc_RNG_DRBG_NextSeedNow().
 
     \param rng The RNG object to reseed.
-    \param nonce Additional input.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Additional input.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_NextSeedNow
 */
-int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
-                                  word32 nonceSz);
+int wc_RNG_DRBG_NextSeedNow_AddIn(WC_RNG* rng, const byte* addIn,
+                                  word32 addInSz);
 
 /*!
     \ingroup Random
@@ -2117,18 +2135,18 @@ int wc_RNG_DRBG_NextSeedNow_Nonce(WC_RNG* rng, const byte* nonce,
     \return 0 Success (an instance with no DRBG accumulates too; the stir
     that consumes it is then a no-op -- wc_RNG_DRBG_Present()
     disambiguates).
-    \return BAD_FUNC_ARG rng or nonce is null, or nonceSz is 0.
+    \return BAD_FUNC_ARG rng or addIn is null, or addInSz is 0.
 
     \param rng The RNG object whose accumulator to feed.
-    \param nonce Material to bank.
-    \param nonceSz Length of nonce in bytes.
+    \param addIn Material to bank.
+    \param addInSz Length of addIn in bytes.
 
     \sa wc_RNG_DRBG_NextStirNow
     \sa wc_RNG_DRBG_Stir
     \sa wc_RNG_DRBG_Present
 */
-int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *nonce,
-                                        word32 nonceSz);
+int wc_RNG_DRBG_NextStirStore(WC_RNG* rng, const byte *addIn,
+                                        word32 addInSz);
 
 /*!
     \ingroup Random
@@ -2527,6 +2545,18 @@ int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
     atomic aperture word, so it is safe against a concurrent
     wc_FreeRng() or wc_RNG_Pool_Collect2() on the same instance.
 
+    \details The pool facility involves exactly one generator: the source
+    that fills it (the instance itself via wc_RNG_Pool_Collect(), or, via
+    wc_RNG_Pool_Collect2(), the instance or its direct RBGC parent).  The
+    pool is buffered output of that generator, held inside the module
+    boundary, and the host WC_RNG performs no cryptographic operation on
+    pool data: it contributes buffer storage, lock protection, and
+    scheduling/affinity convenience, and the bytes travel through their
+    own retrieval path (wc_RNG_Pool_Extract()), which never touches the
+    host's DRBG state.  In-boundary placement is a conservatism: pooled
+    output inherits the entropy-invalidation machinery (purged on events,
+    wiped on failure) that an out-of-boundary buffer would forgo.
+
     \return 0 Success
     \return BAD_FUNC_ARG rng is null, or size is less than 2 or greater
     than 32767.
@@ -2606,7 +2636,10 @@ int wc_RNG_Pool_Collect(WC_RNG* rng, word32 n);
     eligibility rule is narrower still: rng_src must be rng_dest itself,
     or (under WC_RNG_HAVE_RBGC) rng_dest's direct RBGC parent -- the two
     relationships under which rng_src's output is already sanctioned to
-    reach rng_dest.  Any other source is refused with
+    reach rng_dest.  The rule is an attribution guarantee, not a seeding
+    criterion -- no reseed occurs here: extracted pool bytes are served
+    under rng_dest's identity and stratum, and eligibility ensures that
+    label is never misleading.  Any other source is refused with
     WRONG_TYPE_OBJECT_E before any other processing, the n = 0 no-op
     included.
 
@@ -2754,16 +2787,21 @@ int wc_rng_debug_stats_sum(struct wc_rng_debug_stats_snapshot *s,
     call.  The pending event is delivered into each instance -- purging its
     banked and pooled pre-event material via wc_RNG_invalidate_entropy() --
     at the instance's next detection point: a generate, a recovery query, a
-    banked-seed redemption, or a pool extraction.  The call is lock-free and
-    safe from any context that may call the atomic-increment primitive.
+    banked-seed redemption, or a pool extraction.  If an auxiliary
+    invalidation publisher is registered (see
+    wc_RNG_entropy_epoch_extra_inv_init()), the fresh epoch is published
+    through it after the advance is globally visible.  The call is lock-free
+    and safe from any context that may call the atomic-increment primitive
+    (and, when a publisher is registered, the publisher).
 
     \return The new (post-increment) global entropy epoch.
 
     \sa wc_RNG_entropy_needs_recovery
     \sa wc_RNG_invalidate_entropy
+    \sa wc_RNG_entropy_epoch_extra_inv_init
     \sa wc_RNG_GenerateBlock
 */
-WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
+wc_RNG_entropy_epoch_t wc_RNG_global_invalidate_entropy(void);
 
 /*!
     \ingroup Random
@@ -2771,16 +2809,126 @@ WC_ATOMIC_UINT_ARG wc_RNG_global_invalidate_entropy(void);
     \brief Read the process-global entropy epoch: the count of
     wc_RNG_global_invalidate_entropy() events so far.  An instance whose
     stamp differs from this value has an undelivered event pending (see
-    wc_RNG_entropy_needs_recovery(), which delivers it).  A relaxed
-    snapshot, for diagnostics and for callers that want to notice an event
-    without touching any instance; nothing is propagated.
+    wc_RNG_entropy_needs_recovery(), which delivers it).
+
+    \details Every epoch read is also a detection point for the auxiliary
+    pathway: with an external epoch source registered (see
+    wc_RNG_extra_entropy_epoch_init()), the source is consulted first, and
+    an external event detected there advances the global epoch before the
+    read returns -- so a read can itself move the epoch.  No per-instance
+    delivery is performed either way: this is for diagnostics and for
+    callers that want to notice an event without touching any instance.
 
     \return The current global epoch.
 
     \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_extra_entropy_epoch_init
     \sa wc_RNG_entropy_needs_recovery
 */
-WC_ATOMIC_UINT_ARG wc_RNG_get_global_entropy_epoch(void);
+wc_RNG_entropy_epoch_t wc_RNG_get_global_entropy_epoch(void);
+
+/*!
+    \ingroup Random
+
+    \brief Register a publisher for global entropy-epoch advances -- the
+    sender half of the auxiliary invalidation pathway, carrying
+    wc_RNG_global_invalidate_entropy() events to consumers outside the
+    process.
+
+    \details The canonical sender is a kernel module exporting its epoch to
+    user processes through read-only shared memory: the handler writes each
+    fresh epoch to the exported word, and user-mode libraries detect the
+    change through their own registered source (see
+    wc_RNG_extra_entropy_epoch_init() -- a build registering both is a
+    relay, receiving events upstream and republishing them downstream).
+    The "extra" here is an extra invalidation step -- transmission of the
+    one and only epoch -- not an extra epoch.
+
+    The handler is called after each advance is globally visible, with the
+    fresh epoch and the registered arg.  It must be cheap, nonblocking, and
+    safe in every context wc_RNG_global_invalidate_entropy() can run in,
+    and must not call back into wolfCrypt (a call back into the invalidator
+    is direct recursion).  Registration is one-shot for the life of the
+    process, with no deregistration, by design.
+
+    Publication is only guaranteed for advances after this call returns
+    success: either defer normal service until registration completes
+    (natural in module-init contexts), or accept that an advance racing the
+    registration may go unpublished.
+
+    \return 0 Success: the handler is registered and will receive every
+    subsequent advance.
+    \return BAD_FUNC_ARG handler is null.
+    \return ALREADY_E a publisher is already registered.
+    \return BUSY_E lost a registration race; nothing was registered by this
+    call.
+
+    \param handler The publisher callback.
+    \param arg Opaque argument passed to the callback.
+
+    \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_extra_entropy_epoch_init
+*/
+int wc_RNG_entropy_epoch_extra_inv_init(
+    wc_RNG_entropy_epoch_extra_inv_handler_t handler, void *arg);
+
+/*!
+    \ingroup Random
+
+    \brief Register a getter for an external entropy-epoch word -- the
+    receiver half of the auxiliary invalidation pathway, folding platform
+    entropy-invalidation events (a VM fork or resume, a snapshot restore)
+    into the process-global epoch.
+
+    \details The canonical receiver is a user-mode library polling a
+    kernel-exported epoch through read-only shared memory.  The "extra"
+    here is a whole extra epoch -- the external one, shadow-tracked
+    internally so that only its changes are forwarded.  Every epoch read
+    (every invalidation check, in every instance) consults the getter; a
+    changed value advances the process-global epoch exactly once per change
+    before the shadow is updated, so an external event is detected at the
+    first check after it lands, with no thread of control required on the
+    receiving side.  Events between checks coalesce into one advance.
+    Under concurrency the accounting is best-effort in the safe direction:
+    racing readers can each advance for the same external change, and a
+    duplicate advance (with its duplicate publication, when a publisher is
+    registered) costs at most a spurious recovery cycle.  Duplicates are
+    tolerated by design -- the alternative single-broadcaster protocols
+    can lose an advance outright, which is never tolerable.
+
+    The getter must be cheap, nonblocking, callable concurrently, and must
+    not call into wolfCrypt (every wolfCrypt invalidation check would
+    recurse).  It returns the external epoch, or
+    WC_RNG_ENTROPY_EPOCH_INVALID (0) when no signal is available, which
+    makes the read inert.
+
+    Registration probes the getter once: a 0 result refuses the
+    registration and leaves the slot unclaimed.  A successful registration
+    primes the shadow with the probed value, so registering is itself quiet
+    -- material seeded before registration is trusted.  For a conservative
+    start that distrusts it instead, call
+    wc_RNG_global_invalidate_entropy() after this call returns.
+    Registration is one-shot for the life of the process, with no
+    deregistration, by design.
+
+    \return 0 Success: every subsequent epoch read consults the getter.
+    \return BAD_FUNC_ARG handler is null, or its probe returned
+    WC_RNG_ENTROPY_EPOCH_INVALID.
+    \return ALREADY_E a source is already registered.
+    \return BUSY_E lost a registration race; nothing was registered by this
+    call.
+
+    \param handler The getter callback.
+    \param arg Opaque argument passed to the callback.
+
+    \sa wc_RNG_get_global_entropy_epoch
+    \sa wc_RNG_global_invalidate_entropy
+    \sa wc_RNG_entropy_epoch_extra_inv_init
+    \sa wc_RNG_entropy_needs_recovery
+*/
+int wc_RNG_extra_entropy_epoch_init(
+    wc_RNG_extra_entropy_epoch_get_handler_t handler,
+    void *arg);
 
 /*!
     \ingroup Random

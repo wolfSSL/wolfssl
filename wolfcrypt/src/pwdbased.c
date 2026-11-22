@@ -93,7 +93,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
     (void)heap;
 
-    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 || ivLen < 0){
+    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 ||
+        ivLen < 0 || (salt == NULL && saltLen > 0)){
         return BAD_FUNC_ARG;
     }
 
@@ -227,6 +228,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     Hmac   hmac[1];
 #endif
     enum wc_HashType hashT;
+    byte*  outStart = output;
+    int    outLen = kLen;
 
     if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
@@ -361,6 +364,10 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
             i++;
         }
         wc_HmacFree(hmac);
+    }
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(outStart, (word32)outLen);
     }
 
     ForceZero(buffer, (word32)hLen);
@@ -931,6 +938,7 @@ static void scryptBlockMix(byte* b, byte* y, int r)
 {
 #ifdef WORD64_AVAILABLE
     word64  x[8];
+    word32  x32[16];
     word64* b64 = (word64*)b;
     word64* y64 = (word64*)y;
 #else
@@ -949,12 +957,15 @@ static void scryptBlockMix(byte* b, byte* y, int r)
 #ifdef WORD64_AVAILABLE
         for (j = 0; j < 8; j++)
             x[j] ^= b64[i * 8 + j];
-
+        /* C11 6.5p7: x is word64, so run the word32 Salsa on a word32 copy. */
+        XMEMCPY(x32, x, sizeof(x32));
+        scryptSalsa(x32, x32);
+        XMEMCPY(x, x32, sizeof(x));
 #else
         for (j = 0; j < 16; j++)
             x[j] ^= b32[i * 16 + j];
+        scryptSalsa(x, x);
 #endif
-        scryptSalsa((word32*)x, (word32*)x);
         XMEMCPY(y + i * 64, x, sizeof(x));
     }
     /* Step 3. */

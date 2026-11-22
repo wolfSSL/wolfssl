@@ -634,6 +634,11 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
 /// use wolfssl_wolfcrypt::kdf::*;
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1);
+/// }
 /// let k = [0x42u8; 256];
 /// let h = [0x43u8; 32];
 /// let sid = [0x44u8; 32];

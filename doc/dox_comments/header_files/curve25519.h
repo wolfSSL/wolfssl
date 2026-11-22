@@ -148,6 +148,8 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     \return 0 Returned on successfully initializing the curve25519_key
     structure.
     \return BAD_FUNC_ARG Returned when key is NULL.
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param [in,out] key Pointer to the curve25519_key structure to initialize.
 
@@ -968,6 +970,8 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* priv);
 
     \return 0 On successfully initializing the key
     \return BAD_FUNC_ARG If key is NULL
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param key Pointer to the curve25519_key structure to initialize
     \param heap Pointer to heap hint for memory allocation (can be

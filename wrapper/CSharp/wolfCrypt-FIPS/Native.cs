@@ -110,12 +110,6 @@ namespace wolfSSL.CSharp.Fips
         [DllImport(WOLFSSL, EntryPoint = "wc_RNG_GenerateBlock_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_RNG_GenerateBlock_fips(FipsHandle rng, byte[] output, uint sz);
 
-#if FIPS_TEST_HOOKS
-        [DllImport(WOLFSSL, EntryPoint = "wc_RNG_HealthTest_fips", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int wc_RNG_HealthTest_fips(int reseed, byte[] seedA, uint seedASz,
-            byte[]? seedB, uint seedBSz, byte[] output, uint outputSz);
-#endif
-
         /* ---- SHA-1, SHA-2, SHA-3 (FIPS 180-4, FIPS 202) ---- */
         [DllImport(WOLFSSL, EntryPoint = "wc_InitSha_fips", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int wc_InitSha_fips(FipsHandle sha);

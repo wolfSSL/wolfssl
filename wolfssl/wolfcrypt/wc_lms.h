@@ -107,6 +107,10 @@
 #if defined(WOLFSSL_NO_HASH_RAW) && !defined(WC_LMS_FULL_HASH)
     #define WC_LMS_FULL_HASH
 #endif
+/* The SHA-256 parameter sets need the one block compression helper. */
+#if !defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && !defined(WC_LMS_FULL_HASH)
+    #define WC_LMS_FULL_HASH
+#endif
 
 /* Length of the Key ID. */
 #define WC_LMS_I_LEN    16

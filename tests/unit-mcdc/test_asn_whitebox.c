@@ -775,7 +775,7 @@ static void wb_get_asn_items_word8(void)
         WB_CHECK(ret == 0 && n8 == 0x90, "WORD8 zero-padded (:1530 2nd operand false)");
     }
     { /* BOOLEAN tag with WORD8 dataType -> 1st operand false, short-circuit */
-        byte der[] = { 0x01, 0x01, 0x01 };
+        byte der[] = { 0x01, 0x01, 0xFF };
         XMEMSET(d, 0, sizeof(d)); GetASN_Int8Bit(&d[0], &n8);
         idx = 0;
         ret = GetASN_Items(boolItem, d, 1, 0, der, &idx, sizeof(der));

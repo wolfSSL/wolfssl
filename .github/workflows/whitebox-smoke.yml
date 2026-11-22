@@ -38,8 +38,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           # check-api-guards.py diffs against the base branch, so it
-          # needs more than the default shallow checkout.
+          # needs history, but not the contents of every past file.
           fetch-depth: 0
+          filter: blob:none
 
       - name: Install build dependencies
         uses: ./.github/actions/install-apt-deps
