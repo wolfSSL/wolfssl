@@ -425,6 +425,12 @@
     #define __aarch64__ 1
 #endif
 
+/* SQRDMLSH only assembles when the target CPU has RDM. */
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__) && !defined(_MSC_VER) && \
+    !defined(__ARM_FEATURE_QRDMX) && !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
+    #define WOLFSSL_AARCH64_NO_SQRDMLSH
+#endif
+
 /* Versal Gen2 ASU port: enable the crypto callback and map WC_USE_DEVID before
  * the rest of settings.h and before the unmodified test and benchmark read it.
  * This header is macro only and pulls in no BSP dependencies. */
