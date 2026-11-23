@@ -2,8 +2,8 @@
 # Compile-check wolfProvider against a locally-built wolfSSL.
 #
 # wolfProvider is an OpenSSL 3.x provider, so unlike the other products it also
-# needs OpenSSL dev headers/libs (installed via the caller's apt_packages, e.g.
-# libssl-dev) and an extra --with-openssl. NOTE: the exact flag set may need
+# needs OpenSSL dev headers/libs (libssl-dev) and an extra --with-openssl.
+# NOTE: the exact flag set may need
 # tuning per release; adjust the caller's wolfssl_configure / product_configure.
 #
 # Usage: wolfprovider.sh [-t <ref>] <wolfssl_install_dir> <repo> [product_configure...]

@@ -42,16 +42,6 @@ on:
         required: false
         default: 'script'
         type: string
-      apt_packages:
-        description: 'Extra apt packages needed to build the product'
-        required: false
-        default: ''
-        type: string
-      container:
-        description: 'Container image to build in (e.g. ubuntu:24.04, debian:13)'
-        required: false
-        default: 'ubuntu:24.04'
-        type: string
 
 jobs:
   # Build wolfSSL once and publish the install dir. Both compile legs (head,
@@ -61,38 +51,19 @@ jobs:
     name: Build wolfSSL (${{ inputs.product }})
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    container:
-      image: ${{ inputs.container }}
     timeout-minutes: 20
     steps:
-      # No git yet, so this is a REST download, only to get apt-install.sh.
-      - name: Fetch the apt script
-        uses: actions/checkout@v5
-        with:
-          path: apt-script
-
-      # Minimal-image containers ship without git/toolchain; install them
-      # before checkout. Product-specific extras come from apt_packages.
-      - name: Install build tools
-        run: |
-          # Two attempts fit inside this job's timeout-minutes.
-          sh apt-script/.github/actions/install-apt-deps/apt-install.sh \
-            --tries 2 --update-timeout 60 --no-install-recommends \
-            build-essential autoconf automake libtool pkg-config \
-            git ca-certificates ${{ inputs.apt_packages }}
-
-      # Building only needs the commit under test, not history. The break check
-      # that needs history runs in the compile job, not here.
       - name: Checkout wolfSSL
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
           fetch-tags: false
 
-      # Container job: the bind-mounted workspace is owned by a different uid,
-      # so mark it safe or git refuses to operate on it ("dubious ownership").
-      - name: Mark workspace safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Install build tools
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf automake libtool
+          ghcr-debs-tag: ubuntu-24.04-minimal
 
       # Build wolfSSL and install to a local dir. The configure flags go through
       # an env var (not inline ${{ }}) so a quoted CFLAGS/C_EXTRA_FLAGS group
@@ -127,48 +98,39 @@ jobs:
     name: Compile ${{ inputs.product }} (${{ matrix.ref_mode }})
     needs: build-wolfssl
     runs-on: ubuntu-24.04
-    container:
-      image: ${{ inputs.container }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         ref_mode: [ head, latest ]
     steps:
-      # No git yet, so this is a REST download, only to get apt-install.sh.
-      - name: Fetch the apt script
-        uses: actions/checkout@v5
-        with:
-          path: apt-script
-
-      # Minimal-image containers ship without git/toolchain; install them
-      # before checkout. Product-specific extras come from apt_packages.
-      - name: Install build tools
-        run: |
-          # Two attempts fit inside this job's timeout-minutes.
-          sh apt-script/.github/actions/install-apt-deps/apt-install.sh \
-            --tries 2 --update-timeout 60 --no-install-recommends \
-            build-essential autoconf automake libtool pkg-config \
-            git ca-certificates ${{ inputs.apt_packages }}
-
-      # This job does not build wolfSSL, but the latest leg still checks out
-      # wolfSSL history because check-break.sh scans commit messages here. The
-      # head leg never waives a break, so a depth-1 checkout is enough for it.
       - name: Checkout wolfSSL
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
           fetch-tags: false
 
-      # This is a container job: the workspace is a host bind-mount owned by a
-      # different uid than the (root) container user, so git refuses to operate
-      # on it ("detected dubious ownership") unless it is marked safe. actions/
-      # checkout marks it safe only under its own *temporary* HOME, which our
-      # run: steps (HOME=/github/home) do not inherit, so check-break.sh's
-      # `git tag`/`git log` would fail and, with stderr hidden, look like "no
-      # break declared". Mark it safe under this HOME for all following steps.
-      - name: Mark workspace safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Install build tools
+        if: inputs.product != 'wolfip' && inputs.product != 'wolfprovider'
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf automake libtool
+          ghcr-debs-tag: ubuntu-24.04-minimal
+
+      # wolfIP uses Check for the unit suite and xxd for the test certificates.
+      - name: Install wolfIP build and test tools
+        if: inputs.product == 'wolfip'
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf automake libtool check xxd
+          ghcr-debs-tag: ubuntu-24.04-full
+
+      - name: Install wolfProvider build tools and OpenSSL headers
+        if: inputs.product == 'wolfprovider'
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: build-essential autoconf automake libtool libssl-dev
+          ghcr-debs-tag: ubuntu-24.04-full
 
       # The `latest` leg is the only one that reads wolfSSL history: it needs the
       # commit messages check-break.sh scans (the last two release cycles) plus

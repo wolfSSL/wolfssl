@@ -14,10 +14,12 @@ bison
 bubblewrap
 build-essential
 ccache
+check
 clang
 clang-14
 clang-19
 cmake
+flex
 g++-10
 g++-11
 g++-12
@@ -103,4 +105,5 @@ python3-yaml
 shellcheck
 uuid-dev
 valgrind
+xxd
 zlib1g-dev
