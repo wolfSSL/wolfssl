@@ -212,12 +212,89 @@ MCDC_FM_MAYBE_UNUSED static int mcdc_rsa_mont_red_ct(mp_int* a, mp_int* m,
  * the next candidate succeed and the key generation complete normally. */
 static int mcdc_rsa_2expt_armed = 0;
 
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_NO_RNG) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_NO_RSA_SW) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+#define WB_RSA_KEYGEN_CHECKS
+
+static mp_int* wb_rsa_private_exponent;
+static int wb_rsa_fail_inverse;
+
+static int wb_rsa_invmod(const mp_int* a, const mp_int* b, mp_int* out)
+{
+    if (out == wb_rsa_private_exponent) {
+        if (wb_rsa_fail_inverse)
+            return MCDC_FM_ERR;
+#ifndef WC_RSA_BLINDING
+        return mp_set(out, 1);
+#endif
+    }
+    return mp_invmod(a, b, out);
+}
+#undef mp_invmod
+#define mp_invmod(a, b, out) wb_rsa_invmod((a), (b), (out))
+
+#ifdef WC_RSA_BLINDING
+static int wb_rsa_mulmod(const mp_int* a, const mp_int* b, const mp_int* m,
+    mp_int* out)
+{
+    if (out == wb_rsa_private_exponent)
+        return mp_set(out, 1);
+    return mp_mulmod(a, b, m, out);
+}
+#undef mp_mulmod
+#define mp_mulmod(a, b, m, out) wb_rsa_mulmod((a), (b), (m), (out))
+#endif
+
+#ifndef WC_RSA_NO_FERMAT_CHECK
+static enum {
+    WB_FERMAT_OFF,
+    WB_FERMAT_ARMED,
+    WB_FERMAT_CANDIDATE,
+    WB_FERMAT_FORCED,
+    WB_FERMAT_RETRIED
+} wb_fermat_stage;
+static const mp_int* wb_fermat_p;
+static const mp_int* wb_fermat_q;
+
+static int wb_rsa_sub(const mp_int* a, const mp_int* b, mp_int* out)
+{
+    if (wb_fermat_stage == WB_FERMAT_CANDIDATE) {
+        if (wb_fermat_p == NULL) {
+            wb_fermat_p = a;
+            wb_fermat_q = b;
+        }
+        else if (a == wb_fermat_p && b == wb_fermat_q) {
+            /* Change only the second calculation for the same prime pair. */
+            wb_fermat_stage = WB_FERMAT_FORCED;
+            return mp_set(out, 1);
+        }
+    }
+    return mp_sub(a, b, out);
+}
+#undef mp_sub
+#define mp_sub(a, b, out) wb_rsa_sub((a), (b), (out))
+#endif
+#endif
+
 MCDC_FM_MAYBE_UNUSED static int mcdc_rsa_2expt(mp_int* a, int b)
 {
     if (mcdc_rsa_2expt_armed) {
         mcdc_rsa_2expt_armed = 0;
         return MCDC_FM_ERR;
     }
+#if defined(WB_RSA_KEYGEN_CHECKS) && !defined(WC_RSA_NO_FERMAT_CHECK)
+    if (wb_fermat_stage == WB_FERMAT_ARMED ||
+            wb_fermat_stage == WB_FERMAT_CANDIDATE) {
+        wb_fermat_p = NULL;
+        wb_fermat_q = NULL;
+        wb_fermat_stage = WB_FERMAT_CANDIDATE;
+    }
+    else if (wb_fermat_stage == WB_FERMAT_FORCED) {
+        wb_fermat_stage = WB_FERMAT_RETRIED;
+    }
+#endif
     return mp_2expt(a, b);
 }
 #undef  mp_2expt
@@ -249,6 +326,48 @@ int main(void)
 
 #define WB_RSA_BITS   2048              /* RSA_MIN_SIZE in a non-wolfEngine build */
 #define WB_RSA_BYTES  (WB_RSA_BITS / 8)
+
+#ifdef WB_RSA_KEYGEN_CHECKS
+static int wb_makekey_defensive_checks(WC_RNG* rng)
+{
+    static const int errors[] = { PRIME_GEN_E, MCDC_FM_ERR };
+    RsaKey key;
+    unsigned int i;
+    int ret;
+
+    for (i = 0; i < sizeof(errors) / sizeof(errors[0]); i++) {
+        if (wc_InitRsaKey(&key, NULL) != 0)
+            return 0;
+
+        wb_rsa_private_exponent = &key.d;
+        wb_rsa_fail_inverse = (errors[i] == MCDC_FM_ERR);
+        ret = wc_MakeRsaKey(&key, WB_RSA_BITS, WC_RSA_EXPONENT, rng);
+        wb_rsa_private_exponent = NULL;
+        if (wc_FreeRsaKey(&key) != 0 || ret != errors[i]) {
+            printf("  [wb] RSA key generation returned %d, expected %d\n",
+                ret, errors[i]);
+            return 0;
+        }
+    }
+
+#ifndef WC_RSA_NO_FERMAT_CHECK
+    if (wc_InitRsaKey(&key, NULL) != 0)
+        return 0;
+
+    wb_fermat_stage = WB_FERMAT_ARMED;
+    ret = wc_MakeRsaKey(&key, WB_RSA_BITS, WC_RSA_EXPONENT, rng);
+    i = (wb_fermat_stage == WB_FERMAT_RETRIED);
+    wb_fermat_stage = WB_FERMAT_OFF;
+    if (wc_FreeRsaKey(&key) != 0 || ret != 0 || i == 0) {
+        WB_NOTE("RSA key generation did not retry after a small distance");
+        return 0;
+    }
+#endif
+
+    WB_NOTE("RSA key generation rejected an undersized exponent and retained the arithmetic error");
+    return 1;
+}
+#endif
 
 /* Sweep bound for the shallow entry points (public encrypt/verify, key export,
  * DER decode): a generous over-sweep past their deepest allocation site
@@ -1411,6 +1530,15 @@ int main(int argc, char** argv)
         wc_FreeRng(&rng);
         return 0;
     }
+#ifdef WB_RSA_KEYGEN_CHECKS
+    if (!wb_makekey_defensive_checks(&rng)) {
+        mcdc_fa_restore();
+        wc_FreeRsaKey(&key);
+        wc_FreeRng(&rng);
+        return 1;
+    }
+#endif
+
 #ifndef WC_NO_RNG
     /* Associate the RNG so wc_RsaPrivateDecrypt blinds (WC_RSA_BLINDING). */
     (void)wc_RsaSetRNG(&key, &rng);
