@@ -45,6 +45,7 @@ int test_evp_cipher_aes_gcm_tag_len(void);
 int test_wolfssl_EVP_aes_gcm(void);
 int test_wolfssl_EVP_aes_gcm_AAD_2_parts(void);
 int test_wolfssl_EVP_aes_gcm_zeroLen(void);
+int test_wolfssl_EVP_aes_gcm_64bit_iv(void);
 int test_wolfSSL_EVP_aes_256_ccm(void);
 int test_wolfSSL_EVP_aes_192_ccm(void);
 int test_wolfSSL_EVP_aes_128_ccm(void);
@@ -95,6 +96,7 @@ int test_evp_cipher_update_no_padding_buffered(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_gcm),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_gcm_AAD_2_parts),    \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_gcm_zeroLen),        \
+    TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_gcm_64bit_iv),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_256_ccm),            \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_192_ccm),            \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_128_ccm),            \

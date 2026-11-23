@@ -257,6 +257,53 @@ int test_wc_RsaPublicKeyDecodeRaw(void)
 
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WC_NO_RNG)
+    {
+        /* Encrypt and verify both need a 2048-bit modulus (FIPS 186-5
+         * sec 5.1). The fips.c wrapper or rsa.c refuses it. */
+        RsaKey small;
+        WC_RNG rng;
+        int    ret;
+        byte   bigN[128];
+        byte   sig[128];
+        byte   out[128];
+        byte   msg[16];
+        const byte e3[3] = { 0x01, 0x00, 0x01 };
+
+        XMEMSET(bigN, 0x5A, sizeof(bigN));
+        bigN[0] = 0xC0;
+        bigN[sizeof(bigN) - 1] = 0x01;
+        XMEMSET(sig, 0x01, sizeof(sig));
+        XMEMSET(msg, 0x42, sizeof(msg));
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+
+        /* 512 bits: verify is refused. */
+        ExpectIntEQ(wc_InitRsaKey(&small, HEAP_HINT), 0);
+        ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(bigN, 64, e3, sizeof(e3),
+            &small), 0);
+        ret = wc_RsaSSL_Verify(sig, 64, out, sizeof(out), &small);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+            (ret == WC_NO_ERR_TRACE(SIG_TYPE_E)));
+        DoExpectIntEQ(wc_FreeRsaKey(&small), 0);
+
+        /* 1024 bits: encrypt and verify are both refused. */
+        ExpectIntEQ(wc_InitRsaKey(&small, HEAP_HINT), 0);
+        ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(bigN, sizeof(bigN), e3,
+            sizeof(e3), &small), 0);
+        ret = wc_RsaPublicEncrypt(msg, sizeof(msg), out, sizeof(out), &small,
+            &rng);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+            (ret == WC_NO_ERR_TRACE(SIG_TYPE_E)));
+        ret = wc_RsaSSL_Verify(sig, sizeof(sig), out, sizeof(out), &small);
+        ExpectTrue((ret == WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) ||
+            (ret == WC_NO_ERR_TRACE(SIG_TYPE_E)));
+        DoExpectIntEQ(wc_FreeRsaKey(&small), 0);
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 
@@ -946,7 +993,27 @@ int test_wc_RsaKeyToDer(void)
     ExpectNotNull(der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
 
     /* Test exporting private key to DER */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    {
+        /* wolfSSL_Init() enables private key output: drop it to zero, check
+         * the key does not leave, then put it back. */
+        int held = wolfCrypt_GetPrivateKeyReadEnable_fips(WC_KEYTYPE_ALL);
+        int i;
+
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_LOCK();
+        }
+        ExpectIntEQ(wc_RsaKeyToDer(&key, der, derSz),
+            WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E));
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_UNLOCK();
+        }
+    }
+#endif
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_RsaKeyToDer(&key, der, derSz), 0);
+    PRIVATE_KEY_LOCK();
 
     /* Pass good/bad args. */
     ExpectIntEQ(wc_RsaKeyToDer(NULL, der, derSz),
@@ -1065,7 +1132,7 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     /* Pass bad args - tested in another testing function.*/
 
     /* Decrypt */
-#if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
+#if defined(WC_RSA_BLINDING)
     /* Bind rng */
     ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
 #endif
@@ -1148,7 +1215,7 @@ int test_wc_RsaPublicEncryptDecrypt_ex(void)
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     /* Decrypt */
-    #if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
+    #if defined(WC_RSA_BLINDING)
         ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
     #endif
     ExpectIntGE(wc_RsaPrivateDecrypt_ex(cipher, (word32)idx, plain, plainSz,
@@ -1667,7 +1734,7 @@ int test_wc_RsaDecisionCoverage(void)
         &key, &rng), 0);
 
     /* ---- wc_RsaPrivateDecrypt: argument-check + short-buffer branches ---- */
-#if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
+#if defined(WC_RSA_BLINDING)
     ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
     /* wc_RsaSetRNG NULL arg decision branches. */
     ExpectIntEQ(wc_RsaSetRNG(NULL, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -2826,7 +2893,120 @@ int test_wc_FreeRsaKey_CryptoCb(void)
         ExpectTrue(mp_iszero(&key.e));
     }
 
+#ifndef WC_NO_CONSTRUCTORS
+    {
+        /* wc_DeleteRsaKey reports the device's free failure too. */
+        RsaKey* newKey = NULL;
+        int newRet = -1;
+
+        seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+        ExpectNotNull(newKey = wc_NewRsaKey(HEAP_HINT, TEST_RSA_CB_FREE_DEVID,
+            &newRet));
+        ExpectIntEQ(newRet, 0);
+        ExpectIntEQ(wc_DeleteRsaKey(newKey, &newKey),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectNull(newKey);
+    }
+#endif
+
     wc_CryptoCb_UnRegisterDevice(TEST_RSA_CB_FREE_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && !defined(NO_RSA) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+/* OAEP encrypt, or verify when verify is set, with a raw-imported public key:
+ * n of nSz bytes, top byte top. */
+static int test_rsa_params_op(WC_RNG* rng, word32 nSz, byte top,
+    const byte* e, word32 eSz, int verify)
+{
+    RsaKey key;
+    byte   n[384];
+    byte   in[32];
+    byte   out[384];
+    int    ret;
+    int    ret2;
+
+    XMEMSET(n, 0xc5, sizeof(n));
+    XMEMSET(in, 0x01, sizeof(in));
+    n[0] = top;
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
+    if (ret == 0) {
+        ret = wc_RsaPublicKeyDecodeRaw(n, nSz, e, eSz, &key);
+        if ((ret == 0) && verify) {
+            XMEMSET(out, 0x01, sizeof(out));
+            ret = wc_RsaSSL_Verify(out, nSz, n, sizeof(n), &key);
+        } else if (ret == 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out),
+                &key, rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                NULL, 0);
+        }
+        ret2 = wc_FreeRsaKey(&key);
+        if ((ret >= 0) && (ret2 != 0)) {
+            ret = ret2;
+        }
+    }
+    return ret;
+}
+#endif
+
+/* FIPS v7 refuses an operation on a key with an odd modulus length or an e
+ * outside FIPS 186-5 sec 5.4 (e). */
+int test_wc_RsaPublicParams(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && !defined(NO_RSA) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+    WC_RNG rng;
+    const byte e65537[] = { 0x01, 0x00, 0x01 };
+    const byte e3[] = { 0x03 };
+    const byte e65536[] = { 0x01, 0x00, 0x00 };
+    byte       e257[33];
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e65537,
+        sizeof(e65537), 0), 256);
+    /* 2049 and 3071 bits */
+    ExpectIntEQ(test_rsa_params_op(&rng, 257, 0x01, e65537,
+        sizeof(e65537), 0), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 384, 0x45, e65537,
+        sizeof(e65537), 0), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 257, 0x01, e65537,
+        sizeof(e65537), 1), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e3, sizeof(e3), 0),
+        WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e65536,
+        sizeof(e65536), 0), WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+    /* 2^256 + 1: odd but 257 bits */
+    XMEMSET(e257, 0, sizeof(e257));
+    e257[0] = 0x01;
+    e257[sizeof(e257) - 1] = 0x01;
+    ExpectIntEQ(test_rsa_params_op(&rng, 256, 0xc5, e257, sizeof(e257), 0),
+        WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#if defined(WOLFSSL_RSA_KEY_CHECK) && defined(WOLFSSL_KEY_GEN)
+    /* wc_CheckRsaKey reports e = 65535 as a bad e, not a pairwise failure. */
+    {
+        RsaKey key;
+        byte   der[sizeof_client_key_der_2048];
+        word32 idx = 0;
+        const byte eDer[] = { 0x02, 0x03, 0x01, 0x00, 0x01 };
+
+        XMEMCPY(der, client_key_der_2048, sizeof(der));
+        ExpectBufEQ(der + 268, eDer, sizeof(eDer));
+        der[270] = 0x00;
+        der[271] = 0xff;
+        der[272] = 0xff;
+        ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(der, &idx, &key, sizeof(der)), 0);
+        ExpectIntEQ(wc_CheckRsaKey(&key), WC_NO_ERR_TRACE(MP_EXPTMOD_E));
+        DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 }

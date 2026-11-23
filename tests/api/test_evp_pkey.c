@@ -3818,6 +3818,13 @@ int test_wolfSSL_EVP_PKEY_x25519(void)
     ExpectIntEQ(EVP_PKEY_derive_init(ctx), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_PKEY_derive_set_peer(ctx, peer), WOLFSSL_SUCCESS);
     secretLen = sizeof(secretA);
+#ifdef WC_X25519_HYBRID_ONLY
+    /* FIPS v7 computes X25519 only inside the ML-KEM hybrid. */
+    ExpectIntNE(EVP_PKEY_derive(ctx, secretA, &secretLen), WOLFSSL_SUCCESS);
+    (void)secretB;
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+#else
     ExpectIntEQ(EVP_PKEY_derive(ctx, secretA, &secretLen), WOLFSSL_SUCCESS);
     ExpectIntEQ((int)secretLen, 32);
     EVP_PKEY_CTX_free(ctx);
@@ -3833,6 +3840,7 @@ int test_wolfSSL_EVP_PKEY_x25519(void)
     ctx = NULL;
 
     ExpectIntEQ(XMEMCMP(secretA, secretB, 32), 0);
+#endif
 
     EVP_PKEY_free(peer);
     EVP_PKEY_free(pkey);

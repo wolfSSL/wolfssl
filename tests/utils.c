@@ -880,6 +880,35 @@ int test_memio_setup(struct test_memio_ctx *ctx,
                                method_s, NULL, 0, NULL, 0, NULL, 0);
 }
 
+#ifdef WOLFSSL_TLS13
+/* The module counts TLS 1.3 AES-GCM nonces from a key's first record. After a
+ * test moves the sequence number, a fresh object restarts the count there. */
+int test_tls13_restart_gcm_nonce(WOLFSSL* ssl)
+{
+    int ret = 0;
+#if defined(WC_AESGCM_IV_LOCK) && !defined(WOLFSSL_ASYNC_CRYPT)
+    const byte* key;
+
+    if ((ssl == NULL) || (ssl->encrypt.aes == NULL) ||
+            !ssl->encrypt.gcmIvCtrSet ||
+            (ssl->specs.bulk_cipher_algorithm != wolfssl_aes_gcm)) {
+        return 0;
+    }
+    key = (ssl->options.side == WOLFSSL_CLIENT_END) ?
+        ssl->keys.client_write_key : ssl->keys.server_write_key;
+    wc_AesFree(ssl->encrypt.aes);
+    ret = wc_AesInit(ssl->encrypt.aes, ssl->heap, ssl->devId);
+    if (ret == 0)
+        ret = wc_AesGcmSetKey(ssl->encrypt.aes, key, ssl->specs.key_size);
+    if (ret == 0)
+        ssl->encrypt.gcmIvCtrSet = 0;
+#else
+    (void)ssl;
+#endif
+    return ret;
+}
+#endif
+
 #ifdef WOLFSSL_SESSION_EXPORT
 /* Relabel a session export as version 6 and drop fatalAlert, the options byte
  * ahead of the two connection version bytes that version 6 does not have. */

@@ -26,6 +26,10 @@
 #include <wolfssl/error-ssl.h>
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif
+
 #ifdef WOLFSSL_FUNC_TIME
 /* WARNING: This code is only to be used for debugging performance.
  *          The code is not thread-safe.
@@ -1979,3 +1983,17 @@ int wc_backtrace_render(void) {
 #endif /* !WOLFSSL_LINUXKM */
 
 #endif /* WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES */
+
+int wc_FipsAcceptUnapproved(int ret, const char* service)
+{
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret == WC_FIPS_NOT_APPROVED) {
+        WOLFSSL_MSG_EX("%s is not FIPS approved: unapproved use of the module",
+                       service);
+        ret = 0;
+    }
+#endif
+    (void)service;
+    return ret;
+}

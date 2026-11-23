@@ -6304,7 +6304,7 @@ static int test_wolfSSL_CTX_enable_disable(void)
     #endif
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
-    #ifdef HAVE_EXTENDED_MASTER
+    #if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
     ExpectIntEQ(wolfSSL_CTX_DisableExtendedMasterSecret(ctx), WOLFSSL_SUCCESS);
     #endif
 
@@ -13513,8 +13513,10 @@ static int test_wolfSSL_EVP_PKEY_ED25519_openssl(void)
         ExpectIntEQ(wc_ed25519_init(&v2Key), 0);
         ExpectIntEQ(wc_ed25519_import_private_key(ed25519Seed,
             ED25519_KEY_SIZE, ed25519SeedPub, ED25519_PUB_KEY_SIZE, &v2Key), 0);
+        PRIVATE_KEY_UNLOCK();
         ExpectIntGT((v2DerSz = wc_Ed25519KeyToDer(&v2Key, v2Der,
             (word32)sizeof(v2Der))), 0);
+        PRIVATE_KEY_LOCK();
         /* This form carries the public key after the privateKey OCTET STRING,
          * so it is longer than the seed-only v1 form (48 bytes) -- that is the
          * whole point of the case. */
@@ -21436,7 +21438,7 @@ static int test_wolfSSL_set1_curves_list(void)
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "P-25X"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "P-256"), WOLFSSL_SUCCESS);
 #endif
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(WC_X25519_HYBRID_ONLY)
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "X25519"), WOLFSSL_SUCCESS);
 #else
     ExpectIntEQ(SSL_CTX_set1_curves_list(ctx, "X25519"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -21453,7 +21455,7 @@ static int test_wolfSSL_set1_curves_list(void)
     ExpectIntEQ(SSL_set1_curves_list(ssl, "P-256"), WOLFSSL_SUCCESS);
 #endif
 
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) && !defined(WC_X25519_HYBRID_ONLY)
     ExpectIntEQ(SSL_set1_curves_list(ssl, "X25519"), WOLFSSL_SUCCESS);
 #else
     ExpectIntEQ(SSL_set1_curves_list(ssl, "X25519"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -22662,9 +22664,11 @@ static int test_wolfSSL_ERR_get_error_order(void)
 static int test_wolfSSL_ERR_GET_REASON_version_mismatch(void)
 {
     EXPECT_DECLS;
+    /* A FIPS v7 TLS 1.2 server refuses the EMS-less hello first. */
 #if defined(WOLFSSL_HAVE_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
-    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -34056,9 +34060,9 @@ static int test_wolfSSL_d2i_X509_REQ(void)
         /*
          * Verify the signature in the CSR
          */
-#ifdef WC_FIPS_RSA_VERIFY_MIN_2048
-        /* certs/csr.ext.der has a 1024-bit RSA key; IG C.F requires at least
-         * 2048 bits for FIPS 186-5 signature verification. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+        /* certs/csr.ext.der has a 1024-bit RSA key, and FIPS v7 refuses every
+         * RSA operation under 2048 bits. */
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 0);
 #else
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 1);
@@ -38704,7 +38708,9 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                 der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 if (der == NULL) { ret = MEMORY_E; break; }
 
+                PRIVATE_KEY_UNLOCK();
                 derSz = wc_RsaKeyToDer(rsaTmp, der, (word32)derSz);
+                PRIVATE_KEY_LOCK();
                 if (derSz <= 0) {
                     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     ret = derSz; break;
@@ -38824,7 +38830,9 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     der = (byte*)XMALLOC(derSz, NULL,
                         DYNAMIC_TYPE_TMP_BUFFER);
                     if (der == NULL) { ret = MEMORY_E; break; }
+                    PRIVATE_KEY_UNLOCK();
                     derSz = wc_RsaKeyToDer(src, der, (word32)derSz);
+                    PRIVATE_KEY_LOCK();
                     if (derSz > 0) {
                         ret = wc_RsaPrivateKeyDecode(der, &idx, dst,
                             (word32)derSz);
@@ -46853,11 +46861,13 @@ static int test_sniffer_hello_session_id_len(void)
     char err[WOLFSSL_MAX_ERROR_SZ];
     byte tail[40];
     byte cliTail[SNIFFER_TEST_ID_SZ + 6];
-    byte srvTail[SNIFFER_TEST_ID_SZ + 3];
+    byte srvTail[SNIFFER_TEST_ID_SZ + 9];
     byte cliTailFull[ID_LEN + 6];
-    byte srvTailFull[ID_LEN + 3];
+    byte srvTailFull[ID_LEN + 9];
     /* cipher suite list of one, then one compression method */
     static const byte validTail[6] = { 0x00, 0x02, 0x00, 0x2f, 0x01, 0x00 };
+    /* extensions holding only EMS, which a FIPS v7 sniffer requires */
+    static const byte emsExt[6] = { 0x00, 0x04, 0x00, 0x17, 0x00, 0x00 };
 
     XMEMSET(tail, 0, sizeof(tail));
     XMEMSET(err, 0, sizeof(err));
@@ -46899,6 +46909,7 @@ static int test_sniffer_hello_session_id_len(void)
     srvTail[SNIFFER_TEST_ID_SZ + 0] = 0x00;
     srvTail[SNIFFER_TEST_ID_SZ + 1] = 0x2f;
     srvTail[SNIFFER_TEST_ID_SZ + 2] = 0x00;
+    XMEMCPY(srvTail + SNIFFER_TEST_ID_SZ + 3, emsExt, sizeof(emsExt));
 
     /* Both hellos carry a session id shorter than ID_LEN, and the record holds
      * no more than that. The ids differ, so no resumption is attempted. */
@@ -46929,6 +46940,7 @@ static int test_sniffer_hello_session_id_len(void)
     srvTailFull[ID_LEN + 0] = 0x00;
     srvTailFull[ID_LEN + 1] = 0x2f;
     srvTailFull[ID_LEN + 2] = 0x00;
+    XMEMCPY(srvTailFull + ID_LEN + 3, emsExt, sizeof(emsExt));
     ExpectIntEQ(SnifferTestTcp(40007, 10000, 1, SNIFFER_TEST_SYN, err), 0);
     ExpectIntEQ(SnifferTestTcp(40007, 11000, 0,
         SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
@@ -46942,6 +46954,44 @@ static int test_sniffer_hello_session_id_len(void)
 
     return EXPECT_RESULT();
 }
+
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+/* EMS is checked on every ServerHello of a session, as renegotiation sends
+ * another one. */
+static int test_sniffer_ems_required_each_hello(void)
+{
+    EXPECT_DECLS;
+    char err[WOLFSSL_MAX_ERROR_SZ];
+    /* cipher suite list of one, then one compression method */
+    static const byte cliTail[6] = { 0x00, 0x02, 0x00, 0x2f, 0x01, 0x00 };
+    /* suite, compression, then extensions holding only EMS */
+    static const byte srvTail[9] = { 0x00, 0x2f, 0x00,
+                                     0x00, 0x04, 0x00, 0x17, 0x00, 0x00 };
+    word32 seq = 13001 + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
+                 VERSION_SZ + RAN_LEN + ENUM_LEN + (word32)sizeof(srvTail);
+
+    XMEMSET(err, 0, sizeof(err));
+    ssl_InitSniffer();
+    ExpectIntEQ(ssl_SetPrivateKey("127.0.0.1", wolfSSLPort,
+        svrKeyFile, FILETYPE_PEM, NULL, err), 0);
+
+    ExpectIntEQ(SnifferTestTcp(40008, 12000, 1, SNIFFER_TEST_SYN, err), 0);
+    ExpectIntEQ(SnifferTestTcp(40008, 13000, 0,
+        SNIFFER_TEST_SYN | SNIFFER_TEST_ACK, err), 0);
+    ExpectIntEQ(SnifferTestHello(40008, 12001, 1, client_hello, 0,
+        cliTail, (int)sizeof(cliTail), err), 0);
+    ExpectIntEQ(SnifferTestHello(40008, 13001, 0, server_hello, 0,
+        srvTail, (int)sizeof(srvTail), err), 0);
+    /* Same suite and compression, no extensions. */
+    ExpectIntEQ(SnifferTestHello(40008, seq, 0, server_hello, 0,
+        srvTail, 3, err), WOLFSSL_SNIFFER_FATAL_ERROR);
+    ExpectNotNull(XSTRSTR(err, "Extended Master Secret required"));
+
+    ssl_FreeSniffer();
+
+    return EXPECT_RESULT();
+}
+#endif
 #endif /* WOLFSSL_SNIFFER && !WOLFSSL_SNIFFER_WATCH && WOLFSSL_PEM_TO_DER &&
         * !NO_RSA && !NO_FILESYSTEM && !WOLFSSL_NO_TLS12 */
 
@@ -48767,6 +48817,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_tls_ems_clear_reuse),
     TEST_DECL(test_tls_ems_disable_v23),
     TEST_DECL(test_tls_require_ems),
+    TEST_DECL(test_tls_fips_ems_required),
     TEST_DECL(test_tls_require_ems_resumption),
     TEST_DECL(test_tls_require_ems_secret_cb),
     TEST_DECL(test_tls_ems_server_disable_secret_cb),
@@ -49115,6 +49166,9 @@ TEST_CASE testCases[] = {
     defined(WOLFSSL_PEM_TO_DER) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && !defined(WOLFSSL_NO_TLS12)
     TEST_DECL(test_sniffer_hello_session_id_len),
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    TEST_DECL(test_sniffer_ems_required_each_hello),
+#endif
 #endif
 
     /* This test needs to stay at the end to clean up any caches allocated. */

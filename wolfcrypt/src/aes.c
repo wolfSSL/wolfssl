@@ -3748,9 +3748,9 @@ static void bs_ke_transform(unsigned char* out, unsigned char *in, word8 i) {
     /* Rotate left 8 bits. The key schedule is a byte array, so use the
      * unaligned accessors. */
 #ifdef LITTLE_ENDIAN_ORDER
-    (void)writeUnalignedWord32(out, rotrFixed(readUnalignedWord32(in), 8));
+    writeUnalignedWord32(out, rotrFixed(readUnalignedWord32(in), 8));
 #else
-    (void)writeUnalignedWord32(out, rotlFixed(readUnalignedWord32(in), 8));
+    writeUnalignedWord32(out, rotlFixed(readUnalignedWord32(in), 8));
 #endif
     bs_ke_sub_bytes(out, out);
     /* On just the first byte, add 2^i to the byte */
@@ -3761,8 +3761,7 @@ static void bs_ke_transform(unsigned char* out, unsigned char *in, word8 i) {
 static void bs_ke_xor(unsigned char* r, const unsigned char* a,
     const unsigned char* b)
 {
-    (void)writeUnalignedWord32(r,
-        readUnalignedWord32(a) ^ readUnalignedWord32(b));
+    writeUnalignedWord32(r, readUnalignedWord32(a) ^ readUnalignedWord32(b));
 }
 
 static void bs_expand_key(unsigned char *in, word32 sz) {
@@ -6584,7 +6583,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
-        /* This function allows key sizes that are not 128/192/256 bits */
+        /* Accepts the same key sizes as wc_AesSetKey */
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                            const byte* iv, int dir)
     {
@@ -8895,7 +8894,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  * block counter during the encryption.
  */
 
-#if (defined(HAVE_AESGCM) && !defined(WC_NO_RNG)) || defined(HAVE_AESCCM)
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
@@ -8920,6 +8919,30 @@ static WARN_UNUSED_RESULT WC_INLINE int GcmCountInvocation(Aes* aes)
         aes->invokeCtr[1]++;
     return 0;
 }
+
+/* Move the internal IV to the next value, keeping the module's copy. */
+static WC_INLINE void GcmIncIv(Aes* aes)
+{
+    IncCtr((byte*)aes->reg, aes->nonceSz);
+#ifdef WC_AESGCM_IV_LOCK
+    if (aes->gcmIvLock) {
+        XMEMCPY(aes->gcmIvNext, aes->reg, aes->nonceSz);
+    }
+#endif
+}
+
+#ifdef WC_AESGCM_IV_LOCK
+/* A generated IV is refused once another call has written aes->reg, so the
+ * caller cannot choose it. (SP 800-38D 9.1) */
+static WARN_UNUSED_RESULT WC_INLINE int GcmCheckIv(const Aes* aes)
+{
+    if (aes->gcmIvLock &&
+            (XMEMCMP(aes->reg, aes->gcmIvNext, aes->nonceSz) != 0)) {
+        return BAD_STATE_E;
+    }
+    return 0;
+}
+#endif
 #endif /* HAVE_AESGCM */
 
 
@@ -9216,7 +9239,7 @@ static WC_INLINE void GcmReflectH(byte* h)
 #endif
 
 /* Software AES - GCM SetKey */
-int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
+static int AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
     int  ret;
     byte iv[WC_AES_BLOCK_SIZE];
@@ -9261,6 +9284,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
     WC_AES_GCM_UNKEY(aes);
+#ifdef WC_AESGCM_IV_LOCK
+    aes->gcmIvLock = 0;
+    aes->gcmIvDet = 0;
+    aes->gcmIvMasked = 0;
+#endif
     /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
     if (aes->nonceSz != 0) {
         XMEMCPY(nonce, aes->reg, sizeof(nonce));
@@ -9478,6 +9506,43 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         ForceZero(&aes->gcm, sizeof(aes->gcm));
     }
     return ret;
+}
+
+int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
+{
+#ifdef WC_AESGCM_IV_LOCK
+    int  ret;
+    byte lockedH[WC_AES_BLOCK_SIZE];
+    byte relock = (byte)((aes != NULL) && aes->gcmIvLock);
+    byte det = 0;
+    byte masked = 0;
+    byte hSet = 0;
+    word32 i;
+
+    /* The same key again keeps the lock: only that key gives the same H. */
+    if (relock) {
+        XMEMCPY(lockedH, aes->gcm.H, sizeof(lockedH));
+        det = aes->gcmIvDet;
+        masked = aes->gcmIvMasked;
+        /* A key held by a device has H wiped to zero, so it never relocks. */
+        for (i = 0; i < sizeof(lockedH); i++) {
+            hSet |= lockedH[i];
+        }
+    }
+    ret = AesGcmSetKey(aes, key, len);
+    if (relock) {
+        if ((ret == 0) && (hSet != 0) && (ConstantCompare(lockedH,
+                aes->gcm.H, sizeof(lockedH)) == 0)) {
+            aes->gcmIvLock = 1;
+            aes->gcmIvDet = det;
+            aes->gcmIvMasked = masked;
+        }
+        ForceZero(lockedH, sizeof(lockedH));
+    }
+    return ret;
+#else
+    return AesGcmSetKey(aes, key, len);
+#endif
 }
 
 
@@ -12162,6 +12227,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* authIn, word32 authInSz)
 {
     int ret;
+    word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
 
     /* argument checks */
     /* If sz is non-zero, both in and out must be set; if sz is 0, in and
@@ -12294,16 +12360,20 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                    authTagSz, authIn, authInSz);
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
+    /* The assembly uses aes->reg as scratch: keep this object's own IV. */
+    XMEMCPY(reg, aes->reg, sizeof(reg));
 #if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
     defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
     AES_GCM_encrypt_RISCV64(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
         authInSz, (byte*)aes->key, aes->gcm.H, (byte*)aes->tmp, (byte*)aes->reg,
         (int)aes->rounds);
+    XMEMCPY(aes->reg, reg, sizeof(reg));
     return 0;
 #elif defined(WOLFSSL_RISCV_ASM)
     AES_GCM_encrypt_RISCV64(in, out, sz, iv, ivSz, authTag, authTagSz, authIn,
         authInSz, (byte*)aes->key, AES_GCM_H_PTR(aes), (byte*)aes->tmp,
         (byte*)aes->reg, (int)aes->rounds);
+    XMEMCPY(aes->reg, reg, sizeof(reg));
     return 0;
 #endif
 
@@ -12427,6 +12497,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     VECTOR_REGISTERS_POP;
+    XMEMCPY(aes->reg, reg, sizeof(reg));
 
     return ret;
 }
@@ -13085,6 +13156,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* authIn, word32 authInSz)
 {
     int ret;
+    word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
 #ifdef WC_AESNI_GCM
     int res = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
 #endif
@@ -13219,6 +13291,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                    authTagSz, authIn, authInSz);
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
+    /* The assembly uses aes->reg as scratch: keep this object's own IV. */
+    XMEMCPY(reg, aes->reg, sizeof(reg));
 #if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) || \
     defined(WOLFSSL_RISCV_SCALAR_CRYPTO_ASM)
     ret = AES_GCM_decrypt_RISCV64((byte*)in, out, sz, iv, ivSz, authTag,
@@ -13238,25 +13312,16 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto)
   #endif
     {
-    #ifdef OPENSSL_EXTRA
-        word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
-    #endif
         /* Reflect a copy of H into the form the PMULL assembly wants - the
          * stored H must stay un-reflected for the portable GHASH. */
         byte h[WC_AES_BLOCK_SIZE];
 
-    #ifdef OPENSSL_EXTRA
-        XMEMCPY(reg, aes->reg, sizeof(reg));
-    #endif
         XMEMCPY(h, aes->gcm.H, WC_AES_BLOCK_SIZE);
         GcmReflectH(h);
         ret = AES_GCM_decrypt_AARCH32(in, out, sz, iv, ivSz, authTag, authTagSz,
             authIn, authInSz, (byte*)aes->key, h, (byte*)aes->tmp,
             (byte*)aes->reg, aes->rounds);
         ForceZero(h, sizeof(h));
-    #ifdef OPENSSL_EXTRA
-        XMEMCPY(aes->reg, reg, sizeof(reg));
-    #endif
     }
   #ifdef WOLFSSL_ARM32_AES_DISPATCH
     else
@@ -13361,6 +13426,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     VECTOR_REGISTERS_POP;
 #endif /* RISC-V asm */
+    XMEMCPY(aes->reg, reg, sizeof(reg));
 
     /* Wipe the output on a failed tag so unauthenticated plaintext is not
      * handed back.  The hardware backends above return before this point. */
@@ -15367,6 +15433,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
     int ret = 0;
+    int counted = 0;
 
     /* Check validity of parameters. */
     if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
@@ -15374,6 +15441,12 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             ((ivSz > 0) && (iv == NULL))) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* A masked IV is applied by wc_AesGcmEncrypt_ex() only. */
+    else if ((iv == NULL) && aes->gcmIvDet && aes->gcmIvMasked) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
     if ((ret == 0) && (aes->streamData == NULL)) {
@@ -15396,6 +15469,15 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
             (!aes->gcmKeySet)) {
         ret = MISSING_KEY;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* A generated IV stays until a new key is set. (SP 800-38D 8.2) */
+    if ((ret == 0) && (iv != NULL) && aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
+    if ((ret == 0) && (iv != NULL)) {
+        aes->gcmIvDet = 0;
+    }
+#endif
 
 #if defined(WOLFSSL_ARM32_AES_DISPATCH) && defined(WOLFSSL_AESGCM_STREAM)
     /* Streaming AES-GCM drives the counter through the base AES_ECB_encrypt,
@@ -15442,6 +15524,21 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
                 iv = (byte*)aes->reg;
                 ivSz = aes->nonceSz;
             }
+        #ifdef WC_AESGCM_IV_LOCK
+            /* A stream on the generated IV uses it up here, so no other call
+             * is given the same IV. (SP 800-38D 8) */
+            if ((iv != NULL) && aes->gcmIvLock && aes->gcmKeySet) {
+                ret = GcmCheckIv(aes);
+                if (ret == 0) {
+                    ret = GcmCountInvocation(aes);
+                }
+                if (ret != 0) {
+                    iv = NULL;
+                } else {
+                    counted = 1;
+                }
+            }
+        #endif
         }
 
         if ((iv != NULL) && (!aes->gcmKeySet)) {
@@ -15488,6 +15585,10 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
             if (ret == 0)
                 aes->nonceSet = 1;
+            aes->gcmIvStream = (counted != 0) ? 1 : 0;
+            if (counted) {
+                GcmIncIv(aes);
+            }
         }
     }
 
@@ -15610,9 +15711,14 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* Count the stream at its first AAD or data; an empty stream counts in
      * Final. */
-    if ((ret == 0) && aes->ctrSet && ((sz > 0) || (authInSz > 0)) &&
-            (aes->aSz == 0) && (aes->cSz == 0)) {
+    if ((ret == 0) && aes->ctrSet && !aes->gcmIvStream &&
+            ((sz > 0) || (authInSz > 0)) && (aes->aSz == 0) &&
+            (aes->cSz == 0)) {
         ret = GcmCountInvocation(aes);
+        /* The next stream gets the next IV even if this one fails. */
+        if (ret == 0) {
+            GcmIncIv(aes);
+        }
     }
 
     if (ret == 0) {
@@ -15695,8 +15801,12 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
         ret = AesAssociateTagSz(aes, authTagSz);
     }
     /* A stream with no AAD or data has not been counted yet. */
-    if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
+    if ((ret == 0) && aes->ctrSet && !aes->gcmIvStream &&
+            (aes->aSz == 0) && (aes->cSz == 0)) {
         ret = GcmCountInvocation(aes);
+        if (ret == 0) {
+            GcmIncIv(aes);
+        }
     }
 
     if (ret == 0) {
@@ -15728,9 +15838,6 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
         }
     }
 
-    if ((ret == 0) && aes->ctrSet) {
-        IncCtr((byte*)aes->reg, aes->nonceSz);
-    }
     if (wipe) {
         /* The stream is finished: drop E(J0), counter, tag and keystream. */
         ForceZero(aes->streamData, AES_STREAM_DATA_SZ);
@@ -15950,6 +16057,18 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
  * functions */
 #ifndef WC_NO_RNG
 
+/* Set invokeCtr to 2^64 - 2^s + field, s = 8 * fieldSz, so the count stops
+ * before the invocation field wraps into the fixed field. (SP 800-38D 8.2.1) */
+static void GcmSeedInvokeCtr(Aes* aes, const byte* field, word32 fieldSz)
+{
+    byte cnt[8];
+
+    XMEMSET(cnt, 0xFF, sizeof(cnt) - fieldSz);
+    XMEMCPY(cnt + sizeof(cnt) - fieldSz, field, fieldSz);
+    ato32(cnt, &aes->invokeCtr[1]);
+    ato32(cnt + 4, &aes->invokeCtr[0]);
+}
+
 static WARN_UNUSED_RESULT WC_INLINE int CheckAesGcmIvSize(int ivSz) {
     return (ivSz == GCM_NONCE_MIN_SZ ||
             ivSz == GCM_NONCE_MID_SZ ||
@@ -15964,9 +16083,18 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
     if (aes == NULL || iv == NULL || !CheckAesGcmIvSize((int)ivSz)) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* A generated IV stays until a new key is set. (SP 800-38D 8.2) */
+    else if (aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     if (ret == 0) {
         XMEMCPY((byte*)aes->reg, iv, ivSz);
+    #ifdef WC_AESGCM_IV_LOCK
+        aes->gcmIvDet = 0;
+    #endif
 
         /* If the IV is 96, allow for a 2^64 invocation counter.
          * For any other size for the nonce, limit the invocation
@@ -15995,6 +16123,13 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
 
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* One generated IV per key: no second construction and no restart of the
+     * invocation count. (SP 800-38D 8.2, 8.3) */
+    else if (aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     if (ret == 0) {
         byte* iv = (byte*)aes->reg;
@@ -16011,17 +16146,19 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
         aes->invokeCtr[0] = 0;
         aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ && ivFixedSz != 0) ?
                             0 : 0xFFFFFFFF;
+    #ifdef WC_AESGCM_IV_LOCK
+        aes->gcmIvDet = (byte)(ivFixedSz != 0);
+        aes->gcmIvMasked = 0;
+        aes->gcmIvLock = 1;
+    #endif
         if (ivFixedSz != 0) {
             /* Count from the random invocation field so the limit is hit
              * before a carry can change the fixed field. (SP 800-38D 8.2.1) */
             const byte* field = (const byte*)aes->reg + ivFixedSz;
             word32 i;
 
-            if (ivSz == GCM_NONCE_MID_SZ) {
-                for (i = 0; i < 4; i++) {
-                    aes->invokeCtr[1] = (aes->invokeCtr[1] << 8) | field[i];
-                    aes->invokeCtr[0] = (aes->invokeCtr[0] << 8) | field[i + 4];
-                }
+            if (ivSz != GCM_NONCE_MAX_SZ) {
+                GcmSeedInvokeCtr(aes, field, ivSz - ivFixedSz);
             }
             else {
                 /* Within 2^32 calls a carry reaches the fixed field only when
@@ -16041,10 +16178,49 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
         aes->ctrSet = 1;
     #endif
         aes->nonceSz = ivSz;
+    #ifdef WC_AESGCM_IV_LOCK
+        XMEMCPY(aes->gcmIvNext, aes->reg, ivSz);
+    #endif
     }
 
     return ret;
 }
+
+#ifdef WC_AESGCM_IV_LOCK
+/* SP 800-38D 8.2.1 IV: caller's fixed field and start, last ctrSz bytes counted
+ * here; mask (the SRTP salt, RFC 7714 8.1) is XORed into each IV used. */
+int wc_AesGcmSetIVCounter(Aes* aes, const byte* iv, word32 ivSz, word32 ctrSz,
+                          const byte* mask)
+{
+    int ret = 0;
+
+    if (aes == NULL || iv == NULL ||
+        (ivSz != GCM_NONCE_MIN_SZ && ivSz != GCM_NONCE_MID_SZ) ||
+        ctrSz < 4 || ctrSz > ivSz - AES_IV_FIXED_SZ) {
+        ret = BAD_FUNC_ARG;
+    } else if (aes->gcmIvLock) {
+        ret = BAD_STATE_E;
+    }
+
+    if (ret == 0) {
+        XMEMCPY((byte*)aes->reg, iv, ivSz);
+        GcmSeedInvokeCtr(aes, iv + ivSz - ctrSz, ctrSz);
+        aes->gcmIvMasked = (byte)(mask != NULL);
+        if (mask != NULL) {
+            XMEMCPY(aes->gcmIvMask, mask, ivSz);
+        }
+        aes->gcmIvDet = 1;
+        aes->gcmIvLock = 1;
+    #ifdef WOLFSSL_AESGCM_STREAM
+        aes->ctrSet = 1;
+    #endif
+        aes->nonceSz = ivSz;
+        XMEMCPY(aes->gcmIvNext, aes->reg, ivSz);
+    }
+
+    return ret;
+}
+#endif /* WC_AESGCM_IV_LOCK */
 
 
 int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -16066,6 +16242,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = FIPS_BAD_VALUE_E;
 #endif
 
+#ifdef WC_AESGCM_IV_LOCK
+    if (ret == 0) {
+        ret = GcmCheckIv(aes);
+    }
+#endif
     if (ret == 0) {
         ret = GcmCountInvocation(aes);
     }
@@ -16076,19 +16257,25 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
          * keeps the pointer until the operation completes, so aes->reg is not
          * a stable place to hold the nonce being consumed. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
+    #ifdef WC_AESGCM_IV_LOCK
+        if (aes->gcmIvDet && aes->gcmIvMasked) {
+            xorbuf(ivOut, aes->gcmIvMask, ivOutSz);
+        }
+    #endif
         ret = wc_AesGcmEncrypt(aes, out, in, sz,
                                ivOut, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        /* Put the nonce back unconditionally - a backend may have left scratch
-         * data in aes->reg - so a failed encrypt leaves the counter on the
-         * nonce it did not consume rather than on backend leftovers. */
+        /* Put the nonce back: a backend may have left scratch data in
+         * aes->reg. */
         XMEMCPY(aes->reg, ivOut, ivOutSz);
-        /* A nonce handed to an asynchronous backend has been consumed even
-         * though the operation has not finished yet - the counter must still
-         * advance or the next record would reuse this nonce. */
-        if (ret == 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E))
-            IncCtr((byte*)aes->reg, ivOutSz);
+    #ifdef WC_AESGCM_IV_LOCK
+        if (aes->gcmIvDet && aes->gcmIvMasked) {
+            xorbuf(aes->reg, aes->gcmIvMask, ivOutSz);
+        }
+    #endif
+        /* The counted nonce is never used again, even if the encrypt failed. */
+        GcmIncIv(aes);
     }
 
     return ret;
@@ -16199,6 +16386,12 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     if (gmac == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_IV_LOCK
+    /* A caller IV is refused once an IV is generated for this key. */
+    if (gmac->aes.gcmIvLock) {
+        return BAD_STATE_E;
+    }
+#endif
 
     return wc_AesGcmEncrypt(&gmac->aes, NULL, NULL, 0, iv, ivSz,
                                          authTag, authTagSz, authIn, authInSz);
@@ -19232,13 +19425,13 @@ int wc_AesXtsInit(XtsAes* aes, void* heap, int devId)
         return ret;
     }
     if ((ret = wc_AesInit(&aes->aes, heap, devId)) != 0) {
-        (void)wc_AesFree(&aes->tweak);
+        wc_AesFree(&aes->tweak);
         return ret;
     }
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     if ((ret = wc_AesInit(&aes->aes_decrypt, heap, devId)) != 0) {
-        (void)wc_AesFree(&aes->tweak);
-        (void)wc_AesFree(&aes->aes);
+        wc_AesFree(&aes->tweak);
+        wc_AesFree(&aes->aes);
         return ret;
     }
 #endif
@@ -19379,8 +19572,12 @@ int wc_AesXtsSetKey(XtsAes* aes, const byte* key, word32 len, int dir,
 
     ret = wc_AesXtsSetKeyNoInit(aes, key, len, dir);
 
-    if (ret != 0)
-        wc_AesXtsFree(aes);
+    /* A failed wipe outranks the SetKey error. */
+    if (ret != 0) {
+        int freeRet = wc_AesXtsFree(aes);
+        if (freeRet != 0)
+            ret = freeRet;
+    }
 
     return ret;
 }
@@ -23173,15 +23370,20 @@ int wc_AesEaxDecryptFinal(AesEax* eax,
  */
 int wc_AesEaxFree(AesEax* eax)
 {
+    int ret;
+    int freeRet;
+
     if (eax == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    (void)wc_CmacFree(&eax->ciphertextCmac);
-    (void)wc_CmacFree(&eax->aadCmac);
+    ret = wc_CmacFree(&eax->ciphertextCmac);
+    freeRet = wc_CmacFree(&eax->aadCmac);
+    if (ret == 0)
+        ret = freeRet;
     wc_AesFree(&eax->aes);
 
-    return 0;
+    return ret;
 }
 
 #endif /* WOLFSSL_AES_EAX */

@@ -1688,6 +1688,7 @@ static int EmsAllowedForVersion(ProtocolVersion pv)
  * @param [in] ctx  SSL/TLS context object.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL.
+ * @return  EXT_MASTER_SECRET_NEEDED_E in a FIPS v7 build, which requires EMS.
  */
 int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 {
@@ -1696,12 +1697,18 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
     if (ctx == NULL) {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    else {
+        ret = EXT_MASTER_SECRET_NEEDED_E;
+    }
+#else
     else {
         ctx->haveEMS = 0;
         ctx->disableEMS = 1;
         /* Disabling EMS is mutually exclusive with requiring it. */
         ctx->requireEMS = 0;
     }
+#endif
 
     return ret;
 }
@@ -1718,6 +1725,7 @@ int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  * @return  BAD_STATE_E when the handshake has started.
+ * @return  EXT_MASTER_SECRET_NEEDED_E in a FIPS v7 build, which requires EMS.
  */
 int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
 {
@@ -1731,12 +1739,18 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
         /* haveEMS records the negotiated result once the handshake starts. */
         ret = BAD_STATE_E;
     }
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    else {
+        ret = EXT_MASTER_SECRET_NEEDED_E;
+    }
+#else
     else {
         ssl->options.haveEMS = 0;
         ssl->options.disableEMS = 1;
         /* Disabling EMS is mutually exclusive with requiring it. */
         ssl->options.requireEMS = 0;
     }
+#endif
 
     return ret;
 }
@@ -1745,7 +1759,7 @@ int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
 /* Re-enable the Extended Master Secret extension on the context (default).
  *
  * Undoes a previous disable or require: EMS is used when the peer supports it
- * but is not mandatory.
+ * but is not mandatory. A FIPS v7 build keeps EMS mandatory.
  *
  * @param [in] ctx  SSL/TLS context object.
  * @return  WOLFSSL_SUCCESS on success.
@@ -1760,7 +1774,9 @@ int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
     }
     else {
         ctx->disableEMS = 0;
+#ifndef WOLFSSL_EMS_ALWAYS_REQUIRED
         ctx->requireEMS = 0;
+#endif
         /* Re-arm client advertising. A side-less (wolfSSLv23) object is
          * armed by InitSSL_Side instead; arming it here would make a server
          * echo an unsolicited extension. */
@@ -1776,8 +1792,8 @@ int wolfSSL_CTX_EnableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 /* Re-enable the Extended Master Secret extension on the object (default).
  *
  * Undoes a previous disable or require: EMS is used when the peer supports it
- * but is not mandatory. Call before the handshake starts, or after
- * wolfSSL_clear.
+ * but is not mandatory. A FIPS v7 build keeps EMS mandatory. Call before the
+ * handshake starts, or after wolfSSL_clear.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS on success.
@@ -1798,7 +1814,9 @@ int wolfSSL_EnableExtendedMasterSecret(WOLFSSL* ssl)
     }
     else {
         ssl->options.disableEMS = 0;
+#ifndef WOLFSSL_EMS_ALWAYS_REQUIRED
         ssl->options.requireEMS = 0;
+#endif
         /* Re-arm client advertising. A side-less (wolfSSLv23) object is
          * armed by InitSSL_Side instead; arming it here would make a server
          * echo an unsolicited extension. */

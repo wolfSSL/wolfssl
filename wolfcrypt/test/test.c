@@ -1046,7 +1046,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_bank_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  noisesrc_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_drbg_svc_test(void);
 #endif
 
@@ -1068,7 +1068,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_pool_test(void);
 #endif
 #if defined(WC_RNG_HAVE_ENTROPY_EPOCH) && defined(HAVE_HASHDRBG) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_INTEL_RDRAND) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rng_epoch_test(void);
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
@@ -1378,14 +1378,15 @@ static wc_test_ret_t keyid_test(void);
 /* Not all unexpected conditions are actually errors .*/
 #define WARNING_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
 
-/* Success from a caller-seeded PQ service: FIPS v7 returns the
- * non-approved indicator (same definition as tests/api/api.h). */
+/* Success from a service the FIPS v7 module reports as not approved
+ * (same definition as tests/api/api.h). */
 #if defined(HAVE_FIPS) && defined(WC_HAVE_FIPS_INDICATOR) && \
     FIPS_VERSION3_GE(7,0,0) && !defined(FIPS_NO_WRAPPERS)
-    #define SEED_OK  WC_FIPS_NOT_APPROVED
+    #define UNAPPROVED_OK  WC_FIPS_NOT_APPROVED
 #else
-    #define SEED_OK  0
+    #define UNAPPROVED_OK  0
 #endif
+#define SEED_OK  UNAPPROVED_OK
 
 void wc_test_render_error_message(const char* msg, wc_test_ret_t es)
 {
@@ -2939,7 +2940,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("NOISESRC test passed!\n");
 #endif
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if ((ret = rng_drbg_svc_test()) != 0)
         TEST_FAIL("RNGSVC   test failed!\n", ret);
     else
@@ -2976,7 +2977,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 #if defined(WC_RNG_HAVE_ENTROPY_EPOCH) && defined(HAVE_HASHDRBG) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_INTEL_RDRAND) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     if ((ret = rng_epoch_test()) != 0)
         TEST_FAIL("RNGEPOCH test failed!\n", ret);
     else
@@ -7890,7 +7891,8 @@ exit:
 #undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    (!defined(WC_FIPS_V7_HIDDEN_APIS) || defined(TEST_FIPS_PRIVATE_APIS))
 static wc_test_ret_t sha256_hash_block_test(wc_Sha256* sha)
 {
     byte      hash[WC_SHA256_DIGEST_SIZE];
@@ -8174,7 +8176,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     if ((ret = sha256_large_hash_test(&sha)) != 0)
         return ret;
 #endif
-#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
+#if defined(WOLFSSL_HAVE_SHA256_HASH_BLOCK) && \
+    (!defined(WC_FIPS_V7_HIDDEN_APIS) || defined(TEST_FIPS_PRIVATE_APIS))
     if ((ret = sha256_hash_block_test(&sha)) != 0)
         return ret;
 #endif
@@ -12484,6 +12487,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
             /* Now use the ex and allow short keys with FIPS option */
             ret = wc_HmacSetKey_ex(&hmac, WC_SHA, (byte*) keys[i],
                                (word32)XSTRLEN(keys[i]), allowShortKeyWithFips);
+        #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+            !defined(FIPS_NO_WRAPPERS)
+            /* A key under 112 bits is keyed but reported non-approved. */
+            if (ret != WC_FIPS_NOT_APPROVED)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = 0;
+        #endif
         }
 #endif
         if (ret != 0)
@@ -12872,7 +12882,7 @@ out:
         return WC_TEST_RET_ENC_EC(ret);
 #if FIPS_VERSION3_GE(6,0,0) && \
     !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR)) && \
-    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    !defined(WOLFSSL_FIPS_DEV_NO_POST) && !defined(FIPS_NO_WRAPPERS)
     if ((ret = wc_HmacSizeByType(21)) != WC_NO_ERR_TRACE(HMAC_KAT_FIPS_E))
 #else
     if ((ret = wc_HmacSizeByType(21)) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -23469,6 +23479,341 @@ static wc_test_ret_t aesgcm_setiv_test(Aes* enc, Aes* dec)
     return ret;
 }
 
+/* SP 800-38D 8.2.1 IV: fixed field || invocation field, one per key. */
+static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
+{
+    wc_test_ret_t ret = 0;
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_FIPS_AESGCM_NO_SHORT_NONCES)
+    WC_RNG rng;
+    int rngInited = 0;
+    int tries;
+    WOLFSSL_SMALL_STACK_STATIC const byte key[16] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte key2[16] = {
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte fixed[AES_IV_FIXED_SZ] = {
+        0x77, 0x6f, 0x6c, 0x66
+    };
+    byte p[16];
+    byte c[16];
+    byte tag[16];
+    byte iv1[GCM_NONCE_MIN_SZ];
+    byte iv2[GCM_NONCE_MIN_SZ];
+    byte ext[GCM_NONCE_MID_SZ];
+    byte ext2[GCM_NONCE_MID_SZ];
+    byte blk[WC_AES_BLOCK_SIZE];
+    word32 ctr1;
+    word32 ctr2;
+
+    XMEMSET(p, 0, sizeof(p));
+    XMEMSET(ext, 0x5a, sizeof(ext));
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    rngInited = 1;
+
+    /* The invocation field is random: redraw it when it starts within two of
+     * the 2^32 cap, where an encrypt is refused. */
+    for (tries = 0; tries < 3; tries++) {
+        ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+        if (ret == 0)
+            ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+        if (ret == 0)
+            ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv1, sizeof(iv1),
+                                      tag, sizeof(tag), NULL, 0);
+        if (ret == 0)
+            ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv2, sizeof(iv2),
+                                      tag, sizeof(tag), NULL, 0);
+        if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E))
+            break;
+    }
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* The fixed field stays and the invocation field counts up by one. */
+    if (XMEMCMP(iv1, fixed, sizeof(fixed)) != 0 ||
+            XMEMCMP(iv2, fixed, sizeof(fixed)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ctr1 = ((word32)iv1[4] << 24) | ((word32)iv1[5] << 16) |
+           ((word32)iv1[6] << 8) | iv1[7];
+    ctr2 = ((word32)iv2[4] << 24) | ((word32)iv2[5] << 16) |
+           ((word32)iv2[6] << 8) | iv2[7];
+    if (ctr2 != ctr1 + 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* One IV per key, either construction first: a new key allows one.
+     * (SP 800-38D 8.2, 8.3) */
+    ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    /* Setting the same key again is not a new key. */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* A caller IV cannot replace the generated one under the same key. */
+    ret = wc_AesGcmSetExtIV(enc, ext, sizeof(ext));
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    ret = wc_AesGcmInit(enc, NULL, 0, ext, sizeof(ext));
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret == 0)
+        ret = wc_AesGcmSetExtIV(enc, ext, sizeof(ext));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* A failed encrypt still uses up its IV: a 1-byte tag is refused. */
+    ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext, sizeof(ext),
+                              tag, 1, NULL, 0);
+    if (ret == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                              tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* A stream that output data and then failed Final uses up its IV too. */
+    ret = wc_AesGcmEncryptInit_ex(enc, NULL, 0, ext, sizeof(ext));
+    if (ret == 0)
+        ret = wc_AesGcmEncryptUpdate(enc, c, p, sizeof(p), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmEncryptFinal(enc, tag, 1);
+    if (ret == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    ret = wc_AesGcmEncryptInit_ex(enc, NULL, 0, ext2, sizeof(ext2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* A stream on the generated IV uses it up, and another mode cannot set
+     * the next one. (SP 800-38D 8, 9.1) */
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, sizeof(ext), NULL, 0, &rng);
+#ifdef WOLFSSL_AESGCM_STREAM
+    if (ret == 0)
+        ret = wc_AesGcmEncryptInit_ex(enc, NULL, 0, ext, sizeof(ext));
+#endif
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#ifdef HAVE_AES_DECRYPT
+    /* A decrypt on the same object leaves the generated IV in place. */
+    ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext, sizeof(ext),
+                              tag, sizeof(tag), NULL, 0);
+    if (ret == 0)
+        ret = wc_AesGcmDecrypt(enc, blk, c, sizeof(c), ext, sizeof(ext),
+                               tag, sizeof(tag), NULL, 0);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(ext, ext2, sizeof(ext)) == 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+#ifndef HAVE_FIPS
+    /* A one-shot encrypt with its own IV leaves the generated IV in place. */
+    ret = wc_AesGcmEncrypt(enc, c, p, sizeof(p), blk, GCM_NONCE_MID_SZ,
+                           tag, sizeof(tag), NULL, 0);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    XMEMSET(blk, 0x33, sizeof(blk));
+    ret = wc_AesSetIV(enc, blk);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), ext2, sizeof(ext2),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    /* A short generated IV stays approved when the same key is set again; a
+     * caller IV after a new key is not approved. (SP 800-38D 8.2) */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, sizeof(iv1), fixed, sizeof(fixed), &rng);
+    if (ret == 0)
+        ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv1, sizeof(iv1),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret == 0)
+        ret = wc_AesSetIV(enc, blk);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, c, p, sizeof(p), iv1, sizeof(iv1),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    ret = 0;
+
+  out:
+    if (rngInited)
+        wc_FreeRng(&rng);
+#else
+    (void)enc;
+#endif
+
+    return ret;
+}
+
+/* 48-bit fixed || 48-bit counter IV with the SRTP salt mask, from the
+ * RFC 7714 16.1.1 vector; the count stops before the field wraps. */
+static wc_test_ret_t aesgcm_ivctr_test(Aes* enc)
+{
+    wc_test_ret_t ret = 0;
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+    WOLFSSL_SMALL_STACK_STATIC const byte key[16] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte key2[16] = {
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
+    };
+    /* Pad || SSRC || ROC || SEQ */
+    WOLFSSL_SMALL_STACK_STATIC const byte start[GCM_NONCE_MID_SZ] = {
+        0x00, 0x00, 0x55, 0x01, 0xa0, 0xb2, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x7b
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte last[GCM_NONCE_MID_SZ] = {
+        0x00, 0x00, 0x55, 0x01, 0xa0, 0xb2, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[GCM_NONCE_MID_SZ] = {
+        0x51, 0x75, 0x69, 0x64, 0x20, 0x70, 0x72, 0x6f, 0x20, 0x71, 0x75, 0x6f
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv1[GCM_NONCE_MID_SZ] = {
+        0x51, 0x75, 0x3c, 0x65, 0x80, 0xc2, 0x72, 0x6f, 0x20, 0x71, 0x84, 0x14
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte iv2[GCM_NONCE_MID_SZ] = {
+        0x51, 0x75, 0x3c, 0x65, 0x80, 0xc2, 0x72, 0x6f, 0x20, 0x71, 0x84, 0x13
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte aad[12] = {
+        0x80, 0x40, 0xf1, 0x7b, 0x80, 0x41, 0xf8, 0xd3, 0x55, 0x01, 0xa0, 0xb2
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte pt[38] = {
+        0x47, 0x61, 0x6c, 0x6c, 0x69, 0x61, 0x20, 0x65, 0x73, 0x74, 0x20, 0x6f,
+        0x6d, 0x6e, 0x69, 0x73, 0x20, 0x64, 0x69, 0x76, 0x69, 0x73, 0x61, 0x20,
+        0x69, 0x6e, 0x20, 0x70, 0x61, 0x72, 0x74, 0x65, 0x73, 0x20, 0x74, 0x72,
+        0x65, 0x73
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ct[38 + 16] = {
+        0xf2, 0x4d, 0xe3, 0xa3, 0xfb, 0x34, 0xde, 0x6c, 0xac, 0xba, 0x86, 0x1c,
+        0x9d, 0x7e, 0x4b, 0xca, 0xbe, 0x63, 0x3b, 0xd5, 0x0d, 0x29, 0x4e, 0x6f,
+        0x42, 0xa5, 0xf4, 0x7a, 0x51, 0xc7, 0xd1, 0x9b, 0x36, 0xde, 0x3a, 0xdf,
+        0x88, 0x33, 0x89, 0x9d, 0x7f, 0x27, 0xbe, 0xb1, 0x6a, 0x91, 0x52, 0xcf,
+        0x76, 0x5e, 0xe4, 0x39, 0x0c, 0xce
+    };
+    byte out[sizeof(pt)];
+    byte tag[16];
+    byte iv[GCM_NONCE_MID_SZ];
+
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetIVCounter(enc, start, sizeof(start), 6, salt);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                                  tag, sizeof(tag), aad, sizeof(aad));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(iv, iv1, sizeof(iv)) != 0 ||
+            XMEMCMP(out, ct, sizeof(out)) != 0 ||
+            XMEMCMP(tag, ct + sizeof(out), sizeof(tag)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* SEQ f17c XOR salt; a second IV under the same key is refused. */
+    ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                              tag, sizeof(tag), aad, sizeof(aad));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(iv, iv2, sizeof(iv)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* Streaming cannot apply the mask, so it refuses the masked IV. */
+    ret = wc_AesGcmInit(enc, NULL, 0, NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
+    ret = wc_AesGcmSetIVCounter(enc, start, sizeof(start), 6, salt);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    /* ROC||SEQ fffffffffffe is the last value; all ones would wrap. */
+    ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret == 0)
+        ret = wc_AesGcmSetIVCounter(enc, last, sizeof(last), 6, NULL);
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                                  tag, sizeof(tag), NULL, 0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmEncrypt_ex(enc, out, pt, sizeof(pt), iv, sizeof(iv),
+                              tag, sizeof(tag), NULL, 0);
+    if (ret != WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    /* Leave enc with a new key and a fresh count for the tests that follow. */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetExtIV(enc, start, sizeof(start));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+  out:
+#else
+    (void)enc;
+#endif
+
+    return ret;
+}
+
 static wc_test_ret_t aesgcm_stream_test(Aes* enc)
 {
     wc_test_ret_t ret = 0;
@@ -23549,6 +23894,13 @@ static wc_test_ret_t aesgcm_stream_test(Aes* enc)
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
 
+#ifdef WC_AESGCM_IV_LOCK
+    /* An earlier test can leave enc with a generated IV under this key. */
+    wc_AesFree(enc);
+    ret = wc_AesInit(enc, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
     ret = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -25087,6 +25439,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
     if (ret != 0)
         ERROR_OUT(ret, out);
 
+    ret = aesgcm_det_iv_test(enc);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+
+    ret = aesgcm_ivctr_test(enc);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+
     ret = aesgcm_stream_test(enc);
     if (ret != 0)
         ERROR_OUT(ret, out);
@@ -25448,6 +25808,45 @@ static wc_test_ret_t gmac_large_test(Gmac* gmac)
 #endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM && !WOLFSSL_KCAPI */
 
 #ifdef WOLFSSL_AES_128
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+/* GMAC refuses a caller IV once an IV is generated under the key. */
+static wc_test_ret_t gmac_iv_lock_test(Gmac* gmac)
+{
+    wc_test_ret_t ret;
+    WC_RNG rng;
+    WOLFSSL_SMALL_STACK_STATIC const byte key[16] = {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    byte iv[GCM_NONCE_MID_SZ];
+    byte aad[16];
+    byte tag[16];
+
+    XMEMSET(iv, 0x22, sizeof(iv));
+    XMEMSET(aad, 0x33, sizeof(aad));
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_GmacSetKey(gmac, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_GmacUpdate(gmac, iv, sizeof(iv), aad, sizeof(aad), tag,
+                            sizeof(tag));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(&gmac->aes, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret == 0) {
+        ret = wc_GmacUpdate(gmac, iv, sizeof(iv), aad, sizeof(aad), tag,
+                            sizeof(tag));
+        ret = (ret == WC_NO_ERR_TRACE(BAD_STATE_E)) ? 0 :
+                                                      WC_TEST_RET_ENC_EC(ret);
+    } else {
+        ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    wc_FreeRng(&rng);
+    return ret;
+}
+#endif
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -25480,6 +25879,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && !defined(WOLFSSL_KCAPI)
     ret = gmac_large_test(gmac);
+    if (ret != 0)
+        ERROR_OUT(ret, out);
+#endif
+
+#if defined(WC_AESGCM_IV_LOCK) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_ASYNC_CRYPT)
+    ret = gmac_iv_lock_test(gmac);
     if (ret != 0)
         ERROR_OUT(ret, out);
 #endif
@@ -30624,6 +31030,21 @@ static wc_test_ret_t rng_drbg_flavor_flags_test(void)
 #define rng_drbg_flavor_flags_test() ((wc_test_ret_t)0)
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
+/* The v7 module reports services on caller-seeded DRBGs as non-approved. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    #define TEST_USER_SEED_OK WC_FIPS_NOT_APPROVED
+#else
+    #define TEST_USER_SEED_OK 0
+#endif
+/* The v7 Reseed service takes its own entropy, so module instances accept. */
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    #define TEST_CREDITED_RESEED_RET 0
+#else
+    #define TEST_CREDITED_RESEED_RET WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)
+#endif
+
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
     !defined(HAVE_INTEL_RDRAND)
 
@@ -30862,7 +31283,6 @@ out:
     return ret;
 }
 #endif /* WC_TEST_RNG_SEED_KAT */
-
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 {
@@ -31333,7 +31753,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
     /* wc_InitRngNonce_UserSeed() strict-contract error handling.  The happy
      * path (born-sentinel marking, user reseed acceptance, generation) is
      * covered in rng_drbg_rbgc_test(). */
-#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     {
         WC_RNG u_seed;
         wc_test_ret_t lret = 0;
@@ -31437,13 +31857,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
                                            (word32)WC_DRBG_SEED_BUF_SIZE,
                                            NULL, 0, NULL, 0, HEAP_HINT, devId,
                                            WC_RNG_INIT_FLAG_TEST_USER_SEED);
-            if (ret != 0) {
+            if (ret != TEST_USER_SEED_OK) {
                 lret = WC_TEST_RET_ENC_EC(ret);
                 break;
             }
             ret = wc_RNG_GenerateBlock(&u_seed, u_seed_buf,
                                        (word32)WC_DRBG_SEED_BUF_SIZE);
-            if (ret != 0)
+            if (ret != TEST_USER_SEED_OK)
                 lret = WC_TEST_RET_ENC_EC(ret);
             ret = wc_FreeRng(&u_seed);
             if ((ret != 0) && (lret == 0))
@@ -31766,8 +32186,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 
     /* WC_RNG_RBGC_STRATUM_IMMUTABLE freezes RBGCStratum at birth, so
      * credited user-class reseeds of conformant (sub-sentinel) instances
-     * are refused with WRONG_TYPE_OBJECT_E.  The refusal precedes length
-     * handling (zero-length probe below), and generation is unaffected.
+     * are refused with WRONG_TYPE_OBJECT_E (the v7 indicator module's
+     * Reseed service takes module entropy instead).  The refusal precedes
+     * length handling (zero-length probe below), and generation is unaffected.
      * The acceptance counterpart -- a user reseed of a born-user-seeded
      * instance -- is exercised in rng_drbg_rbgc_test(). */
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
@@ -31781,12 +32202,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
             return WC_TEST_RET_ENC_EC(ret);
         XMEMSET(c_buf, 0x3c, sizeof(c_buf));
         ret = wc_RNG_DRBG_Reseed(&c_rng, c_buf, (word32)sizeof(c_buf));
-        if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+        if (ret != TEST_CREDITED_RESEED_RET) {
             (void)wc_FreeRng(&c_rng);
             return WC_TEST_RET_ENC_I(ret);
         }
         ret = wc_RNG_DRBG_Reseed(&c_rng, c_buf, 0);
-        if (ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E)) {
+        if (ret != TEST_CREDITED_RESEED_RET) {
             (void)wc_FreeRng(&c_rng);
             return WC_TEST_RET_ENC_I(ret);
         }
@@ -32565,6 +32986,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
             if (ret != 0)
                 break;
         }
+#if !FIPS_VERSION3_GE(7,0,0)
         /* Stir runs against the generates too, so a thread checker sees any
          * future unlocking of it as a race.  A credited reseed may be due
          * at this point, in which case Stir cannot consume uncredited input. */
@@ -32578,6 +33000,7 @@ static THREAD_RETURN WOLFSSL_THREAD rng_thread_test_worker(void* arg)
             if (ret != 0)
                 break;
         }
+#endif
     }
     args->ret = ret;
     WOLFSSL_RETURN_FROM_THREAD(0);
@@ -32825,6 +33248,8 @@ static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng, int op)
     if (write(gfd[1], &go, 1) != 1)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     /* Whichever entry point this round is checking, it must wait. */
+    (void)op;
+#if !FIPS_VERSION3_GE(7,0,0)
     if (op == WC_RNG_LOCK_OP_STIR) {
         byte mix[16];
         XMEMSET(mix, 0x3c, sizeof(mix));
@@ -32836,6 +33261,9 @@ static wc_test_ret_t rng_lock_wait_test(WC_RNG* rng, int op)
     else {
         ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
     }
+#else
+    ret = wc_RNG_GenerateBlock(rng, blk, WC_RNG_THREAD_TEST_BLKSZ);
+#endif
     (void)clock_gettime(CLOCK_MONOTONIC, &t1);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
@@ -32895,11 +33323,16 @@ static wc_test_ret_t rng_reseed_status_test(WC_RNG* rng, int useNow)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
 
     /* Still healthy here, and condemned by the time the lock is free. */
+    (void)useNow;
+#if !FIPS_VERSION3_GE(7,0,0)
     if (useNow)
         rc = wc_RNG_DRBG_Reseed_Now(rng, NULL, 0);
     else
+#endif
         rc = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
-#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
+#if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE) && \
+    !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+      !defined(FIPS_NO_WRAPPERS))
     /* The user-reseed class refusal precedes the lock wait, so the !useNow
      * leg reports WRONG_TYPE_OBJECT_E before condemnation can surface;
      * condemnation reporting stays covered by the useNow leg. */
@@ -33118,6 +33551,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         ret = rng_lock_wait_test(rng, WC_RNG_LOCK_OP_GENERATE);
         if (ret != 0)
             goto out_free;
+#if !FIPS_VERSION3_GE(7,0,0)
         /* The DRBG management entries lock too, on their own instance so
          * the checks after this are not disturbed. */
         {
@@ -33134,6 +33568,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
                 wc_rng_free(mut);
             }
         }
+#endif
         if (ret != 0)
             goto out_free;
         /* One throwaway instance per reseed entry: each ends up condemned,
@@ -33232,7 +33667,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_thread_test(void)
         /* Reseed_Now rather than Reseed: the user-reseed class refusal
          * in WC_RNG_RBGC_STRATUM_IMMUTABLE builds precedes the lock, and
          * this probe is about the lock. */
+#if FIPS_VERSION3_GE(7,0,0)
+        ret = wc_RNG_DRBG_Reseed(rng, seed, (word32)sizeof(seed));
+#else
         ret = wc_RNG_DRBG_Reseed_Now(rng, seed, (word32)sizeof(seed));
+#endif
         wc_ForkLock_SetBroken(rng->autoLock, 0);
         if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
             ERROR_OUT(ret == 0 ? WC_TEST_RET_ENC_NC : WC_TEST_RET_ENC_EC(ret),
@@ -34592,7 +35031,7 @@ out:
 #endif /* HAVE_WC_RNG_BANK */
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 /* Is generate serviced by the local DRBG rather than a crypto callback? */
 static int rng_test_generate_is_local(const WC_RNG* rng)
 {
@@ -34699,11 +35138,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_svc_test(void)
 
         /* credited reseed resets the counter */
 #if defined(WC_RNG_HAVE_RBGC) && defined(WC_RNG_RBGC_STRATUM_IMMUTABLE)
-        /* user-class credited reseeds of the conformant root are refused;
-         * probe the counter reset with a credited primary reseed, with the
-         * material as nonce. */
+        /* User-class reseeds of the root are refused (module entropy in the
+         * v7 indicator module); probe the counter with a primary reseed. */
         api_ret = wc_RNG_DRBG_Reseed(root, matter, sizeof(matter));
-        if (api_ret != WC_NO_ERR_TRACE(WRONG_TYPE_OBJECT_E))
+        if (api_ret != TEST_CREDITED_RESEED_RET)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_DRBG_Reseed_Now(root, matter, sizeof(matter));
         if (api_ret != 0)
@@ -34873,8 +35311,7 @@ out:
     return ret;
 }
 
-#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && */
-       /* (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0))         */
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK && !HAVE_FIPS */
 
 #if defined(HAVE_WC_RNG_BANK) && defined(HAVE_HASHDRBG) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(5,2,4)) && \
@@ -36010,7 +36447,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
                                            NULL, 0,
                                            NULL, 0, HEAP_HINT, RNG_DRBG_DEVID,
                                            WC_RNG_INIT_FLAG_NONE);
-        if (api_ret != 0)
+        if (api_ret != TEST_USER_SEED_OK)
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         api_ret = wc_RNG_DRBG_GetRBGCStratum(&u_seed);
         if (api_ret != WC_RNG_RBGC_USER_SEED_STRATUM) {
@@ -36018,7 +36455,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
         }
         api_ret = wc_RNG_DRBG_Reseed(&u_seed, matter, 16);
-        if (api_ret != 0) {
+        if (api_ret != TEST_USER_SEED_OK) {
             (void)wc_FreeRng(&u_seed);
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         }
@@ -36028,7 +36465,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_drbg_rbgc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(api_ret), out);
         }
         api_ret = wc_RNG_GenerateBlock(&u_seed, buf, (word32)sizeof(buf));
-        if (api_ret != 0) {
+        if (api_ret != TEST_USER_SEED_OK) {
             (void)wc_FreeRng(&u_seed);
             ERROR_OUT(WC_TEST_RET_ENC_EC(api_ret), out);
         }
@@ -37155,7 +37592,7 @@ out_l:
 
 #if defined(WC_RNG_HAVE_ENTROPY_EPOCH) && defined(HAVE_HASHDRBG) && \
     !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(HAVE_INTEL_RDRAND) && \
-    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 
 #if defined(WC_RNG_SEED_CB) && defined(WC_RNG_HAVE_LOCK)
 /* Gather for real, then advance the global entropy epoch: the material
@@ -37896,8 +38333,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
                                            NULL, 0, NULL, 0, HEAP_HINT,
                                            RNG_DRBG_DEVID,
                                            WC_RNG_INIT_FLAG_NO_PRIMARY_SEED);
-        if (api_ret != 0)
+        if (api_ret != TEST_USER_SEED_OK)
             api_ret = WC_TEST_RET_ENC_EC(api_ret);
+        else
+            api_ret = 0;
         if (api_ret == 0) {
             u_inited = 1;
             if (wc_RNG_DRBG_GetRBGCStratum(&u) !=
@@ -37908,8 +38347,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
         }
         if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(&u, block, (word32)sizeof(block));
-            if (api_ret != 0)
+            if (api_ret != TEST_USER_SEED_OK)
                 api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            else
+                api_ret = 0;
         }
 #ifdef WC_RNG_HAVE_LOCK
         if (api_ret == 0) {
@@ -37930,8 +38371,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             if (fb != NULL) {
                 api_ret = wc_RNG_GenerateBlock(&u, block,
                                                (word32)sizeof(block));
-                if (api_ret != 0)
+                if (api_ret != TEST_USER_SEED_OK)
                     api_ret = WC_TEST_RET_ENC_EC(api_ret);
+                else
+                    api_ret = 0;
                 if ((api_ret == 0) &&
                     (wc_RNG_DRBG_GetRBGCStratum(&u) !=
                      RBGC_RESEED_STRATUM(wc_RNG_DRBG_GetRBGCStratum(fb) + 1,
@@ -37961,15 +38404,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
 #endif
         if (api_ret == 0) {
             XMEMSET(user_seed, 0xa5, WC_DRBG_SEED_SZ);
+        #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+            !defined(FIPS_NO_WRAPPERS)
+            /* The v7 Reseed takes module entropy; this variant takes the
+             * caller's seed. */
+            api_ret = wc_RNG_DRBG_Reseed_AddIn(&u, user_seed, WC_DRBG_SEED_SZ,
+                                               NULL, 0);
+        #else
             api_ret = wc_RNG_DRBG_Reseed(&u, user_seed, WC_DRBG_SEED_SZ);
-            if (api_ret != 0)
+        #endif
+            if (api_ret != TEST_USER_SEED_OK)
                 api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            else
+                api_ret = 0;
         }
         WC_FREE_VAR(user_seed, HEAP_HINT);
         if (api_ret == 0) {
             api_ret = wc_RNG_GenerateBlock(&u, block, (word32)sizeof(block));
-            if (api_ret != 0)
+            if (api_ret != TEST_USER_SEED_OK)
                 api_ret = WC_TEST_RET_ENC_EC(api_ret);
+            else
+                api_ret = 0;
         }
         if (api_ret == 0) {
             api_ret = wc_RNG_entropy_needs_recovery(&u); /* discharged */
@@ -41355,8 +41810,8 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
     if (ret != 0 && ret != WC_NO_ERR_TRACE(MISSING_RNG_E))
     #endif
     #endif
-#elif defined(HAVE_FIPS) || !defined(WC_RSA_BLINDING)
-    /* FIPS140 implementation does not do blinding */
+#elif !defined(WC_RSA_BLINDING)
+    /* Without blinding no RNG is needed. */
     if (ret != 0)
 #elif defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY)
     if (ret != WC_NO_ERR_TRACE(SIG_TYPE_E))
@@ -42097,6 +42552,11 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
         i = j;
 #else
         for (i = 0; i < (int)(sizeof(mgf)/sizeof(*mgf)); i++) {
+#endif
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+            /* FIPS v7 signs PSS only with MGF1 on the message hash. */
+            if (i != j)
+                continue;
 #endif
             outSz = RSA_TEST_BYTES;
             WC_TEST_RSA_ASYNC_DO(&key->asyncDev,
@@ -43458,6 +43918,10 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #if !defined(WC_TEST_SKIP_RSA_PRIVATE_EXPORT) && !defined(WOLFSSL_MICROCHIP)
     int    derSz = 0;
 #endif
+#if defined(WOLFSSL_RSA_KEY_CHECK) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RSA_BLINDING)
+    int    i;
+#endif
 
 #if defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLFSSL_SWDEV)
     if (devId == INVALID_DEVID) {
@@ -43500,6 +43964,91 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
+#if defined(WOLFSSL_RSA_KEY_CHECK) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RSA_BLINDING)
+    /* Blinded keygen keeps d < LCM(p - 1, q - 1) (FIPS 186-5 A.1.1); a d mod
+     * (p - 1)(q - 1) passes for one key with chance at most 1/2. */
+    for (i = 0; i < 8; i++) {
+        ret = wc_FreeRsaKey(genKey);
+        if (ret == 0)
+            ret = test_RsaInit(genKey, HEAP_HINT, devId);
+        while (ret == 0) {
+            ret = wc_MakeRsaKey(genKey, keySz, WC_RSA_EXPONENT, rng);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &genKey->asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != WC_NO_ERR_TRACE(PRIME_GEN_E))
+                break;
+            ret = 0;
+        }
+        if (ret == 0)
+            ret = wc_CheckRsaKey(genKey);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    }
+#endif
+#if defined(WOLFSSL_RSA_KEY_CHECK) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WOLFSSL_PUBLIC_MP)
+    /* d + 1 still passes the CRT pair-wise test but d * e != 1 mod
+     * LCM(p - 1, q - 1): SP 800-56B Rev2 sec 6.4.1.2.1 step 6b. */
+    ret = mp_add_d(&genKey->d, 1, &genKey->d);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = wc_CheckRsaKey(genKey);
+    if (ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = mp_sub_d(&genKey->d, 1, &genKey->d);
+    if (ret == 0)
+        ret = wc_CheckRsaKey(genKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#ifndef WOLFSSL_NO_MALLOC
+    /* d + LCM(p - 1, q - 1) still inverts e but is not below the LCM:
+     * SP 800-56B Rev2 sec 6.4.1.2.1 step 6a. */
+    {
+        mp_int* t = (mp_int*)XMALLOC(sizeof(mp_int) * 3, HEAP_HINT,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+        if (t == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, exit_rsa);
+        ret = mp_init_multi(&t[0], &t[1], &t[2], NULL, NULL, NULL);
+        if (ret == 0)
+            ret = mp_sub_d(&genKey->p, 1, &t[0]);
+        if (ret == 0)
+            ret = mp_sub_d(&genKey->q, 1, &t[1]);
+        if (ret == 0)
+            ret = mp_lcm(&t[0], &t[1], &t[2]);
+        if (ret == 0)
+            ret = mp_copy(&genKey->d, &t[0]);
+        if (ret == 0)
+            ret = mp_add(&genKey->d, &t[2], &genKey->d);
+        if (ret == 0) {
+            ret = wc_CheckRsaKey(genKey);
+            ret = (ret == WC_NO_ERR_TRACE(MP_EXPTMOD_E)) ? 0 :
+                                                          WC_TEST_RET_ENC_EC(ret);
+            if (mp_copy(&t[0], &genKey->d) != 0)
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        mp_forcezero(&t[0]);
+        mp_forcezero(&t[1]);
+        mp_forcezero(&t[2]);
+        XFREE(t, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret != 0)
+            ERROR_OUT(ret, exit_rsa);
+    }
+#endif
+    /* A public exponent out of range is refused before the pair-wise test,
+     * not reported as a failed one. */
+    ret = mp_set_int(&genKey->e, 3);
+    if (ret == 0)
+        ret = wc_CheckRsaKey(genKey);
+    if (ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+    ret = mp_set_int(&genKey->e, WC_RSA_EXPONENT);
+    if (ret == 0)
+        ret = wc_CheckRsaKey(genKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
+#endif
 #if !defined(WC_TEST_SKIP_RSA_PRIVATE_EXPORT) && !defined(WOLFSSL_MICROCHIP)
 #ifndef WOLFSSL_NO_MALLOC
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -43510,7 +44059,9 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
 #else
     derSz = sizeof(der);
 #endif
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_RsaKeyToDer(genKey, der, derSz);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(derSz), exit_rsa);
     }
@@ -44402,7 +44953,9 @@ static wc_test_ret_t rsa_se050_onlykeyid_test(WC_RNG* rng)
     /* Export and promote the same key material into the SE050. */
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) { ret = WC_TEST_RET_ENC_ERRNO; goto done; }
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_RsaKeyToDer(&swKey, der, FOURK_BUF);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) { ret = WC_TEST_RET_ENC_EC(derSz); goto done; }
 
     /* Erase any object a prior interrupted run may have left at this ID;
@@ -50553,11 +51106,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void)
     wc_test_ret_t ret;
     WOLFSSL_ENTER("pbkdf1_test");
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PBKDF1_ex(derived, kLen, NULL, 0, (byte*)passwd,
              (int)XSTRLEN(passwd), salt, (int)sizeof(salt), iterations, WC_SHA,
              HEAP_HINT);
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* PBKDF1 is not approved: SP 800-132 sec 5.3 approves PBKDF2 only. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+#else
     if (ret != 0)
         return ret;
+#endif
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return WC_TEST_RET_ENC_NC;
@@ -50823,12 +51385,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
                       0xf8, 0xf9 };
 #endif
 #ifndef NO_SHA
+#if !(FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+      !defined(FIPS_NO_WRAPPERS))
     byte res1[42] = { 0x0a, 0xc1, 0xaf, 0x70, 0x02, 0xb3, 0xd7, 0x61,
                       0xd1, 0xe5, 0x52, 0x98, 0xda, 0x9d, 0x05, 0x06,
                       0xb9, 0xae, 0x52, 0x05, 0x72, 0x20, 0xa3, 0x06,
                       0xe0, 0x7b, 0x6b, 0x87, 0xe8, 0xdf, 0x21, 0xd0,
                       0xea, 0x00, 0x03, 0x3d, 0xe0, 0x39, 0x84, 0xd3,
                       0x49, 0x18 };
+#endif
 #ifndef HAVE_FIPS
     byte res2[42] = { 0x08, 0x5a, 0x01, 0xea, 0x1b, 0x10, 0xf3, 0x69,
                       0x33, 0x06, 0x8b, 0x56, 0xef, 0xa5, 0xad, 0x81,
@@ -50869,11 +51434,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
                   okm1, (word32)L);
 #endif
     PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* The v7 module refuses HKDF with SHA-1. */
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+#else
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
@@ -51340,11 +51912,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
                                   "C32F009F9955B1D994E61D3C51EE8760"
                                   "90B4EF89CC7AF42F46E72201BFCC7977";
     const char* label           = "master secret";
+    const char* emsLabel        = "extended master secret";
 
     byte pms[48] = {0};
     byte seed[64] = {0};
     byte ms[48] = {0};
     byte result[48] = {0};
+    byte lblSeed[22 + 64];
 
     word32 pmsSz    = (word32)sizeof(pms);
     word32 seedSz   = (word32)sizeof(seed);
@@ -51369,6 +51943,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
             (const byte*)label, (word32)XSTRLEN(label), seed, seedSz,
             1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* A master secret without EMS is derived but flagged: IG D.Q. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret != 0) {
         if (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
@@ -51378,6 +51958,37 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
 
     if (XMEMCMP(result, ms, msSz) != 0)
         return WC_TEST_RET_ENC_NC;
+
+    /* The label at the front of the seed, as OpenSSL passes it, gives the same
+     * master secret and the same flag. */
+    XMEMCPY(lblSeed, label, XSTRLEN(label));
+    XMEMCPY(lblSeed + XSTRLEN(label), seed, seedSz);
+    XMEMSET(result, 0, sizeof(result));
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_PRF_TLS(result, msSz, pms, pmsSz, (const byte*)"", 0, lblSeed,
+            (word32)XSTRLEN(label) + seedSz, 1, sha256_mac, NULL, devId);
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (XMEMCMP(result, ms, msSz) != 0)
+        return WC_TEST_RET_ENC_NC;
+
+    /* An extended master secret passed the same way is approved. */
+    XMEMCPY(lblSeed, emsLabel, XSTRLEN(emsLabel));
+    XMEMCPY(lblSeed + XSTRLEN(emsLabel), seed, WC_SHA256_DIGEST_SIZE);
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_PRF_TLS(result, msSz, pms, pmsSz, (const byte*)"", 0, lblSeed,
+            (word32)XSTRLEN(emsLabel) + WC_SHA256_DIGEST_SIZE, 1, sha256_mac,
+            NULL, devId);
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
     return 0;
 }
 #endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
@@ -52191,9 +52802,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
     WOLFSSL_ENTER("x963kdf_test");
 
 #ifndef NO_SHA
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA, Z, sizeof(Z), NULL, 0,
                       kek, sizeof(verify));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify, kek, sizeof(verify)) != 0)
@@ -52201,9 +52814,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifndef NO_SHA256
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, Z2, sizeof(Z2), NULL, 0,
                       kek, sizeof(verify2));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify2, kek, sizeof(verify2)) != 0)
@@ -52211,17 +52826,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifdef WOLFSSL_SHA512
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z3, sizeof(Z3), NULL, 0,
                       kek, sizeof(verify3));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify3, kek, sizeof(verify3)) != 0)
         return WC_TEST_RET_ENC_NC;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z4, sizeof(Z4), info4,
                       sizeof(info4), kek, sizeof(verify4));
-    if (ret != 0)
+    PRIVATE_KEY_LOCK();
+    if (ret != UNAPPROVED_OK)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify4, kek, sizeof(verify4)) != 0)
@@ -53517,6 +54136,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
     unsigned char keyE[32];
     unsigned char keyA[20];
     unsigned char keyS[14];
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    unsigned char salt14[14];
+#endif
 #ifdef SRTP_KDF_LONG_KEY
     WC_DECLARE_VAR(keyELong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
     WC_DECLARE_VAR(keyALong, byte, SRTP_KDF_LONG_KEY, HEAP_HINT);
@@ -53662,6 +54284,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         keyS, tv[i].ksSz);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    /* FIPS v7 takes only a 12 or 14-byte salt. */
+    ret = wc_SRTP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 13,
+        tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_SRTCP_KDF(tv[i].key, tv[i].keySz, tv[i].salt, 13,
+        tv[i].kdfIdx, tv[i].index_c, keyE, tv[i].keSz, keyA, tv[i].kaSz,
+        keyS, tv[i].ksSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    /* A 12-byte salt is right-aligned (RFC 3711 sec 4.3.1). */
+    XMEMSET(salt14, 0, 2);
+    XMEMCPY(salt14 + 2, tv[i].salt + 2, 12);
+    ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, salt14, 14,
+        tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_ENCRYPTION, keyE, 16);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_SRTP_KDF_label(tv[i].key, tv[i].keySz, tv[i].salt + 2, 12,
+        tv[i].kdfIdx, tv[i].index, WC_SRTP_LABEL_ENCRYPTION, keyA, 16);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(keyE, keyA, 16) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 
     ret = wc_SRTP_KDF(NULL, tv[i].keySz, tv[i].salt, tv[i].saltSz,
         tv[i].kdfIdx, tv[i].index, keyE, tv[i].keSz, keyA, tv[i].kaSz,
@@ -55442,7 +56090,9 @@ static wc_test_ret_t ecc_test_key_decode(WC_RNG* rng, int keySize)
     }
 
     tmpSz = ECC_BUFSIZE;
+    PRIVATE_KEY_UNLOCK();
     ret = wc_EccKeyToDer(eccKey, tmpBuf, tmpSz);
+    PRIVATE_KEY_LOCK();
     wc_ecc_free(eccKey);
     if (ret < 0) {
         goto done;
@@ -55531,7 +56181,9 @@ static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
     TEST_SLEEP();
 #endif
 
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_EccKeyToDer(userA, der, ECC_BUFSIZE);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_I(derSz), done);
     }
@@ -55566,9 +56218,38 @@ static wc_test_ret_t ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
 #ifdef HAVE_PKCS8
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    {
+        /* Private key reads off: a size query works, an export does not. */
+        int held = wolfCrypt_GetPrivateKeyReadEnable_fips(WC_KEYTYPE_ALL);
+        int i;
+        word32 lenOnly = 0;
+
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_LOCK();
+        }
+        ret = wc_EccPrivateKeyToPKCS8(userA, NULL, &lenOnly);
+        if ((ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) && (lenOnly > 0)) {
+            pkcs8Sz = FOURK_BUF;
+            ret = wc_EccPrivateKeyToPKCS8(userA, der, &pkcs8Sz);
+            ret = (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) ? 0 :
+                WC_TEST_RET_ENC_EC(ret);
+        } else {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        for (i = 0; i < held; i++) {
+            PRIVATE_KEY_UNLOCK();
+        }
+        if (ret != 0)
+            ERROR_OUT(ret, done);
+    }
+#endif
     /* test export of PKCS#8 unencrypted private key */
     pkcs8Sz = FOURK_BUF;
+    PRIVATE_KEY_UNLOCK();
     derSz = wc_EccPrivateKeyToPKCS8(userA, der, &pkcs8Sz);
+    PRIVATE_KEY_LOCK();
     if (derSz < 0) {
         ERROR_OUT(WC_TEST_RET_ENC_I(derSz), done);
     }
@@ -55780,9 +56461,10 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #endif
 #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
     !defined(FIPS_NO_WRAPPERS)
-    /* v7 refuses ECDH outside P-256, P-384 and P-521: expect the refusal and
-     * skip only the shared secret steps for this curve. */
+    /* v7 refuses ECDH outside P-224, P-256, P-384 and P-521: expect the
+     * refusal and skip only the shared secret steps for this curve. */
     if (userA->dp != NULL &&
+        userA->dp->id != ECC_SECP224R1 &&
         userA->dp->id != ECC_SECP256R1 &&
         userA->dp->id != ECC_SECP384R1 &&
         userA->dp->id != ECC_SECP521R1) {
@@ -55797,8 +56479,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
     }
 #endif
 
-    if (doEcdh)
-    {
+    if (doEcdh) {
     x = ECC_SHARED_SIZE;
     PRIVATE_KEY_UNLOCK();
     do {
@@ -55907,8 +56588,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100)
 #ifdef HAVE_ECC_DHE
-    if (doEcdh)
-    {
+    if (doEcdh) {
     y = ECC_SHARED_SIZE;
     PRIVATE_KEY_UNLOCK();
     do {
@@ -55963,8 +56643,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
     #ifdef HAVE_ECC_DHE
-        if (doEcdh)
-        {
+        if (doEcdh) {
         y = ECC_SHARED_SIZE;
         PRIVATE_KEY_UNLOCK();
         do {
@@ -59304,7 +59983,9 @@ static wc_test_ret_t se050_onlykeyid_promote_ecc(ecc_key* swKey, ecc_key* hwKey,
     byte   der[256];
     word32 derSz;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_EccKeyToDer(swKey, der, (word32)sizeof(der));
+    PRIVATE_KEY_LOCK();
     if (ret < 0)
         return WC_TEST_RET_ENC_EC(ret);
     derSz = (word32)ret;
@@ -61885,7 +62566,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 #else
 #define X25519_TEST_CNT    1
 #endif
-static wc_test_ret_t curve25519_overflow_test(WC_RNG* rng)
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_overflow_test(WC_RNG* rng)
 {
     /* secret key for party a */
     byte sa[X25519_TEST_CNT][32] = {
@@ -62251,7 +62932,7 @@ static wc_test_ret_t curve25519_check_public_test(void)
  *
  * returns 0 on success and -ve on failure.
  */
-static wc_test_ret_t curve25519_noncanonical_test(WC_RNG* rng)
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_noncanonical_test(WC_RNG* rng)
 {
     wc_test_ret_t ret;
     WOLFSSL_SMALL_STACK_STATIC const byte priv[CURVE25519_KEYSIZE] = {
@@ -62620,7 +63301,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
     x25519_nb_ctx_t nb_ctx;
     curve25519_key userA;
     curve25519_key userB;
-#ifdef HAVE_CURVE25519_SHARED_SECRET
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && !defined(WC_X25519_HYBRID_ONLY)
     byte    sharedA[32];
     byte    sharedB[32];
     word32  x;
@@ -62681,7 +63362,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
         return -10726;
     }
 
-#ifdef HAVE_CURVE25519_SHARED_SECRET
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && !defined(WC_X25519_HYBRID_ONLY)
     x = sizeof(sharedA);
     do {
         ret = wc_curve25519_shared_secret(&userA, &userB, sharedA, &x);
@@ -62733,7 +63414,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
 
 #endif /* WC_X25519_NONBLOCK */
 
-static wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
         curve25519_key* userA, curve25519_key* userB, curve25519_key* pubKey)
 {
     wc_test_ret_t ret;
@@ -62845,7 +63526,7 @@ static wc_test_ret_t curve25519_keyagree_test(WC_RNG* rng,
 
 #if defined(HAVE_CURVE25519_SHARED_SECRET) && \
                                              defined(HAVE_CURVE25519_KEY_IMPORT)
-static wc_test_ret_t curve25519_kat_test(WC_RNG* rng,
+static WC_MAYBE_UNUSED wc_test_ret_t curve25519_kat_test(WC_RNG* rng,
         curve25519_key* userA, curve25519_key* userB)
 {
     wc_test_ret_t ret;
@@ -62986,6 +63667,57 @@ static wc_test_ret_t curve25519_kat_test(WC_RNG* rng,
 }
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
 
+#ifdef WC_X25519_HYBRID_ONLY
+/* X25519 is refused alone and computed only by the ML-KEM hybrid join. */
+static wc_test_ret_t curve25519_hybrid_only_test(WC_RNG* rng,
+        curve25519_key* userA, curve25519_key* userB)
+{
+    wc_test_ret_t ret;
+    byte   out[CURVE25519_KEYSIZE];
+    word32 outSz = sizeof(out);
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_X25519
+    byte   kemSs[32];
+    byte   ssA[sizeof(kemSs) + CURVE25519_KEYSIZE];
+    byte   ssB[sizeof(kemSs) + CURVE25519_KEYSIZE];
+    word32 ssASz = sizeof(ssA);
+    word32 ssBSz = sizeof(ssB);
+#endif
+
+    ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, userA);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret == 0)
+        ret = wc_curve25519_make_key(rng, CURVE25519_KEYSIZE, userB);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
+        ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_curve25519_shared_secret(userA, userB, out, &outSz);
+    if (ret != WC_NO_ERR_TRACE(FIPS_WRONG_API_E))
+        return WC_TEST_RET_ENC_EC(ret);
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_X25519
+    /* X25519MLKEM768 puts the ML-KEM secret first (RFC 10024 sec 4.3). */
+    XMEMSET(kemSs, 0x5a, sizeof(kemSs));
+    ret = wc_Tls13_HybridSharedSecretX25519(4588, 1, userA, userB, ssA,
+              sizeof(ssA), &ssASz, kemSs, sizeof(kemSs));
+    if (ret == 0)
+        ret = wc_Tls13_HybridSharedSecretX25519(4588, 1, userB, userA, ssB,
+                  sizeof(ssB), &ssBSz, kemSs, sizeof(kemSs));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if ((ssASz != sizeof(ssA)) || (ssBSz != ssASz) ||
+            (XMEMCMP(ssA, ssB, ssASz) != 0) ||
+            (XMEMCMP(ssA, kemSs, sizeof(kemSs)) != 0))
+        return WC_TEST_RET_ENC_NC;
+#endif
+    return 0;
+}
+#endif /* WC_X25519_HYBRID_ONLY */
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
 {
     WC_RNG  rng;
@@ -63028,6 +63760,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     wc_curve25519_set_rng(userB, &rng);
 #endif
 
+#ifdef WC_X25519_HYBRID_ONLY
+    ret = curve25519_hybrid_only_test(&rng, userA, userB);
+    if (ret != 0)
+        goto cleanup;
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && \
+                                             defined(HAVE_CURVE25519_KEY_IMPORT)
+    ret = curve25519_check_public_test();
+    if (ret != 0)
+        goto cleanup;
+#endif
+#else
     ret = curve25519_keyagree_test(&rng, userA, userB, pubKey);
     if (ret != 0)
         goto cleanup;
@@ -63050,6 +63793,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
         goto cleanup;
 #endif
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
+#endif /* WC_X25519_HYBRID_ONLY */
 
 #if !defined(NO_ASN) && defined(HAVE_CURVE25519_KEY_EXPORT) && \
     defined(HAVE_CURVE25519_KEY_IMPORT)
@@ -64131,6 +64875,11 @@ static wc_test_ret_t ed25519_kat_test(ed25519_key* key, ed25519_key* key2)
         if (wc_ed25519_export_public(key, exportPKey, &exportPSz) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), exit_ed25519_kat);
 
+        /* key2 still holds the last private key: a public key is checked
+         * against it, so start from an empty key. */
+        wc_ed25519_free(key2);
+        if (wc_ed25519_init_ex(key2, HEAP_HINT, devId) != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), exit_ed25519_kat);
         if (wc_ed25519_import_public_ex(exportPKey, exportPSz, key2, 1) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), exit_ed25519_kat);
 
@@ -66505,6 +67254,13 @@ static wc_test_ret_t ed448_kat_test(ed448_key* key, ed448_key* key2)
                     break;
                 }
 
+                /* key2 still holds the last private key: a public key is
+                 * checked against it, so start from an empty key. */
+                wc_ed448_free(key2);
+                if (wc_ed448_init(key2) != 0) {
+                    ret = WC_TEST_RET_ENC_I(i);
+                    break;
+                }
                 if (wc_ed448_import_public_ex(exportPKey, exportPSz, key2, 1) != 0) {
                     ret = WC_TEST_RET_ENC_I(i);
                     break;
@@ -80366,10 +81122,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     ret = wc_XmssKey_ImportPubRaw(&verifyKey, xmss_pub, XMSS_SHA256_PUBLEN);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
+    /* FIPS v7 verifies XMSS without approval (IG C.N): UNAPPROVED_OK. */
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
-    if (ret != 0) {
-        printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
+    if (ret != UNAPPROVED_OK) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               UNAPPROVED_OK);
         return WC_TEST_RET_ENC_EC(ret);
     }
 
@@ -80405,12 +81163,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
 
     /* Flip it back. This should pass again. */
     xmss_msg[sizeof(xmss_msg) / 2] ^= 1;
+    /* FIPS v7 verifies XMSS without approval (IG C.N): UNAPPROVED_OK. */
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
-    if (ret != 0) {
-        printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
+    if (ret != UNAPPROVED_OK) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               UNAPPROVED_OK);
         return WC_TEST_RET_ENC_EC(ret);
     }
+    ret = 0;
 
     /* Flip bits in a few places throughout the signature, stepping in multiple
      * of hash size. These should all fail with -1. */
@@ -93963,8 +94724,10 @@ static wc_test_ret_t pkcs7signed_slhdsa_params_test(void)
                 cert, &certSz);
         keySz = 0;
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             keySz = wc_SlhDsaKey_PrivateKeyToDer(slhdsa, key,
                 SLHDSA_PKCS7_KEY_SZ);
+            PRIVATE_KEY_LOCK();
             if (keySz <= 0)
                 ret = WC_TEST_RET_ENC_EC(keySz);
         }
@@ -105765,7 +106528,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 }
 
                 /* Export private key from temp to DER */
+                PRIVATE_KEY_UNLOCK();
                 derSz = wc_RsaKeyToDer(rsaTmp, der, (word32)derSz);
+                PRIVATE_KEY_LOCK();
                 if (derSz <= 0) {
                     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     ret = derSz;
@@ -105896,7 +106661,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         ret = MEMORY_E;
                         break;
                     }
+                    PRIVATE_KEY_UNLOCK();
                     derSz = wc_RsaKeyToDer(src, der, (word32)derSz);
+                    PRIVATE_KEY_LOCK();
                     if (derSz > 0) {
                         ret = wc_RsaPrivateKeyDecode(der, &idx, dst,
                             (word32)derSz);
@@ -106393,7 +107160,8 @@ static wc_test_ret_t shake_cb_xof_test(myCryptoDevCtx* myCtx, int decline,
 
 #if defined(WOLFSSL_SHA3) && \
     (defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)) && \
-    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE))
+    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE)) && \
+    !defined(HAVE_FIPS)
 /* Round-trip one SHAKE variant through Update/Final/Copy/Free with the
  * callback registered and assert Copy/Free dispatched expectType. */
 static wc_test_ret_t shake_cb_copy_free_test(myCryptoDevCtx* myCtx,
@@ -109986,7 +110754,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #endif /* WOLFSSL_CMAC && WOLF_CRYPTO_CB_FREE */
 
 #if defined(WOLFSSL_SHA3) && \
-    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE))
+    (defined(WOLF_CRYPTO_CB_COPY) || defined(WOLF_CRYPTO_CB_FREE)) && \
+    !defined(HAVE_FIPS)
 #ifdef WOLFSSL_SHAKE128
     if (ret == 0)
         ret = shake_cb_copy_free_test(&myCtx, WC_HASH_TYPE_SHAKE128,
@@ -109999,7 +110768,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
             wc_InitShake256, wc_Shake256_Update, wc_Shake256_Final,
             wc_Shake256_Copy, wc_Shake256_Free);
 #endif
-#endif /* WOLFSSL_SHA3 && (CB_COPY || CB_FREE) */
+#endif /* WOLFSSL_SHA3 && (CB_COPY || CB_FREE) && !HAVE_FIPS */
 
 #if defined(WOLFSSL_SHA3) && defined(WOLF_CRYPTO_CB_SHAKE_XOF) && \
     !defined(HAVE_FIPS)

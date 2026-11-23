@@ -6764,7 +6764,7 @@ if test "x$ENABLED_SAKKE" = "xsmall"
 then
     ENABLED_SAKKE="yes"
     ENABLED_SAKKE_SMALL="yes"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_SAKKE_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SAKKE_SMALL"
 fi
 if test "x$ENABLED_SAKKE" = "xyes"
 then
@@ -7888,8 +7888,7 @@ AS_CASE([$FIPS_VERSION],
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
             -DHAVE_ECC521 \
-            -DWOLFSSL_VALIDATE_FFC_IMPORT \
-            -DWC_RNG_EXTRAS"
+            -DWOLFSSL_VALIDATE_FFC_IMPORT"
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and don't use seed callback
         AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
@@ -7952,6 +7951,11 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_ED25519" = "no" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed25519" != "no")],
             [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
+
+        # X25519 is in the v7 boundary for the X25519MLKEM768 hybrid only.
+        AS_IF([test "$ENABLED_CURVE25519" = "no" &&
+               (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_curve25519" != "no")],
+            [ENABLED_CURVE25519="yes"])
 
         AS_IF([test "x$ENABLED_ED448" != "xyes" &&
                (test "$ENABLED_FIPS_DEV" != "yes" || test "$enable_ed448" != "no")],

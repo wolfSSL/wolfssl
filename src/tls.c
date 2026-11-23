@@ -4872,7 +4872,9 @@ int TLSX_IsGroupSupported(int namedGroup, int side)
         #endif /* WOLFSSL_SM2 */
     #endif
     #endif /* HAVE_ECC */
-    #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+    /* With WC_X25519_HYBRID_ONLY X25519 is only offered inside a hybrid. */
+    #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256 && \
+        !defined(WC_X25519_HYBRID_ONLY)
         case WOLFSSL_ECC_X25519:
             break;
     #endif
@@ -10390,22 +10392,35 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     return ret;
 }
 
+#if defined(WC_X25519_HYBRID_ONLY) && \
+    defined(WOLFSSL_HAVE_TLS13_HYBRID_X25519)
+    /* A hybrid's X25519 is computed by the module's join, after ML-KEM. */
+    #define TLSX_X25519_IN_JOIN(group) ((group) == WOLFSSL_ECC_X25519)
+#else
+    #define TLSX_X25519_IN_JOIN(group) 0
+#endif
+
 /* Process the X25519 key share extension on the client side.
  *
  * ssl            The SSL/TLS object.
  * keyShareEntry  The key share entry object to use to calculate shared secret.
  * ssOutput       The destination buffer for the shared secret.
  * ssOutSz        The size of the generated shared secret.
+ * group          The hybrid group, or 0 for X25519 alone.
+ * kemFirst       Whether the ML-KEM secret goes first in the hybrid.
+ * kemSs          The ML-KEM secret the module joins with X25519, or NULL.
+ * kemSsSz        The size of the ML-KEM secret.
  *
  * returns 0 on success and other values indicate failure.
  */
 static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
                                           KeyShareEntry* keyShareEntry,
                                           unsigned char* ssOutput,
-                                          word32* ssOutSz)
+                                          word32* ssOutSz, word16 group,
+                                          int kemFirst, const byte* kemSs,
+                                          word32 kemSsSz)
 {
     int ret = 0;
-
 #ifdef HAVE_CURVE25519
     curve25519_key* key = (curve25519_key*)keyShareEntry->key;
     const byte* peerPub = keyShareEntry->ke;
@@ -10413,6 +10428,15 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
 #ifndef WOLFSSL_X25519_NO_MASK_PEER
     byte maskedPub[CURVE25519_KEYSIZE];
 #endif
+#endif
+
+    /* Used only when the module joins X25519 with ML-KEM. */
+    (void)group;
+    (void)kemFirst;
+    (void)kemSs;
+    (void)kemSsSz;
+
+#ifdef HAVE_CURVE25519
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (keyShareEntry->lastRet == 0) /* don't enter here if WC_PENDING_E */
@@ -10491,8 +10515,17 @@ static int TLSX_KeyShare_ProcessX25519_ex(WOLFSSL* ssl,
             if (ret != 0)
                 return ret;
         #endif
+        #if defined(WC_X25519_HYBRID_ONLY) && \
+            defined(WOLFSSL_HAVE_TLS13_HYBRID_X25519)
+            /* The module computes X25519 only joined with the ML-KEM secret;
+             * ssOutput is the start of preMasterSecret here. */
+            ret = wc_Tls13_HybridSharedSecretX25519(group, kemFirst, key,
+                        ssl->peerX25519Key, ssOutput, MAX_PREMASTER_SZ,
+                        ssOutSz, kemSs, kemSsSz);
+        #else
             ret = wc_curve25519_shared_secret_ex(key, ssl->peerX25519Key,
                         ssOutput, ssOutSz, EC25519_LITTLE_ENDIAN);
+        #endif
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 return wolfSSL_AsyncPush(ssl, &key->asyncDev);
@@ -10560,7 +10593,8 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
                                        KeyShareEntry* keyShareEntry)
 {
     return TLSX_KeyShare_ProcessX25519_ex(ssl, keyShareEntry,
-                ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz);
+                ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz, 0, 0,
+                NULL, 0);
 }
 
 /* Process the X448 key share extension on the client side.
@@ -11176,9 +11210,11 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
     #ifdef HAVE_CURVE25519
         if (ecc_group == WOLFSSL_ECC_X25519) {
-            ret = TLSX_KeyShare_ProcessX25519_ex(ssl, ecc_kse,
-                    ssl->arrays->preMasterSecret + offset,
-                    &ssl->arrays->preMasterSz);
+            if (!TLSX_X25519_IN_JOIN(ecc_group)) {
+                ret = TLSX_KeyShare_ProcessX25519_ex(ssl, ecc_kse,
+                        ssl->arrays->preMasterSecret + offset,
+                        &ssl->arrays->preMasterSz, 0, 0, NULL, 0);
+            }
         }
         else
     #endif
@@ -11223,7 +11259,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
         }
     }
 
-    if (ret == 0) {
+    if ((ret == 0) && !TLSX_X25519_IN_JOIN(ecc_group)) {
         if ((ssl->arrays->preMasterSz + ssSzPqc) > MAX_PREMASTER_SZ) {
             WOLFSSL_MSG("shared secret is too long.");
             ret = LENGTH_ERROR;
@@ -11252,9 +11288,17 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
     #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
         /* The module joins the secrets; FIPS builds enforce the group's
          * order and sizes. */
-        ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
-                ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
-                &ssl->arrays->preMasterSz, ssPqc, ssSzPqc);
+        if (TLSX_X25519_IN_JOIN(ecc_group)) {
+            ret = TLSX_KeyShare_ProcessX25519_ex(ssl, ecc_kse,
+                    ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
+                    keyShareEntry->group, pqc_first, ssPqc, ssSzPqc);
+            keyShareEntry->key = ecc_kse->key;
+            ecc_kse->key = NULL;
+        } else {
+            ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
+                    ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
+                    &ssl->arrays->preMasterSz, ssPqc, ssSzPqc);
+        }
         if (ret != 0)
             ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
     #else
@@ -11977,9 +12021,11 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 
         #ifdef HAVE_CURVE25519
             if (ecc_group == WOLFSSL_ECC_X25519) {
-                ret = TLSX_KeyShare_ProcessX25519_ex(ssl, ecc_kse,
-                        ssl->arrays->preMasterSecret + ssOffset,
-                        &ssl->arrays->preMasterSz);
+                if (!TLSX_X25519_IN_JOIN(ecc_group)) {
+                    ret = TLSX_KeyShare_ProcessX25519_ex(ssl, ecc_kse,
+                            ssl->arrays->preMasterSecret + ssOffset,
+                            &ssl->arrays->preMasterSz, 0, 0, NULL, 0);
+                }
             }
             else
         #endif
@@ -11997,7 +12043,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
                         &ssl->arrays->preMasterSz);
             }
         }
-        if (ret == 0) {
+        if ((ret == 0) && !TLSX_X25519_IN_JOIN(ecc_group)) {
             if (ssl->arrays->preMasterSz != ecc_kse->keyLen) {
                 WOLFSSL_MSG("Data length mismatch.");
                 ret = BAD_FUNC_ARG;
@@ -12016,7 +12062,8 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     #endif
     }
 
-    if (ret == 0 && ssl->arrays->preMasterSz + ssSzPqc > MAX_PREMASTER_SZ) {
+    if ((ret == 0) && !TLSX_X25519_IN_JOIN(ecc_group) &&
+            (ssl->arrays->preMasterSz + ssSzPqc > MAX_PREMASTER_SZ)) {
         WOLFSSL_MSG("shared secret is too long.");
         ret = LENGTH_ERROR;
     }
@@ -12045,7 +12092,11 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
     /* The module joins the secrets; FIPS builds enforce the group's order and
      * sizes. */
-    if (ret == 0) {
+    if ((ret == 0) && TLSX_X25519_IN_JOIN(ecc_group)) {
+        ret = TLSX_KeyShare_ProcessX25519_ex(ssl, ecc_kse,
+                ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
+                keyShareEntry->group, pqc_first, ssPqc, ssSzPqc);
+    } else if (ret == 0) {
         ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
                 ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
                 &ssl->arrays->preMasterSz, ssPqc, ssSzPqc);

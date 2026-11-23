@@ -556,8 +556,8 @@ int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key);
 
     \brief This function imports a public ed448_key pair from a buffer
     containing the public key. This function will handle both compressed and
-    uncompressed keys. Check public key matches private key, when present,
-    when not trusted.
+    uncompressed keys. Check public key matches private key, when present.
+    When not trusted, also check a public key on its own.
 
     \return 0 Returned on successfully importing the ed448_key.
     \return BAD_FUNC_ARG Returned if in or key evaluate to NULL, or inLen is
@@ -678,7 +678,7 @@ int wc_ed448_import_private_key(const byte* priv, word32 privSz,
 
     \brief This function imports a public/private Ed448 key pair from a
     pair of buffers. This function will handle both compressed and
-    uncompressed keys. The public is checked against private key if not trusted.
+    uncompressed keys. The public key is always checked against private key.
 
     \return 0 Returned on successfully importing the Ed448 key.
     \return BAD_FUNC_ARG Returned if in or key evaluate to NULL, or if

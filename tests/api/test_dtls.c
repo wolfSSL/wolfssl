@@ -3375,7 +3375,12 @@ int test_dtls_certreq_order(void)
             (const char*)certreq_before_cert_bin,
             sizeof(certreq_before_cert_bin)), 0);
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    /* The capture's ServerHello has no EMS, so it is refused first. */
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), EXT_MASTER_SECRET_NEEDED_E);
+#else
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
+#endif
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
@@ -13807,6 +13812,7 @@ static int test_dtls13_AEAD_limit_triggers_KeyUpdate_cs(const char* suite,
          * comfortably below the trigger threshold. */
         test_dtls13_seq_wrap_stage(ssl_c, ssl_s,
             w64From32(limit_hi, limit_lo - 2));
+        ExpectIntEQ(test_tls13_restart_gcm_nonce(ssl_c), 0);
     }
 
     /* First write: below the limit, no KeyUpdate expected. */

@@ -1332,18 +1332,20 @@ WOLFSSL_API int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len);
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY)
 #ifndef WOLFSSL_NO_ML_DSA_44
-WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e);
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1,
+    byte* w1e);
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1,
+    byte* w1e);
 #endif
 #endif
 
 #ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
-WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s, byte d,
-    byte eta, byte* p);
-WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t, byte d,
-    byte* t0, byte* t1);
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s,
+    byte d, byte eta, byte* p);
+WC_FIPS_V7_LOCAL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t,
+    byte d, byte* t0, byte* t1);
 #endif
 
 #if defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && \

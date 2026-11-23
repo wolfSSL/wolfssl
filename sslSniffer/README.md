@@ -681,6 +681,10 @@ Remember to always start the sniffing application before the server.  This is im
 
 As a passive sniffer the wolfSSL sniffer will not be able to decode any SSL session that uses DHE (Ephemeral Diffie-Hellman) because it will not have access to the temporary key that the server generates. You may need to disable DHE cipher suites on the server and/or client to prevent these cipher suites from being used. The notable exception to this is if the sniffer session uses the keylog file feature, in which case any session using TLS 1.2 or 1.3 can be decoded.
 
+### FIPS v7
+
+A FIPS v7 build requires the Extended Master Secret for TLS 1.2 (FIPS 140-3 IG D.Q). The sniffer decodes TLS 1.3 and TLS 1.2 sessions that negotiated the Extended Master Secret, and stops a TLS 1.2 session without it at the ServerHello with "Extended Master Secret required in this build".
+
 ### Thread Safety
 
 Access to the sniffer session table is thread safe.  What is not thread safe, is using the same sniffer session from multiple threads.  For example, say sniffer session A is created by thread X. If 3 new packets come in for session A and threads X, Y, and Z all try to handle those packets concurrently that's a problem.  Ideally, the main thread would associate an ssl sniffer session (client ip/client port <-> server ip/server port) with a particular thread and use that same thread for the lifetime of the session.  Short of that, the sniffer session would need a lock which isn't ideal in a multithreaded scenario because once thread X locks the first packet from session A threads Y and Z would be blocked until thread X is done.  That defeats the whole purpose doing multithreaded sniffing.

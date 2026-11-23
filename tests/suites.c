@@ -532,6 +532,14 @@ static int IsSendTicket(const char* line)
 }
 #endif
 
+#ifdef WC_X25519_HYBRID_ONLY
+/* if the line asks for X25519 alone (-t) return 1, else 0 */
+static int IsX25519Only(const char* line)
+{
+    return XSTRSTR(line, " -t ") != NULL;
+}
+#endif
+
 static int execute_test_case(int svr_argc, char** svr_argv,
                              int cli_argc, char** cli_argv,
                              int addNoVerify, int addNonBlocking,
@@ -601,6 +609,15 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         #endif
         return NOT_BUILT_IN;
     }
+#ifdef WC_X25519_HYBRID_ONLY
+    /* This build offers X25519 only inside the ML-KEM hybrid. */
+    if (IsX25519Only(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("X25519 alone not supported in build: %s\n", commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
 #ifdef WOLFSSL_HAVE_MLKEM
     if (!IsKyberLevelAvailable(commandLine)) {
         #ifdef DEBUG_SUITE_TESTS
@@ -1061,7 +1078,7 @@ static void test_harness(void* vargs)
                                   cliArgsSz, cliArgs, 1, 0, 0, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
                                   cliArgsSz, cliArgs, 1, 1, 0, 0, 0);
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
                 execute_test_case(svrArgsSz, svrArgs,
                                   cliArgsSz, cliArgs, 0, 0, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,

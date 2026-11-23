@@ -494,7 +494,12 @@ int test_wc_ed448_import_public(void)
 
     ExpectIntEQ(wc_ed448_init(&pubKey), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
+    /* A trusted public key is still checked against a private key. */
     ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &pubKey), 0);
+    ExpectIntEQ(wc_ed448_import_public_ex(in, inlen, &pubKey, 1),
+        WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed448_free(&pubKey);
+    ExpectIntEQ(wc_ed448_init(&pubKey), 0);
 
     ExpectIntEQ(wc_ed448_import_public_ex(in, inlen, &pubKey, 1), 0);
     ExpectIntEQ(XMEMCMP(in, pubKey.p, inlen), 0);
@@ -584,12 +589,10 @@ int test_wc_ed448_import_private_key(void)
 
     ExpectIntEQ(wc_ed448_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
-
+    /* A trusted public key next to a private key is still checked. */
     ExpectIntEQ(wc_ed448_import_private_key_ex(privKey, privKeySz, pubKey,
-        pubKeySz, &key, 1), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
-    ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
+        pubKeySz, &key, 1), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
 
 #ifdef HAVE_ED448_KEY_EXPORT
     PRIVATE_KEY_UNLOCK();
@@ -597,8 +600,11 @@ int test_wc_ed448_import_private_key(void)
     PRIVATE_KEY_LOCK();
     ExpectIntEQ(wc_ed448_import_private_key_ex(bothKeys, bothKeysSz, NULL, 0,
         &key, 1), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, key.p, privKeySz), 0);
-    ExpectIntEQ(XMEMCMP(privKey, key.k, pubKeySz), 0);
+    ExpectIntEQ(XMEMCMP(bothKeys, key.k, bothKeysSz), 0);
+    ExpectIntEQ(wc_ed448_import_private_key_ex(bothKeys, ED448_KEY_SIZE,
+        bothKeys + ED448_KEY_SIZE, ED448_PUB_KEY_SIZE, &key, 1), 0);
+    ExpectIntEQ(XMEMCMP(bothKeys + ED448_KEY_SIZE, key.p,
+        ED448_PUB_KEY_SIZE), 0);
 #endif
 
     /* Test bad args. */
@@ -914,14 +920,20 @@ int test_wc_Ed448KeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed448KeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448KeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448KeyToDer(&ed448Key, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good Cases */
     /* length only */
     ExpectIntGT(wc_Ed448KeyToDer(&ed448Key, NULL, 0), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed448KeyToDer(&ed448Key, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&ed448Key);
@@ -954,14 +966,20 @@ int test_wc_Ed448PrivateKeyToDer(void)
     /* Bad Cases */
     ExpectIntEQ(wc_Ed448PrivateKeyToDer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448PrivateKeyToDer(NULL, output, inLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    PRIVATE_KEY_LOCK();
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, 0),
         WC_NO_ERR_TRACE(BUFFER_E));
+    PRIVATE_KEY_LOCK();
     /* Good cases */
     /* length only */
     ExpectIntGT(wc_Ed448PrivateKeyToDer(&ed448PrivKey, NULL, 0), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, inLen), 0);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ed448_free(&ed448PrivKey);
@@ -995,16 +1013,22 @@ int test_wc_Ed448KeyToDer_oneasymkey_version(void)
     ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
 
     /* Bundled (v=1) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed448KeyToDer(&key, ref, (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 1);
     idx = 0;
     ExpectIntEQ(wc_Ed448PrivateKeyDecode(ref, &idx, &key2, (word32)refSz), 0);
+    PRIVATE_KEY_UNLOCK();
     ExpectIntEQ(rtSz = wc_Ed448KeyToDer(&key2, rt, (word32)sizeof(rt)), refSz);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(XMEMCMP(ref, rt, (size_t)refSz), 0);
 
     /* Private only (v=0) */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(refSz = wc_Ed448PrivateKeyToDer(&key, ref,
         (word32)sizeof(ref)), 0);
+    PRIVATE_KEY_LOCK();
     ExpectIntEQ(test_pkcs8_get_version_byte(ref, (word32)refSz), 0);
 
     wc_ed448_free(&key);
@@ -1014,8 +1038,8 @@ int test_wc_Ed448KeyToDer_oneasymkey_version(void)
     return EXPECT_RESULT();
 }
 
-/* The trusted flag controls whether a public key bundled in the DER is
- * checked against the private key during decode. */
+/* A public key bundled in the DER is checked against the private key
+ * during decode, trusted or not. */
 int test_wc_Ed448PrivateKeyDecode_ex(void)
 {
     EXPECT_DECLS;
@@ -1039,7 +1063,9 @@ int test_wc_Ed448PrivateKeyDecode_ex(void)
 
     /* Bundled private+public DER; public key is the trailing
      * ED448_PUB_KEY_SIZE bytes. */
+    PRIVATE_KEY_UNLOCK();
     ExpectIntGT(derSz = wc_Ed448KeyToDer(&key, der, (word32)sizeof(der)), 0);
+    PRIVATE_KEY_LOCK();
 
     /* Intact DER decodes with either trust setting. */
     idx = 0;
@@ -1063,10 +1089,10 @@ int test_wc_Ed448PrivateKeyDecode_ex(void)
     ExpectIntEQ(wc_Ed448PrivateKeyDecode(der, &idx, &key2, (word32)derSz),
         WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 
-    /* Trusted decode skips the check. */
+    /* Trusted decode still checks a public key against the private key. */
     idx = 0;
     ExpectIntEQ(wc_Ed448PrivateKeyDecode_ex(der, &idx, &key2,
-        (word32)derSz, 1), 0);
+        (word32)derSz, 1), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 
     wc_ed448_free(&key);
     wc_ed448_free(&key2);
@@ -1551,6 +1577,25 @@ int test_wc_Ed448DecisionCoverage(void)
     ExpectIntEQ(verify, 1);
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* A type other than Ed448 or Ed448ph is refused on every entry point. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key, 2, ctx,
+        ctxLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(hash, sizeof(hash), sig, &sigLen, &key,
+        255, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key,
+        (byte)Ed448, ctx, ctxLen), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg_ex(sig, sigLen, msg, msgLen, &verify, &key,
+        2, ctx, ctxLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify, 0);
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, 2, ctx, ctxLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
     /* type == Ed448ph && inLen != ED448_PREHASH_SIZE -> BAD_LENGTH_E
      * (sign_hash forwards hashLen as inLen with type Ed448ph). */
     sigLen = sizeof(sig);
@@ -1637,6 +1682,30 @@ int test_wc_Ed448FeatureCoverage(void)
      * final NULL res. */
     ExpectIntEQ(wc_ed448_verify_msg_init(NULL, sigLen, &key, (byte)Ed448, NULL,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    {
+        /* An Ed448ph stream takes exactly the 64-byte prehash. */
+        byte   phHash[ED448_PREHASH_SIZE];
+        byte   phSig[ED448_SIG_SIZE];
+        word32 phSigLen = sizeof(phSig);
+        int    phRes = 0;
+
+        XMEMSET(phHash, 0x55, sizeof(phHash));
+        ExpectIntEQ(wc_ed448ph_sign_hash(phHash, sizeof(phHash), phSig,
+            &phSigLen, &key, NULL, 0), 0);
+        ExpectIntEQ(wc_ed448_verify_msg_init(phSig, phSigLen, &key,
+            (byte)Ed448ph, NULL, 0), 0);
+        ExpectIntEQ(wc_ed448_verify_msg_update(phHash, 32, &key), 0);
+        ExpectIntEQ(wc_ed448_verify_msg_final(phSig, phSigLen, &phRes, &key),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ed448_verify_msg_update(phHash, 33, &key),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_ed448_verify_msg_update(phHash + 32, 32, &key), 0);
+        ExpectIntEQ(wc_ed448_verify_msg_final(phSig, phSigLen, &phRes, &key),
+            0);
+        ExpectIntEQ(phRes, 1);
+    }
+#endif
     ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, (byte)Ed448, NULL,
         0), 0);
     ExpectIntEQ(wc_ed448_verify_msg_update(NULL, msgLen, &key),

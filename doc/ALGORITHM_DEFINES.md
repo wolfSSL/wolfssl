@@ -403,7 +403,7 @@ including the two that are side-channel protections. Define them explicitly:
 | `WOLFSSL_SM2` | SM2 signatures and key exchange. Also pulls in `WOLFSSL_BASE16`. Pair with `WOLFSSL_SM3` and `WOLFSSL_SM4` for the full Chinese suite, and with `WOLFSSL_SP_SM2` for the specialised curve implementation | `--enable-sm2` |
 | `WOLFCRYPT_HAVE_ECCSI` | ECCSI (RFC 6507), identity-based signatures | `--enable-eccsi` |
 | `WOLFCRYPT_HAVE_SAKKE` | SAKKE (RFC 6508), identity-based key encapsulation. Uses the 1024-bit SP support, so pair it with `WOLFSSL_SP_1024` | `--enable-sakke` |
-| `WOLFCRYPT_SAKKE_SMALL` | Smaller, slower SAKKE | `--enable-sakke=small` |
+| `WOLFSSL_SAKKE_SMALL` | Smaller, slower SAKKE | `--enable-sakke=small` |
 
 ECCSI and SAKKE are used together in MIKEY-SAKKE deployments. Both are large
 additions; enable them only if your application implements those protocols.

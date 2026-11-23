@@ -114,6 +114,10 @@ struct ed25519_key {
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
 #endif
+#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
+    byte   phStream; /* the verify stream is an Ed25519ph prehash */
+    word32 phLen;    /* prehash bytes streamed so far */
+#endif
 #ifdef WOLF_PRIVATE_KEY_ID
     byte id[ED25519_MAX_ID_LEN];
     int  idLen;

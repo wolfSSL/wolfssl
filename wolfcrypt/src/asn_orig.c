@@ -5059,6 +5059,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
     if (key->type != RSA_PRIVATE)
         return BAD_FUNC_ARG;
+    ret = PRIV_KEY_OUT_ALLOWED(output);
+    if (ret != 0)
+        return ret;
 
 #ifndef WOLFSSL_NO_MALLOC
     for (i = 0; i < RSA_INTS; i++)
@@ -8331,6 +8334,9 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
 
     if (key == NULL || key->dp == NULL || (output == NULL && inLen == NULL))
         return BAD_FUNC_ARG;
+    ret = PRIV_KEY_OUT_ALLOWED(output);
+    if (ret != 0)
+        return ret;
 
     if (curveIn) {
         /* curve */

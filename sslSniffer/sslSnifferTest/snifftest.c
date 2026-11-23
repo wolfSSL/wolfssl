@@ -462,6 +462,9 @@ static void show_appinfo(void)
     #ifdef HAVE_EXTENDED_MASTER
         "extended_master "
     #endif
+    #ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+        "ems_required "
+    #endif
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         "encrypt_then_mac "
     #endif

@@ -1339,6 +1339,7 @@ static int eccsi_mulmod_base_add(EccsiKey* key, const mp_int* n,
         EccsiKeyParams* params = &key->params;
         err = wc_ecc_mulmod(n, params->base, params->base, &params->a,
                 &params->prime, 0);
+        err = wc_FipsAcceptUnapproved(err, "EC point mul");
         key->params.haveBase = 0;
         if (err == 0) {
             err = ecc_projective_add_point(params->base, a, res, &params->a,
@@ -1392,6 +1393,7 @@ static int eccsi_mulmod_point(EccsiKey* key, const mp_int* n, ecc_point* point,
         EccsiKeyParams* params = &key->params;
 
         err = wc_ecc_mulmod(n, point, res, &params->a, &params->prime, map);
+        err = wc_FipsAcceptUnapproved(err, "EC point mul");
     }
 
     return err;
@@ -1435,6 +1437,7 @@ static int eccsi_mulmod_point_add(EccsiKey* key, const mp_int* n,
         }
         if (err == 0) {
             err = wc_ecc_mulmod(n, point, res, &params->a, &params->prime, 0);
+            err = wc_FipsAcceptUnapproved(err, "EC point mul");
         }
         if (err == 0) {
             err = mp_montgomery_calc_normalization(montA->z, &params->prime);

@@ -284,16 +284,17 @@ RsaKey* wc_NewRsaKey_Label(const char* label, void* heap, int devId,
 int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 {
     void* heap;
+    int ret;
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
     heap = key->heap;
-    wc_FreeRsaKey(key);
+    ret = wc_FreeRsaKey(key);
     XFREE(key, heap, DYNAMIC_TYPE_RSA);
     if (key_p != NULL) {
         *key_p = NULL;
     }
-    return 0;
+    return ret;
 }
 #endif /* !WC_NO_CONSTRUCTORS */
 
@@ -675,6 +676,25 @@ int wc_FreeRsaKey(RsaKey* key)
     return ret;
 }
 
+#if FIPS_VERSION3_GE(7,0,0)
+/* Even modulus bit length (FIPS 186-5 sec 5.1) and an odd e with
+ * 65537 <= e < 2^256 (FIPS 186-5 sec 5.4 (e), SP 800-56B Rev2 sec 6.2.1). */
+WC_MAYBE_UNUSED static int RsaCheckPublicParams(RsaKey* key)
+{
+    int ret = 0;
+
+    if ((mp_count_bits(&key->n) & 1) != 0) {
+        ret = WC_KEY_SIZE_E;
+    } else if (mp_iseven(&key->e) || (mp_count_bits(&key->e) < 17) ||
+               (mp_count_bits(&key->e) > 256)) {
+        /* An odd e of 17 to 256 bits is in range: 65536 is the only smaller
+         * 17-bit value and it is even. Bit counts avoid narrow mp digits. */
+        ret = MP_EXPTMOD_E;
+    }
+    return ret;
+}
+#endif
+
 #if defined(WOLFSSL_RSA_KEY_CHECK) || \
     (defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* r = |p - q|, without relying on signed math support. */
@@ -776,6 +796,57 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
                                int* isPrime, WC_RNG* rng);
 #endif
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* Check d < LCM(p - 1, q - 1) and d * e = 1 mod LCM(p - 1, q - 1).
+ * SP 800-56B Rev2 sec 6.4.1.2.1 step 6a (upper bound) and 6b. */
+static int RsaCheckPrivExp(RsaKey* key)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* t;
+#else
+    mp_int t[3];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    t = (mp_int*)XMALLOC(sizeof(mp_int) * 3, key->heap, DYNAMIC_TYPE_RSA);
+    if (t == NULL) {
+        return MEMORY_E;
+    }
+#endif
+    ret = mp_init_multi(&t[0], &t[1], &t[2], NULL, NULL, NULL);
+    if (ret == MP_OKAY) {
+        ret = mp_sub_d(&key->p, 1, &t[0]);
+        if (ret == MP_OKAY) {
+            ret = mp_sub_d(&key->q, 1, &t[1]);
+        }
+        if (ret == MP_OKAY) {
+            ret = mp_lcm(&t[0], &t[1], &t[2]);
+        }
+        if ((ret == MP_OKAY) && (mp_cmp(&key->d, &t[2]) != MP_LT)) {
+            ret = MP_EXPTMOD_E;
+        }
+        if (ret == MP_OKAY) {
+            ret = mp_mulmod(&key->d, &key->e, &t[2], &t[0]);
+        }
+        if ((ret == MP_OKAY) && !mp_isone(&t[0])) {
+            ret = MP_EXPTMOD_E;
+        }
+        mp_forcezero(&t[0]);
+        mp_forcezero(&t[1]);
+        mp_forcezero(&t[2]);
+    }
+    if (ret != MP_OKAY) {
+        ret = MP_EXPTMOD_E;
+    }
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, key->heap, DYNAMIC_TYPE_RSA);
+#endif
+    return ret;
+}
+#endif
+
 int wc_CheckRsaKey(RsaKey* key)
 {
     WC_RNG *rng = NULL;
@@ -834,6 +905,20 @@ int wc_CheckRsaKey(RsaKey* key)
             ret = MP_INIT_E;
     }
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    /* Modulus at least 2048 bits (FIPS 186-5 sec 5.1), not RSA_MIN_SIZE, which
+     * drops to 1024 under HAVE_WOLFENGINE / HAVE_WOLFPROVIDER. */
+    if ((ret == 0) && (mp_count_bits(&key->n) < 2048)) {
+        ret = WC_KEY_SIZE_E;
+    }
+    /* Even modulus length and e in range (crt_pkv items B and D, step 3c).
+     * Checked before the pairwise test so a refusal is not reported as one. */
+    if (ret == 0) {
+        ret = RsaCheckPublicParams(key);
+    }
+#endif
+
     if (ret == 0)
         ret = _ifc_pairwise_consistency_test(key, rng);
 
@@ -866,24 +951,6 @@ int wc_CheckRsaKey(RsaKey* key)
         int nBits = mp_count_bits(&key->n);
         int isPrime = 0;
 
-        /* Modulus: even number of bits (item D, step 3c) and at least 2048
-         * (FIPS 186-5 sec 5.1).  Spelled out rather than using RSA_MIN_SIZE,
-         * which drops to 1024 under HAVE_WOLFENGINE / HAVE_WOLFPROVIDER. */
-        if ((nBits < 2048) || ((nBits & 1) != 0)) {
-            ret = WC_KEY_SIZE_E;
-        }
-
-        /* Public exponent: odd, and 65537 <= e < 2^256 (item B).  Bounds are
-         * bit counts, not mp_cmp_d: a digit can be 8 or 16 bits wide
-         * (sp_int.h), and 65537 would truncate there.  An odd e of at least
-         * 17 bits is >= 65537, because 65536 is the only 17-bit value below
-         * it and that one is even. */
-        if ((ret == 0) && (mp_iseven(&key->e) ||
-                (mp_count_bits(&key->e) < 17) ||
-                (mp_count_bits(&key->e) > 256))) {
-            ret = MP_EXPTMOD_E;
-        }
-
         /* Primes: right size, coprime to e, far enough apart, and actually
          * prime (steps 5a to 5g).  Two calls because steps 5f/5g want a
          * primality test on each prime: the first tests p, the second tests
@@ -904,6 +971,14 @@ int wc_CheckRsaKey(RsaKey* key)
          * many bits or fewer cannot, so counting bits settles it. */
         if ((ret == 0) && (mp_count_bits(&key->d) <= (nBits / 2))) {
             ret = MP_EXPTMOD_E;
+        }
+        /* Primes at most 2^(nBits/2) - 1 (steps 5a and 5b, upper bound). */
+        if ((ret == 0) && ((mp_count_bits(&key->p) > (nBits / 2)) ||
+                (mp_count_bits(&key->q) > (nBits / 2)))) {
+            ret = MP_EXPTMOD_E;
+        }
+        if (ret == 0) {
+            ret = RsaCheckPrivExp(key);
         }
     }
 #endif
@@ -1003,7 +1078,10 @@ int wc_CheckRsaKey(RsaKey* key)
     mp_forcezero(tmp);
 
     if ((rng != NULL) && (rng != key->rng)) {
-        wc_FreeRng(rng);
+        /* A failed DRBG wipe outranks the check's result. */
+        int free_ret = wc_FreeRng(rng);
+        if (free_ret != 0)
+            ret = free_ret;
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
 #endif
@@ -3701,6 +3779,20 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     return NO_VALID_DEVID;
 #else /* !WOLF_CRYPTO_CB_ONLY_RSA */
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* Every operation refuses a key that no FIPS 186-5 or SP 800-56B scheme
+     * allows, whatever path imported it. */
+    ret = RsaCheckPublicParams(key);
+    if (ret != 0) {
+        return ret;
+    }
+    /* Every operation needs a modulus of at least 2048 bits (FIPS 186-5
+     * sec 5.1, SP 800-131A Rev2 Tables 2 and 5). */
+    if (mp_count_bits(&key->n) < 2048) {
+        return WC_KEY_SIZE_E;
+    }
+#endif
+
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
     !defined(NO_RSA_BOUNDS_CHECK)
     if (type == RSA_PRIVATE_DECRYPT) {
@@ -6026,7 +6118,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         if (err == MP_OKAY)
             err = mp_copy(q, p);
         if (err == MP_OKAY)
-            mp_copy(tmp1, q);
+            err = mp_copy(tmp1, q);
     }
 
     /* Setup RsaKey buffers: wipe and free what wc_InitRsaKey() or an earlier
@@ -6046,10 +6138,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = mp_sub_d(p, 1, tmp1);
     if (err == MP_OKAY)                /* tmp2 = q-1 */
         err = mp_sub_d(q, 1, tmp2);
-#ifdef WC_RSA_BLINDING
+#if defined(WC_RSA_BLINDING) && \
+    !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
     if (err == MP_OKAY)                /* tmp3 = order of n */
         err = mp_mul(tmp1, tmp2, tmp3);
 #else
+    /* FIPS 186-5 A.1.1 step 3: d = 1/e mod LCM(p-1, q-1). */
     if (err == MP_OKAY)                /* tmp3 = lcm(p-1, q-1), last loop */
         err = mp_lcm(tmp1, tmp2, tmp3);
 #endif
@@ -6156,7 +6250,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
     if (err != 0) {
-        wc_FreeRsaKey(key);
+        int free_err = wc_FreeRsaKey(key);
+        if (free_err != 0)
+            err = free_err;
         goto out;
     }
 

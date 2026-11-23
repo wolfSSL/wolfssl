@@ -121,4 +121,5 @@ STRINGTABLE
 
     99, "Invalid or missing keylog file"
     100, "Encrypt-Then-MAC not supported in this build"
+    101, "Extended Master Secret required in this build"
 }

@@ -303,6 +303,9 @@ struct wc_Sha256 {
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
+#ifdef WC_HASH_CHECK_VARIANT
+    word32 digestSz; /* digest size of the variant set by Init */
+#endif
 };
 
 #ifndef WC_SHA256_TYPE_DEFINED
@@ -331,8 +334,8 @@ WOLFSSL_API int wc_Sha256Reset(wc_Sha256* sha256);
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
 #ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
-WOLFSSL_API int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
-    unsigned char* hash);
+WC_FIPS_V7_LOCAL int wc_Sha256HashBlock(wc_Sha256* sha,
+    const unsigned char* data, unsigned char* hash);
 #endif
 
 /* Multi-buffer SHA-256: compress several independent message blocks at once,

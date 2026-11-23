@@ -4281,10 +4281,8 @@ static int wc_lms_verify(LmsState* state, const byte* pub, const byte* msg,
     const byte* sig_q = sig;
     byte tc[LMS_MAX_NODE_LEN];
     byte* kc = tc;
-    /* Bytes consumed by this LMS signature: q || lmots_type || C || y[p] ||
-     * lms_type || path[height]. wc_lms_verify reads exactly this much from
-     * sig; the caller (wc_hss_verify or wc_LmsKey_Verify) has guaranteed
-     * sigSz covers it, but check defensively here as well. */
+    /* Bytes read from sig: q || lmots_type || C || y[p] || lms_type ||
+     * path[height]. Refuse a shorter sig here. */
     const word32 lms_sig_required =
         LMS_SIG_LEN(params->height, params->p, params->hash_len);
 

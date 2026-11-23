@@ -386,10 +386,112 @@ int test_wc_rng_new(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_HASHDRBG) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RNG_SEED_CB)
+static int test_random_seedCalls = 0;
+static int test_random_seedFail = 0;
+
+static int test_random_seedCb_count(OS_Seed* os, byte* seed, word32 sz)
+{
+    test_random_seedCalls++;
+    if (test_random_seedFail)
+        return -1;
+    return wc_GenerateSeed(os, seed, sz);
+}
+#endif
+
+#if defined(HAVE_HASHDRBG) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RNG_SEED_CB) && defined(WC_RNG_HAVE_ENTROPY_EPOCH)
+static wc_RNG_entropy_epoch_t test_random_vmgen = 1;
+
+static wc_RNG_entropy_epoch_t test_random_vmgen_get(void* arg)
+{
+    (void)arg;
+    return test_random_vmgen;
+}
+#endif
+
+/* FIPS v7: a VM snapshot restore, signalled by the application or by an
+ * epoch getter, makes the next generate reseed from the module source. */
+int test_wc_RNG_EntropyEpoch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_HASHDRBG) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RNG_SEED_CB) && defined(WC_RNG_HAVE_ENTROPY_EPOCH)
+    WC_RNG rng[1];
+    byte out[16];
+    int calls = 0;
+    wc_RNG_entropy_epoch_t epoch = 0;
+    wc_RNG_extra_entropy_epoch_get_handler_t handler = NULL;
+    void* arg = NULL;
+
+    test_random_seedFail = 0;
+    ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_count), 0);
+    ExpectIntEQ(wc_InitRng(rng), 0);
+    calls = test_random_seedCalls;
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)), 0);
+    ExpectIntEQ(test_random_seedCalls, calls);
+
+    /* The application reports the restore. */
+    epoch = wc_RNG_get_global_entropy_epoch();
+    ExpectTrue(wc_RNG_global_invalidate_entropy() == epoch + 1);
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)), 0);
+    ExpectIntEQ(test_random_seedCalls, calls + 1);
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)), 0);
+    ExpectIntEQ(test_random_seedCalls, calls + 1);
+
+    /* An epoch getter, e.g. the /dev/vmclock generation counter. */
+    ExpectIntEQ(wc_RNG_extra_entropy_epoch_init(test_random_vmgen_get, NULL),
+        0);
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)), 0);
+    ExpectIntEQ(test_random_seedCalls, calls + 1);
+    test_random_vmgen++;
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)), 0);
+    ExpectIntEQ(test_random_seedCalls, calls + 2);
+    ExpectIntEQ(wc_RNG_extra_entropy_epoch_reset(&handler, &arg), 0);
+
+    /* A restored copy whose reseed fails is condemned. */
+    (void)wc_RNG_global_invalidate_entropy();
+    test_random_seedFail = 1;
+    ExpectIntNE(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)), 0);
+    test_random_seedFail = 0;
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)),
+        WC_NO_ERR_TRACE(RNG_FAILURE_E));
+
+    DoExpectIntEQ(wc_FreeRng(rng), 0);
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_RNG_DRBG_Reseed(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_HASHDRBG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if defined(HAVE_HASHDRBG) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_RNG_SEED_CB)
+    /* FIPS v7: every reseed gathers from the module's seed source and the
+     * caller's bytes are additional input only (SP 800-90Ar1 sec 9.2). */
+    WC_RNG rng[1];
+    byte addIn[1] = { 0x41 };
+    byte out[16];
+    int calls = 0;
+
+    ExpectIntEQ(wc_SetSeed_Cb(test_random_seedCb_count), 0);
+    ExpectIntEQ(wc_InitRng(rng), 0);
+    calls = test_random_seedCalls;
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, addIn, (word32)sizeof(addIn)), 0);
+    ExpectIntEQ(test_random_seedCalls, calls + 1);
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, NULL, 0), 0);
+    ExpectIntEQ(test_random_seedCalls, calls + 2);
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(rng, NULL, 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_RNG_DRBG_Reseed(NULL, addIn, (word32)sizeof(addIn)),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(test_random_seedCalls, calls + 2);
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, out, (word32)sizeof(out)), 0);
+    DoExpectIntEQ(wc_FreeRng(rng), 0);
+    DoExpectIntEQ(wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT), 0);
+#elif defined(HAVE_HASHDRBG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     WC_RNG rng[1];
     byte entropy[16];
     word32 entropySz = sizeof(entropy);

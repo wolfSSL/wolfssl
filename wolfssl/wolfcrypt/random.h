@@ -89,6 +89,21 @@
 
 /***** Setup for RNG extra features *****/
 
+/* FIPS v7 user space has no RNG extras. */
+#if FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_LINUXKM)
+    #undef  WC_RNG_EXTRAS
+    #undef  WC_RNG_NO_LOCK
+    #define WC_RNG_NO_LOCK
+    #undef  WC_RNG_NO_RBGC
+    #define WC_RNG_NO_RBGC
+    #undef  WC_RNG_NO_NEXT_SEED
+    #define WC_RNG_NO_NEXT_SEED
+    #undef  WC_RNG_NO_POOL
+    #define WC_RNG_NO_POOL
+    #undef  WC_RNG_NO_FREE_HOOK
+    #define WC_RNG_NO_FREE_HOOK
+#endif
+
 #if (defined(WC_RNG_EXTRAS) || defined(WC_RNG_WANT_LOCK)) && \
     !defined(WC_RNG_NO_LOCK) && !defined(WC_NO_RNG)
     #define WC_RNG_HAVE_LOCK
@@ -808,11 +823,13 @@ WOLFSSL_API int  wc_InitRngNonce_ex2(WC_RNG* rng, const byte* nonce, word32 nonc
                                      void* heap, int devId, word32 flags);
 WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, const byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
+#if !FIPS_VERSION3_GE(7,0,0)
 WOLFSSL_API int  wc_InitRngNonce_UserSeed(WC_RNG* rng,
                                           const byte* seed, word32 seedSz,
                                           const byte* nonce, word32 nonceSz,
                                           const byte *perso, word32 persoSz,
                                           void* heap, int devId, word32 flags);
+#endif
 #ifdef WC_RNG_HAVE_GLOBAL_FALLBACK_RNG
 WOLFSSL_API int wc_RNG_global_fallback_init(const byte* nonce, word32 nonceSz,
                                      const byte *perso, word32 persoSz,
@@ -825,7 +842,9 @@ WOLFSSL_API int wc_RNG_global_fallback_get(WC_RNG **rng);
 WOLFSSL_API int wc_RNG_global_fallback_free(void);
 #endif
 
+#if !FIPS_VERSION3_GE(7,0,0)
 WOLFSSL_API int wc_RNG_Status(const WC_RNG *rng);
+#endif
 
 WOLFSSL_ABI WOLFSSL_API int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
@@ -872,6 +891,7 @@ WOLFSSL_API int  wc_FreeRng_PreLocked(WC_RNG* rng);
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
 #endif
 
+#if !FIPS_VERSION3_GE(7,0,0)
 WOLFSSL_API int wc_RNG_GetStatus(const WC_RNG* rng);
 WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
 
@@ -881,10 +901,12 @@ WOLFSSL_API int wc_RNG_DRBG_Present(const WC_RNG* rng);
 WOLFSSL_API int wc_RNG_SetFlags(WC_RNG* rng, word32 flags);
 WOLFSSL_API int wc_RNG_ClearFlags(WC_RNG* rng, word32 flags);
 WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
+#endif
 
 #ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
                                        word32 seedSz);
+#if !FIPS_VERSION3_GE(7,0,0)
     WOLFSSL_API int wc_RNG_DRBG_Reseed_AddIn(WC_RNG* rng, const byte* seed,
                                              word32 seedSz, const byte *addIn,
                                              word32 addInSz);
@@ -904,6 +926,7 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
                                            word32 addInSz);
     WOLFSSL_API int wc_RNG_DRBG_Reseed_Now_Primary(WC_RNG* rng,
                                              const byte* addIn, word32 addInSz);
+#endif /* !FIPS_VERSION3_GE(7,0,0) */
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
 
 #ifdef WC_RNG_HAVE_RBGC
@@ -921,7 +944,9 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
      * only internal users are allowed. */
     WOLFSSL_LOCAL int wc_RNG_DRBG_GetReseedCtr(const WC_RNG* rng,
                                              wc_drbg_reseed_ctr_t* reseedCtr);
+#if !FIPS_VERSION3_GE(7,0,0)
     WOLFSSL_API int wc_RNG_DRBG_ScheduleReseed(WC_RNG* rng);
+#endif
 
 #ifndef NO_SHA256
     /* SHA-256 Hash_DRBG health test entry points. SHA-512-only builds
@@ -1114,8 +1139,10 @@ WOLFSSL_API int wc_RNG_GetFlags(const WC_RNG* rng, word32 *flags);
                                             WC_RNG_lock_arg_t extra_bits);
 #endif /* WC_RNG_HAVE_LOCK */
 
+#if !FIPS_VERSION3_GE(7,0,0)
 WOLFSSL_API int wc_RNG_invalidate_entropy(WC_RNG* rng);
 WOLFSSL_API int wc_RNG_entropy_needs_recovery(WC_RNG* rng);
+#endif
 
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
     struct wc_RNG_entropy_epoch_atomic {

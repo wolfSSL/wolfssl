@@ -3391,6 +3391,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif /* WOLFSSL_DTLS */
     }
 #endif /* HAVE_EXTENDED_MASTER && !NO_WOLFSSL_CLIENT */
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    ctx->requireEMS = 1;
+#endif
 
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
 #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
@@ -44021,6 +44024,19 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         int ret = -1;
 
         WOLFSSL_MSG("Got old format client hello");
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+        /* An SSLv2 ClientHello cannot offer EMS: RFC 7627 sec 5.2, 5.3. */
+        if (ssl->options.requireEMS) {
+            WOLFSSL_MSG("EMS required but not offered by peer");
+            ret = EXT_MASTER_SECRET_NEEDED_E;
+            if (SendAlert(ssl, alert_fatal, handshake_failure)
+                    == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                ret = SOCKET_ERROR_E;
+            }
+            WOLFSSL_ERROR_VERBOSE(ret);
+            return ret;
+        }
+#endif
 #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn)
             AddPacketName(ssl, "ClientHello");
@@ -44991,6 +45007,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
          * RFC 8422 abort below. */
         ssl->options.peerNoUncompPF = 0;
 #endif
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+        /* A renegotiation ClientHello must offer EMS again. */
+        ssl->options.haveEMS = 0;
+#endif
 
         /* tls extensions */
         if ((i - begin) < helloSz) {
@@ -45157,6 +45177,20 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             goto out;
         }
 #endif /* HAVE_SECURE_RENEGOTIATION */
+
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+        /* Abort a ClientHello without EMS before replying: RFC 7627 sec 5.2. */
+        if (ssl->options.requireEMS && !ssl->options.haveEMS) {
+            WOLFSSL_MSG("EMS required but not offered by peer");
+            ret = EXT_MASTER_SECRET_NEEDED_E;
+            /* propagate socket errors to avoid re-calling send alert */
+            if (SendAlert(ssl, alert_fatal, handshake_failure)
+                    == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                ret = SOCKET_ERROR_E;
+            }
+            goto out;
+        }
+#endif
 
 #ifdef WOLFSSL_DTLS_CID
         if (ssl->options.useDtlsCID)

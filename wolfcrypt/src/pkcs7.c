@@ -2254,7 +2254,10 @@ static int wc_PKCS7_ImportRSA(wc_PKCS7* pkcs7, RsaKey* privKey)
             /* If not using old FIPS or CAVP selftest, or not using FAST,
              * or USER RSA, able to check RSA key. */
             if (ret == 0) {
-        #ifdef WOLFSSL_RSA_KEY_CHECK
+        /* v7 skips wc_CheckRsaKey() here: it refuses d >= LCM(p-1, q-1), but
+         * any d with d * e = 1 mod LCM(p-1, q-1) signs the same. */
+        #if defined(WOLFSSL_RSA_KEY_CHECK) && \
+            !(defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0))
                 /* verify imported private key is a valid key before using it */
                 ret = wc_CheckRsaKey(privKey);
                 if (ret != 0) {
@@ -9778,8 +9781,11 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
     };
 
 #ifdef HAVE_X963_KDF
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(kdfType, secret, secretSz, kari->sharedInfo,
                       kari->sharedInfoSz, kari->kek, kari->kekSz);
+    PRIVATE_KEY_LOCK();
+    ret = wc_FipsAcceptUnapproved(ret, "X9.63 KDF");
 #else
     (void)kdfType;
     ret = NOT_COMPILED_IN;
@@ -10706,6 +10712,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID,
                 #else
                     ret = wc_AesGcmEncryptInit(aes, key, (word32)keySz, iv,
                         (word32)ivSz);
+                    ret = wc_FipsAcceptUnapproved(ret, "AES-GCM short IV");
                     if (ret == 0) {
                         ret = wc_AesGcmEncryptUpdate(aes, NULL, NULL, 0, aad,
                             aadSz);
@@ -11027,6 +11034,7 @@ static int wc_PKCS7_DecryptContentEx(wc_PKCS7* pkcs7, word32 encryptOID,
             ret = wc_AesGcmDecrypt(pkcs7->decryptKey.aes, out, in,
                     (word32)inSz, iv, (word32)ivSz, authTag, authTagSz,
                     aad, aadSz);
+            ret = wc_FipsAcceptUnapproved(ret, "AES-GCM short IV");
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* async decrypt not available here, so block till done */
             ret = wc_AsyncWait(ret, &pkcs7->decryptKey.aes->asyncDev,

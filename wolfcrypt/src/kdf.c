@@ -627,9 +627,8 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 #ifdef WOLFSSL_HAVE_MLKEM
 /* Puts the ML-KEM secret after the ECDH secret in ss, or before it if kemFirst.
- * FIPS builds allow only the groups, orders and sizes of
- * draft-ietf-tls-ecdhe-mlkem-03 sec 4.3. */
-int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
+ * FIPS allows only the groups, orders and sizes of RFC 10024 sec 4.3. */
+static int Tls13HybridJoin(word16 group, int kemFirst, byte* ss,
     word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz)
 {
 #ifdef HAVE_FIPS
@@ -676,6 +675,50 @@ int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
 
     return 0;
 }
+
+int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
+    word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz)
+{
+#ifdef WC_X25519_HYBRID_ONLY
+    /* X25519MLKEM768 is joined only where the module computes the X25519. */
+    if (group == 4588)
+        return BAD_FUNC_ARG;
+#endif
+    return Tls13HybridJoin(group, kemFirst, ss, ssMax, ssSz, kemSs, kemSsSz);
+}
+
+#if defined(WC_X25519_HYBRID_ONLY) && defined(HAVE_CURVE25519_SHARED_SECRET)
+/* Compute the X25519 secret and join it with the ML-KEM secret, so the X25519
+ * secret only leaves the module joined (IG D.S Scenario 2, item 5). */
+int wc_Tls13_HybridSharedSecretX25519(word16 group, int kemFirst,
+    curve25519_key* privKey, curve25519_key* peerKey, byte* ss, word32 ssMax,
+    word32* ssSz, const byte* kemSs, word32 kemSsSz)
+{
+    int ret;
+    word32 ecSz = CURVE25519_KEYSIZE;
+
+    if ((ss == NULL) || (ssSz == NULL) || (kemSs == NULL) ||
+            (ssMax < CURVE25519_KEYSIZE))
+        return BAD_FUNC_ARG;
+#ifdef HAVE_FIPS
+    /* X25519MLKEM768 is the only hybrid with X25519 (RFC 10024 sec 4.3). */
+    if (group != 4588)
+        return BAD_FUNC_ARG;
+#endif
+
+    ret = wc_curve25519_shared_secret_internal(privKey, peerKey, ss, &ecSz,
+                                               EC25519_LITTLE_ENDIAN);
+    if (ret == 0) {
+        *ssSz = ecSz;
+        ret = Tls13HybridJoin(group, kemFirst, ss, ssMax, ssSz, kemSs,
+                              kemSsSz);
+    }
+    if (ret != 0) {
+        ForceZero(ss, ssMax);
+    }
+    return ret;
+}
+#endif /* WC_X25519_HYBRID_ONLY && HAVE_CURVE25519_SHARED_SECRET */
 #endif /* WOLFSSL_HAVE_MLKEM */
 
 
@@ -847,8 +890,10 @@ void _HashFree(byte hashId, _hash* hash)
 
 #define LENGTH_SZ 4
 
-int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
-        const byte* k, word32 kSz, const byte* h, word32 hSz,
+/* SP 800-135r1 sec 5.2 SSH KDF; K is an RFC 4251 sec 5 mpint (RFC 4253) or
+ * string (RFC 10042 sec 2.5), as kEncoding says. */
+int wc_SSH_KDF_ex(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, int kEncoding, const byte* h, word32 hSz,
         const byte* sessionId, word32 sessionIdSz)
 {
     word32 blocks, remainder;
@@ -863,7 +908,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     if (key == NULL || keySz == 0 ||
         k == NULL || kSz == 0 ||
         h == NULL || hSz == 0 ||
-        sessionId == NULL || sessionIdSz == 0) {
+        sessionId == NULL || sessionIdSz == 0 ||
+        (kEncoding != WC_SSH_KDF_K_MPINT &&
+         kEncoding != WC_SSH_KDF_K_STRING)) {
 
         return BAD_FUNC_ARG;
     }
@@ -874,7 +921,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     }
     digestSz = (word32)ret;
 
-    if (k[0] & 0x80) kPad = 1;
+    /* An mpint gets a zero byte when its top bit is set; a string never. */
+    if ((kEncoding == WC_SSH_KDF_K_MPINT) && (k[0] & 0x80))
+        kPad = 1;
     c32toa(kSz + kPad, kSzFlat);
 
     blocks = keySz / digestSz;
@@ -985,6 +1034,14 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     return ret;
 }
 
+int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz)
+{
+    return wc_SSH_KDF_ex(hashId, keyId, key, keySz, k, kSz,
+        WC_SSH_KDF_K_MPINT, h, hSz, sessionId, sessionIdSz);
+}
+
 #endif /* WOLFSSL_WOLFSSH */
 
 #ifdef WC_SRTP_KDF
@@ -1035,6 +1092,17 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
     }
 }
 
+/* RFC 3711 sec 4.3.3: the PRF output is at most 2^23 bits, which is all the
+ * 16-bit block counter can count. */
+#define WC_SRTP_KDF_MAX_OUT     (1U << 20)
+
+/* FIPS v7 takes the 112-bit (RFC 3711) or 96-bit (RFC 7714) master salt. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #define WC_SRTP_SALT_BAD(sz)    (((sz) != WC_SRTP_MAX_SALT) && ((sz) != 12))
+#else
+    #define WC_SRTP_SALT_BAD(sz)    ((sz) > WC_SRTP_MAX_SALT)
+#endif
+
 /* Derive a key given the first block.
  *
  * @param [in, out] block    First block to encrypt. Need label XORed in.
@@ -1045,6 +1113,7 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
  * @param [in]      keySz    Size of key to derive in bytes.
  * @param [in]      aes      AES object to encrypt with.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when keySz is more than the PRF can output.
  */
 static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
         byte* key, word32 keySz, Aes* aes)
@@ -1053,6 +1122,10 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
     int ret = 0;
     /* Calculate the number of full blocks needed for derived key. */
     int blocks = (int)(keySz / WC_AES_BLOCK_SIZE);
+
+    if (keySz > WC_SRTP_KDF_MAX_OUT) {
+        return BAD_FUNC_ARG;
+    }
 
     /* XOR in label. */
     block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;
@@ -1106,7 +1179,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
  * @param [in]  key3Sz   Size of third key in bytes.
  * @return  BAD_FUNC_ARG when key or salt is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1122,7 +1195,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -1201,7 +1274,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  key3Sz   Size of third key in bytes.
  * @return  BAD_FUNC_ARG when key or salt is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1226,7 +1299,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -1310,7 +1383,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @param [in]  outKeySz  Size of derived key in bytes.
  * @return  BAD_FUNC_ARG when key, salt or outKey is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1326,7 +1399,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -1386,7 +1459,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
  * @param [in]  outKeySz  Size of derived key in bytes.
  * @return  BAD_FUNC_ARG when key, salt or outKey is NULL.
  * @return  BAD_FUNC_ARG when key length is not 16, 24 or 32.
- * @return  BAD_FUNC_ARG when saltSz is larger than 14.
+ * @return  BAD_FUNC_ARG when saltSz is larger than 14, or not 12 or 14 in v7.
  * @return  BAD_FUNC_ARG when kdrIdx is less than -1 or larger than 24.
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
@@ -1402,7 +1475,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
-            (saltSz > WC_SRTP_MAX_SALT) || (kdrIdx < -1) || (kdrIdx > 24) ||
+            WC_SRTP_SALT_BAD(saltSz) || (kdrIdx < -1) || (kdrIdx > 24) ||
             (outKey == NULL) || ((kdrIdx >= 0) && (idx == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -1757,6 +1830,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #endif /* WOLFSSL_SMALL_STACK */
     byte   counterBuf[4];
     int    ret = 0;
+    int    freeRet;
 
     /* screen out bad args. */
     if (Kin == NULL || Kout == NULL) {
@@ -1818,8 +1892,12 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
             }
         }
 
-        if (cmac_inited)
-            (void)wc_CmacFree(cmac);
+        /* A failed wipe outranks an earlier error. */
+        if (cmac_inited) {
+            freeRet = wc_CmacFree(cmac);
+            if (freeRet != 0)
+                ret = freeRet;
+        }
 
         if (ret != 0) { break; }
 
@@ -1871,8 +1949,11 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(rem, sizeof(rem));
     #endif
-        if (cmac_inited)
-            (void)wc_CmacFree(cmac);
+        if (cmac_inited) {
+            freeRet = wc_CmacFree(cmac);
+            if (freeRet != 0)
+                ret = freeRet;
+        }
     }
 
     #ifdef WOLFSSL_SMALL_STACK

@@ -175,6 +175,11 @@ struct wc_Sha3 {
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
+#ifdef WC_HASH_CHECK_VARIANT
+    word32 count; /* block count of the first Update or Final, 0 after Init */
+    byte   absorbed; /* set by Absorb: only SqueezeBlocks may follow */
+    byte   pad;      /* domain of the first call: 0x06 SHA-3, 0x1f SHAKE */
+#endif
 #if defined(STM32_HASH_SHA3)
     STM32_HASH_Context stmCtx;
 #endif

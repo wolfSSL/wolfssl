@@ -453,6 +453,7 @@ static const char* const msgTable[] =
     /* 99 */
     "Invalid or missing keylog file",
     "Encrypt-Then-MAC not supported in this build",
+    "Extended Master Secret required in this build",
 };
 
 
@@ -4057,6 +4058,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #elif !defined(WOLFSSL_AEAD_ONLY)
     session->flags.etmUnsupported = 0;
 #endif
+#ifdef WOLFSSL_EMS_ALWAYS_REQUIRED
+    /* A renegotiation ServerHello must carry EMS again. */
+    session->flags.expectEms = 0;
+#endif
 
     /* extensions */
     if ((initialBytes - *sslBytes) < msgSz) {
@@ -4226,6 +4231,13 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
         session->verboseErr = 1;
         return WOLFSSL_FATAL_ERROR;
+#elif defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
+        /* This build derives no TLS 1.2 master secret without EMS. */
+        if (!session->flags.expectEms) {
+            SetError(EMS_REQUIRED_STR, error, session, FATAL_ERROR_STATE);
+            session->verboseErr = 1;
+            return WOLFSSL_FATAL_ERROR;
+        }
 #endif
     }
 
