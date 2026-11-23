@@ -1644,9 +1644,15 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
      * constraint, so these names are themselves unconstrained. */
     static const byte rid_dummy[] = { 0x2A, 0x03, 0x04 };  /* OID 1.2.3.4 */
     static const byte ip_dummy[]  = { 203, 0, 113, 7 };
+    /* CNs that hostname verification can match although they hold no '.'
+     * or are IP literals; each is outside the permitted dNSName subtrees. */
+    static const char* const hostCns[] = {
+        "localhost", "intranet", "2001:db8::1", "*"
+    };
 
     byte    *der = NULL;
     int     derSz;
+    int     i;
     byte    *pt;
     WOLFSSL_X509 *x509 = NULL;
     WOLFSSL_X509 *ca = NULL;
@@ -1738,6 +1744,36 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
     wolfSSL_X509_free(x509);
     x509 = NULL;
+
+    /* Negative cases: leaf with no SAN and a single-label, IPv6 or lone
+     * wildcard CN. Each stays subject to the DNS constraints. */
+    for (i = 0; i < (int)(sizeof(hostCns) / sizeof(hostCns[0])); i++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                    WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+        ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        name = NULL;
+
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName",
+                    MBSTRING_UTF8, (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)hostCns[i],
+                    (int)XSTRLEN(hostCns[i]), -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        X509_NAME_free(name);
+        name = NULL;
+
+        ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+        ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                    WOLFSSL_FILETYPE_ASN1),
+                    WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
 
     /* Positive case: leaf with an in-scope CN and no SAN. */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
@@ -1838,6 +1874,98 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
 
     wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(ca);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CertManagerNameConstraint_EmptyDNS(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* CA (cert-ext-nc-empty-dns.der) has excluded;DNS: with a zero-length
+     * base, which covers every DNS name (RFC 5280 4.2.1.10). */
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_EVP_PKEY *priv = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    const char* ca_cert = "./certs/test/cert-ext-nc-empty-dns.der";
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    /* Leaf subject CN, SAN to add (NULL for none), SAN type and result. */
+    static const struct {
+        const char* cn;
+        const char* san;
+        int         sanType;
+        int         expect;
+    } cases[] = {
+        { "John Doe",        "user@wolfssl.com", ASN_RFC822_TYPE,
+          WOLFSSL_SUCCESS },
+        { "John Doe",        NULL,               0,
+          WOLFSSL_SUCCESS },
+        { "John Doe",        "www.wolfssl.com",  ASN_DNS_TYPE,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) },
+        { "www.wolfssl.com", NULL,               0,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) },
+        { "localhost",       NULL,               0,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) },
+        { "2001:db8::1",     NULL,               0,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) }
+    };
+    byte    *der = NULL;
+    int     derSz;
+    int     i;
+    byte    *pt;
+    WOLFSSL_X509 *x509 = NULL;
+    WOLFSSL_X509 *ca = NULL;
+
+    pt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    /* The CA itself must load in both ASN decoders. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
+                WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                    WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+        ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        name = NULL;
+
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName",
+                    MBSTRING_UTF8, (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)cases[i].cn,
+                    (int)XSTRLEN(cases[i].cn), -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        X509_NAME_free(name);
+        name = NULL;
+
+        if (cases[i].san != NULL) {
+            ExpectIntEQ(wolfSSL_X509_add_altname(x509, cases[i].san,
+                        cases[i].sanType), WOLFSSL_SUCCESS);
+        }
+        ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+        ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                    WOLFSSL_FILETYPE_ASN1), cases[i].expect);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+
+    wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(ca);
     wolfSSL_EVP_PKEY_free(priv);
 #endif

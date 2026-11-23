@@ -17,6 +17,8 @@ EXTRA_DIST += \
          certs/test/cert-ext-ncrid.pem \
          certs/test/cert-ext-ncdns.der \
          certs/test/cert-ext-ncdns.pem \
+         certs/test/cert-ext-nc-empty-dns.der \
+         certs/test/cert-ext-nc-empty-dns.pem \
          certs/test/cert-ext-ncmulti.der \
          certs/test/cert-ext-ncmulti.pem \
          certs/test/cert-ext-ncmixed.der \
