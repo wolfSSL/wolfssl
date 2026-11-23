@@ -8920,6 +8920,39 @@ static WARN_UNUSED_RESULT WC_INLINE int GcmCountInvocation(Aes* aes)
     return 0;
 }
 
+#ifdef WC_AESGCM_SHORT_TAG
+#define GCM_SHORT_TAG_SZ      8
+#define GCM_SHORT_TAG_MAX_LEN ((word64)1 << 15)
+
+/* SP 800-38D 5.2.1.2: 64-bit tags allowed with Appendix C limits applied. */
+static int GcmCheckTagSz(word32 authTagSz)
+{
+    if (authTagSz == GCM_SHORT_TAG_SZ)
+        return 0;
+    return wc_local_AesGcmCheckTagSz(authTagSz);
+}
+
+/* SP 800-38D Appendix C Table 2 row 1: at most 2^15 bytes of ciphertext plus
+ * AAD per call, and fewer than 2^32 decrypts per key, for an 8-byte tag. */
+static int GcmShortTagLimit(Aes* aes, word32 authTagSz, word32 sz,
+                            word32 authInSz, int dec)
+{
+    if (authTagSz != GCM_SHORT_TAG_SZ)
+        return 0;
+    if ((word64)sz + authInSz > GCM_SHORT_TAG_MAX_LEN)
+        return BAD_FUNC_ARG;
+    if (dec) {
+        if (aes->gcmShortDec == 0xFFFFFFFFU)
+            return AES_GCM_OVERFLOW_E;
+        aes->gcmShortDec++;
+    }
+    return 0;
+}
+#else
+#define GcmCheckTagSz(authTagSz) wc_local_AesGcmCheckTagSz(authTagSz)
+#define GcmShortTagLimit(aes, authTagSz, sz, authInSz, dec) 0
+#endif
+
 /* Move the internal IV to the next value, keeping the module's copy. */
 static WC_INLINE void GcmIncIv(Aes* aes)
 {
@@ -9289,6 +9322,9 @@ static int AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     aes->gcmIvDet = 0;
     aes->gcmIvMasked = 0;
 #endif
+#ifdef WC_AESGCM_SHORT_TAG
+    aes->gcmShortDec = 0;
+#endif
     /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
     if (aes->nonceSz != 0) {
         XMEMCPY(nonce, aes->reg, sizeof(nonce));
@@ -9513,7 +9549,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #ifdef WC_AESGCM_IV_LOCK
     int  ret;
     byte lockedH[WC_AES_BLOCK_SIZE];
+#ifdef WC_AESGCM_SHORT_TAG
+    word32 shortDec = (aes != NULL) ? aes->gcmShortDec : 0;
+    byte relock = (byte)((aes != NULL) && (aes->gcmIvLock || shortDec != 0));
+#else
     byte relock = (byte)((aes != NULL) && aes->gcmIvLock);
+#endif
+    byte lock = 0;
     byte det = 0;
     byte masked = 0;
     byte hSet = 0;
@@ -9522,6 +9564,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     /* The same key again keeps the lock: only that key gives the same H. */
     if (relock) {
         XMEMCPY(lockedH, aes->gcm.H, sizeof(lockedH));
+        lock = aes->gcmIvLock;
         det = aes->gcmIvDet;
         masked = aes->gcmIvMasked;
         /* A key held by a device has H wiped to zero, so it never relocks. */
@@ -9533,9 +9576,16 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (relock) {
         if ((ret == 0) && (hSet != 0) && (ConstantCompare(lockedH,
                 aes->gcm.H, sizeof(lockedH)) == 0)) {
-            aes->gcmIvLock = 1;
+            aes->gcmIvLock = lock;
             aes->gcmIvDet = det;
             aes->gcmIvMasked = masked;
+#ifdef WC_AESGCM_SHORT_TAG
+            /* Table 2 counts every decrypt under the key */
+            if (shortDec != 0) {
+                aes->gcmShortDec = shortDec;
+                aes->tagLen = GCM_SHORT_TAG_SZ;
+            }
+#endif
         }
         ForceZero(lockedH, sizeof(lockedH));
     }
@@ -12240,7 +12290,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    ret = GcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
 
@@ -12252,6 +12302,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (AesAssociateTagSz(aes, authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
+    ret = GcmShortTagLimit(aes, authTagSz, sz, authInSz, 0);
+    if (ret != 0)
+        return ret;
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -13170,12 +13223,15 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_local_AesGcmCheckTagSz(authTagSz);
+    ret = GcmCheckTagSz(authTagSz);
     if (ret != 0)
         return ret;
     if (AesAssociateTagSz(aes, authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
+    ret = GcmShortTagLimit(aes, authTagSz, sz, authInSz, 1);
+    if (ret != 0)
+        return ret;
 
     /* No FIPS check on ivSz in decrypt mode -- SP 800-38D IV
      * construction requirements bind encryption only; decryption must
@@ -15781,7 +15837,7 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
     }
 
     if (ret == 0)
-        ret = wc_local_AesGcmCheckTagSz(authTagSz);
+        ret = GcmCheckTagSz(authTagSz);
 
     /* Check key has been set. */
     if ((ret == 0) && (!aes->gcmKeySet)) {
@@ -15799,6 +15855,9 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 
     if (ret == 0) {
         ret = AesAssociateTagSz(aes, authTagSz);
+    }
+    if (ret == 0) {
+        ret = GcmShortTagLimit(aes, authTagSz, aes->cSz, aes->aSz, 0);
     }
     /* A stream with no AAD or data has not been counted yet. */
     if ((ret == 0) && aes->ctrSet && !aes->gcmIvStream &&
@@ -15972,7 +16031,7 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
     }
 
     if (ret == 0)
-        ret = wc_local_AesGcmCheckTagSz(authTagSz);
+        ret = GcmCheckTagSz(authTagSz);
 
     /* Check key has been set. */
     if ((ret == 0) && (!aes->gcmKeySet)) {
@@ -15985,6 +16044,9 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
 
     if (ret == 0) {
         ret = AesAssociateTagSz(aes, authTagSz);
+    }
+    if (ret == 0) {
+        ret = GcmShortTagLimit(aes, authTagSz, aes->cSz, aes->aSz, 1);
     }
 
     if (ret == 0) {
@@ -16332,6 +16394,11 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 
         return BAD_FUNC_ARG;
     }
+#ifdef WC_AESGCM_SHORT_TAG
+    /* each call uses a new Aes, so its decrypts cannot be counted */
+    if (authTagSz == GCM_SHORT_TAG_SZ)
+        return BAD_FUNC_ARG;
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     aes = wc_AesNew(NULL, INVALID_DEVID, &ret);

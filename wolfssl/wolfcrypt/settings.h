@@ -6581,6 +6581,12 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WC_AESGCM_IV_LOCK
 #endif
 
+/* SP 800-38D Appendix C: 8-byte GCM tags with a Table 2 row enforced. */
+#if defined(WC_AESGCM_IV_LOCK) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
+    #define WC_AESGCM_SHORT_TAG
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

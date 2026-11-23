@@ -385,6 +385,9 @@ struct Aes {
     byte gcmIvMask[GCM_NONCE_MID_SZ];
     byte gcmIvNext[GCM_NONCE_MAX_SZ]; /* the next generated IV */
 #endif
+#ifdef WC_AESGCM_SHORT_TAG
+    word32 gcmShortDec; /* decrypts under this key with an 8-byte tag */
+#endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
     int ctxInitDone;
