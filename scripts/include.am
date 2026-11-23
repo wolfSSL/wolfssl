@@ -192,6 +192,31 @@ EXTRA_DIST += scripts/gen-sbom
 # so an existing `include scripts/sbom.am` still finds a file.
 EXTRA_DIST += scripts/sbom.am
 
+# Vendored wolfssl-compliance-tooling snapshot. The dist check searches
+# include.am for each new path, so list every file. Makefile.am dist-hook
+# copies the same tree and skips __pycache__. A pin that adds a file must
+# add that path here too.
+EXTRA_DIST += tools/sbom/.wolfssl-compliance-tooling-rev \
+              tools/sbom/README.md \
+              tools/sbom/VERSION \
+              tools/sbom/build/install-sbom.cmake \
+              tools/sbom/build/sbom-fail.cmake \
+              tools/sbom/build/sbom-paths.cmake \
+              tools/sbom/build/sbom-validate.cmake \
+              tools/sbom/build/sbom-with-sde.cmake \
+              tools/sbom/build/sbom.cmake \
+              tools/sbom/build/sbom.mk \
+              tools/sbom/build/uninstall-sbom.cmake \
+              tools/sbom/frontends/compdb_sbom.py \
+              tools/sbom/frontends/iar_sbom.py \
+              tools/sbom/frontends/included_sources.py \
+              tools/sbom/frontends/zephyr_sbom.py \
+              tools/sbom/gen-sbom \
+              tools/sbom/sbom-driver \
+              tools/sbom/sbom-driver.py \
+              tools/sbom/sbom.am \
+              tools/sbom/validate_sbom.py
+
 # SBOM generator unit tests.  Shipped so downstream consumers building
 # from a release tarball can re-run the regression suite.
 EXTRA_DIST += scripts/test_gen_sbom.py

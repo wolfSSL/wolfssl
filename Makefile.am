@@ -472,9 +472,10 @@ SBOM_LICENSE_FILE = $(srcdir)/LICENSING
 SBOM_OPTIONS_H    = $(abs_builddir)/wolfssl/options.h
 SBOM_DEP_LIBZ     = $(ENABLED_LIBZ)
 
-# The vendored tools/sbom/ tree ships through dist-hook below, so a toolkit
-# pin that adds a file needs no edit here. EXTRA_DIST += tools/sbom would
-# also ship __pycache__.
+# The vendored tools/sbom/ tree also ships through dist-hook below, which
+# skips __pycache__. Each file is listed in scripts/include.am. The dist
+# check searches include.am for the path, so a pin that adds a file must
+# add that path there too. EXTRA_DIST += tools/sbom would ship __pycache__.
 
 include scripts/sbom.am
 
