@@ -473,7 +473,7 @@ static int ecc_check_raw(int curveId, const char* x, const char* y)
 }
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-static int ecc_check_negative_point(const ecc_set_type* curve)
+static int ecc_check_negative_point(const ecc_set_type* curve, int negateY)
 {
     EXPECT_DECLS;
     ecc_key key;
@@ -484,14 +484,8 @@ static int ecc_check_negative_point(const ecc_set_type* curve)
         ExpectIntEQ(wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, NULL,
             curve->id), 0);
         if (EXPECT_SUCCESS()) {
-            mp_setneg(key.pubkey.x);
-            ExpectIntEQ(wc_ecc_check_key(&key),
-                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
-            ExpectIntEQ(mp_read_radix(key.pubkey.x, curve->Gx, MP_RADIX_HEX),
-                MP_OKAY);
-        }
-        if (EXPECT_SUCCESS()) {
-            mp_setneg(key.pubkey.y);
+            mp_int* coord = negateY ? key.pubkey.y : key.pubkey.x;
+            mp_setneg(coord);
             ExpectIntEQ(wc_ecc_check_key(&key),
                 WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
         }
@@ -536,7 +530,8 @@ int test_wc_ecc_sp_pubkey_range(void)
             ExpectIntEQ(ecc_check_raw(curveId, curve->Gx, curve->prime),
                 WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
         #ifdef WOLFSSL_SP_INT_NEGATIVE
-            EXPECT_TEST(ecc_check_negative_point(curve));
+            EXPECT_TEST(ecc_check_negative_point(curve, 0));
+            EXPECT_TEST(ecc_check_negative_point(curve, 1));
         #endif
         }
     }
