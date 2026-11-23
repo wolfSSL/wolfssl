@@ -2284,7 +2284,7 @@ int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,
  *  2 - both nonces are absent
  *  3 - nonce only present in response
  * -1 - nonce only present in request
- *  0 - both nonces present and equal
+ *  0 - both nonces present and not equal
  */
 int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 {
@@ -2295,12 +2295,13 @@ int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 
     WOLFSSL_ENTER("wolfSSL_OCSP_check_nonce");
 
-    if (req != NULL) {
+    /* req->nonce is an array: presence is given by the size. */
+    if (req != NULL && req->nonceSz > 0) {
         reqNonce = req->nonce;
         reqNonceSz = req->nonceSz;
     }
 
-    if (bs != NULL) {
+    if (bs != NULL && bs->nonce != NULL && bs->nonceSz > 0) {
         rspNonce = bs->nonce;
         rspNonceSz = bs->nonceSz;
     }
