@@ -384,8 +384,18 @@ int wc_CracenHw_Hash(word32 algo, const byte* state, word32 stateSz,
     #endif
             if (ret == 0 && state != NULL)
                 XMEMCPY(sha.digest, state, stateSz);
-            if (ret == 0 && dataSz > 0)
-                ret = wc_Sha512Update(&sha, data, dataSz);
+            if (ret == 0 && dataSz > 0) {
+    #ifdef WOLFSSL_SHA384
+                if (algo == WC_CM_HASH_ALGO_SHA384)
+                    ret = wc_Sha384Update((wc_Sha384*)&sha, data, dataSz);
+                else
+    #endif
+    #ifdef WOLFSSL_SHA512
+                    ret = wc_Sha512Update(&sha, data, dataSz);
+    #else
+                    ret = BAD_FUNC_ARG;
+    #endif
+            }
             if (ret == 0) {
                 if (final) {
                     for (i = 0; i < outSz / 8; i++) {
@@ -397,7 +407,16 @@ int wc_CracenHw_Hash(word32 algo, const byte* state, word32 stateSz,
                     XMEMCPY(out, sha.digest, stateSz);
                 }
             }
-            wc_Sha512Free(&sha);
+    #ifdef WOLFSSL_SHA384
+            if (algo == WC_CM_HASH_ALGO_SHA384)
+                wc_Sha384Free((wc_Sha384*)&sha);
+            else
+    #endif
+    #ifdef WOLFSSL_SHA512
+                wc_Sha512Free(&sha);
+    #else
+                (void)sha;
+    #endif
             break;
         }
 #endif
@@ -431,9 +450,29 @@ int wc_CracenHw_AesCrypt(word32 mode, int decrypt, const byte* key,
             ret = wc_AesSetKey(&aes, key, keySz, NULL,
                 decrypt ? AES_DECRYPTION : AES_ENCRYPTION);
             for (i = 0; ret == 0 && i < nSegs; i++) {
+    #ifdef HAVE_AES_ECB
                 ret = decrypt ?
                     wc_AesEcbDecrypt(&aes, segs[i].out, segs[i].in, segs[i].sz) :
                     wc_AesEcbEncrypt(&aes, segs[i].out, segs[i].in, segs[i].sz);
+    #else
+                /* no ECB API in this build: one block at a time */
+                word32 off;
+                for (off = 0; ret == 0 && off < segs[i].sz;
+                        off += WC_AES_BLOCK_SIZE) {
+                    if (!decrypt) {
+                        ret = wc_AesEncryptDirect(&aes, segs[i].out + off,
+                            segs[i].in + off);
+                    }
+                    else {
+        #ifdef HAVE_AES_DECRYPT
+                        ret = wc_AesDecryptDirect(&aes, segs[i].out + off,
+                            segs[i].in + off);
+        #else
+                        ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        #endif
+                    }
+                }
+    #endif
             }
             break;
 #endif
@@ -450,7 +489,7 @@ int wc_CracenHw_AesCrypt(word32 mode, int decrypt, const byte* key,
 #endif
 #ifdef WOLFSSL_AES_COUNTER
         case WC_CM_AES_MODE_CTR:
-            ret = wc_AesSetKeyDirect(&aes, key, keySz, iv, AES_ENCRYPTION);
+            ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
             for (i = 0; ret == 0 && i < nSegs; i++)
                 ret = wc_AesCtrEncrypt(&aes, segs[i].out, segs[i].in, segs[i].sz);
             break;
@@ -513,6 +552,16 @@ int wc_CracenHw_AesGcm(int decrypt, const byte* key, word32 keySz,
 #endif /* HAVE_AESGCM */
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AES_ECB)
+/* one AES block, with the API this build has */
+static int emu_aes_block(Aes* aes, byte* out, const byte* in)
+{
+#ifdef WOLFSSL_AES_DIRECT
+    return wc_AesEncryptDirect(aes, out, in);
+#else
+    return wc_AesEcbEncrypt(aes, out, in, WC_AES_BLOCK_SIZE);
+#endif
+}
+
 static void emu_dbl(byte* b)
 {
     int  i;
@@ -554,12 +603,12 @@ int wc_CracenHw_AesCmac(const byte* key, word32 keySz, const byte* state,
 
     for (off = 0; ret == 0 && off < dataSz; off += WC_AES_BLOCK_SIZE) {
         xorbufout(blk, x, data + off, WC_AES_BLOCK_SIZE);
-        ret = wc_AesEncryptDirect(&aes, x, blk);
+        ret = emu_aes_block(&aes, x, blk);
     }
 
     if (ret == 0 && final) {
         XMEMSET(k, 0, sizeof(k));
-        ret = wc_AesEncryptDirect(&aes, k, k);   /* L */
+        ret = emu_aes_block(&aes, k, k);   /* L */
         if (ret == 0) {
             emu_dbl(k);                          /* K1 */
             XMEMSET(blk, 0, sizeof(blk));
@@ -571,7 +620,7 @@ int wc_CracenHw_AesCmac(const byte* key, word32 keySz, const byte* state,
             }
             xorbuf(blk, k, WC_AES_BLOCK_SIZE);
             xorbuf(blk, x, WC_AES_BLOCK_SIZE);
-            ret = wc_AesEncryptDirect(&aes, x, blk);
+            ret = emu_aes_block(&aes, x, blk);
         }
     }
     if (ret == 0)

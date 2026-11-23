@@ -123,9 +123,12 @@ Side channel countermeasures: ECDSA signing, ECC point multiplication with a
 private scalar (key generation, ECDH, public key derivation) and the RSA and DH
 private operations run with the engine's scalar/exponent and projective
 coordinate or modulus randomisation, fed with a 64-bit blinding factor from the
-TRNG. `WOLFSSL_CRACEN_PK_NO_CM` turns this off; it is also skipped when the
-engine reports countermeasures disabled or when the operand is too large to
-leave room for the extra 64 bits (4096-bit RSA).
+TRNG, read directly whether or not the TRNG engine is selected for seeding.
+When blinding cannot be applied (no TRNG, countermeasures disabled in the
+engine's configuration, or no room for the extra 64 bits as with 4096-bit
+RSA) the private operation is declined to software rather than run unblinded.
+`WOLFSSL_CRACEN_PK_NO_CM` turns the countermeasures off and keeps every
+operation on the engine.
 
 ECDSA nonces come from `wc_ecc_gen_k()` with the RNG the caller passed, and
 digests are truncated to the order length exactly as the software path does.

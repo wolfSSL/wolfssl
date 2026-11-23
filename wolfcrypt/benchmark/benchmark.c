@@ -226,6 +226,9 @@
     #ifdef WOLFSSL_MPFS_ATHENA
         #include <wolfssl/wolfcrypt/port/microchip/mpfs_athena.h>
     #endif
+    #ifdef WOLFSSL_NRF54L_CRACEN
+        #include <wolfssl/wolfcrypt/port/nordic/cracen_cryptocb.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_TI_AM64X_R5
@@ -5256,6 +5259,13 @@ int benchmark_init(void)
     printf("Math: %s\n", wc_GetMathInfo());
 #endif
 
+#ifdef WOLFSSL_NRF54L_CRACEN
+    if (wc_CracenInit() != 0 &&
+            !wc_CryptoCb_IsDeviceRegistered(WOLFSSL_CRACEN_DEVID)) {
+        printf("%scouldn't init the CRACEN device\n", err_prefix);
+    }
+#endif
+
 #ifdef WOLFSSL_SECO_CAAM
     if (wc_SECO_OpenHSM(SECO_KEY_STORE_ID,
             SECO_BENCHMARK_NONCE, SECO_MAX_UPDATES, CAAM_KEYSTORE_CREATE)
@@ -5338,6 +5348,9 @@ int benchmark_free(void)
     if (wc_SECO_CloseHSM() != 0) {
         printf("%sError closing down the key store\n", err_prefix);
     }
+#endif
+#ifdef WOLFSSL_NRF54L_CRACEN
+    wc_CracenCleanup();
 #endif
 
     if ((ret = wolfCrypt_Cleanup()) != 0) {

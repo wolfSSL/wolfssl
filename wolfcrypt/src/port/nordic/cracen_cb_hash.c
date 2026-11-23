@@ -275,7 +275,9 @@ static int cracen_hash_is_fresh(const CracenHashView* v)
     return *(const word32*)v->state == v->iv0;
 }
 
-/* Leave the object as the software final does: re-initialised and ready. */
+/* Leave the object as the software final does: re-initialised and ready. The
+ * Reset calls keep the heap, the devId and the WOLFSSL_SMALL_STACK_CACHE work
+ * buffer; SHA-1 has neither. */
 static int cracen_hash_reinit(const CracenHashView* v)
 {
     switch (v->type) {
@@ -291,27 +293,27 @@ static int cracen_hash_reinit(const CracenHashView* v)
         case WC_HASH_TYPE_SHA224:
         {
             wc_Sha224* sha = (wc_Sha224*)v->obj;
-            return wc_InitSha224_ex(sha, sha->heap, sha->devId);
+            return wc_Sha224Reset(sha);
         }
     #endif
         case WC_HASH_TYPE_SHA256:
         {
             wc_Sha256* sha = (wc_Sha256*)v->obj;
-            return wc_InitSha256_ex(sha, sha->heap, sha->devId);
+            return wc_Sha256Reset(sha);
         }
 #endif
 #ifdef WOLFSSL_SHA384
         case WC_HASH_TYPE_SHA384:
         {
             wc_Sha384* sha = (wc_Sha384*)v->obj;
-            return wc_InitSha384_ex(sha, sha->heap, sha->devId);
+            return wc_Sha384Reset(sha);
         }
 #endif
 #ifdef WOLFSSL_SHA512
         case WC_HASH_TYPE_SHA512:
         {
             wc_Sha512* sha = (wc_Sha512*)v->obj;
-            return wc_InitSha512_ex(sha, sha->heap, sha->devId);
+            return wc_Sha512Reset(sha);
         }
 #endif
         default:

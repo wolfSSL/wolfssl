@@ -89,7 +89,9 @@
 #endif
 
 /* Public key countermeasures (scalar/exponent and modulus randomisation,
- * randomised projective coordinates) are on unless disabled. */
+ * randomised projective coordinates) are on unless disabled. The blinding
+ * factor is read from the TRNG directly, independently of WOLFSSL_CRACEN_TRNG;
+ * a private key operation that cannot be blinded is declined to software. */
 #if defined(WOLFSSL_CRACEN_PK) && !defined(WOLFSSL_CRACEN_PK_NO_CM) && \
     !defined(WOLFSSL_CRACEN_PK_CM)
     #define WOLFSSL_CRACEN_PK_CM

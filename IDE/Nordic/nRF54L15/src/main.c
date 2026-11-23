@@ -1469,7 +1469,6 @@ int main(void)
 
     board_init();
     printf("\n\nwolfCrypt CRACEN test, nRF54L15\n");
-    board_debug_report();
 
     fill(gMsg, sizeof(gMsg), 1);
     fill(gKey, sizeof(gKey), 2);

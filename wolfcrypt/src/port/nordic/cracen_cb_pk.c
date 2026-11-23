@@ -228,6 +228,13 @@ static int cracen_ecc_in_order(CracenEcc* e, const byte* v)
 
 /* The public point. When the key holds only the private scalar it is derived
  * and stored in the key, as the software verifier does. */
+/* The engine takes affine coordinates; Jacobian points (Z != 1) are left to
+ * software. */
+static int cracen_ecc_affine(const ecc_key* key)
+{
+    return mp_cmp_d(key->pubkey.z, 1) == MP_EQ;
+}
+
 static int cracen_ecc_pub(CracenEcc* e, ecc_key* key, byte* qx, byte* qy)
 {
     int ret;
@@ -257,6 +264,7 @@ static int cracen_ecc_pub(CracenEcc* e, ecc_key* key, byte* qx, byte* qy)
     return ret;
 }
 
+#ifdef HAVE_ECC_DHE
 static int cracen_ecc_keygen(wc_CryptoInfo* info)
 {
     ecc_key*   key = info->pk.eckg.key;
@@ -302,7 +310,6 @@ static int cracen_ecc_keygen(wc_CryptoInfo* info)
     return ret;
 }
 
-#ifdef HAVE_ECC_DHE
 static int cracen_ecdh(wc_CryptoInfo* info)
 {
     ecc_key*   priv   = info->pk.ecdh.private_key;
@@ -327,6 +334,8 @@ static int cracen_ecdh(wc_CryptoInfo* info)
         return ECC_BAD_ARG_E;
     if (priv->dp->id != pub->dp->id || priv->dp->size != pub->dp->size)
         return ECC_BAD_ARG_E;
+    if (!cracen_ecc_affine(pub))
+        return CRACEN_UNAVAILABLE;
     if (*outlen < (word32)priv->dp->size)
         return BUFFER_E;
 
@@ -447,6 +456,8 @@ static int cracen_ecdsa_verify(wc_CryptoInfo* info)
     *res = 0;
     if (key->dp == NULL)
         return CRACEN_UNAVAILABLE;
+    if (key->type != ECC_PRIVATEKEY_ONLY && !cracen_ecc_affine(key))
+        return CRACEN_UNAVAILABLE;
     if (!cracen_ecc_digest_ok(hash, hashlen))
         return ECC_BAD_ARG_E;
 
@@ -541,6 +552,11 @@ static int cracen_ecc_check_pub(wc_CryptoInfo* info)
     if (pub != NULL) {
         if (pubSz != 1 + 2 * e->c.sz || pub[0] != ECC_POINT_UNCOMP) {
             ret = BAD_FUNC_ARG;
+        }
+        else if (!wc_ecc_point_is_at_infinity(&key->pubkey) &&
+                 !cracen_ecc_affine(key)) {
+            /* only affine points are validated, as in software */
+            ret = ECC_BAD_ARG_E;
         }
         else {
             qx  = pub + 1;
@@ -1199,10 +1215,10 @@ int wc_CracenPk(wc_CryptoInfo* info)
 
     switch (info->pk.type) {
 #ifdef HAVE_ECC
+    #ifdef HAVE_ECC_DHE
         case WC_PK_TYPE_EC_KEYGEN:
             ret = cracen_ecc_keygen(info);
             break;
-    #ifdef HAVE_ECC_DHE
         case WC_PK_TYPE_ECDH:
             ret = cracen_ecdh(info);
             break;

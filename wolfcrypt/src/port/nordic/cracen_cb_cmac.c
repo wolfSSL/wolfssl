@@ -157,11 +157,8 @@ static int cracen_cmac_final(Cmac* cmac, byte* out, word32* outSz)
         cmac->bufferSz, mac, 1);
     if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
         ret = WC_HW_E;
-    if (ret == 0) {
-        if (*outSz > WC_AES_BLOCK_SIZE)
-            *outSz = WC_AES_BLOCK_SIZE;
+    if (ret == 0)
         XMEMCPY(out, mac, *outSz);
-    }
 
     ForceZero(cmac->aes.devKey, sizeof(cmac->aes.devKey));
     cmac->aes.keylen = 0;
@@ -192,7 +189,17 @@ int wc_CracenCmac(wc_CryptoInfo* info)
 
     /* One request may carry any of init (key), update (in) and final (out):
      * wc_InitCmac_ex, wc_CmacUpdate and wc_CmacFinal send one each, the
-     * one-shot wc_AesCmacGenerate_ex sends them together. */
+     * one-shot wc_AesCmacGenerate_ex sends them together. The tag length is
+     * checked here because the one-shot path reaches the callback before
+     * wolfCrypt checks it. */
+    if (info->cmac.out != NULL) {
+        if (info->cmac.outSz == NULL)
+            return BAD_FUNC_ARG;
+        if (*info->cmac.outSz < WC_CMAC_TAG_MIN_SZ ||
+                *info->cmac.outSz > WC_CMAC_TAG_MAX_SZ) {
+            return BUFFER_E;
+        }
+    }
     if (info->cmac.key != NULL) {
         ret = cracen_cmac_init(cmac, info->cmac.key, info->cmac.keySz);
         if (ret != 0)

@@ -133,15 +133,25 @@ int wc_CracenTrngGetStats(wc_CracenTrngStats* stats)
 
 int wc_CracenPkLoadMicrocode(const word32* ucode, word32 words)
 {
+#ifdef WOLFSSL_CRACEN_PK
     int ret = wc_CracenHw_Init();
     if (ret == 0)
         ret = wc_CracenHw_PkLoadMicrocode(ucode, words);
     return ret;
+#else
+    (void)ucode;
+    (void)words;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 int wc_CracenPkReady(void)
 {
+#ifdef WOLFSSL_CRACEN_PK
     return wc_CracenHw_PkReady();
+#else
+    return 0;
+#endif
 }
 
 #endif /* WOLFSSL_NRF54L_CRACEN */

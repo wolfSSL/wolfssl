@@ -31,6 +31,7 @@
 #include <nrfx.h>
 #include <hal/nrf_uarte.h>
 #include <hal/nrf_gpio.h>
+#include <hal/nrf_timer.h>
 
 #include "board.h"
 
@@ -43,12 +44,9 @@
 #define TAMPC_CTRL_KEY          (0x50FAUL << 16)
 #define TAMPC_CTRL_WRPROT_CLEAR (0xFUL << 4)
 
-/* TAD (trace and debug control), datasheet 9.7: the DWT lives in the debug
- * power domain, which stays up only while a power-up request is active */
-#define TAD_BASE                0x50053000UL
-#define TAD_SYSPWRUPREQ         (*(volatile uint32_t*)(TAD_BASE + 0x400UL))
-#define TAD_DBGPWRUPREQ         (*(volatile uint32_t*)(TAD_BASE + 0x404UL))
-#define TAD_ENABLE              (*(volatile uint32_t*)(TAD_BASE + 0x500UL))
+/* Cycle counter: TIMER00 ticks at the CPU clock and sits outside the debug
+ * power domain. */
+#define CYCLE_TIMER     NRF_TIMER00
 
 #define CONSOLE_UARTE   NRF_UARTE20
 #define CONSOLE_TX_PIN  NRF_GPIO_PIN_MAP(1, 4)
@@ -93,42 +91,22 @@ void board_init(void)
     /* newlib sees no tty and would buffer a kilobyte before writing */
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    /* DWT cycle counter, with the debug domain requested on */
-    TAD_DBGPWRUPREQ = 1;
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CYCCNT = 0;
-    DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-void board_debug_report(void)
-{
-    volatile uint32_t spin = 1000;
-    uint32_t t0 = DWT->CYCCNT;
-    uint32_t t1;
-
-    while (spin-- > 0) {
-    }
-    t1 = DWT->CYCCNT;
-    printf("debug: DEMCR 0x%08lx, DWT_CTRL 0x%08lx, 1000 loops %lu cycles, "
-           "TAD pwrreq %lu/%lu enable %lu, TAMPC DBGEN 0x%02lx NIDEN 0x%02lx "
-           "SPIDEN 0x%02lx SPNIDEN 0x%02lx AP0 0x%02lx\n",
-        (unsigned long)CoreDebug->DEMCR, (unsigned long)DWT->CTRL,
-        (unsigned long)(t1 - t0), (unsigned long)TAD_SYSPWRUPREQ,
-        (unsigned long)TAD_DBGPWRUPREQ, (unsigned long)TAD_ENABLE,
-        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x500UL) & 0xFF),
-        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x508UL) & 0xFF),
-        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x510UL) & 0xFF),
-        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x518UL) & 0xFF),
-        (unsigned long)(*(volatile uint32_t*)(TAMPC_BASE + 0x700UL) & 0xFF));
+    nrf_timer_mode_set(CYCLE_TIMER, NRF_TIMER_MODE_TIMER);
+    nrf_timer_bit_width_set(CYCLE_TIMER, NRF_TIMER_BIT_WIDTH_32);
+    nrf_timer_prescaler_set(CYCLE_TIMER, 0);
+    nrf_timer_task_trigger(CYCLE_TIMER, NRF_TIMER_TASK_CLEAR);
+    nrf_timer_task_trigger(CYCLE_TIMER, NRF_TIMER_TASK_START);
 }
 
 uint32_t board_cycles(void)
 {
-    return DWT->CYCCNT;
+    nrf_timer_task_trigger(CYCLE_TIMER, NRF_TIMER_TASK_CAPTURE0);
+    return nrf_timer_cc_get(CYCLE_TIMER, NRF_TIMER_CC_CHANNEL0);
 }
 
 uint32_t board_clock_hz(void)
 {
+    /* TIMER00 ticks at the CPU clock */
     SystemCoreClockUpdate();
     return SystemCoreClock;
 }

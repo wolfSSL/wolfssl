@@ -718,7 +718,9 @@ int wc_CracenHw_TrngGetStats(wc_CracenTrngStats* stats)
 
 #ifdef WOLFSSL_CRACEN_PK
 
-#if defined(WOLFSSL_CRACEN_PK_CM) && defined(WOLFSSL_CRACEN_TRNG)
+/* The blinding factor is read from the TRNG directly, independently of
+ * WOLFSSL_CRACEN_TRNG. */
+#ifdef WOLFSSL_CRACEN_PK_CM
     #define WC_CRACEN_PK_HAVE_CM
 #endif
 
@@ -855,14 +857,20 @@ static int pk_is_verdict(int ret)
            ret == ECC_OUT_OF_RANGE_E || ret == MP_VAL;
 }
 
-/* Countermeasures need a TRNG blinding factor and 64 bits of head room. */
-static int pk_cm_ok(int cm, word32 opsz)
+/* 1: blind the operation; 0: run it plain; CRYPTOCB_UNAVAILABLE: blinding
+ * was requested but there is no TRNG, countermeasures are disabled in
+ * hardware, or the randomised operand (64 extra bits) does not fit. */
+static int pk_cm_select(int cm, word32 opsz)
 {
 #ifdef WC_CRACEN_PK_HAVE_CM
-    return cm != 0 &&
-        (gCracen.pkHwCfg & WC_PK_HWCONFIG_CM_DISABLED) == 0 &&
-        (gCracen.info.engines & WC_CM_HW_BA431_NDRNG) != 0 &&
-        opsz + 8 <= gCracen.pkSlotSz;
+    if (cm == 0)
+        return 0;
+    if ((gCracen.pkHwCfg & WC_PK_HWCONFIG_CM_DISABLED) != 0 ||
+            (gCracen.info.engines & WC_CM_HW_BA431_NDRNG) == 0 ||
+            opsz + 8 > gCracen.pkSlotSz) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    return 1;
 #else
     (void)cm;
     (void)opsz;
@@ -968,7 +976,9 @@ static int pk_ecc_begin(const wc_CracenEcCurve* c, word32 op, word32 flags,
     }
 
     cmd = op | WC_PK_CMD_BIGENDIAN | WC_PK_CMD_SELCURVE(sel) | flags;
-    cm  = pk_cm_ok(cm, c->sz);
+    cm  = pk_cm_select(cm, c->sz);
+    if (cm < 0)
+        return cm;
     if (cm)
         cmd |= WC_PK_CMD_RANDKE | WC_PK_CMD_RANDPROJ;
 
@@ -1203,7 +1213,9 @@ int wc_CracenHw_ModExp(const byte* base, word32 baseSz, const byte* exp,
     if (!gCracen.init)
         return BAD_STATE_E;
 
-    cm = pk_cm_ok(cm, modSz);
+    cm = pk_cm_select(cm, modSz);
+    if (cm < 0)
+        return cm;
     if (cm)
         cmd |= WC_PK_CMD_RANDMOD;
 
@@ -1254,7 +1266,9 @@ int wc_CracenHw_RsaCrt(const byte* in, word32 inSz, const byte* p, word32 pSz,
     if (!gCracen.init)
         return BAD_STATE_E;
 
-    cm = pk_cm_ok(cm, opsz);
+    cm = pk_cm_select(cm, opsz);
+    if (cm < 0)
+        return cm;
     if (cm)
         cmd |= WC_PK_CMD_RANDKE | WC_PK_CMD_RANDMOD;
 
