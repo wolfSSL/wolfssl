@@ -365,7 +365,8 @@ wc_static_assert(DRBG_SUCCESS == 0);
  *     material raise and clear the boundary's recoverable
  *     entropy-source hold (90C 3.1 item 4 termination/recovery).
  * Pre-v7 and non-FIPS builds compile these away. */
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#if defined(WC_FIPS_HAVE_RNG_ESCALATION) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
     #include <wolfssl/wolfcrypt/fips.h>
     #define WC_RNG_ESCALATE_CONT_FAILURE() (void)SetConTestFailure()
     #define WC_RNG_ENTROPY_DOWN(cause) \
