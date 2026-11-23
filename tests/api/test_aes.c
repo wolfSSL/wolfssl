@@ -2112,6 +2112,11 @@ int test_wc_AesCtsEncryptDecrypt(void)
             "\x48\x07\xef\xe8\x36\xee\x89\xa5\x26\x73\x0d\xbc\x2f\x7b\xc8\x40"
             "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8",
             64, 64
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84",
+            16, 16
         }
     };
     const byte keyBytes[AES_128_KEY_SIZE] = {
@@ -2159,6 +2164,54 @@ int test_wc_AesCtsEncryptDecrypt(void)
         ExpectBufEQ(tmp, vects[5].output, vects[5].outLen);
         ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
     }
+    {
+        /* One block fed as 1 byte then 15 bytes, encrypt then decrypt. */
+        Aes* aes = NULL;
+        int result_code = 0;
+        word32 outSz;
+        word32 totalSz;
+
+        XMEMSET(tmp, 0, sizeof(tmp));
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                    AES_ENCRYPTION), 0);
+        outSz = sizeof(tmp);
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, tmp, &outSz,
+                    (const byte*)vects[6].input, 1), 0);
+        ExpectIntEQ(outSz, 0);
+        outSz = sizeof(tmp);
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, tmp, &outSz,
+                    (const byte*)vects[6].input + 1, 15), 0);
+        ExpectIntEQ(outSz, 0);
+        outSz = sizeof(tmp);
+        ExpectIntEQ(wc_AesCtsEncryptFinal(aes, tmp, &outSz), 0);
+        ExpectIntEQ(outSz, 16);
+        ExpectBufEQ(tmp, vects[6].output, 16);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+
+        XMEMSET(tmp, 0, sizeof(tmp));
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                    AES_DECRYPTION), 0);
+        totalSz = 0;
+        outSz = sizeof(tmp);
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, tmp, &outSz,
+                    (const byte*)vects[6].output, 16), 0);
+        totalSz += outSz;
+        outSz = sizeof(tmp) - totalSz;
+        ExpectIntEQ(wc_AesCtsDecryptFinal(aes, tmp + totalSz, &outSz), 0);
+        totalSz += outSz;
+        ExpectIntEQ(totalSz, 16);
+        ExpectBufEQ(tmp, vects[6].input, 16);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+    }
+    /* Less than one block is still refused, in both directions. */
+    ExpectIntEQ(wc_AesCtsEncrypt(keyBytes, sizeof(keyBytes), tmp,
+             (const byte*)vects[6].input, 15, iv),
+             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesCtsDecrypt(keyBytes, sizeof(keyBytes), tmp,
+             (const byte*)vects[6].output, 15, iv),
+             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     {
         Aes* aes = NULL;
         int result_code = 0;

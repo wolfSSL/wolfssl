@@ -23461,9 +23461,17 @@ int wc_AesCtsEncryptFinal(Aes* aes, byte* out, word32* outSz)
     if (*outSz < aes->left)
         return BUFFER_E;
 
-    /* Input must be at least two complete or partial blocks */
-    if (aes->left <= WC_AES_BLOCK_SIZE)
+    /* Input must be at least one complete block. */
+    if (aes->left < WC_AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
+
+    /* Exactly one block has nothing to steal, so it is plain CBC. */
+    if (aes->left == WC_AES_BLOCK_SIZE) {
+        ret = wc_AesCbcEncrypt(aes, out, aes->ctsBlock, WC_AES_BLOCK_SIZE);
+        if (ret == 0)
+            *outSz = WC_AES_BLOCK_SIZE;
+        return ret;
+    }
 
     /* Zero padding */
     XMEMSET(aes->ctsBlock + aes->left, 0, (WC_AES_BLOCK_SIZE * 2) - aes->left);
@@ -23499,9 +23507,17 @@ int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz)
     if (*outSz < aes->left)
         return BUFFER_E;
 
-    /* Input must be at least two complete or partial blocks */
-    if (aes->left <= WC_AES_BLOCK_SIZE)
+    /* Input must be at least one complete block. */
+    if (aes->left < WC_AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
+
+    /* Exactly one block was never stolen from, so it is plain CBC. */
+    if (aes->left == WC_AES_BLOCK_SIZE) {
+        ret = wc_AesCbcDecrypt(aes, out, aes->ctsBlock, WC_AES_BLOCK_SIZE);
+        if (ret == 0)
+            *outSz = WC_AES_BLOCK_SIZE;
+        return ret;
+    }
 
     partialSz = aes->left - WC_AES_BLOCK_SIZE;
     padSz = 2 * WC_AES_BLOCK_SIZE - aes->left;
