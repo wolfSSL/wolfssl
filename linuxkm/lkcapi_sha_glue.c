@@ -1414,8 +1414,19 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm,
                            (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)))
     ret = wc_HmacSetKey(&p_ctx->wc_hmac, type, key, length);
 #else
-    /* kernel 5.10.x crypto manager expects FIPS-undersized keys to succeed. */
+    /* kernel 5.10.x crypto manager expects FIPS-undersized keys to succeed:
+     * its testmgr hash suites carry no per-vector FIPS filtering, so the
+     * non-approved short-key vectors (e.g. RFC 2202 "Jefe") run in fips mode
+     * and must return 0. */
     ret = wc_HmacSetKey_ex(&p_ctx->wc_hmac, type, key, length, 1 /* allowFlag */);
+    #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+        !defined(FIPS_NO_WRAPPERS)
+        /* The v7 allowFlag path carries the short-key indicator
+         * (SP 800-131Ar2 Table 9) instead of returning 0; absorb it to
+         * complete this branch's success contract. */
+        if (ret == WC_FIPS_NOT_APPROVED)
+            ret = 0;
+    #endif
 #endif
 
     if (ret == 0)
