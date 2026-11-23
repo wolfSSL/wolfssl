@@ -490,17 +490,24 @@
     #ifndef WOLF_CRYPTO_CB
         #define WOLF_CRYPTO_CB
     #endif
-    /* The CAL hash context lives on wc_Sha384's devCtx, so the port needs the
-     * copy and free events to own its lifetime. */
+    /* The CAL hash context lives on the hash object's devCtx, so the port
+     * needs the copy and free events to own its lifetime. */
     #ifndef WOLF_CRYPTO_CB_COPY
         #define WOLF_CRYPTO_CB_COPY
     #endif
     #ifndef WOLF_CRYPTO_CB_FREE
         #define WOLF_CRYPTO_CB_FREE
     #endif
-    /* Serves SHA-384 and AES-256-CTR only; software covers the rest. */
-    #if defined(WOLF_CRYPTO_CB_ONLY_SHA512) || defined(WOLF_CRYPTO_CB_ONLY_AES)
-        #error "WOLFSSL_MPFS_ATHENA needs software SHA-512 and AES"
+    /* Anything the port declines falls back to software, which the CB-only
+     * builds remove. */
+    #if defined(WOLF_CRYPTO_CB_ONLY_SHA512) || \
+        defined(WOLF_CRYPTO_CB_ONLY_AES) || \
+        (defined(WOLF_CRYPTO_CB_ONLY_SHA256) && \
+         !defined(WC_MPFS_ATHENA_NO_SHA256)) || \
+        (defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+         !defined(WC_MPFS_ATHENA_NO_ECC)) || \
+        (defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WC_MPFS_ATHENA_NO_RSA))
+        #error "WOLFSSL_MPFS_ATHENA needs software for each family it offloads"
     #endif
     /* Every CAL transaction is serialised with wolfSSL_CryptHwMutex*, which
      * compiles to nothing unless this is on. CAL has one resource handle and
