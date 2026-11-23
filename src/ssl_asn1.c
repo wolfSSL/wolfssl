@@ -465,6 +465,7 @@ static void* d2i_obj(const WOLFSSL_ASN1_TEMPLATE* mem, const byte** src,
     return ret;
 }
 
+WC_NO_SANITIZE_FUNCTION
 static void* d2i_generic_obj(const WOLFSSL_ASN1_TEMPLATE* mem, const byte** src,
         long* len)
 {
