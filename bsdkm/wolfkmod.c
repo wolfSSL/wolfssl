@@ -25,6 +25,7 @@
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #if defined(BSDKM_CRYPTO_REGISTER)
     #include <opencrypto/cryptodev.h>
@@ -63,8 +64,12 @@ MALLOC_DEFINE(M_WOLFSSL, "libwolfssl", "wolfSSL kernel memory");
 #endif
 
 /* common functions. */
+static int  wolfkmod_sysctl(SYSCTL_HANDLER_ARGS);
 static int  wolfkmod_init(void);
 static int  wolfkmod_cleanup(void);
+#ifdef HAVE_FIPS
+static int  wolfkmod_fips_cast(void);
+#endif /* HAVE_FIPS */
 #if !defined(BSDKM_CRYPTO_REGISTER)
 /* functions specific to a pure kernel module library build. */
 static int  wolfkmod_load(void);
@@ -110,6 +115,91 @@ static int  wolfkdriv_process(device_t dev, struct cryptop *crp, int hint);
         }
     }
 #endif /* HAVE_FIPS */
+
+static int
+wolfkmod_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    int cmd = 0;
+    int error = 0;
+    (void)arg1; (void)arg2;
+
+    error = sysctl_handle_int(oidp, &cmd, 0, req);
+    if (error != 0 || req->newptr == NULL) {
+        return (error);
+    }
+
+    switch (cmd) {
+    case 1:
+        #ifndef NO_CRYPT_TEST
+        printf("wolfSSL: running wolfCrypt tests\n");
+        error = wolfcrypt_test(NULL);
+        if (error != 0) {
+            printf("error: wolfcrypt test failed: %d\n", error);
+            error = ECANCELED;
+        }
+        else {
+            printf("info: wolfCrypt self-test passed.\n");
+        }
+        #else
+        error = EOPNOTSUPP;
+        #endif /* NO_CRYPT_TEST */
+
+        break;
+
+    case 2:
+        #ifdef WOLFSSL_KERNEL_BENCHMARKS
+        printf("wolfSSL: running benchmarks\n");
+        error = benchmark_test(NULL);
+        if (error != 0) {
+            printf("error: wolfcrypt benchmark failed: %d\n", error);
+            error = ECANCELED;
+        }
+        else {
+            printf("info: wolfCrypt benchmark passed.\n");
+        }
+        #else
+        error = (EOPNOTSUPP);
+        #endif /* WOLFSSL_KERNEL_BENCHMARKS */
+        break;
+
+    case 3:
+        #ifdef HAVE_FIPS
+        error = wolfkmod_fips_cast();
+        #else
+        error = (EOPNOTSUPP);
+        #endif /* HAVE_FIPS */
+        break;
+
+    case 4:
+        #ifdef HAVE_FIPS
+        error = wolfCrypt_GetStatus_fips();
+        printf("info: wolfcrypt fips status: %d\n", error);
+        if (error != 0) {
+            printf("error: wolfCrypt_GetStatus_fips failed: %d: %s\n",
+                   error, wc_GetErrorString(error));
+            error = (ECANCELED);
+        }
+        #else
+        error = (EOPNOTSUPP);
+        #endif /* HAVE_FIPS */
+        break;
+
+    default:
+        return (EINVAL);
+    }
+
+    return error;
+}
+
+SYSCTL_NODE(_kern, OID_AUTO, wolfssl,
+            CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+            "wolfSSL kernel module");
+
+SYSCTL_PROC(_kern_wolfssl, OID_AUTO, cmd,
+            CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_MPSAFE,
+            NULL, 0, wolfkmod_sysctl, "I",
+            "1=wolfcrypt test, 2=wolfcrypt benchmark, "
+            "3=fips cast, 4=fips status");
 
 static int wolfkmod_init(void)
 {
@@ -168,38 +258,9 @@ static int wolfkmod_init(void)
     #endif /* WOLFCRYPT_ONLY */
 
     #ifdef HAVE_FIPS
-    error = wc_RunAllCast_fips();
+    error = wolfkmod_fips_cast();
     if (error != 0) {
-        printf("error: wc_RunAllCast_fips failed with "
-               "return value %d\n", error);
         return (ECANCELED);
-    }
-    else {
-        printf("info: FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
-               "self-test succeeded.\n",
-    #ifdef HAVE_FIPS_VERSION_MAJOR
-            HAVE_FIPS_VERSION_MAJOR,
-    #else
-            HAVE_FIPS_VERSION,
-    #endif
-    #ifdef HAVE_FIPS_VERSION_MINOR
-            HAVE_FIPS_VERSION_MINOR,
-    #else
-            0,
-    #endif
-    #ifdef HAVE_FIPS_VERSION_PATCH
-            HAVE_FIPS_VERSION_PATCH,
-    #else
-            0,
-    #endif
-    #ifdef HAVE_FIPS_VERSION_PORT
-            "-",
-            HAVE_FIPS_VERSION_PORT
-    #else
-            "",
-            ""
-    #endif
-        );
     }
     #endif /* HAVE_FIPS */
 
@@ -241,6 +302,51 @@ wolfkmod_cleanup_out:
 
     return (error);
 }
+
+#ifdef HAVE_FIPS
+static int wolfkmod_fips_cast(void)
+{
+    int error = 0;
+
+    printf("wolfSSL: running fips cast\n");
+    error = wc_RunAllCast_fips();
+
+    if (error != 0) {
+        printf("error: wc_RunAllCast_fips failed with "
+               "return value %d\n", error);
+        error = (ECANCELED);
+    }
+    else {
+        printf("info: FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s "
+               "self-test succeeded.\n",
+        #ifdef HAVE_FIPS_VERSION_MAJOR
+                HAVE_FIPS_VERSION_MAJOR,
+        #else
+                HAVE_FIPS_VERSION,
+        #endif
+        #ifdef HAVE_FIPS_VERSION_MINOR
+                HAVE_FIPS_VERSION_MINOR,
+        #else
+                0,
+        #endif
+        #ifdef HAVE_FIPS_VERSION_PATCH
+                HAVE_FIPS_VERSION_PATCH,
+        #else
+                0,
+        #endif
+        #ifdef HAVE_FIPS_VERSION_PORT
+                "-",
+                HAVE_FIPS_VERSION_PORT
+        #else
+                "",
+                ""
+        #endif
+            );
+    }
+    return error;
+}
+#endif /* HAVE_FIPS */
+
 
 #if !defined(BSDKM_CRYPTO_REGISTER)
 static int wolfkmod_load(void)
