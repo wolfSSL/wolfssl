@@ -444,6 +444,16 @@ static int km_xmss_verify_common(struct km_xmss_ctx *ctx,
 
     err = wc_XmssKey_Verify(ctx->key, sig, sig_len, msg, (int)msg_len);
 
+    /* FIPS v7: XMSS / XMSS^MT verification is a non-approved service
+     * (FIPS 140-3 IG C.N Additional Comment 5 -- no CAVP test or vendor
+     * affirmation), so a valid signature arrives as the
+     * WC_FIPS_NOT_APPROVED indicator.  Inside the registration claim
+     * that is this driver's own self-test and the indicator is
+     * absorbed; a runtime caller gets the honest FIPS_UNAPPROVED_E
+     * refusal (the LKCAPI calling contract has no ride for the
+     * indicator). */
+    LKCAPI_ABSORB_SEED_INDICATOR(err);
+
     if (err) {
         #ifdef WOLFKM_DEBUG_XMSS
         pr_err("error: %s: xmss verify returned: %d\n",
