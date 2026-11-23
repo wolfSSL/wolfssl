@@ -1221,10 +1221,11 @@ int main(void)
     wb_run_gap_521();
     wb_spc_all();
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", WB_SPC_RANGE_FAILED ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
 #else
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
-    return 0;
+    return WB_SPC_RANGE_FAILED;
 }
