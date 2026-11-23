@@ -9804,6 +9804,13 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
 #ifdef HAVE_X963_KDF
     ret = wc_X963_KDF(kdfType, secret, secretSz, kari->sharedInfo,
                       kari->sharedInfoSz, kari->kek, kari->kekSz);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* The module cannot verify the X9.63 KDF's use context (FIPS 140-3
+     * IG 2.4.C): the KEK is derived, with the expected indicator. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
 #else
     (void)kdfType;
     ret = NOT_COMPILED_IN;

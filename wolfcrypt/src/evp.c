@@ -7193,6 +7193,13 @@ void wolfSSL_EVP_init(void)
 
         ret = wc_PBKDF1_ex(key, (int)info->keySz, iv, (int)info->ivSz, data, sz,
                            salt, saltSz, count, hashType, NULL);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+        /* PBKDF1 is not an approved KDF (SP 800-132 approves PBKDF2
+         * only): the key is derived, with the expected indicator. */
+        if (ret == WC_FIPS_NOT_APPROVED)
+            ret = 0;
+#endif
         if (ret == 0)
             ret = (int)info->keySz;
 

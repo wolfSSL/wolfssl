@@ -239,6 +239,13 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #ifndef NO_PWDBASED
     ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         (int)info->keySz, hashType);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* PBKDF1 is not an approved KDF (SP 800-132 approves PBKDF2 only):
+     * the key is derived, with the expected indicator. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
 #endif
 
     if (ret == 0) {
@@ -308,6 +315,13 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #ifndef NO_PWDBASED
     ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         (int)info->keySz, hashType);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* PBKDF1 is not an approved KDF (SP 800-132 approves PBKDF2 only):
+     * the key is derived, with the expected indicator. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
 #endif
 
     if (ret == 0) {
@@ -507,6 +521,13 @@ int wc_CryptKey(const char* password, int passwordSz, const byte* salt,
             case PKCS5:
                 ret = wc_PBKDF1(key, (const byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+                /* PBKDF1: derived, with the expected indicator (not an
+                 * approved KDF; SP 800-132 approves PBKDF2 only). */
+                if (ret == WC_FIPS_NOT_APPROVED)
+                    ret = 0;
+#endif
                 break;
     #endif
     #ifdef HAVE_PKCS12
