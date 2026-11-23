@@ -1350,20 +1350,10 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             WOLFSSL_MSG("Session found in external cache");
             found = 1;
 
-#ifdef HAVE_EX_DATA
-            if (extSess->type == WOLFSSL_SESSION_TYPE_CACHE ||
-                    !extSess->ownExData) {
-                /* Leave the internal cache owning the ex_data. */
-                error = wolfSSL_DupSessionEx(extSess, output, 0, 0, NULL,
-                        NULL, NULL);
-                SessionDropExDataCopy(output);
-            }
-            else {
-                error = wolfSSL_DupSession(extSess, output, 0);
-                output->ownExData = 1;
-            }
-#else
             error = wolfSSL_DupSession(extSess, output, 0);
+#ifdef HAVE_EX_DATA
+            extSess->ownExData = 1;
+            output->ownExData = 0;
 #endif
             /* We want to restore the bogus ID for TLS compatibility */
             if (ssl->session->haveAltSessionID &&
@@ -2151,7 +2141,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         if (cacheSession->ownExData) {
             /* free the add session copy */
 #ifdef HAVE_EX_DATA_CRYPTO
-            if (addSession->ownExData) {
+            if (addSession->ownExData && addSession != cacheSession) {
                 crypto_ex_cb_free_data(addSession, crypto_ex_cb_ctx_session,
                                    &addSession->ex_data);
             }
@@ -2806,6 +2796,52 @@ static int SessionExDataCacheFind(const WOLFSSL_SESSION* session, byte write,
     }
     SESSION_ROW_UNLOCK(sessRow);
     return 0;
+}
+
+/* Fill out from the ex_data of a cache entry that stays its owner. The copy
+ * may only hold data it can free on its own or that nothing frees:
+ *  - a slot with a dup callback gets what the callback produces;
+ *  - a slot nothing frees (no free callback, no cleanup routine) is shared;
+ *  - anything else stays with the entry, and the copy reads NULL.
+ * A slot with both a cleanup routine and a dup callback gets the dup result
+ * without the routine. The caller holds the entry's row lock. */
+static int SessionExDataCopyFromCache(const WOLFSSL_CRYPTO_EX_DATA* in,
+        WOLFSSL_CRYPTO_EX_DATA* out)
+{
+    int idx;
+#ifdef HAVE_EX_DATA_CRYPTO
+    const CRYPTO_EX_cb_ctx* cb = crypto_ex_cb_ctx_session;
+#endif
+
+    /* Start empty so the dup loop's wolfSSL_CRYPTO_set_ex_data() finds no
+     * cleanup routine to run on the entry's data. */
+    XMEMSET(out, 0, sizeof(*out));
+
+    for (idx = 0; idx < MAX_EX_DATA; idx++) {
+        int share = 1;
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        if (in->ex_data_cleanup_routines[idx] != NULL)
+            share = 0;
+#endif
+#ifdef HAVE_EX_DATA_CRYPTO
+        if (cb != NULL) {
+            /* The dup loop fills the slots that have a dup callback. */
+            if (cb->free_func != NULL || cb->dup_func != NULL)
+                share = 0;
+            cb = cb->next;
+        }
+#endif
+        if (share)
+            out->ex_data[idx] = in->ex_data[idx];
+    }
+
+#ifdef HAVE_EX_DATA_CRYPTO
+    /* On failure crypto_ex_cb_dup_undo() leaves out holding only what dup
+     * callbacks produced, which the caller's free releases. */
+    return crypto_ex_cb_dup_data(in, out, crypto_ex_cb_ctx_session);
+#else
+    return WOLFSSL_SUCCESS;
+#endif
 }
 #endif /* HAVE_EX_DATA && !NO_SESSION_CACHE */
 
@@ -4541,12 +4577,10 @@ int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
             /* on success of this function the lock is held so we can operate
              * on cacheSess safely */
             if (SessionExDataCacheFind(input, 0, &cacheSess, &sessRow) == 1) {
-                XMEMCPY(&output->ex_data, &cacheSess->ex_data,
-                        sizeof(output->ex_data));
-#ifdef HAVE_EX_DATA_CRYPTO
-                ret = crypto_ex_cb_dup_data(&cacheSess->ex_data,
-                        &output->ex_data, crypto_ex_cb_ctx_session);
-#endif
+                /* The entry stays the owner: copy only what the output can
+                 * hold without freeing the entry's data. */
+                ret = SessionExDataCopyFromCache(&cacheSess->ex_data,
+                        &output->ex_data);
                 found = 1;
                 SESSION_ROW_UNLOCK(sessRow);
             }

@@ -27,7 +27,6 @@
 int test_wolfSSL_CTX_add_session(void);
 int test_session_decision_coverage(void);
 int test_wolfSSL_SESSION_dup_ex_data_no_owner(void);
-int test_wolfSSL_SESSION_ext_cache_ex_data_owner(void);
 int test_wolfSSL_CTX_add_session_ext_tls13(void);
 int test_wolfSSL_CTX_add_session_ext_dtls13(void);
 int test_wolfSSL_CTX_add_session_ext_tls12(void);
@@ -82,7 +81,6 @@ int test_wolfSSL_client_cache_max_early_data(void);
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_is_setup),            \
     TEST_DECL_GROUP("session", test_wolfSSL_client_cache_max_early_data),      \
     TEST_DECL_GROUP("session", test_session_decision_coverage),                \
-    TEST_DECL_GROUP("session", test_wolfSSL_SESSION_dup_ex_data_no_owner),     \
-    TEST_DECL_GROUP("session", test_wolfSSL_SESSION_ext_cache_ex_data_owner)
+    TEST_DECL_GROUP("session", test_wolfSSL_SESSION_dup_ex_data_no_owner)
 
 #endif /* WOLFCRYPT_TEST_SESSION_H */

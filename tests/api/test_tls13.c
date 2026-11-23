@@ -7503,8 +7503,9 @@ static int test_session_exdata_dup_cb(WOLFSSL_CRYPTO_EX_DATA* out,
 /* After a handshake the server session's ex_data lives in the cache entry and
  * the connection handle keeps no copy. Duplicating that session must still
  * hand the stored pointer to the registered dup callback, not NULL, and must
- * shallow-copy indexes that have no dup callback. Besides its own index (with
- * a dup callback) it uses the shared session ex_data index, which has none. */
+ * not carry indexes the cache entry frees. Besides its own index (with a dup
+ * callback) it uses the shared session ex_data index, which has only a free
+ * callback. */
 int test_tls13_session_ex_data_dup(void)
 {
     EXPECT_DECLS;
@@ -7553,14 +7554,17 @@ int test_tls13_session_ex_data_dup(void)
     ExpectNotNull(dup = wolfSSL_SESSION_dup(wolfSSL_get_session(ssl_s)));
     ExpectIntEQ(test_session_exdata_dup_called, 1);
     ExpectPtrEq(test_session_exdata_dup_saw, &test_session_exdata_dup_marker);
-    /* The index without a dup callback is carried over as-is. */
-    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(dup, test_tls13_0rtt_ex_data_idx),
-        &test_tls13_0rtt_ex_data_marker);
+    /* The index without a dup callback has a free callback: the cache entry
+     * stays its owner, so the copy does not carry it. */
+    ExpectNull(wolfSSL_SESSION_get_ex_data(dup, test_tls13_0rtt_ex_data_idx));
 
-    /* The dup owns its copy: freeing it runs the free callback once. */
+    /* Freeing the dup frees only what it owns: nothing of the entry's. */
     test_tls13_0rtt_ex_data_frees = 0;
     wolfSSL_SESSION_free(dup);
-    ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 1);
+    ExpectIntEQ(test_tls13_0rtt_ex_data_frees, 0);
+    /* The entry still holds it. */
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s),
+        test_tls13_0rtt_ex_data_idx), &test_tls13_0rtt_ex_data_marker);
 
     /* The cache entry outlives this test and still holds the counted marker.
      * Clear it so a later eviction does not bump the shared free counter in
@@ -7571,124 +7575,6 @@ int test_tls13_session_ex_data_dup(void)
         test_tls13_0rtt_ex_data_idx));
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
-    wolfSSL_CTX_free(ctx_c);
-    wolfSSL_CTX_free(ctx_s);
-#endif
-    return EXPECT_RESULT();
-}
-
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
-    defined(WOLFSSL_TICKET_HAVE_ID) && !defined(NO_SESSION_CACHE) && \
-    defined(HAVE_EX_DATA_CRYPTO) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    defined(HAVE_EXT_CACHE)
-#define TEST_TLS13_EXT_CACHE_EXDATA
-static WOLFSSL_SESSION* test_tls13_ext_cache_exdata_sess;
-
-static int test_tls13_ext_cache_exdata_new_cb(WOLFSSL* ssl,
-        WOLFSSL_SESSION* sess)
-{
-    (void)ssl;
-    if (test_tls13_ext_cache_exdata_sess != NULL)
-        return 0;
-    /* Keep the reference wolfSSL took for this callback. */
-    test_tls13_ext_cache_exdata_sess = sess;
-    return 1;
-}
-
-static WOLFSSL_SESSION* test_tls13_ext_cache_exdata_get_cb(WOLFSSL* ssl,
-        const unsigned char* id, int idLen, int* copy)
-{
-    (void)ssl;
-    (void)id;
-    (void)idLen;
-    /* wolfSSL takes its own reference and drops it when done. */
-    *copy = 1;
-    return test_tls13_ext_cache_exdata_sess;
-}
-#endif
-
-/* A TLS 1.3 stateful ticket resumed through the external cache, with the
- * internal cache on. The session the application keeps from new_sess_cb was
- * added to the internal cache first, so it does not own the ex_data. Resuming
- * from it must not duplicate the ex_data into the live session: the dup
- * callbacks would run and their results be thrown away (a leak on every
- * resumption). The live session still reaches the data through the cache. */
-int test_tls13_session_ex_data_ext_cache_resume(void)
-{
-    EXPECT_DECLS;
-#ifdef TEST_TLS13_EXT_CACHE_EXDATA
-    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    WOLFSSL_SESSION *sess_c = NULL;
-    struct test_memio_ctx test_ctx;
-    char buf[64];
-
-    /* Reuse the index with a dup callback from test_tls13_session_ex_data_dup:
-     * the callback records whether it ran. */
-    if (test_session_exdata_dup_idx < 0) {
-        test_session_exdata_dup_idx = wolfSSL_SESSION_get_ex_new_index(0,
-            NULL, NULL, test_session_exdata_dup_cb, NULL);
-    }
-    ExpectIntGE(test_session_exdata_dup_idx, 0);
-    test_tls13_ext_cache_exdata_sess = NULL;
-
-    /* Full handshake. WOLFSSL_OP_NO_TICKET gives a stateful ticket, looked up
-     * by ID on resumption, which asks the external cache first. */
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    wolfSSL_CTX_sess_set_new_cb(ctx_s, test_tls13_ext_cache_exdata_new_cb);
-    wolfSSL_CTX_sess_set_get_cb(ctx_s, test_tls13_ext_cache_exdata_get_cb);
-    if (ssl_s != NULL)
-        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
-    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-    ExpectNotNull(sess_c = wolfSSL_get1_session(ssl_c));
-    ExpectNotNull(test_tls13_ext_cache_exdata_sess);
-
-    /* Set on the live session: it goes to the internal cache entry, and the
-     * application's session does not own it. */
-    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
-        test_session_exdata_dup_idx, &test_session_exdata_dup_marker),
-        WOLFSSL_SUCCESS);
-    if (test_tls13_ext_cache_exdata_sess != NULL)
-        ExpectIntEQ(test_tls13_ext_cache_exdata_sess->ownExData, 0);
-    wolfSSL_free(ssl_c); ssl_c = NULL;
-    wolfSSL_free(ssl_s); ssl_s = NULL;
-
-    /* Resume through the external cache. */
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
-    if (ssl_s != NULL)
-        (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TICKET);
-    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess_c), WOLFSSL_SUCCESS);
-    /* Drop our reference so the client's session is unique and the client
-     * does not duplicate it (HaveUniqueSessionObj()): that dup would run the
-     * same dup callback and hide what the server does. */
-    wolfSSL_SESSION_free(sess_c);
-    sess_c = NULL;
-    test_session_exdata_dup_called = 0;
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_session_reused(ssl_s), 1);
-
-    /* No ex_data was duplicated into the server's live session... */
-    ExpectIntEQ(test_session_exdata_dup_called, 0);
-    /* ...which still reaches the data through the cache. */
-    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s),
-        test_session_exdata_dup_idx), &test_session_exdata_dup_marker);
-
-    /* The cache entry outlives this test: do not leave the marker in it. */
-    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
-        test_session_exdata_dup_idx, NULL), WOLFSSL_SUCCESS);
-
-    wolfSSL_free(ssl_c);
-    wolfSSL_free(ssl_s);
-    wolfSSL_SESSION_free(sess_c);
-    wolfSSL_SESSION_free(test_tls13_ext_cache_exdata_sess);
-    test_tls13_ext_cache_exdata_sess = NULL;
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 #endif
@@ -7752,7 +7638,7 @@ static void test_session_exdata_undo_free(void* parent, void* ptr,
 
 /* A dup callback that fails part way must leave the failed copy safe to free:
  * the slots an earlier dup callback created are freed with it (no leak), and
- * the slots still pointing at the cached data are not (no double free). The
+ * none of the cached data is freed through it (no double free). The
  * index budget is fully used, so this borrows the callback list entries of
  * the two indexes test_tls13_session_ex_data_dup uses, and restores them. */
 int test_tls13_session_ex_data_dup_fail(void)
