@@ -6223,16 +6223,17 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->msgsReceived.got_hello_retry_request = 1;
             ssl->msgsReceived.got_server_hello = 0;
         }
+#ifdef WOLFSSL_DTLS_CID
+        /* Extensions are parsed, drop the CID if the server did not answer
+         * it. A downgraded client does this in DoServerHello() instead. */
+        else if (ssl->options.useDtlsCID)
+            DtlsCIDOnExtensionsParsed(ssl);
+#endif /* WOLFSSL_DTLS_CID */
     }
 
     if (args->totalExtSz > 0) {
         args->idx += args->totalExtSz;
     }
-
-#ifdef WOLFSSL_DTLS_CID
-    if (ssl->options.useDtlsCID && *extMsgType == server_hello)
-        DtlsCIDOnExtensionsParsed(ssl);
-#endif /* WOLFSSL_DTLS_CID */
 
     if (IsAtLeastTLSv1_3(ssl->version)) {
         *inOutIdx = args->idx;
