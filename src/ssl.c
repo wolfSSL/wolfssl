@@ -8322,7 +8322,14 @@ void crypto_ex_cb_setup_new_data(void *new_obj, CRYPTO_EX_cb_ctx* cb_ctx,
     }
 }
 
-/* If a dup callback fails revert current duplication progress */
+/* A dup callback failed at failedIdx. Keep only the slots an earlier dup
+ * callback produced: out owns those, so freeing out releases them. Clear every
+ * slot still borrowed from in (the failing slot, later slots, slots without a
+ * dup callback and slots past the end of the callback list), so freeing out
+ * does not free data that in still holds.
+ *
+ * This relies on crypto_ex_cb_dup_data() processing the slots in callback list
+ * order, which is how indexes map to callbacks. */
 static void crypto_ex_cb_dup_undo(WOLFSSL_CRYPTO_EX_DATA* out,
         const CRYPTO_EX_cb_ctx* cb_ctx, int failedIdx)
 {

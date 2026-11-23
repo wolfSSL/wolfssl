@@ -1351,10 +1351,17 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             found = 1;
 
 #ifdef HAVE_EX_DATA
-            /* leave cache owning the ex_data */
-            error = wolfSSL_DupSessionEx(extSess, output, 0, 0, NULL, NULL,
-                    NULL);
-            SessionDropExDataCopy(output);
+            if (extSess->type == WOLFSSL_SESSION_TYPE_CACHE ||
+                    !extSess->ownExData) {
+                /* Leave the internal cache owning the ex_data. */
+                error = wolfSSL_DupSessionEx(extSess, output, 0, 0, NULL,
+                        NULL, NULL);
+                SessionDropExDataCopy(output);
+            }
+            else {
+                error = wolfSSL_DupSession(extSess, output, 0);
+                output->ownExData = 1;
+            }
 #else
             error = wolfSSL_DupSession(extSess, output, 0);
 #endif
@@ -2142,6 +2149,13 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     if (overwrite) {
         /* Figure out who owns the ex_data */
         if (cacheSession->ownExData) {
+            /* free the add session copy */
+#ifdef HAVE_EX_DATA_CRYPTO
+            if (addSession->ownExData) {
+                crypto_ex_cb_free_data(addSession, crypto_ex_cb_ctx_session,
+                                   &addSession->ex_data);
+            }
+#endif
             /* Prioritize cacheSession copy */
             XMEMCPY(&addSession->ex_data, &cacheSession->ex_data,
                     sizeof(WOLFSSL_CRYPTO_EX_DATA));
@@ -4252,9 +4266,13 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
  *                      sessions from cache. When a cache row is locked, we
  *                      don't want to block other threads with long running
  *                      system calls.
- * @param transferExData If true, the output takes over the input's ex_data.
- *                      Set false when the caller keeps the output and the
- *                      input's ex_data stays owned elsewhere, e.g. the cache.
+ * @param transferExData If true, the output gets its own copy of the input's
+ *                      ex_data (dup callbacks run). When the input does not
+ *                      own its ex_data it is fetched from the owning cache
+ *                      entry under that entry's row lock, so the caller must
+ *                      not hold a session cache lock in that case. Set false
+ *                      when the output must not own the ex_data, e.g. it stays
+ *                      owned by the cache
  * @param ticketNonceBuf If not null and @avoidSysCalls is true, the copy of the
  *                      ticketNonce will happen in this pre allocated buffer
  * @param ticketNonceLen @ticketNonceBuf len as input, used length on output
