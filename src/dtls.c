@@ -33,6 +33,12 @@
  *     allows for the server to process Early Data/0-RTT Data. Without this, the
  *     Early Data would be dropped since the server doesn't enter stateful
  *     processing until receiving a verified ClientHello with the cookie.
+ *     Skipping the cookie exchange means that the address of the peer is not
+ *     verified. A captured ClientHello can be replayed from any address. The
+ *     server then keeps state for it and sends its flight to that address
+ *     until the handshake times out. See RFC 9147 Section 5.1. For DTLS 1.3
+ *     the PSK binder is only checked once stateful. A ClientHello with a
+ *     known identity and a bad binder is a fatal error for the WOLFSSL object.
  *
  *     To allow DTLS 1.3 resumption without the cookie exchange:
  *     - Compile wolfSSL with WOLFSSL_DTLS13_NO_HRR_ON_RESUME defined
