@@ -784,24 +784,22 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 #endif /* !WOLFSSL_NO_XOR_OPS */
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
-/* GCC and Clang zero with volatile stores, which the compiler must emit. They
- * store from general registers, as SSE stores on x86 are very slow after AVX
- * code that leaves the upper halves of the vector registers dirty. With
- * USE_INTEL_SPEEDUP, x86_64 CPUs with AVX2 zero from WC_FORCE_ZERO_AVX2_MIN
- * bytes with 32-byte AVX2 stores, which have no such penalty.
- * On x86, wipes over WC_FORCE_ZERO_INLINE_MAX bytes use XMEMSET, as libc's
- * memset is as fast there and is tuned for each CPU. Other CPUs use the stores
- * for every length, as embedded libc memset may be a byte loop. Define
- * WC_FORCE_ZERO_INLINE_MAX to use XMEMSET above it there too. Kernel builds
- * use the stores for every length: with return thunks, a call to the kernel's
- * memset costs more than the wipe. Other compilers use XMEMSET for all
- * lengths. WC_FORCE_ZERO_LOOP makes GCC and Clang use XMEMSET too. */
+/* GCC and Clang on x86 zero up to WC_FORCE_ZERO_INLINE_MAX bytes with
+ * volatile stores, which the compiler must emit. They store from general
+ * registers, as SSE stores are very slow after AVX code that leaves the upper
+ * halves of the vector registers dirty. With USE_INTEL_SPEEDUP, x86_64 CPUs
+ * with AVX2 zero from WC_FORCE_ZERO_AVX2_MIN bytes with 32-byte AVX2 stores,
+ * which have no such penalty. Wipes over WC_FORCE_ZERO_INLINE_MAX bytes use
+ * XMEMSET, as libc's memset is as fast there and is tuned for each CPU.
+ * Kernel builds zero every length with the stores: with return thunks, a call
+ * to the kernel's memset costs more than the wipe. Other builds use XMEMSET
+ * for all lengths. WC_FORCE_ZERO_LOOP makes x86 use XMEMSET too. */
 #if !defined(WC_FORCE_ZERO_FAST) && !defined(WC_FORCE_ZERO_LOOP) && \
-    defined(__GNUC__) && !defined(__CC_ARM) && !defined(WOLFSSL_NO_ASM)
+    defined(__GNUC__) && !defined(__CC_ARM) && !defined(WOLFSSL_NO_ASM) && \
+    (defined(__x86_64__) || defined(__i386__))
     #define WC_FORCE_ZERO_FAST
 #endif
-#if !defined(WC_FORCE_ZERO_INLINE_MAX) && \
-    (defined(__x86_64__) || defined(__i386__))
+#ifndef WC_FORCE_ZERO_INLINE_MAX
     /* x86 zeroes up to this many bytes inline, and more with XMEMSET. Kernel
      * builds ignore it. Define to override. */
     #define WC_FORCE_ZERO_INLINE_MAX 256
@@ -904,7 +902,7 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 #ifdef WC_FORCE_ZERO_FAST
     /* Each branch tests len as passed in, so a known len picks one when
      * ForceZero is inlined. Stores at the start and at the end may overlap. */
-#if defined(WC_FORCE_ZERO_INLINE_MAX) && !defined(WOLFSSL_KERNEL_MODE)
+#ifndef WOLFSSL_KERNEL_MODE
     if (len > WC_FORCE_ZERO_INLINE_MAX) {
     #ifndef WC_FORCE_ZERO_SHOW_LEN
         /* For a known len, GCC's default x86 tuning makes memset an inline
