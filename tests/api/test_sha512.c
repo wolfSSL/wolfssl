@@ -376,7 +376,10 @@ int test_wc_Sha512_224FinalRaw(void)
         XMEMSET(&raw, 0, sizeof(raw));
         ExpectIntEQ(wc_InitSha512_224(&raw), 0);
         ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"ab", 2), 0);
-        ExpectIntEQ(wc_Sha512_224FinalRaw(&raw, rawHash), 0);
+        /* Non-approved under FIPS v7 (FIPS 180-4: the chaining value
+         * without padding is not a digest); see DIGEST_FINAL_RAW_EXPECT. */
+        ExpectIntEQ(wc_Sha512_224FinalRaw(&raw, rawHash),
+                    DIGEST_FINAL_RAW_EXPECT);
         ExpectIntEQ(wc_Sha512_224Update(&raw, (const byte*)"c", 1), 0);
         ExpectIntEQ(wc_Sha512_224Final(&raw, rawHash), 0);
         ExpectBufEQ(rawHash,

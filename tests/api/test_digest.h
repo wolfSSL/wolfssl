@@ -193,6 +193,15 @@ do {                                                                           \
     /* Test good args. */                                                      \
     wc_##name##Final(&dgst, hash);                                             \
 
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+/* FIPS 180-4: the chaining value without padding is not a digest, so the v7
+ * module computes it and delivers the WC_FIPS_NOT_APPROVED indicator. */
+#define DIGEST_FINAL_RAW_EXPECT WC_FIPS_NOT_APPROVED
+#else
+#define DIGEST_FINAL_RAW_EXPECT 0
+#endif
+
 #define DIGEST_FINAL_RAW_TEST(type, name, upper, hashStr)                      \
     type dgst;                                                                 \
     byte hash[WC_##upper##_DIGEST_SIZE];                                       \
@@ -210,7 +219,8 @@ do {                                                                           \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     /* Test good args. */                                                      \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash),                              \
+        DIGEST_FINAL_RAW_EXPECT);                                              \
     ExpectBufEQ(hash, expHash, WC_##upper##_DIGEST_SIZE);                      \
                                                                                \
     wc_##name##Free(&dgst)
@@ -664,7 +674,8 @@ do {                                                                           \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData), 0);               \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash),                              \
+        DIGEST_FINAL_RAW_EXPECT);                                              \
     ExpectBufEQ(hash, (byte*)abcHash, WC_##upper##_DIGEST_SIZE);               \
                                                                                \
     wc_##name##Free(&dgst)
@@ -719,7 +730,8 @@ do {                                                                           \
     ByteReverseWords((word32*)abc##name##DataBE, (word32*)abc##name##Data,     \
         WC_##upper##_BLOCK_SIZE);                                              \
     ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abc##name##DataBE), 0);     \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash),                              \
+        DIGEST_FINAL_RAW_EXPECT);                                              \
     ExpectBufEQ(hash, (byte*)abcHash, WC_##upper##_DIGEST_SIZE);               \
                                                                                \
     wc_##name##Free(&dgst)
@@ -747,7 +759,8 @@ do {                                                                           \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData), 0);               \
-    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash),                              \
+        DIGEST_FINAL_RAW_EXPECT);                                              \
     ExpectBufEQ(hash, (byte*)abcHash, WC_##upper##_DIGEST_SIZE);               \
                                                                                \
     wc_##name##Free(&dgst)

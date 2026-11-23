@@ -12488,6 +12488,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
             /* Now use the ex and allow short keys with FIPS option */
             ret = wc_HmacSetKey_ex(&hmac, WC_SHA, (byte*) keys[i],
                                (word32)XSTRLEN(keys[i]), allowShortKeyWithFips);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+            /* A sub-112-bit key admitted by allowFlag: computed, but the
+             * module must deliver the WC_FIPS_NOT_APPROVED indicator
+             * (SP 800-131Ar2 Table 9); the test fails if it is missing. */
+            if (ret != WC_FIPS_NOT_APPROVED)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = 0;
+#endif
         }
 #endif
         if (ret != 0)
@@ -50572,9 +50581,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void)
     wc_test_ret_t ret;
     WOLFSSL_ENTER("pbkdf1_test");
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PBKDF1_ex(derived, kLen, NULL, 0, (byte*)passwd,
              (int)XSTRLEN(passwd), salt, (int)sizeof(salt), iterations, WC_SHA,
              HEAP_HINT);
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* PBKDF1 is not an approved KDF (SP 800-132 approves PBKDF2 only); the
+     * module computes it and delivers the WC_FIPS_NOT_APPROVED indicator. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return ret;
 
@@ -51396,6 +51415,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
             (const byte*)label, (word32)XSTRLEN(label), seed, seedSz,
             1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* An RFC 5246 "master secret" derivation: computed, but the module
+     * must deliver the WC_FIPS_NOT_APPROVED indicator per FIPS 140-3
+     * IG D.Q (TLS 1.2 approves the extended master secret, RFC 7627,
+     * only); the test fails if the indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0) {
         if (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
@@ -52218,8 +52247,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
     WOLFSSL_ENTER("x963kdf_test");
 
 #ifndef NO_SHA
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA, Z, sizeof(Z), NULL, 0,
                       kek, sizeof(verify));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* The module cannot verify the X9.63 KDF's use context, so it computes
+     * the result and delivers the WC_FIPS_NOT_APPROVED indicator per
+     * FIPS 140-3 IG 2.4.C; the test fails if the indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -52228,8 +52268,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifndef NO_SHA256
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, Z2, sizeof(Z2), NULL, 0,
                       kek, sizeof(verify2));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -52238,16 +52286,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifdef WOLFSSL_SHA512
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z3, sizeof(Z3), NULL, 0,
                       kek, sizeof(verify3));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify3, kek, sizeof(verify3)) != 0)
         return WC_TEST_RET_ENC_NC;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z4, sizeof(Z4), info4,
                       sizeof(info4), kek, sizeof(verify4));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -79768,6 +79832,14 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
         XMEMCPY(old_sig, sig, sigSz);
 
         ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+        /* XMSS verification is a non-approved service (FIPS 140-3 IG C.N
+         * Additional Comment 5): a valid signature must arrive with the
+         * WC_FIPS_NOT_APPROVED indicator. */
+        if (ret != WC_FIPS_NOT_APPROVED) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
+        ret = 0;
+#endif
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
 #ifndef WOLFSSL_NO_MALLOC
@@ -79807,6 +79879,13 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, NULL, 0);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* Non-approved-service indicator; see above. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = 0;
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -79866,6 +79945,14 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
                 if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(j), out); }
                 ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg,
                                         msgSz);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+                /* Non-approved-service indicator; see above. */
+                if (ret != WC_FIPS_NOT_APPROVED) {
+                    ERROR_OUT(WC_TEST_RET_ENC_I(j), out);
+                }
+                ret = 0;
+#endif
                 if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(j), out); }
             }
         }
@@ -80417,6 +80504,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
 
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* XMSS verification is a non-approved service (FIPS 140-3 IG C.N
+     * Additional Comment 5): a valid signature must arrive with the
+     * WC_FIPS_NOT_APPROVED indicator. */
+    if (ret != WC_FIPS_NOT_APPROVED) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               WC_FIPS_NOT_APPROVED);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = 0;
+#endif
     if (ret != 0) {
         printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
         return WC_TEST_RET_ENC_EC(ret);
@@ -80456,6 +80555,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     xmss_msg[sizeof(xmss_msg) / 2] ^= 1;
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* XMSS verification is a non-approved service (FIPS 140-3 IG C.N
+     * Additional Comment 5): a valid signature must arrive with the
+     * WC_FIPS_NOT_APPROVED indicator. */
+    if (ret != WC_FIPS_NOT_APPROVED) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               WC_FIPS_NOT_APPROVED);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = 0;
+#endif
     if (ret != 0) {
         printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
         return WC_TEST_RET_ENC_EC(ret);
