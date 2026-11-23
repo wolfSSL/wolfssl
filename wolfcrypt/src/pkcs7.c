@@ -202,6 +202,7 @@ struct PKCS7State {
     word32 peakUsed; /* most bytes used for struct at any one time */
     word32 peakRead; /* most bytes used by read buffer */
 #endif
+    WC_BITFIELD hashAlgInit:1;
     WC_BITFIELD multi:1;  /* flag for if content is in multiple parts */
     WC_BITFIELD flagOne:1;
     WC_BITFIELD detached:1; /* flag to indicate detached signature is present */
@@ -317,6 +318,11 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
 static void wc_PKCS7_FreeStream(wc_PKCS7* pkcs7)
 {
     if (pkcs7 != NULL && pkcs7->stream != NULL) {
+        /* free before ResetStream clears hashType */
+        if (pkcs7->stream->hashAlgInit) {
+            wc_HashFree(&pkcs7->stream->hashAlg, pkcs7->stream->hashType);
+            pkcs7->stream->hashAlgInit = 0;
+        }
         wc_PKCS7_ResetStream(pkcs7);
 
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -8217,10 +8223,17 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #ifdef ASN_BER_TO_DER
             /* setup hash struct for creating hash of content if needed */
             if (pkcs7->streamOutCb) {
+                /* free any previously initialized hash before re-init */
+                if (pkcs7->stream->hashAlgInit) {
+                    wc_HashFree(&pkcs7->stream->hashAlg,
+                        pkcs7->stream->hashType);
+                    pkcs7->stream->hashAlgInit = 0;
+                }
                 ret = wc_HashInit_ex(&pkcs7->stream->hashAlg,
                     pkcs7->stream->hashType, pkcs7->heap, pkcs7->devId);
                 if (ret != 0)
                     break;
+                pkcs7->stream->hashAlgInit = 1;
             }
         #endif /* ASN_BER_TO_DER */
 
@@ -9050,6 +9063,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         }
                         wc_HashFree(&pkcs7->stream->hashAlg,
                             pkcs7->stream->hashType);
+                        pkcs7->stream->hashAlgInit = 0;
                         if (ret != 0)
                             break;
                     }
