@@ -27,6 +27,3 @@ jobs:
       # wolfIP's native CI is Makefile-based; keep the matching commands
       # inline in the reusable workflow rather than in a product shell adapter.
       build_mode: makefile
-      # check runs the unprivileged unit suite; xxd converts its generated
-      # test certificates into C arrays for build/test-wolfssl.
-      apt_packages: check xxd
