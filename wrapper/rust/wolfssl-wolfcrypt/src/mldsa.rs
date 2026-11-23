@@ -643,6 +643,11 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_export_private,
     ///           mldsa_import_private, random))]
     /// {
@@ -685,6 +690,11 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_pub_size,
     ///           mldsa_export_private, mldsa_import_private,
     ///           mldsa_import_public, random))]
@@ -774,6 +784,11 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size,
     ///           mldsa_export_private, random))]
     /// {
@@ -820,6 +835,11 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_pub_size,
     ///           mldsa_export_private, mldsa_export_public, random))]
     /// {

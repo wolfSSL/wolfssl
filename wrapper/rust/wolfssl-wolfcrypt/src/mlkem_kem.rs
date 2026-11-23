@@ -50,6 +50,11 @@ failure and gain access to the infallible entry points.
 # Examples
 
 ```rust
+#[cfg(fips)]
+{
+use wolfssl_wolfcrypt::fips;
+fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+}
 #[cfg(all(mlkem_encapsulate, mlkem_decapsulate, mlkem_make_key, mlkem_768, random, feature = "kem", feature = "rand_core"))]
 {
 use kem::{Kem, Encapsulate, Decapsulate};

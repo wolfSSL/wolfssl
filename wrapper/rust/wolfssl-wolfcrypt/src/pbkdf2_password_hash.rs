@@ -194,6 +194,11 @@ impl TryFrom<&PasswordHash> for Params {
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// use password_hash::PasswordHasher;
 /// use wolfssl_wolfcrypt::pbkdf2_password_hash::Pbkdf2;
 ///
