@@ -6163,6 +6163,12 @@ static int Pkcs11AesCbcEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_MECHANISM       mech;
     CK_ULONG           outLen;
 
+    /* CBC input must be a non-zero multiple of the block size. */
+    if (info->cipher.aescbc.sz == 0 ||
+            (info->cipher.aescbc.sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
     /* Check operation is supported. */
     ret = Pkcs11MechAvail(session, CKM_AES_CBC, &mechInfo);
     if (ret == 0 && (mechInfo.flags & CKF_ENCRYPT) == 0) {
@@ -6210,8 +6216,12 @@ static int Pkcs11AesCbcEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
         if (rv != CKR_OK) {
             ret = WC_HW_E;
         }
+        else if (outLen != info->cipher.aescbc.sz) {
+            ret = WC_HW_E;
+        }
         else {
-            XMEMCPY(&info->cipher.aescbc.aes->reg, info->cipher.aescbc.out +
+            /* Last ciphertext block is the IV for the next call. */
+            XMEMCPY(info->cipher.aescbc.aes->reg, info->cipher.aescbc.out +
                     outLen - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
         }
     }
@@ -6240,6 +6250,12 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_OBJECT_HANDLE   key = NULL_PTR;
     CK_MECHANISM       mech;
     CK_ULONG           outLen;
+
+    /* CBC input must be a non-zero multiple of the block size. */
+    if (info->cipher.aescbc.sz == 0 ||
+            (info->cipher.aescbc.sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
 
     /* Check operation is supported. */
     ret = Pkcs11MechAvail(session, CKM_AES_CBC, &mechInfo);
@@ -6278,10 +6294,11 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
         }
     }
     if (ret == 0) {
-        /* save the last block of plain text */
-        word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)] = {0};  /* for CBC mode */
+        /* Save the last ciphertext block before an in-place decrypt
+         * overwrites it - it is the IV for the next call. */
+        word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];
         outLen = info->cipher.aescbc.sz;
-        XMEMCPY(&reg, info->cipher.aescbc.in +
+        XMEMCPY(reg, info->cipher.aescbc.in +
                 info->cipher.aescbc.sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
         rv = session->func->C_Decrypt(session->handle,
                                         (CK_BYTE_PTR)info->cipher.aescbc.in,
@@ -6292,9 +6309,11 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
         if (rv != CKR_OK) {
             ret = WC_HW_E;
         }
+        else if (outLen != info->cipher.aescbc.sz) {
+            ret = WC_HW_E;
+        }
         else {
-            /* set the last block of plain text as next IV */
-            XMEMCPY(&info->cipher.aescbc.aes->reg, reg, WC_AES_BLOCK_SIZE);
+            XMEMCPY(info->cipher.aescbc.aes->reg, reg, WC_AES_BLOCK_SIZE);
         }
     }
 

@@ -2362,12 +2362,14 @@ int test_wc_Pkcs11_RsaKeyGenError(void)
 
 #if defined(HAVE_PKCS11) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
     defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_128) && \
-    !defined(NO_PKCS11_AES) && !defined(NO_PKCS11_AESCBC)
+    !defined(NO_PKCS11_AES) && !defined(NO_PKCS11_AESCBC) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES)
     #define TEST_PKCS11_AES_CBC
 #endif
 
 #ifdef TEST_PKCS11_AES_CBC
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/wc_pkcs11.h>
 
 #define TEST_PKCS11_AES_DEVID 0x7033
 
@@ -2530,6 +2532,7 @@ int test_wc_Pkcs11_AesCbcChain(void)
         wc_Pkcs11_CryptoDevCb, &token), 0);
 
     /* Reference: software, one shot. */
+    XMEMSET(&sw, 0, sizeof(sw));
     ExpectIntEQ(wc_AesInit(&sw, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_AesSetKey(&sw, key, sizeof(key), iv, AES_ENCRYPTION), 0);
     ExpectIntEQ(wc_AesCbcEncrypt(&sw, refCt, msg, sizeof(msg)), 0);
@@ -2537,6 +2540,7 @@ int test_wc_Pkcs11_AesCbcChain(void)
 
     /* PKCS#11, one shot: sanity check of the mock. */
     XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(&hw, 0, sizeof(hw));
     ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
     ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_ENCRYPTION), 0);
     ExpectIntEQ(wc_AesCbcEncrypt(&hw, ct, msg, sizeof(msg)), 0);
@@ -2546,6 +2550,7 @@ int test_wc_Pkcs11_AesCbcChain(void)
     /* PKCS#11 encrypt in two calls: the second call must use the last
      * ciphertext block of the first as its IV. */
     XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(&hw, 0, sizeof(hw));
     ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
     ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_ENCRYPTION), 0);
     ExpectIntEQ(wc_AesCbcEncrypt(&hw, ct, msg, half), 0);
@@ -2556,6 +2561,7 @@ int test_wc_Pkcs11_AesCbcChain(void)
 
     /* PKCS#11 decrypt in two calls. */
     XMEMSET(pt, 0, sizeof(pt));
+    XMEMSET(&hw, 0, sizeof(hw));
     ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
     ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_DECRYPTION), 0);
     ExpectIntEQ(wc_AesCbcDecrypt(&hw, pt, refCt, half), 0);
@@ -2567,6 +2573,7 @@ int test_wc_Pkcs11_AesCbcChain(void)
     /* PKCS#11 decrypt in two calls, in place: the chained IV is the last
      * ciphertext block, which the first call overwrites. */
     XMEMCPY(pt, refCt, sizeof(pt));
+    XMEMSET(&hw, 0, sizeof(hw));
     ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
     ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_DECRYPTION), 0);
     ExpectIntEQ(wc_AesCbcDecrypt(&hw, pt, pt, half), 0);
