@@ -445,92 +445,106 @@ int test_wc_ecc_check_key_invalid_pubkey(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_check_key_invalid_pubkey */
 
-/*
- * Drive the single-precision public-key range checks in sp_ecc_is_point_*
- * (the SP path the non-SP secp224r1 test above skips). A coordinate equal to
- * the field prime p passes the bit-length guard and trips the proper
- * cmp >= 0 reject; a valid generator point covers the in-range true side.
- * (Coordinates with bit length over the field size are rejected by
- * wc_ecc_import_raw itself, before check_key, so they are not driven here.)
- * Runs on SP builds (the arm lanes) and is harmless elsewhere.
- */
+/* A generator passes validation. A coordinate equal to the field prime
+ * fits in the field width and must fail the field range check. */
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(WOLFSSL_HAVE_SP_ECC) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && \
-    !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_KCAPI_ECC) && \
-    !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 #define TEST_ECC_SP_PUBKEY_RANGE
-static int ecc_check_raw(const char* curve, const char* x, const char* y)
+static int ecc_check_raw(int curveId, const char* x, const char* y)
 {
     ecc_key key;
     int ret;
 
-    XMEMSET(&key, 0, sizeof(key));
     ret = wc_ecc_init(&key);
-    if (ret == 0)
-        ret = wc_ecc_import_raw(&key, x, y, NULL, curve);
-    if (ret == 0)
-        ret = wc_ecc_check_key(&key);
-    wc_ecc_free(&key);
+    if (ret == 0) {
+        ret = wc_ecc_import_raw_ex(&key, x, y, NULL, curveId);
+        if (ret == 0)
+            ret = wc_ecc_check_key(&key);
+        wc_ecc_free(&key);
+    }
 
     return ret;
 }
 
+#if defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_INT_NEGATIVE)
+static int ecc_check_negative_point(const ecc_set_type* curve, int idx)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    int ret = wc_ecc_init(&key);
+
+    ExpectIntEQ(ret, 0);
+    if (ret == 0) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, NULL,
+            curve->id), 0);
+        ExpectIntEQ(wc_ecc_point_is_on_curve(&key.pubkey, idx), 0);
+        if (EXPECT_SUCCESS()) {
+            mp_setneg(key.pubkey.x);
+            ExpectIntEQ(wc_ecc_point_is_on_curve(&key.pubkey, idx),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+            ExpectIntEQ(wc_ecc_check_key(&key),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+            ExpectIntEQ(mp_read_radix(key.pubkey.x, curve->Gx, MP_RADIX_HEX),
+                MP_OKAY);
+        }
+        if (EXPECT_SUCCESS()) {
+            mp_setneg(key.pubkey.y);
+            ExpectIntEQ(wc_ecc_point_is_on_curve(&key.pubkey, idx),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+            ExpectIntEQ(wc_ecc_check_key(&key),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        }
+        wc_ecc_free(&key);
+    }
+    return EXPECT_RESULT();
+}
+#endif
 #endif
 
 int test_wc_ecc_sp_pubkey_range(void)
 {
     EXPECT_DECLS;
 #ifdef TEST_ECC_SP_PUBKEY_RANGE
-    /* P-256 field prime and generator. */
-    static const char* p256 =
-        "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF";
-    static const char* g256x =
-        "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
-    static const char* g256y =
-        "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
-    /* P-384 field prime and generator. */
-    static const char* p384 =
-        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE"
-        "FFFFFFFF0000000000000000FFFFFFFF";
-    static const char* g384x =
-        "AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A38"
-        "5502F25DBF55296C3A545E3872760AB7";
-    static const char* g384y =
-        "3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C0"
-        "0A60B1CE1D7E819D7A431D7C90EA0E5F";
-    /* P-521 generator (the 521-bit prime is left to the white-box). */
-    static const char* g521x =
-        "C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D"
-        "3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2"
-        "E5BD66";
-    static const char* g521y =
-        "11839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273"
-        "E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769"
-        "FD16650";
+    static const int curveIds[] = {
+    #ifndef WOLFSSL_SP_NO_256
+        ECC_SECP256R1,
+    #endif
+    #ifdef WOLFSSL_SP_384
+        ECC_SECP384R1,
+    #endif
+    #ifdef WOLFSSL_SP_521
+        ECC_SECP521R1,
+    #endif
+        ECC_CURVE_INVALID
+    };
+    int i;
 
-    /* A generator is in range. A coordinate equal to p passes the
-     * bit-length check but fails the field range check. */
-    if (wc_ecc_get_curve_idx(ECC_SECP256R1) >= 0) {
-        ExpectIntEQ(ecc_check_raw("SECP256R1", g256x, g256y), 0);
-        ExpectIntEQ(ecc_check_raw("SECP256R1", p256, g256y),
-            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
-        ExpectIntEQ(ecc_check_raw("SECP256R1", g256x, p256),
-            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    for (i = 0; EXPECT_SUCCESS() && curveIds[i] != ECC_CURVE_INVALID; i++) {
+        int curveId = curveIds[i];
+        int idx = wc_ecc_get_curve_idx(curveId);
+        const ecc_set_type* curve;
+
+        if (idx < 0)
+            continue;
+        curve = wc_ecc_get_curve_params(idx);
+        ExpectNotNull(curve);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(ecc_check_raw(curveId, curve->Gx, curve->Gy), 0);
+            ExpectIntEQ(ecc_check_raw(curveId, curve->prime, curve->Gy),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+            ExpectIntEQ(ecc_check_raw(curveId, curve->Gx, curve->prime),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        #if defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_INT_NEGATIVE)
+            ExpectIntEQ(ecc_check_negative_point(curve, idx), 0);
+        #endif
+        }
     }
-    if (wc_ecc_get_curve_idx(ECC_SECP384R1) >= 0) {
-        ExpectIntEQ(ecc_check_raw("SECP384R1", g384x, g384y), 0);
-        ExpectIntEQ(ecc_check_raw("SECP384R1", p384, g384y),
-            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
-        ExpectIntEQ(ecc_check_raw("SECP384R1", g384x, p384),
-            WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
-    }
-    /* The ARM white-box covers the P-521 out-of-range cases. */
-    if (wc_ecc_get_curve_idx(ECC_SECP521R1) >= 0)
-        ExpectIntEQ(ecc_check_raw("SECP521R1", g521x, g521y), 0);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_sp_pubkey_range */

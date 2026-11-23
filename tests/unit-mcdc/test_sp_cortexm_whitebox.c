@@ -319,17 +319,30 @@ static void sp_cortexm_whitebox_drive(void)
 #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     /* --- sp_ecc_is_point_256 range pre-checks: a 2048-bit ordinate trips
      * mp_count_bits(pX/pY) > 256; an ordinate equal to the field prime passes
-     * the bit-length guard and trips sp_256_cmp_8(pub->x/y, p256_mod) >= 0.
-     * (The mp_isneg operands are unreachable: the SP math back end has no
-     * negative support, so a negative mp_int cannot be constructed. */
+     * the bit-length guard and trips sp_256_cmp_8(pub->x/y, p256_mod) >= 0. */
     ret = sp_ecc_is_point_256(&wb2_mm2048, &wb_gy);
-    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
     ret = sp_ecc_is_point_256(&wb_gx, &wb2_mm2048);
-    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
     ret = sp_ecc_is_point_256(&wb2_p256_prime, &wb_gy);
-    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
     ret = sp_ecc_is_point_256(&wb_gx, &wb2_p256_prime);
-    wb_note((ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E)) ? 0 : -1, 0);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+
+    #ifdef WOLFSSL_SP_INT_NEGATIVE
+    (void)mp_set(&wb2_scr, 1);
+    mp_setneg(&wb2_scr);
+    ret = sp_ecc_is_point_256(&wb2_scr, &wb_gy);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ret = sp_ecc_is_point_256(&wb_gx, &wb2_scr);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        #if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+    ret = sp_ecc_check_key_256(&wb2_scr, &wb_gy, NULL, NULL);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ret = sp_ecc_check_key_256(&wb_gx, &wb2_scr, NULL, NULL);
+    wb_note(ret, WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        #endif
+    #endif
 #endif
 
     /* --- sp_RsaPublic_2048 guard: mp_count_bits(em)>32 || inLen>256 ||
