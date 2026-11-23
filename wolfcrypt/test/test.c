@@ -26587,6 +26587,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cts_test(void)
         if (ret != 0)
             return ret;
 
+        /* One-shot KAT. One full block is plain CBC, so the answer is C1,
+         * the first block of ct128_48. */
+        ret = aes_cts_kat(key128, sizeof(key128), iv, pt48,
+            WC_AES_BLOCK_SIZE, ct128_48, out, plain);
+        if (ret != 0)
+            return ret;
+
         /* Streaming KAT: 2 full blocks fed in two 16-byte chunks */
         ret = aes_cts_stream_kat(key128, sizeof(key128), iv, pt48, ct128_32,
             out, plain, (word32)sizeof(out), (word32)sizeof(plain));
