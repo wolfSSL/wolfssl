@@ -46,6 +46,7 @@ int test_wolfSSL_peer_cert_copy_oom(void);
 int test_wolfSSL_get_peer_certificate_ref(void);
 int test_wolfSSL_peer_cert_on_demand(void);
 int test_wolfSSL_peer_cert_kept_decode_err(void);
+int test_wolfSSL_CTX_set0_chain_bad_cert(void);
 int test_wolfSSL_CTX_set_client_cert_cb(void);
 int test_wolfSSL_CTX_set_cert_cb(void);
 int test_wolfSSL_cert_setup_cb_ret(void);
@@ -98,6 +99,7 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_peer_certificate_ref),    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_peer_cert_on_demand),         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_peer_cert_kept_decode_err),   \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set0_chain_bad_cert),     \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_client_cert_cb),      \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_cert_cb),             \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_setup_cb_ret),           \
