@@ -479,6 +479,16 @@ static void wb_guard_rows(void)
         WB_NOTE("sign_external baseline unexpected ret");
         wb_fail = 1;
     }
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    /* Public callers normalize an empty message before invoking this helper.
+     * Keep the private key unset so the empty-input case stops at that check. */
+    sigSz = sizeof(sig);
+    if (slhdsakey_sign_external(&key, NULL, 0, NULL, 0, sig, &sigSz, addRnd)
+            != WC_NO_ERR_TRACE(MISSING_KEY)) {
+        WB_NOTE("sign_external empty message did not reach key check");
+        wb_fail = 1;
+    }
+#endif
     sigSz = sizeof(sig);
     if (slhdsakey_sign_external(NULL, NULL, 0, m, 0, sig, &sigSz, addRnd)
             != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
@@ -798,6 +808,13 @@ static void wb_guard_rows(void)
             WB_NOTE("validate_prehash MD5 unexpected ret");
             wb_fail = 1;
         }
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        if (slhdsakey_validate_prehash(sizeof(h2) - 1, WC_HASH_TYPE_SHA256,
+                &oid, &oidLen) != WC_NO_ERR_TRACE(BAD_LENGTH_E)) {
+            WB_NOTE("validate_prehash accepted a short SHA-256 digest");
+            wb_fail = 1;
+        }
+#endif
     }
 
     wc_SlhDsaKey_Free(&key);

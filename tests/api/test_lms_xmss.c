@@ -418,6 +418,16 @@ static int test_lms_xmss_verify_cryptocb(int devIdArg, wc_CryptoInfo* info,
     if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
             (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY)) {
         test_lms_xmss_verify_calls++;
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        if (ctx != NULL) {
+            int result = *(const int*)ctx;
+            if (result < 0) {
+                return result;
+            }
+            *info->pk.pqc_stateful_sig_verify.res = result;
+            return 0;
+        }
+#endif
         *info->pk.pqc_stateful_sig_verify.res = 1;
         return 0;
     }
@@ -591,18 +601,26 @@ int test_wc_LmsKey_reload_devid_verify(void)
     byte    msg[] = "test message for LMS signing";
     byte*   sig = NULL;
     word32  sigSz = 0;
+    void*   reply = NULL;
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    int     verifyResult = 1;
+    reply = &verifyResult;
+#endif
 
     /* Zero so cleanup is safe if an early alloc failure skips init. */
     XMEMSET(&key, 0, sizeof(key));
     test_lms_xmss_verify_calls = 0;
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
-        test_lms_xmss_verify_cryptocb, NULL), 0);
+        test_lms_xmss_verify_cryptocb, reply), 0);
 
     /* No read callback, so the reload leaves the state with the device. */
     ExpectIntEQ(wc_LmsKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
     ExpectIntEQ(test_lms_set_params(&key), 0);
     ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    ExpectIntEQ(wc_LmsKey_Reload(&key), WC_NO_ERR_TRACE(BAD_STATE_E));
+#endif
     ExpectNull(key.priv_data);
 
     /* Only the signature length is checked before the device is asked, so the
@@ -614,6 +632,15 @@ int test_wc_LmsKey_reload_devid_verify(void)
         XMEMSET(sig, 0, sigSz);
         ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
         ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        verifyResult = 0;
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(SIG_VERIFY_E));
+        verifyResult = WC_NO_ERR_TRACE(WC_HW_E);
+        ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectIntEQ(test_lms_xmss_verify_calls, 3);
+#endif
     }
 
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -773,8 +800,22 @@ static int test_lms_xmss_keygen_cryptocb(int devIdArg, wc_CryptoInfo* info,
 
     if ((info != NULL) && (info->algo_type == WC_ALGO_TYPE_PK) &&
             (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN)) {
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        if (ctx != NULL) {
+            return ((const int*)ctx)[0];
+        }
+#endif
         return 0;
     }
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    if ((ctx != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_PK) &&
+            (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT)) {
+        *info->pk.pqc_stateful_sig_sigs_left.sigsLeft =
+            (word32)((const int*)ctx)[1];
+        return 0;
+    }
+#endif
     return CRYPTOCB_UNAVAILABLE;
 }
 #endif
@@ -809,6 +850,33 @@ int test_wc_LmsKey_keygen_no_sigsleft(void)
         WC_NO_ERR_TRACE(BAD_STATE_E));
 
     wc_LmsKey_Free(&key);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        static const struct {
+            int reply[2]; /* Keygen result and remaining signatures. */
+            int expected;
+        } cases[] = {
+            {{ 0, 1 }, 0},
+            {{ 0, 0 }, WC_NO_ERR_TRACE(BAD_STATE_E)},
+            {{ WC_NO_ERR_TRACE(WC_HW_E), 0 }, WC_NO_ERR_TRACE(WC_HW_E)}
+        };
+        unsigned int i;
+
+        wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+        for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+            int reply[2];
+            XMEMCPY(reply, cases[i].reply, sizeof(reply));
+            ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
+                test_lms_xmss_keygen_cryptocb, reply), 0);
+            ExpectIntEQ(wc_LmsKey_Init(&key, NULL,
+                TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+            ExpectIntEQ(test_lms_set_params(&key), 0);
+            ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), cases[i].expected);
+            wc_LmsKey_Free(&key);
+            wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+        }
+    }
+#endif
     wc_FreeRng(&rng);
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
 #endif
@@ -1178,18 +1246,26 @@ int test_wc_XmssKey_reload_devid_verify(void)
     byte    msg[] = "test message for XMSS signing";
     byte*   sig = NULL;
     word32  sigSz = 0;
+    void*   reply = NULL;
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    int     verifyResult = 1;
+    reply = &verifyResult;
+#endif
 
     /* Zero so cleanup is safe if an early alloc failure skips init. */
     XMEMSET(&key, 0, sizeof(key));
     test_lms_xmss_verify_calls = 0;
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID,
-        test_lms_xmss_verify_cryptocb, NULL), 0);
+        test_lms_xmss_verify_cryptocb, reply), 0);
 
     /* No read callback, so the reload leaves the state with the device. */
     ExpectIntEQ(wc_XmssKey_Init(&key, NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
     ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
     ExpectIntEQ(wc_XmssKey_Reload(&key), 0);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    ExpectIntEQ(wc_XmssKey_Reload(&key), WC_NO_ERR_TRACE(BAD_STATE_E));
+#endif
     ExpectNull(key.sk);
 
     /* Only the signature length is checked before the device is asked, so the
@@ -1201,6 +1277,15 @@ int test_wc_XmssKey_reload_devid_verify(void)
         XMEMSET(sig, 0, sigSz);
         ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
         ExpectIntEQ(test_lms_xmss_verify_calls, 1);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        verifyResult = 0;
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(SIG_VERIFY_E));
+        verifyResult = WC_NO_ERR_TRACE(WC_HW_E);
+        ExpectIntEQ(wc_XmssKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectIntEQ(test_lms_xmss_verify_calls, 3);
+#endif
     }
 
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2627,6 +2712,48 @@ int test_wc_LmsDecisionCoverage(void)
 
     ExpectIntEQ(wc_LmsKey_Init(&key, NULL, INVALID_DEVID), 0);
 
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+    {
+        static const byte id[] = {1};
+        char label[LMS_MAX_LABEL_LEN + 2];
+        LmsKey identified;
+
+        XMEMSET(&identified, 0, sizeof(identified));
+        ExpectIntEQ(wc_LmsKey_InitId(NULL, id, 1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_LmsKey_InitId(&identified, NULL, 1, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_LmsKey_InitId(&identified, id, -1, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_LmsKey_InitId(&identified, id, LMS_MAX_ID_LEN + 1,
+            NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_LmsKey_InitId(&identified, NULL, 0, NULL,
+            INVALID_DEVID), 0);
+        wc_LmsKey_Free(&identified);
+        ExpectIntEQ(wc_LmsKey_InitId(&identified, id, 0, NULL,
+            INVALID_DEVID), 0);
+        wc_LmsKey_Free(&identified);
+        ExpectIntEQ(wc_LmsKey_InitId(&identified, id, 1, NULL,
+            INVALID_DEVID), 0);
+        wc_LmsKey_Free(&identified);
+
+        XMEMSET(label, 'a', sizeof(label) - 1);
+        label[sizeof(label) - 1] = '\0';
+        ExpectIntEQ(wc_LmsKey_InitLabel(NULL, "key", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_LmsKey_InitLabel(&identified, NULL, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_LmsKey_InitLabel(&identified, "", NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_LmsKey_InitLabel(&identified, label, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_LmsKey_InitLabel(&identified, "key", NULL,
+            INVALID_DEVID), 0);
+        wc_LmsKey_Free(&identified);
+    }
+#endif
+
     /* wc_LmsKey_SetParameters: unknown (levels,height,winternitz) triple ->
      * table search exhausts and returns BAD_FUNC_ARG. Independence: vary one
      * coordinate at a time away from the known-good L1/H5/W8 set (the others
@@ -2954,6 +3081,48 @@ int test_wc_XmssDecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_XmssKey_Init(&key, NULL, INVALID_DEVID), 0);
 
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+    {
+        static const byte id[] = {1};
+        char label[XMSS_MAX_LABEL_LEN + 2];
+        XmssKey identified;
+
+        XMEMSET(&identified, 0, sizeof(identified));
+        ExpectIntEQ(wc_XmssKey_InitId(NULL, id, 1, NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_XmssKey_InitId(&identified, NULL, 1, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_XmssKey_InitId(&identified, id, -1, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_XmssKey_InitId(&identified, id, XMSS_MAX_ID_LEN + 1,
+            NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_XmssKey_InitId(&identified, NULL, 0, NULL,
+            INVALID_DEVID), 0);
+        wc_XmssKey_Free(&identified);
+        ExpectIntEQ(wc_XmssKey_InitId(&identified, id, 0, NULL,
+            INVALID_DEVID), 0);
+        wc_XmssKey_Free(&identified);
+        ExpectIntEQ(wc_XmssKey_InitId(&identified, id, 1, NULL,
+            INVALID_DEVID), 0);
+        wc_XmssKey_Free(&identified);
+
+        XMEMSET(label, 'a', sizeof(label) - 1);
+        label[sizeof(label) - 1] = '\0';
+        ExpectIntEQ(wc_XmssKey_InitLabel(NULL, "key", NULL, INVALID_DEVID),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_XmssKey_InitLabel(&identified, NULL, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_XmssKey_InitLabel(&identified, "", NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_XmssKey_InitLabel(&identified, label, NULL,
+            INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntEQ(wc_XmssKey_InitLabel(&identified, "key", NULL,
+            INVALID_DEVID), 0);
+        wc_XmssKey_Free(&identified);
+    }
+#endif
+
     /* wc_XmssKey_SetParamStr: NULL key vs NULL str (independence pair), then
      * an unknown parameter string -> BAD_FUNC_ARG from the lookup. */
     ExpectIntEQ(wc_XmssKey_SetParamStr(NULL, "XMSS-SHA2_10_256"),
@@ -3139,6 +3308,16 @@ int test_wc_LmsKey_make_key_id_dev(void)
     wc_LmsKey_Free(&key);
 
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#if !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_LMS) && \
+    !defined(WOLF_CRYPTO_CB_FIND)
+    /* Without the registered device, key generation checks the software
+     * key's storage callbacks. The fresh key has no write callback. */
+    ExpectIntEQ(wc_LmsKey_InitId(&key, id, (int)sizeof(id), NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&key), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_LmsKey_Free(&key);
+#endif
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
@@ -3180,6 +3359,16 @@ int test_wc_XmssKey_make_key_id_dev(void)
     wc_XmssKey_Free(&key);
 
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+#if !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_XMSS) && \
+    !defined(WOLF_CRYPTO_CB_FIND)
+    /* Without the registered device, key generation checks the software
+     * key's storage callbacks. The fresh key has no write callback. */
+    ExpectIntEQ(wc_XmssKey_InitId(&key, id, (int)sizeof(id), NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&key, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    wc_XmssKey_Free(&key);
+#endif
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();

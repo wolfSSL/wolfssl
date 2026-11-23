@@ -481,6 +481,65 @@ static void wb_gen_matrix_i_continuation(void)
 
 #endif
 
+#if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+static int wb_encapsulate_compare(void)
+{
+    MLKEM_PRF_T prf;
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE] = {0};
+    byte block[MLKEM_POLY_COMPRESSED_SZ(11)];
+    byte seed[WC_ML_KEM_SYM_SZ] = {0};
+    byte msg[WC_ML_KEM_SYM_SZ] = {0};
+    byte coins[WC_ML_KEM_SYM_SZ + 1] = {0};
+    sword16 pub[WC_ML_KEM_1024_K * MLKEM_N] = {0};
+    sword16 y[WC_ML_KEM_1024_K * MLKEM_N] = {0};
+    sword16 u[MLKEM_N];
+    sword16 tmp[MLKEM_N];
+#if defined(WOLFSSL_WC_ML_KEM_512) || defined(WOLFSSL_KYBER512)
+    const int k = WC_ML_KEM_512_K;
+#elif defined(WOLFSSL_WC_ML_KEM_768) || defined(WOLFSSL_KYBER768)
+    const int k = WC_ML_KEM_768_K;
+#else
+    const int k = WC_ML_KEM_1024_K;
+#endif
+    const int argErr = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int cmpFail = 0;
+    int fail = 0;
+    int ok;
+
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        return 0;
+    }
+    ok = mlkem_encapsulate_seeds_row(&prf, ct, NULL, NULL, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == 0;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, ct, NULL, NULL, 0, u,
+        tmp, y, k, msg, coins) == 0;
+
+    /* Re-encode a row and the tail into single-block scratch for compare. */
+    XMEMSET(y, 0, sizeof(y));
+    ok &= mlkem_encapsulate_seeds_row(&prf, block, ct, &cmpFail, u, tmp, y,
+        k, seed, coins, NULL, NULL, 0) == 0;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, block, ct, &fail, cmpFail,
+        u, tmp, y, k, msg, coins) == 0;
+    ok &= (cmpFail == 0 && fail == 0);
+
+    ok &= mlkem_encapsulate_seeds_row(&prf, NULL, NULL, NULL, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == argErr;
+    ok &= mlkem_encapsulate_seeds_row(&prf, NULL, ct, &cmpFail, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == argErr;
+    ok &= mlkem_encapsulate_seeds_row(&prf, block, ct, NULL, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == argErr;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, NULL, ct, &fail, 0, u,
+        tmp, y, k, msg, coins) == argErr;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, block, ct, NULL, 0, u,
+        tmp, y, k, msg, coins) == argErr;
+    mlkem_prf_free(&prf);
+    return ok;
+}
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -494,6 +553,39 @@ int main(void)
     wb_gen_matrix_i_continuation();
     wb_get_noise_rows();
     mcdc_fh_disarm();
+
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        byte z[WC_ML_KEM_SYM_SZ] = {0};
+        byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE] = {0};
+        byte secret[WC_ML_KEM_SS_SZ];
+        wc_Shake prf;
+        int ret;
+
+        if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+            return 1;
+        }
+        ret = mlkem_derive_secret(&prf, z, ct, sizeof(ct), secret);
+        mlkem_prf_free(&prf);
+        if (ret != 0 || mlkem_derive_secret(NULL, z, ct, sizeof(ct), secret) !=
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            WB_NOTE("FAIL: rejection secret derivation must propagate reset errors");
+            return 1;
+        }
+    }
+#endif
+
+#if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    if (!wb_encapsulate_compare()) {
+        WB_NOTE("FAIL: small-memory encapsulation comparison");
+        return 1;
+    }
+#endif
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* A non-zero exit makes the harness discard this binary's coverage. */

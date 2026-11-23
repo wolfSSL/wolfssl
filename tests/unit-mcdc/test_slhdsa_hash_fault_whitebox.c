@@ -689,6 +689,30 @@ static void wb_run_param(int param)
         return;
     }
 
+#if defined(WOLFSSL_SLHDSA_SHA2) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    if (SLHDSA_IS_SHA2(wb_key.params->param) &&
+            wb_key.hash.sha2.sha256_mid_inited) {
+        byte addr[SLHDSA_HAC_SZ] = {0};
+        byte data = 0xA5;
+        byte digest[16];
+        int ret;
+
+        ret = slhdsakey_sha2_api_hash(&wb_key, 0, addr, &data, 1, &data,
+            1, digest, sizeof(digest));
+        if (ret == 0) {
+            /* Fail the first SHA-256 update after the midstate copy. */
+            mcdc_fh_arm(1);
+            ret = slhdsakey_sha2_api_hash(&wb_key, 0, addr, &data, 1, &data,
+                1, digest, sizeof(digest));
+            mcdc_fh_disarm();
+        }
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            WB_NOTE("SHA-256 API hash did not propagate the update failure");
+            wb_fail = 1;
+        }
+    }
+#endif
+
     wb_sweep_sign(param);
     if (!wb_expired())
         wb_sweep_verify(param);
