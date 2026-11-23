@@ -1823,14 +1823,14 @@ int test_x509_REQ_setters_reencode(void)
     XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
     der = NULL;
 
-    /* Another version and key are encoded */
+    /* Another key is encoded. A CSR is always version 0 (RFC 2986). */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
         WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(newPub = wolfSSL_X509_get_pubkey(x509));
     ExpectIntEQ(wolfSSL_X509_REQ_set_version(req, 1), WOLFSSL_SUCCESS);
     ExpectIntGT(derSz = wolfSSL_i2d_X509_REQ(req, &der), 0);
     ExpectNotNull(parsed = wolfSSL_X509_REQ_d2i(NULL, der, derSz));
-    ExpectIntEQ(wolfSSL_X509_REQ_get_version(parsed), 1);
+    ExpectIntEQ(wolfSSL_X509_REQ_get_version(parsed), 0);
     XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
     der = NULL;
     wolfSSL_X509_free(parsed);
