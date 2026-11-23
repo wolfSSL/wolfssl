@@ -1352,7 +1352,6 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
 
             error = wolfSSL_DupSession(extSess, output, 0);
 #ifdef HAVE_EX_DATA
-            extSess->ownExData = 1;
             output->ownExData = 0;
 #endif
             /* We want to restore the bogus ID for TLS compatibility */
@@ -2848,15 +2847,38 @@ static int SessionExDataCopyFromCache(const WOLFSSL_CRYPTO_EX_DATA* in,
 #if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
 #if defined(HAVE_EX_DATA) && !defined(NO_SESSION_CACHE)
-/* Move ex_data ownership from the cache entry of ssl->session to the
- * session. When no cache entry owns it any more, another owner holds the
- * ex_data, so the session starts with an empty one. */
+/* Does freeing a session's ex_data call anything? Only then can two cache
+ * entries holding the same ex_data free it twice. */
+static int SessionExDataHasFree(void)
+{
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    return 1;
+#elif defined(HAVE_EX_DATA_CRYPTO)
+    const CRYPTO_EX_cb_ctx* cb;
+
+    for (cb = crypto_ex_cb_ctx_session; cb != NULL; cb = cb->next) {
+        if (cb->free_func != NULL)
+            return 1;
+    }
+    return 0;
+#else
+    return 0;
+#endif
+}
+
+/* Give ssl->session its own ex_data from the cache entry of ssl->session.
+ * When freeing can call something, move ownership so only one entry frees
+ * it. When nothing frees it, share the pointers instead: both entries can hold
+ * them safely, and the entry under the old ID keeps its ex_data for other
+ * sessions resuming from it. When no cache entry owns it any more, another
+ * owner holds the ex_data, so the session starts with an empty one. */
 static void SessionTakeExData(WOLFSSL* ssl)
 {
     WOLFSSL_SESSION* session = ssl->session;
     WOLFSSL_SESSION* sess = NULL;
     SessionRow* sessRow = NULL;
     int taken = 0;
+    int move;
 
     if (session->ownExData || SslSessionCacheOff(ssl, session)) {
         return;
@@ -2866,13 +2888,16 @@ static void SessionTakeExData(WOLFSSL* ssl)
         return;
 #endif
 
+    move = SessionExDataHasFree();
     /* On success (1) the row lock is held, so it is safe to work with the
-     * cache entry. */
-    if (SessionExDataCacheFind(session, 1, &sess, &sessRow) == 1) {
+     * cache entry. Moving changes the entry, sharing only reads it. */
+    if (SessionExDataCacheFind(session, (byte)move, &sess, &sessRow) == 1) {
         XMEMCPY(&session->ex_data, &sess->ex_data,
                 sizeof(WOLFSSL_CRYPTO_EX_DATA));
-        XMEMSET(&sess->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
-        sess->ownExData = 0;
+        if (move) {
+            XMEMSET(&sess->ex_data, 0, sizeof(WOLFSSL_CRYPTO_EX_DATA));
+            sess->ownExData = 0;
+        }
         taken = 1;
         SESSION_ROW_UNLOCK(sessRow);
     }
@@ -2883,8 +2908,9 @@ static void SessionTakeExData(WOLFSSL* ssl)
 #endif /* HAVE_EX_DATA && !NO_SESSION_CACHE */
 
 /* Give ssl->session a new random ID to cache it under. The entry for the old
- * ID may own the session's ex_data. Move it to the session first so the entry
- * added for the new ID is the only owner. */
+ * ID may own the session's ex_data. Give it to the session first (moved when
+ * freeing can call something, shared otherwise) so the entry added for the new
+ * ID does not start empty and nothing is freed twice. */
 int SessionNewAltId(WOLFSSL* ssl)
 {
     byte id[ID_LEN];
