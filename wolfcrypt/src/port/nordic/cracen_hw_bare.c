@@ -161,28 +161,28 @@ static void cm_softreset(void)
     CM_WR(WC_CM_INTSTATCLR, 0xFFFFFFFFUL);
 }
 
-/* Link the chains, start both DMAs and wait. in/out are arrays of nIn/nOut
+/* Link the chains, start both DMAs and wait. in/out are arrays of inCnt/outCnt
  * descriptors in RAM; they are modified in place. */
-static int cm_run(wc_CracenDesc* in, int nIn, wc_CracenDesc* out, int nOut)
+static int cm_run(wc_CracenDesc* in, int inCnt, wc_CracenDesc* out, int outCnt)
 {
     int i;
     word32 status;
     word32 timeout = WOLFSSL_CRACEN_TIMEOUT;
 
-    if (nIn < 1 || nOut < 1)
+    if (inCnt < 1 || outCnt < 1)
         return BAD_FUNC_ARG;
 
-    for (i = 0; i < nIn - 1; i++)
+    for (i = 0; i < inCnt - 1; i++)
         in[i].next = (word32)(wc_ptr_t)&in[i + 1];
-    in[nIn - 1].next = WC_CM_DESC_STOP;
-    in[nIn - 1].tag |= WC_CM_TAG_LAST;
-    in[nIn - 1].len |= WC_CM_LEN_REALIGN;
+    in[inCnt - 1].next = WC_CM_DESC_STOP;
+    in[inCnt - 1].tag |= WC_CM_TAG_LAST;
+    in[inCnt - 1].len |= WC_CM_LEN_REALIGN;
 
-    for (i = 0; i < nOut - 1; i++)
+    for (i = 0; i < outCnt - 1; i++)
         out[i].next = (word32)(wc_ptr_t)&out[i + 1];
-    out[nOut - 1].next = WC_CM_DESC_STOP;
-    out[nOut - 1].tag |= WC_CM_TAG_LAST;
-    out[nOut - 1].len |= WC_CM_LEN_REALIGN;
+    out[outCnt - 1].next = WC_CM_DESC_STOP;
+    out[outCnt - 1].tag |= WC_CM_TAG_LAST;
+    out[outCnt - 1].len |= WC_CM_LEN_REALIGN;
 
     if ((CM_RD(WC_CM_STATUS) & WC_CM_STATUS_BUSY_MASK) != 0)
         cm_softreset();

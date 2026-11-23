@@ -1056,7 +1056,7 @@ static void test_dh(void)
     word32   privBSz = sizeof(privB), pubBSz = sizeof(pubB);
     word32   agHwSz, agSwSz, idx;
     int      fails = gFails, ret;
-    uint32_t t0, t1, tHw, tSw;
+    uint32_t t0, t1, hwCycles, swCycles;
 
     ret = wc_InitRng(&rng);
     CHECK(ret == 0, "DH wc_InitRng %d", ret);
@@ -1082,13 +1082,13 @@ static void test_dh(void)
     t0 = board_cycles();
     ret = wc_DhAgree(&hw, agHw, &agHwSz, privA, privASz, pubB, pubBSz);
     t1 = board_cycles();
-    tHw = t1 - t0;
+    hwCycles = t1 - t0;
     CHECK(ret == 0, "DH hw agree %d", ret);
     agSwSz = sizeof(agSw);
     t0 = board_cycles();
     ret = wc_DhAgree(&sw, agSw, &agSwSz, privB, privBSz, pubA, pubASz);
     t1 = board_cycles();
-    tSw = t1 - t0;
+    swCycles = t1 - t0;
     CHECK(ret == 0, "DH sw agree %d", ret);
     CHECK(agHwSz == agSwSz && XMEMCMP(agHw, agSw, agHwSz) == 0,
         "DH shared secrets differ (%u, %u)", (unsigned)agHwSz,
@@ -1107,8 +1107,8 @@ static void test_dh(void)
     ret = wc_DhAgree(&hw, agHw, &agHwSz, privA, privASz, bad, sizeof(bad));
     CHECK(ret != 0, "DH hw accepted public value 1");
 
-    printf("  DH-2048 agree hw/sw %lu/%lu cycles\n", (unsigned long)tHw,
-        (unsigned long)tSw);
+    printf("  DH-2048 agree hw/sw %lu/%lu cycles\n", (unsigned long)hwCycles,
+        (unsigned long)swCycles);
 
     wc_FreeDhKey(&sw);
     wc_FreeDhKey(&hw);
@@ -1127,7 +1127,7 @@ static void test_x25519(void)
     byte     s1[CURVE25519_KEYSIZE], s2[CURVE25519_KEYSIZE];
     word32   sz, s1Sz, s2Sz;
     int      fails = gFails, ret;
-    uint32_t t0, t1, tKgHw, tKgSw, tHw, tSw;
+    uint32_t t0, t1, tKgHw, tKgSw, hwCycles, swCycles;
 
     ret = wc_InitRng(&rng);
     CHECK(ret == 0, "X25519 wc_InitRng %d", ret);
@@ -1163,13 +1163,13 @@ static void test_x25519(void)
     t0 = board_cycles();
     ret = wc_curve25519_shared_secret(&hwA, &hwPubB, s1, &s1Sz);
     t1 = board_cycles();
-    tHw = t1 - t0;
+    hwCycles = t1 - t0;
     CHECK(ret == 0, "X25519 hw shared_secret %d", ret);
     s2Sz = sizeof(s2);
     t0 = board_cycles();
     ret = wc_curve25519_shared_secret(&swB, &swPubA, s2, &s2Sz);
     t1 = board_cycles();
-    tSw = t1 - t0;
+    swCycles = t1 - t0;
     CHECK(ret == 0, "X25519 sw shared_secret %d", ret);
     CHECK(s1Sz == s2Sz && XMEMCMP(s1, s2, s1Sz) == 0,
         "X25519 shared secrets differ");
@@ -1184,8 +1184,8 @@ static void test_x25519(void)
     CHECK(ret != 0, "X25519 hw accepted the zero point");
 
     printf("  X25519 keygen hw/sw %lu/%lu, shared hw/sw %lu/%lu cycles\n",
-        (unsigned long)tKgHw, (unsigned long)tKgSw, (unsigned long)tHw,
-        (unsigned long)tSw);
+        (unsigned long)tKgHw, (unsigned long)tKgSw, (unsigned long)hwCycles,
+        (unsigned long)swCycles);
 
     wc_curve25519_free(&zero);
     wc_curve25519_free(&swPubA);
