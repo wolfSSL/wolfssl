@@ -6494,6 +6494,42 @@ int test_wc_PKCS7_EncodeEncryptedData(void)
             (word32)encryptedSz, decoded, sizeof(decoded)), 0);
 
         ExpectIntEQ(XMEMCMP(decoded, data, decodedSz), 0);
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        if (EXPECT_SUCCESS() && testVectors[i].encryptOID == AES128CBCb) {
+            static const byte oid[] = {
+                ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                0x01, 0x09, 0x07
+            };
+            static const byte value[] = { 0x0c, 0x03, 'c', 'm', 's' };
+            PKCS7Attrib attrib = { oid, sizeof(oid), value, sizeof(value) };
+            byte recovered[sizeof(value)];
+            word32 recoveredSz = sizeof(recovered);
+
+            /* Keep the algorithm and key bytes, but supply a shorter key. */
+            pkcs7->encryptionKeySz = (word32)sizeof(aes128Key) - 1;
+            ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted,
+                (word32)encryptedSz, decoded, sizeof(decoded)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
+                sizeof(encrypted)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            pkcs7->encryptionKeySz = (word32)sizeof(aes128Key);
+
+            /* Unprotected attributes select EncryptedData version 2. */
+            pkcs7->unprotectedAttribs = &attrib;
+            pkcs7->unprotectedAttribsSz = 1;
+            ExpectIntGT(encryptedSz = wc_PKCS7_EncodeEncryptedData(pkcs7,
+                encrypted, sizeof(encrypted)), 0);
+            pkcs7->unprotectedAttribs = NULL;
+            pkcs7->unprotectedAttribsSz = 0;
+            ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted,
+                (word32)encryptedSz, decoded, sizeof(decoded)), sizeof(data));
+            ExpectBufEQ(decoded, data, sizeof(data));
+            ExpectIntEQ(wc_PKCS7_GetAttributeValue(pkcs7, oid + 2,
+                sizeof(oid) - 2, recovered, &recoveredSz), sizeof(value));
+            ExpectBufEQ(recovered, value, sizeof(value));
+        }
+#endif
         /* Keep values for last itr. */
         if (i < testSz - 1) {
             wc_PKCS7_Free(pkcs7);
@@ -9595,6 +9631,37 @@ int test_wc_PKCS7_VerifySignedData_ReuseCertsOnly(void)
         ExpectNull(pkcs7->content);
         ExpectIntEQ(pkcs7->contentSz, 0);
     }
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (EXPECT_SUCCESS()) {
+        byte different[sizeof(data)];
+
+        /* Reverify after the decoder has retained its own content. */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), 0);
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+        ExpectBufEQ(pkcs7->content, data, sizeof(data));
+
+        /* A caller can also supply its own copy of the embedded content. */
+        pkcs7->content = data;
+        pkcs7->contentSz = sizeof(data);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), 0);
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+        ExpectBufEQ(pkcs7->content, data, sizeof(data));
+
+        XMEMCPY(different, data, sizeof(different));
+        different[0] ^= 1;
+        pkcs7->content = different;
+        pkcs7->contentSz = sizeof(different);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+        pkcs7->content = NULL;
+        pkcs7->contentSz = 0;
+    }
+#endif
     wc_PKCS7_Free(pkcs7);
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
