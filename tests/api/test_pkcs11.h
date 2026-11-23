@@ -27,6 +27,7 @@
 int test_wc_Pkcs11_EcdsaSigDecode(void);
 int test_wc_Pkcs11_ValueRead(void);
 int test_wc_Pkcs11_AesCtrStream(void);
+int test_wc_Pkcs11_Lms(void);
 
 #if defined(HAVE_PKCS11) && defined(HAVE_ECC) && !defined(NO_PKCS11_ECC) && \
     defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG) && \
@@ -58,14 +59,16 @@ int test_wc_Pkcs11_KeyGenSessionClosed(void);
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeNoObject),                 \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed),          \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_ValueRead),                    \
-    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_AesCtrStream)
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_AesCtrStream),                 \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_Lms)
 
 #else
 
 #define TEST_PKCS11_DECLS                                                   \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
     TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_ValueRead),                    \
-    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_AesCtrStream)
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_AesCtrStream),                 \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_Lms)
 
 #endif
 

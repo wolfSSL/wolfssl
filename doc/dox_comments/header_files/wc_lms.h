@@ -363,9 +363,12 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
     the private key bytes; the parameter set is metadata the
     application owns).
 
-    With WOLF_CRYPTO_CB, a key on a devId with no read callback is
-    taken to be device-backed and Reload is a no-op. With a read
-    callback the software reload runs as usual.
+    With WOLF_CRYPTO_CB, a key on a devId is taken to be device-backed
+    and Reload is a no-op when it has no read callback or has a device
+    context. A key with an id or label is a no-op too, always with
+    WOLF_CRYPTO_CB_ONLY_LMS, and otherwise when a device is registered for
+    its devId and WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is not defined.
+    Otherwise the software reload runs as usual.
 
     WOLF_CRYPTO_CB_ONLY_LMS removes the software reload, so the read
     callback is never called and only the device-backed no-op

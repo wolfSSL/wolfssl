@@ -91,6 +91,7 @@ extern "C" {
 #define CKK_SHA384_HMAC                       0x0000002cUL
 #define CKK_SHA512_HMAC                       0x0000002dUL
 #define CKK_SHA224_HMAC                       0x0000002eUL
+#define CKK_HSS                               0x00000046UL
 #define CKK_ML_KEM                            0x00000049UL
 #define CKK_ML_DSA                            0x0000004aUL
 
@@ -143,6 +144,13 @@ extern "C" {
 #define CKA_HW_FEATURE_TYPE                   0x00000300UL
 #define CKA_RESET_ON_INIT                     0x00000301UL
 #define CKA_HAS_RESET                         0x00000302UL
+#define CKA_HSS_LEVELS                        0x00000617UL
+#define CKA_HSS_LMS_TYPE                      0x00000618UL
+#define CKA_HSS_LMOTS_TYPE                    0x00000619UL
+#define CKA_HSS_LMS_TYPES                     0x0000061AUL
+#define CKA_HSS_LMOTS_TYPES                   0x0000061BUL
+#define CKA_KEYS_REMAINING                    0x0000061CUL
+#define CKA_HSS_KEYS_REMAINING                CKA_KEYS_REMAINING
 #define CKA_PARAMETER_SET                     0x0000061DUL
 #define CKA_ENCAPSULATE                       0x00000633UL
 #define CKA_DECAPSULATE                       0x00000634UL
@@ -184,6 +192,8 @@ extern "C" {
 #define CKM_ML_DSA_KEY_PAIR_GEN               0x0000001CUL
 #define CKM_ML_DSA                            0x0000001DUL
 #define CKM_HASH_ML_DSA                       0x0000001FUL
+#define CKM_HSS_KEY_PAIR_GEN                  0x00004032UL
+#define CKM_HSS                               0x00004033UL
 
 /* full data RSA PK callbacks */
 #define CKM_SHA1_RSA_PKCS_PSS                 0x0000000EUL
@@ -202,8 +212,11 @@ extern "C" {
 #define CKR_OK                                0x00000000UL
 #define CKR_MECHANISM_INVALID                 0x00000070UL
 #define CKR_SIGNATURE_INVALID                 0x000000C0UL
+#define CKR_SIGNATURE_LEN_RANGE               0x000000C1UL
 #define CKR_USER_ALREADY_LOGGED_IN            0x00000100UL
+#define CKR_BUFFER_TOO_SMALL                  0x00000150UL
 #define CKR_CRYPTOKI_ALREADY_INITIALIZED      0x00000191UL
+#define CKR_KEY_EXHAUSTED                     0x00000203UL
 
 #define CKD_NULL                              0x00000001UL
 #define CKZ_DATA_SPECIFIED                    0x00000001UL
@@ -444,6 +457,10 @@ typedef CK_ULONG CK_ML_KEM_PARAMETER_SET_TYPE;
 #define CKP_ML_KEM_512         0x00000001UL
 #define CKP_ML_KEM_768         0x00000002UL
 #define CKP_ML_KEM_1024        0x00000003UL
+
+/* RFC 8554 typecodes for CKA_HSS_LMS_TYPE and CKA_HSS_LMOTS_TYPE */
+typedef CK_ULONG CK_LMS_TYPE;
+typedef CK_ULONG CK_LMOTS_TYPE;
 
 
 /* Function list types. */

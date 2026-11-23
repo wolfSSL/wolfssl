@@ -67,6 +67,16 @@
     #define LMS_KEY_ON_DEVICE(key) 0
 #endif
 
+/* MakeKey makes a named key in software when its devId has no device. */
+#if defined(WOLF_CRYPTO_CB_ONLY_LMS)
+    #define LMS_STATE_ON_DEVICE(key) LMS_KEY_ON_DEVICE(key)
+#elif defined(WC_CRYPTOCB_KEYGEN_ID_CHECK)
+    #define LMS_STATE_ON_DEVICE(key) (((key)->devCtx != NULL) || \
+        (WC_CRYPTOCB_HAS_ID(key) && wc_CryptoCb_HasPkDevice((key)->devId)))
+#else
+    #define LMS_STATE_ON_DEVICE(key) ((key)->devCtx != NULL)
+#endif
+
 
 /* Calculate u. Appendix B. Works for w of 1, 2, 4, or 8.
  *
@@ -1370,16 +1380,13 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
  * Use this if you wish to resume signing with an existing key.
  * Call this function after initializing and setting parameters.
  *
- * Write/read callbacks, and context data, must be set prior.
+ * A software reload needs the write/read callbacks and context set.
  * Key must have parameters set.
- *
- * With a crypto callback device, the read callback and not the devId decides
- * whether the software reload runs. See wc_LmsKey_Reload below.
- * WOLF_CRYPTO_CB_ONLY_LMS removes the software reload, so the read callback
- * is never called.
- *
- * Neither arm populates key->pub, so the reloaded key can sign but cannot
- * export a public key or verify.
+ * With a devId, a key with no read callback or with a device context stays on
+ * the device. So does a named key under WOLF_CRYPTO_CB_ONLY_LMS, or one whose
+ * devId has a registered device when WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is not
+ * defined.
+ * The reloaded key has no public key to verify with.
  *
  * @param [in, out] key  LMS key.
  *
@@ -1404,12 +1411,10 @@ int wc_LmsKey_Reload(LmsKey* key)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    /* State for HSM-backed keys lives in the device; no software reload.
-     * A devId alone does not mean the device owns the key, as it may be set
-     * only to route other algorithms to an accelerator. A read callback says
-     * the caller holds the state, so only skip the reload without one. */
+    /* A devId may only route other algorithms to an accelerator, so with a
+     * read callback only a key the device holds skips the reload. */
     if ((ret == 0) && (key->devId != INVALID_DEVID) &&
-            (key->read_private_key == NULL)) {
+            ((key->read_private_key == NULL) || LMS_STATE_ON_DEVICE(key))) {
         WOLFSSL_MSG("wc_LmsKey_Reload is a no-op for HSM-backed keys");
         key->state = WC_LMS_STATE_OK;
         return 0;

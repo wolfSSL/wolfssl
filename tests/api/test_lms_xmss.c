@@ -428,7 +428,8 @@ static int test_lms_xmss_verify_cryptocb(int devIdArg, wc_CryptoInfo* info,
 /*
  * Test reloading an LMS key on a devId that keeps its state in software, the
  * case of a devId set only to route other algorithms to an accelerator. The
- * second half covers the device-backed arm, where no read callback is set.
+ * second half covers the device-backed arm, where no read callback is set,
+ * and a named key with its device registered and unregistered.
  *
  * Without the fix: Reload does no work, priv_data is left NULL and the
  *                  following sign dereferences it.
@@ -500,6 +501,39 @@ int test_wc_LmsKey_reload_devid(void)
     ExpectNull(hsmKey.priv_data);
     ExpectIntEQ(wc_LmsKey_GetKid(&hsmKey, &kid, &kidSz),
         WC_NO_ERR_TRACE(BAD_STATE_E));
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* A named key with a read callback stays on the device under the keygen id
+     * check, and otherwise reloads from the read callback and signs. */
+    wc_LmsKey_Free(&hsmKey);
+    XMEMSET(&hsmKey, 0, sizeof(hsmKey));
+    ExpectIntEQ(wc_LmsKey_InitId(&hsmKey, (const unsigned char*)"lms", 3, NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&hsmKey), 0);
+    ExpectIntEQ(wc_LmsKey_SetWriteCb(&hsmKey, test_lms_write_key), 0);
+    ExpectIntEQ(wc_LmsKey_SetReadCb(&hsmKey, test_lms_read_key), 0);
+    ExpectIntEQ(wc_LmsKey_SetContext(&hsmKey, (void*)LMS_TEST_PRIV_KEY_FILE),
+        0);
+    ExpectIntEQ(wc_LmsKey_Reload(&hsmKey), 0);
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    ExpectNull(hsmKey.priv_data);
+    /* With no device registered for its devId it reloads in software. */
+    wc_LmsKey_Free(&hsmKey);
+    XMEMSET(&hsmKey, 0, sizeof(hsmKey));
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+    ExpectIntEQ(wc_LmsKey_InitId(&hsmKey, (const unsigned char*)"lms", 3, NULL,
+        TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(test_lms_set_params(&hsmKey), 0);
+    ExpectIntEQ(wc_LmsKey_SetWriteCb(&hsmKey, test_lms_write_key), 0);
+    ExpectIntEQ(wc_LmsKey_SetReadCb(&hsmKey, test_lms_read_key), 0);
+    ExpectIntEQ(wc_LmsKey_SetContext(&hsmKey, (void*)LMS_TEST_PRIV_KEY_FILE),
+        0);
+    ExpectIntEQ(wc_LmsKey_Reload(&hsmKey), 0);
+#endif
+    ExpectNotNull(hsmKey.priv_data);
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_LmsKey_Sign(&hsmKey, sig, &sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&vkey, sig, sigSz, msg, sizeof(msg)), 0);
+#endif
 
     wc_LmsKey_Free(&hsmKey);
     wc_LmsKey_Free(&vkey);
@@ -1099,6 +1133,39 @@ int test_wc_XmssKey_reload_devid(void)
     ExpectIntEQ(wc_XmssKey_SetParamStr(&hsmKey, "XMSS-SHA2_10_256"), 0);
     ExpectIntEQ(wc_XmssKey_Reload(&hsmKey), 0);
     ExpectNull(hsmKey.sk);
+#ifdef WOLF_PRIVATE_KEY_ID
+    /* A named key with a read callback stays on the device under the keygen id
+     * check, and otherwise reloads from the read callback and signs. */
+    wc_XmssKey_Free(&hsmKey);
+    XMEMSET(&hsmKey, 0, sizeof(hsmKey));
+    ExpectIntEQ(wc_XmssKey_InitId(&hsmKey, (const unsigned char*)"xmss", 4,
+        NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&hsmKey, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_SetWriteCb(&hsmKey, xmss_devid_write_key), 0);
+    ExpectIntEQ(wc_XmssKey_SetReadCb(&hsmKey, xmss_devid_read_key), 0);
+    ExpectIntEQ(wc_XmssKey_SetContext(&hsmKey,
+        (void*)XMSS_DEVID_TEST_PRIV_KEY_FILE), 0);
+    ExpectIntEQ(wc_XmssKey_Reload(&hsmKey), 0);
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    ExpectNull(hsmKey.sk);
+    /* With no device registered for its devId it reloads in software. */
+    wc_XmssKey_Free(&hsmKey);
+    XMEMSET(&hsmKey, 0, sizeof(hsmKey));
+    wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
+    ExpectIntEQ(wc_XmssKey_InitId(&hsmKey, (const unsigned char*)"xmss", 4,
+        NULL, TEST_LMS_XMSS_CRYPTOCB_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&hsmKey, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_SetWriteCb(&hsmKey, xmss_devid_write_key), 0);
+    ExpectIntEQ(wc_XmssKey_SetReadCb(&hsmKey, xmss_devid_read_key), 0);
+    ExpectIntEQ(wc_XmssKey_SetContext(&hsmKey,
+        (void*)XMSS_DEVID_TEST_PRIV_KEY_FILE), 0);
+    ExpectIntEQ(wc_XmssKey_Reload(&hsmKey), 0);
+#endif
+    ExpectNotNull(hsmKey.sk);
+    sigSz = sizeof(sig);
+    ExpectIntEQ(wc_XmssKey_Sign(&hsmKey, sig, &sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_XmssKey_Verify(&vkey, sig, sigSz, msg, sizeof(msg)), 0);
+#endif
 
     wc_XmssKey_Free(&hsmKey);
     wc_XmssKey_Free(&vkey);
