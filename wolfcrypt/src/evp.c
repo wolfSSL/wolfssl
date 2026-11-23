@@ -1508,9 +1508,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 *outl = 0;
             }
             if (ret == WOLFSSL_SUCCESS) {
-                if (ctx->authIvUsed) {
-                    /* Clear IV, since IV reuse is not recommended
-                     * for AES CCM. */
+                /* A NULL-IV decrypt reinit needs the retained IV. */
+                if (ctx->enc && ctx->authIvUsed) {
                     XMEMSET(ctx->iv, 0, WC_AES_BLOCK_SIZE);
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {

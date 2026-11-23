@@ -1943,8 +1943,8 @@ int test_evp_cipher_aes_ccm_iv_lifecycle(void)
     byte expIv[GCM_NONCE_MID_SZ] = {0xA1, 0xA2, 0xA3, 0xA4, 0x01};
     byte aad[3] = {7, 8, 9};
     byte refTag[WC_AES_BLOCK_SIZE] = {0};
-    int i;
 #endif
+    int i;
     int len = 0;
 
     ExpectNotNull(enc);
@@ -1984,6 +1984,26 @@ int test_evp_cipher_aes_ccm_iv_lifecycle(void)
         ExpectIntEQ(EVP_EncryptInit_ex(dec, NULL, NULL, NULL, NULL),
                     WOLFSSL_SUCCESS);
         ExpectIntLT(EVP_Cipher(dec, ct, input, sizeof(input)), 0);
+
+        /* A NULL-IV reinit keeps the explicit IV for repeated decryption. */
+        for (i = 0; i < 2; i++) {
+            ExpectIntEQ(EVP_DecryptInit_ex(dec, NULL, NULL, NULL,
+                                          i == 0 ? iv : NULL),
+                        WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_CIPHER_CTX_ctrl(dec, EVP_CTRL_CCM_SET_TAG,
+                        sizeof(tag), tag), WOLFSSL_SUCCESS);
+            XMEMSET(pt, 0, sizeof(pt));
+            ExpectIntEQ(EVP_DecryptUpdate(dec, pt, &len, ct, sizeof(ct)),
+                        WOLFSSL_SUCCESS);
+            ExpectIntEQ(EVP_DecryptFinal_ex(dec, pt, &len), WOLFSSL_SUCCESS);
+            ExpectIntEQ(len, (int)sizeof(pt));
+            ExpectBufEQ(pt, input, sizeof(input));
+        }
+        ExpectIntEQ(EVP_EncryptInit_ex(dec, NULL, NULL, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(dec, pt, &len, input, sizeof(input)),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(dec, pt, &len), WOLFSSL_FAILURE);
 
 #if (defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM)) && \
     !defined(_WIN32) && !defined(WC_NO_RNG)
