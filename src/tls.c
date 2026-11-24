@@ -7983,6 +7983,11 @@ int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl, const byte* input,
                 continue;
             }
         #endif
+            if (!isDtls && ssl->options.serverState !=
+                        SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
+                    !TlsMinorAllowed(ssl->options.mask, minor)) {
+                continue;
+            }
             if (versionIsGreater(isDtls, minor, clientGreatestMinor))
                 clientGreatestMinor = minor;
 

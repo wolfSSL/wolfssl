@@ -2396,6 +2396,10 @@ WOLFSSL_LOCAL void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv,
 WOLFSSL_LOCAL int ResetSuitesForVersion(WOLFSSL* ssl);
 WOLFSSL_LOCAL int FilterSuitesForVersion(WOLFSSL* ssl);
 WOLFSSL_LOCAL ProtocolVersion SslNewestVersion(const WOLFSSL* ssl);
+WOLFSSL_LOCAL byte SslMaxMinor(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int TlsMinorAllowed(unsigned long mask, int minor);
+WOLFSSL_LOCAL int SslFixedVersionMasked(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int SslReconcileVersion(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
 
@@ -8563,12 +8567,6 @@ WOLFSSL_LOCAL byte DtlsMaskAllowedMinor(unsigned long mask, byte maxMinor,
     byte minDowngrade);
 WOLFSSL_LOCAL byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor,
     byte minDowngrade);
-enum DtlsMaskMode {
-    DTLS_MASK_START,
-    DTLS_MASK_LIFT,
-    DTLS_MASK_IN_HELLO
-};
-WOLFSSL_LOCAL int DtlsCheckVersionMask(WOLFSSL* ssl, enum DtlsMaskMode mode);
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int DtlsNoCookieChGood(WOLFSSL* ssl);
 #endif

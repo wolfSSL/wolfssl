@@ -16989,6 +16989,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 {
     int advanceState;
     int ret = 0;
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    byte prevMinor = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_connect_TLSv13");
 
@@ -17008,13 +17011,25 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         return WOLFSSL_FATAL_ERROR;
     }
 
-#ifdef WOLFSSL_DTLS
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    prevMinor = ssl->version.minor;
+#endif
     if (ssl->options.connectState == CONNECT_BEGIN &&
-            (ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START)) != 0) {
+            (ret = SslReconcileVersion(ssl)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
     }
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    if (ssl->version.major != DTLS_MAJOR && ssl->version.minor != prevMinor &&
+            !IsAtLeastTLSv1_3(ssl->version)) {
+    #ifdef WOLFSSL_EARLY_DATA
+        ssl->earlyData = no_early_data;
+    #endif
+        return wolfSSL_connect(ssl);
+    }
+#endif
+#ifdef WOLFSSL_DTLS
     #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
     if (ssl->version.major == DTLS_MAJOR && !IsAtLeastTLSv1_3(ssl->version)) {
         ssl->options.tls1_3 = 0;
@@ -18317,13 +18332,13 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         return WOLFSSL_FATAL_ERROR;
     }
 
-#ifdef WOLFSSL_DTLS
     if (ssl->options.acceptState == TLS13_ACCEPT_BEGIN &&
-            (ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START)) != 0) {
+            (ret = SslReconcileVersion(ssl)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
     }
+#ifdef WOLFSSL_DTLS
     #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
     if (ssl->version.major == DTLS_MAJOR && !IsAtLeastTLSv1_3(ssl->version)) {
         ssl->options.tls1_3 = 0;
@@ -19010,7 +19025,8 @@ int wolfSSL_get_max_early_data(WOLFSSL* ssl)
  * outSz  The number of early data bytes written.
  * returns BAD_FUNC_ARG when: ssl, data or outSz is NULL; sz is negative;
  * or not using TLS v1.3. SIDE ERROR when not a server. BAD_STATE_E if invoked
- * without a valid session or without a valid PSK CB.
+ * without a valid session or without a valid PSK CB. WOLFSSL_FATAL_ERROR with
+ * VERSION_ERROR when the version options leave no protocol version.
  * Otherwise the number of early data bytes written.
  */
 int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
@@ -19021,10 +19037,15 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
 
     if (ssl == NULL || data == NULL || sz < 0 || outSz == NULL)
         return BAD_FUNC_ARG;
+    *outSz = 0;
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+            (ret = SslReconcileVersion(ssl)) != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (!IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
-
-    *outSz = 0;
 
 #ifndef NO_WOLFSSL_CLIENT
     if (ssl->options.side == WOLFSSL_SERVER_END)
@@ -19081,8 +19102,9 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
  * sz     The size of the buffer in bytes.
  * outSz  The number of early data bytes read.
  * returns BAD_FUNC_ARG when: ssl, data or outSz is NULL; sz is negative;
- * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of
- * early data bytes read.
+ * or not using TLS v1.3. SIDE ERROR when not a server. WOLFSSL_FATAL_ERROR
+ * with VERSION_ERROR when the version options leave no protocol version.
+ * Otherwise the number of early data bytes read.
  */
 int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
 {
@@ -19093,10 +19115,27 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
 
     if (ssl == NULL || data == NULL || sz < 0 || outSz == NULL)
         return BAD_FUNC_ARG;
+    *outSz = 0;
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+    if (ssl->options.side == WOLFSSL_NEITHER_END) {
+        ssl->error = InitSSL_Side(ssl, WOLFSSL_SERVER_END);
+        if (ssl->error != WOLFSSL_SUCCESS) {
+            WOLFSSL_ERROR(ssl->error);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        ssl->error = 0;
+    }
+#endif
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+            (ret = SslReconcileVersion(ssl)) != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (!IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
 
-    *outSz = 0;
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;

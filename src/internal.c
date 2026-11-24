@@ -8174,6 +8174,20 @@ ProtocolVersion SslNewestVersion(const WOLFSSL* ssl)
     return pv;
 }
 
+/* Returns the newest minor version the SSL may negotiate, which a
+ * wolfSSL_SetVersion() maximum also caps. */
+byte SslMaxMinor(const WOLFSSL* ssl)
+{
+    byte maxMinor = ssl->options.downgrade ? SslNewestVersion(ssl).minor :
+        ssl->ctx->method->version.minor;
+
+    if (ssl->options.versionSet && ssl->version.major != DTLS_MAJOR &&
+            ssl->options.maxVersionMinor < maxMinor) {
+        maxMinor = ssl->options.maxVersionMinor;
+    }
+    return maxMinor;
+}
+
 int InitSSL_Suites(WOLFSSL* ssl)
 {
     int keySz = 0;
@@ -8898,6 +8912,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         WOLFSSL_MSG("wolfSSL_set_options error");
         return BAD_FUNC_ARG;
     }
+    /* Rebuild the suites for a version the CTX mask lowered. */
+    if (ctx->mask != 0 && ResetSuitesForVersion(ssl) != 0)
+        return MEMORY_E;
 
 #ifdef WOLFSSL_SESSION_EXPORT
     #ifdef WOLFSSL_DTLS
@@ -44668,6 +44685,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                        ssl->options.useAnon,
                        TRUE, TRUE, TRUE, TRUE, ssl->options.side);
         }
+        if (!TlsMinorAllowed(ssl->options.mask, ssl->version.minor)) {
+            WOLFSSL_MSG("\tOption set to not allow the version");
+            return VERSION_ERROR;
+        }
 
         /* Need at least 3 * OPAQUE16_LEN bytes for suiteSz/sessionSz/randomSz
          * headers before reading the per-field bodies. */
@@ -45045,6 +45066,32 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         return ret;
     }
 
+#ifdef WOLFSSL_DTLS
+    /* Steps a DTLS server below the version of a first ClientHello that its
+     * options do not allow. Returns VERSION_ERROR when none is left. */
+    static int DtlsCheckHelloVersion(WOLFSSL* ssl)
+    {
+        byte minor;
+
+        if (!ssl->options.dtls || !ssl->options.downgrade ||
+                ssl->options.handShakeDone ||
+                ssl->options.acceptState != ACCEPT_BEGIN) {
+            return 0;
+        }
+        minor = DtlsAllowedMinor(ssl, ssl->version.minor,
+            ssl->options.minDowngrade);
+        if (minor == ssl->version.minor)
+            return 0;
+        if (minor == 0) {
+            WOLFSSL_MSG("No DTLS version left that the options allow");
+            return VERSION_ERROR;
+        }
+        ssl->version.minor = minor;
+        ssl->options.tls1_3 = 0;
+        return ResetSuitesForVersion(ssl);
+    }
+#endif
+
     /* handle processing of client_hello (1) */
     int DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz)
@@ -45237,7 +45284,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         }
 
     #ifdef WOLFSSL_DTLS
-        ret = DtlsCheckVersionMask(ssl, DTLS_MASK_IN_HELLO);
+        ret = DtlsCheckHelloVersion(ssl);
         if (ret == WC_NO_ERR_TRACE(VERSION_ERROR)) {
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             /* propagate socket errors to avoid re-calling send alert */
@@ -45256,6 +45303,18 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
          * block restore it rather than alerting with the masked-off version
          * the walk stopped at, which the peer may reject outright. */
         preMaskMinor = ssl->version.minor;
+
+        if (!ssl->options.dtls && !ssl->options.downgrade &&
+                SslFixedVersionMasked(ssl)) {
+            WOLFSSL_MSG("\tOption set to not allow the fixed version");
+            ret = VERSION_ERROR;
+            /* propagate socket errors to avoid re-calling send alert */
+            if (SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version)
+                    == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+                ret = SOCKET_ERROR_E;
+            }
+            goto out;
+        }
 
         /* check if option is set to not allow the current version
          * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */

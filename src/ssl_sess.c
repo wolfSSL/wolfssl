@@ -1604,6 +1604,9 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
     SessionRow* sessRow = NULL;
     int ret = WOLFSSL_SUCCESS;
+#ifdef HAVE_EXTENDED_MASTER
+    byte prevEMS;
+#endif
 
     session = ClientSessionToSession(session);
 
@@ -1697,6 +1700,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
     ssl->options.resuming = 1;
 #ifdef HAVE_EXTENDED_MASTER
+    prevEMS = (byte)ssl->options.haveEMS;
     /* A user EMS override takes precedence over the session's EMS state. */
     if (ssl->options.requireEMS && ssl->options.side == WOLFSSL_CLIENT_END)
         ssl->options.haveEMS = 1;
@@ -1726,18 +1730,45 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
          * DTLS minor versions are inverted: a higher minor means an older
          * protocol, so the comparison flips. */
         byte belowMinDowngrade;
-        if (ssl->options.dtls)
+        byte aboveMax;
+        byte raised;
+        byte maxMinor = SslMaxMinor(ssl);
+        ProtocolVersion prev = ssl->version;
+        if (ssl->options.dtls) {
             belowMinDowngrade = ssl->session->version.minor >
                                 ssl->options.minDowngrade;
-        else
+            aboveMax = ssl->session->version.minor < maxMinor;
+            raised = ssl->session->version.minor < prev.minor;
+        }
+        else {
             belowMinDowngrade = ssl->session->version.minor <
                                 ssl->options.minDowngrade;
+            aboveMax = ssl->session->version.minor > maxMinor;
+            raised = ssl->session->version.minor > prev.minor;
+        }
         if (belowMinDowngrade) {
             WOLFSSL_MSG("Session version below configured minDowngrade");
-            ssl->options.resuming = 0;
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
         }
-        ssl->version              = ssl->session->version;
+        else if (aboveMax) {
+            WOLFSSL_MSG("Session version above the maximum");
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ssl->version = ssl->session->version;
+            /* Suites filtered for an older version lack the session's. */
+            if (raised && ResetSuitesForVersion(ssl) != 0) {
+                ssl->version = prev;
+                ret = WOLFSSL_FAILURE;
+            }
+        }
+        if (ret != WOLFSSL_SUCCESS) {
+            ssl->options.resuming = 0;
+#ifdef HAVE_EXTENDED_MASTER
+            ssl->options.haveEMS = prevEMS;
+#endif
+            return ret;
+        }
         if (IsAtLeastTLSv1_3(ssl->version))
             ssl->options.tls1_3 = 1;
     }
@@ -1748,12 +1779,6 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     ssl->peerVerifyRet = (unsigned long)ssl->session->peerVerifyRet;
-#endif
-#ifdef WOLFSSL_DTLS
-    /* No version left is reported when the handshake starts. */
-    ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START);
-    if (ret < 0 && ret != WC_NO_ERR_TRACE(VERSION_ERROR))
-        return WOLFSSL_FAILURE;
 #endif
 
     return WOLFSSL_SUCCESS;

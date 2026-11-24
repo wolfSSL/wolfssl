@@ -17740,6 +17740,31 @@ static int test_dtls13_has_tls13_suite(WOLFSSL* ssl)
     return 0;
 }
 
+/* Starts a handshake so the version of ssl settles, then resets a client so
+ * the next handshake applies later settings. */
+static int test_dtls13_settle(struct test_memio_ctx* test_ctx, WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+
+    ExpectNotNull(ssl);
+    if (ssl != NULL && ssl->options.side == WOLFSSL_SERVER_END) {
+        ret = wolfSSL_accept(ssl);
+    }
+    else if (ssl != NULL) {
+        test_memio_clear_buffer(test_ctx, 1);
+        ret = wolfSSL_connect(ssl);
+    }
+    ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl, ret), WOLFSSL_ERROR_WANT_READ);
+    if (ssl != NULL && ssl->options.side == WOLFSSL_CLIENT_END) {
+        ExpectIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+        test_memio_clear_buffer(test_ctx, 0);
+        test_memio_clear_buffer(test_ctx, 1);
+    }
+    return EXPECT_RESULT();
+}
+
 /* Sets opts, opts2 and opts3 in separate calls, and minVer when not 0, on the
  * client or server SSL or CTX. An expVersion of 0 means no version is left. */
 static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
@@ -17781,8 +17806,10 @@ static int test_dtls13_mask_case(int onServer, int onCtx, long opts,
             (void)wolfSSL_set_options(ssl, opts);
             (void)wolfSSL_set_options(ssl, opts2);
             (void)wolfSSL_set_options(ssl, opts3);
-            if (expVersion != 0)
+            if (expVersion != 0) {
+                ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
                 ExpectIntEQ(wolfSSL_version(ssl), expVersion);
+            }
         }
 
         ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
@@ -17986,8 +18013,8 @@ static int test_dtls13_mask_session(int sessionFirst, long firstOpts,
 #endif
 
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_EARLY_DATA)
-/* A DTLS 1.3 session set after the mask moves the SSL to DTLS 1.2, so early
- * data is refused up front and nothing is left pending. */
+/* A DTLS 1.3 session set after the mask leaves the SSL at DTLS 1.2 when early
+ * data starts the handshake, so it is refused and nothing is left pending. */
 static int test_dtls13_mask_early_data(void)
 {
     EXPECT_DECLS;
@@ -18021,9 +18048,9 @@ static int test_dtls13_mask_early_data(void)
     if (ssl_c != NULL)
         (void)wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_TLSv1_3);
     ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
     ExpectIntEQ(wolfSSL_write_early_data(ssl_c, "early", 5, &outSz),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
     ExpectIntEQ(outSz, 0);
     if (ssl_c != NULL)
         ExpectIntEQ(ssl_c->earlyData, no_early_data);
@@ -18340,7 +18367,8 @@ static int test_dtls13_ctx_min_tls13(void)
     return EXPECT_RESULT();
 }
 
-/* A minimum set after the mask moved the SSL to DTLS 1.2 still applies. */
+/* A minimum above the masked versions fails in wolfSSL_set_min_proto_version()
+ * and, set with wolfSSL_SetMinVersion(), at the handshake. */
 static int test_dtls13_mask_min_after(int onServer, int useProto)
 {
     EXPECT_DECLS;
@@ -18355,18 +18383,21 @@ static int test_dtls13_mask_min_after(int onServer, int useProto)
     ssl = onServer ? ssl_s : ssl_c;
     if (ssl != NULL)
         (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_3);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_version(ssl), DTLS1_2_VERSION);
     if (useProto) {
         ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, DTLS1_3_VERSION),
-            WOLFSSL_SUCCESS);
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_version(ssl), DTLS1_2_VERSION);
     }
     else {
         ExpectIntEQ(wolfSSL_SetMinVersion(ssl, WOLFSSL_DTLSV1_3),
             WOLFSSL_SUCCESS);
+        ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(VERSION_ERROR));
     }
-    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
-        WC_NO_ERR_TRACE(VERSION_ERROR));
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
@@ -18375,7 +18406,7 @@ static int test_dtls13_mask_min_after(int onServer, int useProto)
     return EXPECT_RESULT();
 }
 
-/* wolfSSL_set_max_proto_version() caps a DTLS SSL straight away. */
+/* wolfSSL_set_max_proto_version() caps a DTLS SSL when the handshake starts. */
 static int test_dtls13_mask_max_proto(int onServer, int maxVer,
     int expVersion)
 {
@@ -18391,6 +18422,7 @@ static int test_dtls13_mask_max_proto(int onServer, int maxVer,
     ssl = onServer ? ssl_s : ssl_c;
     ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, maxVer), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_version(ssl), expVersion);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_version(ssl_c), expVersion);
@@ -18426,6 +18458,7 @@ static int test_dtls13_mask_lift(int onServer, int mode)
         ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, capVer),
             WOLFSSL_SUCCESS);
     }
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_version(ssl), capVer);
     if (mode == 2 || mode == 4) {
         if (ssl != NULL)
@@ -18435,6 +18468,7 @@ static int test_dtls13_mask_lift(int onServer, int mode)
         ExpectIntEQ(wolfSSL_set_max_proto_version(ssl,
             mode == 1 ? 0 : liftVer), WOLFSSL_SUCCESS);
     }
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_version(ssl), liftVer);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_version(ssl_c), liftVer);
@@ -18535,6 +18569,7 @@ static int test_dtls13_mask_lift_list_mode(int onServer, int mode)
         XMEMCPY(&exp, ssl->suites, sizeof(exp));
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_2_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     if (ssl != NULL && ssl->suites != NULL)
         ExpectIntEQ(ssl->suites->suiteSz, exp.suiteSz - SUITE_LEN);
     if (mode == 1) {
@@ -18570,6 +18605,7 @@ static int test_dtls13_mask_lift_list_mode(int onServer, int mode)
     }
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_3_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     if (mode == 2 || mode == 3) {
         ExpectTrue(test_dtls13_has_suite(ssl, TLS13_BYTE,
             TLS_AES_128_GCM_SHA256));
@@ -18627,6 +18663,7 @@ static int test_dtls13_mask_list_after_cap(int onServer, const char* list)
     ssl = onServer ? ssl_s : ssl_c;
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_2_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     if (list != NULL) {
         ExpectIntEQ(wolfSSL_set_cipher_list(ssl, list), WOLFSSL_SUCCESS);
     }
@@ -18641,6 +18678,7 @@ static int test_dtls13_mask_list_after_cap(int onServer, const char* list)
 #endif
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_3_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_has_tls13_suite(ssl), 1);
     if (list != NULL && XSTRCMP(list, "HIGH") != 0) {
         ExpectIntEQ(test_dtls13_has_suite(ssl, ECC_BYTE,
@@ -18669,16 +18707,19 @@ static int test_dtls13_mask_list_after_cap(int onServer, const char* list)
 static int test_dtls13_mask_either_side_sigalgs(int dtls)
 {
     EXPECT_DECLS;
-    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX *ctx = NULL, *ctx_s = NULL;
     WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(dtls ? wolfDTLS_method() :
-        wolfSSLv23_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx, &ctx_s, &ssl, NULL,
+        dtls ? wolfDTLS_method : wolfSSLv23_method,
+        dtls ? wolfDTLS_server_method : wolfSSLv23_server_method), 0);
     if (ssl != NULL)
         (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_3);
     if (ssl != NULL)
         wolfSSL_set_connect_state(ssl);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_version(ssl), dtls ? DTLS1_2_VERSION :
         TLS1_2_VERSION);
     ExpectIntEQ(test_dtls13_has_sigalg(ssl, NEW_SA_MAJOR,
@@ -18686,6 +18727,7 @@ static int test_dtls13_mask_either_side_sigalgs(int dtls)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
 
@@ -18740,6 +18782,7 @@ static int test_dtls13_mask_default_list_sigalgs(void)
         ExpectIntEQ(ssl_c->suites->hashSigAlgoSz, 4);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, DTLS1_2_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl_c), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_has_sigalg(ssl_c, NEW_SA_MAJOR,
         ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR), 0);
     ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "NONE+SHA256"),
@@ -18748,6 +18791,7 @@ static int test_dtls13_mask_default_list_sigalgs(void)
         1);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, DTLS1_3_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl_c), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_has_sigalg(ssl_c, NEW_SA_MAJOR,
         ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR), 1);
     if (ssl_c != NULL && ssl_c->suites != NULL)
@@ -18757,10 +18801,13 @@ static int test_dtls13_mask_default_list_sigalgs(void)
     ssl_c = NULL;
 
     ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
     ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "ECDSA-BRAINPOOL+SHA256"),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, DTLS1_2_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl_c), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_has_sigalg(ssl_c, NEW_SA_MAJOR,
         ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR), 1);
 
@@ -18861,11 +18908,13 @@ static int test_dtls13_ctx_lowered_cipher_list(void)
 static int test_dtls13_tls_set_version_suites(int listAfterMask)
 {
     EXPECT_DECLS;
-    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX *ctx = NULL, *ctx_s = NULL;
     WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx, &ctx_s, &ssl, NULL,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
     if (!listAfterMask) {
         ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
             "TLS13-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256"),
@@ -18873,6 +18922,7 @@ static int test_dtls13_tls_set_version_suites(int listAfterMask)
     }
     if (ssl != NULL)
         (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_3);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
     if (listAfterMask) {
         ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
             "ECDHE-ECDSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
@@ -18885,6 +18935,7 @@ static int test_dtls13_tls_set_version_suites(int listAfterMask)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx_s);
     return EXPECT_RESULT();
 }
 #endif
@@ -18918,6 +18969,7 @@ static int test_dtls13_mask_clear_list(void)
     ExpectIntEQ(test_dtls13_has_tls13_suite(ssl_c), 0);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, DTLS1_3_VERSION),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl_c), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_has_tls13_suite(ssl_c), 1);
     ExpectIntEQ(test_dtls13_has_suite(ssl_c, ECC_BYTE,
         TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256), 1);
@@ -18983,8 +19035,8 @@ static int test_dtls13_mask_max_keeps_options(int mode)
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_options(ssl_c) & WOLFSSL_OP_NO_TLSv1_3,
         WOLFSSL_OP_NO_TLSv1_3);
-    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
     ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_2_VERSION);
 
     wolfSSL_free(ssl_c);
@@ -19140,16 +19192,18 @@ static int test_dtls13_mask_max_after_hello(void)
 }
 
 #ifndef NO_OLD_TLS
-/* A CTX maximum of DTLS 1.0 masks the newer versions, and an SSL lift that
- * finds nothing below the lowered method keeps its allowed version. */
+/* A CTX maximum of DTLS 1.0 masks the newer versions for SSLs created after
+ * it, and an existing SSL can still lift its own maximum. */
 static int test_dtls13_ctx_max_dtls10(void)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
+    struct test_memio_ctx test_ctx;
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_client_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx, NULL, &ssl, NULL,
+        wolfDTLS_client_method, NULL), 0);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_2_VERSION),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_min_proto_version(ssl, DTLS1_2_VERSION),
@@ -19162,7 +19216,8 @@ static int test_dtls13_ctx_max_dtls10(void)
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_3_VERSION),
         WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3, 0);
-    ExpectIntEQ(wolfSSL_version(ssl), DTLS1_2_VERSION);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_version(ssl), DTLS1_3_VERSION);
     wolfSSL_free(ssl);
     ssl = NULL;
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -19205,6 +19260,7 @@ static int test_dtls13_mask_lift_new_server(int pq)
         wolfDTLS_client_method, wolfDTLS_server_method), 0);
     ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_2_VERSION);
     (void)wolfSSL_clear_options(ssl_s, WOLFSSL_OP_NO_TLSv1_3);
+    ExpectIntEQ(test_dtls13_settle(&test_ctx, ssl_s), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_version(ssl_s), DTLS1_3_VERSION);
 #ifdef TEST_DTLS13_LIFT_PQ
     if (pq) {
@@ -19304,7 +19360,8 @@ static int test_dtls13_mask_tls13_entry(int onCtx)
         (void)wolfSSL_set_options(ssl_c, WOLFSSL_OP_NO_TLSv1_3);
         (void)wolfSSL_set_options(ssl_s, WOLFSSL_OP_NO_TLSv1_3);
     }
-    ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
+    if (onCtx)
+        ExpectIntEQ(wolfSSL_version(ssl_c), DTLS1_2_VERSION);
     for (i = 0; EXPECT_SUCCESS() && i < 10 &&
             (retC != WOLFSSL_SUCCESS || retS != WOLFSSL_SUCCESS); i++) {
         if (retC != WOLFSSL_SUCCESS) {
@@ -19445,6 +19502,9 @@ int test_dtls_max_proto_after_clear(void)
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, ver), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl_c, ver), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
     ExpectIntEQ(wolfSSL_version(ssl_c), ver);
 
     wolfSSL_free(ssl_c);
@@ -19669,7 +19729,8 @@ int test_dtls13_no_tls13_option(void)
 #endif
 #endif
 
-    /* A DTLS 1.3-only method cannot move down or take a lower maximum. */
+    /* A DTLS 1.3-only method cannot move down or take a lower maximum, and
+     * a maximum fails once an option masks its version. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_2_VERSION),
@@ -19678,9 +19739,11 @@ int test_dtls13_no_tls13_option(void)
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, 0), WOLFSSL_SUCCESS);
     (void)wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_3);
     ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, DTLS1_3_VERSION),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, 0), WOLFSSL_SUCCESS);
-    (void)wolfSSL_connect(ssl);
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_set_max_proto_version(ssl, 0), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(VERSION_ERROR));
     ExpectIntEQ(wolfSSL_version(ssl), DTLS1_3_VERSION);
     wolfSSL_free(ssl);
     ssl = NULL;

@@ -47,12 +47,18 @@
 int wolfSSL_negotiate(WOLFSSL* ssl)
 {
     int err = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_negotiate");
 
     /* err starts as a failure, which is what a NULL object and an object with
      * no side established both report. */
-    if (ssl != NULL) {
+    if (ssl != NULL && ssl->options.side != WOLFSSL_NEITHER_END &&
+            (ret = SslReconcileVersion(ssl)) != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+    }
+    else if (ssl != NULL) {
         #ifndef NO_WOLFSSL_SERVER
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             #ifdef WOLFSSL_TLS13
@@ -398,14 +404,12 @@ int wolfSSL_connect(WOLFSSL* ssl)
     #endif
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
-    #ifdef WOLFSSL_DTLS
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
-            (ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START)) != 0) {
+            (ret = SslReconcileVersion(ssl)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
     }
-    #endif
 
     #if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && \
         defined(WOLFSSL_TLS13)
@@ -900,14 +904,12 @@ int wolfSSL_accept(WOLFSSL* ssl)
     }
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
-    #ifdef WOLFSSL_DTLS
     if (ssl->options.side == WOLFSSL_SERVER_END &&
-            (ret = DtlsCheckVersionMask(ssl, DTLS_MASK_START)) != 0) {
+            (ret = SslReconcileVersion(ssl)) != 0) {
         ssl->error = ret;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
     }
-    #endif
 
     #if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && \
         defined(WOLFSSL_TLS13)
