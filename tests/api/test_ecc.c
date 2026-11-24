@@ -894,6 +894,103 @@ int test_wc_ecc_shared_secret(void)
     return EXPECT_RESULT();
 } /* END tests_wc_ecc_shared_secret */
 
+/* Custom curves have a common id, so ECDH must also compare their domain
+ * parameters before using the peer point. */
+int test_wc_ecc_shared_secret_custom_curve_match(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
+    defined(WOLFSSL_CUSTOM_CURVES) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    static const ecc_set_type curve = {
+        1, ECC_CURVE_CUSTOM, "toy-E17", "11", "02", "02", "13", "05",
+        "01",
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        NULL, 0,
+    #else
+        {0}, 0,
+    #endif
+        0, 1
+    };
+    static const ecc_set_type sameCurve = {
+        1, ECC_CURVE_CUSTOM, "toy-E17-copy", "11", "02", "02", "13", "05",
+        "01",
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        NULL, 0,
+    #else
+        {0}, 0,
+    #endif
+        0, 1
+    };
+    static const ecc_set_type otherCurve = {
+        1, ECC_CURVE_CUSTOM, "toy-E17-alt", "11", "02", "00", "13", "05",
+        "01",
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        NULL, 0,
+    #else
+        {0}, 0,
+    #endif
+        0, 1
+    };
+    static const byte d[] = {13};
+    static const byte privatePub[] = {0x04, 16, 4};
+    static const byte sameCurvePub[] = {0x04, 5, 1};
+    static const byte otherCurvePub[] = {0x04, 8, 1};
+    ecc_key privateKey;
+    ecc_key sameCurveKey;
+    ecc_key offCurveKey;
+    ecc_key otherCurveKey;
+    WC_RNG rng;
+    byte out[1];
+    word32 outLen;
+
+    XMEMSET(&privateKey, 0, sizeof(privateKey));
+    XMEMSET(&sameCurveKey, 0, sizeof(sameCurveKey));
+    XMEMSET(&offCurveKey, 0, sizeof(offCurveKey));
+    XMEMSET(&otherCurveKey, 0, sizeof(otherCurveKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&privateKey), 0);
+    ExpectIntEQ(wc_ecc_init(&sameCurveKey), 0);
+    ExpectIntEQ(wc_ecc_init(&offCurveKey), 0);
+    ExpectIntEQ(wc_ecc_init(&otherCurveKey), 0);
+    ExpectIntEQ(wc_ecc_set_custom_curve(&privateKey, &curve), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&privateKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_import_private_key_ex(d, sizeof(d), privatePub,
+        sizeof(privatePub), &privateKey, ECC_CURVE_CUSTOM), 0);
+
+    /* Use a separate object so every stored parameter is compared. */
+    ExpectIntEQ(wc_ecc_set_custom_curve(&sameCurveKey, &sameCurve), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(sameCurvePub, sizeof(sameCurvePub),
+        &sameCurveKey, ECC_CURVE_CUSTOM), 0);
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_ecc_shared_secret(&privateKey, &sameCurveKey, out,
+        &outLen), 0);
+
+    /* (8, 1) is not on y^2 = x^3 + 2x + 2 over F_17. */
+    ExpectIntEQ(wc_ecc_set_custom_curve(&offCurveKey, &curve), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(otherCurvePub, sizeof(otherCurvePub),
+        &offCurveKey, ECC_CURVE_CUSTOM), WC_NO_ERR_TRACE(IS_POINT_E));
+
+    ExpectIntEQ(wc_ecc_set_custom_curve(&otherCurveKey, &otherCurve), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(otherCurvePub, sizeof(otherCurvePub),
+        &otherCurveKey, ECC_CURVE_CUSTOM), 0);
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_ecc_shared_secret(&privateKey, &otherCurveKey, out,
+        &outLen), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    wc_ecc_free(&otherCurveKey);
+    wc_ecc_free(&offCurveKey);
+    wc_ecc_free(&sameCurveKey);
+    wc_ecc_free(&privateKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    PRIVATE_KEY_LOCK();
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
