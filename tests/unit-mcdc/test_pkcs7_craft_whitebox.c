@@ -3042,8 +3042,7 @@ static void wb_pss_signed_verify(void)
 #endif
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
-    !defined(NO_PKCS7_ENVELOPED_DATA) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 static int wb_cbc_fragment_carry(void)
 {
     static const struct {
@@ -3138,8 +3137,7 @@ int main(void)
     }
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
-    !defined(NO_PKCS7_ENVELOPED_DATA) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST)
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (!wb_cbc_fragment_carry()) {
         WB_NOTE("AES-CBC fragment carry test failed");
         wolfCrypt_Cleanup();
