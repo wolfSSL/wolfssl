@@ -256,7 +256,7 @@ static const byte wb_spc_zdigest[32] = {
     #define WB_SPC_HAVE_CHECK_KEY
 #endif
 
-#if (defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_NO_ASM)) && \
+#if (defined(WOLFSSL_SP_X86_64_ASM) || !defined(WOLFSSL_SP_ASM)) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 static int wb_spc_range_failed;
 #define WB_SPC_RANGE_FAILED wb_spc_range_failed
