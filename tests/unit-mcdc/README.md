@@ -62,6 +62,18 @@ justified in `iso26262/mcdc-per-module/reports/aes/RESIDUALS.md`:
 - **15833:0** - a dead defensive branch on a loop index provably bounded to
   `[0,7)`.
 
+## Host SP coverage
+
+Run the `sp-host-backends` matrix with `-DWOLFSSL_SP_INT_NEGATIVE` for
+each x86-64, portable C32, and portable C64 variant to exercise the ECC
+ordinate sign checks. Use the same flags in the library, API tests, and
+white-box translation units because this flag changes the SP integer layout.
+
+The `sp-math` matrix uses both single-digit and multi-digit odd moduli for
+base-2 exponentiation. The allocation-failure driver includes both modulus
+sizes in the same executable so MC/DC can pair the generic engine's
+Montgomery and non-Montgomery paths.
+
 ## Adding a new white-box module
 
 1. Create `test_<file>_whitebox.c` that `#include`s the target `.c` and, in

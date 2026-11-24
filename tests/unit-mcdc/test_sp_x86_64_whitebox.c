@@ -1606,6 +1606,43 @@ static void wb_run_dispatch(void)
     wb_run_dispatch_1024();
 }
 
+#if defined(HAVE_ECC_VERIFY) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+/* The verification helper has its own handling for a sum at infinity.
+ * G and -G have equal X and Z and opposite Y, so the projective addition
+ * produces Z == 0 before the helper sets its X sentinel. */
+#define WB_CHECK_INVERSE_SUM(BITS, WORDS)                                    \
+    do {                                                                    \
+        sp_point_##BITS p;                                                  \
+        sp_point_##BITS neg;                                                \
+        sp_digit scalar[WORDS] = { 1 };                                     \
+        sp_digit zero[WORDS] = { 0 };                                       \
+        sp_digit tmp[12 * (WORDS)];                                         \
+        int ret = sp_##BITS##_ecc_mulmod_base_##WORDS(&p, scalar, 0, 0, NULL); \
+                                                                            \
+        if (ret == MP_OKAY) {                                               \
+            neg = p;                                                        \
+            sp_##BITS##_mont_sub_##WORDS(neg.y, zero, p.y, p##BITS##_mod);     \
+            ret = sp_##BITS##_add_points_##WORDS(&p, &neg, tmp);              \
+        }                                                                   \
+        if (ret != MP_OKAY || !sp_##BITS##_iszero_##WORDS(p.x) ||              \
+                sp_##BITS##_cmp_##WORDS(p.z, p##BITS##_norm_mod) != 0) {      \
+            WB_NOTE("FAIL: P-" #BITS " inverse-point sum");                  \
+            wb_contract_fail = 1;                                           \
+        }                                                                   \
+    } while (0)
+
+static void wb_run_inverse_sum(void)
+{
+#ifdef WOLFSSL_SP_384
+    WB_CHECK_INVERSE_SUM(384, 6);
+#endif
+#ifdef WOLFSSL_SP_521
+    WB_CHECK_INVERSE_SUM(521, 9);
+#endif
+}
+#undef WB_CHECK_INVERSE_SUM
+#endif
+
 /* ======================================================================= *
  * wb_run_crafted(): crafted-input coverage of sp_ecc_mulmod_add_<n> and
  * the point-validation family (sp_ecc_check_key_<n>/sp_ecc_is_point_<n>).
@@ -1728,6 +1765,28 @@ static void wb_run_crafted_curve(int curve_id, int fieldSz,
                             inMont, r, map, NULL);
                     }
                 }
+#if defined(WOLFSSL_SP_384) && defined(HAVE_INTEL_AVX2) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+                if (curve_id == ECC_SECP384R1 && wb_intr_ret == 0) {
+                    cpuid_flags_t flags = cpuid_get_flags();
+
+                    if (IS_INTEL_BMI2(flags) && IS_INTEL_ADX(flags) &&
+                            IS_INTEL_AVX2(flags)) {
+                        int ret;
+
+                        /* Leave key setup outside the refusal window so the
+                         * AVX2 base multiply itself sees the error. */
+                        wb_intr_ret = 1;
+                        ret = sp_ecc_mulmod_base_add_384(&km, &keyA.pubkey,
+                            0, r, 1, NULL);
+                        wb_intr_ret = 0;
+                        if (ret == MP_OKAY) {
+                            WB_NOTE("FAIL: P-384 base add ignored save refusal");
+                            wb_contract_fail = 1;
+                        }
+                    }
+                }
+#endif
                 /* The `(err == MP_OKAY) && (!inMont)` triples above only ever
                  * see err holding. err can only move when SP_ALLOC_VAR is a
                  * real allocation (WOLFSSL_SP_SMALL_STACK), and only for THIS
@@ -2067,6 +2126,9 @@ int main(void)
         wb_run_dispatch();
         wb_run_crafted();
         wb_spc_all();
+#if defined(HAVE_ECC_VERIFY) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        wb_run_inverse_sum();
+#endif
 
         cpuid_select_flags(real & ~(cpuid_flags_t)CPUID_BMI2);
         wb_run_ecc();
@@ -2182,11 +2244,12 @@ int main(void)
         mcdc_fa_restore();
     }
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", (wb_contract_fail || WB_SPC_RANGE_FAILED) ?
+        "with failures" : (wb_fail ? "with skips" : "ok"));
 #else
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
     /* Coverage sweeps stay advisory; the fail-closed contract does not. */
-    return wb_contract_fail;
+    return wb_contract_fail || WB_SPC_RANGE_FAILED;
 }

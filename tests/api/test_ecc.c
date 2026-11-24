@@ -445,6 +445,100 @@ int test_wc_ecc_check_key_invalid_pubkey(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_check_key_invalid_pubkey */
 
+/* A generator passes validation. A coordinate equal to the field prime
+ * fits in the field width and must fail the field range check. */
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(WOLFSSL_HAVE_SP_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+#define TEST_ECC_SP_PUBKEY_RANGE
+static int ecc_check_raw(int curveId, const char* x, const char* y)
+{
+    ecc_key key;
+    int ret;
+
+    ret = wc_ecc_init(&key);
+    if (ret == 0) {
+        ret = wc_ecc_import_raw_ex(&key, x, y, NULL, curveId);
+        if (ret == 0)
+            ret = wc_ecc_check_key(&key);
+        wc_ecc_free(&key);
+    }
+
+    return ret;
+}
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+static int ecc_check_negative_point(const ecc_set_type* curve, int negateY)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    int ret = wc_ecc_init(&key);
+
+    ExpectIntEQ(ret, 0);
+    if (ret == 0) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, NULL,
+            curve->id), 0);
+        if (EXPECT_SUCCESS()) {
+            mp_int* coord = negateY ? key.pubkey.y : key.pubkey.x;
+            mp_setneg(coord);
+            ExpectIntEQ(wc_ecc_check_key(&key),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        }
+        wc_ecc_free(&key);
+    }
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+int test_wc_ecc_sp_pubkey_range(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_SP_PUBKEY_RANGE
+    static const int curveIds[] = {
+    #ifndef WOLFSSL_SP_NO_256
+        ECC_SECP256R1,
+    #endif
+    #ifdef WOLFSSL_SP_384
+        ECC_SECP384R1,
+    #endif
+    #ifdef WOLFSSL_SP_521
+        ECC_SECP521R1,
+    #endif
+        ECC_CURVE_INVALID
+    };
+    int i;
+
+    for (i = 0; EXPECT_SUCCESS() && curveIds[i] != ECC_CURVE_INVALID; i++) {
+        int curveId = curveIds[i];
+        int idx = wc_ecc_get_curve_idx(curveId);
+        const ecc_set_type* curve;
+
+        if (idx < 0)
+            continue;
+        curve = wc_ecc_get_curve_params(idx);
+        ExpectNotNull(curve);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(ecc_check_raw(curveId, curve->Gx, curve->Gy), 0);
+            ExpectIntEQ(ecc_check_raw(curveId, curve->prime, curve->Gy),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+            ExpectIntEQ(ecc_check_raw(curveId, curve->Gx, curve->prime),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
+            EXPECT_TEST(ecc_check_negative_point(curve, 0));
+            EXPECT_TEST(ecc_check_negative_point(curve, 1));
+        #endif
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_sp_pubkey_range */
+
 /*
  * Testing wc_ecc_get_generator()
  */
