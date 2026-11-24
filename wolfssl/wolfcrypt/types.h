@@ -2197,6 +2197,8 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         k_thread_stack_t* threadStack;
     } THREAD_TYPE;
     #define WOLFSSL_THREAD
+    /* Heap hint for thread allocations. Set it before the first
+     * wolfSSL_NewThread call and do not change it afterwards. */
     extern void* wolfsslThreadHeapHint;
     /* Native Zephyr condition variable (k_condvar) built on a k_mutex; no
      * POSIX pthread layer required. Only reached when !SINGLE_THREADED, so
