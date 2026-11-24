@@ -69,7 +69,15 @@
     #define P_HASH_MAX_SIZE WC_SHA256_DIGEST_SIZE
 #endif
 
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+/* WC_FIPS_TLS12_EMS_ONLY comes from the module's fips.h once its TLS 1.2 KDF
+ * CAST runs on an extended master secret; until then the module's wrapper only
+ * flags a master secret WC_FIPS_NOT_APPROVED. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_FIPS_TLS12_EMS_ONLY)
+    #define WC_PRF_REFUSE_MASTER_SECRET
+#endif
+
+#ifdef WC_PRF_REFUSE_MASTER_SECRET
 /* FIPS 140-3 IG D.Q: the TLS 1.2 KDF is approved only for the extended master
  * secret (RFC 7627), so a master secret (RFC 5246 sec 8.1) is refused. The
  * label is the start of the PRF seed, also where OpenSSL-style callers put it.
@@ -104,7 +112,7 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     if ((result == NULL && resLen != 0) || (secret == NULL && secLen != 0) ||
        (seed == NULL && seedLen != 0))
         return BAD_FUNC_ARG;
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+#ifdef WC_PRF_REFUSE_MASTER_SECRET
     /* wc_PRF_TLS() and wc_PRF_TLSv1() pass label || seed here. */
     if (PrfIsMasterSecret(seed, seedLen)) {
         WOLFSSL_MSG("TLS 1.2 master secret refused: extended master secret "

@@ -51943,11 +51943,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
             (const byte*)label, (word32)XSTRLEN(label), seed, seedSz,
             1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_FIPS_TLS12_EMS_ONLY)
     /* A master secret without EMS is refused: IG D.Q. */
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
 #else
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* An older module derives a master secret without EMS but flags it. */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
     if (ret != 0) {
         if (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
@@ -51968,10 +51975,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
     ret = wc_PRF_TLS(result, msSz, pms, pmsSz, (const byte*)"", 0, lblSeed,
             (word32)XSTRLEN(label) + seedSz, 1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
-#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_FIPS_TLS12_EMS_ONLY)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         return WC_TEST_RET_ENC_EC(ret);
 #else
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(result, ms, msSz) != 0)
