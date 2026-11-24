@@ -2650,11 +2650,81 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     return 0;
 }
 
-static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
+#ifdef WOLFSSL_TLS13
+/** Parses a ServerNameList carried by a TLS v1.3 CertificateRequest.
+ *
+ * RFC 9846 Table 1 lists server_name for CR, a marking that reaches it from
+ * RFC 9261's ClientCertificateRequest, which is not a handshake message - so
+ * no conformant peer sends it here. It is accepted anyway, since RFC 9846
+ * Sect. 4.3 only sanctions an illegal_parameter abort for an extension not
+ * listed for the message.
+ *
+ * Nothing consumes the name: it guides certificate selection (RFC 9261
+ * Sect. 5.2.1) for exported authenticators, which wolfSSL does not implement.
+ * It is parsed in full so a malformed list is rejected, but not through
+ * TLSX_SNI_Parse(), which is the server-side matching path and would compare
+ * the peer's name against this end's own configured SNI.
+ *
+ * ssl     The SSL/TLS object.
+ * input   The extension data.
+ * length  The length of the extension data in bytes.
+ * returns 0 on success, BUFFER_ERROR when the list is malformed.
+ */
+static int TLSX_SNI_ParseCertReq(WOLFSSL* ssl, const byte* input,
+                                 word16 length)
+{
+    word16 size = 0;
+    word16 offset = 0;
+    byte type;
+
+    (void)ssl;
+
+    if (OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+
+    ato16(input, &size);
+    offset += OPAQUE16_LEN;
+
+    /* Validating sni list length. */
+    if (length != OPAQUE16_LEN + size || size == 0)
+        return BUFFER_ERROR;
+
+    /* Only one type is recognized and only one value per type (RFC 6066),
+     * so, no loop. */
+    type = input[offset++];
+    if (type != WOLFSSL_SNI_HOST_NAME)
+        return BUFFER_ERROR;
+
+    if (offset + OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+    ato16(input + offset, &size);
+    offset += OPAQUE16_LEN;
+
+    if (offset + size != length || size == 0)
+        return BUFFER_ERROR;
+
+    WOLFSSL_MSG("SNI in CertificateRequest parsed and ignored");
+
+    return 0;
+}
+#endif /* WOLFSSL_TLS13 */
+
+/* Enforce WOLFSSL_SNI_ABORT_ON_ABSENCE once a ClientHello is parsed.
+ *
+ * Keyed off the ClientHello rather than isRequest, which a CertificateRequest
+ * also sets: the check is "the peer had to send this in its ClientHello", and
+ * a client receiving a CertificateRequest must not run it against its own
+ * configuration.
+ *
+ * ssl            The SSL/TLS object.
+ * isClientHello  Whether the extensions came from a ClientHello.
+ * returns 0 when satisfied, SNI_ABSENT_ERROR otherwise.
+ */
+static int TLSX_SNI_VerifyParse(WOLFSSL* ssl, byte isClientHello)
 {
     (void)ssl;
 
-    if (isRequest) {
+    if (isClientHello) {
     #ifndef NO_WOLFSSL_SERVER
         TLSX* ctx_ext = TLSX_Find(ssl->ctx->extensions, TLSX_SERVER_NAME);
         TLSX* ssl_ext = TLSX_Find(ssl->extensions,      TLSX_SERVER_NAME);
@@ -2955,6 +3025,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #define SNI_WRITE        TLSX_SNI_Write
 #define SNI_PARSE        TLSX_SNI_Parse
 #define SNI_VERIFY_PARSE TLSX_SNI_VerifyParse
+#ifdef WOLFSSL_TLS13
+#define SNI_PARSE_CR     TLSX_SNI_ParseCertReq
+#endif
 
 #else
 
@@ -2963,6 +3036,9 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #define SNI_WRITE(a, b)        0
 #define SNI_PARSE(a, b, c, d)  0
 #define SNI_VERIFY_PARSE(a, b) 0
+#ifdef WOLFSSL_TLS13
+#define SNI_PARSE_CR(a, b, c)  0
+#endif
 
 #endif /* HAVE_SNI */
 
@@ -18954,6 +19030,13 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
+                    /* RFC 9846 Table 1: CH, EE, CR. The CertificateRequest
+                     * name is only validated -- see TLSX_SNI_ParseCertReq()
+                     * -- and must not reach the server-side matching path. */
+                    if (msgType == certificate_request) {
+                        ret = SNI_PARSE_CR(ssl, input + offset, size);
+                        break;
+                    }
                     if (msgType != client_hello &&
                         msgType != encrypted_extensions)
                         return EXT_NOT_ALLOWED;
@@ -19785,8 +19868,11 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 #endif
 
+    /* SNI checks only a ClientHello; see TLSX_SNI_VerifyParse(). The
+     * trusted_ca_keys check works from the other arm - did a server answer
+     * the list this client offered - so it keeps isRequest. */
     if (ret == 0)
-        ret = SNI_VERIFY_PARSE(ssl, isRequest);
+        ret = SNI_VERIFY_PARSE(ssl, msgType == client_hello);
     if (ret == 0)
         ret = TCA_VERIFY_PARSE(ssl, isRequest);
 

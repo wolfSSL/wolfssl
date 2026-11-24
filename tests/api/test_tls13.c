@@ -12238,6 +12238,134 @@ int test_tls13_client_cookie_too_big(void)
     return EXPECT_RESULT();
 }
 
+/* Test that server_name is accepted in a TLS 1.3 CertificateRequest.
+ *
+ * RFC 9846 Table 1 lists server_name as CH, EE, CR, so a client must not
+ * abort on a CertificateRequest that carries it. The name is validated but
+ * unused: consuming it needs the RFC 9261 exported-authenticator machinery
+ * that wolfSSL does not implement. Messages outside the table entry must
+ * still be refused, and a malformed ServerNameList must still be caught
+ * rather than skipped.
+ *
+ * A CertificateRequest is also not a ClientHello: a client that asked for its
+ * own SNI with WOLFSSL_SNI_ABORT_ON_ABSENCE must not run the server's "the
+ * peer had to send server_name" check against it. */
+int test_tls13_cert_req_server_name(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SNI) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* server_name: ext type, ext length, list length, name type, name
+     * length, "wolfssl.com". */
+    static const byte sniExt[] = {
+        0x00, 0x00, 0x00, 0x10, 0x00, 0x0e, 0x00, 0x00, 0x0b,
+        'w', 'o', 'l', 'f', 's', 's', 'l', '.', 'c', 'o', 'm'
+    };
+    /* Same, with a name length one past the end of the list. */
+    static const byte badLenExt[] = {
+        0x00, 0x00, 0x00, 0x10, 0x00, 0x0e, 0x00, 0x00, 0x0c,
+        'w', 'o', 'l', 'f', 's', 's', 'l', '.', 'c', 'o', 'm'
+    };
+    /* Same, with a name type that is not host_name(0). */
+    static const byte badTypeExt[] = {
+        0x00, 0x00, 0x00, 0x10, 0x00, 0x0e, 0x01, 0x00, 0x0b,
+        'w', 'o', 'l', 'f', 's', 's', 'l', '.', 'c', 'o', 'm'
+    };
+    /* An extension with no body at all. */
+    static const byte emptyBodyExt[] = {
+        0x00, 0x00, 0x00, 0x00
+    };
+    /* A list length with no list behind it. */
+    static const byte truncExt[] = {
+        0x00, 0x00, 0x00, 0x02, 0x00, 0x0e
+    };
+    /* A list length of zero. */
+    static const byte emptyListExt[] = {
+        0x00, 0x00, 0x00, 0x02, 0x00, 0x00
+    };
+    /* A list holding a name type and no room for the name length. */
+    static const byte noNameLenExt[] = {
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00
+    };
+    /* A host name of length zero. */
+    static const byte emptyNameExt[] = {
+        0x00, 0x00, 0x00, 0x05, 0x00, 0x03, 0x00, 0x00, 0x00
+    };
+#ifndef NO_WOLFSSL_SERVER
+    /* A CertificateRequest's extensions without server_name: just
+     * signature_algorithms, naming ecdsa_secp256r1_sha256. */
+    static const byte sigAlgsExt[] = {
+        0x00, 0x0d, 0x00, 0x04, 0x00, 0x02, 0x04, 0x03
+    };
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* Accepted: the extension is listed for CertificateRequest. */
+    ExpectIntEQ(TLSX_Parse(ssl, sniExt, (word16)sizeof(sniExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)), 0);
+
+    /* Accepting it must not mean skipping over it. */
+    ExpectIntEQ(TLSX_Parse(ssl, badLenExt, (word16)sizeof(badLenExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(TLSX_Parse(ssl, badTypeExt, (word16)sizeof(badTypeExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(TLSX_Parse(ssl, emptyBodyExt, (word16)sizeof(emptyBodyExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(TLSX_Parse(ssl, truncExt, (word16)sizeof(truncExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(TLSX_Parse(ssl, emptyListExt, (word16)sizeof(emptyListExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(TLSX_Parse(ssl, noNameLenExt, (word16)sizeof(noNameLenExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+    ExpectIntEQ(TLSX_Parse(ssl, emptyNameExt, (word16)sizeof(emptyNameExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+    /* Table 1 lists CH, EE and CR only: NewSessionTicket is still refused. */
+    ExpectIntEQ(TLSX_Parse(ssl, sniExt, (word16)sizeof(sniExt),
+        session_ticket, NULL), WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+
+    wolfSSL_free(ssl);
+    ssl = NULL;
+
+#ifndef NO_WOLFSSL_SERVER
+    /* This client's own SNI, flagged to abort when absent. Its status is
+     * still WOLFSSL_SNI_NO_MATCH, which is exactly what the server side check
+     * aborts on, so running that check for a CertificateRequest would fail
+     * with SNI_ABSENT_ERROR. The check and the option that triggers it exist
+     * only in builds with the server. */
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "wolfssl.com",
+        (word16)XSTRLEN("wolfssl.com")), WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        wolfSSL_SNI_SetOptions(ssl, WOLFSSL_SNI_HOST_NAME,
+            WOLFSSL_SNI_ABORT_ON_ABSENCE);
+    }
+    ExpectIntEQ(TLSX_Parse(ssl, sigAlgsExt, (word16)sizeof(sigAlgsExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)), 0);
+    /* Nor may a server_name in the CertificateRequest be matched against
+     * this client's own name, the server side path: it is only validated. */
+    ExpectIntEQ(TLSX_Parse(ssl, sniExt, (word16)sizeof(sniExt),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)), 0);
+    ExpectIntEQ(wolfSSL_SNI_Status(ssl, WOLFSSL_SNI_HOST_NAME),
+        WOLFSSL_SNI_NO_MATCH);
+
+    wolfSSL_free(ssl);
+#endif
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test the cookie extension of a ClientHello on the server. How much of it a
  * server checks depends on the build:
  *  - without WOLFSSL_TLS13_COOKIE there is no cookie code, so the extension
