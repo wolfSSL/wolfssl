@@ -856,6 +856,9 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 WOLFSSL_API
 int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* mu, word32 muLen, int* res);
+WOLFSSL_API
+int wc_MlDsaKey_GenMu(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
+    const byte* msg, word32 msgLen, byte* mu, word32 muLen);
 
 #ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
 /* Supply a matrix A expanded off-target for this key's rho, so verify can skip
