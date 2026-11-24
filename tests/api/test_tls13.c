@@ -10455,6 +10455,234 @@ int test_tls13_hrr_recognized_ext_downgrade(void)
     return EXPECT_RESULT();
 }
 
+/* Test the signature_algorithms_cert extension wolfSSL sends.
+ *
+ * RFC 8446 Sect. 4.2.3: when the extension is absent, signature_algorithms
+ * covers certificates too, so it is offered only when the application sets a
+ * distinct list. A client offers it in the ClientHello and a server in the
+ * CertificateRequest. "RSA+SHA256:ECDSA+SHA256" encodes as rsa_pkcs1_sha256
+ * (0x0401) then ecdsa_secp256r1_sha256 (0x0403).
+ *
+ * The receiving end keeps only the SHA-1 schemes a list names, in
+ * Options.peerSha1CertSigs, so the handshakes below send a list that adds
+ * ecdsa_sha1: that bit, alone, shows the certificate list arrived, since
+ * signature_algorithms - which applies without it - names no SHA-1 here.
+ *
+ * "SHA1" is accepted in a certificate list whenever SHA-1 is built in, even
+ * where the handshake list refuses it: taking a SHA-1 signed chain without
+ * offering SHA-1 for handshake signatures is what the extension is for. */
+int test_tls13_sigalgs_cert_offered(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_NO_SIGALG) && !defined(NO_SHA) && !defined(NO_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static const char list[] = "RSA+SHA256:ECDSA+SHA256";
+    static const byte expected[] = { 0x04, 0x01, 0x04, 0x03 };
+    static const char sha1List[] = "RSA+SHA256:ECDSA+SHA256:ECDSA+SHA1";
+    static const byte sha1Expected[] = { 0x02, 0x01, 0x02, 0x03 };
+
+    /* Argument checking. */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(NULL, list),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_sigalgs_cert_list(NULL, list),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* Set on the context, then inherited by the object. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    /* An unparsable list fails and leaves nothing set. */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c, "NOSUCHALG+SHA256"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    if (ctx_c != NULL)
+        ExpectIntEQ(ctx_c->ourCertSigAlgoSz, 0);
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c, list),
+        WOLFSSL_SUCCESS);
+    if (ctx_c != NULL) {
+        ExpectIntEQ(ctx_c->ourCertSigAlgoSz, sizeof(expected));
+        ExpectIntEQ(XMEMCMP(ctx_c->ourCertSigAlgo, expected,
+            sizeof(expected)), 0);
+    }
+    /* A bad name after a good one fails too, and stores nothing: the list
+     * set above stays, not the entry parsed before the bad name. */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c,
+        "ECDSA+SHA384:NOSUCHALG+SHA256"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    if (ctx_c != NULL) {
+        ExpectIntEQ(ctx_c->ourCertSigAlgoSz, sizeof(expected));
+        ExpectIntEQ(XMEMCMP(ctx_c->ourCertSigAlgo, expected,
+            sizeof(expected)), 0);
+    }
+    /* SHA-1 by name: rsa_pkcs1_sha1 (0x0201) and ecdsa_sha1 (0x0203). */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c,
+        "RSA+SHA1:ECDSA+SHA1"), WOLFSSL_SUCCESS);
+    if (ctx_c != NULL) {
+        ExpectIntEQ(ctx_c->ourCertSigAlgoSz, sizeof(sha1Expected));
+        ExpectIntEQ(XMEMCMP(ctx_c->ourCertSigAlgo, sha1Expected,
+            sizeof(sha1Expected)), 0);
+    }
+#ifdef WC_RSA_PSS
+    /* RSA-PSS has code points for SHA-256, SHA-384 and SHA-512 only. Any
+     * other digest would be advertised as a different scheme - SHA-1 as
+     * 0x0802 and Ed25519's 0x0807, SHA-224 as 0x0803 and Ed448's 0x0808 - so
+     * it is refused, in either list, and the list above stays. */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c, "RSA-PSS+SHA1"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#ifdef WOLFSSL_SHA224
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c, "RSA-PSS+SHA224"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "RSA-PSS+SHA224"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#endif
+    if (ctx_c != NULL)
+        ExpectIntEQ(ctx_c->ourCertSigAlgoSz, sizeof(sha1Expected));
+#endif
+#ifdef HAVE_ECC_BRAINPOOL
+    /* A Brainpool curve has code points for SHA-256/384/512 only; an entry
+     * that encodes to nothing is refused, not dropped. */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c,
+        "ECDSA-BRAINPOOL+SHA1"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    if (ctx_c != NULL)
+        ExpectIntEQ(ctx_c->ourCertSigAlgoSz, sizeof(sha1Expected));
+#endif
+#if defined(NO_OLD_TLS) && !defined(WOLFSSL_ALLOW_TLS_SHA1)
+    /* The handshake list keeps its own rule: no SHA-1 without old TLS. */
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, "RSA+SHA1"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#endif
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_cert_list(ctx_c, list),
+        WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    /* An object made after the context was set inherits the list. */
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->ourCertSigAlgoSz, sizeof(expected));
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Unset: the extension is not offered in either direction.
+     *
+     * A failed wolfSSL_set1_sigalgs_list() first, which shares the parser:
+     * it must leave the default signature_algorithms in place. An emptied
+     * list is not rebuilt, so the ClientHello would go without the extension
+     * and the handshake would fail. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c,
+        "RSA+SHA256:NOSUCHALG+SHA256"), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    if ((ssl_c != NULL) && (ssl_c->suites != NULL))
+        ExpectIntGT(ssl_c->suites->hashSigAlgoSz, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
+    #if defined(NO_OLD_TLS) && !defined(WOLFSSL_ALLOW_TLS_SHA1)
+        /* Otherwise the default signature_algorithms names SHA-1 schemes. */
+        ExpectIntEQ(ssl_s->options.peerSha1CertSigs, 0);
+    #endif
+    }
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* The handshake list on a context that has not built its suites yet,
+     * failed and then set: either way the default cipher suites have to be
+     * there for wolfSSL_new(), or no handshake can succeed. */
+    {
+        /* The good list names RSA-PSS: TLS 1.3 signs the handshake with it,
+         * not PKCS#1, so without it the server's RSA key has no scheme. */
+        static const char* const fresh[] = {
+            "NOSUCHALG+SHA256", "RSA-PSS+SHA256:ECDSA+SHA256"
+        };
+        int f;
+    #ifdef WC_RSA_PSS
+        const int freshCnt = 2;
+    #else
+        const int freshCnt = 1;
+    #endif
+
+        for (f = 0; f < freshCnt; f++) {
+            int want = (f == 0) ? WC_NO_ERR_TRACE(WOLFSSL_FAILURE)
+                                : WOLFSSL_SUCCESS;
+
+            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+            ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+            ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx_c, fresh[f]), want);
+            /* test_memio_setup() configures only the contexts it creates,
+             * so this one gets the CA and the memio callbacks here. */
+            ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile,
+                0), WOLFSSL_SUCCESS);
+            if (ctx_c != NULL) {
+                wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+                wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+            }
+            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s, wolfTLSv1_3_client_method, wolfTLSv1_3_server_method),
+                0);
+            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+            wolfSSL_free(ssl_c);     ssl_c = NULL;
+            wolfSSL_free(ssl_s);     ssl_s = NULL;
+            wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+            wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+        }
+    }
+
+    /* Client offers it in the ClientHello; the server records it. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_cert_list(ssl_c, sha1List),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->options.peerSha1CertSigs, WOLFSSL_SHA1_CERT_ECDSA);
+        ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
+    }
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Server offers it in the CertificateRequest; the client records it.
+     * This is the direction that was previously parse-only. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_set_verify(ssl_s,
+            WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+            CERT_FILETYPE), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set1_sigalgs_cert_list(ssl_s, sha1List),
+            WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.peerSha1CertSigs, WOLFSSL_SHA1_CERT_ECDSA);
+        ExpectIntEQ(ssl_c->certHashSigAlgoSz, 0);
+    }
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that wolfSSL_set1_sigalgs_list() is honored in TLS 1.3
  */
 int test_tls13_cert_req_sigalgs(void)
@@ -10704,6 +10932,7 @@ int test_tls13_sha1_cert_chain(void)
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
 #endif /* WC_RSA_PSS */
 
+#ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
     /* signature_algorithms_cert covers the chain on its own: this client
      * offers no SHA-1 for handshake signatures but does allow a SHA-1 signed
      * certificate, so the SHA-1 leaf may be sent. What is under test is the
@@ -10718,24 +10947,95 @@ int test_tls13_sha1_cert_chain(void)
     ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
         WOLFSSL_SUCCESS);
     if (EXPECT_SUCCESS()) {
-        ssl_c->certHashSigAlgo = (byte*)XMALLOC(2, ssl_c->heap,
-                                                DYNAMIC_TYPE_TLSX);
-    }
-    ExpectNotNull(ssl_c->certHashSigAlgo);
-    if (EXPECT_SUCCESS()) {
-        ssl_c->certHashSigAlgo[0] = sha_mac;
-        ssl_c->certHashSigAlgo[1] = rsa_sa_algo;
-        ssl_c->certHashSigAlgoSz = 2;
+        ssl_c->ourCertSigAlgo[0] = sha_mac;
+        ssl_c->ourCertSigAlgo[1] = rsa_sa_algo;
+        ssl_c->ourCertSigAlgoSz = 2;
     }
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-    ExpectIntEQ(ssl_s->options.peerSha1CertOk, 1);
-    ExpectNull(ssl_s->certHashSigAlgo);
-    ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
+    /* The server reduced the list it received to the SHA-1 schemes it names,
+     * which is all the chain check consults, and released the list itself. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
+        ExpectNull(ssl_s->certHashSigAlgo);
+        ExpectIntEQ(ssl_s->options.peerSha1CertSigs, WOLFSSL_SHA1_CERT_RSA);
+    }
 
     wolfSSL_free(ssl_c);    ssl_c = NULL;
     wolfSSL_free(ssl_s);    ssl_s = NULL;
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* WOLFSSL_HAVE_OUR_CERT_SIGALGO */
+
+#if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS)
+    /* Every SHA-1 scheme at once, in signature_algorithms and with no
+     * certificate list, so the server records all three bits. dsa_sha1 is
+     * recorded whether or not this build has DSA - the bit is about what the
+     * peer promised, not about what this end can sign with - and the chain is
+     * still walked rather than waved through, because a peer that named every
+     * SHA-1 scheme has still not agreed to an RSASSA-PSS certificate whose
+     * parameters name SHA-1. The RSA SHA-1 leaf matches rsa_pkcs1_sha1 and
+     * goes out. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    /* The schemes are appended directly, since the list parser has no name
+     * for SHA-1 once the old TLS versions are compiled out. The parser call
+     * is still what allocates ssl->suites, so it comes first. */
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS() &&
+            (ssl_c->suites->hashSigAlgoSz + 6 <= WOLFSSL_MAX_SIGALGO)) {
+        word16 i = ssl_c->suites->hashSigAlgoSz;
+
+        ssl_c->suites->hashSigAlgo[i++] = sha_mac;
+        ssl_c->suites->hashSigAlgo[i++] = rsa_sa_algo;
+        ssl_c->suites->hashSigAlgo[i++] = sha_mac;
+        ssl_c->suites->hashSigAlgo[i++] = dsa_sa_algo;
+        ssl_c->suites->hashSigAlgo[i++] = sha_mac;
+        ssl_c->suites->hashSigAlgo[i++] = ecc_dsa_sa_algo;
+        ssl_c->suites->hashSigAlgoSz = i;
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
+        ExpectIntEQ(ssl_s->options.peerSha1CertSigs, WOLFSSL_SHA1_CERT_ALL);
+    }
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* OPENSSL_EXTRA && WC_RSA_PSS */
+
+#ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
+    /* SHA-1 willingness is per signature scheme, not per digest. This client
+     * offers ecdsa_sha1 in signature_algorithms_cert and nothing else, so it
+     * has not agreed to accept the RSA SHA-1 leaf the server holds, even
+     * though the digests match. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->ourCertSigAlgo[0] = sha_mac;
+        ssl_c->ourCertSigAlgo[1] = ecc_dsa_sa_algo;
+        ssl_c->ourCertSigAlgoSz = 2;
+    }
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* WOLFSSL_HAVE_OUR_CERT_SIGALGO */
 
 #if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS)
     /* When both extensions are present the certificate list is the one that
@@ -10752,14 +11052,9 @@ int test_tls13_sha1_cert_chain(void)
         ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] = sha_mac;
         ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] =
             rsa_sa_algo;
-        ssl_c->certHashSigAlgo = (byte*)XMALLOC(2, ssl_c->heap,
-                                                DYNAMIC_TYPE_TLSX);
-    }
-    ExpectNotNull(ssl_c->certHashSigAlgo);
-    if (EXPECT_SUCCESS()) {
-        ssl_c->certHashSigAlgo[0] = sha256_mac;
-        ssl_c->certHashSigAlgo[1] = rsa_sa_algo;
-        ssl_c->certHashSigAlgoSz = 2;
+        ssl_c->ourCertSigAlgo[0] = sha256_mac;
+        ssl_c->ourCertSigAlgo[1] = rsa_sa_algo;
+        ssl_c->ourCertSigAlgoSz = 2;
     }
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
@@ -10769,6 +11064,76 @@ int test_tls13_sha1_cert_chain(void)
     wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
     wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
 #endif /* OPENSSL_EXTRA && WC_RSA_PSS */
+
+#if defined(OPENSSL_EXTRA) && defined(WC_RSA_PSS) && defined(HAVE_ECC) && \
+    !defined(NO_SHA256)
+    /* With no signature_algorithms_cert at all, RFC 8446 Sect. 4.2.3 has
+     * signature_algorithms cover certificate signatures as well - and that
+     * list names whole schemes, not digests. This client offers ecdsa_sha1 and
+     * rsa_pss_rsae_sha256: it would take an ECDSA SHA-1 certificate and can
+     * verify a PSS CertificateVerify, but it never agreed to rsa_pkcs1_sha1,
+     * so the RSA SHA-1 leaf must not be sent. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+    /* Appended rather than named in the list above: the parser only knows
+     * "SHA1" in a build that kept old TLS. */
+    if (EXPECT_SUCCESS()) {
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] = sha_mac;
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] =
+            ecc_dsa_sa_algo;
+    }
+    /* Nothing sets ourCertSigAlgo, so no certificate list is offered and the
+     * server has only signature_algorithms to go on. */
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->ourCertSigAlgoSz, 0);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
+        ExpectIntEQ(ssl_s->options.peerSha1CertSigs, WOLFSSL_SHA1_CERT_ECDSA);
+    }
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* The same client with rsa_pkcs1_sha1 in place of ecdsa_sha1 did agree to
+     * this chain, so it goes out and the handshake completes. The pair is the
+     * test: a record of SHA-1 willingness that keeps only the digest cannot
+     * tell these two clients apart, and sends the RSA SHA-1 chain to both. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (EXPECT_SUCCESS())
+        wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_file(ssl_s, sha1CertFile),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl_c, "RSA-PSS+SHA256"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] = sha_mac;
+        ssl_c->suites->hashSigAlgo[ssl_c->suites->hashSigAlgoSz++] =
+            rsa_sa_algo;
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->certHashSigAlgoSz, 0);
+        ExpectIntEQ(ssl_s->options.peerSha1CertSigs, WOLFSSL_SHA1_CERT_RSA);
+    }
+
+    wolfSSL_free(ssl_c);    ssl_c = NULL;
+    wolfSSL_free(ssl_s);    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* OPENSSL_EXTRA && WC_RSA_PSS && HAVE_ECC && !NO_SHA256 */
 
     /* A client whose own chain is SHA-1 signed sends an empty
      * certificate_list instead of failing (RFC 8446 Section 4.4.2). The

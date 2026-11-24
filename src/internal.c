@@ -9272,6 +9272,14 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->numGroups = ctx->numGroups;
     }
 
+#ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
+    if (ctx->ourCertSigAlgoSz > 0) {
+        XMEMCPY(ssl->ourCertSigAlgo, ctx->ourCertSigAlgo,
+                ctx->ourCertSigAlgoSz);
+        ssl->ourCertSigAlgoSz = ctx->ourCertSigAlgoSz;
+    }
+#endif
+
     /* Server clears this when the ClientHello legacy_session_id is empty. */
     ssl->options.tls13MiddleBoxCompat = 1;
 }
@@ -35600,8 +35608,16 @@ struct mac_algs {
 };
 #define MAC_NAMES_SZ    (int)(sizeof(mac_names)/sizeof(*mac_names))
 
-/* Convert the hash algorithm string to a TLS MAC algorithm num. */
-static byte GetMacAlgFromName(const char* name, int len)
+/* Convert the hash algorithm string to a TLS MAC algorithm num.
+ *
+ * name       Digest name, not NUL terminated.
+ * len        Length of name in bytes.
+ * allowSha1  Accept "SHA1" whenever SHA-1 is built in. mac_names[] lists it
+ *            only where SHA-1 handshake signatures are allowed; a certificate
+ *            signature list may still accept a SHA-1 chain without them.
+ * returns the MAC algorithm, or no_mac when the name is not recognised.
+ */
+static byte GetMacAlgFromName(const char* name, int len, int allowSha1)
 {
     byte alg = no_mac;
     int i;
@@ -35613,6 +35629,13 @@ static byte GetMacAlgFromName(const char* name, int len)
             break;
         }
     }
+#ifndef NO_SHA
+    if ((alg == no_mac) && allowSha1 && (len == 4) &&
+            (XMEMCMP(name, "SHA1", 4) == 0)) {
+        alg = sha_mac;
+    }
+#endif
+    (void)allowSha1;
 
     return alg;
 }
@@ -35668,23 +35691,38 @@ static byte GetSigAlgFromName(const char* name, int len)
     return alg;
 }
 
-/* Set the hash/signature algorithms that are supported for certificate signing.
+/* Set a signature algorithms list from a text list.
  *
- * suites  [in,out]  Cipher suites and signature algorithms.
- * list    [in]      String representing hash/signature algorithms to set.
- * returns  0 on failure.
- *          1 on success.
+ * The list is encoded into a local buffer and copied out only when all of it
+ * parses, so a failed call leaves the earlier list in place. Clearing it would
+ * be worse than keeping it: an empty signature algorithms list is not rebuilt
+ * from the defaults, and the ClientHello then goes out without the extension.
+ *
+ * hashSigAlgo    Buffer to encode the list into.
+ * maxSz          Size of hashSigAlgo in bytes.
+ * hashSigAlgoSz  Encoded length in bytes. Unchanged on error.
+ * list           Colon separated <public key>+<digest> algorithms.
+ * certList       Non-zero for a signature_algorithms_cert list: "SHA1" is
+ *                accepted whenever SHA-1 is built in, so an application can
+ *                take a SHA-1 signed chain without offering SHA-1 for
+ *                handshake signatures.
+ *
+ * RSA-PSS is accepted with SHA-256, SHA-384 and SHA-512 only, in either list:
+ * TLS assigns no other RSA-PSS code point.
+ * returns 1 on success, 0 on error.
  */
-int SetSuitesHashSigAlgo(Suites* suites, const char* list)
+int SetHashSigAlgoList(byte* hashSigAlgo, word16 maxSz, word16* hashSigAlgoSz,
+                       const char* list, int certList)
 {
     int ret = 1;
     word16 idx = 0;
     const char* s = list;
     byte sig_alg = 0;
     byte mac_alg = no_mac;
+    byte tmp[WOLFSSL_MAX_SIGALGO];
 
-    /* Setting is destructive on error. */
-    suites->hashSigAlgoSz = 0;
+    if (maxSz > (word16)sizeof(tmp))
+        maxSz = (word16)sizeof(tmp);
 
     do {
         if (*list == '+') {
@@ -35707,7 +35745,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                 }
             }
             else {
-                mac_alg = GetMacAlgFromName(s, (int)(list - s));
+                mac_alg = GetMacAlgFromName(s, (int)(list - s), certList);
                 if (mac_alg == 0) {
                     ret = 0;
                     break;
@@ -35728,12 +35766,23 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                 if (sig_alg == rsa_pss_sa_algo)
                     needed = 4;
 #endif
-                if ((word32)idx + needed > WOLFSSL_MAX_SIGALGO) {
+                if ((word32)idx + needed > maxSz) {
                     ret = 0;
                     break;
                 }
             }
-            AddSuiteHashSigAlgo(suites->hashSigAlgo, mac_alg, sig_alg, 0, &idx);
+            {
+                word16 before = idx;
+
+                AddSuiteHashSigAlgo(tmp, mac_alg, sig_alg, 0, &idx);
+                /* A pairing with no TLS code point, such as a Brainpool curve
+                 * with SHA-1, adds nothing. Refuse it rather than drop it
+                 * silently, or leave a list of only such entries empty. */
+                if (idx == before) {
+                    ret = 0;
+                    break;
+                }
+            }
             sig_alg = 0;
             mac_alg = no_mac;
             s = list + 1;
@@ -35743,14 +35792,30 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     }
     while (*(list-1) != '\0');
 
-    if (s != list && (sig_alg != 0 || mac_alg != 0)) {
+    if ((ret == 1) && (s != list) && (sig_alg != 0 || mac_alg != 0)) {
         ret = 0;
     }
-    else {
-        suites->hashSigAlgoSz = idx;
+    /* Nothing is stored on error, not even the entries parsed before the
+     * failure: that partial list is one the caller did not ask for. */
+    if (ret == 1) {
+        XMEMCPY(hashSigAlgo, tmp, idx);
+        *hashSigAlgoSz = idx;
     }
 
     return ret;
+}
+
+/* Set the signature algorithms list on a cipher suite holder.
+ *
+ * suites  Cipher suites holder.
+ * list    Colon separated <public key>+<digest> algorithms.
+ * returns 1 on success, 0 on error.
+ */
+int SetSuitesHashSigAlgo(Suites* suites, const char* list)
+{
+    return SetHashSigAlgoList(suites->hashSigAlgo,
+                              (word16)sizeof(suites->hashSigAlgo),
+                              &suites->hashSigAlgoSz, list, 0);
 }
 
 #endif /* OPENSSL_EXTRA */

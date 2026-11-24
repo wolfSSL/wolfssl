@@ -26,6 +26,8 @@
  *
  * main() always returns 0: the harness treats a nonzero exit as a failed
  * white-box and discards its coverage, so setup problems are printed as skips.
+ * A check that does not hold is counted in wb_fail instead, and the closing
+ * "done (with failures)" line is what run-whitebox-smoke.sh fails on.
  */
 
 /* Pull tls13.c in verbatim so its file-static helpers are in scope and
@@ -38,6 +40,9 @@
 #include <stdio.h>
 
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
+
+/* Checks that did not hold. Each one also prints a "[wb]" line naming it. */
+static int wb_fail = 0;
 
 /* The guard stack that encloses DecodeTls13SigAlg() in tls13.c:
  *   #if !defined(NO_TLS) && defined(WOLFSSL_TLS13)
@@ -749,10 +754,10 @@ static void wb_sanity_check_msgs(void)
 
 /* ------------------------------------------------------------------------- *
  * The RFC 8446 Section 4.4.2.2 rule on the chain this end sends:
- * IsSha1SignedCert(), CheckCertChainSigAlgo() and the check at the head of
+ * GetCertSigAlgo(), CheckCertChainSigAlgo() and the check at the head of
  * SendTls13Certificate().
  *
- * IsSha1SignedCert() reads two fields of a DER encoded certificate, the
+ * GetCertSigAlgo() reads two fields of a DER encoded certificate, the
  * tbsCertificate (for its length only) and the signatureAlgorithm that
  * follows it, so the vectors below are AlgorithmIdentifiers with a one byte
  * placeholder in front rather than complete certificates. That is what makes
@@ -820,39 +825,187 @@ static const byte wb_sig_pss_bad[] = {
  * turning a vector into a repeat of its partner. */
 static void wb_expect_sha1(const char* what, int got, int want)
 {
-    if (got != want)
+    if (got != want) {
         printf("  [wb] %s: expected %d, got %d\n", what, want, got);
+        wb_fail++;
+    }
+}
+
+/* GetCertSigAlgo() replaced IsSha1SignedCert(): it reports the certificate's
+ * whole signature scheme rather than answering one question, so the SHA-1
+ * question this decision table is written against is asked here, the same way
+ * CheckCertChainSigAlgo() asks it. */
+static int wb_sha1_signed(const byte* der, word32 derSz)
+{
+    byte hashAlgo = no_mac;
+    byte sigAlgo = invalid_sa_algo;
+
+    if (!GetCertSigAlgo(der, derSz, &hashAlgo, &sigAlgo))
+        return 0;
+    return hashAlgo == sha_mac;
 }
 
 static void wb_is_sha1_signed_cert(void)
 {
     /* (T,-,-) */
     wb_expect_sha1("sha1WithRSAEncryption",
-        IsSha1SignedCert(wb_sig_sha1_rsa, (word32)sizeof(wb_sig_sha1_rsa)), 1);
+        wb_sha1_signed(wb_sig_sha1_rsa, (word32)sizeof(wb_sig_sha1_rsa)), 1);
     /* (F,T,-) */
     wb_expect_sha1("ecdsa-with-SHA1",
-        IsSha1SignedCert(wb_sig_sha1_ecdsa, (word32)sizeof(wb_sig_sha1_ecdsa)),
+        wb_sha1_signed(wb_sig_sha1_ecdsa, (word32)sizeof(wb_sig_sha1_ecdsa)),
         1);
     /* (F,F,T) */
     wb_expect_sha1("id-dsa-with-sha1",
-        IsSha1SignedCert(wb_sig_sha1_dsa, (word32)sizeof(wb_sig_sha1_dsa)), 1);
+        wb_sha1_signed(wb_sig_sha1_dsa, (word32)sizeof(wb_sig_sha1_dsa)), 1);
     /* (F,F,F), and the (F,-,-) partner of the RSASSA-PSS decision. */
     wb_expect_sha1("sha256WithRSAEncryption",
-        IsSha1SignedCert(wb_sig_sha256_rsa, (word32)sizeof(wb_sig_sha256_rsa)),
+        wb_sha1_signed(wb_sig_sha256_rsa, (word32)sizeof(wb_sig_sha256_rsa)),
         0);
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
     /* (T,T,T): the parameters decode, and to SHA-1. */
     wb_expect_sha1("id-RSASSA-PSS, absent parameters",
-        IsSha1SignedCert(wb_sig_pss_absent, (word32)sizeof(wb_sig_pss_absent)),
+        wb_sha1_signed(wb_sig_pss_absent, (word32)sizeof(wb_sig_pss_absent)),
         1);
     /* (T,T,F): the signature OID matches but the parameters do not decode, so
      * the digest is unknown and the certificate is not treated as SHA-1. */
     wb_expect_sha1("id-RSASSA-PSS, undecodable parameters",
-        IsSha1SignedCert(wb_sig_pss_bad, (word32)sizeof(wb_sig_pss_bad)), 0);
+        wb_sha1_signed(wb_sig_pss_bad, (word32)sizeof(wb_sig_pss_bad)), 0);
+
+    /* The header promises both outputs or neither: an unknown result leaves
+     * no_mac/invalid_sa_algo, a known one names both halves. The arm for a
+     * PSS digest that decodes but is not mapped cannot be reached, since
+     * wc_DecodeRsaPssParams() accepts only digests the mapping covers, so the
+     * undecodable vector stands in for it. */
+    {
+        byte hashAlgo = 0xff;
+        byte sigAlgo = 0xff;
+        int  known;
+
+        known = GetCertSigAlgo(wb_sig_pss_bad, (word32)sizeof(wb_sig_pss_bad),
+                               &hashAlgo, &sigAlgo);
+        if ((known != 0) || (hashAlgo != no_mac) ||
+                (sigAlgo != invalid_sa_algo)) {
+            printf("  [wb] id-RSASSA-PSS, undecodable parameters: outputs "
+                   "%d/%d/%d, expected 0/%d/%d\n", known, hashAlgo, sigAlgo,
+                   no_mac, invalid_sa_algo);
+            wb_fail++;
+        }
+        known = GetCertSigAlgo(wb_sig_pss_absent,
+                               (word32)sizeof(wb_sig_pss_absent),
+                               &hashAlgo, &sigAlgo);
+        if ((known != 1) || (hashAlgo != sha_mac) ||
+                (sigAlgo != rsa_pss_sa_algo)) {
+            printf("  [wb] id-RSASSA-PSS, absent parameters: outputs "
+                   "%d/%d/%d, expected 1/%d/%d\n", known, hashAlgo, sigAlgo,
+                   sha_mac, rsa_pss_sa_algo);
+            wb_fail++;
+        }
+    }
 #endif
 
-    WB_NOTE("IsSha1SignedCert signature algorithm arms driven with both "
+    WB_NOTE("GetCertSigAlgo signature algorithm arms driven with both "
             "halves of each independence pair");
+}
+
+/* Hand SetPeerSha1CertOk() a two byte signature_algorithms_cert list, as
+ * TLSX_SignatureAlgorithmsCert_Parse() would have stored it, and return the
+ * SHA-1 bits it records. The list is freed by the call, as in a handshake; a
+ * list left behind is a failed check. */
+static word16 wb_sha1_bits_from_list(WOLFSSL* ssl, byte b0, byte b1)
+{
+    byte* list = (byte*)XMALLOC(2, ssl->heap, DYNAMIC_TYPE_TLSX);
+
+    if (list == NULL) {
+        printf("  [wb] could not allocate a signature_algorithms_cert list\n");
+        wb_fail++;
+        return 0;
+    }
+    list[0] = b0;
+    list[1] = b1;
+    ssl->certHashSigAlgo = list;
+    ssl->certHashSigAlgoSz = 2;
+    SetPeerSha1CertOk(ssl, NULL);
+    if ((ssl->certHashSigAlgo != NULL) || (ssl->certHashSigAlgoSz != 0)) {
+        printf("  [wb] SetPeerSha1CertOk kept the peer's list\n");
+        wb_fail++;
+    }
+    return ssl->options.peerSha1CertSigs;
+}
+
+/* CertSigAlgoRejected() answers from the peerSha1CertSigs bitmask, which
+ * SetPeerSha1CertOk() builds from signature_algorithms_cert when the peer sent
+ * it. Drive the bitmask directly and through a received list, and check that
+ * an RSASSA-PSS certificate with SHA-1 is refused whatever was advertised,
+ * including the unassigned 0x0802 that DecodeSigAlg() reads as rsa_pss with
+ * SHA-1. */
+static void wb_cert_sig_algo_rejected(void)
+{
+    WOLFSSL* ssl = wb_ssl_c;
+    byte*    savedList;
+    word16   savedListSz;
+    word16   savedBits;
+
+    if (ssl == NULL) {
+        WB_NOTE("no ssl fixture; CertSigAlgoRejected skipped");
+        return;
+    }
+    savedList = ssl->certHashSigAlgo;
+    savedListSz = ssl->certHashSigAlgoSz;
+    savedBits = ssl->options.peerSha1CertSigs;
+    ssl->certHashSigAlgo = NULL;
+    ssl->certHashSigAlgoSz = 0;
+
+    /* Not SHA-1: never refused here, whatever was advertised. */
+    ssl->options.peerSha1CertSigs = 0;
+    wb_expect_sha1("sha256WithRSAEncryption, nothing advertised",
+        CertSigAlgoRejected(ssl, wb_sig_sha256_rsa,
+                            (word32)sizeof(wb_sig_sha256_rsa)), 0);
+
+    /* The RSA bit accepts an RSA PKCS#1 certificate, the ECDSA bit alone does
+     * not. */
+    ssl->options.peerSha1CertSigs = WOLFSSL_SHA1_CERT_RSA;
+    wb_expect_sha1("sha1WithRSAEncryption, rsa_pkcs1_sha1 bit",
+        CertSigAlgoRejected(ssl, wb_sig_sha1_rsa,
+                            (word32)sizeof(wb_sig_sha1_rsa)), 0);
+    ssl->options.peerSha1CertSigs = WOLFSSL_SHA1_CERT_ECDSA;
+    wb_expect_sha1("sha1WithRSAEncryption, ecdsa_sha1 bit only",
+        CertSigAlgoRejected(ssl, wb_sig_sha1_rsa,
+                            (word32)sizeof(wb_sig_sha1_rsa)), 1);
+
+    /* Through a received list: the whole scheme is what is recorded. */
+    wb_expect_sha1("rsa_pkcs1_sha1 listed, recorded bits",
+        wb_sha1_bits_from_list(ssl, sha_mac, rsa_sa_algo),
+        WOLFSSL_SHA1_CERT_RSA);
+    wb_expect_sha1("sha1WithRSAEncryption, rsa_pkcs1_sha1 listed",
+        CertSigAlgoRejected(ssl, wb_sig_sha1_rsa,
+                            (word32)sizeof(wb_sig_sha1_rsa)), 0);
+    wb_expect_sha1("ecdsa_sha1 listed, recorded bits",
+        wb_sha1_bits_from_list(ssl, sha_mac, ecc_dsa_sa_algo),
+        WOLFSSL_SHA1_CERT_ECDSA);
+    wb_expect_sha1("sha1WithRSAEncryption, ecdsa_sha1 listed",
+        CertSigAlgoRejected(ssl, wb_sig_sha1_rsa,
+                            (word32)sizeof(wb_sig_sha1_rsa)), 1);
+
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+    /* RSASSA-PSS with SHA-1: 0x0802 records no bit, and the certificate is
+     * refused against it and against every SHA-1 bit. */
+    wb_expect_sha1("0x0802 listed, recorded bits",
+        wb_sha1_bits_from_list(ssl, 0x08, 0x02), 0);
+    wb_expect_sha1("id-RSASSA-PSS SHA-1, 0x0802 listed",
+        CertSigAlgoRejected(ssl, wb_sig_pss_absent,
+                            (word32)sizeof(wb_sig_pss_absent)), 1);
+    ssl->options.peerSha1CertSigs = WOLFSSL_SHA1_CERT_ALL;
+    wb_expect_sha1("id-RSASSA-PSS SHA-1, every SHA-1 bit",
+        CertSigAlgoRejected(ssl, wb_sig_pss_absent,
+                            (word32)sizeof(wb_sig_pss_absent)), 1);
+#endif
+
+    ssl->certHashSigAlgo = savedList;
+    ssl->certHashSigAlgoSz = savedListSz;
+    ssl->options.peerSha1CertSigs = savedBits;
+
+    WB_NOTE("CertSigAlgoRejected driven from the bitmask and from a received "
+            "list, RSASSA-PSS SHA-1 refused on both");
 }
 
 /* Discards the record layer output so SendAlert() below has somewhere to
@@ -912,7 +1065,7 @@ static void wb_cert_chain_sigalgo(void)
     chain.buffer = chainBuf;
     chain.length = (word32)sizeof(chainBuf);
 
-    ssl->options.peerSha1CertOk = 0;
+    ssl->options.peerSha1CertSigs = 0;
 
     /* if (certificate == NULL || certificate->buffer == NULL) */
     ssl->buffers.certificate  = NULL;              /* (T,-) */
@@ -941,8 +1094,10 @@ static void wb_cert_chain_sigalgo(void)
      * so the walk runs to the NextCert() terminator with ret still 0. */
     ssl->buffers.certChainCnt = 1;
     ret = CheckCertChainSigAlgo(ssl);
-    if (ret != 0)
+    if (ret != 0) {
         printf("  [wb] SHA-256 chain rejected: %d\n", ret);
+        wb_fail++;
+    }
 
     /* The head of SendTls13Certificate(): the check that separates a chain the
      * peer will not accept, which each side resolves its own way, from a
@@ -969,8 +1124,10 @@ static void wb_cert_chain_sigalgo(void)
     ssl->buffers.certificate = &leafSha1;
     ssl->options.side = WOLFSSL_SERVER_END;
     ret = SendTls13Certificate(ssl);
-    if (ret != WC_NO_ERR_TRACE(MATCH_SUITE_ERROR))
+    if (ret != WC_NO_ERR_TRACE(MATCH_SUITE_ERROR)) {
         printf("  [wb] SHA-1 leaf not rejected: %d\n", ret);
+        wb_fail++;
+    }
 
     /* (T,T): the only other value the check produces is MEMORY_E, from the
      * decoder IsSelfIssuedCert() cannot allocate. Every allocation is failed
@@ -981,9 +1138,11 @@ static void wb_cert_chain_sigalgo(void)
     ret = SendTls13Certificate(ssl);
     mcdc_fa_disarm();
     mcdc_fa_restore();
-    if (ret != WC_NO_ERR_TRACE(MEMORY_E))
+    if (ret != WC_NO_ERR_TRACE(MEMORY_E)) {
         printf("  [wb] allocation failure did not reach IsSelfIssuedCert: "
                "%d\n", ret);
+        wb_fail++;
+    }
 
     ssl->options.side         = savedSide;
     ssl->buffers.certificate  = savedCert;
@@ -997,9 +1156,11 @@ static void wb_cert_chain_sigalgo(void)
 }
 #else
 static void wb_is_sha1_signed_cert(void)
-{ WB_NOTE("IsSha1SignedCert not compiled in this variant; skipped"); }
+{ WB_NOTE("GetCertSigAlgo not compiled in this variant; skipped"); }
 static void wb_cert_chain_sigalgo(void)
 { WB_NOTE("CheckCertChainSigAlgo not compiled in this variant; skipped"); }
+static void wb_cert_sig_algo_rejected(void)
+{ WB_NOTE("CertSigAlgoRejected not compiled in this variant; skipped"); }
 #endif /* WB_HAVE_SSL_FIXTURE && !NO_CERTS && !WOLFSSL_NO_SIGALG */
 
 int main(void)
@@ -1022,6 +1183,7 @@ int main(void)
     wb_create_cookie_ext_guards();
     wb_sanity_check_msgs();
     wb_is_sha1_signed_cert();
+    wb_cert_sig_algo_rejected();
     wb_cert_chain_sigalgo();
 
 #ifdef WB_HAVE_SSL_FIXTURE
@@ -1029,7 +1191,7 @@ int main(void)
     wolfSSL_Cleanup();
 #endif
 
-    printf("done\n");
+    printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* Always 0: a nonzero exit is scored as a failed white-box and its
      * coverage is discarded. */
     return 0;

@@ -4508,8 +4508,8 @@ static int EchCalcAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
-/* Record whether the peer's advertised algorithms permit SHA-1 signed
- * certificates, and release the peer's signature_algorithms_cert list.
+/* Record which SHA-1 signature schemes the peer's advertised algorithms permit
+ * for certificates, as WOLFSSL_SHA1_CERT_* bits in Options.peerSha1CertSigs.
  *
  * RFC 8446 Section 4.2.3 has signature_algorithms cover certificate signatures
  * when signature_algorithms_cert is absent.
@@ -4523,8 +4523,10 @@ static void SetPeerSha1CertOk(WOLFSSL* ssl, const Suites* peerSuites)
     word16      listSz = 0;
     word16      i;
 
-    ssl->options.peerSha1CertOk = 0;
+    ssl->options.peerSha1CertSigs = 0;
 
+    /* signature_algorithms_cert, when the peer sent it, is the list that
+     * governs certificates; otherwise signature_algorithms does. */
     if (ssl->certHashSigAlgoSz > 0) {
         list = ssl->certHashSigAlgo;
         listSz = ssl->certHashSigAlgoSz;
@@ -4534,16 +4536,45 @@ static void SetPeerSha1CertOk(WOLFSSL* ssl, const Suites* peerSuites)
         listSz = peerSuites->hashSigAlgoSz;
     }
 
-    for (i = 0; (list != NULL) && (i + 2 <= listSz); i += 2) {
-        /* Only rsa_pkcs1_sha1, dsa_sha1 and ecdsa_sha1 carry sha_mac as the
-         * first byte of the signature scheme. */
-        if (list[i] == sha_mac) {
-            ssl->options.peerSha1CertOk = 1;
-            break;
+    for (i = 0; (list != NULL) && (i + OPAQUE16_LEN <= listSz);
+            i += OPAQUE16_LEN) {
+        byte peerHash = no_mac;
+        byte peerSig = invalid_sa_algo;
+
+        /* Which scheme, not just which digest: the peer's signature_algorithms
+         * applies to certificate signatures when it sent no
+         * signature_algorithms_cert (RFC 8446 Sect. 4.2.3), and that promise
+         * names a signature algorithm alongside the digest. Recording only
+         * "some SHA-1 was offered" sent an RSA SHA-1 chain to a peer that had
+         * offered ecdsa_sha1 and nothing else. */
+        DecodeSigAlg(&list[i], &peerHash, &peerSig);
+        if (peerHash != sha_mac)
+            continue;
+        /* Not guarded by NO_DSA, for the same reason GetCertSigAlgo() maps
+         * CTC_SHAwDSA unconditionally: a chain can carry a DSA signed
+         * certificate in a build that cannot itself sign with DSA, and the
+         * peer's promise about dsa_sha1 has to be honoured for it. */
+        switch (peerSig) {
+            case rsa_sa_algo:
+                ssl->options.peerSha1CertSigs |= WOLFSSL_SHA1_CERT_RSA;
+                break;
+            case dsa_sa_algo:
+                ssl->options.peerSha1CertSigs |= WOLFSSL_SHA1_CERT_DSA;
+                break;
+            case ecc_dsa_sa_algo:
+                ssl->options.peerSha1CertSigs |= WOLFSSL_SHA1_CERT_ECDSA;
+                break;
+            default:
+                /* No other scheme names SHA-1, rsa_pss_*_sha1 included: TLS
+                 * 1.3 assigns no such code point. */
+                break;
         }
     }
 
-    /* Post-handshake auth parses its own list. */
+    /* The bits above are all CertSigAlgoRejected() needs: only SHA-1
+     * certificates are checked against the peer's list, and those three
+     * schemes are the only ones naming SHA-1. Post-handshake auth parses its
+     * own list. */
     XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
     ssl->certHashSigAlgo = NULL;
     ssl->certHashSigAlgoSz = 0;
@@ -10650,26 +10681,42 @@ static int SetupOcspResp(WOLFSSL* ssl)
 #endif
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-/* Certificate is signed with the deprecated SHA-1 hash. An unrecognized or
- * unparsable algorithm is not SHA-1; the peer still verifies the chain.
+/* Map a certificate's signatureAlgorithm to the TLS hash and signature pair
+ * that names it.
  *
- * der    Buffer holding the DER encoded certificate.
- * derSz  Length of the DER encoded certificate.
- * returns 1 when SHA-1 signed, 0 otherwise.
+ * der       Buffer holding the DER encoded certificate.
+ * derSz     Length of the DER encoded certificate.
+ * hashAlgo  On success, the digest the certificate was signed with.
+ * sigAlgo   On success, the signature algorithm it was signed with. Both are
+ *           left as no_mac/invalid_sa_algo when the algorithm is not one this
+ *           code recognises, which is not an error: the peer still verifies
+ *           the chain itself.
+ * returns 1 when the algorithm was recognised, 0 otherwise.
  */
-static int IsSha1SignedCert(const byte* der, word32 derSz)
+static int GetCertSigAlgo(const byte* der, word32 derSz, byte* hashAlgo,
+                          byte* sigAlgo)
 {
     word32 idx = 0;
     word32 oid = 0;
     word32 algoIdEnd = 0;
     int    len = 0;
-    int    isSha1 = 0;
+    int    known = 0;
     int    ret;
 #if defined(WC_RSA_PSS) && !defined(NO_RSA)
     enum wc_HashType hash = WC_HASH_TYPE_NONE;
     int    mgf = 0;
     int    saltLen = 0;
 #endif
+
+    *hashAlgo = no_mac;
+    *sigAlgo = invalid_sa_algo;
+
+    /* An RSASSA-PSS certificate is reported as rsa_pss_sa_algo and never
+     * rsa_pss_pss_algo: telling the two apart needs the SubjectPublicKeyInfo
+     * algorithm, not the signatureAlgorithm read below. The only caller cares
+     * whether the digest is SHA-1, for which the distinction does not arise -
+     * TLS defines no rsa_pss_*_sha1 code point either way - but it would have
+     * to be made before this result is used for anything wider. */
 
     /* Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm, ... }.
      * GetSequence() checks each length against the maximum index passed in, so
@@ -10689,25 +10736,188 @@ static int IsSha1SignedCert(const byte* der, word32 derSz)
         ret = GetObjectId(der, &idx, &oid, oidSigType, algoIdEnd);
     }
     if (ret >= 0) {
-        if ((oid == CTC_SHAwRSA) || (oid == CTC_SHAwECDSA) ||
-                (oid == CTC_SHAwDSA)) {
-            isSha1 = 1;
+        known = 1;
+        /* One arm per OID, naming both halves of the pair so the digest and
+         * the signature algorithm cannot drift apart. Not guarded by the
+         * algorithm build macros - the CTC_* OID sums and the wc_MACAlgorithm
+         * values are defined unconditionally - because a certificate has to be
+         * classified even in a build that cannot use the algorithm, or it
+         * would escape the SHA-1 rule below by looking unrecognised. */
+        switch (oid) {
+            case CTC_SHAwRSA:
+                *hashAlgo = sha_mac;
+                *sigAlgo = rsa_sa_algo;
+                break;
+            case CTC_SHA224wRSA:
+                *hashAlgo = sha224_mac;
+                *sigAlgo = rsa_sa_algo;
+                break;
+            case CTC_SHA256wRSA:
+                *hashAlgo = sha256_mac;
+                *sigAlgo = rsa_sa_algo;
+                break;
+            case CTC_SHA384wRSA:
+                *hashAlgo = sha384_mac;
+                *sigAlgo = rsa_sa_algo;
+                break;
+            case CTC_SHA512wRSA:
+                *hashAlgo = sha512_mac;
+                *sigAlgo = rsa_sa_algo;
+                break;
+            case CTC_SHAwECDSA:
+                *hashAlgo = sha_mac;
+                *sigAlgo = ecc_dsa_sa_algo;
+                break;
+            case CTC_SHA224wECDSA:
+                *hashAlgo = sha224_mac;
+                *sigAlgo = ecc_dsa_sa_algo;
+                break;
+            case CTC_SHA256wECDSA:
+                *hashAlgo = sha256_mac;
+                *sigAlgo = ecc_dsa_sa_algo;
+                break;
+            case CTC_SHA384wECDSA:
+                *hashAlgo = sha384_mac;
+                *sigAlgo = ecc_dsa_sa_algo;
+                break;
+            case CTC_SHA512wECDSA:
+                *hashAlgo = sha512_mac;
+                *sigAlgo = ecc_dsa_sa_algo;
+                break;
+            case CTC_SHAwDSA:
+                *hashAlgo = sha_mac;
+                *sigAlgo = dsa_sa_algo;
+                break;
+            case CTC_SHA256wDSA:
+                *hashAlgo = sha256_mac;
+                *sigAlgo = dsa_sa_algo;
+                break;
+            case CTC_ED25519:
+                *hashAlgo = sha512_mac;
+                *sigAlgo = ed25519_sa_algo;
+                break;
+            case CTC_ED448:
+                *hashAlgo = sha512_mac;
+                *sigAlgo = ed448_sa_algo;
+                break;
+            case CTC_SM3wSM2:
+                *hashAlgo = sm3_mac;
+                *sigAlgo = sm2_sa_algo;
+                break;
+            default:
+                /* Signature algorithms this mapping does not cover, such as
+                 * the post-quantum ones, are reported as unknown so that the
+                 * certificate is left alone rather than rejected. */
+                known = 0;
+                break;
         }
+
     #if defined(WC_RSA_PSS) && !defined(NO_RSA)
         /* RSASSA-PSS uses one signature OID for every digest and names the
          * digest in the algorithm parameters instead. Absent parameters are
          * passed through as a zero length buffer rather than skipped: RFC 4055
          * makes them mean all defaults, which is SHA-1, and
          * wc_DecodeRsaPssParams() reports that. */
-        else if ((oid == RSAPSSk) && (idx <= algoIdEnd) &&
+        if ((oid == RSAPSSk) && (idx <= algoIdEnd) &&
                 (wc_DecodeRsaPssParams(der + idx, algoIdEnd - idx, &hash, &mgf,
                                        &saltLen) == 0)) {
-            isSha1 = (hash == WC_HASH_TYPE_SHA);
+            known = 1;
+            if (hash == WC_HASH_TYPE_SHA)
+                *hashAlgo = sha_mac;
+            else if (hash == WC_HASH_TYPE_SHA224)
+                *hashAlgo = sha224_mac;
+            else if (hash == WC_HASH_TYPE_SHA256)
+                *hashAlgo = sha256_mac;
+            else if (hash == WC_HASH_TYPE_SHA384)
+                *hashAlgo = sha384_mac;
+            else if (hash == WC_HASH_TYPE_SHA512)
+                *hashAlgo = sha512_mac;
+            else
+                known = 0;
+            /* Name the signature algorithm only with a known digest, so an
+             * unknown result leaves both outputs at their defaults. */
+            if (known)
+                *sigAlgo = rsa_pss_sa_algo;
         }
     #endif
     }
 
-    return isSha1;
+    return known;
+}
+
+/* Did the peer advertise the SHA-1 signature scheme this certificate uses?
+ *
+ * Answers from Options.peerSha1CertSigs, which SetPeerSha1CertOk() filled from
+ * signature_algorithms_cert when the peer sent it and from
+ * signature_algorithms otherwise.
+ *
+ * ssl      The SSL/TLS object.
+ * sigAlgo  Signature algorithm the certificate was signed with.
+ * returns 1 when the peer named that SHA-1 scheme, 0 when it did not.
+ */
+static int PeerOfferedSha1CertSig(const WOLFSSL* ssl, byte sigAlgo)
+{
+    byte bit;
+
+    switch (sigAlgo) {
+        case rsa_sa_algo:
+            bit = WOLFSSL_SHA1_CERT_RSA;
+            break;
+        case dsa_sa_algo:
+            bit = WOLFSSL_SHA1_CERT_DSA;
+            break;
+        case ecc_dsa_sa_algo:
+            bit = WOLFSSL_SHA1_CERT_ECDSA;
+            break;
+        default:
+            /* Not a scheme that can name SHA-1, so nothing was promised about
+             * it and the digest check above should not have reached here. */
+            return 0;
+    }
+
+    return (ssl->options.peerSha1CertSigs & bit) != 0;
+}
+
+/* May a certificate about to be sent be rejected on its signature algorithm?
+ *
+ * ssl    The SSL/TLS object.
+ * der    Buffer holding the DER encoded certificate.
+ * derSz  Length of the DER encoded certificate.
+ * returns 1 when the peer will not accept the certificate, 0 otherwise.
+ */
+static int CertSigAlgoRejected(const WOLFSSL* ssl, const byte* der,
+                               word32 derSz)
+{
+    byte hashAlgo = no_mac;
+    byte sigAlgo = invalid_sa_algo;
+
+    if (!GetCertSigAlgo(der, derSz, &hashAlgo, &sigAlgo)) {
+        /* Not a signature algorithm this maps, so nothing to check it
+         * against. Leave the certificate for the peer to judge. */
+        return 0;
+    }
+
+    /* Only SHA-1 bars a certificate outright. RFC 9846 Sect. 4.5.1.2 lets a
+     * sender that cannot build a chain signed with the algorithms the peer
+     * advertised send the chain it has anyway, so a mismatch on any other
+     * digest is for the peer to judge on receipt -- but that fallback "MUST
+     * NOT use the deprecated SHA-1 hash, unless the [peer] specifically
+     * advertises that it is willing to accept SHA-1". */
+    if (hashAlgo != sha_mac)
+        return 0;
+
+    /* TLS 1.3 assigns no rsa_pss_*_sha1 code point, so no peer can have agreed
+     * to an RSASSA-PSS certificate whose parameters name SHA-1. The bitmask
+     * below has no bit for it either; this says so rather than leaning on
+     * PeerOfferedSha1CertSig()'s default. */
+    if ((sigAlgo == rsa_pss_sa_algo) || (sigAlgo == rsa_pss_pss_algo))
+        return 1;
+
+    /* That willingness is per signature scheme, not per digest: a peer that
+     * advertised ecdsa_sha1 alone has not agreed to accept an rsa_pkcs1_sha1
+     * certificate. SetPeerSha1CertOk() recorded which SHA-1 schemes the
+     * governing list named. */
+    return !PeerOfferedSha1CertSig(ssl, sigAlgo);
 }
 
 /* Certificate is self issued. RFC 8446 Section 4.4.2.2: "Certificates that are
@@ -10767,6 +10977,10 @@ static int IsSelfIssuedCert(WOLFSSL* ssl, const byte* der, word32 derSz,
  * same rule covers both sides. How a failure is resolved differs by side and is
  * left to the caller.
  *
+ * The SHA-1 test is made against the peer's signature_algorithms_cert list
+ * when it sent one, matching the certificate's whole signature scheme rather
+ * than only its digest.
+ *
  * ssl  The SSL/TLS object.
  * returns 0 when the chain may be sent, MATCH_SUITE_ERROR when it may not and
  * MEMORY_E when a certificate could not be examined.
@@ -10781,16 +10995,19 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
     int    selfIssued = 0;
     int    ret = 0;
 
-    if (ssl->options.peerSha1CertOk)
-        return 0;
+    /* No shortcut for a peer that named every SHA-1 scheme. TLS 1.3 assigns
+     * no rsa_pss_*_sha1 code point, so an RSASSA-PSS certificate whose
+     * parameters name SHA-1 is refused however wide the peer's list is, and
+     * only the per-certificate walk below can tell one of those apart from a
+     * PKCS#1 certificate. */
 
     if (ssl->buffers.certificate == NULL ||
             ssl->buffers.certificate->buffer == NULL) {
         return 0;
     }
 
-    if (IsSha1SignedCert(ssl->buffers.certificate->buffer,
-                         ssl->buffers.certificate->length)) {
+    if (CertSigAlgoRejected(ssl, ssl->buffers.certificate->buffer,
+                            ssl->buffers.certificate->length)) {
         ret = IsSelfIssuedCert(ssl, ssl->buffers.certificate->buffer,
                                ssl->buffers.certificate->length, &selfIssued);
         if (ret != 0)
@@ -10818,7 +11035,7 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
             cur += CERT_HEADER_SZ;
             len -= CERT_HEADER_SZ;
 
-            if (IsSha1SignedCert(cur, len)) {
+            if (CertSigAlgoRejected(ssl, cur, len)) {
                 ret = IsSelfIssuedCert(ssl, cur, len, &selfIssued);
                 if (ret != 0)
                     return ret;
@@ -10828,8 +11045,9 @@ static int CheckCertChainSigAlgo(WOLFSSL* ssl)
         }
     }
 
-    if (ret == WC_NO_ERR_TRACE(MATCH_SUITE_ERROR))
-        WOLFSSL_MSG("Chain is SHA-1 signed but peer did not advertise SHA-1");
+    if (ret == WC_NO_ERR_TRACE(MATCH_SUITE_ERROR)) {
+        WOLFSSL_MSG("Chain is SHA-1 signed but peer did not advertise it");
+    }
 
     return ret;
 }
@@ -16750,7 +16968,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* The request just parsed decides whether the chain
                          * about to be sent may be SHA-1 signed. */
                         ssl->dupWrite->postHandshakeSha1CertOk =
-                            (byte)ssl->options.peerSha1CertOk;
+                            (byte)ssl->options.peerSha1CertSigs;
                     #endif
                         ssl->dupWrite->postHandshakeAuthPending = 1;
                     }
