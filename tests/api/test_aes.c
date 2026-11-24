@@ -5487,6 +5487,10 @@ int test_wc_AesGcmShortTag(void)
         aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, out, pt, sz + 1, ivX, sizeof(ivX),
         tagX, 8, aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Setting the same key again keeps an encrypt-only 8-byte binding. */
+    ExpectIntEQ(wc_AesGcmSetKey(enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, out, pt, 64, ivX, sizeof(ivX), tagX,
+        16, aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* The key stays bound to 8 bytes (SP 800-38D 5.2.1.2). */
     ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 16,
         aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));

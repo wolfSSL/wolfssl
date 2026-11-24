@@ -4131,7 +4131,8 @@
        #undef WOLFSSL_MIN_AUTH_TAG_SZ
        #define WOLFSSL_MIN_AUTH_TAG_SZ 8
     #else
-        /* No short (<96 bit) tags per SP 800-38D 2026 revision in process. */
+        /* 96-bit minimum; FIPS v7 user space also takes 8-byte tags with the
+         * SP 800-38D Appendix C limits (WC_AESGCM_SHORT_TAG). */
         #if WOLFSSL_MIN_AUTH_TAG_SZ < 12
             #undef WOLFSSL_MIN_AUTH_TAG_SZ
             #define WOLFSSL_MIN_AUTH_TAG_SZ 12
@@ -6581,9 +6582,11 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define WC_AESGCM_IV_LOCK
 #endif
 
-/* SP 800-38D Appendix C: 8-byte GCM tags with a Table 2 row enforced. */
+/* SP 800-38D Appendix C: 8-byte GCM tags with a Table 2 row enforced, in user
+ * space and only when no larger minimum tag size is set. */
 #if defined(WC_AESGCM_IV_LOCK) && defined(HAVE_FIPS) && \
-    FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
+    FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    !defined(WOLFSSL_LINUXKM) && (WOLFSSL_MIN_AUTH_TAG_SZ <= 12)
     #define WC_AESGCM_SHORT_TAG
 #endif
 

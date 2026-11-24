@@ -9551,7 +9551,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     byte lockedH[WC_AES_BLOCK_SIZE];
 #ifdef WC_AESGCM_SHORT_TAG
     word32 shortDec = (aes != NULL) ? aes->gcmShortDec : 0;
-    byte relock = (byte)((aes != NULL) && (aes->gcmIvLock || shortDec != 0));
+    byte shortTag = (byte)((aes != NULL) &&
+                           (aes->tagLen == GCM_SHORT_TAG_SZ));
+    byte relock = (byte)((aes != NULL) && (aes->gcmIvLock || shortTag));
 #else
     byte relock = (byte)((aes != NULL) && aes->gcmIvLock);
 #endif
@@ -9580,8 +9582,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             aes->gcmIvDet = det;
             aes->gcmIvMasked = masked;
 #ifdef WC_AESGCM_SHORT_TAG
-            /* Table 2 counts every decrypt under the key */
-            if (shortDec != 0) {
+            /* an 8-byte tag key keeps its tag length (5.2.1.2) and its
+             * decrypt count (Table 2) */
+            if (shortTag) {
                 aes->gcmShortDec = shortDec;
                 aes->tagLen = GCM_SHORT_TAG_SZ;
             }
