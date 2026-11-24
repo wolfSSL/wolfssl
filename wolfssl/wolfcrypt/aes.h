@@ -78,6 +78,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 typedef struct Gcm {
     ALIGN16 byte H[16];
+#ifdef WC_AESGCM_IV_LOCK
+    byte keyH[16]; /* H as set with the key; a stream may change H's form */
+#endif
 #ifdef OPENSSL_EXTRA
     word32 aadH[4]; /* additional authenticated data GHASH */
     word32 aadLen;  /* additional authenticated data len */

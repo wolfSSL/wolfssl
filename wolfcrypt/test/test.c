@@ -23693,6 +23693,27 @@ static wc_test_ret_t aesgcm_det_iv_test(Aes* enc)
     if (ret != WC_FIPS_NOT_APPROVED)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* A stream may leave H in another form; the same key keeps the lock. */
+    ret = wc_AesGcmSetKey(enc, key, sizeof(key));
+    if (ret == 0)
+        ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret == 0)
+        ret = wc_AesGcmSetIV(enc, GCM_NONCE_MID_SZ, NULL, 0, &rng);
+    if (ret == 0)
+        ret = wc_AesGcmEncryptInit_ex(enc, NULL, 0, ext2, sizeof(ext2));
+    if (ret == 0)
+        ret = wc_AesGcmEncryptUpdate(enc, c, p, sizeof(p), NULL, 0);
+    if (ret == 0)
+        ret = wc_AesGcmEncryptFinal(enc, tag, sizeof(tag));
+    if (ret == 0)
+        ret = wc_AesGcmSetKey(enc, key2, sizeof(key2));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesGcmSetExtIV(enc, ext, sizeof(ext));
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
     ret = 0;
 
   out:

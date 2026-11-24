@@ -5447,10 +5447,15 @@ int test_wc_AesGcmShortTag(void)
     WC_RNG rng[1];
     Aes enc[1];
     Aes dec[1];
+    Aes chk[1];
     byte key[AES_128_KEY_SIZE] = { 1, };
     byte key2[AES_128_KEY_SIZE] = { 2, };
     byte iv[GCM_NONCE_MID_SZ];
     byte ivX[GCM_NONCE_MID_SZ];
+#ifdef OPENSSL_EXTRA
+    byte chkOut[16];
+    int r;
+#endif
     byte aad[WC_AES_BLOCK_SIZE] = { 0, };
     byte tag[WC_AES_BLOCK_SIZE];
     byte tagX[WC_AES_BLOCK_SIZE];
@@ -5463,7 +5468,9 @@ int test_wc_AesGcmShortTag(void)
     XMEMSET(rng, 0, sizeof(rng));
     XMEMSET(enc, 0, sizeof(enc));
     XMEMSET(dec, 0, sizeof(dec));
+    XMEMSET(chk, 0, sizeof(chk));
     ExpectIntEQ(wc_InitRng(rng), 0);
+    ExpectIntEQ(wc_AesInit(chk, NULL, INVALID_DEVID), 0);
     ExpectNotNull(pt = (byte*)XMALLOC(max, NULL, DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(ct = (byte*)XMALLOC(max, NULL, DYNAMIC_TYPE_TMP_BUFFER));
     ExpectNotNull(out = (byte*)XMALLOC(max, NULL, DYNAMIC_TYPE_TMP_BUFFER));
@@ -5491,6 +5498,21 @@ int test_wc_AesGcmShortTag(void)
     ExpectIntEQ(wc_AesGcmSetKey(enc, key, sizeof(key)), 0);
     ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, out, pt, 64, ivX, sizeof(ivX), tagX,
         16, aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef OPENSSL_EXTRA
+    /* After an AAD-only call, the next call is refused if it would reuse the
+     * cached AAD; if allowed, its tag covers no AAD. */
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, NULL, NULL, 0, ivX, sizeof(ivX), tagX,
+        8, pt, max), 0);
+    r = wc_AesGcmEncrypt_ex(enc, out, pt, 16, ivX, sizeof(ivX), tagX, 8, NULL,
+        0);
+    if (r == 0) {
+        ExpectIntEQ(wc_AesGcmSetKey(chk, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_AesGcmDecrypt(chk, chkOut, out, 16, ivX, sizeof(ivX),
+            tagX, 8, NULL, 0), 0);
+    } else {
+        ExpectIntEQ(r, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
     /* The key stays bound to 8 bytes (SP 800-38D 5.2.1.2). */
     ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 16,
         aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -5557,10 +5579,28 @@ int test_wc_AesGcmShortTag(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Init with the same key kept the count. */
     ExpectIntEQ(dec->gcmShortDec, 1);
+    /* A refused Final ends the stream, so a restart without the key works. */
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz, aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(MISSING_IV));
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(dec, tag, 8), 0);
+    ExpectIntEQ(dec->gcmShortDec, 2);
+    /* An unfinished stream still matches the same key. */
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, key, sizeof(key), iv, sizeof(iv)),
+        0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(dec, key, sizeof(key)), 0);
+    ExpectIntEQ(dec->gcmShortDec, 2);
+    /* A finished stream's AAD is not counted in the next stream. */
+    ExpectIntEQ(wc_AesGcmEncryptInit_ex(enc, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(enc, out, pt, max, NULL, 0), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(enc, tag, 8), 0);
 #endif
 
     wc_AesFree(enc);
     wc_AesFree(dec);
+    wc_AesFree(chk);
     XFREE(pt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
