@@ -4576,7 +4576,10 @@ void wolfSSL_RAND_screen(void)
 
 /* Seed the random number generator with the contents of a file.
  *
- * Data read is used to reseed the global DRBG.
+ * Data read is stirred into the global DRBG. Where the DRBG has no stir
+ * (FIPS v7, whose reseed draws fresh entropy from the module's source), the
+ * data is hashed as it is read and the digest is passed as additional input to
+ * a single reseed once the file is read.
  *
  * @param [in] fname  Name of file to read seed data from.
  * @param [in] len    Maximum number of bytes to read. -1 to read up to
@@ -4598,6 +4601,16 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
     unsigned char buf[WOLFSSL_RAND_LOAD_FILE_BUF_SZ];
 #else
     unsigned char* buf;
+#endif
+#ifndef WC_RNG_HAVE_STIR
+    #ifndef NO_SHA256
+    const enum wc_HashType hashType = WC_HASH_TYPE_SHA256;
+    #else
+    const enum wc_HashType hashType = WC_HASH_TYPE_SHA512;
+    #endif
+    int    hashInit = 0;
+    byte   digest[WC_MAX_DIGEST_SIZE];
+    WC_DECLARE_VAR(hash, wc_HashAlg, 1, NULL);
 #endif
 
     WOLFSSL_ENTER("wolfSSL_RAND_load_file");
@@ -4627,6 +4640,12 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
         return WOLFSSL_FATAL_ERROR;
     }
 #endif
+#ifndef WC_RNG_HAVE_STIR
+    WC_ALLOC_VAR_EX(hash, wc_HashAlg, 1, NULL, DYNAMIC_TYPE_HASHES,
+        { XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          XFCLOSE(f);
+          return WOLFSSL_FATAL_ERROR; });
+#endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("wolfSSL_RAND_load_file buf", buf,
         WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
@@ -4638,6 +4657,14 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
         goto cleanup;
     }
 
+#ifndef WC_RNG_HAVE_STIR
+    if (wc_HashInit(hash, hashType) != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+        goto cleanup;
+    }
+    hashInit = 1;
+#endif
+
     while (readSoFar < maxBytes) {
         size_t toRead = (size_t)((maxBytes - readSoFar) <
                 WOLFSSL_RAND_LOAD_FILE_BUF_SZ
@@ -4645,11 +4672,11 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
         size_t n = XFREAD(buf, 1, toRead, f);
         if (n == 0)
             break;
+#ifdef WC_RNG_HAVE_STIR
         if (wc_LockMutex(&globalRNGMutex) != 0) {
             ret = WOLFSSL_FATAL_ERROR;
             break;
         }
-  #ifdef WC_RNG_HAVE_STIR
         /* File material carries no entropy credit; mix it as an uncredited
          * stir.  A standing reseed or recovery obligation (NEEDS_RECOVERY_E,
          * NOT_READY_E -- see wolfSSL_RAND_egd()) is not a failure. */
@@ -4665,17 +4692,38 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
                 break;
             }
         }
+        wc_UnLockMutex(&globalRNGMutex);
 #else
-        if (wc_RNG_DRBG_Reseed(&globalRNG, buf, (word32)n) != 0) {
-            wc_UnLockMutex(&globalRNGMutex);
-            WOLFSSL_MSG("RAND_load_file: DRBG reseed failed");
+        /* Each reseed here draws fresh entropy, so collect the file and
+         * reseed once below. */
+        if (wc_HashUpdate(hash, hashType, buf, (word32)n) != 0) {
+            WOLFSSL_MSG("RAND_load_file: hash update failed");
             ret = WOLFSSL_FATAL_ERROR;
             break;
         }
 #endif
-        wc_UnLockMutex(&globalRNGMutex);
         readSoFar += (long)n;
     }
+
+#ifndef WC_RNG_HAVE_STIR
+    if ((ret == 0) && (readSoFar > 0)) {
+        if (wc_HashFinal(hash, hashType, digest) != 0) {
+            WOLFSSL_MSG("RAND_load_file: hash final failed");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (wc_LockMutex(&globalRNGMutex) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            if (wc_RNG_DRBG_Reseed(&globalRNG, digest,
+                    (word32)wc_HashGetDigestSize(hashType)) != 0) {
+                WOLFSSL_MSG("RAND_load_file: DRBG reseed failed");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            wc_UnLockMutex(&globalRNGMutex);
+        }
+    }
+#endif
 
 cleanup:
     XFCLOSE(f);
@@ -4684,6 +4732,13 @@ cleanup:
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(buf, WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
+#endif
+#ifndef WC_RNG_HAVE_STIR
+    if (hashInit)
+        wc_HashFree(hash, hashType);
+    ForceZero(hash, sizeof(*hash));
+    ForceZero(digest, sizeof(digest));
+    WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
 
     if (ret < 0)

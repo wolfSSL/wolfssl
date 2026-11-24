@@ -69,6 +69,20 @@
     #define P_HASH_MAX_SIZE WC_SHA256_DIGEST_SIZE
 #endif
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+/* FIPS 140-3 IG D.Q: the TLS 1.2 KDF is approved only for the extended master
+ * secret (RFC 7627), so a master secret (RFC 5246 sec 8.1) is refused. The
+ * label is the start of the PRF seed, also where OpenSSL-style callers put it.
+ */
+static int PrfIsMasterSecret(const byte* seed, word32 seedLen)
+{
+    static const byte ms[] = "master secret";
+
+    return (seed != NULL) && (seedLen >= (word32)sizeof(ms) - 1) &&
+           (XMEMCMP(seed, ms, sizeof(ms) - 1) == 0);
+}
+#endif
+
 /* Pseudo Random Function for MD5, SHA-1, SHA-256, SHA-384, or SHA-512 */
 int wc_PRF(byte* result, word32 resLen, const byte* secret,
                   word32 secLen, const byte* seed, word32 seedLen,
@@ -90,6 +104,14 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     if ((result == NULL && resLen != 0) || (secret == NULL && secLen != 0) ||
        (seed == NULL && seedLen != 0))
         return BAD_FUNC_ARG;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    /* wc_PRF_TLS() and wc_PRF_TLSv1() pass label || seed here. */
+    if (PrfIsMasterSecret(seed, seedLen)) {
+        WOLFSSL_MSG("TLS 1.2 master secret refused: extended master secret "
+                    "required");
+        return BAD_FUNC_ARG;
+    }
+#endif
 
     switch (hash_type) {
     #ifndef NO_MD5
@@ -634,9 +656,9 @@ static int Tls13HybridJoin(word16 group, int kemFirst, byte* ss,
 #ifdef HAVE_FIPS
     /* TLS code point, ML-KEM first, ECDH size; ML-KEM is 32 (FIPS 203). */
     static const word16 hybrid[][3] = {
-        { 4587, 0, 32 },  /* SecP256r1MLKEM768 */
-        { 4588, 1, 32 },  /* X25519MLKEM768 */
-        { 4589, 0, 48 }   /* SecP384r1MLKEM1024 */
+        { WC_SECP256R1MLKEM768,  0, 32 },
+        { WC_X25519MLKEM768,     1, 32 },
+        { WC_SECP384R1MLKEM1024, 0, 48 }
     };
     word32 i;
 #endif
@@ -681,7 +703,7 @@ int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
 {
 #ifdef WC_X25519_HYBRID_ONLY
     /* X25519MLKEM768 is joined only where the module computes the X25519. */
-    if (group == 4588)
+    if (group == WC_X25519MLKEM768)
         return BAD_FUNC_ARG;
 #endif
     return Tls13HybridJoin(group, kemFirst, ss, ssMax, ssSz, kemSs, kemSsSz);
@@ -702,7 +724,7 @@ int wc_Tls13_HybridSharedSecretX25519(word16 group, int kemFirst,
         return BAD_FUNC_ARG;
 #ifdef HAVE_FIPS
     /* X25519MLKEM768 is the only hybrid with X25519 (RFC 10024 sec 4.3). */
-    if (group != 4588)
+    if (group != WC_X25519MLKEM768)
         return BAD_FUNC_ARG;
 #endif
 

@@ -119,6 +119,15 @@ WOLFSSL_API int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
 #endif /* HAVE_HKDF */
 
 #ifdef WOLFSSL_HAVE_MLKEM
+/* TLS NamedGroup code points of the ML-KEM hybrid groups (RFC 10024 sec 4.3),
+ * the group argument of wc_Tls13_HybridSharedSecret*(). Same values as the
+ * WOLFSSL_* names in ssl.h. */
+enum {
+    WC_SECP256R1MLKEM768  = 4587,
+    WC_X25519MLKEM768     = 4588,
+    WC_SECP384R1MLKEM1024 = 4589
+};
+
 /* Set when wc_Tls13_HybridSharedSecret() is available. */
 #define WOLFSSL_HAVE_TLS13_HYBRID_SECRET
 WOLFSSL_API int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst,
