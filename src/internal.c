@@ -19151,7 +19151,10 @@ static int ProcessPeerCertAddPendingCA(WOLFSSL* ssl, buffer* cert)
     /* WOLFSSL_CHAIN_CA, not WOLFSSL_TEMP_CA: TLSX_CSR2_MergePendingCA()
      * promotes this signer into the certificate manager, and the unload path
      * (wolfSSL_CertManagerUnloadIntermediateCerts()) selects entries by that
-     * type. AddCA() records chain CAs the same way. */
+     * type. AddCA() records chain CAs the same way.
+     * ProcessPeerCertMakeChainSigner() decodes the certificate with the
+     * certificate manager heap. FillSigner() moves those buffers into the
+     * signer, which the manager keeps after this connection is freed. */
     ret = ProcessPeerCertMakeChainSigner(ssl, cert, WOLFSSL_CHAIN_CA, &s);
     if (ret == 0 && s != NULL) {
         ret = TLSX_CSR2_AddPendingSigner(ssl->extensions, s);
