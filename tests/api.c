@@ -41667,6 +41667,118 @@ static int test_ticket_nonce_malloc_fail_free(void)
 }
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC && USE_WOLFSSL_MEMORY */
 
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
+    defined(PERSIST_SESSION_CACHE) && !defined(NO_SESSION_CACHE) &&            \
+    !defined(SESSION_CACHE_DYNAMIC_MEM) && (TLS13_TICKET_NONCE_STATIC_SZ >= 8)
+/* An evicted cache entry must not leave its ticket or nonce in a saved
+ * cache. */
+static int test_ticket_nonce_evict_wipe(void)
+{
+    EXPECT_DECLS;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    byte nonce[TLS13_TICKET_NONCE_STATIC_SZ];
+    byte ticket[16];
+    byte len = TLS13_TICKET_NONCE_STATIC_SZ;
+    byte *mem = NULL;
+    char buf[64];
+    int lenOff = (int)(WC_OFFSETOF(WOLFSSL_SESSION, ticketLen) -
+        WC_OFFSETOF(WOLFSSL_SESSION, staticTicket));
+    int memSz = 0;
+    int noncePos;
+    int ticketPos;
+    int slotTicketPos = 0;
+    word16 ticketLen = 0;
+    int pass;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    /* send_new_session_ticket fills the nonce with its length */
+    XMEMSET(nonce, len, sizeof(nonce));
+    XMEMSET(ticket, 0xA5, sizeof(ticket));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(send_new_session_ticket(ssl_s, len, len, 0), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    /* The ticket from send_new_session_ticket is one byte, too short to find
+     * in the saved cache, so give the static ticket a longer pattern. */
+    ExpectPtrEq(sess->ticket, sess->staticTicket);
+    ExpectIntGE((int)sizeof(sess->staticTicket), (int)sizeof(ticket));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(sess->staticTicket, ticket, sizeof(ticket));
+        sess->ticketLen = (word16)sizeof(ticket);
+    }
+    ExpectIntEQ(AddSessionToCache(ctx_c, sess, sess->sessionID,
+        sess->sessionIDSz, NULL, ssl_c->options.side, 1, NULL), 0);
+
+    ExpectIntGT(memSz = wolfSSL_get_session_cache_memsize(), 0);
+    ExpectNotNull(mem = (byte*)XMALLOC((size_t)memSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* Pass 0 shows the ticket and nonce are in the saved cache, pass 1 that
+     * eviction removed them and reset the slot's ticket length. The cache
+     * layout is the same in both images, so the slot found in pass 0 is
+     * read again in pass 1. */
+    for (pass = 0; (pass < 2) && EXPECT_SUCCESS(); pass++) {
+        if (pass == 1) {
+            wolfSSL_CTX_flush_sessions(ctx_c, 0x7FFFFFFFL);
+        }
+        ExpectIntEQ(wolfSSL_memsave_session_cache(mem, memSz),
+            WOLFSSL_SUCCESS);
+        noncePos = -1;
+        ticketPos = -1;
+        for (i = 0; EXPECT_SUCCESS() && (i < memSz); i++) {
+            if ((noncePos < 0) && (i + len <= memSz) &&
+                    (XMEMCMP(mem + i, nonce, len) == 0)) {
+                noncePos = i;
+            }
+            if ((ticketPos < 0) && (i + (int)sizeof(ticket) <= memSz) &&
+                    (XMEMCMP(mem + i, ticket, sizeof(ticket)) == 0)) {
+                ticketPos = i;
+            }
+        }
+        if (pass == 0) {
+            ExpectIntGE(noncePos, 0);
+            ExpectIntGE(ticketPos, 0);
+            slotTicketPos = ticketPos;
+        }
+        else {
+            ExpectIntLT(noncePos, 0);
+            ExpectIntLT(ticketPos, 0);
+        }
+        ExpectIntLE(slotTicketPos + lenOff + (int)sizeof(ticketLen), memSz);
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(&ticketLen, mem + slotTicketPos + lenOff,
+                sizeof(ticketLen));
+        }
+        ExpectIntEQ(ticketLen, (pass == 0) ? (int)sizeof(ticket) : 0);
+    }
+
+    XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 && PERSIST_SESSION_CACHE */
+
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(WOLFSSL_TICKET_DECRYPT_NO_CREATE) &&                 \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
@@ -49418,6 +49530,12 @@ TEST_CASE testCases[] = {
     !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_KERNEL_MODE) &&        \
     (TLS13_TICKET_NONCE_STATIC_SZ < 200)
     TEST_DECL(test_ticket_nonce_malloc_fail_free),
+#endif
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
+    defined(PERSIST_SESSION_CACHE) && !defined(NO_SESSION_CACHE) &&            \
+    !defined(SESSION_CACHE_DYNAMIC_MEM) && (TLS13_TICKET_NONCE_STATIC_SZ >= 8)
+    TEST_DECL(test_ticket_nonce_evict_wipe),
 #endif
     TEST_DECL(test_ticket_ret_create),
     TEST_DECL(test_ticket_expired_full_handshake),

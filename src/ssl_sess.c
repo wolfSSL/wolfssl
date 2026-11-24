@@ -91,15 +91,17 @@
         }
     #endif /* HAVE_EXT_CACHE || HAVE_EX_DATA */
         ForceZero(session->masterSecret, SECRET_LEN);
-        XMEMSET(session->sessionID, 0, ID_LEN);
+        ForceZero(session->sessionID, ID_LEN);
         session->sessionIDSz = 0;
     #ifdef HAVE_SESSION_TICKET
         if (session->ticketLenAlloc > 0) {
+            ForceZero(session->ticket, session->ticketLenAlloc);
             XFREE(session->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
             session->ticket = session->staticTicket;
-            session->ticketLen = 0;
             session->ticketLenAlloc = 0;
         }
+        ForceZero(session->staticTicket, sizeof(session->staticTicket));
+        session->ticketLen = 0;
     #endif /* HAVE_SESSION_TICKET */
     #ifdef HAVE_EX_DATA
         session->ownExData = save_ownExData;
@@ -111,9 +113,16 @@
         if ((session->ticketNonce.data != NULL) &&
             (session->ticketNonce.data != session->ticketNonce.dataStatic))
         {
+            ForceZero(session->ticketNonce.data, session->ticketNonce.len);
             XFREE(session->ticketNonce.data, NULL, DYNAMIC_TYPE_SESSION_TICK);
             session->ticketNonce.data = NULL;
         }
+        ForceZero(session->ticketNonce.dataStatic,
+            sizeof(session->ticketNonce.dataStatic));
+        session->ticketNonce.len = 0;
+#elif defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+        ForceZero(session->ticketNonce.data, sizeof(session->ticketNonce.data));
+        session->ticketNonce.len = 0;
 #endif
     }
 
@@ -2173,8 +2182,12 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
      * OS will most likely not even be allocated to the process. */
     if (ticBuff != NULL && cacheSession->ticketLenAlloc < ticLen) {
         /* Save pointer only if separately allocated */
-        if (cacheSession->ticket != cacheSession->staticTicket)
+        if (cacheSession->ticket != cacheSession->staticTicket) {
+            if (cacheSession->ticket != NULL) {
+                ForceZero(cacheSession->ticket, cacheSession->ticketLenAlloc);
+            }
             cacheTicBuff = cacheSession->ticket;
+        }
         ticBuffUsed = 1;
         cacheSession->ticket = ticBuff;
         cacheSession->ticketLenAlloc = (word16) ticLen;
@@ -2187,6 +2200,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 
     if (cacheSession->ticketNonce.data !=
             cacheSession->ticketNonce.dataStatic) {
+        ForceZero(cacheSession->ticketNonce.data,
+            cacheSession->ticketNonce.len);
         toFree = cacheSession->ticketNonce.data;
         cacheSession->ticketNonce.data = cacheSession->ticketNonce.dataStatic;
         cacheSession->ticketNonce.len = 0;
@@ -2286,6 +2301,9 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     XFREE(cacheTicBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&         \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (preallocNonce != NULL) {
+        ForceZero(preallocNonce, preallocNonceLen);
+    }
     XFREE(preallocNonce, NULL, DYNAMIC_TYPE_SESSION_TICK);
     XFREE(toFree, NULL, DYNAMIC_TYPE_SESSION_TICK);
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
