@@ -1390,8 +1390,10 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             return WOLFSSL_FAILURE;
         }
 #endif
-        if (output->ticketLenAlloc)
+        if (output->ticketLenAlloc) {
+            ForceZero(output->ticket, output->ticketLenAlloc);
             XFREE(output->ticket, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+        }
         /* cppcheck-suppress autoVariables */
         output->ticket = tmpTicket;
         output->ticketLenAlloc = PREALLOC_SESSION_TICKET_LEN;
@@ -1411,6 +1413,9 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
     defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
     if (output->ticketNonce.data != output->ticketNonce.dataStatic) {
+        if (output->ticketNonce.data != NULL) {
+            ForceZero(output->ticketNonce.data, output->ticketNonce.len);
+        }
         XFREE(output->ticketNonce.data, output->heap,
             DYNAMIC_TYPE_SESSION_TICK);
         output->ticketNonce.data = output->ticketNonce.dataStatic;
@@ -1524,34 +1529,28 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             XMEMCPY(output->ticket, tmpTicket, output->ticketLen);
         }
     }
+    if (tmpBufSet && WC_VAR_OK(tmpTicket)) {
+        ForceZero(tmpTicket, PREALLOC_SESSION_TICKET_LEN);
+    }
     WC_FREE_VAR_EX(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
     if (error == WOLFSSL_SUCCESS && preallocNonceUsed) {
         if (preallocNonceLen < PREALLOC_SESSION_TICKET_NONCE_LEN) {
-            /* buffer bigger than needed */
-#ifndef XREALLOC
+            /* Buffer bigger than needed. Copy instead of XREALLOC, which can
+             * free the old block without wiping it. preallocNonce is wiped
+             * and freed after the if. */
             output->ticketNonce.data = (byte*)XMALLOC(preallocNonceLen,
                 output->heap, DYNAMIC_TYPE_SESSION_TICK);
-            if (output->ticketNonce.data != NULL)
+            if (output->ticketNonce.data != NULL) {
                 XMEMCPY(output->ticketNonce.data, preallocNonce,
                     preallocNonceLen);
-            XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-            preallocNonce = NULL;
-#else
-            output->ticketNonce.data = (byte*)XREALLOC(preallocNonce,
-                preallocNonceLen, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-            if (output->ticketNonce.data != NULL) {
-                /* don't free the reallocated pointer */
-                preallocNonce = NULL;
             }
-#endif /* !XREALLOC */
-            if (output->ticketNonce.data == NULL) {
+            else {
                 output->ticketNonce.data = output->ticketNonce.dataStatic;
                 output->ticketNonce.len = 0;
                 error = WOLFSSL_FAILURE;
-                /* preallocNonce will be free'd after the if */
             }
         }
         else {
@@ -1559,6 +1558,9 @@ static int GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output,
             output->ticketNonce.len = preallocNonceLen;
             preallocNonce = NULL;
         }
+    }
+    if (preallocNonce != NULL) {
+        ForceZero(preallocNonce, preallocNonceLen);
     }
     XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
@@ -3374,6 +3376,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
 
     /* Dispose of ol dynamic ticket and ensure space for new ticket. */
     if (s->ticketLenAlloc > 0) {
+        ForceZero(s->ticket, s->ticketLenAlloc);
         XFREE(s->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
     }
     if (s->ticketLen <= sizeof(s->staticTicket))
@@ -4285,6 +4288,9 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
             return WOLFSSL_FAILURE;
         }
 
+        if (output->ticketNonce.data != NULL) {
+            ForceZero(output->ticketNonce.data, output->ticketNonce.len);
+        }
         XFREE(output->ticketNonce.data,
             output->heap, DYNAMIC_TYPE_SESSION_TICK);
         output->ticketNonce.data = output->ticketNonce.dataStatic;
@@ -4340,6 +4346,10 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
                 ret = WOLFSSL_FAILURE;
             }
             else {
+                /* Old ticket is replaced below, wipe it before realloc. */
+                if (ticBuff != NULL) {
+                    ForceZero(ticBuff, ticLenAlloc);
+                }
 #ifdef WOLFSSL_NO_REALLOC
                 tmp = (byte*)XMALLOC(input->ticketLen,
                         output->heap, DYNAMIC_TYPE_SESSION_TICK);
@@ -4397,6 +4407,9 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
             }
         }
         else {
+            if (ticBuff != NULL) {
+                ForceZero(ticBuff, ticLenAlloc);
+            }
             XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
             output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
@@ -4581,21 +4594,30 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 
 #ifdef HAVE_SESSION_TICKET
     if (session->ticketLenAlloc > 0) {
+        ForceZero(session->ticket, session->ticketLenAlloc);
         XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
         session->ticket = session->staticTicket;
         session->ticketLen = 0;
         session->ticketLenAlloc = 0;
     }
+    ForceZero(session->staticTicket, sizeof(session->staticTicket));
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
     if (session->ticketNonce.data != session->ticketNonce.dataStatic) {
+        if (session->ticketNonce.data != NULL) {
+            ForceZero(session->ticketNonce.data, session->ticketNonce.len);
+        }
         XFREE(session->ticketNonce.data, session->heap,
             DYNAMIC_TYPE_SESSION_TICK);
         session->ticketNonce.data = session->ticketNonce.dataStatic;
         session->ticketNonce.len = 0;
     }
+    ForceZero(session->ticketNonce.dataStatic,
+        sizeof(session->ticketNonce.dataStatic));
+#elif defined(WOLFSSL_TLS13)
+    ForceZero(session->ticketNonce.data, sizeof(session->ticketNonce.data));
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
-#endif
+#endif /* HAVE_SESSION_TICKET */
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
     wolfSSL_CRYPTO_cleanup_ex_data(&session->ex_data);

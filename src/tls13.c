@@ -14849,6 +14849,9 @@ int SessionTicketNoncePopulate(WOLFSSL_SESSION *session, const byte *nonce,
 {
     if (session->ticketNonce.data
             != session->ticketNonce.dataStatic) {
+         if (session->ticketNonce.data != NULL) {
+             ForceZero(session->ticketNonce.data, session->ticketNonce.len);
+         }
          XFREE(session->ticketNonce.data, session->heap,
              DYNAMIC_TYPE_SESSION_TICK);
          session->ticketNonce.data = session->ticketNonce.dataStatic;
@@ -14859,8 +14862,12 @@ int SessionTicketNoncePopulate(WOLFSSL_SESSION *session, const byte *nonce,
         WOLFSSL_MSG("Using dynamic nonce buffer");
         session->ticketNonce.data = (byte*)XMALLOC(len,
             session->heap, DYNAMIC_TYPE_SESSION_TICK);
-        if (session->ticketNonce.data == NULL)
+        if (session->ticketNonce.data == NULL) {
+            /* Never leave a NULL buffer with a stale length. */
+            session->ticketNonce.data = session->ticketNonce.dataStatic;
+            session->ticketNonce.len = 0;
             return MEMORY_ERROR;
+        }
     }
     XMEMCPY(session->ticketNonce.data, nonce, len);
     session->ticketNonce.len = len;
