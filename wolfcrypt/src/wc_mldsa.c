@@ -11434,9 +11434,9 @@ static int mldsa_rej_ntt_poly_mul_acc(wc_Shake* shake128, byte* seed,
                         t += mldsa_w24_get(w24, j);
                     }
                     /* -Q..2Q-1 to 0..Q-1 */
-                    t += (sword32)((word32)(t >> 31) & MLDSA_Q);
+                    t += (sword32)((0U - ((word32)t >> 31)) & MLDSA_Q);
                     t -= MLDSA_Q;
-                    t += (sword32)((word32)(t >> 31) & MLDSA_Q);
+                    t += (sword32)((0U - ((word32)t >> 31)) & MLDSA_Q);
                     mldsa_w24_set(w24, j, t);
                 }
             #endif
@@ -13378,6 +13378,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         #ifdef WC_MLDSA_FAULT_HARDEN
             const sword32* yc = y;
         #endif
+        #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
+            int w1Open;
+        #endif
 
             valid = 1;
         #ifdef WC_MLDSA_NONBLOCK
@@ -13520,6 +13523,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
             /* Step 15: Hash mu and the encoded w1 a polynomial at a time.
              * Nothing was accumulated when y was rejected. */
+        #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
+            w1Open = valid;
+        #endif
             if ((ret == 0) && valid) {
                 ret = wc_Shake256_Reset(&key->shake);
             }
@@ -13579,6 +13585,13 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
                 wt += MLDSA_N;
             }
+        #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
+            /* A hash device keeps an unfinished w1 stream past Reset. */
+            if ((ret == 0) && w1Open && !valid) {
+                ret = wc_Shake256_Final(&key->shake, commit,
+                    params->lambda / 4);
+            }
+        #endif
             if ((ret == 0) && valid) {
                 sword32* yt = y;
             #ifndef WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC
@@ -14010,6 +14023,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             sword32 hi;
             byte r;
             byte s = 0;
+        #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
+            int w1Open;
+        #endif
 
             valid = 1;
         #ifdef WC_MLDSA_NONBLOCK
@@ -14082,6 +14098,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
 
             /* Step 15: Hash mu and the encoded w1 a polynomial at a time. An
              * attempt the y check rejected needs no commitment. */
+        #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
+            w1Open = valid;
+        #endif
             if ((ret == 0) && valid) {
                 ret = wc_Shake256_Reset(&key->shake);
             }
@@ -14141,6 +14160,12 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
                 }
             }
 
+        #ifdef WOLFSSL_MLDSA_SIGN_CHECK_W0
+            if ((ret == 0) && w1Open && !valid) {
+                ret = wc_Shake256_Final(&key->shake, commit,
+                    params->lambda / 4);
+            }
+        #endif
             if ((ret == 0) && valid) {
                 /* Step 32: Hash is stored in signature. */
                 ret = wc_Shake256_Final(&key->shake, commit,
