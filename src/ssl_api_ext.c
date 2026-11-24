@@ -769,6 +769,114 @@ int wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SUPPORTED_CURVES */
 
+/* This extension has its own build option and depends on neither the
+ * OpenSSL compatibility layer nor supported-curves, so it sits at file
+ * scope: --enable-recordsizelimit would otherwise compile the protocol code
+ * while leaving no way to configure it. */
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* Set the largest protected record this end will accept.
+ *
+ * Advertised as the RFC 8449 record_size_limit extension: by a client in the
+ * ClientHello and echoed by a server in the TLS 1.2 ServerHello or the TLS 1.3
+ * EncryptedExtensions. It replaces
+ * max_fragment_length's four fixed sizes with an exact byte count, and is
+ * advertised by default; pass 0 to stop advertising it.
+ *
+ * The count is payload. RFC 8449's wire field covers the whole TLS 1.3
+ * TLSInnerPlaintext, so a request for n is advertised as n+1 under TLS 1.3
+ * and as n under TLS 1.2; that conversion is internal.
+ *
+ * Must be called before the handshake starts: on the context, or on the
+ * object before wolfSSL_connect() or wolfSSL_accept(). A server callback is
+ * too late, see below.
+ *
+ * Refused on a connection that compresses its records, and
+ * wolfSSL_set_compression() is refused on one given a limit: RFC 8449 Sect. 4
+ * measures the limit against the plaintext, which deflate may expand past.
+ *
+ * @param [in] ssl    SSL/TLS object.
+ * @param [in] limit  Largest record payload accepted, 64 to 2^14, or 0 to
+ *                    not advertise a limit at all.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL, limit is out of range, this
+ *          connection compresses its records, or the limit has already been
+ *          advertised or the peer's read.
+ */
+int wolfSSL_UseRecordSizeLimit(WOLFSSL* ssl, word16 limit)
+{
+    WOLFSSL_ENTER("wolfSSL_UseRecordSizeLimit");
+
+    /* 0 turns the extension off for this ssl, the only way back to silence
+     * now that WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT is advertised by default.
+     * Any other value below the RFC 8449 minimum stays an error. */
+    if ((ssl == NULL) ||
+            ((limit != 0) && (limit < WOLFSSL_RECORD_SIZE_LIMIT_MIN)) ||
+            (limit > WOLFSSL_RECORD_SIZE_LIMIT_MAX)) {
+        return BAD_FUNC_ARG;
+    }
+    /* Changing the value once the handshake is under way would tighten what
+     * this end accepts without telling the peer, which would keep sending
+     * records sized to the original offer.
+     *
+     * handShakeState is no guide to that: a server stays at NULL_STATE until
+     * its own Finished is sent, and a client stays there with its ClientHello
+     * already on the wire. What matters is whether the value has been
+     * advertised or the peer's has been read. No server callback gets in
+     * ahead of it: a certificate setup callback and an SNI callback both run
+     * once the ClientHello's extensions have all been parsed, so either is
+     * refused whenever the client sent record_size_limit - and a client that
+     * asked for the extension is the only case where a server's limit
+     * matters. */
+    if ((TLSX_Find(ssl->extensions, TLSX_RECORD_SIZE_LIMIT) != NULL) ||
+            (ssl->peerRecordSizeLimit != 0) ||
+            (ssl->recordSizeLimitSent != 0)) {
+        WOLFSSL_MSG("Record size limit already advertised or negotiated");
+        return BAD_FUNC_ARG;
+    }
+#ifdef HAVE_LIBZ
+    /* Deflate may expand what the limit bounds; wolfSSL_set_compression()
+     * refuses the mirror of this. */
+    if (ssl->options.usingCompression) {
+        WOLFSSL_MSG("Records are compressed, cannot take a record size limit");
+        return BAD_FUNC_ARG;
+    }
+#endif
+    ssl->recordSizeLimit = limit;
+    ssl->recordSizeLimitSet = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the largest protected record accepted, on the context.
+ *
+ * See wolfSSL_UseRecordSizeLimit(). Objects created afterwards inherit it.
+ *
+ * @param [in] ctx    SSL/TLS context object.
+ * @param [in] limit  Largest record payload accepted, 64 to 2^14, or 0 to
+ *                    not advertise a limit at all.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL or limit is out of range.
+ */
+int wolfSSL_CTX_UseRecordSizeLimit(WOLFSSL_CTX* ctx, word16 limit)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_UseRecordSizeLimit");
+
+    /* 0 turns the extension off for this ctx, the only way back to silence
+     * now that WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT is advertised by default.
+     * Any other value below the RFC 8449 minimum stays an error. */
+    if ((ctx == NULL) ||
+            ((limit != 0) && (limit < WOLFSSL_RECORD_SIZE_LIMIT_MIN)) ||
+            (limit > WOLFSSL_RECORD_SIZE_LIMIT_MAX)) {
+        return BAD_FUNC_ARG;
+    }
+    ctx->recordSizeLimit = limit;
+    ctx->recordSizeLimitSet = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* HAVE_RECORD_SIZE_LIMIT */
+
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
 

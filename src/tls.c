@@ -8582,6 +8582,159 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
 
 #endif
 
+/******************************************************************************/
+/* Record Size Limit - RFC 8449                                               */
+/******************************************************************************/
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+
+/* Returns the size of the record_size_limit extension's data: one uint16. */
+static word16 TLSX_RecordSizeLimit_GetSize(void)
+{
+    return OPAQUE16_LEN;
+}
+
+/* Writes the record_size_limit extension into the buffer.
+ *
+ * data    The WOLFSSL object, passed as the extension's opaque data.
+ * output  The buffer to write the extension into.
+ * returns the length of data that was written.
+ */
+static word16 TLSX_RecordSizeLimit_Write(void* data, byte* output)
+{
+    WOLFSSL* ssl = (WOLFSSL*)data;
+    word16 limit = ssl->recordSizeLimit;
+
+    /* ssl->recordSizeLimit counts payload only. RFC 8449 Sect. 4's field
+     * counts the whole TLS 1.3 TLSInnerPlaintext, so the content type byte is
+     * added here and nowhere else; TLS 1.2 has no such byte. Held to payload
+     * internally, the value can never exceed the protocol maximum either way:
+     * 2^14 below TLS 1.3 and 2^14+1 at it. */
+    if (IsAtLeastTLSv1_3(ssl->version))
+        limit++;
+
+    c16toa(limit, output);
+    /* Kept so the receive path enforces what was advertised rather than
+     * reconstructing it: a client offers before the version is settled, and
+     * after a downgrade ssl->version no longer says whether the content type
+     * byte was included. */
+    ssl->recordSizeLimitSent = limit;
+
+    return OPAQUE16_LEN;
+}
+
+/* Parses the record_size_limit extension.
+ *
+ * The value is the largest protected record plaintext the peer will accept,
+ * counting the content type byte of the TLS 1.3 TLSInnerPlaintext, so it caps
+ * what this end may send rather than anything it receives.
+ *
+ * ssl      The SSL/TLS object.
+ * input    The extension data.
+ * length   Length of the extension data in bytes.
+ * msgType  Message the extension arrived in.
+ * returns 0 on success, otherwise failure.
+ */
+static int TLSX_RecordSizeLimit_Parse(WOLFSSL* ssl, const byte* input,
+                                      word16 length, byte msgType)
+{
+    word16 limit;
+    /* The peer's answer arrives in EncryptedExtensions under TLS 1.3 and in
+     * the ServerHello under TLS 1.2 (RFC 8449 Sect. 4). */
+    int    isResponse = (msgType == encrypted_extensions) ||
+                        (msgType == server_hello);
+
+    if (length != OPAQUE16_LEN)
+        return BUFFER_ERROR;
+
+    /* RFC 9846 Sect. 4.2: a response to an extension this end never offered
+     * is an unsupported_extension abort. The client only pushes the extension
+     * when a limit was set, so its absence means it was never asked for. */
+#ifdef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
+    /* Legacy lenient handling applies to TLS 1.2 and earlier only, as in
+     * TLSX_MFL_Parse(). */
+    if (isResponse && IsAtLeastTLSv1_3(ssl->version) &&
+#else
+    if (isResponse &&
+#endif
+            TLSX_Find(ssl->extensions, TLSX_RECORD_SIZE_LIMIT) == NULL) {
+        return TLSX_HandleUnsupportedExtension(ssl);
+    }
+
+    ato16(input, &limit);
+
+    /* RFC 8449 Sect. 4: "An endpoint MUST treat receipt of a smaller value as
+     * a fatal error and generate an illegal_parameter alert." */
+    if (limit < WOLFSSL_RECORD_SIZE_LIMIT_MIN) {
+        WOLFSSL_MSG("Record size limit below the minimum of 64");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+
+    /* A server "MUST NOT enforce" the upper bound, since a client may be
+     * advertising a limit enabled by an extension the server does not know.
+     * A client MAY reject one, and does here. The bound is 2^14+1 for TLS 1.3
+     * and 2^14 for TLS 1.2, which counts no content type byte. */
+    if (isResponse && limit > (IsAtLeastTLSv1_3(ssl->version) ?
+            WOLFSSL_RECORD_SIZE_LIMIT_MAX_13 : MAX_RECORD_SIZE)) {
+        WOLFSSL_MSG("Record size limit above the maximum for this version");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+
+    /* Never send more than the protocol allows, whatever the peer says. */
+    if (limit > WOLFSSL_RECORD_SIZE_LIMIT_MAX_13)
+        limit = WOLFSSL_RECORD_SIZE_LIMIT_MAX_13;
+
+    /* Back to payload, the unit everything above the wire uses. The peer's
+     * value covers its TLSInnerPlaintext under TLS 1.3, one byte of which is
+     * the content type. */
+    if (IsAtLeastTLSv1_3(ssl->version))
+        limit--;
+
+    /* A server that supports this extension answers in EncryptedExtensions,
+     * and from then on ignores any max_fragment_length in the ClientHello
+     * (RFC 8449 Sect. 5). */
+#ifndef NO_WOLFSSL_SERVER
+    /* Only a server answers, and TLSX_SetResponse() is not compiled for a
+     * client-only build without TLS 1.3. Every pre-existing extension wraps
+     * its response push the same way - see TLSX_SCTS_Parse(). */
+    if (msgType == client_hello) {
+        int ret;
+
+        /* RFC 8449 Sect. 4: the extension is negotiated only when both ends
+         * send it. A server holding no limit of its own stays silent, and so
+         * must not shrink its own records either - otherwise any client could
+         * push a server that never opted in down to 64-byte records and pay
+         * it in per-record overhead. */
+        if (ssl->recordSizeLimit == 0)
+            return 0;
+
+        ret = TLSX_Push(&ssl->extensions, TLSX_RECORD_SIZE_LIMIT,
+                        (void*)ssl, ssl->heap);
+        if (ret != 0)
+            return ret;
+        TLSX_SetResponse(ssl, TLSX_RECORD_SIZE_LIMIT);
+    }
+#endif
+
+    ssl->peerRecordSizeLimit = limit;
+
+    return 0;
+}
+
+#define RSL_GET_SIZE  TLSX_RecordSizeLimit_GetSize
+#define RSL_WRITE     TLSX_RecordSizeLimit_Write
+#define RSL_PARSE     TLSX_RecordSizeLimit_Parse
+
+#endif /* HAVE_RECORD_SIZE_LIMIT */
+
+/* The section above has no dependency on certificates or signature
+ * algorithms. Its dispatch cases are guarded by the feature macro alone, so
+ * guarding the implementation more tightly than the call sites broke
+ * '--enable-recordsizelimit --disable-certs'. */
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
 /******************************************************************************/
 /* Signature Algorithms                                                       */
@@ -15961,6 +16114,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 WOLFSSL_MSG("Signature Algorithms extension free");
                 break;
 #endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                /* The limit lives on the SSL object. */
+                break;
+#endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             case TLSX_ENCRYPT_THEN_MAC:
                 WOLFSSL_MSG("Encrypt-Then-Mac extension free");
@@ -16208,6 +16366,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS:
                 length += SA_GET_SIZE(extension->data);
+                break;
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                length += RSL_GET_SIZE();
                 break;
 #endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -16492,6 +16655,12 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             case TLSX_SIGNATURE_ALGORITHMS:
                 WOLFSSL_MSG("Signature Algorithms extension to write");
                 offset += SA_WRITE(extension->data, output + offset);
+                break;
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                WOLFSSL_MSG("Record Size Limit extension to write");
+                offset += RSL_WRITE(extension->data, output + offset);
                 break;
 #endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -16828,6 +16997,45 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #else
     ret = 0;
 #endif
+    /* Outside the TLS 1.3 block below: RFC 8449 covers TLS 1.2 too,
+     * where the server answers in the ServerHello, so a client built
+     * without TLS 1.3 must still offer this. */
+    #ifdef HAVE_RECORD_SIZE_LIMIT
+        /* RFC 8449 Sect. 4: the client states in its ClientHello the largest
+         * record it will accept; the server answers in EncryptedExtensions
+         * under TLS 1.3 or in the ServerHello under TLS 1.2, which
+         * TLSX_RecordSizeLimit_Parse() arranges when it sees the request. */
+        /* RFC 8449 Sect. 5 has a server ignore max_fragment_length when both
+         * extensions appear, and Sect. 5 also says a client that depends on a
+         * small record size may keep advertising max_fragment_length. So the
+         * built-in default stands aside for an application that explicitly
+         * asked for max_fragment_length; an explicit
+         * wolfSSL_UseRecordSizeLimit() still wins, because then the
+         * application asked for both and RFC 8449 says which governs. */
+        if (!isServer && ssl->recordSizeLimit != 0
+        #ifdef HAVE_MAX_FRAGMENT
+                /* Both lists, because wolfSSL_UseMaxFragment() stores on the
+                 * object and wolfSSL_CTX_UseMaxFragment() on the context,
+                 * nothing copies the context's list onto the object, and the
+                 * write path emits both. Missing the context's copy would
+                 * advertise record_size_limit alongside it, and RFC 8449
+                 * Sect. 5 then has the server ignore max_fragment_length -
+                 * silently dropping what the application asked for. */
+                && (ssl->recordSizeLimitSet ||
+                    (TLSX_Find(ssl->extensions,
+                               TLSX_MAX_FRAGMENT_LENGTH) == NULL &&
+                     (ssl->ctx == NULL ||
+                      TLSX_Find(ssl->ctx->extensions,
+                                TLSX_MAX_FRAGMENT_LENGTH) == NULL)))
+        #endif
+                ) {
+            WOLFSSL_MSG("Adding record size limit extension");
+            if ((ret = TLSX_Push(&ssl->extensions, TLSX_RECORD_SIZE_LIMIT,
+                                 (void*)ssl, ssl->heap)) != 0) {
+                return ret;
+            }
+        }
+    #endif
 #ifdef WOLFSSL_TLS13
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (IsAtLeastTLSv1_3(ssl->version) && HasAnyCANames(ssl)) {
@@ -17523,6 +17731,11 @@ static int TLSX_CustomExt_IsKnown(word16 ext_type)
         case TLSXT_SERVER_CERTIFICATE:
         case TLSXT_ENCRYPT_THEN_MAC:
         case TLSXT_EXTENDED_MASTER_SECRET:
+    #ifdef HAVE_RECORD_SIZE_LIMIT
+        /* Only when built in: without it an application may still handle
+         * the extension itself. */
+        case TLSXT_RECORD_SIZE_LIMIT:
+    #endif
         case TLSXT_CERT_WITH_EXTERN_PSK:
         case TLSXT_SESSION_TICKET:
         case TLSXT_PRE_SHARED_KEY:
@@ -19267,6 +19480,31 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 break;
 #endif /* HAVE_ENCRYPT_THEN_MAC */
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            case TLSX_RECORD_SIZE_LIMIT:
+                WOLFSSL_MSG("Record Size Limit extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
+                /* RFC 9846 Table 1 lists CH and EE for TLS 1.3. RFC 8449
+                 * also covers TLS 1.2, where the server answers in the
+                 * ServerHello instead. */
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                            msgType != encrypted_extensions) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
+                else if (msgType != client_hello &&
+                        msgType != server_hello) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                    return EXT_NOT_ALLOWED;
+                }
+                ret = RSL_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif
+
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
             #ifdef WOLFSSL_DEBUG_TLS
@@ -19782,6 +20020,46 @@ WOLFSSL_TEST_VIS int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 }
             }
         }
+    }
+#endif
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+#ifdef HAVE_MAX_FRAGMENT
+    /* RFC 8449 Sect. 5: a server that answers with record_size_limit "MUST
+     * ignore a max_fragment_length that appears in a ClientHello if both
+     * extensions appear". Done here rather than while parsing because the two
+     * extensions may arrive in either order, and sending both would leave the
+     * client obliged to abort. */
+    if (ret == 0 && msgType == client_hello &&
+            TLSX_Find(ssl->extensions, TLSX_RECORD_SIZE_LIMIT) != NULL) {
+        ssl->max_fragment = MAX_RECORD_SIZE;
+        /* The session keeps its own copy, which
+         * wolfSSL_SESSION_get_max_fragment_length() reports, so it is cleared
+         * with the live value rather than reporting a length that was never
+         * applied. */
+        if (ssl->session != NULL)
+            ssl->session->mfl = 0;
+        TLSX_Remove(&ssl->extensions, TLSX_MAX_FRAGMENT_LENGTH, ssl->heap);
+    }
+#endif /* HAVE_MAX_FRAGMENT */
+
+    /* Outside HAVE_MAX_FRAGMENT above: this is a MUST that holds whether or
+     * not this build can offer max_fragment_length itself, and it needs only
+     * the extension type and what was seen on the wire. Inside that guard the
+     * illegal pairing went undetected in a build without the option. */
+    /* RFC 8449 Sect. 5: a client "MUST treat receipt of both
+     * max_fragment_length and record_size_limit as a fatal error". Only a
+     * client receives these two message types. Checked here for the same
+     * reason as above: either extension may come first, and a check made
+     * while parsing one of them cannot see the other. */
+    if (ret == 0 && (msgType == encrypted_extensions ||
+                     msgType == server_hello) &&
+            !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_RECORD_SIZE_LIMIT)) &&
+            !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_MAX_FRAGMENT_LENGTH))) {
+        WOLFSSL_MSG("Server sent both max_fragment_length and size limit");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        ret = INVALID_PARAMETER;
     }
 #endif
 

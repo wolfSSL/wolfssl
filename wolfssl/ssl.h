@@ -1461,7 +1461,23 @@ WOLFSSL_API int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl,
 WOLFSSL_API int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx,
                                                const char* list);
 WOLFSSL_API int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
+#endif /* OPENSSL_EXTRA */
+/* Declared outside the OpenSSL compatibility block: these have their own
+ * build options and no dependency on it. */
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* Range accepted by the two setters below, in payload bytes, and the value
+ * that stops the extension being advertised at all. */
+#define WOLFSSL_RECORD_SIZE_LIMIT_OFF     0
+#define WOLFSSL_RECORD_SIZE_LIMIT_MIN     64
+#define WOLFSSL_RECORD_SIZE_LIMIT_MAX     16384
+/* Advertised unless a setter says otherwise. */
+#define WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT WOLFSSL_RECORD_SIZE_LIMIT_MAX
+
+WOLFSSL_API int  wolfSSL_UseRecordSizeLimit(WOLFSSL* ssl, unsigned short limit);
+WOLFSSL_API int  wolfSSL_CTX_UseRecordSizeLimit(WOLFSSL_CTX* ctx,
+                                                unsigned short limit);
 #endif
+
 WOLFSSL_ABI WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx);
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_CTX_get0_param(WOLFSSL_CTX* ctx);

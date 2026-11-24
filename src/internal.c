@@ -2607,6 +2607,24 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
     }
 #endif
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* The export format has no room for the RFC 8449 limits, so an imported
+     * copy would neither enforce this end's limit nor honour the peer's, and
+     * would send records the peer rejects with record_overflow. Refuse rather
+     * than hand back a session that misbehaves - but only for a limit that
+     * restricts anything. Both ends advertise the protocol maximum by
+     * default, which an imported copy enforces anyway, and refusing those
+     * would block exporting every connection in a build with the extension. */
+    if (ret == 0 && ssl->peerRecordSizeLimit != 0 &&
+            ((ssl->peerRecordSizeLimit < MAX_RECORD_SIZE) ||
+             ((ssl->recordSizeLimit != 0) &&
+              (ssl->recordSizeLimit < MAX_RECORD_SIZE)))) {
+        WOLFSSL_MSG("Can not export a session that negotiated "
+                    "record_size_limit");
+        ret = BAD_STATE_E;
+    }
+#endif
+
     if (ret == 0) {
         totalLen += WOLFSSL_EXPORT_LEN * 2; /* 2 protocol bytes and 2 length bytes */
         /* each of the following have a 2 byte length before data */
@@ -3165,6 +3183,13 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
      * fallback. A caller override replaces it; passing 0 resets it to this
      * default (see wolfSSL_CTX_set_default_read_buffer_len()). */
     ctx->readAheadSz = WOLFSSL_READ_AHEAD_SZ;
+#endif
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* Advertise by default so the extension actually negotiates; an
+     * application that does not want to offer one sets 0. Inherited by every
+     * WOLFSSL made from this context. */
+    ctx->recordSizeLimit = WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT;
 #endif
 
 #ifdef WOLFSSL_DTLS
@@ -9460,6 +9485,15 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.useClientOrder = ctx->useClientOrder;
     ssl->options.mutualAuth = ctx->mutualAuth;
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* Version independent on purpose: RFC 8449 covers TLS 1.2, where the
+     * server answers in the ServerHello, so this must not live in
+     * InitSSL_Tls13Options() - a TLS 1.2 only build would never inherit the
+     * context's limit and would silently never offer the extension. */
+    ssl->recordSizeLimit = ctx->recordSizeLimit;
+    ssl->recordSizeLimitSet = ctx->recordSizeLimitSet;
+#endif
+
 #ifdef WOLFSSL_TLS13
     InitSSL_Tls13Options(ssl, ctx);
 #endif /* WOLFSSL_TLS13 */
@@ -14326,6 +14360,76 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 }
 #endif /* WOLFSSL_DTLS */
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* Whether RFC 8449's limit binds the record being processed.
+ *
+ * "The limits ... apply only once the extension is negotiated", which is when
+ * both ends have sent one, and "unprotected messages are not subject to this
+ * limit" -- which matters at TLS 1.2, where the certificate flight travels in
+ * the clear.
+ *
+ * Early data received by a server is excluded: a client composes it before it
+ * can have seen the server's limit, which RFC 8449 does not carry in the
+ * ticket. A client needs no such exemption: the server has its ClientHello,
+ * and so its limit, before it encrypts anything. Every state from
+ * early_data_ext on is exempt, since a server that never calls
+ * wolfSSL_read_early_data() stays there and its rejected 0-RTT records have
+ * to reach the skip path in ProcessReply() rather than be refused here. The
+ * exemption ends with the handshake, as no early data follows it.
+ */
+static int RecordSizeLimitBinds(const WOLFSSL* ssl)
+{
+    if ((ssl->recordSizeLimit == 0) || (ssl->peerRecordSizeLimit == 0))
+        return 0;
+    if (!IsEncryptionOn(ssl, 0))
+        return 0;
+#ifdef WOLFSSL_EARLY_DATA
+    if ((ssl->options.side == WOLFSSL_SERVER_END) &&
+            (ssl->earlyData >= early_data_ext) &&
+            (ssl->earlyData < done_early_data) &&
+            (ssl->options.handShakeState != HANDSHAKE_DONE)) {
+        return 0;
+    }
+#endif
+
+    return 1;
+}
+
+/* The largest plaintext the peer may send, measured the way RFC 8449 Sect. 4
+ * measures it: the content alone, with no content type byte, no padding and
+ * no cipher expansion.
+ *
+ * Taken from what this end advertised rather than from ssl->recordSizeLimit,
+ * because the two part company after a downgrade:
+ * TLSX_RecordSizeLimit_Write() folds the TLS 1.3 TLSInnerPlaintext content
+ * type byte into the value it sends, and a client offers before the version
+ * is settled, so with TLS 1.2 negotiated the whole advertised value is
+ * content the peer may use.
+ */
+static word32 RecordSizeLimitMaxPlain(const WOLFSSL* ssl)
+{
+    word32 maxSz;
+
+    if (ssl->recordSizeLimitSent != 0) {
+        maxSz = (word32)ssl->recordSizeLimitSent;
+#ifdef WOLFSSL_TLS13
+        /* Written with the content type byte included exactly when the
+         * version in force at the time was TLS 1.3, which is also the
+         * version in force now unless this connection was downgraded. */
+        if (IsAtLeastTLSv1_3(ssl->version))
+            maxSz--;
+#endif
+    }
+    else {
+        /* Nothing recorded as sent: ssl->recordSizeLimit counts payload
+         * already, at either version. */
+        maxSz = (word32)ssl->recordSizeLimit;
+    }
+
+    return maxSz;
+}
+#endif /* HAVE_RECORD_SIZE_LIMIT */
+
 /* do all verify and sanity checks on record header */
 static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
@@ -14442,6 +14546,88 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         WOLFSSL_MSG_EX("Record length %d exceeds max record size", *size);
         WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
         return LENGTH_ERROR;
+    }
+#endif
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* RFC 8449 Sect. 4: "A TLS endpoint that receives a record larger than
+     * its advertised limit MUST generate a fatal record_overflow alert."
+     * LENGTH_ERROR is what the caller turns into that alert. The limit is on
+     * the plaintext, so the ciphertext is allowed its expansion on top.
+     * RecordSizeLimitBinds() holds the rest of the conditions. */
+    if (RecordSizeLimitBinds(ssl)) {
+        /* Start from the plaintext this end advertised room for and add back
+         * only what the record around it may legally carry. MAX_MSG_EXTRA is
+         * the worst case over every suite wolfSSL supports, wide enough at a
+         * small limit to wave through a record several times the size
+         * advertised. TLS 1.3 is AEAD throughout, so the expansion is the tag
+         * and the content type byte; at TLS 1.2 an explicit IV, the MAC and
+         * block padding vary by suite, so the negotiated suite's exact
+         * expansion is used. The decrypted-plaintext check reads the same
+         * RecordSizeLimitMaxPlain(), so the two cannot drift. */
+        word32 maxSz = RecordSizeLimitMaxPlain(ssl);
+
+    #ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            /* The content type byte and any padding are inside the limit,
+             * leaving the tag as the only expansion. */
+            maxSz += 1 + (word32)ssl->specs.aead_mac_size;
+        }
+        else
+    #endif
+        {
+            /* cipherExtraData() gives the exact expansion for the negotiated
+             * suite - including the explicit nonce TLS 1.2 GCM and CCM carry
+             * and ChaCha20-Poly1305 does not - rather than MAX_MSG_EXTRA,
+             * which is dozens of bytes too generous for an AEAD suite and
+             * would leave this end accepting records above the limit it
+             * advertised. Compression cannot add to it: the limit only binds
+             * when both ends advertised it, and wolfSSL_set_compression() and
+             * wolfSSL_UseRecordSizeLimit() refuse to let one connection do
+             * both. */
+            int    cipherExtra = cipherExtraData(ssl);
+            word32 suiteExtra;
+
+            if (cipherExtra < 0)
+                cipherExtra = 0;
+            suiteExtra = (word32)cipherExtra;
+    #ifndef WOLFSSL_AEAD_ONLY
+            if (ssl->specs.cipher_type == block) {
+                /* cipherExtraData() allows one block of padding, which is what
+                 * wolfSSL itself emits. A peer may pad up to MAX_PAD_SIZE to
+                 * hide the plaintext length, so swap that one block for the
+                 * whole allowance. */
+                if ((word32)ssl->specs.block_size < MAX_PAD_SIZE) {
+                    suiteExtra += MAX_PAD_SIZE -
+                                  (word32)ssl->specs.block_size;
+                }
+            }
+    #endif
+    #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+            /* RFC 9146 Sect. 4: a DTLS 1.2 record carrying a Connection ID is
+             * a DTLSInnerPlaintext - the real content, then its content type,
+             * then optional zero padding. cipherExtraData() counts that byte
+             * only when this end has a CID of its own to send, yet using one
+             * in this direction is the peer's choice alone: a peer that gave
+             * this end no CID would have its full size records refused with
+             * record_overflow. The padding gets the same allowance as a CBC
+             * suite's above, for the same reason, and the limit itself is
+             * enforced on the plaintext once the record has been opened. */
+            if (rh->type == dtls12_cid) {
+                if (DtlsGetCidTxSize(ssl) == 0)
+                    suiteExtra += 1;
+                suiteExtra += MAX_PAD_SIZE;
+            }
+    #endif
+            maxSz += suiteExtra;
+        }
+
+        if ((word32)*size > maxSz) {
+            WOLFSSL_MSG_EX("Record length %d exceeds record size limit",
+                           *size);
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+            return LENGTH_ERROR;
+        }
     }
 #endif
 
@@ -28385,6 +28571,25 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     return BUFFER_E;
                 ssl->curSize -= (word16)ssl->keys.padSz;
             }
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+            /* RFC 8449 Sect. 4 measures the limit against the plaintext, and
+             * this is the first point at which the plaintext length is known:
+             * the IV, MAC and padding are off, and with them the TLS 1.3
+             * content type byte that the advertised value covered. The check
+             * on the ciphertext in GetRecordHeader() cannot do this job -- it
+             * has to allow every expansion a sender may legally add, up to
+             * MAX_PAD_SIZE of CBC padding, so a record that pads minimally
+             * passes it with a plaintext well over the limit. */
+            if (((word32)ssl->curSize > RecordSizeLimitMaxPlain(ssl)) &&
+                    RecordSizeLimitBinds(ssl)) {
+                WOLFSSL_MSG_EX("Plaintext length %d exceeds record size limit",
+                               ssl->curSize);
+                SendAlert(ssl, alert_fatal, record_overflow);
+                WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
+                return LENGTH_ERROR;
+            }
+#endif
 
             /* in case > 1 msg per record */
             ssl->curStartIdx = ssl->buffers.inputBuffer.idx;
@@ -49581,6 +49786,24 @@ int wolfSSL_GetMaxFragSize(WOLFSSL* ssl)
         maxFragment = ssl->max_fragment;
     }
 #endif /* HAVE_MAX_FRAGMENT */
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* RFC 8449 Sect. 4: never generate a protected record whose plaintext is
+     * larger than the peer's limit. "Unprotected messages are not subject to
+     * this limit": the receive check in GetRecordHeader() tests the same
+     * thing, so without the encryption test the two directions disagree - at
+     * TLS 1.2 peerRecordSizeLimit is set while parsing the ClientHello, which
+     * would fragment the whole cleartext certificate flight to the peer's
+     * limit. */
+    if ((ssl->peerRecordSizeLimit != 0) && (IsEncryptionOn(ssl, 1) == 1)) {
+        /* Already payload: TLSX_RecordSizeLimit_Parse() took the TLS 1.3
+         * content type byte off when it read the value. */
+        int limit = (int)ssl->peerRecordSizeLimit;
+
+        if (maxFragment > limit)
+            maxFragment = limit;
+    }
+#endif /* HAVE_RECORD_SIZE_LIMIT */
 
     return maxFragment;
 }

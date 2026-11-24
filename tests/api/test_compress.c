@@ -34,6 +34,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/internal.h>
 #include <tests/api/api.h>
+#include <tests/utils.h>
 #include <tests/api/test_compress.h>
 
 /* TLS level zlib compression (wolfSSL_set_compression()) needs the record
@@ -812,6 +813,115 @@ int test_wolfSSL_dtls_compression_off(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif /* HAVE_LIBZ && WOLFSSL_DTLS && !WOLFSSL_NO_TLS12 &&
+        * !NO_WOLFSSL_CLIENT */
+    return EXPECT_RESULT();
+}
+
+/* Record layer compression and RFC 8449 record_size_limit cannot share a
+ * connection: the limit bounds the plaintext and deflate may expand past it.
+ * Each is available in a build that has both, so the choice is made per
+ * connection, and the application's explicit request wins. */
+int test_wolfSSL_tls_compression_record_size_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_LIBZ) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+
+    /* A limit is advertised by default. That default gives way, since the
+     * application asked for compression and not for it. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        ExpectIntGT(ssl->recordSizeLimit, 0);
+        ExpectIntEQ(ssl->recordSizeLimitSet, 0);
+    }
+    ExpectIntEQ(wolfSSL_set_compression(ssl), WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.usingCompression, 1);
+        ExpectIntEQ(ssl->recordSizeLimit, 0);
+    }
+    /* And a limit asked for afterwards is refused rather than silently
+     * dropping the compression that is already set up. */
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl, 512),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.usingCompression, 1);
+    wolfSSL_free(ssl); ssl = NULL;
+    wolfSSL_CTX_free(ctx); ctx = NULL;
+
+    /* The other order: a limit the application set is its request, so
+     * compression is the one refused. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_compression(ssl), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.usingCompression, 0);
+        ExpectIntEQ(ssl->recordSizeLimit, 512);
+    }
+    wolfSSL_free(ssl); ssl = NULL;
+    wolfSSL_CTX_free(ctx); ctx = NULL;
+
+    /* Turning the limit off explicitly is not a limit, so compression is
+     * free to go ahead. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl, WOLFSSL_RECORD_SIZE_LIMIT_OFF),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_compression(ssl), WOLFSSL_SUCCESS);
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->options.usingCompression, 1);
+
+    wolfSSL_free(ssl); ssl = NULL;
+    wolfSSL_CTX_free(ctx); ctx = NULL;
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_SERVER)
+    /* Too late for the default to give way once it is on the wire: zeroing
+     * it then would send or answer with a limit of 0. The client has queued
+     * and sent it with its ClientHello; the server has read the client's and
+     * queued its answer, as it would have by the time an SNI callback runs. */
+    {
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX* ctx_c = NULL;
+        WOLFSSL_CTX* ctx_s = NULL;
+        WOLFSSL*     ssl_c = NULL;
+        WOLFSSL*     ssl_s = NULL;
+        word16       limit_c = 0;
+        word16       limit_s = 0;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        if ((ssl_c != NULL) && (ssl_s != NULL)) {
+            limit_c = ssl_c->recordSizeLimit;
+            limit_s = ssl_s->recordSizeLimit;
+        }
+        ExpectIntGT(limit_c, 0);
+        ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_set_compression(ssl_c),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntNE(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_compression(ssl_s),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        if ((ssl_c != NULL) && (ssl_s != NULL)) {
+            ExpectIntEQ(ssl_c->recordSizeLimit, limit_c);
+            ExpectIntEQ(ssl_s->recordSizeLimit, limit_s);
+            ExpectIntEQ(ssl_c->options.usingCompression, 0);
+            ExpectIntEQ(ssl_s->options.usingCompression, 0);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES && !NO_WOLFSSL_SERVER */
+#endif /* HAVE_LIBZ && HAVE_RECORD_SIZE_LIMIT && !WOLFSSL_NO_TLS12 &&
         * !NO_WOLFSSL_CLIENT */
     return EXPECT_RESULT();
 }

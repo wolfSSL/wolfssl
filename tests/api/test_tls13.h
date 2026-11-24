@@ -212,6 +212,7 @@ int test_tls13_early_secret_zeroized(void);
 int test_tls13_psk_key_zeroized(void);
 int test_tls13_export_server_ticket_after_import(void);
 int test_tls13_export_client_ticket_after_import(void);
+int test_tls13_record_size_limit_export(void);
 int test_tls13_export_server_key_update(void);
 int test_tls13_export_client_key_update(void);
 int test_tls13_export_keeps_fatal_alert(void);
@@ -222,6 +223,18 @@ int test_tls13_cks_hrr_reparse(void);
 int test_tls13_update_keys_want_write(void);
 int test_tls13_AEAD_limit_KeyUpdate_want_write(void);
 int test_tls13_exporter_suite_decision_coverage(void);
+int test_tls13_record_size_limit_ctx(void);
+int test_tls13_record_size_limit_early_data(void);
+int test_tls13_record_size_limit_early_data_rejected(void);
+int test_tls12_record_size_limit_overflow(void);
+int test_tls12_record_size_limit_plaintext(void);
+int test_tls13_cert_req_ctx_record_size_limit(void);
+int test_tls13_record_size_limit_overflow(void);
+int test_tls13_record_size_limit_both_exts(void);
+int test_tls13_record_size_limit_vs_mfl(void);
+int test_tls13_record_size_limit_fragment(void);
+int test_tls13_record_size_limit(void);
+int test_tls13_new_ext_placement(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -410,6 +423,7 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_psk_key_zeroized), \
     TEST_DECL_GROUP("tls13", test_tls13_export_server_ticket_after_import), \
     TEST_DECL_GROUP("tls13", test_tls13_export_client_ticket_after_import), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_export), \
     TEST_DECL_GROUP("tls13", test_tls13_export_server_key_update), \
     TEST_DECL_GROUP("tls13", test_tls13_export_client_key_update), \
     TEST_DECL_GROUP("tls13", test_tls13_export_keeps_fatal_alert), \
@@ -422,6 +436,19 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_exporter_suite_decision_coverage), \
     TEST_DECL_GROUP("tls13", test_tls13_ecdsa_scheme_curve_binding), \
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_max_fragment), \
-    TEST_DECL_GROUP("tls13", test_tls13_psk_cb_no_cipher_name)
+    TEST_DECL_GROUP("tls13", test_tls13_psk_cb_no_cipher_name), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_ctx), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_early_data), \
+    TEST_DECL_GROUP("tls13",                                    \
+        test_tls13_record_size_limit_early_data_rejected),      \
+    TEST_DECL_GROUP("tls13", test_tls12_record_size_limit_overflow), \
+    TEST_DECL_GROUP("tls13", test_tls12_record_size_limit_plaintext), \
+    TEST_DECL_GROUP("tls13", test_tls13_cert_req_ctx_record_size_limit), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_overflow), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_both_exts), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_vs_mfl), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit_fragment), \
+    TEST_DECL_GROUP("tls13", test_tls13_record_size_limit), \
+    TEST_DECL_GROUP("tls13", test_tls13_new_ext_placement)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
