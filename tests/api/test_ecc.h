@@ -78,6 +78,7 @@ int test_wc_ecc_shared_secret_ssh(void);
 int test_wc_ecc_verify_hash_ex(void);
 int test_wc_ecc_mulmod(void);
 int test_wc_ecc_mulmod_unreduced(void);
+int test_wc_ecc_mulmod_k_len(void);
 int test_wc_ecc_mulmod_zero(void);
 int test_wc_ecc_mulmod_negative(void);
 int test_wc_ecc_mulmod_curves(void);
@@ -151,6 +152,7 @@ int test_wc_ecc_fp_cache_curve_binding(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_verify_hash_ex),                 \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod),                         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_unreduced),               \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_k_len),                   \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_zero),                    \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_negative),                \
     TEST_DECL_GROUP("ecc", test_wc_ecc_mulmod_curves),                  \
