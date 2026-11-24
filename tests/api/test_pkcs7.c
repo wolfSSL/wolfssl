@@ -10887,6 +10887,77 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void)
     return EXPECT_RESULT();
 }
 
+/* One object verifies messages with different embedded content in turn, the
+ * first one from a buffer freed before the next verify. */
+int test_wc_PKCS7_VerifySignedData_ReuseEmbeddedContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    static const byte data0[] = { 0x01, 0x02, 0x03 };
+    static const byte data1[] = { 0x04, 0x05, 0x06 };
+    static const byte data2[] = { 0x07, 0x08, 0x09, 0x0a };
+    const byte* data[3] = { data0, data1, data2 };
+    word32 dataSz[3] = { sizeof(data0), sizeof(data1), sizeof(data2) };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg[3] = { NULL, NULL, NULL };
+    int    msgSz[3] = { 0, 0, 0 };
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    int    i;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    for (i = 0; i < 3; i++) {
+        ExpectNotNull(msg[i] = (byte*)XMALLOC(msgMax, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = (byte*)data[i];
+            pkcs7->contentSz    = dataSz[i];
+            pkcs7->contentOID   = DATA;
+            pkcs7->hashOID      = SHA256h;
+            pkcs7->encryptOID   = RSAk;
+            pkcs7->privateKey   = (byte*)client_key_der_2048;
+            pkcs7->privateKeySz = sizeof_client_key_der_2048;
+            pkcs7->rng          = &rng;
+        }
+        ExpectIntGT((msgSz[i] = wc_PKCS7_EncodeSignedData(pkcs7, msg[i],
+            msgMax)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg[i], (word32)msgSz[i]),
+            0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentSz, dataSz[i]);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectBufEQ(pkcs7->content, data[i], dataSz[i]);
+            }
+        }
+        if (i == 0 && msg[0] != NULL) {
+            XMEMSET(msg[0], 0, (size_t)msgSz[0]);
+            XFREE(msg[0], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            msg[0] = NULL;
+        }
+    }
+    wc_PKCS7_Free(pkcs7);
+
+    for (i = 0; i < 3; i++) {
+        XFREE(msg[i], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
     defined(USE_CERT_BUFFERS_2048) && !defined(NO_PKCS7_STREAM)
 /* Feed a message to wc_PKCS7_VerifySignedData() one byte per call. */
