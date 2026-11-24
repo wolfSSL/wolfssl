@@ -26168,23 +26168,27 @@ Signer* findSignerByName(Signer *list, byte *hash)
     return NULL;
 }
 
-#ifndef IGNORE_NAME_CONSTRAINTS
-/* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
- * with name-hash validation. Fall back to name-only when AKID is
- * absent. */
-static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
-                                      Signer* extraCAList, Signer* cert)
+/* Find a signer in cm and extraCAList by AKID (preferred) or subject name.
+ * AKID is authoritative: when authKeyIdSet, a name-hash mismatch or a
+ * store miss never falls back to a name-only match, in cm or extraCAList.
+ */
+static Signer* FindSignerByAkidOrName_ex(WOLFSSL_CERT_MANAGER* cm,
+        Signer* extraCAList, byte authKeyIdSet, byte* authKeyIdHash,
+        byte* issuerNameHash)
 {
     Signer* signer = NULL;
 #ifndef NO_SKID
     Signer* exCaSigner;
+#else
+    (void)authKeyIdSet;
+    (void)authKeyIdHash;
 #endif
 
 #ifndef NO_SKID
-    if (cert->authKeyIdSet) {
-        signer = GetCA(cm, cert->authKeyIdHash);
+    if (authKeyIdSet) {
+        signer = GetCA(cm, authKeyIdHash);
         if (signer != NULL &&
-                XMEMCMP(signer->subjectNameHash, cert->issuerNameHash,
+                XMEMCMP(signer->subjectNameHash, issuerNameHash,
                         SIGNER_DIGEST_SIZE) != 0) {
             signer = NULL;
         }
@@ -26192,22 +26196,22 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
          * is set (could substitute a same-DN sibling). */
     }
     else {
-        signer = GetCAByName(cm, cert->issuerNameHash);
+        signer = GetCAByName(cm, issuerNameHash);
     }
 #else
-    signer = GetCA(cm, cert->issuerNameHash);
+    signer = GetCA(cm, issuerNameHash);
 #endif
 
     if (signer == NULL && extraCAList != NULL) {
     #ifndef NO_SKID
-        if (cert->authKeyIdSet) {
+        if (authKeyIdSet) {
             for (exCaSigner = extraCAList; exCaSigner != NULL;
                     exCaSigner = exCaSigner->next) {
                 if (XMEMCMP(exCaSigner->subjectKeyIdHash,
-                            cert->authKeyIdHash,
+                            authKeyIdHash,
                             SIGNER_DIGEST_SIZE) == 0 &&
                         XMEMCMP(exCaSigner->subjectNameHash,
-                                cert->issuerNameHash,
+                                issuerNameHash,
                                 SIGNER_DIGEST_SIZE) == 0) {
                     signer = exCaSigner;
                     break;
@@ -26216,14 +26220,27 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
             /* AKID is authoritative; do not fall back to name. */
         }
         else {
-            signer = findSignerByName(extraCAList, cert->issuerNameHash);
+            signer = findSignerByName(extraCAList, issuerNameHash);
         }
     #else
-        signer = findSignerByName(extraCAList, cert->issuerNameHash);
+        signer = findSignerByName(extraCAList, issuerNameHash);
     #endif
     }
 
     return signer;
+}
+
+#ifndef IGNORE_NAME_CONSTRAINTS
+static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                                      Signer* extraCAList, Signer* cert)
+{
+#ifndef NO_SKID
+    return FindSignerByAkidOrName_ex(cm, extraCAList, cert->authKeyIdSet,
+            cert->authKeyIdHash, cert->issuerNameHash);
+#else
+    return FindSignerByAkidOrName_ex(cm, extraCAList, 0, NULL,
+            cert->issuerNameHash);
+#endif
 }
 #endif /* !IGNORE_NAME_CONSTRAINTS */
 
@@ -26839,17 +26856,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                     cert->ca = NULL;
                 }
             }
+    #endif /* !NO_SKID */
+
             if (cert->ca == NULL) {
-                cert->ca = GetCAByName(cm, cert->issuerHash);
-                /* If AKID is available then this CA doesn't have the public
-                 * key required */
-                if (cert->ca && cert->extAuthKeyIdSet) {
-                    WOLFSSL_MSG("CA SKID doesn't match AKID");
-                    cert->ca = NULL;
-                }
+                /* Falls back to the AKID-or-name store/extraCAList rule
+                 * shared with the NC walk below; with an AKID set, this
+                 * repeats the GetCA(cm, extAuthKeyId) probe above. */
+                cert->ca = FindSignerByAkidOrName_ex(cm, extraCAList,
+                        cert->extAuthKeyIdSet, cert->extAuthKeyId,
+                        cert->issuerHash);
             }
 
-            /* OCSP Only: alt lookup using subject and pub key w/o sig check */
+            /* OCSP Only: alt lookup using subject and pub key w/o sig check.
+             * Last resort: runs only once the store and extraCAList have
+             * both missed. */
+    #ifndef NO_SKID
         #ifdef WOLFSSL_NO_TRUSTED_CERTS_VERIFY
             if (cert->ca == NULL && verify == VERIFY_OCSP) {
                 cert->ca = GetCABySubjectAndPubKey(cert, cm);
@@ -26859,35 +26880,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
                 }
             }
         #endif /* WOLFSSL_NO_TRUSTED_CERTS_VERIFY */
-    #else
-            if (cert->ca == NULL)
-                cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
-
-            if (cert->ca == NULL && extraCAList != NULL) {
-        #ifndef NO_SKID
-                if (cert->extAuthKeyIdSet) {
-                    Signer* exCa;
-
-                    for (exCa = extraCAList; exCa != NULL; exCa = exCa->next) {
-                        if (XMEMCMP(exCa->subjectKeyIdHash,
-                                    cert->extAuthKeyId,
-                                    SIGNER_DIGEST_SIZE) == 0 &&
-                            XMEMCMP(exCa->subjectNameHash, cert->issuerHash,
-                                    SIGNER_DIGEST_SIZE) == 0) {
-                            cert->ca = exCa;
-                            break;
-                        }
-                    }
-                    /* AKID is authoritative; do not fall back to name. */
-                }
-                else
-        #endif
-                {
-                    cert->ca = findSignerByName(extraCAList,
-                                                cert->issuerHash);
-                }
-            }
 
             if (cert->ca) {
                 WOLFSSL_MSG("CA found");
