@@ -5425,6 +5425,50 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
     return EXPECT_RESULT();
 }
 
+/* Like the _skid_disambiguates test above, but the constrained ancestor
+ * reaches the client only through the server's chain and the CSR2
+ * pending-signer pool, never loaded into the cert manager directly. */
+int test_wolfSSL_CertManagerNameConstraint_csr2_pool(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SHA256)
+    test_ssl_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_cb.method = wolfTLSv1_2_client_method;
+    test_ctx.s_cb.method = wolfTLSv1_2_server_method;
+    test_ctx.c_cb.caPemFile = "./certs/test/nc-ancestor/csr2-root-cert.pem";
+    test_ctx.s_cb.certPemFile =
+        "./certs/test/nc-ancestor/csr2-leaf-chain.pem";
+    test_ctx.s_cb.keyPemFile =
+        "./certs/test/nc-ancestor/csr2-leaf-attacker-key.pem";
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+        WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+    /* Server must echo stapling too, or the pool never gets populated. */
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.s_ctx),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    /* Error reflects today's store-first order; if extraCAList is ever
+     * searched first, expect ASN_NAME_INVALID_E instead. The check
+     * above shows the handshake does not succeed. */
+    ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0),
+        WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E));
+
+    test_ssl_memio_cleanup(&test_ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
 /* Before the validity period of certs/test/expired/expired-cert.pem */
