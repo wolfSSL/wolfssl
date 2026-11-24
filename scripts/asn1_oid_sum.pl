@@ -536,11 +536,15 @@ my @exts = (
     { name => "ISSUE_ALT_NAMES",        oid => \@issue_alt_names        },
     { name => "TLS_FEATURE",            oid => \@tls_feature            },
 <<<<<<< HEAD
+<<<<<<< HEAD
     { name => "ACME_IDENTIFIER",        oid => \@acme_identifier,
       guard => "WOLFSSL_ACME_OID" },
 =======
     { name => "ACME_IDENTIFIER",        oid => \@acme_identifier        },
 >>>>>>> a74eddf425 (RFC9925: Unsigned Cert)
+=======
+    { name => "ACME_IDENTIFIER",        oid => \@acme_identifier        },
+>>>>>>> 8d85b6eb552734702094833b8d7099066724f8d1
     { name => "DNS_SRV",                oid => \@dns_srv                },
     { name => "NETSCAPE_CT",            oid => \@netscape_ct            },
     { name => "OCSP_NOCHECK",           oid => \@ocsp_nocheck           },
