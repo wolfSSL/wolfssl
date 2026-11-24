@@ -6160,13 +6160,8 @@ char* wolfSSL_strnstr(const char* s1, const char* s2, size_t n)
         if (cond == NULL)
             return BAD_FUNC_ARG;
 
-        if (wc_UnLockMutex(&cond->mutex) != 0)
-            return BAD_MUTEX_E;
-
+        /* Never blocks, so signal with the mutex held. */
         dispatch_semaphore_signal(cond->cond);
-
-        if (wc_LockMutex(&cond->mutex) != 0)
-            return BAD_MUTEX_E;
 
         return 0;
     }

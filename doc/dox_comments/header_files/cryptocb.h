@@ -25,6 +25,13 @@
     devIds the handler already registered stay registered and are the
     caller's to clean up.
 
+    With WOLFSSL_ASYNC_CRYPT and WOLF_CRYPTO_CB_ASYNC_POLL defined, the
+    callback is invoked with WC_ALGO_TYPE_ASYNC_POLL from
+    wolfSSL_AsyncPoll and wolfSSL_CTX_AsyncPoll to complete a pending
+    operation. The event queue lock is held for this call. The handler
+    must not poll or run TLS operations on the same WOLFSSL_CTX, or use
+    the same WOLF_EVENT_QUEUE in any other way: that deadlocks.
+
     \return CRYPTOCB_UNAVAILABLE to fallback to using software crypto
     \return 0 for success
     \return ALREADY_E if devId is already registered. A devId must be
