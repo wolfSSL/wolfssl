@@ -923,14 +923,14 @@ int test_wc_ecc_shared_secret_custom_curve_match(void)
         0, 1
     };
     static const ecc_set_type otherCurve = {
-        1, ECC_CURVE_CUSTOM, "toy-E17-alt", "11", "02", "00", "13", "05",
+        1, ECC_CURVE_CUSTOM, "toy-E17-alt", "11", "02", "00", "05", "08",
         "01",
     #ifndef WOLFSSL_ECC_CURVE_STATIC
         NULL, 0,
     #else
         {0}, 0,
     #endif
-        0, 1
+        0, 4
     };
     static const byte d[] = {13};
     static const byte privatePub[] = {0x04, 16, 4};
