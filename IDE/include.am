@@ -33,7 +33,6 @@ EXTRA_DIST+= IDE/MDK5-ARM
 EXTRA_DIST+= IDE/MQX
 EXTRA_DIST+= IDE/MSVS-2019-AZSPHERE
 EXTRA_DIST+= IDE/NETOS
-EXTRA_DIST+= IDE/Nordic
 EXTRA_DIST+= IDE/PlatformIO
 EXTRA_DIST+= IDE/QNX
 EXTRA_DIST+= IDE/RISCV
@@ -65,6 +64,7 @@ include IDE/apple-universal/include.am
 include IDE/MPLABX16/include.am
 include IDE/MPLABX16/wolfcrypt_test.X/nbproject/include.am
 include IDE/MPLABX16/wolfssl.X/nbproject/include.am
+include IDE/Nordic/nRF54L15/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/DK-S7G2/include.am
 include IDE/Renesas/e2studio/Projects/include.am
