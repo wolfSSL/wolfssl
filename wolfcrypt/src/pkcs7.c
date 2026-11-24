@@ -320,7 +320,7 @@ static void wc_PKCS7_FreeStream(wc_PKCS7* pkcs7)
     if (pkcs7 != NULL && pkcs7->stream != NULL) {
         /* free before ResetStream clears hashType */
         if (pkcs7->stream->hashAlgInit) {
-            wc_HashFree(&pkcs7->stream->hashAlg, pkcs7->stream->hashType);
+            wc_HashFree(&pkcs7->stream->hashAlg, WC_HASH_TYPE_NONE);
             pkcs7->stream->hashAlgInit = 0;
         }
         wc_PKCS7_ResetStream(pkcs7);
@@ -8225,8 +8225,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             if (pkcs7->streamOutCb) {
                 /* free any previously initialized hash before re-init */
                 if (pkcs7->stream->hashAlgInit) {
-                    wc_HashFree(&pkcs7->stream->hashAlg,
-                        pkcs7->stream->hashType);
+                    wc_HashFree(&pkcs7->stream->hashAlg, WC_HASH_TYPE_NONE);
                     pkcs7->stream->hashAlgInit = 0;
                 }
                 ret = wc_HashInit_ex(&pkcs7->stream->hashAlg,
