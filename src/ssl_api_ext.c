@@ -769,6 +769,200 @@ int wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SUPPORTED_CURVES */
 
+/* This extension has its own build option and depends on neither the
+ * OpenSSL compatibility layer nor supported-curves, so it sits at file
+ * scope: --enable-sct would otherwise compile the protocol code while leaving
+ * no way to configure it. */
+
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+/* Set the SignedCertificateTimestampList a server presents.
+ *
+ * The bytes are the extension_data of RFC 6962 Sect. 3.3, that is a
+ * SignedCertificateTimestampList: a two byte list length then each SCT as a
+ * two byte length and its body. Certificate Transparency logs and CAs emit
+ * this blob; wolfSSL carries it and does not interpret it.
+ *
+ * @param [in] ctx  SSL/TLS context object.
+ * @param [in] list SignedCertificateTimestampList bytes, copied.
+ * @param [in] sz   Its length. A size_t, as in BoringSSL, so that the bound
+ *                  below sees the caller's length rather than one truncated
+ *                  on the way in.
+ * Non-zero for success and zero for failure, as the BoringSSL API of this
+ * name documents, so a ported `if (!...)` test still catches a failure.
+ *
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on a NULL or empty argument, on a list that is
+ *          malformed or too large to send, when the copy cannot be
+ *          allocated, or when the context's lock cannot be taken.
+ */
+int wolfSSL_CTX_set_signed_cert_timestamp_list(WOLFSSL_CTX* ctx,
+                                               const unsigned char* list,
+                                               size_t sz)
+{
+    byte* copy;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_set_signed_cert_timestamp_list");
+
+    if ((ctx == NULL) || (list == NULL) || (sz == 0)) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+    /* Checked here rather than discovered mid-handshake: a list this end
+     * cannot send, or one no peer would accept, is a configuration mistake
+     * and the caller is told while it still has the error in hand. */
+    if (sz > WOLFSSL_MAX_SCT_LIST_SZ) {
+        WOLFSSL_MSG("Signed certificate timestamp list too large to send");
+        return WOLFSSL_FAILURE;
+    }
+    if (TLSX_SCTS_CheckList(list, (word16)sz) != 0) {
+        WOLFSSL_MSG("Malformed SignedCertificateTimestampList");
+        return WOLFSSL_FAILURE;
+    }
+
+    copy = (byte*)XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_TLSX);
+    if (copy == NULL)
+        return WOLFSSL_FAILURE;
+    XMEMCPY(copy, list, sz);
+
+    /* The new list is built before the lock is taken, so the swap below is
+     * three stores: a handshake copying the old list cannot find the buffer
+     * freed under it, nor a length that does not describe the bytes it is
+     * reading. */
+    if (wc_LockMutex(&ctx->sctLock) != 0) {
+        WOLFSSL_MSG("Could not lock the timestamp list");
+        XFREE(copy, ctx->heap, DYNAMIC_TYPE_TLSX);
+        return WOLFSSL_FAILURE;
+    }
+
+    XFREE(ctx->sctList, ctx->heap, DYNAMIC_TYPE_TLSX);
+    ctx->sctList = copy;
+    ctx->sctListSz = (word16)sz;
+
+    wc_UnLockMutex(&ctx->sctLock);
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Set the SignedCertificateTimestampList on the object.
+ *
+ * Overrides any list set on the context: an object with a list of its own does
+ * not copy the context's when it parses a ClientHello. See
+ * wolfSSL_CTX_set_signed_cert_timestamp_list().
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] list SignedCertificateTimestampList bytes, copied.
+ * @param [in] sz   Its length.
+ * Non-zero for success and zero for failure, as the BoringSSL API of this
+ * name documents, so a ported `if (!...)` test still catches a failure.
+ *
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on a NULL or empty argument, on a list that is
+ *          malformed or too large to send, or when the copy cannot be
+ *          allocated. Also on a server whose list was stored but whose
+ *          response could not be registered.
+ */
+int wolfSSL_set_signed_cert_timestamp_list(WOLFSSL* ssl,
+                                           const unsigned char* list,
+                                           size_t sz)
+{
+    byte* copy;
+
+    WOLFSSL_ENTER("wolfSSL_set_signed_cert_timestamp_list");
+
+    if ((ssl == NULL) || (list == NULL) || (sz == 0)) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+    /* See wolfSSL_CTX_set_signed_cert_timestamp_list(). */
+    if (sz > WOLFSSL_MAX_SCT_LIST_SZ) {
+        WOLFSSL_MSG("Signed certificate timestamp list too large to send");
+        return WOLFSSL_FAILURE;
+    }
+    if (TLSX_SCTS_CheckList(list, (word16)sz) != 0) {
+        WOLFSSL_MSG("Malformed SignedCertificateTimestampList");
+        return WOLFSSL_FAILURE;
+    }
+
+    copy = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_TLSX);
+    if (copy == NULL)
+        return WOLFSSL_FAILURE;
+    XMEMCPY(copy, list, sz);
+
+    /* Always this object's own copy: a list adopted from the context is
+     * copied by TLSX_SCTS_Parse() rather than aliased, so there is never a
+     * pointer here that belongs to someone else. */
+    XFREE(ssl->sctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->sctList = copy;
+    ssl->sctListSz = (word16)sz;
+    /* The application's choice for this object, not a copy of the context's,
+     * so it outlives a wolfSSL_clear(). */
+    ssl->sctListFromCtx = 0;
+
+#ifndef NO_WOLFSSL_SERVER
+    /* An SNI or certificate setup callback runs after the ClientHello has
+     * been parsed, so a server given its first list here has no response
+     * registered yet and would answer nothing at all. The list is installed
+     * either way: the caller asked for that, and the failure it is told about
+     * is the push, not the configuration. */
+    if (TLSX_SCTS_SetResponse(ssl) != 0) {
+        WOLFSSL_MSG("Could not register the timestamp response");
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Get the SignedCertificateTimestampList the peer presented.
+ *
+ * Points into storage owned by the SSL object. It is released when that
+ * object is freed and also by wolfSSL_clear(), which drops the peer state
+ * before the object is reused - so a caller that keeps the pointer across a
+ * reset is holding freed memory and must copy the bytes it needs. The list is
+ * structurally checked on arrival; verifying the timestamps needs a log list
+ * and policy the application supplies.
+ *
+ * @param [in]  ssl   SSL/TLS object.
+ * @param [out] list  Set to the list, or NULL when the peer sent none.
+ * @return  Length of the list in bytes, 0 when there is none.
+ */
+unsigned short wolfSSL_get0_signed_cert_timestamp_list(WOLFSSL* ssl,
+                                                       const unsigned char**
+                                                       list)
+{
+    WOLFSSL_ENTER("wolfSSL_get0_signed_cert_timestamp_list");
+
+    if (list != NULL)
+        *list = NULL;
+    if ((ssl == NULL) || (ssl->peerSctList == NULL))
+        return 0;
+    if (list != NULL)
+        *list = ssl->peerSctList;
+
+    return ssl->peerSctListSz;
+}
+#endif /* HAVE_SIGNED_CERT_TIMESTAMP */
+
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+/* Whether the peer asked this end for signed certificate timestamps.
+ *
+ * A server can use this to tell an absent list from an unasked-for one.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when the peer sent the signed_certificate_timestamp extension.
+ * @return  0 when it did not, or ssl is NULL.
+ */
+int wolfSSL_signed_cert_timestamp_requested(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_signed_cert_timestamp_requested");
+
+    if (ssl == NULL)
+        return 0;
+
+    return ssl->sctRequested;
+}
+#endif /* HAVE_SIGNED_CERT_TIMESTAMP */
+
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
 

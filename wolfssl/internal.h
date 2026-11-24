@@ -2200,9 +2200,39 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
     #endif
 #endif
 
+/* Whether the Certificate message carries per-certificate extensions: an OCSP
+ * response can be stapled to each entry, and a signed_certificate_timestamp
+ * list attached to the end entity certificate. Every site that builds, indexes
+ * or frees those buffers has to agree - when only some of them were compiled
+ * in, the send loop stopped advancing its index and reused the leaf's entry
+ * for every certificate in the chain. */
+#if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_SIGNED_CERT_TIMESTAMP)) && !defined(NO_WOLFSSL_SERVER)
+    #define WOLFSSL_CERT_ENTRY_EXTS
+#endif
+
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+/* The most SignedCertificateTimestampList bytes this end will accept to send.
+ *
+ * At TLS 1.2 the list goes out in the unfragmented ServerHello, so it must fit
+ * one record alongside the rest of that message; the slack is generous, as a
+ * Certificate Transparency list runs to a few hundred bytes. The setters
+ * cannot know which version a later handshake negotiates, so TLS 1.3 gets the
+ * same bound. A client that negotiates a smaller max_fragment_length can
+ * still leave too little room; SendServerHello() then leaves the list out. */
+#ifndef WOLFSSL_MAX_SCT_LIST_SZ
+    #define WOLFSSL_MAX_SCT_LIST_SZ (MAX_RECORD_SIZE - 1024)
+#endif
+#endif
+
 /* Max certificate extensions in TLS1.3 */
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-    /* Number of extensions to set each OCSP response */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_SIGNED_CERT_TIMESTAMP)
+    /* One slot per certificate: an OCSP response can be attached to each, and
+     * a signed_certificate_timestamp list to the leaf. The leaf's slot cannot
+     * be the only one - the send loop stops advancing the index at
+     * MAX_CERT_EXTENSIONS, so a chain would reuse the leaf's entry and repeat
+     * its extensions on every certificate. */
     #define MAX_CERT_EXTENSIONS (1 + MAX_CHAIN_DEPTH)
 #else
     /* Only empty extensions */
@@ -3384,6 +3414,14 @@ typedef struct Keys {
 typedef struct Options Options;
 
 
+/* The extension lives in the TLSX machinery, so a user_settings.h build
+ * that defines it without HAVE_TLS_EXTENSIONS gets a pile of undefined
+ * references rather than a statement of what is missing. configure and CMake
+ * add it for you; this catches the hand-written case. */
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && !defined(HAVE_TLS_EXTENSIONS)
+#error "HAVE_SIGNED_CERT_TIMESTAMP requires HAVE_TLS_EXTENSIONS"
+#endif
+
 /** TLS Extensions - RFC 6066 */
 #ifdef HAVE_TLS_EXTENSIONS
 
@@ -3398,6 +3436,7 @@ typedef struct Options Options;
 #define TLSXT_USE_SRTP                   0x000e /* 14 */
 #define TLSXT_APPLICATION_LAYER_PROTOCOL 0x0010 /* a.k.a. ALPN */
 #define TLSXT_STATUS_REQUEST_V2          0x0011 /* a.k.a. OCSP stapling v2 */
+#define TLSXT_SIGNED_CERT_TIMESTAMP      0x0012 /* RFC 6962 */
 #define TLSXT_CLIENT_CERTIFICATE         0x0013 /* RFC8446 */
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
@@ -3449,6 +3488,9 @@ typedef enum {
     TLSX_ENCRYPT_THEN_MAC           = TLSXT_ENCRYPT_THEN_MAC,
 #endif
     TLSX_EXTENDED_MASTER_SECRET     = TLSXT_EXTENDED_MASTER_SECRET,
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    TLSX_SIGNED_CERT_TIMESTAMP      = TLSXT_SIGNED_CERT_TIMESTAMP,
+#endif
     TLSX_SESSION_TICKET             = TLSXT_SESSION_TICKET,
 #ifdef WOLFSSL_TLS13
     #ifdef WOLFSSL_EARLY_DATA
@@ -3681,6 +3723,13 @@ WOLFSSL_LOCAL int  TLSX_CustomExt_Parse(WOLFSSL* ssl, byte msgType, word16 type,
 #endif
 WOLFSSL_TEST_VIS TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
 WOLFSSL_LOCAL void  TLSX_Remove(TLSX** list, TLSX_Type type, void* heap);
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+WOLFSSL_LOCAL int   TLSX_SCTS_CheckList(const byte* list, word16 length);
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL int   TLSX_SCTS_ContextChanged(WOLFSSL* ssl);
+WOLFSSL_LOCAL int   TLSX_SCTS_SetResponse(WOLFSSL* ssl);
+#endif
+#endif
 WOLFSSL_LOCAL void  TLSX_FreeAll(TLSX* list, void* heap);
 WOLFSSL_LOCAL int   TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int   TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
@@ -4599,6 +4648,27 @@ struct WOLFSSL_CTX {
     WOLFSSL_EVP_PKEY* volatile privateKeyPKey;
 #endif
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
+#endif
+/* Outside the NO_CERTS section above on purpose: the extension code that
+ * uses these is guarded by the feature macro alone, so it is compiled in a
+ * build without certificates too. */
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    /* SignedCertificateTimestampList a server presents, exactly as the
+     * application supplied it (RFC 6962 Sect. 3.3). wolfSSL delivers the
+     * bytes and leaves validation to the application, which needs a log list
+     * and policy this library does not carry. */
+    byte*       sctList;
+    word16      sctListSz;
+    /* Guards the two fields above. A context's list can be replaced while
+     * handshakes using that context are running, and the setter frees the
+     * buffer it is replacing, so the pointer and its length are only read or
+     * written with this held. Compiles to nothing in a SINGLE_THREADED
+     * build, where wc_LockMutex() and friends are no-ops. */
+    wolfSSL_Mutex sctLock;
+    /* Whether sctLock was initialised. InitSSL_Ctx() can fail before or at
+     * that point and the caller then frees the context, which must not
+     * destroy a mutex that was never created. */
+    byte        sctLockInit:1;
 #endif
 #ifdef KEEP_OUR_CERT
     WOLFSSL_X509*    ourCert;     /* keep alive a X509 struct of cert */
@@ -7220,6 +7290,18 @@ struct WOLFSSL {
     word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
     byte*           certHashSigAlgo;    /* peer's cert sig/algo list */
 #endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    byte*           sctList;         /* list this end presents */
+    word16          sctListSz;
+    byte*           peerSctList;     /* list the peer presented, owned here */
+    word16          peerSctListSz;
+    byte            sctRequested;    /* peer asked us for one */
+    /* sctList is a snapshot of the context's list rather than one the
+     * application set on this object. It is dropped by wolfSSL_clear() so a
+     * recycled object picks the context's list up again; a list set on the
+     * object is this object's configuration and survives. */
+    byte            sctListFromCtx;
+#endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     int             eccVerifyRes;
 #endif
@@ -7471,9 +7553,14 @@ struct WOLFSSL {
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         char*   url;
     #endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-            word32 response_idx;
 #endif
+/* Which CertificateEntry ProcessPeerCerts() is parsing extensions for. Outside
+ * the HAVE_OCSP block above because both features need it and they are
+ * independent: a stapled OCSP response is per entry, and an SCT list is only
+ * valid on the end entity certificate. */
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_SIGNED_CERT_TIMESTAMP))
+    word32          response_idx;
 #endif
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */

@@ -6001,6 +6001,25 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
         ssl->ws_peer_ca_names = NULL;
     #endif
+    /* Everything below records what the peer did, so it must not survive
+     * into the next connection on a recycled object. The matching local
+     * configuration -- ssl->sctList -- is deliberately
+     * kept, since that is what the caller set. */
+    #ifdef HAVE_SIGNED_CERT_TIMESTAMP
+        XFREE(ssl->peerSctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+        ssl->peerSctList = NULL;
+        ssl->peerSctListSz = 0;
+        ssl->sctRequested = 0;
+        /* A snapshot taken from the context last handshake goes with it, so a
+         * recycled object sees a list the context has rotated since. One the
+         * application set on this object is configuration and stays. */
+        if (ssl->sctListFromCtx) {
+            XFREE(ssl->sctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+            ssl->sctList = NULL;
+            ssl->sctListSz = 0;
+            ssl->sctListFromCtx = 0;
+        }
+    #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
@@ -6139,10 +6158,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #ifdef WOLFSSL_QUIC
         wolfSSL_quic_clear(ssl);
 #endif
-#ifdef HAVE_OCSP
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_SIGNED_CERT_TIMESTAMP))
         ssl->response_idx = 0;
-#endif
 #endif
         return WOLFSSL_SUCCESS;
     }
@@ -9097,6 +9115,22 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     /* copy over application session context ID */
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
+#endif
+
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS)
+    /* The signed certificate timestamps attest the certificate (RFC 6962
+     * Sect. 3.3), so they move with it. The ClientHello was parsed before
+     * this callback ran, so without this the answer would carry the previous
+     * context's list.
+     *
+     * Reported like the failures above it, by returning NULL after the
+     * context has already been swapped: there is nothing to roll back to.
+     * The answer is left consistent either way - the extension entry goes
+     * with the list it could not replace - so a callback that chooses to
+     * carry on sends no timestamps rather than a malformed list. */
+    if (TLSX_SCTS_ContextChanged(ssl) != 0)
+        return NULL;
 #endif
 
     return ssl->ctx;

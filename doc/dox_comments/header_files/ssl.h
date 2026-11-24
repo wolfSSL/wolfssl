@@ -14104,6 +14104,126 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
 int wolfSSL_UseMaxFragment(WOLFSSL* ssl, unsigned char mfl);
 
 /*!
+    \brief Sets the SignedCertificateTimestampList a server presents to
+    clients that ask for one (RFC 6962). The bytes are copied and sent
+    verbatim: wolfSSL does not validate them, since checking an SCT needs a
+    log list and a trust policy the library does not carry. A server object
+    with no list of its own copies the context's list when it parses a
+    ClientHello, so objects created before this call use it too.
+
+    Answers the way BoringSSL's SSL_CTX_set_signed_cert_timestamp_list()
+    does, non-zero for success and zero for failure, and takes its length as
+    a size_t as that function does, so a length too large to send is refused
+    rather than truncated.
+
+    May be called while handshakes on this context are running: the list is
+    replaced under a lock the handshakes take while copying it.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ctx or list is NULL, when sz is 0, when the
+    list is not a well formed SignedCertificateTimestampList, when it is too
+    large to be sent in one handshake message, or when the copy cannot be
+    allocated.
+
+    \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
+    \param list SignedCertificateTimestampList bytes, including the outer
+    two-byte list length.
+    \param sz length of list in bytes.
+
+    _Example_
+    \code
+    if (wolfSSL_CTX_set_signed_cert_timestamp_list(ctx, sctList, sctListSz)
+            != WOLFSSL_SUCCESS) {
+        // list rejected
+    }
+    \endcode
+
+    \sa wolfSSL_set_signed_cert_timestamp_list
+    \sa wolfSSL_get0_signed_cert_timestamp_list
+    \sa wolfSSL_signed_cert_timestamp_requested
+*/
+int wolfSSL_CTX_set_signed_cert_timestamp_list(WOLFSSL_CTX* ctx,
+        const unsigned char* list, size_t sz);
+
+/*!
+    \brief Sets the SignedCertificateTimestampList for one SSL object,
+    overriding the context's list. See
+    wolfSSL_CTX_set_signed_cert_timestamp_list().
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ssl or list is NULL, when sz is 0, when the
+    list is not a well formed SignedCertificateTimestampList, when it is too
+    large to be sent in one handshake message, or when the copy cannot be
+    allocated. On a server it is also returned when the list was stored but
+    the response could not be registered for the handshake in progress.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param list SignedCertificateTimestampList bytes.
+    \param sz length of list in bytes.
+
+    _Example_
+    \code
+    wolfSSL_set_signed_cert_timestamp_list(ssl, sctList, sctListSz);
+    \endcode
+
+    \sa wolfSSL_CTX_set_signed_cert_timestamp_list
+    \sa wolfSSL_get0_signed_cert_timestamp_list
+*/
+int wolfSSL_set_signed_cert_timestamp_list(WOLFSSL* ssl,
+        const unsigned char* list, size_t sz);
+
+/*!
+    \brief Returns the SignedCertificateTimestampList the peer sent, without
+    copying it. The pointer belongs to the SSL object: it is released when
+    that object is freed, and also by wolfSSL_clear(), which drops the peer's
+    state so the object can be reused. Copy the bytes before either if they
+    are needed afterwards. wolfSSL checks only the list's framing, and
+    fails the handshake on a malformed one; the timestamps themselves are
+    not verified.
+
+    \return length of the list in bytes, 0 when the peer sent none.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param list receives a pointer to the list bytes. May be NULL to query
+    only the length.
+
+    _Example_
+    \code
+    const unsigned char* sct = NULL;
+    unsigned short sz = wolfSSL_get0_signed_cert_timestamp_list(ssl, &sct);
+    if (sz > 0) {
+        // validate sct against a log list
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_signed_cert_timestamp_list
+    \sa wolfSSL_signed_cert_timestamp_requested
+*/
+unsigned short wolfSSL_get0_signed_cert_timestamp_list(WOLFSSL* ssl,
+        const unsigned char** list);
+
+/*!
+    \brief Reports whether the peer asked this end for signed certificate
+    timestamps. A server can use it to tell a client that wants SCTs from one
+    that did not ask.
+
+    \return 1 when the peer sent the signed_certificate_timestamp extension.
+    \return 0 when it did not, or ssl is NULL.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    if (wolfSSL_signed_cert_timestamp_requested(ssl)) {
+        // the client asked for SCTs
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_signed_cert_timestamp_list
+*/
+int wolfSSL_signed_cert_timestamp_requested(WOLFSSL* ssl);
+
+/*!
     \brief This function is called on the client side to enable the use
     of Maximum Fragment Length for SSL objects created from the SSL context
     passed in the 'ctx' parameter. It means that the Maximum Fragment Length

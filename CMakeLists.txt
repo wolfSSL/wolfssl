@@ -374,7 +374,7 @@ if(WOLFSSL_ALL)
         WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2 WOLFSSL_OPENSSLALL
         WOLFSSL_OPENSSLEXTRA WOLFSSL_POSTAUTH WOLFSSL_QUIC WOLFSSL_SAVECERT
         WOLFSSL_SAVESESSION WOLFSSL_SCEP WOLFSSL_SESSION_TICKET WOLFSSL_SNI
-        WOLFSSL_SRTP WOLFSSL_TLS13)
+        WOLFSSL_SRTP WOLFSSL_TLS13 WOLFSSL_SCT)
         default_option(${_o} "yes")
     endforeach()
 
@@ -857,7 +857,7 @@ if(WOLFSSL_CRYPT_ONLY)
                WOLFSSL_PKCALLBACKS WOLFSSL_QUIC
                WOLFSSL_RENEGOTIATION_INDICATION WOLFSSL_SECURE_RENEGOTIATION
                WOLFSSL_SECURE_RENEGOTIATION_INFO
-               WOLFSSL_SNI WOLFSSL_SRTP WOLFSSL_TLSX)
+               WOLFSSL_SNI WOLFSSL_SRTP WOLFSSL_TLSX WOLFSSL_SCT)
         force_option(${_o} "no")
     endforeach()
     message(STATUS "WOLFSSL_CRYPT_ONLY: TLS layer off, including its options")
@@ -2234,6 +2234,9 @@ add_option("WOLFSSL_TLS" "Enable TLS (default: enabled)" "yes" "yes;no")
 if(NOT WOLFSSL_TLS)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_TLS")
     default_option(WOLFSSL_SECURE_RENEGOTIATION_INFO "no")
+    # signed_certificate_timestamp needs the TLS layer, and its API is compiled only with it, so
+    # an explicit -DWOLFSSL_SCT=yes is overridden here, as --disable-tls does.
+    force_option(WOLFSSL_SCT "no")
 endif()
 
 # TLSv1.2
@@ -3066,6 +3069,8 @@ endif()
 
 if(WOLFSSL_TLSX)
     override_cache(WOLFSSL_ENC_THEN_MAC "yes")
+    # A pure extension, which is what --enable-tlsx means in configure.ac.
+    default_option(WOLFSSL_SCT "yes")
 endif()
 
 if(WOLFSSL_SNIFFER)
@@ -4748,6 +4753,16 @@ if(WOLFSSL_LIBZ)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_LIBZ")
     list(APPEND WOLFSSL_LINK_LIBS ZLIB::ZLIB)
     list(APPEND WOLFSSL_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
+endif()
+
+# Signed certificate timestamp (RFC 6962). Carries a Certificate Transparency
+# SCT list between peers; validating it is left to the application.
+add_option("WOLFSSL_SCT"
+           "Enable RFC 6962 signed_certificate_timestamp (default: disabled)"
+           "no" "yes;no")
+if(WOLFSSL_SCT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_SIGNED_CERT_TIMESTAMP")
 endif()
 
 

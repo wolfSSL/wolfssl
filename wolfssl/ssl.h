@@ -1461,7 +1461,20 @@ WOLFSSL_API int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl,
 WOLFSSL_API int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx,
                                                const char* list);
 WOLFSSL_API int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
+#endif /* OPENSSL_EXTRA */
+/* Declared outside the OpenSSL compatibility block: these have their own
+ * build options and no dependency on it. */
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+WOLFSSL_API int wolfSSL_CTX_set_signed_cert_timestamp_list(WOLFSSL_CTX* ctx,
+        const unsigned char* list, size_t sz);
+/* Whether the peer asked this end for signed certificate timestamps. */
+WOLFSSL_API int wolfSSL_signed_cert_timestamp_requested(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_set_signed_cert_timestamp_list(WOLFSSL* ssl,
+        const unsigned char* list, size_t sz);
+WOLFSSL_API unsigned short wolfSSL_get0_signed_cert_timestamp_list(
+        WOLFSSL* ssl, const unsigned char** list);
 #endif
+
 WOLFSSL_ABI WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx);
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_CTX_get0_param(WOLFSSL_CTX* ctx);
