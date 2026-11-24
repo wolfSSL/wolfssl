@@ -93,9 +93,9 @@ L_SHA512_transform_len_k:
 	WC_ASM_ATT_HIDDEN(Transform_Sha512_Len)
 	.type	Transform_Sha512_Len, @function
 Transform_Sha512_Len:
-	stwu	1, -72(1)
+	stwu	1, -68(1)
 	mflr	0
-	stw	0, 68(1)
+	stw	0, 64(1)
 	stw	14, 0(1)
 	stw	15, 4(1)
 	stw	16, 8(1)
@@ -112,10 +112,10 @@ Transform_Sha512_Len:
 	stw	27, 52(1)
 	stw	28, 56(1)
 	stw	29, 60(1)
-	stw	30, 64(1)
 	srwi	5, 5, 7
-	lis	30, L_SHA512_transform_len_k@ha
-	la	30, L_SHA512_transform_len_k@l(30)
+	mtctr	5
+	lis	5, L_SHA512_transform_len_k@ha
+	la	5, L_SHA512_transform_len_k@l(5)
 	# Copy digest to add in at end
 	lwz	0, 0(3)
 	lwz	6, 4(3)
@@ -134,7 +134,6 @@ Transform_Sha512_Len:
 	lwz	20, 56(3)
 	lwz	21, 60(3)
 	subi	1, 1, 0x80
-	mtctr	5
 	# Start of loop processing a block
 L_SHA512_transform_len_begin:
 	# Load W - 128 bytes
@@ -234,8 +233,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 4(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 0(30)
-	lwz	23, 4(30)
+	lwz	22, 0(5)
+	lwz	23, 4(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -346,8 +345,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 12(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 8(30)
-	lwz	23, 12(30)
+	lwz	22, 8(5)
+	lwz	23, 12(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -458,8 +457,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 20(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 16(30)
-	lwz	23, 20(30)
+	lwz	22, 16(5)
+	lwz	23, 20(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -570,8 +569,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 28(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 24(30)
-	lwz	23, 28(30)
+	lwz	22, 24(5)
+	lwz	23, 28(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -682,8 +681,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 36(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 32(30)
-	lwz	23, 36(30)
+	lwz	22, 32(5)
+	lwz	23, 36(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -794,8 +793,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 44(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 40(30)
-	lwz	23, 44(30)
+	lwz	22, 40(5)
+	lwz	23, 44(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -906,8 +905,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 52(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 48(30)
-	lwz	23, 52(30)
+	lwz	22, 48(5)
+	lwz	23, 52(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -1018,8 +1017,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 60(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 56(30)
-	lwz	23, 60(30)
+	lwz	22, 56(5)
+	lwz	23, 60(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -1130,8 +1129,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 68(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 64(30)
-	lwz	23, 68(30)
+	lwz	22, 64(5)
+	lwz	23, 68(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -1242,8 +1241,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 76(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 72(30)
-	lwz	23, 76(30)
+	lwz	22, 72(5)
+	lwz	23, 76(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -1354,8 +1353,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 84(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 80(30)
-	lwz	23, 84(30)
+	lwz	22, 80(5)
+	lwz	23, 84(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -1466,8 +1465,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 92(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 88(30)
-	lwz	23, 92(30)
+	lwz	22, 88(5)
+	lwz	23, 92(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -1578,8 +1577,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 100(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 96(30)
-	lwz	23, 100(30)
+	lwz	22, 96(5)
+	lwz	23, 100(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -1690,8 +1689,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 108(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 104(30)
-	lwz	23, 108(30)
+	lwz	22, 104(5)
+	lwz	23, 108(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -1802,8 +1801,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 116(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 112(30)
-	lwz	23, 116(30)
+	lwz	22, 112(5)
+	lwz	23, 116(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -1914,8 +1913,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 124(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 120(30)
-	lwz	23, 124(30)
+	lwz	22, 120(5)
+	lwz	23, 124(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -1995,7 +1994,7 @@ L_SHA512_transform_len_begin:
 	adde	28, 28, 24
 	stw	28, 120(1)
 	stw	29, 124(1)
-	addi	30, 30, 0x80
+	addi	5, 5, 0x80
 	# Round 0
 	rlwinm	22, 14, 18, 14, 31
 	rlwimi	22, 15, 18, 0, 13
@@ -2027,8 +2026,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 4(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 0(30)
-	lwz	23, 4(30)
+	lwz	22, 0(5)
+	lwz	23, 4(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -2139,8 +2138,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 12(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 8(30)
-	lwz	23, 12(30)
+	lwz	22, 8(5)
+	lwz	23, 12(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -2251,8 +2250,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 20(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 16(30)
-	lwz	23, 20(30)
+	lwz	22, 16(5)
+	lwz	23, 20(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -2363,8 +2362,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 28(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 24(30)
-	lwz	23, 28(30)
+	lwz	22, 24(5)
+	lwz	23, 28(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -2475,8 +2474,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 36(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 32(30)
-	lwz	23, 36(30)
+	lwz	22, 32(5)
+	lwz	23, 36(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -2587,8 +2586,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 44(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 40(30)
-	lwz	23, 44(30)
+	lwz	22, 40(5)
+	lwz	23, 44(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -2699,8 +2698,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 52(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 48(30)
-	lwz	23, 52(30)
+	lwz	22, 48(5)
+	lwz	23, 52(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -2811,8 +2810,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 60(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 56(30)
-	lwz	23, 60(30)
+	lwz	22, 56(5)
+	lwz	23, 60(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -2923,8 +2922,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 68(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 64(30)
-	lwz	23, 68(30)
+	lwz	22, 64(5)
+	lwz	23, 68(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -3035,8 +3034,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 76(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 72(30)
-	lwz	23, 76(30)
+	lwz	22, 72(5)
+	lwz	23, 76(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -3147,8 +3146,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 84(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 80(30)
-	lwz	23, 84(30)
+	lwz	22, 80(5)
+	lwz	23, 84(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -3259,8 +3258,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 92(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 88(30)
-	lwz	23, 92(30)
+	lwz	22, 88(5)
+	lwz	23, 92(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -3371,8 +3370,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 100(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 96(30)
-	lwz	23, 100(30)
+	lwz	22, 96(5)
+	lwz	23, 100(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -3483,8 +3482,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 108(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 104(30)
-	lwz	23, 108(30)
+	lwz	22, 104(5)
+	lwz	23, 108(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -3595,8 +3594,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 116(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 112(30)
-	lwz	23, 116(30)
+	lwz	22, 112(5)
+	lwz	23, 116(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -3707,8 +3706,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 124(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 120(30)
-	lwz	23, 124(30)
+	lwz	22, 120(5)
+	lwz	23, 124(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -3788,7 +3787,7 @@ L_SHA512_transform_len_begin:
 	adde	28, 28, 24
 	stw	28, 120(1)
 	stw	29, 124(1)
-	addi	30, 30, 0x80
+	addi	5, 5, 0x80
 	# Round 0
 	rlwinm	22, 14, 18, 14, 31
 	rlwimi	22, 15, 18, 0, 13
@@ -3820,8 +3819,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 4(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 0(30)
-	lwz	23, 4(30)
+	lwz	22, 0(5)
+	lwz	23, 4(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -3932,8 +3931,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 12(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 8(30)
-	lwz	23, 12(30)
+	lwz	22, 8(5)
+	lwz	23, 12(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -4044,8 +4043,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 20(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 16(30)
-	lwz	23, 20(30)
+	lwz	22, 16(5)
+	lwz	23, 20(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -4156,8 +4155,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 28(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 24(30)
-	lwz	23, 28(30)
+	lwz	22, 24(5)
+	lwz	23, 28(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -4268,8 +4267,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 36(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 32(30)
-	lwz	23, 36(30)
+	lwz	22, 32(5)
+	lwz	23, 36(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -4380,8 +4379,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 44(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 40(30)
-	lwz	23, 44(30)
+	lwz	22, 40(5)
+	lwz	23, 44(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -4492,8 +4491,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 52(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 48(30)
-	lwz	23, 52(30)
+	lwz	22, 48(5)
+	lwz	23, 52(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -4604,8 +4603,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 60(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 56(30)
-	lwz	23, 60(30)
+	lwz	22, 56(5)
+	lwz	23, 60(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -4716,8 +4715,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 68(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 64(30)
-	lwz	23, 68(30)
+	lwz	22, 64(5)
+	lwz	23, 68(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -4828,8 +4827,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 76(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 72(30)
-	lwz	23, 76(30)
+	lwz	22, 72(5)
+	lwz	23, 76(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -4940,8 +4939,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 84(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 80(30)
-	lwz	23, 84(30)
+	lwz	22, 80(5)
+	lwz	23, 84(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -5052,8 +5051,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 92(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 88(30)
-	lwz	23, 92(30)
+	lwz	22, 88(5)
+	lwz	23, 92(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -5164,8 +5163,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 100(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 96(30)
-	lwz	23, 100(30)
+	lwz	22, 96(5)
+	lwz	23, 100(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -5276,8 +5275,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 108(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 104(30)
-	lwz	23, 108(30)
+	lwz	22, 104(5)
+	lwz	23, 108(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -5388,8 +5387,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 116(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 112(30)
-	lwz	23, 116(30)
+	lwz	22, 112(5)
+	lwz	23, 116(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -5500,8 +5499,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 124(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 120(30)
-	lwz	23, 124(30)
+	lwz	22, 120(5)
+	lwz	23, 124(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -5581,7 +5580,7 @@ L_SHA512_transform_len_begin:
 	adde	28, 28, 24
 	stw	28, 120(1)
 	stw	29, 124(1)
-	addi	30, 30, 0x80
+	addi	5, 5, 0x80
 	# Round 0
 	rlwinm	22, 14, 18, 14, 31
 	rlwimi	22, 15, 18, 0, 13
@@ -5613,8 +5612,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 4(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 0(30)
-	lwz	23, 4(30)
+	lwz	22, 0(5)
+	lwz	23, 4(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -5725,8 +5724,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 12(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 8(30)
-	lwz	23, 12(30)
+	lwz	22, 8(5)
+	lwz	23, 12(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -5837,8 +5836,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 20(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 16(30)
-	lwz	23, 20(30)
+	lwz	22, 16(5)
+	lwz	23, 20(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -5949,8 +5948,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 28(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 24(30)
-	lwz	23, 28(30)
+	lwz	22, 24(5)
+	lwz	23, 28(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -6061,8 +6060,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 36(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 32(30)
-	lwz	23, 36(30)
+	lwz	22, 32(5)
+	lwz	23, 36(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -6173,8 +6172,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 44(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 40(30)
-	lwz	23, 44(30)
+	lwz	22, 40(5)
+	lwz	23, 44(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -6285,8 +6284,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 52(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 48(30)
-	lwz	23, 52(30)
+	lwz	22, 48(5)
+	lwz	23, 52(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -6397,8 +6396,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 60(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 56(30)
-	lwz	23, 60(30)
+	lwz	22, 56(5)
+	lwz	23, 60(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -6509,8 +6508,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 68(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 64(30)
-	lwz	23, 68(30)
+	lwz	22, 64(5)
+	lwz	23, 68(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -6621,8 +6620,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 76(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 72(30)
-	lwz	23, 76(30)
+	lwz	22, 72(5)
+	lwz	23, 76(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -6733,8 +6732,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 84(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 80(30)
-	lwz	23, 84(30)
+	lwz	22, 80(5)
+	lwz	23, 84(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -6845,8 +6844,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 92(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 88(30)
-	lwz	23, 92(30)
+	lwz	22, 88(5)
+	lwz	23, 92(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -6957,8 +6956,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 100(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 96(30)
-	lwz	23, 100(30)
+	lwz	22, 96(5)
+	lwz	23, 100(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -7069,8 +7068,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 108(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 104(30)
-	lwz	23, 108(30)
+	lwz	22, 104(5)
+	lwz	23, 108(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -7181,8 +7180,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 116(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 112(30)
-	lwz	23, 116(30)
+	lwz	22, 112(5)
+	lwz	23, 116(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -7293,8 +7292,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 124(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 120(30)
-	lwz	23, 124(30)
+	lwz	22, 120(5)
+	lwz	23, 124(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -7374,7 +7373,7 @@ L_SHA512_transform_len_begin:
 	adde	28, 28, 24
 	stw	28, 120(1)
 	stw	29, 124(1)
-	addi	30, 30, 0x80
+	addi	5, 5, 0x80
 	# Round 0
 	rlwinm	22, 14, 18, 14, 31
 	rlwimi	22, 15, 18, 0, 13
@@ -7406,8 +7405,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 4(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 0(30)
-	lwz	23, 4(30)
+	lwz	22, 0(5)
+	lwz	23, 4(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -7471,8 +7470,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 12(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 8(30)
-	lwz	23, 12(30)
+	lwz	22, 8(5)
+	lwz	23, 12(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -7536,8 +7535,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 20(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 16(30)
-	lwz	23, 20(30)
+	lwz	22, 16(5)
+	lwz	23, 20(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -7601,8 +7600,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 28(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 24(30)
-	lwz	23, 28(30)
+	lwz	22, 24(5)
+	lwz	23, 28(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -7666,8 +7665,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 36(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 32(30)
-	lwz	23, 36(30)
+	lwz	22, 32(5)
+	lwz	23, 36(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -7731,8 +7730,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 44(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 40(30)
-	lwz	23, 44(30)
+	lwz	22, 40(5)
+	lwz	23, 44(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -7796,8 +7795,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 52(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 48(30)
-	lwz	23, 52(30)
+	lwz	22, 48(5)
+	lwz	23, 52(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -7861,8 +7860,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 60(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 56(30)
-	lwz	23, 60(30)
+	lwz	22, 56(5)
+	lwz	23, 60(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -7926,8 +7925,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 68(1)
 	addc	21, 21, 23
 	adde	20, 20, 22
-	lwz	22, 64(30)
-	lwz	23, 68(30)
+	lwz	22, 64(5)
+	lwz	23, 68(5)
 	addc	21, 21, 23
 	adde	20, 20, 22
 	addc	12, 12, 21
@@ -7991,8 +7990,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 76(1)
 	addc	19, 19, 23
 	adde	18, 18, 22
-	lwz	22, 72(30)
-	lwz	23, 76(30)
+	lwz	22, 72(5)
+	lwz	23, 76(5)
 	addc	19, 19, 23
 	adde	18, 18, 22
 	addc	10, 10, 19
@@ -8056,8 +8055,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 84(1)
 	addc	17, 17, 23
 	adde	16, 16, 22
-	lwz	22, 80(30)
-	lwz	23, 84(30)
+	lwz	22, 80(5)
+	lwz	23, 84(5)
 	addc	17, 17, 23
 	adde	16, 16, 22
 	addc	8, 8, 17
@@ -8121,8 +8120,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 92(1)
 	addc	15, 15, 23
 	adde	14, 14, 22
-	lwz	22, 88(30)
-	lwz	23, 92(30)
+	lwz	22, 88(5)
+	lwz	23, 92(5)
 	addc	15, 15, 23
 	adde	14, 14, 22
 	addc	6, 6, 15
@@ -8186,8 +8185,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 100(1)
 	addc	12, 12, 23
 	adde	11, 11, 22
-	lwz	22, 96(30)
-	lwz	23, 100(30)
+	lwz	22, 96(5)
+	lwz	23, 100(5)
 	addc	12, 12, 23
 	adde	11, 11, 22
 	addc	21, 21, 12
@@ -8251,8 +8250,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 108(1)
 	addc	10, 10, 23
 	adde	9, 9, 22
-	lwz	22, 104(30)
-	lwz	23, 108(30)
+	lwz	22, 104(5)
+	lwz	23, 108(5)
 	addc	10, 10, 23
 	adde	9, 9, 22
 	addc	19, 19, 10
@@ -8316,8 +8315,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 116(1)
 	addc	8, 8, 23
 	adde	7, 7, 22
-	lwz	22, 112(30)
-	lwz	23, 116(30)
+	lwz	22, 112(5)
+	lwz	23, 116(5)
 	addc	8, 8, 23
 	adde	7, 7, 22
 	addc	17, 17, 8
@@ -8381,8 +8380,8 @@ L_SHA512_transform_len_begin:
 	lwz	23, 124(1)
 	addc	6, 6, 23
 	adde	0, 0, 22
-	lwz	22, 120(30)
-	lwz	23, 124(30)
+	lwz	22, 120(5)
+	lwz	23, 124(5)
 	addc	6, 6, 23
 	adde	0, 0, 22
 	addc	15, 15, 6
@@ -8415,7 +8414,7 @@ L_SHA512_transform_len_begin:
 	xor	23, 23, 10
 	addc	6, 6, 23
 	adde	0, 0, 22
-	subi	30, 30, 0x200
+	subi	5, 5, 0x200
 	# Add in digest from start
 	lwz	22, 0(3)
 	lwz	23, 4(3)
@@ -8468,7 +8467,7 @@ L_SHA512_transform_len_begin:
 	addi	4, 4, 0x80
 	bdnz	L_SHA512_transform_len_begin
 	addi	1, 1, 0x80
-	lwz	0, 68(1)
+	lwz	0, 64(1)
 	mtlr	0
 	lwz	14, 0(1)
 	lwz	15, 4(1)
@@ -8486,8 +8485,7 @@ L_SHA512_transform_len_begin:
 	lwz	27, 52(1)
 	lwz	28, 56(1)
 	lwz	29, 60(1)
-	lwz	30, 64(1)
-	addi	1, 1, 0x48
+	addi	1, 1, 0x44
 	blr
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
