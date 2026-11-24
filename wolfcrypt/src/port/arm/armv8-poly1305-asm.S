@@ -31,6 +31,7 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
+#ifdef HAVE_POLY1305
 #ifndef __APPLE__
 .text
 .globl	poly1305_arm64_block_16
@@ -714,6 +715,7 @@ _poly1305_final:
 #ifndef __APPLE__
 	.size	poly1305_final,.-poly1305_final
 #endif /* __APPLE__ */
+#endif /* HAVE_POLY1305 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 
