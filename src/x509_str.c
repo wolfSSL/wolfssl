@@ -637,6 +637,41 @@ static int X509StoreCallVerifyCb(WOLFSSL_X509_STORE_CTX* ctx,
  * A caller must stop chain building when it is set: a veto must not be turned
  * into a retry with another issuer, and must not be cleared by the
  * partial-chain fallback in wolfSSL_X509_verify_cert(). */
+#if defined(WOLFSSL_CHAIN_CA_DATES) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+/* One handshake-local date override for the issuer the chain builder
+ * supplied. Returns 1 when link is filled. */
+static int X509StoreChainCaLink(WOLFSSL_X509* issuer, ChainCADate* link)
+{
+    const byte* before;
+    const byte* after;
+    word32 nBefore;
+    word32 nAfter;
+
+    if (issuer == NULL || !issuer->subjKeyIdSet || issuer->subjKeyId == NULL ||
+            issuer->subjKeyIdSz != SIGNER_DIGEST_SIZE ||
+            issuer->pubKey.buffer == NULL || issuer->pubKey.length <= 0)
+        return 0;
+    XMEMSET(link, 0, sizeof(*link));
+    XMEMCPY(link->hash, issuer->subjKeyId, SIGNER_DIGEST_SIZE);
+    if (CalcHashId(issuer->pubKey.buffer, (word32)issuer->pubKey.length,
+            link->keyHash) != 0)
+        return 0;
+    before = wolfSSL_X509_notBefore(issuer);
+    after = wolfSSL_X509_notAfter(issuer);
+    if (before == NULL || after == NULL)
+        return 0;
+    nBefore = (word32)issuer->notBefore.length + 2;
+    nAfter = (word32)issuer->notAfter.length + 2;
+    if (nBefore > sizeof(link->validity.notBefore) ||
+            nAfter > sizeof(link->validity.notAfter))
+        return 0;
+    XMEMCPY(link->validity.notBefore, before, nBefore);
+    XMEMCPY(link->validity.notAfter, after, nAfter);
+    return 1;
+}
+#endif
+
 static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
@@ -644,15 +679,51 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     int crlRet = 0;
     int datesChecked = 0;
     int accepted = 0; /* callback accepted a cert that verified */
+    int issuerDate = 0;
+#ifdef WOLFSSL_CHAIN_CA_DATES
+    int dateCheck = 0;
+    time_t atTime = 0;
+    const struct ChainCADate* caDates = NULL;
+    ChainCADate chainCaLink;
+#endif
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
 
     if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
+#ifdef WOLFSSL_CHAIN_CA_DATES
+#if defined(USE_WOLF_VALIDDATE) && defined(OPENSSL_EXTRA)
+        {
+            WOLFSSL_X509_VERIFY_PARAM* param = NULL;
+
+            if (ctx->param != NULL)
+                param = ctx->param;
+            else if (ctx->store != NULL && ctx->store->param != NULL)
+                param = ctx->store->param;
+            if (param != NULL) {
+                if ((param->flags & WOLFSSL_NO_CHECK_TIME) != 0)
+                    dateCheck = 1;
+                else if ((param->flags & WOLFSSL_USE_CHECK_TIME) != 0 &&
+                        param->check_time != 0) {
+                    dateCheck = 2;
+                    atTime = param->check_time;
+                }
+            }
+        }
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        if (X509StoreChainCaLink(ctx->chainCaIssuer, &chainCaLink))
+            caDates = &chainCaLink;
+#endif
+#endif
         ret = CM_VerifyBuffer_ex(ctx->store->cm,
                     ctx->current_cert->derCert->buffer, ctx->extraCa,
                     ctx->current_cert->derCert->length,
-                    WOLFSSL_FILETYPE_ASN1, 0, &crlRet);
+                    WOLFSSL_FILETYPE_ASN1, 0, &crlRet
+#ifdef WOLFSSL_CHAIN_CA_DATES
+                    , dateCheck, atTime, caDates, &issuerDate
+#endif
+                    );
         datesChecked = (ret == WOLFSSL_SUCCESS) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
@@ -681,6 +752,12 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     #ifndef NO_ASN_TIME
         /* update return value with any date validation overrides */
         ret = X509StoreVerifyCertDate(ctx, ret);
+        /* The override above looks only at the certificate just verified.
+         * An issuer date error must still fail the link. */
+        if (issuerDate != 0 && (ret == WC_NO_ERR_TRACE(WOLFSSL_SUCCESS) ||
+                ret == 0)) {
+            ret = issuerDate;
+        }
     #endif
         SetupStoreCtxError(ctx, ret);
         if (verifyCb != NULL) {
@@ -1213,7 +1290,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     &depth, origDepth);
                 continue;
             }
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            ctx->chainCaIssuer = issuer;
+#endif
             ret = X509StoreVerifyCert(ctx, &cbRejected, verifyCb);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            ctx->chainCaIssuer = NULL;
+#endif
             if (cbRejected) {
                 /* The application vetoed this certificate.  Stop instead of
                  * looking for another issuer: the decision is the
