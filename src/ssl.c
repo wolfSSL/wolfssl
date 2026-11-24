@@ -8283,7 +8283,7 @@ CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session = NULL;
 
 static int crypto_ex_cb_new(CRYPTO_EX_cb_ctx** dst, long ctx_l, void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
-        WOLFSSL_CRYPTO_EX_free* free_func)
+        WOLFSSL_CRYPTO_EX_free* free_cb)
 {
     CRYPTO_EX_cb_ctx* new_ctx = (CRYPTO_EX_cb_ctx*)XMALLOC(
             sizeof(CRYPTO_EX_cb_ctx), NULL, DYNAMIC_TYPE_OPENSSL);
@@ -8292,7 +8292,7 @@ static int crypto_ex_cb_new(CRYPTO_EX_cb_ctx** dst, long ctx_l, void* ctx_ptr,
     new_ctx->ctx_l = ctx_l;
     new_ctx->ctx_ptr = ctx_ptr;
     new_ctx->new_func = new_func;
-    new_ctx->free_func = free_func;
+    new_ctx->free_func = free_cb;
     new_ctx->dup_func = dup_func;
     new_ctx->next = NULL;
     /* Push to end of list */
@@ -8363,7 +8363,7 @@ void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
  */
 int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
-        WOLFSSL_CRYPTO_EX_free* free_func)
+        WOLFSSL_CRYPTO_EX_free* free_cb)
 {
     /* index counter for each class index*/
     static int ctx_idx = 0;
@@ -8376,22 +8376,22 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
     switch(class_index) {
         case WOLF_CRYPTO_EX_INDEX_SSL:
             WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
-                    dup_func, free_func);
+                    dup_func, free_cb);
             idx = ssl_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_SSL_CTX:
             WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
-                    dup_func, free_func);
+                    dup_func, free_cb);
             idx = ctx_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_X509:
             WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
-                    dup_func, free_func);
+                    dup_func, free_cb);
             idx = x509_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_SSL_SESSION:
             if (crypto_ex_cb_new(&crypto_ex_cb_ctx_session, ctx_l, ctx_ptr,
-                    new_func, dup_func, free_func) != 0)
+                    new_func, dup_func, free_cb) != 0)
                 return WOLFSSL_FATAL_ERROR;
             idx = ssl_session_idx++;
             break;
@@ -8421,13 +8421,13 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
 int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
                                  WOLFSSL_CRYPTO_EX_new* new_func,
                                  WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                 WOLFSSL_CRYPTO_EX_free* free_func)
+                                 WOLFSSL_CRYPTO_EX_free* free_cb)
 {
 
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_new_index");
 
     return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX, idx,
-                                    arg, new_func, dup_func, free_func);
+                                    arg, new_func, dup_func, free_cb);
 }
 
 /* Return the index that can be used for the WOLFSSL structure to store
@@ -10642,18 +10642,18 @@ int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
  * @param argl  parameters to be saved
  * @param new_func a pointer to WOLFSSL_CRYPTO_EX_new
  * @param dup_func a pointer to WOLFSSL_CRYPTO_EX_dup
- * @param free_func a pointer to WOLFSSL_CRYPTO_EX_free
+ * @param free_cb a pointer to WOLFSSL_CRYPTO_EX_free
  * @return index value grater or equal to zero on success, -1 on failure.
  */
 int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                            WOLFSSL_CRYPTO_EX_new* new_func,
                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                           WOLFSSL_CRYPTO_EX_free* free_func)
+                                           WOLFSSL_CRYPTO_EX_free* free_cb)
 {
     WOLFSSL_ENTER("wolfSSL_CRYPTO_get_ex_new_index");
 
     return wolfssl_local_get_ex_new_index(class_index, argl, argp, new_func,
-            dup_func, free_func);
+            dup_func, free_cb);
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
 

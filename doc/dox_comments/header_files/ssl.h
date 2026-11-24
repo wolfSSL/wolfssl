@@ -18077,7 +18077,7 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
                  Ignored by wolfSSL.
     \param [in] dup_func Pointer to an external data duplicate callback.
                  Ignored by wolfSSL.
-    \param [in] free_func Pointer to an external data destructor callback.
+    \param [in] free_cb Pointer to an external data destructor callback.
                  Ignored by wolfSSL.
 
     \return The new index value to be used with the external data API for this
@@ -18086,7 +18086,7 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
 int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                     WOLFSSL_CRYPTO_EX_new* new_func,
                                     WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                    WOLFSSL_CRYPTO_EX_free* free_func);
+                                    WOLFSSL_CRYPTO_EX_free* free_cb);
 
 /*!
  \ingroup Setup

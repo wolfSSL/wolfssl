@@ -8658,7 +8658,7 @@ WOLFSSL_LOCAL int crypto_ex_cb_dup_data(const WOLFSSL_CRYPTO_EX_DATA *in,
         WOLFSSL_CRYPTO_EX_DATA *out, CRYPTO_EX_cb_ctx* cb_ctx);
 WOLFSSL_LOCAL int wolfssl_local_get_ex_new_index(int class_index, long ctx_l,
         void* ctx_ptr, WOLFSSL_CRYPTO_EX_new* new_func,
-        WOLFSSL_CRYPTO_EX_dup* dup_func, WOLFSSL_CRYPTO_EX_free* free_func);
+        WOLFSSL_CRYPTO_EX_dup* dup_func, WOLFSSL_CRYPTO_EX_free* free_cb);
 #endif /* HAVE_EX_DATA_CRYPTO */
 
 WOLFSSL_LOCAL WC_RNG* wolfssl_get_global_rng(void);
