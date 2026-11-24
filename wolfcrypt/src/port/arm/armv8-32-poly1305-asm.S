@@ -253,7 +253,7 @@ L_poly1305_arm32_16_done:
 	.type	L_poly1305_arm32_clamp, %object
 	.size	L_poly1305_arm32_clamp, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1021,7 +1021,7 @@ L_poly1305_arm32_blocks_done:
 	.type	L_poly1305_arm32_clamp, %object
 	.size	L_poly1305_arm32_clamp, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
