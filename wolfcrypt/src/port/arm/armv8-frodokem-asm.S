@@ -38,7 +38,7 @@
 	.type	L_sha3_aarch64_r, %object
 	.size	L_sha3_aarch64_r, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__

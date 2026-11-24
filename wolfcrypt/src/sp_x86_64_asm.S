@@ -47572,9 +47572,9 @@ L_256_mod_inv_4_store_end:
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -47587,9 +47587,9 @@ L_sp256_mod_inv_avx2_4_order:
 .long	0x0272b0bf,0x02b69c5e,0x03ffffff,0x000003ff
 .long	0x003fffff,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -47600,9 +47600,9 @@ L_sp256_mod_inv_avx2_4_one:
 .quad	0x0000000000000001,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -47613,9 +47613,9 @@ L_sp256_mod_inv_avx2_4_all_one:
 .long	0x00000001,0x00000001,0x00000001,0x00000001
 .long	0x00000001,0x00000001,0x00000001,0x00000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -47626,9 +47626,9 @@ L_sp256_mod_inv_avx2_4_mask01111:
 .long	0x00000000,0x00000001,0x00000001,0x00000001
 .long	0x00000001,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -47639,9 +47639,9 @@ L_sp256_mod_inv_avx2_4_down_one_dword:
 .long	0x00000001,0x00000002,0x00000003,0x00000004
 .long	0x00000005,0x00000006,0x00000007,0x00000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -47652,9 +47652,9 @@ L_sp256_mod_inv_avx2_4_neg:
 .long	0x00000000,0x00000000,0x00000000,0x00000000
 .long	0x80000000,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -47665,9 +47665,9 @@ L_sp256_mod_inv_avx2_4_up_one_dword:
 .long	0x00000007,0x00000000,0x00000001,0x00000002
 .long	0x00000003,0x00000007,0x00000007,0x00000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16

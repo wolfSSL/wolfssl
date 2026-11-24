@@ -1980,7 +1980,7 @@ L_fe_invert8:
 	.type	L_curve25519_base_x2, %object
 	.size	L_curve25519_base_x2, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__

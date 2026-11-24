@@ -461,9 +461,9 @@ L_chacha_x64_done:
 #endif /* HAVE_INTEL_SSSE3 */
 #ifdef HAVE_INTEL_SSSE3
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -473,9 +473,9 @@ L_chacha_x64_done:
 L_chacha20_sse3_rotl8:
 .quad	0x0605040702010003,0x0e0d0c0f0a09080b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -485,9 +485,9 @@ L_chacha20_sse3_rotl8:
 L_chacha20_sse3_rotl16:
 .quad	0x0504070601000302,0x0d0c0f0e09080b0a
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -834,9 +834,9 @@ L_chacha20_sse3_last_done:
 #endif /* HAVE_INTEL_SSSE3 */
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -846,9 +846,9 @@ L_chacha20_sse3_last_done:
 L_chacha20_avx1_rotl8:
 .quad	0x0605040702010003,0x0e0d0c0f0a09080b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -858,9 +858,9 @@ L_chacha20_avx1_rotl8:
 L_chacha20_avx1_rotl16:
 .quad	0x0504070601000302,0x0d0c0f0e09080b0a
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -870,9 +870,9 @@ L_chacha20_avx1_rotl16:
 L_chacha20_avx1_add:
 .quad	0x0000000100000000,0x0000000300000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -1405,9 +1405,9 @@ L_chacha20_avx1_partial_done:
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -1418,9 +1418,9 @@ L_chacha20_avx2_rotl8:
 .quad	0x0605040702010003,0x0e0d0c0f0a09080b
 .quad	0x0605040702010003,0x0e0d0c0f0a09080b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -1431,9 +1431,9 @@ L_chacha20_avx2_rotl16:
 .quad	0x0504070601000302,0x0d0c0f0e09080b0a
 .quad	0x0504070601000302,0x0d0c0f0e09080b0a
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -1444,9 +1444,9 @@ L_chacha20_avx2_add:
 .quad	0x0000000100000000,0x0000000300000002
 .quad	0x0000000500000004,0x0000000700000006
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -1838,9 +1838,9 @@ L_chacha20_avx2_end256:
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -1850,9 +1850,9 @@ L_chacha20_avx2_end256:
 L_chacha20_avx512vl_add:
 .quad	0x0000000100000000,0x0000000300000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -2449,9 +2449,9 @@ L_chacha20_avx512vl_last_done:
 #endif /* HAVE_INTEL_AVX512 */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -2735,9 +2735,9 @@ L_chacha20_avx512_end512:
 #endif /* HAVE_INTEL_AVX512 */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -2747,9 +2747,9 @@ L_chacha20_avx512_end512:
 L_chacha20_poly1305_add:
 .quad	0x0000000100000000,0x0000000300000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -2759,9 +2759,9 @@ L_chacha20_poly1305_add:
 L_chacha20_poly1305_four:
 .quad	0x0000000400000004,0x0000000400000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -2772,9 +2772,9 @@ L_chacha20_poly1305_mask:
 .quad	0x0000000003ffffff,0x0000000003ffffff
 .quad	0x0000000003ffffff,0x0000000003ffffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -4932,9 +4932,9 @@ L_chacha20_poly1305_epilogue:
 #endif /* HAVE_INTEL_AVX512 */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -4947,9 +4947,9 @@ L_cp512_add:
 .quad	0x0000000900000008,0x0000000b0000000a
 .quad	0x0000000d0000000c,0x0000000f0000000e
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -4982,9 +4982,9 @@ L_cp512_pc:
 .quad	0x0000001000000010,0x0000001000000010
 .quad	0x0000001000000010,0x0000001000000010
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -10057,9 +10057,9 @@ L_cp512_dstart:
 #endif /* HAVE_INTEL_AVX512 */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -10070,9 +10070,9 @@ L_chacha20_poly1305_small_enc_rotl8:
 .quad	0x0605040702010003,0x0e0d0c0f0a09080b
 .quad	0x0605040702010003,0x0e0d0c0f0a09080b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -10083,9 +10083,9 @@ L_chacha20_poly1305_small_enc_rotl16:
 .quad	0x0504070601000302,0x0d0c0f0e09080b0a
 .quad	0x0504070601000302,0x0d0c0f0e09080b0a
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32

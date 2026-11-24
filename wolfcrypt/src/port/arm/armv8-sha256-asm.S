@@ -39,7 +39,7 @@
 	.type	L_SHA256_transform_neon_len_k, %object
 	.size	L_SHA256_transform_neon_len_k, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1066,7 +1066,7 @@ L_sha256_len_neon_start:
 	.type	L_SHA256_trans_crypto_len_k, %object
 	.size	L_SHA256_trans_crypto_len_k, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__

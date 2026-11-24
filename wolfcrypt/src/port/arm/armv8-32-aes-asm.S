@@ -40,7 +40,7 @@
 	.type	L_AES_ARM32_td_data, %object
 	.size	L_AES_ARM32_td_data, 1024
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -122,7 +122,7 @@ L_AES_ARM32_td_data:
 	.type	L_AES_ARM32_te_data, %object
 	.size	L_AES_ARM32_te_data, 1024
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -203,7 +203,7 @@ L_AES_ARM32_te_data:
 	.type	L_AES_ARM32_td, %object
 	.size	L_AES_ARM32_td, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -222,7 +222,7 @@ L_AES_ARM32_td:
 	.type	L_AES_ARM32_te, %object
 	.size	L_AES_ARM32_te, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -443,7 +443,7 @@ L_AES_invert_key_mix_loop:
 	.type	L_AES_ARM32_rcon, %object
 	.size	L_AES_ARM32_rcon, 40
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1574,7 +1574,7 @@ L_AES_encrypt_block_nr:
 	.type	L_AES_ARM32_te_ecb, %object
 	.size	L_AES_ARM32_te_ecb, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -3740,7 +3740,7 @@ L_AES_ECB_encrypt_end:
 	.type	L_AES_ARM32_te_cbc, %object
 	.size	L_AES_ARM32_te_cbc, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -5920,7 +5920,7 @@ L_AES_CBC_encrypt_end:
 	.type	L_AES_ARM32_te_ctr, %object
 	.size	L_AES_ARM32_te_ctr, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8750,7 +8750,7 @@ L_AES_decrypt_block_nr:
 	.type	L_AES_ARM32_td_ecb, %object
 	.size	L_AES_ARM32_td_ecb, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8766,7 +8766,7 @@ L_AES_ARM32_td_ecb:
 	.type	L_AES_ARM32_ecb_td4, %object
 	.size	L_AES_ARM32_ecb_td4, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -10959,7 +10959,7 @@ L_AES_ECB_decrypt_end:
 	.type	L_AES_ARM32_cbc_td4, %object
 	.size	L_AES_ARM32_cbc_td4, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -15451,7 +15451,7 @@ L_AES_CBC_decrypt_end:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 64
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -16162,7 +16162,7 @@ L_GCM_gmult_len_start_block:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 512
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -17077,7 +17077,7 @@ L_GCM_gmult_len_start_block:
 	.type	L_AES_ARM32_te_gcm, %object
 	.size	L_AES_ARM32_te_gcm, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -19250,7 +19250,7 @@ L_AES_GCM_encrypt_end:
 	.type	L_AES_GCMSIV_polyval_base_r, %object
 	.size	L_AES_GCMSIV_polyval_base_r, 64
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -20107,7 +20107,7 @@ L_AES_GCMSIV_polyval_base_done:
 	.type	L_AES_GCMSIV_ctr_base_te_data, %object
 	.size	L_AES_GCMSIV_ctr_base_te_data, 1024
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -20185,7 +20185,7 @@ L_AES_GCMSIV_ctr_base_te_data:
 	.type	L_AES_GCMSIV_ctr_base_te, %object
 	.size	L_AES_GCMSIV_ctr_base_te, 12
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__

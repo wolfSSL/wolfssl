@@ -39,7 +39,7 @@
 	.type	L_mlkem_aarch64_consts, %object
 	.size	L_mlkem_aarch64_consts, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -55,7 +55,7 @@ L_mlkem_aarch64_consts:
 	.type	L_mlkem_aarch64_zetas, %object
 	.size	L_mlkem_aarch64_zetas, 576
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -106,7 +106,7 @@ L_mlkem_aarch64_zetas:
 	.type	L_mlkem_aarch64_zetas_qinv, %object
 	.size	L_mlkem_aarch64_zetas_qinv, 576
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1453,7 +1453,7 @@ _mlkem_ntt:
 	.type	L_mlkem_aarch64_zetas_inv, %object
 	.size	L_mlkem_aarch64_zetas_inv, 576
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1504,7 +1504,7 @@ L_mlkem_aarch64_zetas_inv:
 	.type	L_mlkem_aarch64_zetas_inv_qinv, %object
 	.size	L_mlkem_aarch64_zetas_inv_qinv, 576
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -5501,7 +5501,7 @@ _mlkem_invntt_sqrdmlsh:
 	.type	L_mlkem_aarch64_zetas_mul, %object
 	.size	L_mlkem_aarch64_zetas_mul, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -6980,7 +6980,7 @@ _mlkem_basemul_mont_add:
 	.type	L_mlkem_aarch64_q, %object
 	.size	L_mlkem_aarch64_q, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8198,7 +8198,7 @@ _mlkem_to_mont_sqrdmlsh:
 	.type	L_mlkem_to_msg_low, %object
 	.size	L_mlkem_to_msg_low, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8214,7 +8214,7 @@ L_mlkem_to_msg_low:
 	.type	L_mlkem_to_msg_high, %object
 	.size	L_mlkem_to_msg_high, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8230,7 +8230,7 @@ L_mlkem_to_msg_high:
 	.type	L_mlkem_to_msg_bits, %object
 	.size	L_mlkem_to_msg_bits, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8499,7 +8499,7 @@ _mlkem_to_msg_neon:
 	.type	L_mlkem_from_msg_q1half, %object
 	.size	L_mlkem_from_msg_q1half, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8515,7 +8515,7 @@ L_mlkem_from_msg_q1half:
 	.type	L_mlkem_from_msg_bits, %object
 	.size	L_mlkem_from_msg_bits, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8990,7 +8990,7 @@ L_mlkem_aarch64_cmp_neon_done:
 	.type	L_mlkem_rej_uniform_mask, %object
 	.size	L_mlkem_rej_uniform_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -9006,7 +9006,7 @@ L_mlkem_rej_uniform_mask:
 	.type	L_mlkem_rej_uniform_bits, %object
 	.size	L_mlkem_rej_uniform_bits, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -9022,7 +9022,7 @@ L_mlkem_rej_uniform_bits:
 	.type	L_mlkem_rej_uniform_indices, %object
 	.size	L_mlkem_rej_uniform_indices, 4096
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__

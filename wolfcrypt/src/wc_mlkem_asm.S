@@ -51,9 +51,9 @@
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLF_CRYPTO_CB_ONLY_MLKEM)
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -64,9 +64,9 @@ mlkem_q:
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -77,9 +77,9 @@ mlkem_qinv:
 .short	0xf301,0xf301,0xf301,0xf301,0xf301,0xf301,0xf301,0xf301
 .short	0xf301,0xf301,0xf301,0xf301,0xf301,0xf301,0xf301,0xf301
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -90,9 +90,9 @@ mlkem_f:
 .short	0x0549,0x0549,0x0549,0x0549,0x0549,0x0549,0x0549,0x0549
 .short	0x0549,0x0549,0x0549,0x0549,0x0549,0x0549,0x0549,0x0549
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -103,9 +103,9 @@ mlkem_f_qinv:
 .short	0x5049,0x5049,0x5049,0x5049,0x5049,0x5049,0x5049,0x5049
 .short	0x5049,0x5049,0x5049,0x5049,0x5049,0x5049,0x5049,0x5049
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -116,9 +116,9 @@ mlkem_v:
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -283,9 +283,9 @@ L_mlkem_avx2_zetas:
 .short	0x7b95,0x7b95,0xa2cd,0xa2cd,0x6fe4,0x6fe4,0xb0df,0xb0df
 .short	0x5dbe,0x5dbe,0x1e4d,0x1e4d,0xbbf2,0xbbf2,0x5a5c,0x5a5c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -326,9 +326,9 @@ L_mlkem_avx2_zetas_basemul:
 .short	0x7b95,0x5dbe,0x846b,0xa242,0xa2cd,0x1e4d,0x5d33,0xe1b3
 .short	0x6fe4,0xbbf2,0x901c,0x440e,0xb0df,0x5a5c,0x4f21,0xa5a4
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -10839,9 +10839,9 @@ _mlkem_csubq_avx2:
 .size	mlkem_csubq_avx2,.-mlkem_csubq_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -10978,9 +10978,9 @@ L_mlkem_rej_idx:
 .quad	0xffff0e0c0a080604,0xff0e0c0a08060400
 .quad	0xff0e0c0a08060402,0x0e0c0a0806040200
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -10991,9 +10991,9 @@ L_mlkem_rej_q:
 .quad	0x0d010d010d010d01,0x0d010d010d010d01
 .quad	0x0d010d010d010d01,0x0d010d010d010d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -11004,9 +11004,9 @@ L_mlkem_rej_ones:
 .quad	0x0101010101010101,0x0101010101010101
 .quad	0x0101010101010101,0x0101010101010101
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -11017,9 +11017,9 @@ L_mlkem_rej_mask:
 .quad	0x0fff0fff0fff0fff,0x0fff0fff0fff0fff
 .quad	0x0fff0fff0fff0fff,0x0fff0fff0fff0fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -11973,9 +11973,9 @@ L_mlkem_rej_uniform_avx2_done_64:
 .size	mlkem_rej_uniform_avx2,.-mlkem_rej_uniform_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -11986,9 +11986,9 @@ L_mlkem_mask_249:
 .quad	0x0024924900249249,0x0024924900249249
 .quad	0x0024924900249249,0x0024924900249249
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -11999,9 +11999,9 @@ L_mlkem_mask_6db:
 .quad	0x006db6db006db6db,0x006db6db006db6db
 .quad	0x006db6db006db6db,0x006db6db006db6db
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12012,9 +12012,9 @@ L_mlkem_mask_07:
 .quad	0x0000000700000007,0x0000000700000007
 .quad	0x0000000700000007,0x0000000700000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12025,9 +12025,9 @@ L_mlkem_mask_70:
 .quad	0x0007000000070000,0x0007000000070000
 .quad	0x0007000000070000,0x0007000000070000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12038,9 +12038,9 @@ L_mlkem_mask_3:
 .quad	0x0003000300030003,0x0003000300030003
 .quad	0x0003000300030003,0x0003000300030003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12316,9 +12316,9 @@ _mlkem_cbd_eta3_avx2:
 .size	mlkem_cbd_eta3_avx2,.-mlkem_cbd_eta3_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12329,9 +12329,9 @@ L_mlkem_mask_55:
 .quad	0x5555555555555555,0x5555555555555555
 .quad	0x5555555555555555,0x5555555555555555
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12342,9 +12342,9 @@ L_mlkem_mask_33:
 .quad	0x3333333333333333,0x3333333333333333
 .quad	0x3333333333333333,0x3333333333333333
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12355,9 +12355,9 @@ L_mlkem_mask_03:
 .quad	0x0303030303030303,0x0303030303030303
 .quad	0x0303030303030303,0x0303030303030303
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12499,9 +12499,9 @@ _mlkem_cbd_eta2_avx2:
 .size	mlkem_cbd_eta2_avx2,.-mlkem_cbd_eta2_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12512,9 +12512,9 @@ L_mlkem_compress_10_avx2_mask:
 .short	0x03ff,0x03ff,0x03ff,0x03ff,0x03ff,0x03ff,0x03ff,0x03ff
 .short	0x03ff,0x03ff,0x03ff,0x03ff,0x03ff,0x03ff,0x03ff,0x03ff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12525,9 +12525,9 @@ L_mlkem_compress_10_avx2_shift:
 .quad	0x0400000104000001,0x0400000104000001
 .quad	0x0400000104000001,0x0400000104000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12538,9 +12538,9 @@ L_mlkem_compress_10_avx2_shlv:
 .quad	0x000000000000000c,0x000000000000000c
 .quad	0x000000000000000c,0x000000000000000c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12553,9 +12553,9 @@ L_mlkem_compress_10_avx2_shuf:
 .byte	0x09,0x0a,0x0b,0x0c,0xff,0xff,0xff,0xff
 .byte	0xff,0xff,0x00,0x01,0x02,0x03,0x04,0x08
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12566,9 +12566,9 @@ L_mlkem_compress_10_avx2_v:
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12579,9 +12579,9 @@ L_mlkem_compress_10_avx2_offset:
 .short	0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f
 .short	0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12930,9 +12930,9 @@ L_mlkem_compress_10_avx2_start:
 .size	mlkem_compress_10_avx2,.-mlkem_compress_10_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12943,9 +12943,9 @@ L_mlkem_decompress_10_avx2_mask:
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -12956,9 +12956,9 @@ L_mlkem_decompress_10_avx2_sllv:
 .quad	0x0000000000000004,0x0000000000000004
 .quad	0x0000000000000004,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12969,9 +12969,9 @@ L_mlkem_decompress_10_avx2_q:
 .long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
 .long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13125,9 +13125,9 @@ L_mlkem_decompress_10_avx2_start:
 .size	mlkem_decompress_10_avx2,.-mlkem_decompress_10_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13138,9 +13138,9 @@ L_mlkem_compress_11_avx2_v:
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13151,9 +13151,9 @@ L_mlkem_compress_11_avx2_off:
 .short	0x0024,0x0024,0x0024,0x0024,0x0024,0x0024,0x0024,0x0024
 .short	0x0024,0x0024,0x0024,0x0024,0x0024,0x0024,0x0024,0x0024
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13164,9 +13164,9 @@ L_mlkem_compress_11_avx2_shift13:
 .short	0x2000,0x2000,0x2000,0x2000,0x2000,0x2000,0x2000,0x2000
 .short	0x2000,0x2000,0x2000,0x2000,0x2000,0x2000,0x2000,0x2000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13177,9 +13177,9 @@ L_mlkem_compress_11_avx2_mask:
 .short	0x07ff,0x07ff,0x07ff,0x07ff,0x07ff,0x07ff,0x07ff,0x07ff
 .short	0x07ff,0x07ff,0x07ff,0x07ff,0x07ff,0x07ff,0x07ff,0x07ff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -13190,9 +13190,9 @@ L_mlkem_compress_11_avx2_shift:
 .quad	0x0800000108000001,0x0800000108000001
 .quad	0x0800000108000001,0x0800000108000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13203,9 +13203,9 @@ L_mlkem_compress_11_avx2_sllvd:
 .long	0x0000000a,0x00000000,0x0000000a,0x00000000
 .long	0x0000000a,0x00000000,0x0000000a,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -13216,9 +13216,9 @@ L_mlkem_compress_11_avx2_srlvq:
 .quad	0x000000000000000a,0x000000000000001e
 .quad	0x000000000000000a,0x000000000000001e
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13618,9 +13618,9 @@ L_mlkem_compress_11_avx2_start:
 .size	mlkem_compress_11_avx2,.-mlkem_compress_11_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13631,9 +13631,9 @@ L_mlkem_decompress_11_avx2_q:
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13646,9 +13646,9 @@ L_mlkem_decompress_11_avx2_shuf:
 .byte	0x03,0x04,0x04,0x05,0x05,0x06,0x07,0x08
 .byte	0x08,0x09,0x09,0x0a,0x0b,0x0c,0x0c,0x0d
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13659,9 +13659,9 @@ L_mlkem_decompress_11_avx2_sllv:
 .long	0x00000000,0x00000001,0x00000000,0x00000000
 .long	0x00000000,0x00000001,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -13672,9 +13672,9 @@ L_mlkem_decompress_11_avx2_srlv:
 .quad	0x0000000000000000,0x0000000000000002
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13685,9 +13685,9 @@ L_mlkem_decompress_11_avx2_shift:
 .short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
 .short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13873,9 +13873,9 @@ L_mlkem_decompress_11_avx2_start:
 .size	mlkem_decompress_11_avx2,.-mlkem_decompress_11_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13886,9 +13886,9 @@ L_mlkem_compress_4_avx2_mask:
 .short	0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f
 .short	0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f,0x000f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13899,9 +13899,9 @@ L_mlkem_compress_4_avx2_shift:
 .short	0x0200,0x0200,0x0200,0x0200,0x0200,0x0200,0x0200,0x0200
 .short	0x0200,0x0200,0x0200,0x0200,0x0200,0x0200,0x0200,0x0200
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13912,9 +13912,9 @@ L_mlkem_compress_4_avx2_perm:
 .long	0x00000000,0x00000004,0x00000001,0x00000005
 .long	0x00000002,0x00000006,0x00000003,0x00000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13925,9 +13925,9 @@ L_mlkem_compress_4_avx2_v:
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14038,9 +14038,9 @@ _mlkem_compress_4_avx2:
 .size	mlkem_compress_4_avx2,.-mlkem_compress_4_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14051,9 +14051,9 @@ L_mlkem_decompress_4_avx2_mask:
 .long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
 .long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14064,9 +14064,9 @@ L_mlkem_decompress_4_avx2_shift:
 .long	0x00800800,0x00800800,0x00800800,0x00800800
 .long	0x00800800,0x00800800,0x00800800,0x00800800
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14077,9 +14077,9 @@ L_mlkem_decompress_4_avx2_q:
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14211,9 +14211,9 @@ _mlkem_decompress_4_avx2:
 .size	mlkem_decompress_4_avx2,.-mlkem_decompress_4_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14224,9 +14224,9 @@ L_mlkem_compress_5_avx2_v:
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 .short	0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf,0x4ebf
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14237,9 +14237,9 @@ L_mlkem_compress_5_avx2_shift:
 .short	0x0400,0x0400,0x0400,0x0400,0x0400,0x0400,0x0400,0x0400
 .short	0x0400,0x0400,0x0400,0x0400,0x0400,0x0400,0x0400,0x0400
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14250,9 +14250,9 @@ L_mlkem_compress_5_avx2_mask:
 .short	0x001f,0x001f,0x001f,0x001f,0x001f,0x001f,0x001f,0x001f
 .short	0x001f,0x001f,0x001f,0x001f,0x001f,0x001f,0x001f,0x001f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14263,9 +14263,9 @@ L_mlkem_compress_5_avx2_shift1:
 .short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
 .short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14276,9 +14276,9 @@ L_mlkem_compress_5_avx2_shift2:
 .long	0x04000001,0x04000001,0x04000001,0x04000001
 .long	0x04000001,0x04000001,0x04000001,0x04000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -14289,9 +14289,9 @@ L_mlkem_compress_5_avx2_shlv:
 .quad	0x000000000000000c,0x000000000000000c
 .quad	0x000000000000000c,0x000000000000000c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14459,9 +14459,9 @@ _mlkem_compress_5_avx2:
 .size	mlkem_compress_5_avx2,.-mlkem_compress_5_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14472,9 +14472,9 @@ L_mlkem_decompress_5_avx2_q:
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14487,9 +14487,9 @@ L_mlkem_decompress_5_avx2_shuf:
 .byte	0x05,0x05,0x05,0x06,0x06,0x06,0x06,0x07
 .byte	0x07,0x08,0x08,0x08,0x08,0x09,0x09,0x09
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14500,9 +14500,9 @@ L_mlkem_decompress_5_avx2_mask:
 .short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
 .short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14635,9 +14635,9 @@ _mlkem_decompress_5_avx2:
 .size	mlkem_decompress_5_avx2,.-mlkem_decompress_5_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14648,9 +14648,9 @@ L_mlkem_from_msg_avx2_shift:
 .long	0x00000003,0x00000002,0x00000001,0x00000000
 .long	0x00000003,0x00000002,0x00000001,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14663,9 +14663,9 @@ L_mlkem_from_msg_avx2_shuf:
 .byte	0x00,0x01,0x04,0x05,0x08,0x09,0x0c,0x0d
 .byte	0x02,0x03,0x06,0x07,0x0a,0x0b,0x0e,0x0f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14803,9 +14803,9 @@ _mlkem_from_msg_avx2:
 .size	mlkem_from_msg_avx2,.-mlkem_from_msg_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14816,9 +14816,9 @@ L_mlkem_to_msg_avx2_hqs:
 .short	0x0680,0x0680,0x0680,0x0680,0x0680,0x0680,0x0680,0x0680
 .short	0x0680,0x0680,0x0680,0x0680,0x0680,0x0680,0x0680,0x0680
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14946,9 +14946,9 @@ _mlkem_to_msg_avx2:
 .size	mlkem_to_msg_avx2,.-mlkem_to_msg_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -14961,9 +14961,9 @@ L_mlkem_from_bytes_avx2_shuf:
 .byte	0x04,0x05,0x06,0xff,0x07,0x08,0x09,0xff
 .byte	0x0a,0x0b,0x0c,0xff,0x0d,0x0e,0x0f,0xff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -15136,9 +15136,9 @@ _mlkem_from_bytes_avx2:
 .size	mlkem_from_bytes_avx2,.-mlkem_from_bytes_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -15149,9 +15149,9 @@ L_mlkem_to_bytes_avx2_mask:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -15164,9 +15164,9 @@ L_mlkem_to_bytes_avx2_shuf:
 .byte	0x05,0x06,0x08,0x09,0x0a,0x0c,0x0d,0x0e
 .byte	0xff,0xff,0xff,0xff,0x00,0x01,0x02,0x04
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -15946,9 +15946,9 @@ _mlkem_redistribute_8_rand_avx2:
 #endif /* NO_AVX512_SUPPORT */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -16113,9 +16113,9 @@ L_mlkem_avx512_zetas:
 .short	0x7b95,0x7b95,0xa2cd,0xa2cd,0x6fe4,0x6fe4,0xb0df,0xb0df
 .short	0x5dbe,0x5dbe,0x1e4d,0x1e4d,0xbbf2,0xbbf2,0x5a5c,0x5a5c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -16128,9 +16128,9 @@ L_mlkem_avx512_perm20:
 .quad	0x0000000000000004,0x0000000000000005
 .quad	0x000000000000000c,0x000000000000000d
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -16143,9 +16143,9 @@ L_mlkem_avx512_perm31:
 .quad	0x0000000000000006,0x0000000000000007
 .quad	0x000000000000000e,0x000000000000000f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -16186,9 +16186,9 @@ L_mlkem_avx512_zetas_basemul:
 .short	0x7b95,0x5dbe,0x846b,0xa242,0xa2cd,0x1e4d,0x5d33,0xe1b3
 .short	0x6fe4,0xbbf2,0x901c,0x440e,0xb0df,0x5a5c,0x4f21,0xa5a4
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -30945,9 +30945,9 @@ L_pointwise_acc_mont_end_ptacc_x2_avx512:
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_MLKEM_ASM_TEST */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -30960,9 +30960,9 @@ L_mlkem_cbd_eta2_avx512_m55:
 .quad	0x5555555555555555,0x5555555555555555
 .quad	0x5555555555555555,0x5555555555555555
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -30975,9 +30975,9 @@ L_mlkem_cbd_eta2_avx512_m33:
 .quad	0x3333333333333333,0x3333333333333333
 .quad	0x3333333333333333,0x3333333333333333
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -30990,9 +30990,9 @@ L_mlkem_cbd_eta2_avx512_m03:
 .quad	0x0303030303030303,0x0303030303030303
 .quad	0x0303030303030303,0x0303030303030303
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31110,9 +31110,9 @@ _mlkem_cbd_eta2_avx512:
 .size	mlkem_cbd_eta2_avx512,.-mlkem_cbd_eta2_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31125,9 +31125,9 @@ L_mlkem_cbd_eta3_avx512_m249:
 .quad	0x0024924900249249,0x0024924900249249
 .quad	0x0024924900249249,0x0024924900249249
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31140,9 +31140,9 @@ L_mlkem_cbd_eta3_avx512_m6db:
 .quad	0x006db6db006db6db,0x006db6db006db6db
 .quad	0x006db6db006db6db,0x006db6db006db6db
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31155,9 +31155,9 @@ L_mlkem_cbd_eta3_avx512_m07:
 .quad	0x0000000700000007,0x0000000700000007
 .quad	0x0000000700000007,0x0000000700000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31170,9 +31170,9 @@ L_mlkem_cbd_eta3_avx512_m70:
 .quad	0x0007000000070000,0x0007000000070000
 .quad	0x0007000000070000,0x0007000000070000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31185,9 +31185,9 @@ L_mlkem_cbd_eta3_avx512_m3:
 .quad	0x0003000300030003,0x0003000300030003
 .quad	0x0003000300030003,0x0003000300030003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31381,9 +31381,9 @@ _mlkem_cbd_eta3_avx512:
 .size	mlkem_cbd_eta3_avx512,.-mlkem_cbd_eta3_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -31396,9 +31396,9 @@ L_mlkem_rej_uniform_avx512_perm:
 .long	0x00000006,0x00000007,0x00000008,0x00000000
 .long	0x00000009,0x0000000a,0x0000000b,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -31415,9 +31415,9 @@ L_mlkem_rej_uniform_avx512_shuf:
 .byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
 .byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -31520,9 +31520,9 @@ L_mlkem_rej_uniform_avx512_tail_end:
 .size	mlkem_rej_uniform_avx512,.-mlkem_rej_uniform_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -31535,9 +31535,9 @@ L_mlkem_rej_uniform_n_avx512_perm:
 .long	0x00000006,0x00000007,0x00000008,0x00000000
 .long	0x00000009,0x0000000a,0x0000000b,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -31554,9 +31554,9 @@ L_mlkem_rej_uniform_n_avx512_shuf:
 .byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
 .byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -31659,9 +31659,9 @@ L_mlkem_rej_uniform_n_avx512_tail_end:
 .size	mlkem_rej_uniform_n_avx512,.-mlkem_rej_uniform_n_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31674,9 +31674,9 @@ L_mlkem_redistribute_8_rand_avx512_idx0:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31689,9 +31689,9 @@ L_mlkem_redistribute_8_rand_avx512_idx1:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31704,9 +31704,9 @@ L_mlkem_redistribute_8_rand_avx512_idx2:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31766,9 +31766,9 @@ _mlkem_redistribute_8_rand_avx512:
 .size	mlkem_redistribute_8_rand_avx512,.-mlkem_redistribute_8_rand_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31781,9 +31781,9 @@ L_mlkem_redistribute_16_rand_avx512_idx0:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31796,9 +31796,9 @@ L_mlkem_redistribute_16_rand_avx512_idx1:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31811,9 +31811,9 @@ L_mlkem_redistribute_16_rand_avx512_idx2:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31901,9 +31901,9 @@ _mlkem_redistribute_16_rand_avx512:
 .size	mlkem_redistribute_16_rand_avx512,.-mlkem_redistribute_16_rand_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31916,9 +31916,9 @@ L_mlkem_redistribute_17_rand_avx512_idx0:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31931,9 +31931,9 @@ L_mlkem_redistribute_17_rand_avx512_idx1:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31946,9 +31946,9 @@ L_mlkem_redistribute_17_rand_avx512_idx2:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -32044,9 +32044,9 @@ _mlkem_redistribute_17_rand_avx512:
 .size	mlkem_redistribute_17_rand_avx512,.-mlkem_redistribute_17_rand_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -32059,9 +32059,9 @@ L_mlkem_redistribute_21_rand_avx512_idx0:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -32074,9 +32074,9 @@ L_mlkem_redistribute_21_rand_avx512_idx1:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -32089,9 +32089,9 @@ L_mlkem_redistribute_21_rand_avx512_idx2:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -32896,9 +32896,9 @@ L_mlkem_cmp_avx512_done:
 .size	mlkem_cmp_avx512,.-mlkem_cmp_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -32911,9 +32911,9 @@ L_mlkem_from_bytes_avx512_perm_lo:
 .long	0x00000006,0x00000007,0x00000008,0x00000000
 .long	0x00000009,0x0000000a,0x0000000b,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -32926,9 +32926,9 @@ L_mlkem_from_bytes_avx512_perm_hi:
 .long	0x0000000a,0x0000000b,0x0000000c,0x00000000
 .long	0x0000000d,0x0000000e,0x0000000f,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -32945,9 +32945,9 @@ L_mlkem_from_bytes_avx512_shuf:
 .byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
 .byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33031,9 +33031,9 @@ _mlkem_from_bytes_avx512:
 .size	mlkem_from_bytes_avx512,.-mlkem_from_bytes_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33046,9 +33046,9 @@ L_mlkem_to_bytes_avx512_mask:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33065,9 +33065,9 @@ L_mlkem_to_bytes_avx512_shuf:
 .byte	0x00,0x01,0x02,0x04,0x05,0x06,0x08,0x09
 .byte	0x0a,0x0c,0x0d,0x0e,0xff,0xff,0xff,0xff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33195,9 +33195,9 @@ _mlkem_to_bytes_avx512:
 .size	mlkem_to_bytes_avx512,.-mlkem_to_bytes_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33214,9 +33214,9 @@ L_mlkem_from_msg_avx512_shuf:
 .byte	0x03,0x80,0x03,0x80,0x03,0x80,0x03,0x80
 .byte	0x03,0x80,0x03,0x80,0x03,0x80,0x03,0x80
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33398,9 +33398,9 @@ _mlkem_to_msg_avx512:
 .size	mlkem_to_msg_avx512,.-mlkem_to_msg_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33417,9 +33417,9 @@ L_mlkem_compress_4_avx512_shuf:
 .byte	0x00,0x04,0x08,0x0c,0x80,0x80,0x80,0x80
 .byte	0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33526,9 +33526,9 @@ _mlkem_compress_4_avx512:
 .size	mlkem_compress_4_avx512,.-mlkem_compress_4_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33545,9 +33545,9 @@ L_mlkem_decompress_4_avx512_shuf:
 .byte	0x0c,0x0c,0x0c,0x0c,0x0d,0x0d,0x0d,0x0d
 .byte	0x0e,0x0e,0x0e,0x0e,0x0f,0x0f,0x0f,0x0f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33560,9 +33560,9 @@ L_mlkem_decompress_4_avx512_mask:
 .long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
 .long	0x00f0000f,0x00f0000f,0x00f0000f,0x00f0000f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33648,9 +33648,9 @@ _mlkem_decompress_4_avx512:
 .size	mlkem_decompress_4_avx512,.-mlkem_decompress_4_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33663,9 +33663,9 @@ L_mlkem_decompress_5_avx512_q:
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33682,9 +33682,9 @@ L_mlkem_decompress_5_avx512_shuf:
 .byte	0x05,0x05,0x05,0x06,0x06,0x06,0x06,0x07
 .byte	0x07,0x08,0x08,0x08,0x08,0x09,0x09,0x09
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33697,9 +33697,9 @@ L_mlkem_decompress_5_avx512_mask:
 .short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
 .short	0x001f,0x03e0,0x007c,0x0f80,0x01f0,0x003e,0x07c0,0x00f8
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33802,9 +33802,9 @@ _mlkem_decompress_5_avx512:
 .size	mlkem_decompress_5_avx512,.-mlkem_decompress_5_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33817,9 +33817,9 @@ L_mlkem_decompress_10_avx512_mask:
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -33832,9 +33832,9 @@ L_mlkem_decompress_10_avx512_sllv:
 .quad	0x0000000000000004,0x0000000000000004
 .quad	0x0000000000000004,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33847,9 +33847,9 @@ L_mlkem_decompress_10_avx512_q:
 .long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
 .long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33967,9 +33967,9 @@ L_mlkem_decompress_10_avx512_start:
 .size	mlkem_decompress_10_avx512,.-mlkem_decompress_10_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33982,9 +33982,9 @@ L_mlkem_decompress_11_avx512_q:
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34001,9 +34001,9 @@ L_mlkem_decompress_11_avx512_shuf:
 .byte	0x03,0x04,0x04,0x05,0x05,0x06,0x07,0x08
 .byte	0x08,0x09,0x09,0x0a,0x0b,0x0c,0x0c,0x0d
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34016,9 +34016,9 @@ L_mlkem_decompress_11_avx512_srlvd:
 .long	0x00000000,0x00000001,0x00000000,0x00000000
 .long	0x00000000,0x00000001,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -34031,9 +34031,9 @@ L_mlkem_decompress_11_avx512_srlvq:
 .quad	0x0000000000000000,0x0000000000000002
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34046,9 +34046,9 @@ L_mlkem_decompress_11_avx512_shift:
 .short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
 .short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34180,9 +34180,9 @@ L_mlkem_decompress_11_avx512_start:
 .size	mlkem_decompress_11_avx512,.-mlkem_decompress_11_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34193,9 +34193,9 @@ L_mlkem_compress_5_avx512_shift1:
 .short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
 .short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34206,9 +34206,9 @@ L_mlkem_compress_5_avx512_shift2:
 .long	0x04000001,0x04000001,0x04000001,0x04000001
 .long	0x04000001,0x04000001,0x04000001,0x04000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -34219,9 +34219,9 @@ L_mlkem_compress_5_avx512_shlv:
 .quad	0x000000000000000c,0x000000000000000c
 .quad	0x000000000000000c,0x000000000000000c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34378,9 +34378,9 @@ _mlkem_compress_5_avx512:
 .size	mlkem_compress_5_avx512,.-mlkem_compress_5_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -34391,9 +34391,9 @@ L_mlkem_compress_10_avx512_shift:
 .quad	0x0400000104000001,0x0400000104000001
 .quad	0x0400000104000001,0x0400000104000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -34404,9 +34404,9 @@ L_mlkem_compress_10_avx512_shlv:
 .quad	0x000000000000000c,0x000000000000000c
 .quad	0x000000000000000c,0x000000000000000c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34684,9 +34684,9 @@ L_mlkem_compress_10_avx512_start:
 .size	mlkem_compress_10_avx512,.-mlkem_compress_10_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -34697,9 +34697,9 @@ L_mlkem_compress_11_avx512_shift:
 .quad	0x0800000108000001,0x0800000108000001
 .quad	0x0800000108000001,0x0800000108000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -34710,9 +34710,9 @@ L_mlkem_compress_11_avx512_shlvd:
 .long	0x0000000a,0x00000000,0x0000000a,0x00000000
 .long	0x0000000a,0x00000000,0x0000000a,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -34723,9 +34723,9 @@ L_mlkem_compress_11_avx512_shrvq:
 .quad	0x000000000000000a,0x000000000000001e
 .quad	0x000000000000000a,0x000000000000001e
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35054,9 +35054,9 @@ L_mlkem_compress_11_avx512_start:
 #endif /* HAVE_INTEL_AVX512 */
 #ifdef HAVE_INTEL_AVX512_VBMI2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35069,9 +35069,9 @@ L_mlkem_rej_uniform_avx512_vbmi2_perm:
 .long	0x00000006,0x00000007,0x00000008,0x00000000
 .long	0x00000009,0x0000000a,0x0000000b,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35088,9 +35088,9 @@ L_mlkem_rej_uniform_avx512_vbmi2_shuf:
 .byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
 .byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35181,9 +35181,9 @@ L_mlkem_rej_uniform_avx512_vbmi2_tail_end:
 .size	mlkem_rej_uniform_avx512_vbmi2,.-mlkem_rej_uniform_avx512_vbmi2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35196,9 +35196,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi2_perm:
 .long	0x00000006,0x00000007,0x00000008,0x00000000
 .long	0x00000009,0x0000000a,0x0000000b,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35215,9 +35215,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi2_shuf:
 .byte	0x00,0x01,0x02,0xff,0x03,0x04,0x05,0xff
 .byte	0x06,0x07,0x08,0xff,0x09,0x0a,0x0b,0xff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35319,9 +35319,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi2_tail_end:
 #endif /* NO_AVX512_SUPPORT */
 #ifdef HAVE_INTEL_AVX512_VBMI
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35338,9 +35338,9 @@ L_mlkem_from_bytes_avx512_vbmi_lo:
 .byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
 .byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35357,9 +35357,9 @@ L_mlkem_from_bytes_avx512_vbmi_hi:
 .byte	0x34,0x35,0x36,0x00,0x37,0x38,0x39,0x00
 .byte	0x3a,0x3b,0x3c,0x00,0x3d,0x3e,0x3f,0x00
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35372,9 +35372,9 @@ L_mlkem_from_bytes_avx512_vbmi_mask_lo:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35450,9 +35450,9 @@ _mlkem_from_bytes_avx512_vbmi:
 .size	mlkem_from_bytes_avx512_vbmi,.-mlkem_from_bytes_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35465,9 +35465,9 @@ L_mlkem_to_bytes_avx512_vbmi_mask:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35590,9 +35590,9 @@ _mlkem_to_bytes_avx512_vbmi:
 .size	mlkem_to_bytes_avx512_vbmi,.-mlkem_to_bytes_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35609,9 +35609,9 @@ L_mlkem_rej_uniform_avx512_vbmi_permb:
 .byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
 .byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35624,9 +35624,9 @@ L_mlkem_rej_uniform_avx512_vbmi_mask_lo:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35728,9 +35728,9 @@ L_mlkem_rej_uniform_avx512_vbmi_tail_end:
 .size	mlkem_rej_uniform_avx512_vbmi,.-mlkem_rej_uniform_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35747,9 +35747,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi_permb:
 .byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
 .byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35762,9 +35762,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi_mask_lo:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35866,9 +35866,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi_tail_end:
 .size	mlkem_rej_uniform_n_avx512_vbmi,.-mlkem_rej_uniform_n_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35970,9 +35970,9 @@ _mlkem_compress_4_avx512_vbmi:
 .size	mlkem_compress_4_avx512_vbmi,.-mlkem_compress_4_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35983,9 +35983,9 @@ L_mlkem_compress_5_avx512_vbmi_shift1:
 .short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
 .short	0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001,0x2001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -35996,9 +35996,9 @@ L_mlkem_compress_5_avx512_vbmi_shift2:
 .long	0x04000001,0x04000001,0x04000001,0x04000001
 .long	0x04000001,0x04000001,0x04000001,0x04000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -36009,9 +36009,9 @@ L_mlkem_compress_5_avx512_vbmi_shlv:
 .quad	0x000000000000000c,0x000000000000000c
 .quad	0x000000000000000c,0x000000000000000c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36156,9 +36156,9 @@ _mlkem_compress_5_avx512_vbmi:
 .size	mlkem_compress_5_avx512_vbmi,.-mlkem_compress_5_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -36171,9 +36171,9 @@ L_mlkem_compress_10_avx512_vbmi_shift:
 .quad	0x0400000104000001,0x0400000104000001
 .quad	0x0400000104000001,0x0400000104000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -36186,9 +36186,9 @@ L_mlkem_compress_10_avx512_vbmi_shlv:
 .quad	0x000000000000000c,0x000000000000000c
 .quad	0x000000000000000c,0x000000000000000c
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36390,9 +36390,9 @@ L_mlkem_compress_10_avx512_vbmi_start:
 .size	mlkem_compress_10_avx512_vbmi,.-mlkem_compress_10_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36405,9 +36405,9 @@ L_mlkem_decompress_10_avx512_vbmi_mask:
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -36420,9 +36420,9 @@ L_mlkem_decompress_10_avx512_vbmi_sllv:
 .quad	0x0000000000000004,0x0000000000000004
 .quad	0x0000000000000004,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36435,9 +36435,9 @@ L_mlkem_decompress_10_avx512_vbmi_q:
 .long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
 .long	0x0d013404,0x0d013404,0x0d013404,0x0d013404
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36454,9 +36454,9 @@ L_mlkem_decompress_10_avx512_vbmi_lo:
 .byte	0x1e,0x1f,0x1f,0x20,0x20,0x21,0x21,0x22
 .byte	0x23,0x24,0x24,0x25,0x25,0x26,0x26,0x27
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36551,9 +36551,9 @@ L_mlkem_decompress_10_avx512_vbmi_start:
 .size	mlkem_decompress_10_avx512_vbmi,.-mlkem_decompress_10_avx512_vbmi
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36566,9 +36566,9 @@ L_mlkem_decompress_11_avx512_vbmi_q:
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 .short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36581,9 +36581,9 @@ L_mlkem_decompress_11_avx512_vbmi_srlvd:
 .long	0x00000000,0x00000001,0x00000000,0x00000000
 .long	0x00000000,0x00000001,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -36596,9 +36596,9 @@ L_mlkem_decompress_11_avx512_vbmi_srlvq:
 .quad	0x0000000000000000,0x0000000000000002
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36611,9 +36611,9 @@ L_mlkem_decompress_11_avx512_vbmi_shift:
 .short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
 .short	0x0020,0x0004,0x0001,0x0020,0x0008,0x0001,0x0020,0x0004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36626,9 +36626,9 @@ L_mlkem_decompress_11_avx512_vbmi_mask:
 .short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
 .short	0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0,0x7ff0
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36645,9 +36645,9 @@ L_mlkem_decompress_11_avx512_vbmi_lo:
 .byte	0x21,0x22,0x22,0x23,0x23,0x24,0x25,0x26
 .byte	0x26,0x27,0x27,0x28,0x29,0x2a,0x2a,0x2b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36761,9 +36761,9 @@ L_mlkem_decompress_11_avx512_vbmi_start:
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX512_VBMI2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36780,9 +36780,9 @@ L_mlkem_rej_uniform_avx512_vbmi_vbmi2_permb:
 .byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
 .byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36795,9 +36795,9 @@ L_mlkem_rej_uniform_avx512_vbmi_vbmi2_mask_lo:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36887,9 +36887,9 @@ L_mlkem_rej_uniform_avx512_vbmi_vbmi2_tail_end:
 .size	mlkem_rej_uniform_avx512_vbmi_vbmi2,.-mlkem_rej_uniform_avx512_vbmi_vbmi2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36906,9 +36906,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi_vbmi2_permb:
 .byte	0x24,0x25,0x26,0x00,0x27,0x28,0x29,0x00
 .byte	0x2a,0x2b,0x2c,0x00,0x2d,0x2e,0x2f,0x00
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36921,9 +36921,9 @@ L_mlkem_rej_uniform_n_avx512_vbmi_vbmi2_mask_lo:
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 .long	0x00000fff,0x00000fff,0x00000fff,0x00000fff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16

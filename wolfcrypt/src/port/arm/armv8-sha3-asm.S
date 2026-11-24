@@ -40,7 +40,7 @@
 	.type	L_SHA3_transform_crypto_r, %object
 	.size	L_SHA3_transform_crypto_r, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
@@ -205,7 +205,7 @@ L_sha3_crypto_begin:
 	.type	L_SHA3_transform_base_r, %object
 	.size	L_SHA3_transform_base_r, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
@@ -441,7 +441,7 @@ L_SHA3_transform_base_begin:
 	.type	L_sha3_aarch64_r, %object
 	.size	L_sha3_aarch64_r, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
