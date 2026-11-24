@@ -3960,8 +3960,195 @@ static void wb_fp_mul2add_kb_size(void)
 }
 #endif
 
+/* These checks distinguish unavailable fixtures from assertion failures. */
+enum wb_check_result {
+    WB_CHECK_FAILED = 0,
+    WB_CHECK_PASSED = 1,
+    WB_CHECK_SKIPPED
+};
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ECC_SECP) && \
+    !defined(NO_ECC256) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+static enum wb_check_result wb_private_order_size(void)
+{
+    const ecc_set_type* curve;
+    ecc_key key;
+    byte scalar[32] = {0};
+    word32 len = 0;
+    int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    int ok;
+
+    curve = wc_ecc_get_curve_params(idx);
+    if (curve == NULL || wc_ecc_init(&key) != 0) {
+        return WB_CHECK_SKIPPED;
+    }
+
+    ok = wc_ecc_export_private_order(NULL, NULL, &len) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    ok &= wc_ecc_export_private_order(&key, NULL, NULL) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+    ok &= ecc_check_privkey_range(NULL) == WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    ok &= ecc_check_privkey_range(&key) == WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+
+    scalar[sizeof(scalar) - 1] = 1;
+    if (wc_ecc_import_private_key_ex(scalar, sizeof(scalar), NULL, 0, &key,
+            ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+    ok &= len == sizeof(scalar);
+    ok &= ecc_check_privkey_range(&key) == 0;
+#if defined(WOLFSSL_SP_INT_NEGATIVE) && !defined(WOLFSSL_ECC_BLIND_K)
+    mp_setneg(ecc_get_k(&key));
+    ok &= ecc_check_privkey_range(&key) == WC_NO_ERR_TRACE(ECC_PRIV_KEY_E);
+    ok &= mp_abs(ecc_get_k(&key), ecc_get_k(&key)) == 0;
+#endif
+
+    /* The export rejects an invalid index even with valid curve parameters. */
+    key.idx = -2;
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+    key.idx = idx;
+    wc_ecc_free(&key);
+
+    if (wc_ecc_init(&key) != 0) {
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    if (wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, NULL,
+            ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    wc_ecc_free(&key);
+
+    if (wc_ecc_init(&key) != 0) {
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    if (wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, "01",
+            ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+    ok &= len == sizeof(scalar);
+#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && defined(WOLFSSL_HAVE_SP_ECC)
+    ok &= wc_ecc_check_key(&key) == 0;
+    ok &= _ecc_validate_public_key(&key, 0, 0) == 0;
+#endif
+    wc_ecc_free(&key);
+    return ok ? WB_CHECK_PASSED : WB_CHECK_FAILED;
+}
+#define WB_ECC_PRIVATE_ORDER_SIZE
+#endif
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(WOLFSSL_SP_INT_NEGATIVE) && defined(WOLFSSL_HAVE_SP_ECC) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_NO_256) && \
+    !defined(NO_ECC_SECP) && !defined(NO_ECC256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+static enum wb_check_result wb_sp_mulmod_dispatch(void)
+{
+    const ecc_set_type* curve =
+        wc_ecc_get_curve_params(wc_ecc_get_curve_idx(ECC_SECP256R1));
+    ecc_key base;
+    ecc_key params;
+    ecc_point* result = NULL;
+    mp_int k;
+    enum wb_check_result status = WB_CHECK_SKIPPED;
+    int fallback = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+
+    if (curve == NULL || wc_ecc_init(&base) != 0) {
+        return status;
+    }
+    if (wc_ecc_init(&params) != 0) {
+        wc_ecc_free(&base);
+        return status;
+    }
+    if (mp_init(&k) != 0) {
+        goto out_keys;
+    }
+    result = wc_ecc_new_point();
+    if (result != NULL &&
+            wc_ecc_import_raw_ex(&base, curve->Gx, curve->Gy, NULL,
+                curve->id) == 0 &&
+            mp_read_radix(params.pubkey.x, curve->Af, MP_RADIX_HEX) == 0 &&
+            mp_read_radix(params.pubkey.y, curve->prime, MP_RADIX_HEX) == 0 &&
+            mp_set(&k, 1) == 0) {
+        mp_int* a = params.pubkey.x;
+        mp_int* p = params.pubkey.y;
+        mp_int* coords[] = {base.pubkey.x, result->x, result->y, result->z};
+        unsigned int i;
+        int ok;
+
+        ok = ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) == 0;
+        ok &= wc_ecc_cmp_point(&base.pubkey, result) == MP_EQ;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, NULL, p, 1, NULL) ==
+            fallback;
+        /* These representations must fall back before invoking SP math. */
+        for (i = 0; i < sizeof(coords) / sizeof(coords[0]); i++) {
+            mp_setneg(coords[i]);
+            ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+                fallback;
+            ok &= mp_abs(coords[i], coords[i]) == 0;
+        }
+        mp_setneg(&k);
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        ok &= mp_2expt(&k, 256) == 0;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        ok &= mp_set(&k, 1) == 0;
+        ok &= mp_set(base.pubkey.z, 2) == 0;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        ok &= mp_set(base.pubkey.z, 1) == 0;
+        ok &= mp_set(a, 0) == 0;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        status = ok ? WB_CHECK_PASSED : WB_CHECK_FAILED;
+    }
+    wc_ecc_del_point(result);
+    mp_clear(&k);
+out_keys:
+    wc_ecc_free(&params);
+    wc_ecc_free(&base);
+    return status;
+}
+#define WB_ECC_SP_MULMOD_DISPATCH
+#endif
+
+#if defined(WB_ECC_PRIVATE_ORDER_SIZE) || defined(WB_ECC_SP_MULMOD_DISPATCH)
+static void wb_record_check(enum wb_check_result result, const char* name,
+    int* failed)
+{
+    if (result == WB_CHECK_SKIPPED) {
+        printf("  [wb] %s setup failed; skipped\n", name);
+        wb_fail = 1;
+    }
+    else if (result == WB_CHECK_FAILED) {
+        printf("  [wb][FAIL] %s returned an unexpected result\n", name);
+        *failed = 1;
+    }
+}
+#endif
+
 int main(void)
 {
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    int failed = 0;
+#endif
     /* Unbuffered: on a timeout or a fault the process is killed and anything
      * still buffered is lost, which reads as an empty log. */
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -3989,6 +4176,14 @@ int main(void)
     wb_export_point_der();
     wb_export_x963_internal();
     wb_idx_dp_guard_export_paths();
+#ifdef WB_ECC_PRIVATE_ORDER_SIZE
+    wb_record_check(wb_private_order_size(), "private-order size query",
+        &failed);
+#endif
+#ifdef WB_ECC_SP_MULMOD_DISPATCH
+    wb_record_check(wb_sp_mulmod_dispatch(), "SP point multiplication dispatch",
+        &failed);
+#endif
     wb_make_pub_privatekey_only();
     wb_arg_guards();
     wb_gap_pass2();
@@ -4007,9 +4202,10 @@ int main(void)
     wb_deterministic_k_retry();
     wb_ecies_bad_kdf();
     wb_fp_mul2add_kb_size();
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", failed ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
     /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
-    return 0;
+    return failed ? 1 : 0;
 #endif
 }
