@@ -17737,8 +17737,12 @@ int test_dtls13_cid_downgrade_not_negotiated(void)
  *   fires first and resends the HRR kept in its retransmit buffer.
  * - On a stateful server without timer, the client's timer fires first and
  *   it retransmits its ClientHello. The server recognizes the duplicate and
- *   resends the buffered HRR. */
-static int test_dtls13_hrr_lost_ex(int cookie, int serverTimer)
+ *   resends the buffered HRR.
+ * - On a stateful server whose resent HRR is lost as well, the ACK sent with
+ *   it has stopped the client from retransmitting, so only the server's timer
+ *   can recover the handshake. */
+static int test_dtls13_hrr_lost_ex(int cookie, int serverTimer,
+    int loseResend)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -17801,6 +17805,30 @@ static int test_dtls13_hrr_lost_ex(int cookie, int serverTimer)
     }
     ExpectIntEQ(hrrCount, 1);
 
+    if (loseResend) {
+        for (i = 0; i < test_ctx.c_msg_count; i++) {
+            ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i),
+                    0);
+            if (test_memio_is_hello_retry_request(msg, msgSz)) {
+                ExpectIntEQ(test_memio_drop_message(&test_ctx, 1, i), 0);
+                break;
+            }
+        }
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+        ExpectNull(ssl_c->dtls13Rtx.rtxRecords);
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_ctx.s_msg_count, 0);
+#ifndef NO_ASN_TIME
+        ssl_s->dtls13Rtx.lastRtx = 0;
+#endif
+        for (i = 0; i < 2 && test_ctx.c_msg_count == 0; i++)
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_ctx.c_msg_count, 1);
+        ExpectIntEQ(test_memio_msg_is_hello_retry_request(&test_ctx), 1);
+    }
+
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
             WOLFSSL_ERROR_WANT_READ);
@@ -17841,9 +17869,10 @@ int test_dtls13_hrr_lost(void)
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-    ExpectIntEQ(test_dtls13_hrr_lost_ex(1, 0), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(1, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 1, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 1), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
