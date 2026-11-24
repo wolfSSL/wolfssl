@@ -4504,10 +4504,18 @@ then
 fi
 
 # AES-CBC length checks (checks that input lengths are multiples of block size)
+# The selftest and FIPS v1/v2 modules carry an AES that predates these checks.
+if (test "$enable_selftest" != "" && test "$enable_selftest" != "no") || \
+   (test "$ENABLED_FIPS" != "no" && test "$HAVE_FIPS_VERSION" -lt 5)
+then
+    DEF_AESCBC_LENGTH_CHECKS=no
+else
+    DEF_AESCBC_LENGTH_CHECKS=yes
+fi
 AC_ARG_ENABLE([aescbc-length-checks],
-    [AS_HELP_STRING([--enable-aescbc-length-checks],[Enable AES-CBC length validity checks (default: disabled)])],
+    [AS_HELP_STRING([--enable-aescbc-length-checks],[Enable AES-CBC length validity checks (default: enabled, except selftest and FIPS v2)])],
     [ ENABLED_AESCBC_LENGTH_CHECKS=$enableval ],
-    [ ENABLED_AESCBC_LENGTH_CHECKS=no ]
+    [ ENABLED_AESCBC_LENGTH_CHECKS=$DEF_AESCBC_LENGTH_CHECKS ]
     )
 
 if test "$ENABLED_AESCBC_LENGTH_CHECKS" = "yes"
