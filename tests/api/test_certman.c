@@ -5589,6 +5589,258 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
     return EXPECT_RESULT();
 }
 
+/* A self-issued CA delivered in the peer's chain is not a trust anchor, so
+ * the walk continues to the constrained CA that signed it. */
+int test_wolfSSL_CertManagerNameConstraint_selfissued_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* strict_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* selfissued_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-selfissued-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfissued-valid-leaf-cert.pem";
+    const char* attacker_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfissued-leaf-cert.pem";
+    byte* selfissued_buf = NULL;
+    size_t selfissued_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, strict_cert, NULL),
+                WOLFSSL_SUCCESS);
+
+    /* Cached from a peer's chain rather than loaded by the application. */
+    ExpectIntEQ(load_file(selfissued_cert, &selfissued_buf, &selfissued_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, selfissued_buf,
+                (sword32)selfissued_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    /* Positive: leaf satisfies the constrained CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    /* Negative: leaf violates the constrained CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(selfissued_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
+    ((defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE)) || \
+     defined(WOLFSSL_ALLOW_AKID_SKID_MATCH))
+/* Peer-chain CA issued by the strict CA; leaves must meet its constraints. */
+static int test_nc_chain_ca_under_strict(const char* chain_ca_cert,
+    const char* valid_leaf_cert, const char* attacker_leaf_cert)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte* chain_ca_buf = NULL;
+    size_t chain_ca_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+                "./certs/test/nc-ancestor/00-root-cert.pem", NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+                "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem", NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file(chain_ca_cert, &chain_ca_buf, &chain_ca_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, chain_ca_buf,
+                (sword32)chain_ca_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(chain_ca_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Chain CA whose AKID keyIdentifier matches no CA; its issuer is found only
+ * by AKID issuer and serial. */
+int test_wolfSSL_CertManagerNameConstraint_akid_name_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
+    defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE)
+    ExpectIntEQ(test_nc_chain_ca_under_strict(
+                "./certs/test/nc-ancestor/02-akid-name-ca-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-name-valid-leaf-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-name-leaf-cert.pem"),
+                TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Chain CA whose AKID matches its issuer's SKID but whose issuer name does
+ * not match the issuer's subject. */
+int test_wolfSSL_CertManagerNameConstraint_akid_skid_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
+    defined(WOLFSSL_ALLOW_AKID_SKID_MATCH)
+    ExpectIntEQ(test_nc_chain_ca_under_strict(
+                "./certs/test/nc-ancestor/02-akid-skid-ca-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-skid-valid-leaf-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-skid-leaf-cert.pem"),
+                TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A peer-supplied CA carrying the constrained CA's name, with no AKID key
+ * identifier, resolves to itself by name. The walk must go on to the CA
+ * that issued it. */
+int test_wolfSSL_CertManagerNameConstraint_selfloop_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* strict_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* selfloop_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-selfloop-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfloop-valid-leaf-cert.pem";
+    const char* attacker_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfloop-leaf-cert.pem";
+    byte* selfloop_buf = NULL;
+    size_t selfloop_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, strict_cert, NULL),
+                WOLFSSL_SUCCESS);
+
+    /* Shares the strict CA's name and table row, so a name lookup finds
+     * it first. */
+    ExpectIntEQ(load_file(selfloop_cert, &selfloop_buf, &selfloop_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, selfloop_buf,
+                (sword32)selfloop_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    /* Positive: leaf within the strict CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    /* Negative: leaf violates the strict CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(selfloop_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Peer-chain CAs left cached after their root is unloaded. */
+int test_wolfSSL_CertManagerNameConstraint_orphan_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* strict_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* benign_sub_ca_cert =
+        "./certs/test/nc-ancestor/02-benign-sub-ca-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-valid-leaf-cert.pem";
+    byte* strict_buf = NULL;
+    size_t strict_sz = 0;
+    byte* sub_ca_buf = NULL;
+    size_t sub_ca_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file(strict_cert, &strict_buf, &strict_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, strict_buf,
+                (sword32)strict_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file(benign_sub_ca_cert, &sub_ca_buf, &sub_ca_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, sub_ca_buf,
+                (sword32)sub_ca_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_USER_CA),
+                WOLFSSL_SUCCESS);
+
+    /* Issuer missing one level up, then two. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, benign_sub_ca_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(strict_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sub_ca_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
 /* Before the validity period of certs/test/expired/expired-cert.pem */
