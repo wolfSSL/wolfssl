@@ -2234,6 +2234,7 @@ struct DecodedCert {
     WC_BITFIELD subjectCNStored:1;      /* have we saved a copy we own */
     WC_BITFIELD extSubjKeyIdSet:1;      /* Set when the SKID was read from cert */
     WC_BITFIELD extAuthKeyIdSet:1;      /* Set when the AKID was read from cert */
+    WC_BITFIELD extAuthKeyIdPresent:1;  /* Set when cert has an AKID extension */
 #ifndef IGNORE_NAME_CONSTRAINTS
     WC_BITFIELD extNameConstraintSet:1;
 #endif
