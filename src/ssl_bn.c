@@ -2182,7 +2182,6 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int ret = 1;
     word32 len = (word32)((bits + 7) / 8);
-    WC_RNG* rng;
 
     WOLFSSL_ENTER("wolfSSL_BN_rand");
 
@@ -2212,31 +2211,17 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     else if (ret == 1) {
         byte* buff = NULL;
 
-        /* Get random to global random to generate bits. */
-        if ((rng = wolfssl_make_global_rng()) == NULL) {
-            WOLFSSL_MSG("Failed to use global RNG.");
-            ret = 0;
-        }
-
         /* Allocate buffer to hold generated bits. */
-        if ((ret == 1) && ((buff = (byte*)XMALLOC(len, NULL,
-                DYNAMIC_TYPE_TMP_BUFFER)) == NULL)) {
+        buff = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (buff == NULL) {
             WOLFSSL_MSG("Failed to allocate buffer.");
             ret = 0;
         }
-        /* Global RNG is shared, lock it while generating. */
-        if ((ret == 1) && (wc_LockMutex(&globalRNGMutex) != 0)) {
-            WOLFSSL_MSG("Bad Lock Mutex rng");
-            ret = 0;
-        }
-
         /* Generate bytes to cover bits. */
-        if (ret == 1) {
-            if (wc_RNG_GenerateBlock(rng, buff, len) != 0) {
-                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
-                ret = 0;
-            }
-            wc_UnLockMutex(&globalRNGMutex);
+        if ((ret == 1) &&
+                (wolfssl_global_rng_generate(buff, (word32)len) != 0)) {
+            WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+            ret = 0;
         }
         /* Read bytes in to big number. */
         if ((ret == 1) && mp_read_unsigned_bin((mp_int*)bn->internal, buff, len)
