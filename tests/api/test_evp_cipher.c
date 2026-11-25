@@ -1931,6 +1931,7 @@ int test_evp_cipher_aes_ccm_iv_lifecycle(void)
     EVP_CIPHER_CTX* fresh = EVP_CIPHER_CTX_new();
     byte key[AES_128_KEY_SIZE] = {0};
     byte iv[GCM_NONCE_MID_SZ] = {5};
+    byte gotIv[GCM_NONCE_MID_SZ] = {0};
     byte input[4] = {1, 2, 3, 4};
     byte ct[sizeof(input)] = {0};
     byte pt[sizeof(input)] = {0};
@@ -2004,6 +2005,30 @@ int test_evp_cipher_aes_ccm_iv_lifecycle(void)
         ExpectIntEQ(EVP_EncryptUpdate(dec, pt, &len, input, sizeof(input)),
                     WOLFSSL_SUCCESS);
         ExpectIntEQ(EVP_EncryptFinal_ex(dec, pt, &len), WOLFSSL_FAILURE);
+
+        /* An encrypt Final keeps the IV for a NULL-IV decrypt reinit. */
+        ExpectIntEQ(EVP_EncryptInit_ex(enc, NULL, NULL, NULL, iv),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(enc, ct, &len, input, sizeof(input)),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(enc, ct, &len), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(enc, EVP_CTRL_CCM_GET_TAG,
+                    sizeof(tag), tag), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_get_iv(enc, gotIv, sizeof(gotIv)),
+                    WOLFSSL_SUCCESS);
+        ExpectBufEQ(gotIv, iv, sizeof(iv));
+        ExpectIntEQ(EVP_DecryptInit_ex(enc, NULL, NULL, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CIPHER_CTX_ctrl(enc, EVP_CTRL_CCM_SET_TAG,
+                    sizeof(tag), tag), WOLFSSL_SUCCESS);
+        XMEMSET(pt, 0, sizeof(pt));
+        ExpectIntEQ(EVP_DecryptUpdate(enc, pt, &len, ct, sizeof(ct)),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_DecryptFinal_ex(enc, pt, &len), WOLFSSL_SUCCESS);
+        ExpectBufEQ(pt, input, sizeof(input));
+        ExpectIntEQ(EVP_EncryptInit_ex(enc, NULL, NULL, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntLT(EVP_Cipher(enc, ct, input, sizeof(input)), 0);
 
 #if (defined(HAVE_AESGCM) || defined(WOLFSSL_SM4_GCM)) && \
     !defined(_WIN32) && !defined(WC_NO_RNG)
