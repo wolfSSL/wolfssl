@@ -5951,6 +5951,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         FreePeerCertKeys(ssl);
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
+        #ifndef NO_ASN_TIME
+        ssl->dtls_timer_len = 0;
+        #endif
     #endif
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
