@@ -291,8 +291,14 @@ extern "C" {
     #endif
 #endif
 
+/* SP_WORD_OCTETS: number of octets (8-bit units) in an SP digit.
+ * Use for counts of octets in encoded data (e.g. sp_read_unsigned_bin()),
+ * XALIGNED() and preprocessor conditionals - must be an integer literal.
+ * Not the size of a digit in memory where CHAR_BIT != 8 (e.g. TI C28x) - use
+ * sizeof(sp_int_digit) for memory operations (XMEMCPY, XMEMSET, ForceZero).
+ */
 #if SP_WORD_SIZE == 8
-    #define SP_WORD_SIZEOF 1
+    #define SP_WORD_OCTETS 1
 
     typedef   sp_uint8 sp_int_digit;
     typedef    sp_int8 sp_int_sdigit;
@@ -301,7 +307,7 @@ extern "C" {
 
     #define SP_MASK         0xffU
 #elif SP_WORD_SIZE == 16
-    #define SP_WORD_SIZEOF 2
+    #define SP_WORD_OCTETS 2
 
     typedef  sp_uint16 sp_int_digit;
     typedef   sp_int16 sp_int_sdigit;
@@ -310,7 +316,7 @@ extern "C" {
 
     #define SP_MASK         0xffffU
 #elif SP_WORD_SIZE == 32
-    #define SP_WORD_SIZEOF 4
+    #define SP_WORD_OCTETS 4
 
     typedef  sp_uint32 sp_int_digit;
     typedef   sp_int32 sp_int_sdigit;
@@ -319,7 +325,7 @@ extern "C" {
 
     #define SP_MASK         0xffffffffU
 #elif SP_WORD_SIZE == 64
-    #define SP_WORD_SIZEOF 8
+    #define SP_WORD_OCTETS 8
 
     typedef  sp_uint64 sp_int_digit;
     typedef   sp_int64 sp_int_sdigit;
@@ -332,6 +338,19 @@ extern "C" {
     #define SP_MASK         0xffffffffffffffffUL
 #else
     #error Word size not defined
+#endif
+
+/* SP_WORD_SIZEOF: deprecated, same as SP_WORD_OCTETS. Kept mainly for FIPS
+ * test code that is maintained outside of the wolfSSL repository and still uses
+ * it, and also for any user code that uses it.
+ * Only defined where a char is 8 bits, which means SP_WORD_OCTETS and
+ * sizeof(sp_int_digit) are the same. Not available when building wolfSSL
+ * itself - use SP_WORD_OCTETS for octet counts and sizeof(sp_int_digit) for
+ * memory operations.
+ */
+#if !defined(BUILDING_WOLFSSL) && (SP_UCHAR_BITS == 8) && \
+    !defined(SP_WORD_SIZEOF)
+    #define SP_WORD_SIZEOF SP_WORD_OCTETS
 #endif
 
 /* Define an SP digit. */
@@ -976,7 +995,7 @@ while (0)
     #define WOLF_BIGINT_DEFINED
 #endif
 
-#if SP_INT_DIGITS < (65536 / SP_WORD_SIZEOF)
+#if SP_INT_DIGITS < (65536 / SP_WORD_OCTETS)
 /* Type for number of digits. */
 typedef word16       sp_size_t;
 #else
@@ -1010,7 +1029,7 @@ typedef struct sp_int {
     struct WC_BIGINT raw;
 #endif
     /** Data of number.  */
-    XALIGNED(SP_WORD_SIZEOF) sp_int_digit dp[SP_INT_DIGITS];
+    XALIGNED(SP_WORD_OCTETS) sp_int_digit dp[SP_INT_DIGITS];
 } sp_int;
 
 typedef struct sp_int_minimal {
@@ -1027,7 +1046,7 @@ typedef struct sp_int_minimal {
     struct WC_BIGINT raw;
 #endif
     /** First digit of number.  */
-    XALIGNED(SP_WORD_SIZEOF) sp_int_digit dp[1];
+    XALIGNED(SP_WORD_OCTETS) sp_int_digit dp[1];
 } sp_int_minimal;
 
 /* MP_INT_SIZEOF_DIGITS() requires that sizeof(sp_int) is a multiple of

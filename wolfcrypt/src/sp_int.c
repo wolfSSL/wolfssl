@@ -5565,7 +5565,7 @@ void sp_clear(sp_int* a)
     /* Zeroize when a valid pointer passed in. */
     if (a != NULL) {
         /* ForceZero so that the stores are not removed as dead. */
-        ForceZero(a->dp, a->size * (word32)SP_WORD_SIZEOF);
+        ForceZero(a->dp, a->size * (word32)sizeof(sp_int_digit));
     #ifdef HAVE_WOLF_BIGINT
         /* Zeroize the raw data as well. */
         wc_bigint_zero(&a->raw);
@@ -5606,7 +5606,7 @@ static void _sp_copy(const sp_int* a, sp_int* r)
         r->dp[0] = 0;
     }
     else {
-        XMEMCPY(r->dp, a->dp, a->used * (word32)SP_WORD_SIZEOF);
+        XMEMCPY(r->dp, a->dp, a->used * (word32)sizeof(sp_int_digit));
     }
     /* Set number of used words in result. */
     r->used = a->used;/* // NOLINT(clang-analyzer-core.uninitialized.Assign) */
@@ -6366,7 +6366,7 @@ int sp_set_bit(sp_int* a, int i)
      * check below rather than wrapping. */
     int wi = (i < 0) ? 0 : (i >> SP_WORD_SHIFT);
 
-#if SP_INT_DIGITS < (65536 / SP_WORD_SIZEOF)
+#if SP_INT_DIGITS < (65536 / SP_WORD_OCTETS)
     /* Check bit index isn't bigger than maximum allowed. */
     if (i > SP_INT_DIGITS * SP_WORD_SIZE) {
         err = MP_VAL;
@@ -8732,9 +8732,9 @@ int sp_lshd(sp_int* a, int s)
     }
     if (err == MP_OKAY) {
         /* Move up digits. */
-        XMEMMOVE(a->dp + s, a->dp, a->used * (word32)SP_WORD_SIZEOF);
+        XMEMMOVE(a->dp + s, a->dp, a->used * (word32)sizeof(sp_int_digit));
         /* Back fill with zeros. */
-        XMEMSET(a->dp, 0, (size_t)s * SP_WORD_SIZEOF);
+        XMEMSET(a->dp, 0, (size_t)s * sizeof(sp_int_digit));
         /* Update used. */
         a->used = (sp_size_t)(a->used + s);
         /* Remove leading zeros. */
@@ -8800,13 +8800,14 @@ static int sp_lshb(sp_int* a, int n)
             /* Only digits to move and ensure not zero. */
             else if (s > 0) {
                 /* Move up digits. */
-                XMEMMOVE(a->dp + s, a->dp, a->used * (word32)SP_WORD_SIZEOF);
+                XMEMMOVE(a->dp + s, a->dp,
+                    a->used * (word32)sizeof(sp_int_digit));
             }
 
             /* Update used digit count. */
             a->used = (sp_size_t)(a->used + s);
             /* Back fill with zeros. */
-            XMEMSET(a->dp, 0, (word32)SP_WORD_SIZEOF * s);
+            XMEMSET(a->dp, 0, (word32)sizeof(sp_int_digit) * s);
         }
     }
 
@@ -8884,10 +8885,12 @@ int sp_rshb(const sp_int* a, int n, sp_int* r)
             r->used = (sp_size_t)(a->used - i);
             /* Move digits down. */
             if (r == a) {
-                XMEMMOVE(r->dp, r->dp + i, (word32)SP_WORD_SIZEOF * r->used);
+                XMEMMOVE(r->dp, r->dp + i,
+                    (word32)sizeof(sp_int_digit) * r->used);
             }
             else {
-                XMEMCPY(r->dp, a->dp + i, (word32)SP_WORD_SIZEOF * r->used);
+                XMEMCPY(r->dp, a->dp + i,
+                    (word32)sizeof(sp_int_digit) * r->used);
             }
         }
         else {
@@ -9696,7 +9699,8 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
     #endif
         for (k = 1; (int)k <= ((int)a->used - 1) + ((int)b->used - 1); k++) {
             i = (sp_size_t)(k - (b->used - 1));
-            i &= (sp_size_t)(((unsigned int)i >> (sizeof(i) * 8 - 1)) - 1U);
+            i &= (sp_size_t)(((unsigned int)i >>
+                (CHAR_BIT * sizeof(i) - 1)) - 1U);
             j = (int)(k - i);
             for (; (i < a->used) && (j >= 0); i++, j--) {
                 w = (sp_int_word)a->dp[i] * b->dp[j];
@@ -15446,7 +15450,7 @@ int sp_mod_2d(const sp_int* a, int e, sp_int* r)
         /* Copy a into r if not same pointer. */
         if (a != r) {
             sp_size_t cnt = (a->used < digits) ? a->used : digits;
-            XMEMCPY(r->dp, a->dp, cnt * (word32)SP_WORD_SIZEOF);
+            XMEMCPY(r->dp, a->dp, cnt * (word32)sizeof(sp_int_digit));
             r->used = a->used;
         #ifdef WOLFSSL_SP_INT_NEGATIVE
             r->sign = a->sign;
@@ -18885,7 +18889,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     }
 
     /* Check a has enough space for number. */
-    if ((err == MP_OKAY) && (inSz > (word32)a->size * SP_WORD_SIZEOF)) {
+    if ((err == MP_OKAY) && (inSz > (word32)a->size * SP_WORD_OCTETS)) {
         err = MP_VAL;
     }
 
@@ -18894,18 +18898,18 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
         int i;
         int j = 0;
 
-        a->used = (sp_size_t)((inSz + SP_WORD_SIZEOF - 1) / SP_WORD_SIZEOF);
+        a->used = (sp_size_t)((inSz + SP_WORD_OCTETS - 1) / SP_WORD_OCTETS);
 
     #if defined(BIG_ENDIAN_ORDER) && !defined(WOLFSSL_SP_INT_DIGIT_ALIGN)
         /* Data endian matches representation of number.
          * Directly copy if we don't have alignment issues.
          */
-        for (i = (int)(inSz-1); i > SP_WORD_SIZEOF-1; i -= SP_WORD_SIZEOF) {
-            a->dp[j++] = *(sp_int_digit*)(in + i - (SP_WORD_SIZEOF - 1));
+        for (i = (int)(inSz-1); i > SP_WORD_OCTETS-1; i -= SP_WORD_OCTETS) {
+            a->dp[j++] = *(sp_int_digit*)(in + i - (SP_WORD_OCTETS - 1));
         }
     #else
         /* Construct digit from required number of bytes. */
-        for (i = (int)(inSz-1); i >= SP_WORD_SIZEOF - 1; i -= SP_WORD_SIZEOF) {
+        for (i = (int)(inSz-1); i >= SP_WORD_OCTETS - 1; i -= SP_WORD_OCTETS) {
             a->dp[j]  = ((sp_int_digit)in[i - 0] <<  0)
         #if SP_WORD_SIZE >= 16
                       | ((sp_int_digit)in[i - 1] <<  8)
@@ -19020,7 +19024,7 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
                 sp_int_digit d = a->dp[i];
                 /* Place each byte of a digit into the buffer. */
                 for (b = 0; b < SP_WORD_SIZE; b += 8) {
-                    out[j--] = (byte)d;
+                    out[j--] = WC_OCTET(d);
                     d >>= 8;
                     /* Stop if the output buffer is filled. */
                     if (j < 0) {
@@ -19102,8 +19106,8 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
 
             d = a->dp[idx];
             /* Place each byte of a digit into the buffer. */
-            for (b = 0; (j >= 0) && (b < SP_WORD_SIZEOF); b++) {
-                out[j--] = (byte)(d & mask);
+            for (b = 0; (j >= 0) && (b < SP_WORD_OCTETS); b++) {
+                out[j--] = WC_OCTET(d & mask);
                 d >>= 8;
             }
         }
@@ -19761,7 +19765,7 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
         }
 
         /* Get number of digits required to handle required number of bytes. */
-        digits = ((unsigned int)len + SP_WORD_SIZEOF - 1) / SP_WORD_SIZEOF;
+        digits = ((unsigned int)len + SP_WORD_OCTETS - 1) / SP_WORD_OCTETS;
         /* Ensure result has space. */
         if (r->size < digits) {
             err = MP_VAL;
