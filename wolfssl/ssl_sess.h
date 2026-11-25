@@ -166,7 +166,7 @@
     #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
     /* for persistence, if changes to layout need to increment and modify
        save_session_cache() and restore_session_cache and memory versions too */
-    #define WOLFSSL_CACHE_VERSION 4
+    #define WOLFSSL_CACHE_VERSION 5
 
     #ifndef NO_CLIENT_CACHE
         #define CACHE_HEADER_CLIENT_ROWS    CLIENT_SESSION_ROWS
@@ -184,11 +184,13 @@
         int sessionSz;     /* sizeof WOLFSSL_SESSION */
         int clientRows;    /* client cache rows, 0 when compiled out */
         int clientColumns; /* client cache columns, 0 when compiled out */
+        byte hashKey[SESSION_CACHE_HASH_KEY_SZ]; /* key the rows were hashed
+                                                  * with, all zero if none */
     } cache_header_t;
 
     /* current persistence layout is:
 
-       1) cache_header_t
+       1) cache_header_t, with the key the rows were hashed with
        2) SessionCache
        3) ClientCache
 

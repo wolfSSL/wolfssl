@@ -166,6 +166,9 @@
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#ifdef WC_HASH_OBJECT_SIPHASH
+    #include <wolfssl/wolfcrypt/siphash.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -628,6 +631,113 @@ void wolfssl_priv_der_unblind_free(DerBuffer* key)
     }
 #endif /* WOLFSSL_TLS13*/
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK*/
+
+#if !defined(NO_HASH_WRAPPER) && \
+    (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
+
+#ifndef NO_SESSION_CACHE
+/* Starts as the process key. */
+WC_THREADSHARED byte sessionCacheHashKey[SESSION_CACHE_HASH_KEY_SZ];
+#endif
+
+#ifdef WC_HASH_OBJECT_SIPHASH
+/* One key for the process. Set in wolfSSL_Init(). */
+static WC_THREADSHARED byte hashObjectKey[SIPHASH_KEY_SIZE];
+#ifndef NO_SESSION_CACHE
+wc_static_assert(SESSION_CACHE_HASH_KEY_SZ == SIPHASH_KEY_SIZE);
+#endif
+
+/* Make the HashObject() and session cache key. rng may be NULL. The keys
+ * are only written on success. */
+int HashObjectKeyInit(WC_RNG* rng)
+{
+    int  ret = 0;
+    int  tmpRngInit = 0;
+    byte tmp[SIPHASH_KEY_SIZE];
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, NULL);
+
+    if (rng == NULL) {
+        WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+            return MEMORY_E);
+        ret = wc_InitRng(tmpRng);
+        if (ret == 0) {
+            tmpRngInit = 1;
+            rng = tmpRng;
+        }
+    }
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(rng, tmp, (word32)sizeof(tmp));
+    if (ret == 0) {
+        XMEMCPY(hashObjectKey, tmp, sizeof(tmp));
+    #ifndef NO_SESSION_CACHE
+        XMEMCPY(sessionCacheHashKey, tmp, sizeof(tmp));
+    #endif
+    }
+    ForceZero(tmp, sizeof(tmp));
+    if (tmpRngInit)
+        wc_FreeRng(tmpRng);
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
+
+    return ret;
+}
+
+void HashObjectKeyFree(void)
+{
+#ifndef NO_SESSION_CACHE
+    ForceZero(sessionCacheHashKey, sizeof(sessionCacheHashKey));
+#endif
+    ForceZero(hashObjectKey, sizeof(hashObjectKey));
+}
+#endif /* WC_HASH_OBJECT_SIPHASH */
+
+/* key is only used with SipHash. */
+static word32 HashObjectKeyed(const byte* key, const byte* o, word32 len,
+    int* error)
+{
+#ifdef WC_HASH_OBJECT_SIPHASH
+    byte digest[SIPHASH_MAC_SIZE_8];
+
+    *error = wc_SipHash(key, o, len, digest, SIPHASH_MAC_SIZE_8);
+#else
+    byte digest[WC_MAX_DIGEST_SIZE];
+
+    (void)key;
+#ifndef NO_MD5
+    *error =  wc_Md5Hash(o, len, digest);
+#elif !defined(NO_SHA)
+    *error =  wc_ShaHash(o, len, digest);
+#elif !defined(NO_SHA256)
+    *error =  wc_Sha256Hash(o, len, digest);
+#else
+    #error "We need a digest to hash the session IDs"
+#endif
+#endif /* WC_HASH_OBJECT_SIPHASH */
+
+    return *error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
+}
+
+/* some session IDs aren't random after all, let's make them random */
+word32 HashObject(const byte* o, word32 len, int* error)
+{
+#ifdef WC_HASH_OBJECT_SIPHASH
+    return HashObjectKeyed(hashObjectKey, o, len, error);
+#else
+    return HashObjectKeyed(NULL, o, len, error);
+#endif
+}
+
+#ifndef NO_SESSION_CACHE
+/* Hash an ID to pick a session cache row. */
+word32 SessionCacheHash(const byte* id, word32 len, int* error)
+{
+#ifdef WC_HASH_OBJECT_SIPHASH
+    return HashObjectKeyed(sessionCacheHashKey, id, len, error);
+#else
+    return HashObjectKeyed(NULL, id, len, error);
+#endif
+}
+#endif /* !NO_SESSION_CACHE */
+#endif /* !NO_HASH_WRAPPER && (!NO_SESSION_CACHE || HAVE_SESSION_TICKET) */
 
 int IsTLS(const WOLFSSL* ssl)
 {

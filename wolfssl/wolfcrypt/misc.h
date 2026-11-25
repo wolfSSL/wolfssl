@@ -174,7 +174,6 @@ WOLFSSL_LOCAL void ctMaskCopy(byte mask, byte* dst, byte* src, word16 size);
 WOLFSSL_LOCAL void* ctMaskSelPtr(byte mask, void* a, void* b);
 #endif
 WOLFSSL_LOCAL word32 MakeWordFromHash(const byte* hashID);
-WOLFSSL_LOCAL word32 HashObject(const byte* o, word32 len, int* error);
 WOLFSSL_LOCAL char* CopyString(const char* src, int srcLen, void* heap,
         int type);
 

@@ -5326,7 +5326,7 @@ static int test_tls12_cache_row_conn(WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s,
 #endif
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     if (EXPECT_SUCCESS()) {
-        *row = HashObject(ssl_s->session->sessionID, ID_LEN, &error) %
+        *row = SessionCacheHash(ssl_s->session->sessionID, ID_LEN, &error) %
             SESSION_ROWS;
         ExpectIntEQ(error, 0);
     }

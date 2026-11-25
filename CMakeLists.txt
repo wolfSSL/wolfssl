@@ -2045,8 +2045,8 @@ endif()
 
 # SipHash
 add_option("WOLFSSL_SIPHASH"
-    "Enable SipHash (default: disabled)"
-    "no" "yes;no")
+    "Enable SipHash (default: enabled)"
+    "yes" "yes;no")
 
 if(WOLFSSL_SIPHASH)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SIPHASH")

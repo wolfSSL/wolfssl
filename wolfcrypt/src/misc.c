@@ -1536,32 +1536,6 @@ WC_MISC_STATIC WC_INLINE word32 MakeWordFromHash(const byte* hashID)
 #endif /* HAVE_SESSION_TICKET || !NO_CERTS || !NO_SESSION_CACHE */
 
 
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_HASH_WRAPPER) && \
-    (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
-
-#include <wolfssl/wolfcrypt/hash.h>
-
-/* some session IDs aren't random after all, let's make them random */
-WC_MISC_STATIC WC_INLINE word32 HashObject(const byte* o, word32 len,
-                                           int* error)
-{
-    byte digest[WC_MAX_DIGEST_SIZE];
-
-#ifndef NO_MD5
-    *error =  wc_Md5Hash(o, len, digest);
-#elif !defined(NO_SHA)
-    *error =  wc_ShaHash(o, len, digest);
-#elif !defined(NO_SHA256)
-    *error =  wc_Sha256Hash(o, len, digest);
-#else
-    #error "We need a digest to hash the session IDs"
-#endif
-
-    return *error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
-}
-#endif /* WOLFCRYPT_ONLY && !NO_HASH_WRAPPER &&
-        * (!NO_SESSION_CACHE || HAVE_SESSION_TICKET) */
-
 WC_MISC_STATIC WC_INLINE char* CopyString(const char* src, int srcLen,
         void* heap, int type) {
     char* dst = NULL;

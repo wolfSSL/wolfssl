@@ -7636,10 +7636,17 @@ fi
 
 
 # SipHash
+# HashObject() uses it as a fast hash. Not a FIPS algorithm.
+if test "$ENABLED_FIPS" != "no" || test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_16BIT" = "yes"
+then
+    SIPHASH_DEFAULT=no
+else
+    SIPHASH_DEFAULT=yes
+fi
 AC_ARG_ENABLE([siphash],
-    [AS_HELP_STRING([--enable-siphash],[Enable SipHash (default: disabled)])],
+    [AS_HELP_STRING([--enable-siphash],[Enable SipHash (default: enabled)])],
     [ ENABLED_SIPHASH=$enableval ],
-    [ ENABLED_SIPHASH=no ]
+    [ ENABLED_SIPHASH=$SIPHASH_DEFAULT ]
     )
 
 AS_IF([test "x$ENABLED_SIPHASH" = "xyes"],

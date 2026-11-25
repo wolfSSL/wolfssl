@@ -293,6 +293,26 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
  * cache.
  */
 #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
+/* The rows follow the header in a saved cache and are read in place. */
+wc_static_assert((sizeof(cache_header_t) % 8) == 0);
+
+/* Rows hashed with a key only restore into a build that hashes with one, and
+ * rows hashed without only into a build that does not. An all zero key
+ * means no key. */
+static int SessionCacheKeyUsable(const byte* key)
+{
+    byte acc = 0;
+    int  i;
+
+    for (i = 0; i < SESSION_CACHE_HASH_KEY_SZ; i++)
+        acc |= key[i];
+#ifdef WC_HASH_OBJECT_SIPHASH
+    return acc != 0;
+#else
+    return acc == 0;
+#endif
+}
+
 /* get how big the the session cache save buffer needs to be */
 int wolfSSL_get_session_cache_memsize(void)
 {
@@ -330,6 +350,8 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
     cache_header.sessionSz = (int)sizeof(WOLFSSL_SESSION);
     cache_header.clientRows    = CACHE_HEADER_CLIENT_ROWS;
     cache_header.clientColumns = CACHE_HEADER_CLIENT_COLUMNS;
+    XMEMCPY(cache_header.hashKey, sessionCacheHashKey,
+        sizeof(sessionCacheHashKey));
     XMEMCPY(mem, &cache_header, sizeof(cache_header));
 
     #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
@@ -558,7 +580,8 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         cache_header.columns   != SESSIONS_PER_ROW ||
         cache_header.sessionSz != (int)sizeof(WOLFSSL_SESSION) ||
         cache_header.clientRows    != CACHE_HEADER_CLIENT_ROWS ||
-        cache_header.clientColumns != CACHE_HEADER_CLIENT_COLUMNS) {
+        cache_header.clientColumns != CACHE_HEADER_CLIENT_COLUMNS ||
+        !SessionCacheKeyUsable(cache_header.hashKey)) {
 
         WOLFSSL_MSG("Session cache header match failed");
         return CACHE_MATCH_ERROR;
@@ -570,6 +593,9 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         return BAD_MUTEX_E;
     }
     #endif
+    /* The rows were placed with this key. */
+    XMEMCPY(sessionCacheHashKey, cache_header.hashKey,
+        sizeof(sessionCacheHashKey));
     for (i = 0; i < cache_header.rows; ++i) {
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         if (SESSION_ROW_WR_LOCK(&SessionCache[i]) != 0) {
@@ -648,6 +674,8 @@ int wolfSSL_save_session_cache(const char *fname)
     cache_header.sessionSz = (int)sizeof(WOLFSSL_SESSION);
     cache_header.clientRows    = CACHE_HEADER_CLIENT_ROWS;
     cache_header.clientColumns = CACHE_HEADER_CLIENT_COLUMNS;
+    XMEMCPY(cache_header.hashKey, sessionCacheHashKey,
+        sizeof(sessionCacheHashKey));
 
     /* cache header */
     ret = (int)XFWRITE(&cache_header, sizeof cache_header, 1, file);
@@ -740,7 +768,8 @@ int wolfSSL_restore_session_cache(const char *fname)
         cache_header.columns   != SESSIONS_PER_ROW ||
         cache_header.sessionSz != (int)sizeof(WOLFSSL_SESSION) ||
         cache_header.clientRows    != CACHE_HEADER_CLIENT_ROWS ||
-        cache_header.clientColumns != CACHE_HEADER_CLIENT_COLUMNS) {
+        cache_header.clientColumns != CACHE_HEADER_CLIENT_COLUMNS ||
+        !SessionCacheKeyUsable(cache_header.hashKey)) {
 
         WOLFSSL_MSG_EX("Session cache header match failed: %s", fname);
         XFCLOSE(file);
@@ -754,6 +783,9 @@ int wolfSSL_restore_session_cache(const char *fname)
         return BAD_MUTEX_E;
     }
     #endif
+    /* The rows were placed with this key. */
+    XMEMCPY(sessionCacheHashKey, cache_header.hashKey,
+        sizeof(sessionCacheHashKey));
     /* session cache */
     for (i = 0; i < cache_header.rows; ++i) {
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
@@ -1066,7 +1098,7 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     /* Do not access ssl->ctx->get_sess_cb from here. It is using a different
      * set of ID's */
 
-    row = HashObject(id, (word32)len, &error) % CLIENT_SESSION_ROWS;
+    row = SessionCacheHash(id, (word32)len, &error) % CLIENT_SESSION_ROWS;
     if (error != 0) {
         WOLFSSL_MSG("Hash session failed");
         return NULL;
@@ -1188,7 +1220,7 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
  * a row. */
 static word32 SessionCacheRow(const byte* id, int side, int* error)
 {
-    word32 row = HashObject(id, ID_LEN, error) % SESSION_ROWS;
+    word32 row = SessionCacheHash(id, ID_LEN, error) % SESSION_ROWS;
 
     if (side == WOLFSSL_CLIENT_END)
         row = (row + 1) % SESSION_ROWS;
@@ -1781,11 +1813,11 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx,
         WOLFSSL_MSG("Trying to add client cache entry");
 
         if (idLen) {
-            clientRow = HashObject(serverID,
+            clientRow = SessionCacheHash(serverID,
                     idLen, &error) % CLIENT_SESSION_ROWS;
         }
         else if (serverID != NULL) {
-            clientRow = HashObject(sessionID,
+            clientRow = SessionCacheHash(sessionID,
                     ID_LEN, &error) % CLIENT_SESSION_ROWS;
         }
         else {
@@ -1800,7 +1832,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx,
                                                                 (word16)idx;
                 ClientCache[clientRow].Clients[clientIdx].cacheGen = cacheGen;
                 if (sessionID != NULL) {
-                    word32 sessionIDHash = HashObject(sessionID, ID_LEN,
+                    word32 sessionIDHash = SessionCacheHash(sessionID, ID_LEN,
                                                       &error);
                     if (error == 0) {
                         ClientCache[clientRow].Clients[clientIdx].sessionIDHash
@@ -1901,7 +1933,7 @@ static WOLFSSL_SESSION* ClientSessionToSessionRdLocked(
         }
         if (error == 0) {
             /* Calculate the hash of the session ID */
-            sessionIDHash = HashObject(cacheSession->sessionID, ID_LEN,
+            sessionIDHash = SessionCacheHash(cacheSession->sessionID, ID_LEN,
                     &error);
         }
         if (error == 0) {

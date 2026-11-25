@@ -31,6 +31,9 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
+#ifdef WC_HASH_OBJECT_SIPHASH
+    #include <wolfssl/wolfcrypt/siphash.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/utils.h>
 #include <tests/api/test_session.h>
@@ -2376,6 +2379,206 @@ int test_wolfSSL_session_cache_client_geometry(void)
     ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, sz), CACHE_MATCH_ERROR);
 
     XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* HashObject() is SipHash under the key made in wolfSSL_Init(), or the front
+ * of the digest when SipHash is not used. */
+int test_HashObject(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_HASH_WRAPPER) && \
+    (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
+#ifdef WC_HASH_OBJECT_SIPHASH
+    static const byte zeroKey[SIPHASH_KEY_SIZE] = { 0 };
+    int    same = 0;
+#endif
+    byte   digest[WC_MAX_DIGEST_SIZE];
+    byte   in[ID_LEN];
+    word32 h = 0;
+    int    error = -1;
+    int    i;
+
+    for (i = 0; i < (int)sizeof(in); i++)
+        in[i] = (byte)i;
+    XMEMSET(digest, 0, sizeof(digest));
+
+#ifdef WC_HASH_OBJECT_SIPHASH
+    /* The key is not the all zero one it starts as: eight inputs do not all
+     * hash as they would under it. */
+    for (i = 0; i < 8; i++) {
+        in[0] = (byte)i;
+        ExpectIntEQ(wc_SipHash(zeroKey, in, sizeof(in), digest,
+            SIPHASH_MAC_SIZE_8), 0);
+        h = HashObject(in, sizeof(in), &error);
+        ExpectIntEQ(error, 0);
+        same += (h == MakeWordFromHash(digest));
+    }
+    ExpectIntLT(same, 8);
+    in[0] = 0;
+#else
+    #if !defined(NO_MD5)
+    ExpectIntEQ(wc_Md5Hash(in, sizeof(in), digest), 0);
+    #elif !defined(NO_SHA)
+    ExpectIntEQ(wc_ShaHash(in, sizeof(in), digest), 0);
+    #else
+    ExpectIntEQ(wc_Sha256Hash(in, sizeof(in), digest), 0);
+    #endif
+    ExpectIntEQ(HashObject(in, sizeof(in), &error), MakeWordFromHash(digest));
+    ExpectIntEQ(error, 0);
+#endif
+
+    /* Same input, same value. Every byte and the length matter. */
+    h = HashObject(in, sizeof(in), &error);
+    ExpectIntEQ(error, 0);
+    ExpectIntEQ(HashObject(in, sizeof(in), &error), h);
+    ExpectIntEQ(error, 0);
+    ExpectIntNE(HashObject(in, sizeof(in) - 1, &error), h);
+    ExpectIntEQ(error, 0);
+    in[sizeof(in) - 1] ^= 0x01;
+    ExpectIntNE(HashObject(in, sizeof(in), &error), h);
+    ExpectIntEQ(error, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+#include <wolfssl/ssl_sess.h>
+
+/* Cache a session under id and return its row, -1 when not reported. */
+static int test_session_cache_row_add(WOLFSSL* ssl, const byte* id, int* row)
+{
+    EXPECT_DECLS;
+    WOLFSSL_SESSION* sess = NULL;
+    int idx = -1;
+
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(sess->sessionID, id, ID_LEN);
+        sess->sessionIDSz = ID_LEN;
+        sess->side = WOLFSSL_CLIENT_END;
+        sess->version = ssl->version;
+        /* Does not expire, whatever LowResTimer() counts from. */
+        sess->bornOn = 0;
+        sess->timeout = 0xFFFFFFFFU;
+        sess->isSetup = 1;
+    }
+    ExpectIntEQ(AddSessionToCache(ssl->ctx, sess, id, ID_LEN, &idx,
+        WOLFSSL_CLIENT_END, 0, NULL), 0);
+#ifdef SESSION_INDEX
+    ExpectIntGE(idx, 0);
+    *row = idx >> SESSIDX_ROW_SHIFT;
+#else
+    *row = -1;
+#endif
+    wolfSSL_SESSION_free(sess);
+
+    return EXPECT_RESULT();
+}
+
+/* Look id up in the session cache through ssl. */
+static int test_session_cache_row_find(WOLFSSL* ssl, const byte* id)
+{
+    WOLFSSL_SESSION* out = wolfSSL_SESSION_new();
+    int found = 0;
+
+    if (out != NULL) {
+        XMEMCPY(ssl->session->altSessionID, id, ID_LEN);
+        ssl->session->haveAltSessionID = 1;
+        found = (wolfSSL_GetSessionFromCache(ssl, out) == WOLFSSL_SUCCESS) &&
+            (out->sessionIDSz == ID_LEN) &&
+            (XMEMCMP(out->sessionID, id, ID_LEN) == 0);
+        wolfSSL_SESSION_free(out);
+    }
+    return found;
+}
+#endif
+
+/* A cached session is found again under its ID, in the row SessionCacheHash()
+ * picks. A restore brings back the key the saved rows were hashed with. */
+int test_wolfSSL_session_cache_row(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte id[ID_LEN];
+    int row = -1;
+#ifdef SESSION_INDEX
+    int legacy = 0;
+    int same = 0;
+    int error = 0;
+#endif
+    int i;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    for (i = 0; i < 64 && EXPECT_SUCCESS(); i++) {
+        XMEMSET(id, i + 1, sizeof(id));
+        ExpectIntEQ(test_session_cache_row_add(ssl, id, &row), TEST_SUCCESS);
+        ExpectIntEQ(test_session_cache_row_find(ssl, id), 1);
+#ifdef SESSION_INDEX
+        /* Client entries sit one row after the hash row. */
+        legacy = (int)((SessionCacheHash(id, ID_LEN, &error) % SESSION_ROWS +
+            1) % SESSION_ROWS);
+        ExpectIntEQ(error, 0);
+        same += (row == legacy);
+#endif
+        /* Never cached */
+        id[0] ^= 0x80;
+        ExpectIntEQ(test_session_cache_row_find(ssl, id), 0);
+    }
+#ifdef SESSION_INDEX
+    ExpectIntEQ(same, 64);
+#endif
+    (void)row;
+
+#if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
+    {
+        byte* mem = NULL;
+        int   sz = 0;
+
+        byte  savedKey[SESSION_CACHE_HASH_KEY_SZ];
+
+        /* Entries are still found after a save and restore, also when the
+         * restoring process has another key, as a new process would. */
+        ExpectIntGT(sz = wolfSSL_get_session_cache_memsize(), 0);
+        ExpectNotNull(mem = (byte*)XMALLOC((size_t)sz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntEQ(wolfSSL_memsave_session_cache(mem, sz), WOLFSSL_SUCCESS);
+        XMEMCPY(savedKey, sessionCacheHashKey, sizeof(savedKey));
+        XMEMSET(sessionCacheHashKey, 0xA5, sizeof(sessionCacheHashKey));
+        ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, sz),
+            WOLFSSL_SUCCESS);
+        ExpectBufEQ(sessionCacheHashKey, savedKey, sizeof(savedKey));
+
+        /* A cache saved without a key does not restore where rows are hashed
+         * with one, and the other way round. */
+        if (mem != NULL) {
+        #ifdef WC_HASH_OBJECT_SIPHASH
+            XMEMSET(((cache_header_t*)mem)->hashKey, 0,
+                SESSION_CACHE_HASH_KEY_SZ);
+        #else
+            XMEMSET(((cache_header_t*)mem)->hashKey, 0xA5,
+                SESSION_CACHE_HASH_KEY_SZ);
+        #endif
+        }
+        ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, sz),
+            WC_NO_ERR_TRACE(CACHE_MATCH_ERROR));
+        for (i = 61; i < 64; i++) {
+            XMEMSET(id, i + 1, sizeof(id));
+            ExpectIntEQ(test_session_cache_row_find(ssl, id), 1);
+        }
+        XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

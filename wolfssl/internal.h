@@ -8253,6 +8253,26 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
+#if !defined(NO_HASH_WRAPPER) && \
+    (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
+/* HashObject() is SipHash under a random key made in wolfSSL_Init(). */
+#if defined(WOLFSSL_SIPHASH) && !defined(WC_NO_RNG)
+    #define WC_HASH_OBJECT_SIPHASH
+    WOLFSSL_LOCAL int  HashObjectKeyInit(WC_RNG* rng);
+    WOLFSSL_LOCAL void HashObjectKeyFree(void);
+#endif
+WOLFSSL_TEST_VIS word32 HashObject(const byte* o, word32 len, int* error);
+#ifndef NO_SESSION_CACHE
+/* The session cache hashes with a key of its own, which is saved and restored
+ * with the cache. All zero when the hash has no key. A restore replaces it
+ * and must not run while another thread uses the cache. */
+#define SESSION_CACHE_HASH_KEY_SZ 16
+WOLFSSL_TEST_VIS extern byte sessionCacheHashKey[SESSION_CACHE_HASH_KEY_SZ];
+WOLFSSL_TEST_VIS word32 SessionCacheHash(const byte* id, word32 len,
+    int* error);
+#endif
+#endif
+
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
 WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 

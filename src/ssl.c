@@ -2565,6 +2565,21 @@ int wolfSSL_Init(void)
         }
 #endif
 
+#ifdef WC_HASH_OBJECT_SIPHASH
+        if (ret == WOLFSSL_SUCCESS) {
+            WC_RNG* keyRng = NULL;
+        #if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
+            /* Seeded just above, so no second RNG is needed. */
+            if (initGlobalRNG)
+                keyRng = &globalRNG;
+        #endif
+            if (HashObjectKeyInit(keyRng) != 0) {
+                WOLFSSL_MSG("HashObject key failed");
+                ret = WC_INIT_E;
+            }
+        }
+#endif
+
 #ifndef NO_SESSION_CACHE
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         for (i = 0; i < SESSION_ROWS; ++i) {
@@ -3752,6 +3767,10 @@ int wolfSSL_Cleanup(void)
 
 #ifdef OPENSSL_EXTRA
     wolfSSL_BN_free_one();
+#endif
+
+#ifdef WC_HASH_OBJECT_SIPHASH
+    HashObjectKeyFree();
 #endif
 
 #ifndef NO_SESSION_CACHE
