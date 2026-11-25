@@ -24805,12 +24805,12 @@ static void sp_256_tiny_hash_8(sp_uint32* e, const byte* hash, word32 hashLen)
 
 #ifdef HAVE_ECC_DHE
 /* Write r as 32 big-endian bytes. */
-static void sp_256_to_bin_8(const sp_uint32* r, byte* a)
+static void sp_256_tiny_to_bin_8(const sp_uint32* r, byte* a)
 {
     int i;
 
     for (i = 0; i < 32; i++) {
-        a[31 - i] = (byte)(r[i / 4] >> (8 * (i % 4)));
+        a[31 - i] = (byte)((r[i / 4] >> (8 * (i % 4))) & 0xFF);
     }
 }
 #endif
@@ -25193,7 +25193,7 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
         }
     }
     if (err == MP_OKAY) {
-        sp_256_to_bin_8(P256_TINY_RX(t), out);
+        sp_256_tiny_to_bin_8(P256_TINY_RX(t), out);
         *outLen = 32;
     }
 
