@@ -38451,7 +38451,9 @@ static int IsTls13CipherSuite(byte first, byte second)
         /* RFC 9146 Sect. 3: the CID is only in use when the peer answered with
          * its own connection_id. Drop the state otherwise, or the record layer
          * keeps framing and authenticating receives as if a CID were there.
-         * The DTLS 1.3 client does this in DoTls13ServerHello(). */
+         * The DTLS 1.3 client does this in DoTls13ServerHello(), but a 1.3
+         * client downgraded to 1.2 gets here, since its extensions are only
+         * parsed in this function. */
         if (ssl->options.dtls && ssl->options.useDtlsCID)
             DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */
