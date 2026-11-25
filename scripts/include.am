@@ -90,6 +90,9 @@ endif
 if BUILD_TLS13
 dist_noinst_SCRIPTS+= scripts/tls13.test
 endif
+if BUILD_RSA
+dist_noinst_SCRIPTS+= scripts/rsapss.test
+endif
 
 endif # end of BUILD_EXAMPLE_SERVERS
 
@@ -160,7 +163,6 @@ EXTRA_DIST +=  scripts/sniffer-static-rsa.pcap \
 
 # leave openssl.test as extra until non bash works
 EXTRA_DIST +=  scripts/openssl.test
-EXTRA_DIST +=  scripts/rsapss.test
 
 EXTRA_DIST +=  scripts/dertoc.pl
 
