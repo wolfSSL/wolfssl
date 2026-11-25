@@ -189,6 +189,9 @@ struct WOLFSSL_EC_KEY {
     WC_BITFIELD exSet:1;                /* external set from internal ? */
 
     wolfSSL_Ref ref;             /* Reference count information. */
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex opLock;        /* Held while an operation runs. */
+#endif
 };
 
 struct WOLFSSL_EC_BUILTIN_CURVE {

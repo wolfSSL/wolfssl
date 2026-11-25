@@ -2795,11 +2795,80 @@ int wolfSSL_EVP_PKEY_CTX_ctrl_str(WOLFSSL_EVP_PKEY_CTX *ctx,
 }
 #endif /* NO_WOLFSSL_STUB */
 
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+/* ECDH with the EC key of ctx. The key is locked by the caller.
+ *
+ * @param [in]  ctx     Derive context.
+ * @param [out] key     Buffer for the secret. NULL to only get the length.
+ * @param [in]  keylen  Length of key buffer in bytes.
+ * @param [out] outLen  Length of the secret in bytes.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE on failure.
+ */
+static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
+    size_t keylen, int *outLen)
+{
+    int len;
+
+    if (!(len = wc_ecc_size((ecc_key*)ctx->pkey->ecc->internal))) {
+        return WOLFSSL_FAILURE;
+    }
+    if (key) {
+        word32 len32 = (word32)len;
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+
+        WC_RNG rng;
+        if (wc_InitRng(&rng) != MP_OKAY) {
+            WOLFSSL_MSG("Init RNG failed");
+            return WOLFSSL_FAILURE;
+        }
+        ((ecc_key*)ctx->pkey->ecc->internal)->rng = &rng;
+#endif
+        if (keylen < len32) {
+            WOLFSSL_MSG("buffer too short");
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+            ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
+            wc_FreeRng(&rng);
+#endif
+            return WOLFSSL_FAILURE;
+        }
+        if (wc_ecc_shared_secret((ecc_key*)ctx->pkey->ecc->internal,
+                (ecc_key*)ctx->peerKey->ecc->internal, key, &len32)
+                != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_shared_secret failed");
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+            ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
+            wc_FreeRng(&rng);
+#endif
+            return WOLFSSL_FAILURE;
+        }
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+        ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
+        wc_FreeRng(&rng);
+#endif
+        len = (int)len32;
+    }
+    *outLen = len;
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 #if (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || defined(HAVE_ECC) || \
     defined(HAVE_HKDF) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
     int len;
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    int ecdhRet;
+#endif
 #ifdef HAVE_HKDF
     enum wc_HashType hkdfHashType;
 #endif
@@ -2819,12 +2888,11 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
             return WOLFSSL_FAILURE;
         }
         /* set internal peer key if not done */
-        if (!ctx->peerKey->dh->inSet) {
-            if (SetDhInternal(ctx->peerKey->dh) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("SetDhInternal failed");
-                return WOLFSSL_FAILURE;
-            }
+        if (!wolfssl_local_dh_lock(ctx->peerKey->dh)) {
+            WOLFSSL_MSG("SetDhInternal failed");
+            return WOLFSSL_FAILURE;
         }
+        wolfssl_local_dh_unlock(ctx->peerKey->dh);
         if (!ctx->peerKey->dh->pub_key) {
             WOLFSSL_MSG("SetDhInternal failed, pub_key is NULL");
             return WOLFSSL_FAILURE;
@@ -2851,64 +2919,24 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
         if (!ctx->pkey->ecc || !ctx->peerKey->ecc) {
             return WOLFSSL_FAILURE;
         }
-        /* set internal key if not done */
-        if (!ctx->pkey->ecc->inSet) {
-            if (SetECKeyInternal(ctx->pkey->ecc) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("SetECKeyInternal failed");
-                return WOLFSSL_FAILURE;
-            }
+        if (!wolfssl_local_ec_key_lock(ctx->peerKey->ecc)) {
+            return WOLFSSL_FAILURE;
         }
         if (!ctx->peerKey->ecc->exSet || !ctx->peerKey->ecc->pub_key->internal) {
             if (SetECKeyExternal(ctx->peerKey->ecc) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("SetECKeyExternal failed");
+                wolfssl_local_ec_key_unlock(ctx->peerKey->ecc);
                 return WOLFSSL_FAILURE;
             }
         }
-        if (!(len = wc_ecc_size((ecc_key*)ctx->pkey->ecc->internal))) {
+        wolfssl_local_ec_key_unlock(ctx->peerKey->ecc);
+        if (!wolfssl_local_ec_key_lock(ctx->pkey->ecc)) {
             return WOLFSSL_FAILURE;
         }
-        if (key) {
-            word32 len32 = (word32)len;
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
-    && (!defined(HAVE_FIPS) || \
-         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-
-            WC_RNG rng;
-            if (wc_InitRng(&rng) != MP_OKAY) {
-                WOLFSSL_MSG("Init RNG failed");
-                return WOLFSSL_FAILURE;
-            }
-            ((ecc_key*)ctx->pkey->ecc->internal)->rng = &rng;
-#endif
-            if (*keylen < len32) {
-                WOLFSSL_MSG("buffer too short");
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
-    && (!defined(HAVE_FIPS) || \
-         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-                ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
-                wc_FreeRng(&rng);
-#endif
-                return WOLFSSL_FAILURE;
-            }
-            if (wc_ecc_shared_secret((ecc_key*)ctx->pkey->ecc->internal,
-                    (ecc_key*)ctx->peerKey->ecc->internal, key, &len32)
-                    != MP_OKAY) {
-                WOLFSSL_MSG("wc_ecc_shared_secret failed");
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
-    && (!defined(HAVE_FIPS) || \
-         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-                ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
-                wc_FreeRng(&rng);
-#endif
-                return WOLFSSL_FAILURE;
-            }
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
-    && (!defined(HAVE_FIPS) || \
-         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-            ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
-            wc_FreeRng(&rng);
-#endif
-            len = (int)len32;
+        ecdhRet = evp_pkey_derive_ecdh(ctx, key, *keylen, &len);
+        wolfssl_local_ec_key_unlock(ctx->pkey->ecc);
+        if (ecdhRet != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
         }
         *keylen = (size_t)len;
         break;
@@ -2925,13 +2953,18 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
                 WOLFSSL_MSG("buffer too short");
                 return WOLFSSL_FAILURE;
             }
+            if (!wolfssl_local_pkey_lock(ctx->pkey)) {
+                return WOLFSSL_FAILURE;
+            }
             /* X25519 shared secret is little-endian (RFC 7748). */
             if (wc_curve25519_shared_secret_ex(ctx->pkey->curve25519,
                     ctx->peerKey->curve25519, key, &len32,
                     EC25519_LITTLE_ENDIAN) != 0) {
                 WOLFSSL_MSG("wc_curve25519_shared_secret_ex failed");
+                wolfssl_local_pkey_unlock(ctx->pkey);
                 return WOLFSSL_FAILURE;
             }
+            wolfssl_local_pkey_unlock(ctx->pkey);
             len = (int)len32;
         }
         *keylen = (size_t)len;
@@ -2949,13 +2982,18 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
                 WOLFSSL_MSG("buffer too short");
                 return WOLFSSL_FAILURE;
             }
+            if (!wolfssl_local_pkey_lock(ctx->pkey)) {
+                return WOLFSSL_FAILURE;
+            }
             /* X448 shared secret is little-endian (RFC 7748). */
             if (wc_curve448_shared_secret_ex(ctx->pkey->curve448,
                     ctx->peerKey->curve448, key, &len32,
                     EC448_LITTLE_ENDIAN) != 0) {
                 WOLFSSL_MSG("wc_curve448_shared_secret_ex failed");
+                wolfssl_local_pkey_unlock(ctx->pkey);
                 return WOLFSSL_FAILURE;
             }
+            wolfssl_local_pkey_unlock(ctx->pkey);
             len = (int)len32;
         }
         *keylen = (size_t)len;
@@ -3550,15 +3588,11 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         if (!sig) {
             WOLFSSL_EC_KEY *key = ctx->pkey->ecc;
             ecc_key* eckey;
-            if (!key)
+            if (!wolfssl_local_ec_key_lock(key))
                 return WOLFSSL_FAILURE;
-            /* set internal key if not done */
-            if (key->inSet == 0 && SetECKeyInternal(key) != WOLFSSL_SUCCESS)
-                return WOLFSSL_FAILURE;
-            eckey = (ecc_key*)ctx->pkey->ecc->internal;
-            if (!eckey)
-                return WOLFSSL_FAILURE;
+            eckey = (ecc_key*)key->internal;
             ret = wc_ecc_sig_size(eckey);
+            wolfssl_local_ec_key_unlock(key);
             if (ret == 0)
                 return WOLFSSL_FAILURE;
             *siglen = (size_t)ret;
@@ -5246,11 +5280,11 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
             WOLFSSL_EC_KEY* key = ctx->pctx->pkey->ecc;
             int sigSz;
 
-            if (key == NULL || (key->inSet == 0 &&
-                    SetECKeyInternal(key) != WOLFSSL_SUCCESS)) {
+            if (!wolfssl_local_ec_key_lock(key)) {
                 return WOLFSSL_FAILURE;
             }
             sigSz = wc_ecc_sig_size((ecc_key*)key->internal);
+            wolfssl_local_ec_key_unlock(key);
             if (sigSz <= 0)
                 return WOLFSSL_FAILURE;
             *siglen = (size_t)sigSz;
@@ -12613,6 +12647,70 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new(void){
     return wolfSSL_EVP_PKEY_new_ex(NULL);
 }
 
+#ifdef OPENSSL_EXTRA
+/* Lock the object that holds the key of an EVP key for an operation.
+ *
+ * @param [in, out] pkey  EVP key.
+ * @return  1 on success.
+ * @return  0 on failure. Nothing is locked.
+ */
+int wolfssl_local_pkey_lock(WOLFSSL_EVP_PKEY* pkey)
+{
+    int ret;
+
+    switch (pkey->type) {
+    #ifndef NO_RSA
+        case WC_EVP_PKEY_RSA:
+            ret = wolfssl_local_rsa_lock(pkey->rsa);
+            break;
+    #endif
+    #ifdef HAVE_ECC
+        case WC_EVP_PKEY_EC:
+            ret = wolfssl_local_ec_key_lock(pkey->ecc);
+            break;
+    #endif
+    #ifdef WOLFSSL_HAVE_MLDSA
+        case WC_EVP_PKEY_DILITHIUM:
+            /* Only the DER is held. Each use decodes its own key. */
+            ret = 1;
+            break;
+    #endif
+        default:
+            ret = (WOLFSSL_KEY_OP_LOCK(pkey) == 0);
+            break;
+    }
+
+    return ret;
+}
+
+/* Unlock the object locked with wolfssl_local_pkey_lock().
+ *
+ * @param [in, out] pkey  EVP key.
+ */
+void wolfssl_local_pkey_unlock(WOLFSSL_EVP_PKEY* pkey)
+{
+    switch (pkey->type) {
+    #ifndef NO_RSA
+        case WC_EVP_PKEY_RSA:
+            wolfssl_local_rsa_unlock(pkey->rsa);
+            break;
+    #endif
+    #ifdef HAVE_ECC
+        case WC_EVP_PKEY_EC:
+            wolfssl_local_ec_key_unlock(pkey->ecc);
+            break;
+    #endif
+    #ifdef WOLFSSL_HAVE_MLDSA
+        case WC_EVP_PKEY_DILITHIUM:
+            break;
+    #endif
+        default:
+            WOLFSSL_KEY_OP_UNLOCK(pkey);
+            break;
+    }
+}
+#endif /* OPENSSL_EXTRA */
+
 WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
 {
     WOLFSSL_EVP_PKEY* pkey;
@@ -12634,6 +12732,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
             /* Free directly since mutex for ref count not set yet */
             XFREE(pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             WOLFSSL_MSG("Issue initializing RNG");
+            return NULL;
+        }
+        if (WOLFSSL_KEY_OP_LOCK_INIT(pkey) != 0) {
+            wc_FreeRng(&pkey->rng);
+            XFREE(pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            WOLFSSL_MSG("Issue initializing lock");
             return NULL;
         }
 
@@ -12793,6 +12897,7 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
             }
 
             wolfSSL_RefFree(&key->ref);
+            WOLFSSL_KEY_OP_LOCK_FREE(key);
             XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
     }

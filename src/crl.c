@@ -3094,9 +3094,13 @@ int wolfSSL_X509_CRL_sign(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* pkey,
     /* Sign and complete CRL. Note that the output buffer is the same as the
      * input buffer. The signature is added to the end of the buffer.
      */
+    if ((ret == WOLFSSL_SUCCESS) && (!wolfssl_local_pkey_lock(pkey))) {
+        ret = WOLFSSL_FAILURE;
+    }
     if (ret == WOLFSSL_SUCCESS) {
         totalSz = wc_SignCRL_ex(buf, tbsSz, sigType, buf, bufSz,
                                 rsaKey, eccKey, &rng);
+        wolfssl_local_pkey_unlock(pkey);
         if (totalSz < 0) {
             WOLFSSL_MSG("wc_SignCRL_ex failed");
             ret = totalSz;

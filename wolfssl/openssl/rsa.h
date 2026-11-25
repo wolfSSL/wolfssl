@@ -109,6 +109,9 @@ typedef struct WOLFSSL_RSA {
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
     wolfSSL_Ref ref;                 /* Reference count information. */
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex opLock;            /* Held while an operation runs. */
+#endif
     word16 pkcs8HeaderSz;            /* Size of PKCS#8 header from decode. */
     int flags;                       /* Flags of implementation. */
 

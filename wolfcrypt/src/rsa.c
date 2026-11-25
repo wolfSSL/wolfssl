@@ -3826,7 +3826,6 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
 {
     int ret = 0;
     int sz;
-    int state;
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     RsaPadding padding;
 #endif
@@ -3853,17 +3852,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return RSA_BUFFER_E;
     }
 
-#ifndef WOLFSSL_BIND
-    state = key->state;
-#else
-    /* Bind9 shares the EVP_PKEY struct across multiple threads so let's just
-     * force a restart on each RsaPublicEncryptEx call for it. */
-    state = RSA_STATE_NONE;
-#ifdef WOLFSSL_ASYNC_CRYPT
-#error wolfSSL does not handle building bind support with async crypto
-#endif
-#endif
-    switch (state) {
+    switch (key->state) {
     case RSA_STATE_NONE:
     case RSA_STATE_ENCRYPT_PAD:
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \

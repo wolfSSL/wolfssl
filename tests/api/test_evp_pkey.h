@@ -84,6 +84,7 @@ int test_wolfSSL_EVP_PKEY_x448(void);
 int test_wolfSSL_EVP_PKEY_encoded_public_key(void);
 int test_wolfSSL_d2i_PrivateKey_reuse_resets_state(void);
 int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
+int test_wolfSSL_EVP_PKEY_shared_threads(void);
 
 #define TEST_EVP_PKEY_DECLS                                                    \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_CTX_new_id),             \
@@ -147,6 +148,7 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void);
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_encoded_public_key),     \
     TEST_DECL_GROUP("evp_pkey", test_wolfSSL_d2i_PrivateKey_reuse_resets_state),\
     TEST_DECL_GROUP("evp_pkey",                                                \
-        test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate)
+        test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate),                     \
+    TEST_DECL_GROUP("evp_pkey", test_wolfSSL_EVP_PKEY_shared_threads)
 
 #endif /* WOLFCRYPT_TEST_EVP_PKEY_H */

@@ -3081,6 +3081,14 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId)
         /* Initialize fields to defaults. */
         key->form     = WC_POINT_CONVERSION_UNCOMPRESSED;
 
+        if (WOLFSSL_KEY_OP_LOCK_INIT(key) != 0) {
+            WOLFSSL_MSG("wolfSSL_EC_KEY_new lock init failure");
+            XFREE(key, heap, DYNAMIC_TYPE_ECC);
+            key = NULL;
+            err = 1;
+        }
+    }
+    if (!err) {
         /* Initialize reference count. */
         wolfSSL_RefInit(&key->ref, &err);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
@@ -3205,6 +3213,7 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
         if (doFree) {
             /* Dispose of allocated reference counting data. */
             wolfSSL_RefFree(&key->ref);
+            WOLFSSL_KEY_OP_LOCK_FREE(key);
 
             /* Dispose of private key. */
             wolfSSL_BN_free(key->priv_key);
@@ -4593,6 +4602,41 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
     return ret;
 }
 
+/* Lock EC key for an operation and set the wolfCrypt key if needed.
+ *
+ * @param [in, out] key  EC key.
+ * @return  1 on success.
+ * @return  0 on failure. Key is not locked.
+ */
+int wolfssl_local_ec_key_lock(WOLFSSL_EC_KEY* key)
+{
+    int ret = 1;
+
+    if ((key == NULL) || (key->internal == NULL)) {
+        ret = 0;
+    }
+    else if (WOLFSSL_KEY_OP_LOCK(key) != 0) {
+        WOLFSSL_MSG("EC key lock failed");
+        ret = 0;
+    }
+    else if ((key->inSet == 0) && (SetECKeyInternal(key) != 1)) {
+        WOLFSSL_MSG("SetECKeyInternal failed");
+        WOLFSSL_KEY_OP_UNLOCK(key);
+        ret = 0;
+    }
+
+    return ret;
+}
+
+/* Unlock EC key after an operation.
+ *
+ * @param [in, out] key  EC key locked with wolfssl_local_ec_key_lock().
+ */
+void wolfssl_local_ec_key_unlock(WOLFSSL_EC_KEY* key)
+{
+    WOLFSSL_KEY_OP_UNLOCK(key);
+}
+
 /* Get point conversion format of EC key.
  *
  * @param [in] key  EC key.
@@ -5070,16 +5114,14 @@ int wolfSSL_EC_KEY_check_key(const WOLFSSL_EC_KEY *key)
         ret = 0;
     }
 
-    /* Set the external EC key values into internal if not already. */
-    if ((ret == 1) && (key->inSet == 0) && (SetECKeyInternal(
-            (WOLFSSL_EC_KEY*)key) != 1)) {
-        WOLFSSL_MSG("SetECKeyInternal failed");
+    if ((ret == 1) && (!wolfssl_local_ec_key_lock((WOLFSSL_EC_KEY*)key))) {
         ret = 0;
     }
 
     if (ret == 1) {
         /* Have internal EC implementation check key. */
         ret = wc_ecc_check_key((ecc_key*)key->internal) == 0;
+        wolfssl_local_ec_key_unlock((WOLFSSL_EC_KEY*)key);
     }
 
     return ret;
@@ -5451,16 +5493,6 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst, int dLen,
         err = 1;
     }
 
-    /* Ensure internal EC key is set from external. */
-    if ((!err) && (key->inSet == 0)) {
-        WOLFSSL_MSG("wolfSSL_ECDSA_do_sign No EC key internal set, do it");
-
-        if (SetECKeyInternal(key) != 1) {
-            WOLFSSL_MSG("wolfSSL_ECDSA_do_sign SetECKeyInternal failed");
-            err = 1;
-        }
-    }
-
 #ifdef WOLFSSL_SMALL_STACK
     if (!err) {
         /* Allocate buffer to hold encoded signature. */
@@ -5527,14 +5559,8 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
         ret = WOLFSSL_FATAL_ERROR;
     }
 
-    /* Ensure internal EC key is set from external. */
-    if ((ret == 1) && (key->inSet == 0)) {
-        WOLFSSL_MSG("No EC key internal set, do it");
-
-        if (SetECKeyInternal(key) != 1) {
-            WOLFSSL_MSG("SetECKeyInternal failed");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
+    if ((ret == 1) && (!wolfssl_local_ec_key_lock(key))) {
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if (ret == 1) {
@@ -5574,6 +5600,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
             }
         }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
+        wolfssl_local_ec_key_unlock(key);
     }
 
     return ret;
@@ -5616,12 +5643,18 @@ int wolfSSL_ECDSA_sign(int type, const unsigned char *digest, int digestSz,
             ret = 0;
         }
     }
-    /* Sign the digest with the key using the RNG and put signature into buffer
-     * update sigSz to be actual length.
-     */
-    if ((ret == 1) && (wc_ecc_sign_hash(digest, (word32)digestSz, sig, sigSz,
-            rng, (ecc_key*)key->internal) != 0)) {
+    if ((ret == 1) && (!wolfssl_local_ec_key_lock(key))) {
         ret = 0;
+    }
+    if (ret == 1) {
+        /* Sign the digest with the key using the RNG and put signature into
+         * buffer update sigSz to be actual length.
+         */
+        if (wc_ecc_sign_hash(digest, (word32)digestSz, sig, sigSz, rng,
+                (ecc_key*)key->internal) != 0) {
+            ret = 0;
+        }
+        wolfssl_local_ec_key_unlock(key);
     }
 
     if (initTmpRng) {
@@ -5667,10 +5700,16 @@ int wolfSSL_ECDSA_verify(int type, const unsigned char *digest, int digestSz,
         ret = 0;
     }
 
-    /* Verify signature using digest and key. */
-    if ((ret == 1) && (wc_ecc_verify_hash(sig, (word32)sigSz, digest,
-            (word32)digestSz, &verify, (ecc_key*)key->internal) != 0)) {
+    if ((ret == 1) && (!wolfssl_local_ec_key_lock(key))) {
         ret = 0;
+    }
+    if (ret == 1) {
+        /* Verify signature using digest and key. */
+        if (wc_ecc_verify_hash(sig, (word32)sigSz, digest, (word32)digestSz,
+                &verify, (ecc_key*)key->internal) != 0) {
+            ret = 0;
+        }
+        wolfssl_local_ec_key_unlock(key);
     }
     /* When no error, verification may still have failed - check now. */
     if ((ret == 1) && (verify != 1)) {
@@ -5705,6 +5744,7 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
     void *(*kdf) (const void *in, size_t inlen, void *out, size_t *outLen))
 {
     int err = 0;
+    int locked = 0;
     word32 len = 0;
     ecc_key* key = NULL;
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
@@ -5727,14 +5767,9 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
         err = 1;
     }
 
-    /* Ensure internal EC key is set from external. */
-    if ((!err) && (privKey->inSet == 0)) {
-        WOLFSSL_MSG("No EC key internal set, do it");
-
-        if (SetECKeyInternal(privKey) != 1) {
-            WOLFSSL_MSG("SetECKeyInternal failed");
-            err = 1;
-        }
+    if (!err) {
+        locked = wolfssl_local_ec_key_lock(privKey);
+        err = !locked;
     }
 
     if (!err) {
@@ -5788,6 +5823,9 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
         WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 #endif
+    if (locked) {
+        wolfssl_local_ec_key_unlock(privKey);
+    }
 
     if (err) {
         /* Make returned value zero. */

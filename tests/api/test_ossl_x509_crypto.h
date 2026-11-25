@@ -31,6 +31,7 @@ int test_wolfSSL_X509_verify_mldsa_cross_level(void);
 int test_wolfSSL_X509_verify_mldsa_privkey_pkey(void);
 int test_wolfSSL_X509_sign(void);
 int test_wolfSSL_X509_sign2(void);
+int test_wolfSSL_X509_sign_threads(void);
 int test_wolfSSL_make_cert(void);
 
 #define TEST_OSSL_X509_CRYPTO_DECLS                                            \
@@ -44,6 +45,7 @@ int test_wolfSSL_make_cert(void);
         test_wolfSSL_X509_verify_mldsa_privkey_pkey),                          \
     TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_X509_sign),               \
     TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_X509_sign2),              \
+    TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_X509_sign_threads),       \
     TEST_DECL_GROUP("ossl_x509_crypto", test_wolfSSL_make_cert)
 
 #endif /* WOLFCRYPT_TEST_OSSL_X509_CRYPTO_H */
