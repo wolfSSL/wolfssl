@@ -28,6 +28,13 @@
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 static const char WC_NAME_DH[] = "dh";
 
 void KcapiDh_Free(DhKey* key)
@@ -55,10 +62,17 @@ static int KcapiDh_SetParams(DhKey* key)
     }
     if (ret == 0) {
         ret = wc_DhParamsToDer(key, pkcs3, &len);
+        if (ret >= 0) {
+            ret = 0;
+        }
     }
     if (ret == 0) {
         ret = kcapi_kpp_dh_setparam_pkcs3(key->handle, pkcs3, len);
-        if (ret != 0) {
+        /* Success returns the maximum KPP output size. */
+        if (ret >= 0) {
+            ret = 0;
+        }
+        else {
             WOLFSSL_MSG("KcapiDh_SetParams: Failed to set");
         }
     }
