@@ -24555,7 +24555,9 @@ void wc_CertEventFailureCond(DecodedCert* cert, int error, int field,
 int wc_CertEventRevocationCondition(int error)
 {
     switch (error) {
-#ifdef HAVE_CRL
+        /* These names are in error-ssl.h. A crypt-only build defines
+         * HAVE_CRL and does not include that header. */
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
         case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
             return WC_CEV_COND_CERT_REVOKED;
         case WC_NO_ERR_TRACE(CRL_MISSING):
