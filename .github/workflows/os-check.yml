@@ -162,7 +162,7 @@ jobs:
     # run is normal whenever the seed has not run recently, and a shard
     # dying on the timeout would look like a test failure rather than a
     # cold cache.
-    timeout-minutes: 90
+    timeout-minutes: 105
     env:
       CCACHE_MAXSIZE: 500M
       # Skip every step of a declined seed so the job shows success.
@@ -249,6 +249,8 @@ jobs:
         if: ${{ env.SEED_DECLINED != 'true' }}
         run: |
           .github/scripts/parallel-make-check.py \
+            --timeout=21 \
+            --deadline=84 \
             ${{ (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --extra-cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \
@@ -333,7 +335,7 @@ jobs:
     runs-on: macos-latest
     # Serial checks: roughly the sum of the per-config minutes plus
     # one-time setup, with headroom for a cold ccache.
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v5
 
@@ -371,6 +373,8 @@ jobs:
       - name: Build and make check all configs (serial checks, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
+            --timeout=12 \
+            --deadline=45 \
             ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.seed != 'false')) && '--build-only' || '' }} \
             --threads 1 --cc= \
             --extra-cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \

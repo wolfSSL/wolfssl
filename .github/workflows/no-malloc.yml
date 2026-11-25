@@ -32,7 +32,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -107,6 +107,8 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=10 \
+            --deadline=10 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/no-malloc-configs.json"
 
