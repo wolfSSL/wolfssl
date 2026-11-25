@@ -21,7 +21,7 @@ jobs:
     name: Build wolfSSL
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 8
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1

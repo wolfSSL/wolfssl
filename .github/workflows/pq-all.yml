@@ -48,7 +48,7 @@ jobs:
     # dependencies" was seen to spend 30 min pulling the cross-compilers from a
     # slow archive mirror, which used up the whole budget before a single
     # config built.
-    timeout-minutes: 45
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -58,10 +58,7 @@ jobs:
         with:
           packages: autoconf automake libtool build-essential bubblewrap crossbuild-essential-arm64 crossbuild-essential-armhf qemu-user
           ghcr-debs-tag: ubuntu-24.04-cross
-          # Kept for the apt path this no longer normally takes: the default
-          # budget caps each attempt at 250s and hard-fails a download that
-          # merely runs slow, and the cross-toolchains are ~118 MB. 1200 gives
-          # an attempt 500s and still reports inside the 45-minute job.
+          # The cross-toolchains outgrow the default per-attempt apt limit.
           budget-seconds: '1200'
 
       # ccache via the cross-platform composite; the script passes the
