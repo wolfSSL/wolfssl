@@ -4091,6 +4091,170 @@ WC_OMIT_FRAME_POINTER void mlkem_arm32_invntt(sword16* r)
         "bfi	r9, r12, #0, #16\n\t"
 #endif
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r11, #0xc0\n\t"
+        "orr	r11, r11, #0xaf00\n\t"
+#else
+        "mov	r11, #0xafc0\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0x130000\n\t"
+#else
+        "movt	r11, #0x13\n\t"
+#endif
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r11, #0xbf\n\t"
+        "orr	r11, r11, #0x4e00\n\t"
+#else
+        "mov	r11, #0x4ebf\n\t"
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+        "smulwb	r12, r11, r2\n\t"
+        "smulwt	lr, r11, r2\n\t"
+        "smulbt	r12, r10, r12\n\t"
+        "smulbt	lr, r10, lr\n\t"
+        "pkhbt	r12, r12, lr, LSL #16\n\t"
+        "ssub16	r2, r2, r12\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r12, r2, #16\n\t"
+        "asr	r12, r12, #16\n\t"
+#else
+        "sbfx	r12, r2, #0, #16\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "asr	lr, r2, #16\n\t"
+#else
+        "sbfx	lr, r2, #16, #16\n\t"
+#endif
+        "mul	r12, r11, r12\n\t"
+        "mul	lr, r11, lr\n\t"
+        "asr	r12, r12, #26\n\t"
+        "asr	lr, lr, #26\n\t"
+        "mul	r12, r10, r12\n\t"
+        "mul	lr, r10, lr\n\t"
+        "sub	lr, r2, lr, lsl #16\n\t"
+        "sub	r2, r2, r12\n\t"
+        "lsr	lr, lr, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "bic	r2, r2, #0xff0000\n\t"
+        "bic	r2, r2, #0xff000000\n\t"
+        "orr	r2, r2, lr, lsl #16\n\t"
+#else
+        "bfi	r2, lr, #16, #16\n\t"
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+        "smulwb	r12, r11, r3\n\t"
+        "smulwt	lr, r11, r3\n\t"
+        "smulbt	r12, r10, r12\n\t"
+        "smulbt	lr, r10, lr\n\t"
+        "pkhbt	r12, r12, lr, LSL #16\n\t"
+        "ssub16	r3, r3, r12\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r12, r3, #16\n\t"
+        "asr	r12, r12, #16\n\t"
+#else
+        "sbfx	r12, r3, #0, #16\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "asr	lr, r3, #16\n\t"
+#else
+        "sbfx	lr, r3, #16, #16\n\t"
+#endif
+        "mul	r12, r11, r12\n\t"
+        "mul	lr, r11, lr\n\t"
+        "asr	r12, r12, #26\n\t"
+        "asr	lr, lr, #26\n\t"
+        "mul	r12, r10, r12\n\t"
+        "mul	lr, r10, lr\n\t"
+        "sub	lr, r3, lr, lsl #16\n\t"
+        "sub	r3, r3, r12\n\t"
+        "lsr	lr, lr, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "bic	r3, r3, #0xff0000\n\t"
+        "bic	r3, r3, #0xff000000\n\t"
+        "orr	r3, r3, lr, lsl #16\n\t"
+#else
+        "bfi	r3, lr, #16, #16\n\t"
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+        "smulwb	r12, r11, r6\n\t"
+        "smulwt	lr, r11, r6\n\t"
+        "smulbt	r12, r10, r12\n\t"
+        "smulbt	lr, r10, lr\n\t"
+        "pkhbt	r12, r12, lr, LSL #16\n\t"
+        "ssub16	r6, r6, r12\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r12, r6, #16\n\t"
+        "asr	r12, r12, #16\n\t"
+#else
+        "sbfx	r12, r6, #0, #16\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "asr	lr, r6, #16\n\t"
+#else
+        "sbfx	lr, r6, #16, #16\n\t"
+#endif
+        "mul	r12, r11, r12\n\t"
+        "mul	lr, r11, lr\n\t"
+        "asr	r12, r12, #26\n\t"
+        "asr	lr, lr, #26\n\t"
+        "mul	r12, r10, r12\n\t"
+        "mul	lr, r10, lr\n\t"
+        "sub	lr, r6, lr, lsl #16\n\t"
+        "sub	r6, r6, r12\n\t"
+        "lsr	lr, lr, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "bic	r6, r6, #0xff0000\n\t"
+        "bic	r6, r6, #0xff000000\n\t"
+        "orr	r6, r6, lr, lsl #16\n\t"
+#else
+        "bfi	r6, lr, #16, #16\n\t"
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+        "smulwb	r12, r11, r7\n\t"
+        "smulwt	lr, r11, r7\n\t"
+        "smulbt	r12, r10, r12\n\t"
+        "smulbt	lr, r10, lr\n\t"
+        "pkhbt	r12, r12, lr, LSL #16\n\t"
+        "ssub16	r7, r7, r12\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "lsl	r12, r7, #16\n\t"
+        "asr	r12, r12, #16\n\t"
+#else
+        "sbfx	r12, r7, #0, #16\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "asr	lr, r7, #16\n\t"
+#else
+        "sbfx	lr, r7, #16, #16\n\t"
+#endif
+        "mul	r12, r11, r12\n\t"
+        "mul	lr, r11, lr\n\t"
+        "asr	r12, r12, #26\n\t"
+        "asr	lr, lr, #26\n\t"
+        "mul	r12, r10, r12\n\t"
+        "mul	lr, r10, lr\n\t"
+        "sub	lr, r7, lr, lsl #16\n\t"
+        "sub	r7, r7, r12\n\t"
+        "lsr	lr, lr, #16\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "bic	r7, r7, #0xff0000\n\t"
+        "bic	r7, r7, #0xff000000\n\t"
+        "orr	r7, r7, lr, lsl #16\n\t"
+#else
+        "bfi	r7, lr, #16, #16\n\t"
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
         "ldr	r11, [sp, #4]\n\t"
         "add	r11, r1, r11, lsr #3\n\t"
         "ldr	r11, [r11, #192]\n\t"

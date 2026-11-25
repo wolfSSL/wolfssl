@@ -1699,6 +1699,96 @@ L_mlkem_invntt_loop_765:
 	MLA	r9, r12, r11, r9
 	BFI	r9, r10, #0, #16
 #endif /* !WOLFSSL_ARM_ARCH_7M */
+#ifndef WOLFSSL_ARM_ARCH_7M
+	MOV	lr, #0xafc0
+	MOVT	lr, #0x13
+#else
+	MOV	lr, #0x4ebf
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+#ifndef WOLFSSL_ARM_ARCH_7M
+	SMULWB	r10, lr, r2
+	SMULWT	r11, lr, r2
+	SMULBT	r10, r12, r10
+	SMULBT	r11, r12, r11
+	PKHBT	r10, r10, r11, LSL #16
+	SSUB16	r2, r2, r10
+#else
+	SBFX	r10, r2, #0, #16
+	SBFX	r11, r2, #16, #16
+	MUL	r10, lr, r10
+	MUL	r11, lr, r11
+	ASR	r10, r10, #26
+	ASR	r11, r11, #26
+	MUL	r10, r12, r10
+	MUL	r11, r12, r11
+	SUB	r11, r2, r11, LSL #16
+	SUB	r2, r2, r10
+	LSR	r11, r11, #16
+	BFI	r2, r11, #16, #16
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+#ifndef WOLFSSL_ARM_ARCH_7M
+	SMULWB	r10, lr, r3
+	SMULWT	r11, lr, r3
+	SMULBT	r10, r12, r10
+	SMULBT	r11, r12, r11
+	PKHBT	r10, r10, r11, LSL #16
+	SSUB16	r3, r3, r10
+#else
+	SBFX	r10, r3, #0, #16
+	SBFX	r11, r3, #16, #16
+	MUL	r10, lr, r10
+	MUL	r11, lr, r11
+	ASR	r10, r10, #26
+	ASR	r11, r11, #26
+	MUL	r10, r12, r10
+	MUL	r11, r12, r11
+	SUB	r11, r3, r11, LSL #16
+	SUB	r3, r3, r10
+	LSR	r11, r11, #16
+	BFI	r3, r11, #16, #16
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+#ifndef WOLFSSL_ARM_ARCH_7M
+	SMULWB	r10, lr, r6
+	SMULWT	r11, lr, r6
+	SMULBT	r10, r12, r10
+	SMULBT	r11, r12, r11
+	PKHBT	r10, r10, r11, LSL #16
+	SSUB16	r6, r6, r10
+#else
+	SBFX	r10, r6, #0, #16
+	SBFX	r11, r6, #16, #16
+	MUL	r10, lr, r10
+	MUL	r11, lr, r11
+	ASR	r10, r10, #26
+	ASR	r11, r11, #26
+	MUL	r10, r12, r10
+	MUL	r11, r12, r11
+	SUB	r11, r6, r11, LSL #16
+	SUB	r6, r6, r10
+	LSR	r11, r11, #16
+	BFI	r6, r11, #16, #16
+#endif /* !WOLFSSL_ARM_ARCH_7M */
+#ifndef WOLFSSL_ARM_ARCH_7M
+	SMULWB	r10, lr, r7
+	SMULWT	r11, lr, r7
+	SMULBT	r10, r12, r10
+	SMULBT	r11, r12, r11
+	PKHBT	r10, r10, r11, LSL #16
+	SSUB16	r7, r7, r10
+#else
+	SBFX	r10, r7, #0, #16
+	SBFX	r11, r7, #16, #16
+	MUL	r10, lr, r10
+	MUL	r11, lr, r11
+	ASR	r10, r10, #26
+	ASR	r11, r11, #26
+	MUL	r10, r12, r10
+	MUL	r11, r12, r11
+	SUB	r11, r7, r11, LSL #16
+	SUB	r7, r7, r10
+	LSR	r11, r11, #16
+	BFI	r7, r11, #16, #16
+#endif /* !WOLFSSL_ARM_ARCH_7M */
 	LDR	lr, [sp, #4]
 	ADD	lr, r1, lr, LSR #3
 	LDR	lr, [lr, #192]
@@ -2980,7 +3070,7 @@ L_mlkem_invntt_loop_321:
 #endif
 	ADD	sp, sp, #8
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 1629 */
+	/* Cycle Count = 1704 */
 	.size	mlkem_thumb2_invntt,.-mlkem_thumb2_invntt
 #ifndef __APPLE__
 	.text

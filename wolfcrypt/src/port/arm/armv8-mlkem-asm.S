@@ -1816,6 +1816,30 @@ _mlkem_invntt:
 	sub	v24.8h, v24.8h, v27.8h
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v11.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v11.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v13.8h, v8.h[2]
+	sqdmulh	v26.8h, v15.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v13.8h, v25.8h, v8.h[0]
+	mls	v15.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v19.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v19.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v21.8h, v8.h[2]
+	sqdmulh	v26.8h, v23.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v21.8h, v25.8h, v8.h[0]
+	mls	v23.8h, v26.8h, v8.h[0]
 	ldr	q0, [x2, #512]
 	ldr	q2, [x3, #512]
 	mov	v25.16b, v9.16b
@@ -2154,6 +2178,30 @@ _mlkem_invntt:
 	sub	v24.8h, v24.8h, v27.8h
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v11.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v11.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v13.8h, v8.h[2]
+	sqdmulh	v26.8h, v15.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v13.8h, v25.8h, v8.h[0]
+	mls	v15.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v19.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v19.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v21.8h, v8.h[2]
+	sqdmulh	v26.8h, v23.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v21.8h, v25.8h, v8.h[0]
+	mls	v23.8h, v26.8h, v8.h[0]
 	ldr	q0, [x2, #528]
 	ldr	q2, [x3, #528]
 	mov	v25.16b, v9.16b
@@ -4437,6 +4485,30 @@ _mlkem_invntt_sqrdmlsh:
 	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v11.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v11.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v13.8h, v8.h[2]
+	sqdmulh	v26.8h, v15.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v13.8h, v25.8h, v8.h[0]
+	mls	v15.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v19.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v19.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v21.8h, v8.h[2]
+	sqdmulh	v26.8h, v23.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v21.8h, v25.8h, v8.h[0]
+	mls	v23.8h, v26.8h, v8.h[0]
 	ldr	q0, [x2, #512]
 	ldr	q2, [x3, #512]
 	mov	v25.16b, v9.16b
@@ -4751,6 +4823,30 @@ _mlkem_invntt_sqrdmlsh:
 	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v11.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v11.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v13.8h, v8.h[2]
+	sqdmulh	v26.8h, v15.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v13.8h, v25.8h, v8.h[0]
+	mls	v15.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v19.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v19.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v21.8h, v8.h[2]
+	sqdmulh	v26.8h, v23.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v21.8h, v25.8h, v8.h[0]
+	mls	v23.8h, v26.8h, v8.h[0]
 	ldr	q0, [x2, #528]
 	ldr	q2, [x3, #528]
 	mov	v25.16b, v9.16b
