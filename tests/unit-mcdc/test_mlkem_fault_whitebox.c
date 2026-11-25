@@ -119,6 +119,7 @@ static int wb_fail_matrix;
 #include <string.h>
 
 static int wb_fail = 0;
+static int wb_failed_check;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if !defined(WOLFSSL_HAVE_MLKEM) || \
@@ -222,10 +223,8 @@ int main(int argc, char** argv)
         if (allocError != WC_NO_ERR_TRACE(MEMORY_E) ||
                 matrixError != WC_NO_ERR_TRACE(WC_HW_E) || filled ||
                 ret != 0 || !cached) {
-            wc_MlKemKey_Free(&key);
-            mcdc_fa_restore();
-            wc_FreeRng(&rng);
-            return 1;
+            puts("  [wb][FAIL] matrix caching");
+            wb_failed_check = 1;
         }
     }
 #endif
@@ -238,22 +237,21 @@ int main(int argc, char** argv)
 
         ret = wc_MlKemKey_Init(&other, MLKEM_WB_TYPE, NULL, INVALID_DEVID);
         if (ret != 0) {
-            wc_MlKemKey_Free(&key);
-            mcdc_fa_restore();
-            wc_FreeRng(&rng);
-            return 1;
+            puts("  [wb] streamed row setup failed; skipped");
+            wb_fail = 1;
         }
-        wb_fail_row = 1;
-        encapError = wc_MlKemKey_Encapsulate(&key, ct, ss, &rng);
-        keygenError = wc_MlKemKey_MakeKeyWithRandom(&other, seed, sizeof(seed));
-        wb_fail_row = 0;
-        wc_MlKemKey_Free(&other);
-        if (encapError != WC_NO_ERR_TRACE(WC_HW_E) ||
-                keygenError != WC_NO_ERR_TRACE(WC_HW_E)) {
-            wc_MlKemKey_Free(&key);
-            mcdc_fa_restore();
-            wc_FreeRng(&rng);
-            return 1;
+        else {
+            wb_fail_row = 1;
+            encapError = wc_MlKemKey_Encapsulate(&key, ct, ss, &rng);
+            keygenError = wc_MlKemKey_MakeKeyWithRandom(&other, seed,
+                sizeof(seed));
+            wb_fail_row = 0;
+            wc_MlKemKey_Free(&other);
+            if (encapError != WC_NO_ERR_TRACE(WC_HW_E) ||
+                    keygenError != WC_NO_ERR_TRACE(WC_HW_E)) {
+                puts("  [wb][FAIL] streamed row errors");
+                wb_failed_check = 1;
+            }
         }
     }
 #endif
@@ -269,10 +267,8 @@ int main(int argc, char** argv)
         key.flags = flags;
         if (withoutPub != WC_NO_ERR_TRACE(BAD_STATE_E) ||
                 shortCt != WC_NO_ERR_TRACE(BUFFER_E)) {
-            wc_MlKemKey_Free(&key);
-            mcdc_fa_restore();
-            wc_FreeRng(&rng);
-            return 1;
+            puts("  [wb][FAIL] decapsulation arguments");
+            wb_failed_check = 1;
         }
     }
 #endif
@@ -291,10 +287,8 @@ int main(int argc, char** argv)
         key.type = type;
         if (withCompare != WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
                 unknownType != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-            wc_MlKemKey_Free(&key);
-            mcdc_fa_restore();
-            wc_FreeRng(&rng);
-            return 1;
+            puts("  [wb][FAIL] encapsulation arguments");
+            wb_failed_check = 1;
         }
     }
 #endif
@@ -323,10 +317,8 @@ int main(int argc, char** argv)
         if (pubLen <= 0 || privLen <= 0 ||
                 pubError != WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
                 privError != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-            wc_MlKemKey_Free(&key);
-            mcdc_fa_restore();
-            wc_FreeRng(&rng);
-            return 1;
+            puts("  [wb][FAIL] DER export");
+            wb_failed_check = 1;
         }
     }
 #endif
@@ -436,10 +428,8 @@ int main(int argc, char** argv)
         key.type = type;
         if (empty != WC_NO_ERR_TRACE(BAD_FUNC_ARG) || replace != 0 ||
                 unknownType != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-            wc_MlKemKey_Free(&key);
-            mcdc_fa_restore();
-            wc_FreeRng(&rng);
-            return 1;
+            puts("  [wb][FAIL] key generation arguments");
+            wb_failed_check = 1;
         }
     }
 #endif
@@ -449,7 +439,8 @@ int main(int argc, char** argv)
     wc_MlKemKey_Free(&key);
     wc_FreeRng(&rng);
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_failed_check ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
     (void)wb_fail;
     return 0;
 }

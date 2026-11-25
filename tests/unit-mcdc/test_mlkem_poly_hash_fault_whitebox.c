@@ -506,7 +506,7 @@ static int wb_encapsulate_compare(void)
 #endif
     const int argErr = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     int cmpFail = 0;
-    int fail = 0;
+    int fail = -1;
     int ok;
 
     if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
@@ -524,6 +524,17 @@ static int wb_encapsulate_compare(void)
     ok &= mlkem_encapsulate_seeds_tail(pub, &prf, block, ct, &fail, cmpFail,
         u, tmp, y, k, msg, coins) == 0;
     ok &= (cmpFail == 0 && fail == 0);
+
+    ct[0] ^= 1;
+    XMEMSET(y, 0, sizeof(y));
+    cmpFail = 0;
+    fail = 0;
+    ok &= mlkem_encapsulate_seeds_row(&prf, block, ct, &cmpFail, u, tmp, y,
+        k, seed, coins, NULL, NULL, 0) == 0;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, block, ct, &fail, cmpFail,
+        u, tmp, y, k, msg, coins) == 0;
+    ok &= (cmpFail != 0 && fail == -1);
+    ct[0] ^= 1;
 
     ok &= mlkem_encapsulate_seeds_row(&prf, NULL, NULL, NULL, u, tmp, y, k,
         seed, coins, NULL, NULL, 0) == argErr;

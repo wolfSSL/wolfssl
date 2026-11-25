@@ -115,41 +115,117 @@ static void wb_put_gaussian_draw(unsigned int coefficient, unsigned int mag,
     word64 magDraw = gauss_1024_12289[mag];
     unsigned int i;
 
+    if (mag == 0) {
+        XMEMSET(p, 0, WB_FALCON_DRAW_SZ);
+        return;
+    }
     for (i = 0; i < 8; i++) {
         p[i] = (byte)(signDraw >> (8 * i));
         p[8 + i] = (byte)(magDraw >> (8 * i));
     }
 }
 
+/* Screen candidates through the checks before keygen writes its public
+ * output. This leaves the trim guard as the only reason not to write h. */
+static int wb_falcon_reaches_public(const sword8* f, const sword8* g, fpr* work)
+{
+    fpr* a = work;
+    fpr* b = a + WB_FALCON_N;
+    fpr* inv = b + WB_FALCON_N;
+    fpr norm = fpr_zero;
+    unsigned int i;
+
+    if (poly_small_sqnorm(f, WB_FALCON_LOGN) +
+            poly_small_sqnorm(g, WB_FALCON_LOGN) >= 16823)
+        return 0;
+    poly_small_to_fp(a, f, WB_FALCON_LOGN);
+    poly_small_to_fp(b, g, WB_FALCON_LOGN);
+    falcon_FFT(a, WB_FALCON_LOGN);
+    falcon_FFT(b, WB_FALCON_LOGN);
+    falcon_poly_invnorm2_fft(inv, a, b, WB_FALCON_LOGN);
+    falcon_poly_adj_fft(a, WB_FALCON_LOGN);
+    falcon_poly_adj_fft(b, WB_FALCON_LOGN);
+    falcon_poly_mulconst(a, fpr_q, WB_FALCON_LOGN);
+    falcon_poly_mulconst(b, fpr_q, WB_FALCON_LOGN);
+    falcon_poly_mul_autoadj_fft(a, inv, WB_FALCON_LOGN);
+    falcon_poly_mul_autoadj_fft(b, inv, WB_FALCON_LOGN);
+    falcon_iFFT(a, WB_FALCON_LOGN);
+    falcon_iFFT(b, WB_FALCON_LOGN);
+    for (i = 0; i < WB_FALCON_N; i++) {
+        norm = fpr_add(norm, fpr_sqr(a[i]));
+        norm = fpr_add(norm, fpr_sqr(b[i]));
+    }
+    if (!fpr_lt(norm, fpr_bnorm_max))
+        return 0;
+    return falcon_compute_public((word16*)work, f, g, WB_FALCON_LOGN,
+        (word16*)work + WB_FALCON_N);
+}
+
 static int wb_keygen_draw_limits(WC_RNG* rng)
 {
+    sword8 seedF[WB_FALCON_N], seedG[WB_FALCON_N];
     sword8 f[WB_FALCON_N], g[WB_FALCON_N], bigF[WB_FALCON_N];
-    unsigned int poly;
+    word16 h[WB_FALCON_N];
+    fpr* work = (fpr*)XMALLOC(3 * WB_FALCON_N * sizeof(fpr), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    unsigned int poly, i, attempt;
     int negative;
+    int ok = 0;
 
+    if (work == NULL)
+        return 0;
     for (poly = 0; poly < 2; poly++) {
         for (negative = 0; negative < 2; negative++) {
+            int found = 0;
             int ret;
 
-            XMEMSET(wb_falcon_draws, 0, sizeof(wb_falcon_draws));
-            /* A coefficient at either trim limit is representable by the
-             * Gaussian sampler but must reject the entire candidate. Give
-             * each polynomial odd parity so sampling completes. */
-            wb_put_gaussian_draw(poly * WB_FALCON_N, 16, negative);
-            wb_put_gaussian_draw(WB_FALCON_N - 1, 1, 0);
-            wb_put_gaussian_draw(2 * WB_FALCON_N - 1, 1, 0);
+            for (attempt = 0; attempt < 8 && !found; attempt++) {
+                sword8* target = poly == 0 ? seedF : seedG;
+                sword8 limit = (sword8)(negative ? -16 : 16);
+
+                if (falcon_keygen(rng, seedF, seedG, bigF, NULL, NULL,
+                        WB_FALCON_LOGN) != 0)
+                    goto out;
+                for (i = 0; i < WB_FALCON_N && !found; i++) {
+                    sword8 old = target[i];
+
+                    /* Keep the sampler's required odd polynomial parity. */
+                    if (old % 2 != 0)
+                        continue;
+                    target[i] = limit;
+                    found = wb_falcon_reaches_public(seedF, seedG, work);
+                    if (!found)
+                        target[i] = old;
+                }
+            }
+            if (!found)
+                goto out;
+
+            for (i = 0; i < WB_FALCON_N; i++) {
+                int x = seedF[i], y = seedG[i];
+                wb_put_gaussian_draw(i, (unsigned int)(x < 0 ? -x : x),
+                    x < 0);
+                wb_put_gaussian_draw(i + WB_FALCON_N,
+                    (unsigned int)(y < 0 ? -y : y), y < 0);
+                h[i] = 0xffff;
+            }
             wb_falcon_draw_offset = 0;
             wb_falcon_draw_active = 1;
-            ret = falcon_keygen(rng, f, g, bigF, NULL, NULL, WB_FALCON_LOGN);
+            ret = falcon_keygen(rng, f, g, bigF, NULL, h, WB_FALCON_LOGN);
             wb_falcon_draw_active = 0;
-            /* The stream ends during resampling, so no key is produced. */
             if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
-                    wb_falcon_draw_offset != sizeof(wb_falcon_draws)) {
-                return 0;
+                    wb_falcon_draw_offset != sizeof(wb_falcon_draws))
+                goto out;
+            for (i = 0; i < WB_FALCON_N; i++) {
+                if (h[i] != 0xffff)
+                    goto out;
             }
         }
     }
-    return 1;
+    ok = 1;
+out:
+    XFREE(work, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ok;
 }
 #endif
 
@@ -2379,8 +2455,6 @@ int main(void)
 #ifdef WB_FALCON_DRAW_TEST
             if (!wb_keygen_draw_limits(&rng)) {
                 WB_FAIL("keygen did not resample Gaussian trim-limit draws");
-                wc_FreeRng(&rng);
-                return 1;
             }
 #endif
         }
