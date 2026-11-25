@@ -95902,6 +95902,9 @@ static wc_test_ret_t mp_test_set_int(mp_int* a)
  * value has one digit more than the SP integer used by the tests (see
  * mp_test_canary_rshb() and mp_test_canary_mod_2d()). */
 #define MP_TEST_CANARY_OCTETS   ((MP_TEST_CANARY_DIGITS + 1) * SP_WORD_OCTETS)
+/* Offset of the canary in mp_test_canary_int, after the digits. */
+#define MP_TEST_CANARY_OFFSET   (WC_OFFSETOF(sp_int_minimal, dp) + \
+                                 MP_TEST_CANARY_DIGITS * sizeof(sp_int_digit))
 
 /* SP integer with MP_TEST_CANARY_DIGITS digits followed by a canary:
  *
@@ -95932,7 +95935,7 @@ PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
 static sp_int* mp_test_canary_init(mp_test_canary_int* buf)
 {
     sp_int* a = (sp_int*)buf;
-    byte* end = (byte*)buf + sizeof(*buf);
+    byte* end = buf->mem + sizeof(buf->mem);
     byte* canary;
     size_t i;
 
@@ -95940,7 +95943,7 @@ static sp_int* mp_test_canary_init(mp_test_canary_int* buf)
     if (mp_init_size(a, MP_TEST_CANARY_DIGITS) != MP_OKAY)
         return NULL;
 
-    canary = (byte*)&a->dp[MP_TEST_CANARY_DIGITS];
+    canary = buf->mem + MP_TEST_CANARY_OFFSET;
     if ((canary >= end) || ((size_t)(end - canary) <
             MP_TEST_CANARY_DIGITS * sizeof(sp_int_digit))) {
         return NULL;
@@ -95958,9 +95961,8 @@ static sp_int* mp_test_canary_init(mp_test_canary_int* buf)
  */
 static int mp_test_canary_ok(mp_test_canary_int* buf)
 {
-    sp_int* a = (sp_int*)buf;
-    const byte* end = (const byte*)buf + sizeof(*buf);
-    const byte* canary = (const byte*)&a->dp[MP_TEST_CANARY_DIGITS];
+    const byte* end = buf->mem + sizeof(buf->mem);
+    const byte* canary = buf->mem + MP_TEST_CANARY_OFFSET;
     size_t i;
 
     for (i = 0; i < (size_t)(end - canary); i++) {
