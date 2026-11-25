@@ -10012,6 +10012,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #include <stdio.h>
     #endif
 
+    /* Bounds on the RNG_SR polling in the direct-register and Standard
+     * Peripheral Library arms below: STM32_BARE_RNG_BYTE_TIMEOUT polls per
+     * output byte before the RNG is restarted, and at most
+     * STM32_BARE_RNG_MAX_RETRIES restarts per byte before wc_GenerateSeed()
+     * gives up with RNG_FAILURE_E. */
+    #ifndef STM32_BARE_RNG_BYTE_TIMEOUT
+        #define STM32_BARE_RNG_BYTE_TIMEOUT 0x40000
+    #endif
+    #ifndef STM32_BARE_RNG_MAX_RETRIES
+        #define STM32_BARE_RNG_MAX_RETRIES 8
+    #endif
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -10087,13 +10098,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      * load), because once the IP latches a Seed-error or Clock-
      * error condition it stops asserting DRDY. Per the STM32 RM
      * recovery sequence: clear SEIS/CEIS, toggle RNGEN, discard the
-     * stale words sitting in the RNG output, then retry. */
-    #ifndef STM32_BARE_RNG_BYTE_TIMEOUT
-        #define STM32_BARE_RNG_BYTE_TIMEOUT 0x40000
-    #endif
-    #ifndef STM32_BARE_RNG_MAX_RETRIES
-        #define STM32_BARE_RNG_MAX_RETRIES 8
-    #endif
+     * stale words sitting in the RNG output, then retry. The bounds are
+     * STM32_BARE_RNG_BYTE_TIMEOUT / STM32_BARE_RNG_MAX_RETRIES (above). */
 
     /* Bring the direct-register RNG to a producing state: clock enable, the
      * new-gen (C5) NIST conditioning under CONDRST on the first call, and
@@ -10319,11 +10325,30 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #else
 
-    /* Generate a RNG seed using the STM32 Standard Peripheral Library */
+    /* Generate a RNG seed using the STM32 Standard Peripheral Library.
+     *
+     * Every wait is bounded, so a failing RNG returns RNG_FAILURE_E instead
+     * of hanging with the crypto hardware mutex held. Errors are handled as
+     * the F2/F4 reference manuals (RM0033 / RM0090, RNG "Error management")
+     * describe:
+     *  - Seed error (SECS): generation stops while SECS is set and any word
+     *    in RNG_DR must not be used. Clear SEIS, then disable and re-enable
+     *    the RNG to restart it.
+     *  - Clock error (CECS): the RNG kernel clock is too slow. Data already
+     *    generated stays valid and DRDY returns once the clock recovers, so
+     *    a clock error is waited out within the poll budget; one that
+     *    outlasts it fails straight away, as a restart cannot cure it.
+     * A byte still not ready after STM32_BARE_RNG_BYTE_TIMEOUT polls, or a
+     * seed error, restarts the RNG; the first word after a restart is
+     * discarded. After STM32_BARE_RNG_MAX_RETRIES restarts for one byte the
+     * function gives up. */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
         word32 i;
+        word32 t;
+        word32 retries;
+        int discard;
         (void)os;
 
         ret = wolfSSL_CryptHwMutexLock();
@@ -10347,8 +10372,47 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         for (i = 0; i < sz; i++) {
-            /* wait until RNG number is ready */
-            while (RNG_GetFlagStatus(RNG_FLAG_DRDY) == RESET) { }
+            retries = 0;
+            discard = 0;
+            t = 0;
+            for (;;) {
+                if (RNG_GetFlagStatus(RNG_FLAG_SECS) == RESET) {
+                    if (RNG_GetFlagStatus(RNG_FLAG_DRDY) != RESET) {
+                        if (!discard) {
+                            break;
+                        }
+                        /* first word after a restart */
+                        (void)RNG_GetRandomNumber();
+                        discard = 0;
+                        t = 0;
+                        continue;
+                    }
+                    /* No data yet (this is also where a clock error is
+                     * ridden out). */
+                    if (++t < STM32_BARE_RNG_BYTE_TIMEOUT) {
+                        continue;
+                    }
+                    /* A clock error that outlasted the whole poll budget
+                     * will not be cured by restarting the RNG. */
+                    if (RNG_GetFlagStatus(RNG_FLAG_CECS) != RESET) {
+                        retries = STM32_BARE_RNG_MAX_RETRIES;
+                    }
+                }
+
+                /* Seed error, or no data within the poll budget: restart
+                 * the RNG. */
+                if (++retries > STM32_BARE_RNG_MAX_RETRIES) {
+                    wolfSSL_CryptHwMutexUnLock();
+                    return RNG_FAILURE_E;
+                }
+                /* one flag per call: StdPeriph asserts a single flag */
+                RNG_ClearFlag(RNG_FLAG_SECS);
+                RNG_ClearFlag(RNG_FLAG_CECS);
+                RNG_Cmd(DISABLE);
+                RNG_Cmd(ENABLE);
+                discard = 1;
+                t = 0;
+            }
 
             /* get value */
             output[i] = RNG_GetRandomNumber();
