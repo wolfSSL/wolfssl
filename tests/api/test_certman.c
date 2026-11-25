@@ -2012,6 +2012,7 @@ int test_wolfSSL_X509_STORE_CertEvents(void)
 
     /* The context setter and the store setter share the certificate
      * manager. The call made second is the callback that runs. */
+#if !defined(NO_TLS)
     {
         WOLFSSL_CTX* ctx = NULL;
         WOLFSSL_X509_STORE* cstore = NULL;
@@ -2019,7 +2020,7 @@ int test_wolfSSL_X509_STORE_CertEvents(void)
 
         XMEMSET(&log, 0, sizeof(log));
         XMEMSET(&second, 0, sizeof(second));
-        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
         ExpectIntEQ(wolfSSL_CTX_SetCertEventCb(ctx, certEventLogCb, &log),
             WOLFSSL_SUCCESS);
         ExpectNotNull(cstore = wolfSSL_CTX_get_cert_store(ctx));
@@ -2037,6 +2038,7 @@ int test_wolfSSL_X509_STORE_CertEvents(void)
         sctx = NULL;
         wolfSSL_CTX_free(ctx);
     }
+#endif /* !NO_TLS */
     wolfSSL_X509_free(leaf);
     wolfSSL_X509_free(ca);
     wolfSSL_X509_STORE_free(store);
