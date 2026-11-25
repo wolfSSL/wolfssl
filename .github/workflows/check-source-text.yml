@@ -8,10 +8,13 @@ name: Check Source Text
 #   * bash -n + shellcheck (warning level) on shell scripts.
 #   * check-workflows.py: every `run:` step against GitHub's 21000
 #     character cap, past which GitHub stops loading the workflow file
-#     altogether and its runs fail in 0s with zero jobs.
+#     altogether and its runs fail in 0s with zero jobs, and each job's
+#     apt setup budget and parallel-make-check.py --timeout/--deadline.
 #   * check-ci-deps.py: every install-apt-deps call against the .deb bundle
 #     it names, since a package missing from the bundle costs that job the
 #     apt mirror without failing anything.
+#   * test_ci_scripts.py: unit tests for check-workflows.py,
+#     check-ci-deps.py and parallel-make-check.py.
 #
 # Scope:
 #   * pull_request: only files changed in the PR (catches new violations
@@ -90,6 +93,9 @@ jobs:
       # and the workflow that consumes it are rarely touched by one PR.
       - name: Check the ci-deps bundle contract
         run: ./.github/scripts/check-ci-deps.py
+
+      - name: Test the CI scripts
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
       - name: Run check-source-text (PR changed files)
         if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'
