@@ -162,7 +162,7 @@ jobs:
     # run is normal whenever the seed has not run recently, and a shard
     # dying on the timeout would look like a test failure rather than a
     # cold cache.
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       CCACHE_MAXSIZE: 500M
       # Skip every step of a declined seed so the job shows success.
