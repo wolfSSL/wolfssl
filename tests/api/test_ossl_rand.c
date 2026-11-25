@@ -36,6 +36,7 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/rand.h>
 #endif
@@ -127,7 +128,7 @@ int test_wolfSSL_RAND_set_rand_method(void)
 
     ExpectIntNE(wolfSSL_RAND_status(), 5432);
     ExpectIntEQ(*was_cleanup_called, 0);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
     ExpectIntEQ(*was_cleanup_called, 0);
 
 
@@ -151,7 +152,11 @@ int test_wolfSSL_RAND_set_rand_method(void)
     ExpectIntEQ(*was_add_called, 1);
     was_add_called = 0;
     ExpectIntEQ(*was_cleanup_called, 0);
+    /* RAND_cleanup() does nothing: the method is still in place. */
     RAND_cleanup();
+    ExpectIntEQ(*was_cleanup_called, 0);
+    ExpectIntEQ(RAND_status(), 5432);
+    wolfssl_rand_cleanup();
     ExpectIntEQ(*was_cleanup_called, 1);
     *was_cleanup_called = 0;
 
@@ -160,7 +165,7 @@ int test_wolfSSL_RAND_set_rand_method(void)
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
     ExpectIntNE(RAND_status(), 5432);
     ExpectIntEQ(*was_cleanup_called, 0);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
     ExpectIntEQ(*was_cleanup_called, 0);
 
     RAND_set_rand_method(NULL);
@@ -213,7 +218,7 @@ int test_wolfSSL_RAND_bytes(void)
 #if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID) && !defined(__MINGW64__) && \
     !defined(__MINGW32__)
     XMEMSET(seed, 0, sizeof(seed));
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     /* No global methods set. */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
@@ -234,7 +239,7 @@ int test_wolfSSL_RAND_bytes(void)
         /* Free the child's copy of the global RNG, inherited from the
          * pre-fork RAND_seed() -- _exit() cleans up nothing, and valgrind
          * tracks the child. */
-        wolfSSL_RAND_Cleanup();
+        wolfssl_rand_cleanup();
     #ifndef NO_SESSION_CACHE
         /* Likewise the child's copy of the session cache: entries left by
          * earlier tests can hold dynamically allocated tickets. */
@@ -271,7 +276,7 @@ int test_wolfSSL_RAND_bytes(void)
         close(pipefds[0]);
         close(pipefds[1]);
     }
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 #endif
 #endif
     return EXPECT_RESULT();
@@ -301,7 +306,7 @@ int test_wolfSSL_RAND_load_file(void)
     ExpectIntEQ(RAND_load_file("/dev/urandom", 0), 0);
 #endif
 
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 #endif
     return EXPECT_RESULT();
 }
@@ -317,7 +322,7 @@ int test_wolfSSL_RAND(void)
     /* No global methods set. */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_poll(), 1);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     ExpectIntEQ(RAND_egd(NULL), -1);
 #ifndef NO_FILESYSTEM
@@ -362,7 +367,7 @@ int test_wolfSSL_RAND_poll(void)
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_poll(), 1);
     ExpectIntEQ(RAND_bytes(rand1, 16), 1);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
 #ifdef WC_RNG_SEED_CB
     /* Test with custom seed and poll */
@@ -370,13 +375,13 @@ int test_wolfSSL_RAND_poll(void)
 
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_bytes(rand1, 16), 1);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     /* test that the same value is generated twice with dummy seed function */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_bytes(rand2, 16), 1);
     ExpectIntEQ(XMEMCMP(rand1, rand2, 16), 0);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     /* test that doing a poll is reseeding RNG */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
@@ -387,7 +392,7 @@ int test_wolfSSL_RAND_poll(void)
     /* reset the seed function used */
     wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     ExpectIntEQ(RAND_egd(NULL), -1);
 #endif

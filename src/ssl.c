@@ -3808,7 +3808,7 @@ int wolfSSL_Cleanup(void)
 #endif
 
 #ifdef OPENSSL_EXTRA
-    wolfSSL_RAND_Cleanup();
+    wolfssl_rand_cleanup();
 #endif
 
     if (wolfCrypt_Cleanup() != 0) {

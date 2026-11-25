@@ -4185,7 +4185,15 @@ int wolfSSL_RAND_egd(const char* nm)
 
 #endif /* !FREERTOS_TCP */
 
+/* Does nothing, as RAND_cleanup() since OpenSSL 1.1.0. wolfSSL_Cleanup()
+ * releases the global RNG. */
 void wolfSSL_RAND_Cleanup(void)
+{
+}
+
+/* Run the RAND method cleanup and free the global RNG. Nothing else may be
+ * using them. */
+void wolfssl_rand_cleanup(void)
 {
 #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
     if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
