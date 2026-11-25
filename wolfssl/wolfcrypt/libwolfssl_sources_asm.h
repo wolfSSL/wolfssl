@@ -61,10 +61,4 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-/* sp_p256_small.c supplies P-256; the generated assembly drops its own */
-#if defined(WOLFSSL_SP_P256_SMALL) && defined(_WC_BUILDING_SP_X86_64_ASM_S)
-    #undef WOLFSSL_SP_NO_256
-    #define WOLFSSL_SP_NO_256
-#endif
-
 #endif /* LIBWOLFSSL_SOURCES_ASM_H */

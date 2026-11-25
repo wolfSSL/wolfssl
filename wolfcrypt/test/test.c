@@ -56865,7 +56865,7 @@ static wc_test_ret_t ecc_p256_edge_test(WC_RNG* rng)
     ret = wc_ecc_check_key(&key[0]);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG)
     sigSz = sizeof(sig);
     ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, &key[0]);
     if (ret != 0)
@@ -57011,7 +57011,7 @@ done:
     !defined(WOLFSSL_NO_MALLOC)
 #define WC_TEST_P256_PROJ
 /* SP P-256 projective add, double and map through the public point API:
- * 2G, in-place 2G + 2G from a Z != 1 input, G + -G and inf + G */
+ * 2G, map and double of a Z = 2 input, in-place 2G + 2G, G + -G and inf + G */
 static wc_test_ret_t ecc_p256_proj_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -57054,6 +57054,24 @@ static wc_test_ret_t ecc_p256_proj_test(void)
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+    /* G as Jacobian (4x, 8y, 2) in Montgomery form */
+    static const byte gJ[65] = {
+        0x04,
+        0x62, 0x41, 0x7d, 0xda, 0x94, 0xdd, 0x57, 0x19,
+        0xe7, 0xed, 0xcc, 0xad, 0xdd, 0x88, 0x94, 0x41,
+        0xd6, 0xea, 0x57, 0xf1, 0x7f, 0xb6, 0xd8, 0x05,
+        0xe7, 0x9c, 0xc3, 0x50, 0x62, 0xa4, 0x50, 0xf0,
+        0x2b, 0x8f, 0xf8, 0xc5, 0x2c, 0x42, 0xec, 0x2a,
+        0x97, 0x44, 0x34, 0x46, 0xe9, 0x0f, 0x99, 0x2c,
+        0x5a, 0x55, 0xc7, 0x21, 0xd0, 0xcf, 0x22, 0xe6,
+        0xef, 0x92, 0x9a, 0xbe, 0x74, 0xaa, 0xb0, 0x54
+    };
+    static const byte montTwo[32] = {
+        0x00, 0x00, 0x00, 0x01, 0xff, 0xff, 0xff, 0xfd,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xfe, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
     };
     static const byte g2[65] = {
         0x04,
@@ -57116,6 +57134,30 @@ static wc_test_ret_t ecc_p256_proj_test(void)
     if ((outSz != sizeof(g2)) || (XMEMCMP(out, g2, sizeof(g2)) != 0))
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
 
+    /* A Z that is not one: the same G must map to G and double to 2G */
+    ret = wc_ecc_import_point_der(gJ, sizeof(gJ), idx, pt[3]);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(pt[3]->z, montTwo, sizeof(montTwo));
+    if (ret == 0)
+        ret = ecc_projective_dbl_point(pt[3], pt[2], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[2], &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[3], &modulus, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    outSz = sizeof(out);
+    ret = wc_ecc_export_point_der(idx, pt[2], out, &outSz);
+    if (ret == 0) {
+        outSz = sizeof(out2);
+        ret = wc_ecc_export_point_der(idx, pt[3], out2, &outSz);
+    }
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if ((XMEMCMP(out, g2, sizeof(g2)) != 0) ||
+            (XMEMCMP(out2, g, sizeof(g)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
     /* 4G as (G + G) + (G + G) and as dbl(dbl(G)), both in place */
     ret = ecc_projective_add_point(pt[0], pt[0], pt[3], &a, &modulus, 1);
     if (ret == 0)
@@ -57146,9 +57188,9 @@ static wc_test_ret_t ecc_p256_proj_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     if (!mp_iszero(pt[3]->z))
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    (void)g;
-#ifdef WOLFSSL_SP_P256_SMALL
-    /* the generated SP code does not take Z = 0 as infinity on input */
+#if defined(WOLFSSL_SP_TINY) && !defined(WOLFSSL_SP_ASM) && \
+    (SP_WORD_SIZE == 32)
+    /* only the tiny P-256 takes Z = 0 as infinity on input */
     ret = ecc_projective_add_point(pt[3], pt[0], pt[3], &a, &modulus, 1);
     if (ret == 0)
         ret = ecc_map(pt[3], &modulus, 1);

@@ -52,36 +52,6 @@
     #undef WOLFSSL_HAVE_SP_ECC
 #endif
 
-#ifdef WOLFSSL_SP_P256_SMALL
-    #if defined(HAVE_FIPS) || defined(WC_ECC_NONBLOCK) || \
-        defined(WOLFSSL_DSP) || !defined(WORD64_AVAILABLE)
-        #error WOLFSSL_SP_P256_SMALL needs 64-bit math, no FIPS, NONBLOCK or DSP
-    #endif
-    #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
-        defined(WOLFSSL_WIDE_BYTE)
-        #error WOLFSSL_SP_P256_SMALL needs sp_int math and 8-bit bytes
-    #endif
-    #if defined(SP_NO_MUL_INSTRUCTION) || \
-        defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_6M__) || \
-        defined(__ARM_ARCH_8M_BASE__) || defined(__ARM_ARCH_4T__) || \
-        defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5TE__) || \
-        defined(__ARM_ARCH_5TEJ__) || \
-        (defined(__ARM_ARCH) && (__ARM_ARCH < 6))
-        #error WOLFSSL_SP_P256_SMALL: not constant time on this core
-    #endif
-    /* sp_p256_small.c supplies P-256; the generated files drop theirs */
-    #if defined(_WC_BUILDING_SP_C32_C) || defined(_WC_BUILDING_SP_C64_C) || \
-        defined(_WC_BUILDING_SP_CORTEXM_C) || \
-        defined(_WC_BUILDING_SP_ARMTHUMB_C) || \
-        defined(_WC_BUILDING_SP_ARM32_C) || \
-        defined(_WC_BUILDING_SP_ARM64_C) || \
-        defined(_WC_BUILDING_SP_X86_64_C) || \
-        defined(_WC_BUILDING_SP_RISCV64_C)
-        #undef WOLFSSL_SP_NO_256
-        #define WOLFSSL_SP_NO_256
-    #endif
-#endif
-
 #define SP_NOINLINE WC_NO_INLINE
 
 #ifdef __cplusplus

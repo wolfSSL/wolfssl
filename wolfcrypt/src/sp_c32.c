@@ -24200,6 +24200,1365 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
 #endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
+#ifdef WOLFSSL_SP_TINY
+
+#if DIGIT_BIT != 32
+    #error WOLFSSL_SP_TINY needs 32-bit mp_int digits
+#endif
+#if defined(HAVE_FIPS) || defined(WOLFSSL_SP_NONBLOCK) || \
+    defined(WC_ECC_NONBLOCK) || defined(WOLFSSL_DSP) || \
+    defined(WOLFSSL_WIDE_BYTE)
+    #error WOLFSSL_SP_TINY: no FIPS, non-blocking, DSP or wide byte support
+#endif
+/* The 32 by 32 to 64 bit multiply is not constant time on these cores */
+#if defined(SP_NO_MUL_INSTRUCTION) || \
+    defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_6M__) || \
+    defined(__ARM_ARCH_8M_BASE__) || defined(__ARM_ARCH_4T__) || \
+    defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5TE__) || \
+    defined(__ARM_ARCH_5TEJ__) || \
+    (defined(__ARM_ARCH) && (__ARM_ARCH < 6))
+    #error WOLFSSL_SP_TINY is not constant time on this core
+#endif
+
+/* A modulus and the constants for working modulo it. */
+typedef struct sp_tiny_mod_256 {
+    /* The modulus, least significant word first. */
+    sp_uint32 m[8];
+    /* 2^512 mod m; multiplying by it takes a value into Montgomery form. */
+    sp_uint32 r2[8];
+    /* -1 / m mod 2^32. */
+    sp_uint32 mp;
+} sp_tiny_mod_256;
+
+/* The modulus (prime) then the order of the curve P256. */
+static const sp_tiny_mod_256 p256_tiny_mod[2] = {
+    {
+        { 0xffffffffU, 0xffffffffU, 0xffffffffU, 0x00000000U,
+          0x00000000U, 0x00000000U, 0x00000001U, 0xffffffffU },
+        { 0x00000003U, 0x00000000U, 0xffffffffU, 0xfffffffbU,
+          0xfffffffeU, 0xffffffffU, 0xfffffffdU, 0x00000004U },
+        0x00000001U
+    },
+    {
+        { 0xfc632551U, 0xf3b9cac2U, 0xa7179e84U, 0xbce6faadU,
+          0xffffffffU, 0xffffffffU, 0x00000000U, 0xffffffffU },
+        { 0xbe79eea2U, 0x83244c95U, 0x49bd6fa6U, 0x4699799cU,
+          0x2b6bec59U, 0x2845b239U, 0xf3d95620U, 0x66e12d94U },
+        0xee00bc4fU
+    }
+};
+#define P256_TINY_PRIME  (&p256_tiny_mod[0])
+#define P256_TINY_ORDER  (&p256_tiny_mod[1])
+
+/* The b of curve P256 in Montgomery form. */
+static const sp_uint32 p256_tiny_b[8] = {
+    0x29c4bddfU, 0xd89cdf62U, 0x78843090U, 0xacf005cdU,
+    0xf7212ed6U, 0xe5a220abU, 0x04874834U, 0xdc30061dU
+};
+/* The base point of curve P256, x then y, in Montgomery form. */
+static const sp_uint32 p256_tiny_base[16] = {
+    0x18a9143cU, 0x79e730d4U, 0x5fedb601U, 0x75ba95fcU,
+    0x77622510U, 0x79fb732bU, 0xa53755c6U, 0x18905f76U,
+    0xce95560aU, 0xddf25357U, 0xba19e45cU, 0x8b4ab8e4U,
+    0xdd21f325U, 0xd2e88688U, 0x25885d85U, 0x8571ff18U
+};
+
+/* Registers of the formula interpreter, 8 words each. */
+#define P256_TINY_RX(r)    ((r) + 0)
+#define P256_TINY_RY(r)    ((r) + 8)
+#define P256_TINY_RZ(r)    ((r) + 16)
+#define P256_TINY_PX(r)    ((r) + 24)
+#define P256_TINY_PY(r)    ((r) + 32)
+#define P256_TINY_T0(r)    ((r) + 40)
+#define P256_TINY_T1(r)    ((r) + 48)
+#define P256_TINY_T2(r)    ((r) + 56)
+#define P256_TINY_T3(r)    ((r) + 64)
+#define P256_TINY_E(r)     ((r) + 72)
+#define P256_TINY_D(r)     ((r) + 80)
+#define P256_TINY_QX(r)    ((r) + 88)
+#define P256_TINY_QY(r)    ((r) + 96)
+#define P256_TINY_K(r)     ((r) + 72)
+#define P256_TINY_H(r)     ((r) + 24)
+#define P256_TINY_S(r)     ((r) + 56)
+#define P256_TINY_U(r)     ((r) + 88)
+/* Registers needed to multiply, to sign and for everything. */
+#define P256_TINY_REGS_MUL   10
+#define P256_TINY_REGS_SIGN  11
+#define P256_TINY_REGS       13
+
+/* Programs in the formula table: first operation and count. */
+#define P256_TINY_PROG_DBL           0
+#define P256_TINY_PROG_DBL_LEN       22
+#define P256_TINY_PROG_ADD           22
+#define P256_TINY_PROG_ADD_LEN       18
+#define P256_TINY_PROG_AFF           40
+#define P256_TINY_PROG_AFF_LEN       7
+#define P256_TINY_PROG_CRV           47
+#define P256_TINY_PROG_CRV_LEN       10
+#define P256_TINY_PROG_MONT          57
+#define P256_TINY_PROG_MONT_LEN      5
+#define P256_TINY_PROG_SIGN          62
+#define P256_TINY_PROG_SIGN_LEN      6
+#define P256_TINY_PROG_VFY           68
+#define P256_TINY_PROG_VFY_LEN       4
+#define P256_TINY_PROG_DBL_ADD       0
+#define P256_TINY_PROG_DBL_ADD_LEN   40
+#define P256_TINY_PROG_MONT_XYZ      57
+#define P256_TINY_PROG_MONT_XYZ_LEN  3
+#define P256_TINY_PROG_MONT_XY       58
+#define P256_TINY_PROG_MONT_XY_LEN   2
+#define P256_TINY_PROG_MONT_XY_P     58
+#define P256_TINY_PROG_MONT_XY_P_LEN 4
+#define P256_TINY_PROG_MONT_P        60
+#define P256_TINY_PROG_MONT_P_LEN    2
+
+/* One field or scalar operation per entry:
+ *   order << 15 | operation << 12 | result << 8 | first << 4 | second
+ * Operations are multiply, add, subtract and invert; operand 15 is R^2. */
+static const sp_uint16 p256_tiny_prog[72] = {
+    /* Double: (rx, ry, rz) = 2.(rx, ry, rz), Jacobian, a = -3 */
+    0x0522, /* t0 = rz * rz */
+    0x0611, /* t1 = ry * ry */
+    0x0706, /* t2 = rx * t1 */
+    0x2805, /* t3 = rx - t0 */
+    0x1505, /* t0 = rx + t0 */
+    0x0885, /* t3 = t3 * t0 */
+    0x1588, /* t0 = t3 + t3 */
+    0x1885, /* t3 = t3 + t0 */
+    0x0212, /* rz = ry * rz */
+    0x1222, /* rz = rz + rz */
+    0x1777, /* t2 = t2 + t2 */
+    0x1777, /* t2 = t2 + t2 */
+    0x0088, /* rx = t3 * t3 */
+    0x2007, /* rx = rx - t2 */
+    0x2007, /* rx = rx - t2 */
+    0x2770, /* t2 = t2 - rx */
+    0x0778, /* t2 = t2 * t3 */
+    0x0666, /* t1 = t1 * t1 */
+    0x1666, /* t1 = t1 + t1 */
+    0x1666, /* t1 = t1 + t1 */
+    0x1666, /* t1 = t1 + t1 */
+    0x2176, /* ry = t2 - t1 */
+    /* Add: (rx, ry, rz) += (px, py), second point affine */
+    0x0522, /* t0 = rz * rz */
+    0x0652, /* t1 = t0 * rz */
+    0x0553, /* t0 = t0 * px */
+    0x0664, /* t1 = t1 * py */
+    0x2550, /* t0 = t0 - rx */
+    0x2661, /* t1 = t1 - ry */
+    0x0225, /* rz = rz * t0 */
+    0x0755, /* t2 = t0 * t0 */
+    0x0875, /* t3 = t2 * t0 */
+    0x0770, /* t2 = t2 * rx */
+    0x1577, /* t0 = t2 + t2 */
+    0x0066, /* rx = t1 * t1 */
+    0x2005, /* rx = rx - t0 */
+    0x2008, /* rx = rx - t3 */
+    0x2770, /* t2 = t2 - rx */
+    0x0776, /* t2 = t2 * t1 */
+    0x0881, /* t3 = t3 * ry */
+    0x2178, /* ry = t2 - t3 */
+    /* Map: plain affine (rx, ry) from Jacobian (rx, ry, rz) */
+    0x052f, /* t0 = rz * R^2 */
+    0x3655, /* t1 = 1 / t0 */
+    0x056f, /* t0 = t1 * R^2 */
+    0x0656, /* t1 = t0 * t1 */
+    0x0006, /* rx = rx * t1 */
+    0x0665, /* t1 = t1 * t0 */
+    0x0116, /* ry = ry * t1 */
+    /* Curve: t0 = px^3 - 3.px + t2 - py^2, plain (px, py) in */
+    0x033f, /* px = px * R^2 */
+    0x044f, /* py = py * R^2 */
+    0x0533, /* t0 = px * px */
+    0x0553, /* t0 = t0 * px */
+    0x2553, /* t0 = t0 - px */
+    0x2553, /* t0 = t0 - px */
+    0x2553, /* t0 = t0 - px */
+    0x1557, /* t0 = t0 + t2 */
+    0x0644, /* t1 = py * py */
+    0x2556, /* t0 = t0 - t1 */
+    /* Into Montgomery form */
+    0x022f, /* rz = rz * R^2 */
+    0x000f, /* rx = rx * R^2 */
+    0x011f, /* ry = ry * R^2 */
+    0x03bf, /* px = qx * R^2 */
+    0x04cf, /* py = qy * R^2 */
+    /* Sign: s = (h + rx.d) / k mod order */
+    0x859f, /* t0 = k * R^2 */
+    0xb655, /* t1 = 1 / t0 */
+    0x870f, /* s = rx * R^2 */
+    0x877a, /* s = s * d */
+    0x9773, /* s = s + h */
+    0x8767, /* s = t1 * s */
+    /* Verify: e = e / u, u = d / u mod order */
+    0x85bf, /* t0 = u * R^2 */
+    0xb655, /* t1 = 1 / t0 */
+    0x8969, /* e = t1 * e */
+    0x8b6a  /* u = t1 * d */
+};
+
+/* Hide a select mask from the optimizer so that selects stay branch free. */
+static sp_uint32 sp_256_tiny_mask(sp_uint32 m)
+{
+    volatile sp_uint32 v = m;
+    sp_uint32 r = v;
+
+    v = 0;
+    return r;
+}
+
+/* Conditionally add b to a. (r = a + (b & m)) Returns the carry. */
+static sp_uint32 sp_256_cond_add_8(sp_uint32* r, const sp_uint32* a,
+    const sp_uint32* b, sp_uint32 m)
+{
+    sp_uint64 t = 0;
+    int i;
+
+    m = sp_256_tiny_mask(m);
+    for (i = 0; i < 8; i++) {
+        t += (sp_uint64)a[i] + (b[i] & m);
+        r[i] = (sp_uint32)t;
+        t >>= 32;
+    }
+    return (sp_uint32)t;
+}
+
+/* Subtract b from a. (r = a - b) Returns the borrow. */
+static sp_uint32 sp_256_sub_8(sp_uint32* r, const sp_uint32* a,
+    const sp_uint32* b)
+{
+    sp_uint64 t = 0;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        t = (sp_uint64)a[i] - b[i] - t;
+        r[i] = (sp_uint32)t;
+        t = (t >> 32) & 1U;
+    }
+    return (sp_uint32)t;
+}
+
+/* Copy a into r when the mask m is all ones; leave r when m is zero. */
+static void sp_256_cond_copy_8(sp_uint32* r, const sp_uint32* a, sp_uint32 m)
+{
+    int i;
+
+    m = sp_256_tiny_mask(m);
+    for (i = 0; i < 8; i++) {
+        r[i] ^= (r[i] ^ a[i]) & m;
+    }
+}
+
+/* Returns 1 when a is zero and 0 otherwise. */
+static sp_uint32 sp_256_iszero_8(const sp_uint32* a)
+{
+    sp_uint32 acc = 0;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        acc |= a[i];
+    }
+    return ((acc | ((sp_uint32)0 - acc)) >> 31) ^ 1U;
+}
+
+/* Returns 1 when a equals b and 0 otherwise. */
+static sp_uint32 sp_256_tiny_eq_8(const sp_uint32* a, const sp_uint32* b)
+{
+    sp_uint32 acc = 0;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        acc |= a[i] ^ b[i];
+    }
+    return ((acc | ((sp_uint32)0 - acc)) >> 31) ^ 1U;
+}
+
+/* Returns 1 when a is less than b and 0 otherwise. t takes the difference. */
+static sp_uint32 sp_256_tiny_lt_8(sp_uint32* t, const sp_uint32* a,
+    const sp_uint32* b)
+{
+    return sp_256_sub_8(t, a, b);
+}
+
+/* Subtract modulo m, a and b less than m. (r = a - b mod m) */
+static void sp_256_mont_sub_8(sp_uint32* r, const sp_uint32* a,
+    const sp_uint32* b, const sp_tiny_mod_256* m)
+{
+    sp_uint32 o;
+
+    o = sp_256_sub_8(r, a, b);
+    (void)sp_256_cond_add_8(r, r, m->m, (sp_uint32)0 - o);
+}
+
+/* Reduce a that is less than twice the modulus. (a = a mod m) */
+static void sp_256_tiny_reduce_8(sp_uint32* a, const sp_tiny_mod_256* m)
+{
+    sp_256_mont_sub_8(a, a, m->m, m);
+}
+
+#if defined(__GNUC__) && defined(__ARM_FEATURE_DSP) && \
+    !defined(WOLFSSL_SP_NO_UMAAL)
+/* Multiply a by the word b and add into r. (r[0..8] += a[0..7] * b)
+ * Returns the carry. One UMAAL instruction a word.
+ */
+static SP_NOINLINE sp_uint32 sp_256_mul_add_8(sp_uint32* r,
+    const sp_uint32* a, sp_uint32 b)
+{
+    sp_uint32 c = 0;
+    sp_uint32 lo;
+
+    lo = r[0];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[0]));
+    r[0] = lo;
+    lo = r[1];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[1]));
+    r[1] = lo;
+    lo = r[2];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[2]));
+    r[2] = lo;
+    lo = r[3];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[3]));
+    r[3] = lo;
+    lo = r[4];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[4]));
+    r[4] = lo;
+    lo = r[5];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[5]));
+    r[5] = lo;
+    lo = r[6];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[6]));
+    r[6] = lo;
+    lo = r[7];
+    __asm__("umaal %0, %1, %2, %3"
+        : "+r" (lo), "+r" (c) : "r" (b), "r" (a[7]));
+    r[7] = lo;
+    lo = r[8] + c;
+    r[8] = lo;
+    return (sp_uint32)(lo < c);
+}
+#else
+/* Multiply a by the word b and add into r. (r[0..8] += a[0..7] * b)
+ * Returns the carry.
+ */
+static SP_NOINLINE sp_uint32 sp_256_mul_add_8(sp_uint32* r,
+    const sp_uint32* a, sp_uint32 b)
+{
+    sp_uint64 c = 0;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        c += (sp_uint64)b * a[i] + r[i];
+        r[i] = (sp_uint32)c;
+        c >>= 32;
+    }
+    c += r[8];
+    r[8] = (sp_uint32)c;
+    return (sp_uint32)(c >> 32);
+}
+#endif
+
+/* Add r[0] times the prime to r so that word 0 cancels. (r[0..8] += r[0] * p)
+ * p + 1 is 2^96 + 2^192 - 2^224 + 2^256, so no multiply is needed.
+ * Returns the carry.
+ */
+static SP_NOINLINE sp_uint32 sp_256_tiny_mont_red_8(sp_uint32* r)
+{
+    sp_uint32 u = r[0];
+    sp_int64 c;
+
+    c = (sp_int64)r[3] + u;
+    r[3] = (sp_uint32)c;
+    c >>= 32;
+    c += r[4];
+    r[4] = (sp_uint32)c;
+    c >>= 32;
+    c += r[5];
+    r[5] = (sp_uint32)c;
+    c >>= 32;
+    c += (sp_int64)r[6] + u;
+    r[6] = (sp_uint32)c;
+    c >>= 32;
+    c += (sp_int64)r[7] - u;
+    r[7] = (sp_uint32)c;
+    c >>= 32;
+    c += (sp_int64)r[8] + u;
+    r[8] = (sp_uint32)c;
+    c >>= 32;
+    return (sp_uint32)c;
+}
+
+/* The modulus in use and the scratch of a multiply, for its owner to wipe. */
+typedef struct sp_tiny_work_256 {
+    const sp_tiny_mod_256* m;
+    sp_uint32 t[17];
+} sp_tiny_work_256;
+
+/* Multiply two numbers in Montgomery form. (r = a * b / 2^256 mod wk->m)
+ * a and b are less than 2^256; r is less than the modulus and may be a or b.
+ */
+static void sp_256_mont_mul_8(sp_uint32* r, const sp_uint32* a,
+    const sp_uint32* b, sp_tiny_work_256* wk)
+{
+    const sp_tiny_mod_256* m = wk->m;
+    sp_uint32* t = wk->t;
+    sp_uint32 o;
+    int i;
+
+    XMEMSET(t, 0, sizeof(wk->t));
+    for (i = 0; i < 8; i++) {
+        t[i + 9] = sp_256_mul_add_8(t + i, b, a[i]);
+        if (m->mp == 1U) {
+            t[i + 9] += sp_256_tiny_mont_red_8(t + i);
+        }
+        else {
+            t[i + 9] += sp_256_mul_add_8(t + i, m->m, t[i] * m->mp);
+        }
+    }
+    o = sp_256_sub_8(r, t + 8, m->m);
+    sp_256_cond_copy_8(r, t + 8, (sp_uint32)0 - ((t[16] ^ 1U) & o));
+}
+
+/* Add modulo wk->m, a and b less than it. (r = a + b mod wk->m) */
+static void sp_256_mont_add_8(sp_uint32* r, const sp_uint32* a,
+    const sp_uint32* b, sp_tiny_work_256* wk)
+{
+    (void)sp_256_sub_8(wk->t, wk->m->m, b);
+    sp_256_mont_sub_8(r, a, wk->t, wk->m);
+}
+
+/* Exponentiate in Montgomery form, r not a. (r = a ^ e mod wk->m)
+ * e is public: 8 words, or the modulus less 2 when m2 is set.
+ */
+static void sp_256_tiny_mont_exp_8(sp_uint32* r, const sp_uint32* a,
+    const sp_uint32* e, sp_tiny_work_256* wk, int m2)
+{
+    sp_uint32 w;
+    int i;
+
+    /* 2^256 mod m is 2^256 - m as m is more than 2^255 */
+    XMEMSET(r, 0, 32);
+    (void)sp_256_sub_8(r, r, wk->m->m);
+    for (i = 255; i >= 0; i--) {
+        sp_256_mont_mul_8(r, r, r, wk);
+        w = e[i / 32];
+        if (m2 && (i < 32)) {
+            w -= 2U;
+        }
+        if (((w >> (i % 32)) & 1U) != 0) {
+            sp_256_mont_mul_8(r, r, a, wk);
+        }
+    }
+}
+
+/* Run n operations of the formula program at prog on the registers at r. */
+static void sp_256_tiny_run_8(sp_uint32* r, const sp_uint16* prog, int n)
+{
+    sp_tiny_work_256 wk;
+    const sp_tiny_mod_256* m;
+    const sp_uint32* a;
+    const sp_uint32* b;
+    sp_uint32* d;
+    sp_uint32 op;
+
+    for (; n > 0; n--) {
+        op = *prog++;
+        m = &p256_tiny_mod[op >> 15];
+        wk.m = m;
+        d = r + (((op >> 8) & 0xf) * 8);
+        a = r + (((op >> 4) & 0xf) * 8);
+        if ((op & 0xf) == 15) {
+            b = m->r2;
+        }
+        else {
+            b = r + ((op & 0xf) * 8);
+        }
+        op = (op >> 12) & 3U;
+        if (op == 0) {
+            sp_256_mont_mul_8(d, a, b, &wk);
+        }
+        else if (op == 1) {
+            sp_256_mont_add_8(d, a, b, &wk);
+        }
+        else if (op == 2) {
+            sp_256_mont_sub_8(d, a, b, m);
+        }
+        else {
+            /* Fermat inverse; zero maps to zero */
+            sp_256_tiny_mont_exp_8(d, a, m->m, &wk, 1);
+        }
+    }
+    ForceZero(&wk, sizeof(wk));
+}
+#define P256_TINY_RUN(r, name)                                                \
+    sp_256_tiny_run_8(r, p256_tiny_prog + P256_TINY_PROG_##name,              \
+        P256_TINY_PROG_##name##_LEN)
+
+/* Set r to one in Montgomery form. (r = 2^256 mod p) */
+static void sp_256_tiny_mont_one_8(sp_uint32* r)
+{
+    XMEMSET(r, 0, 32);
+    (void)sp_256_sub_8(r, r, P256_TINY_PRIME->m);
+}
+
+/* Multiply the point by the scalar in constant time. (rx, ry) = k.(px, py)
+ * The point is affine in Montgomery form; the result is plain affine with
+ * (0, 0) for infinity. k is made odd as k or order - k and read as digits of
+ * +1 and -1, so that every step is a double and an add of plus or minus the
+ * point and none of them meets an exceptional case.
+ *
+ * @param [in, out] r  Registers.
+ * @param [in]      k  Scalar.
+ */
+static void sp_256_ecc_mulmod_8(sp_uint32* r, const sp_uint32* k)
+{
+    sp_uint32 kk[8];
+    sp_uint32* t = P256_TINY_T0(r);
+    sp_uint32* py = P256_TINY_PY(r);
+    sp_uint32 odd;
+    sp_uint32 want;
+    sp_uint32 cur = 1;
+    int i;
+
+    XMEMCPY(kk, k, sizeof(kk));
+    sp_256_tiny_reduce_8(kk, P256_TINY_ORDER);
+    (void)sp_256_sub_8(t, P256_TINY_ORDER->m, kk);
+    odd = kk[0] & 1U;
+    sp_256_cond_copy_8(kk, t, odd - 1U);
+    for (i = 256; i > 0; i--) {
+        want = odd;
+        if (i < 256) {
+            want ^= ((kk[i / 32] >> (i % 32)) & 1U) ^ 1U;
+        }
+        (void)sp_256_sub_8(t, P256_TINY_PRIME->m, py);
+        sp_256_cond_copy_8(py, t, (sp_uint32)0 - (want ^ cur));
+        cur = want;
+        if (i == 256) {
+            XMEMCPY(P256_TINY_RX(r), P256_TINY_PX(r), 2 * 32);
+            sp_256_tiny_mont_one_8(P256_TINY_RZ(r));
+        }
+        else {
+            P256_TINY_RUN(r, DBL_ADD);
+        }
+    }
+    P256_TINY_RUN(r, AFF);
+    ForceZero(kk, sizeof(kk));
+}
+
+/* Add two plain affine points, (0, 0) for infinity. (rx, ry) += (qx, qy)
+ * Not constant time; the points added are public.
+ */
+static void sp_256_tiny_point_add_8(sp_uint32* r)
+{
+    sp_uint32 sameX;
+    sp_uint32 sameY;
+
+    if (sp_256_iszero_8(P256_TINY_RY(r)) != 0) {
+        XMEMCPY(P256_TINY_RX(r), P256_TINY_QX(r), 2 * 32);
+    }
+    else if (sp_256_iszero_8(P256_TINY_QY(r)) == 0) {
+        sameX = sp_256_tiny_eq_8(P256_TINY_RX(r), P256_TINY_QX(r));
+        sameY = sp_256_tiny_eq_8(P256_TINY_RY(r), P256_TINY_QY(r));
+        P256_TINY_RUN(r, MONT_XY_P);
+        sp_256_tiny_mont_one_8(P256_TINY_RZ(r));
+        if (sameX == 0) {
+            P256_TINY_RUN(r, ADD);
+        }
+        else if (sameY != 0) {
+            P256_TINY_RUN(r, DBL);
+        }
+        else {
+            XMEMSET(P256_TINY_RZ(r), 0, 32);
+        }
+        P256_TINY_RUN(r, AFF);
+    }
+}
+
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Read a big-endian number of at most 32 bytes. */
+static void sp_256_from_bin(sp_uint32* r, const byte* a, word32 n)
+{
+    word32 i;
+
+    XMEMSET(r, 0, 32);
+    for (i = 0; i < n; i++) {
+        r[i / 4] |= (sp_uint32)a[n - 1 - i] << (8 * (i % 4));
+    }
+}
+
+/* Take the leftmost 256 bits of the hash modulo the order. */
+static void sp_256_tiny_hash_8(sp_uint32* e, const byte* hash, word32 hashLen)
+{
+    if (hashLen > 32) {
+        hashLen = 32;
+    }
+    sp_256_from_bin(e, hash, hashLen);
+    sp_256_tiny_reduce_8(e, P256_TINY_ORDER);
+}
+#endif
+
+#ifdef HAVE_ECC_DHE
+/* Write r as 32 big-endian bytes. */
+static void sp_256_to_bin_8(const sp_uint32* r, byte* a)
+{
+    int i;
+
+    for (i = 0; i < 32; i++) {
+        a[31 - i] = (byte)(r[i / 4] >> (8 * (i % 4)));
+    }
+}
+#endif
+
+/* Convert an mp_int into 8 words. The digit count is not branched on.
+ * Returns MP_VAL when a is negative or wider than 256 bits.
+ */
+static int sp_256_from_mp(sp_uint32* r, const mp_int* a)
+{
+    sp_uint32 used = (sp_uint32)a->used;
+    sp_uint32 i;
+    int o = 0;
+    int err = MP_OKAY;
+
+    if (mp_isneg(a) || (used > 8)) {
+        err = MP_VAL;
+    }
+    else {
+        for (i = 0; i < 8; i++) {
+            r[i] = (sp_uint32)a->dp[o] & ((sp_uint32)0 - ((i - used) >> 31));
+            o += (int)(((i + 1U) - used) >> 31);
+        }
+    }
+    return err;
+}
+
+/* Convert 8 words into an mp_int. */
+static int sp_256_to_mp(const sp_uint32* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, 8);
+    if (err == MP_OKAY) {
+        XMEMCPY(r->dp, a, 32);
+        r->used = 8;
+        mp_clamp(r);
+    }
+    return err;
+}
+
+/* Load an affine public point into (px, py) in Montgomery form and check that
+ * it is on the curve. A z ordinate, when given, must be one.
+ */
+static int sp_256_tiny_load_pub_8(sp_uint32* r, const mp_int* x,
+    const mp_int* y, const mp_int* z)
+{
+    sp_uint32* px = P256_TINY_PX(r);
+    sp_uint32* py = P256_TINY_PY(r);
+    sp_uint32* t = P256_TINY_T0(r);
+    int err;
+
+    err = sp_256_from_mp(px, x);
+    if (err == MP_OKAY) {
+        err = sp_256_from_mp(py, y);
+    }
+    if ((err != MP_OKAY) ||
+            ((sp_256_tiny_lt_8(t, px, P256_TINY_PRIME->m) &
+              sp_256_tiny_lt_8(t, py, P256_TINY_PRIME->m)) == 0)) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+    if ((err == MP_OKAY) && (z != NULL) && !mp_isone(z)) {
+        err = ECC_BAD_ARG_E;
+    }
+    if (err == MP_OKAY) {
+        XMEMCPY(P256_TINY_T2(r), p256_tiny_b, 32);
+        P256_TINY_RUN(r, CRV);
+        if (sp_256_iszero_8(P256_TINY_T0(r)) == 0) {
+            err = MP_VAL;
+        }
+    }
+    return err;
+}
+
+/* Load a Jacobian point and map it to plain affine (rx, ry). */
+static int sp_256_tiny_load_point_8(sp_uint32* r, const mp_int* x,
+    const mp_int* y, const mp_int* z, int inMont)
+{
+    int err;
+    int i;
+
+    err = sp_256_from_mp(P256_TINY_RX(r), x);
+    if (err == MP_OKAY) {
+        err = sp_256_from_mp(P256_TINY_RY(r), y);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_from_mp(P256_TINY_RZ(r), z);
+    }
+    if (err == MP_OKAY) {
+        if (inMont) {
+            for (i = 0; i < 3; i++) {
+                sp_256_tiny_reduce_8(r + (i * 8), P256_TINY_PRIME);
+            }
+        }
+        else {
+            P256_TINY_RUN(r, MONT_XYZ);
+        }
+        P256_TINY_RUN(r, AFF);
+    }
+    return err;
+}
+
+/* Store plain affine (rx, ry). When map is set, as is with z of one; otherwise
+ * in Montgomery form with z the Montgomery one, or zero for infinity.
+ */
+static int sp_256_tiny_store_point_8(sp_uint32* r, mp_int* x, mp_int* y,
+    mp_int* z, int map)
+{
+    sp_uint32* rz = P256_TINY_RZ(r);
+    int err;
+
+    if (map) {
+        XMEMSET(rz, 0, 32);
+        rz[0] = 1;
+    }
+    else {
+        P256_TINY_RUN(r, MONT_XY);
+        sp_256_tiny_mont_one_8(rz);
+        /* Only infinity has a y of zero, and its z is zero */
+        sp_256_cond_copy_8(rz, P256_TINY_RY(r),
+            (sp_uint32)0 - sp_256_iszero_8(P256_TINY_RY(r)));
+    }
+    err = sp_256_to_mp(P256_TINY_RX(r), x);
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(P256_TINY_RY(r), y);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(rz, z);
+    }
+    return err;
+}
+
+/* Generate a random scalar in the range 1..order-1 by rejection sampling.
+ * t is scratch for the range check.
+ */
+static int sp_256_ecc_gen_k_8(WC_RNG* rng, sp_uint32* k, sp_uint32* t)
+{
+#ifndef WC_NO_RNG
+    int err;
+
+    do {
+        err = wc_RNG_GenerateBlock(rng, (byte*)k, 32);
+    }
+    while ((err == 0) && ((sp_256_tiny_lt_8(t, k, P256_TINY_ORDER->m) &
+                           (sp_256_iszero_8(k) ^ 1U)) == 0));
+
+    return err;
+#else
+    (void)rng;
+    (void)k;
+    (void)t;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+/* Make plain affine (rx, ry) the point to multiply, (px, py). */
+static void sp_256_tiny_set_point_8(sp_uint32* r)
+{
+    XMEMCPY(P256_TINY_QX(r), P256_TINY_RX(r), 2 * 32);
+    P256_TINY_RUN(r, MONT_P);
+}
+
+/* Set the base point as the point to multiply, (px, py). */
+static void sp_256_tiny_set_base_8(sp_uint32* r)
+{
+    XMEMCPY(P256_TINY_PX(r), p256_tiny_base, sizeof(p256_tiny_base));
+}
+
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * @param [in]  km    Scalar to multiply by.
+ * @param [in]  gm    Point to multiply.
+ * @param [out] r     Resulting point.
+ * @param [in]  map   Indicates whether to convert result to affine.
+ * @param [in]  heap  Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a value is negative or wider than 256 bits.
+ */
+int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+    sp_uint32 t[P256_TINY_REGS * 8];
+    int err;
+
+    (void)heap;
+
+    err = sp_256_from_mp(P256_TINY_E(t), km);
+    if (err == MP_OKAY) {
+        err = sp_256_tiny_load_point_8(t, gm->x, gm->y, gm->z, 0);
+    }
+    if (err == MP_OKAY) {
+        sp_256_tiny_set_point_8(t);
+        sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
+        err = sp_256_tiny_store_point_8(t, r->x, r->y, r->z, map);
+    }
+
+    ForceZero(t, sizeof(t));
+
+    return err;
+}
+
+/* Multiply the point by the scalar, add point a and return the result.
+ * The base point is multiplied when gm is NULL.
+ */
+static int sp_256_tiny_mulmod_add_8(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map)
+{
+    sp_uint32 t[P256_TINY_REGS * 8];
+    int err;
+
+    err = sp_256_from_mp(P256_TINY_E(t), km);
+    if ((err == MP_OKAY) && (gm != NULL)) {
+        err = sp_256_tiny_load_point_8(t, gm->x, gm->y, gm->z, 0);
+        if (err == MP_OKAY) {
+            sp_256_tiny_set_point_8(t);
+        }
+    }
+    else if (err == MP_OKAY) {
+        sp_256_tiny_set_base_8(t);
+    }
+    if (err == MP_OKAY) {
+        sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
+        XMEMCPY(P256_TINY_QX(t), P256_TINY_RX(t), 2 * 32);
+        err = sp_256_tiny_load_point_8(t, am->x, am->y, am->z, inMont);
+    }
+    if (err == MP_OKAY) {
+        sp_256_tiny_point_add_8(t);
+        err = sp_256_tiny_store_point_8(t, r->x, r->y, r->z, map);
+    }
+
+    ForceZero(t, sizeof(t));
+
+    return err;
+}
+
+/* Multiply the point by the scalar, add point a and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * @param [in]  km      Scalar to multiply by.
+ * @param [in]  gm      Point to multiply.
+ * @param [in]  am      Point to add to scalar multiply result.
+ * @param [in]  inMont  Point to add is in montgomery form.
+ * @param [out] r       Resulting point.
+ * @param [in]  map     Indicates whether to convert result to affine.
+ * @param [in]  heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a value is negative or wider than 256 bits.
+ */
+int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
+{
+    (void)heap;
+
+    return sp_256_tiny_mulmod_add_8(km, gm, am, inMont, r, map);
+}
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * @param [in]  km    Scalar to multiply by.
+ * @param [out] r     Resulting point.
+ * @param [in]  map   Indicates whether to convert result to affine.
+ * @param [in]  heap  Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when the scalar is negative or wider than 256 bits.
+ */
+int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+    sp_uint32 t[P256_TINY_REGS_MUL * 8];
+    int err;
+
+    (void)heap;
+
+    err = sp_256_from_mp(P256_TINY_E(t), km);
+    if (err == MP_OKAY) {
+        sp_256_tiny_set_base_8(t);
+        sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
+        err = sp_256_tiny_store_point_8(t, r->x, r->y, r->z, map);
+    }
+
+    ForceZero(t, sizeof(t));
+
+    return err;
+}
+
+/* Multiply the base point of P256 by the scalar, add point a and return
+ * the result. If map is true then convert result to affine coordinates.
+ *
+ * @param [in]  km      Scalar to multiply by.
+ * @param [in]  am      Point to add to scalar multiply result.
+ * @param [in]  inMont  Point to add is in montgomery form.
+ * @param [out] r       Resulting point.
+ * @param [in]  map     Indicates whether to convert result to affine.
+ * @param [in]  heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a value is negative or wider than 256 bits.
+ */
+int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+    (void)heap;
+
+    return sp_256_tiny_mulmod_add_8(km, NULL, am, inMont, r, map);
+}
+
+/* Makes a random EC key pair.
+ *
+ * @param [in]  rng   Random number generator.
+ * @param [out] priv  Generated private value.
+ * @param [out] pub   Generated public point.
+ * @param [in]  heap  Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  RNG failures.
+ */
+int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
+{
+    sp_uint32 t[P256_TINY_REGS_MUL * 8];
+    int err;
+
+    (void)heap;
+
+    err = sp_256_ecc_gen_k_8(rng, P256_TINY_E(t), P256_TINY_T0(t));
+    if (err == MP_OKAY) {
+        sp_256_tiny_set_base_8(t);
+        sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
+        err = sp_256_to_mp(P256_TINY_E(t), priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_tiny_store_point_8(t, pub->x, pub->y, pub->z, 1);
+    }
+
+    ForceZero(t, sizeof(t));
+
+    return err;
+}
+
+#ifdef HAVE_ECC_DHE
+/* Multiply the point by the scalar and serialize the X ordinate.
+ * The number is 0 padded to maximum size on output.
+ *
+ * @param [in]      priv    Scalar to multiply the point by.
+ * @param [in]      pub     Point to multiply.
+ * @param [out]     out     Buffer to hold X ordinate.
+ * @param [in, out] outLen  On entry, size of the buffer in bytes.
+ *                          On exit, length of data in buffer in bytes.
+ * @param [in]      heap    Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  BUFFER_E when the buffer is too small for output size.
+ * @return  ECC_OUT_OF_RANGE_E when an ordinate is not less than the modulus.
+ * @return  MP_VAL when the point is not on the curve.
+ * @return  ECC_INF_E when the result is the point at infinity.
+ */
+int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
+                          word32* outLen, void* heap)
+{
+    sp_uint32 t[P256_TINY_REGS_MUL * 8];
+    int err = MP_OKAY;
+
+    (void)heap;
+
+    if (*outLen < 32U) {
+        err = BUFFER_E;
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_from_mp(P256_TINY_E(t), priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_tiny_load_pub_8(t, pub->x, pub->y, pub->z);
+    }
+    if (err == MP_OKAY) {
+        sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
+        if (sp_256_iszero_8(P256_TINY_RY(t)) != 0) {
+            err = ECC_INF_E;
+        }
+    }
+    if (err == MP_OKAY) {
+        sp_256_to_bin_8(P256_TINY_RX(t), out);
+        *outLen = 32;
+    }
+
+    ForceZero(t, sizeof(t));
+
+    return err;
+}
+#endif /* HAVE_ECC_DHE */
+
+#ifdef HAVE_ECC_SIGN
+#ifndef SP_ECC_MAX_SIG_GEN
+#define SP_ECC_MAX_SIG_GEN  64
+#endif
+
+/* Sign the hash using the private key.
+ *   e = [hash, 256 bits] from binary
+ *   r = (k.G)->x mod order
+ *   s = (r * x + e) / k mod order
+ * The hash is truncated to the first 256 bits.
+ *
+ * @param [in]      hash     Hash to sign.
+ * @param [in]      hashLen  Length of the hash data.
+ * @param [in]      rng      Random number generator.
+ * @param [in]      priv     Private part of key - scalar.
+ * @param [out]     rm       First part of result as an mp_int.
+ * @param [out]     sm       Second part of result as an mp_int.
+ * @param [in, out] km       Ephemeral key as an mp_int.
+ * @param [in]      heap     Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  RNG failures.
+ * @return  MP_VAL when a value is negative or wider than 256 bits.
+ */
+int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    sp_uint32 t[P256_TINY_REGS_SIGN * 8];
+    sp_uint32* k = P256_TINY_K(t);
+    sp_uint32* rx = P256_TINY_RX(t);
+    sp_uint32 done = 0;
+    int err;
+    int i;
+
+    (void)heap;
+
+    err = sp_256_from_mp(P256_TINY_D(t), priv);
+    for (i = 0; (err == MP_OKAY) && (done == 0) && (i < SP_ECC_MAX_SIG_GEN);
+            i++) {
+        if ((km != NULL) && !mp_iszero(km)) {
+            err = sp_256_from_mp(k, km);
+            mp_zero(km);
+        }
+        else {
+            err = sp_256_ecc_gen_k_8(rng, k, P256_TINY_T0(t));
+        }
+        if (err == MP_OKAY) {
+            sp_256_tiny_set_base_8(t);
+            sp_256_ecc_mulmod_8(t, k);
+            sp_256_tiny_reduce_8(rx, P256_TINY_ORDER);
+            /* The hash takes a register of the point that was multiplied */
+            sp_256_tiny_hash_8(P256_TINY_H(t), hash, hashLen);
+            P256_TINY_RUN(t, SIGN);
+            done = (sp_256_iszero_8(rx) |
+                    sp_256_iszero_8(P256_TINY_S(t))) ^ 1U;
+        }
+    #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = SP_ECC_MAX_SIG_GEN;
+    #endif
+    }
+    if ((err == MP_OKAY) && (done == 0)) {
+        err = RNG_FAILURE_E;
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(rx, rm);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(P256_TINY_S(t), sm);
+    }
+
+    ForceZero(t, sizeof(t));
+
+    return err;
+}
+#endif /* HAVE_ECC_SIGN */
+
+#ifdef HAVE_ECC_VERIFY
+/* Verify the signature values with the hash and public key.
+ *   e = Truncate(hash, 256)
+ *   u1 = e/s mod order
+ *   u2 = r/s mod order
+ *   r == (u1.G + u2.Q)->x mod order
+ * The hash is truncated to the first 256 bits.
+ *
+ * @param [in]  hash     Hash to verify.
+ * @param [in]  hashLen  Length of the hash data.
+ * @param [in]  pX       X ordinate of public point.
+ * @param [in]  pY       Y ordinate of public point.
+ * @param [in]  pZ       Z ordinate of public point. Must be one.
+ * @param [in]  rm       First part of signature as an mp_int.
+ * @param [in]  sm       Second part of signature as an mp_int.
+ * @param [out] res      Result of the verification: 1 == valid, 0 == invalid.
+ * @param [in]  heap     Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  ECC_OUT_OF_RANGE_E when an ordinate is not less than the modulus.
+ * @return  ECC_BAD_ARG_E when the public point is not affine.
+ * @return  MP_VAL when the public point is not on the curve.
+ */
+int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    sp_uint32 t[P256_TINY_REGS * 8];
+    sp_uint32* rr = P256_TINY_D(t);
+    sp_uint32* s = P256_TINY_U(t);
+    sp_uint32* rx = P256_TINY_RX(t);
+    sp_uint32 ok;
+    int err;
+
+    (void)heap;
+
+    *res = 0;
+    sp_256_tiny_hash_8(P256_TINY_E(t), hash, hashLen);
+    err = sp_256_tiny_load_pub_8(t, pX, pY, pZ);
+    if (err == MP_OKAY) {
+        /* An r or s out of range is an invalid signature, not an error */
+        ok = (sp_uint32)((sp_256_from_mp(rr, rm) == MP_OKAY) &&
+                         (sp_256_from_mp(s, sm) == MP_OKAY));
+        if (ok != 0) {
+            ok = sp_256_tiny_lt_8(rx, rr, P256_TINY_ORDER->m) &
+                 sp_256_tiny_lt_8(rx, s, P256_TINY_ORDER->m) &
+                 (sp_256_iszero_8(rr) ^ 1U) & (sp_256_iszero_8(s) ^ 1U);
+        }
+        if (ok != 0) {
+            P256_TINY_RUN(t, VFY);
+            sp_256_ecc_mulmod_8(t, s);
+            XMEMCPY(P256_TINY_QX(t), rx, 2 * 32);
+            sp_256_tiny_set_base_8(t);
+            sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
+            sp_256_tiny_point_add_8(t);
+            ok = sp_256_iszero_8(P256_TINY_RY(t)) ^ 1U;
+        }
+        if (ok != 0) {
+            sp_256_tiny_reduce_8(rx, P256_TINY_ORDER);
+            *res = (int)sp_256_tiny_eq_8(rx, rr);
+        }
+    }
+
+    return err;
+}
+#endif /* HAVE_ECC_VERIFY */
+
+/* Check that the x and y ordinates are a valid point on the curve.
+ *
+ * @param [in] pX  X ordinate of EC point.
+ * @param [in] pY  Y ordinate of EC point.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when the point is not on the curve.
+ * @return  ECC_OUT_OF_RANGE_E when an ordinate is not less than the modulus.
+ */
+int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
+{
+    sp_uint32 t[P256_TINY_REGS_MUL * 8];
+
+    return sp_256_tiny_load_pub_8(t, pX, pY, NULL);
+}
+
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+/* Check that the private scalar generates the EC point (px, py) and the point
+ * is on the curve. The cofactor is one, so a point on the curve has the
+ * correct order.
+ *
+ * @param [in] pX     X ordinate of EC point.
+ * @param [in] pY     Y ordinate of EC point.
+ * @param [in] privm  Private scalar that generates EC point.
+ * @param [in] heap   Heap to use for allocation.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when the point is not on the curve.
+ * @return  ECC_INF_E when the point is the point at infinity.
+ * @return  ECC_OUT_OF_RANGE_E when a value is out of range.
+ * @return  ECC_PRIV_KEY_E when the private scalar doesn't generate the EC
+ *          point.
+ */
+int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+    sp_uint32 t[P256_TINY_REGS * 8];
+    int err = MP_OKAY;
+
+    (void)heap;
+
+    if (mp_iszero(pX) && mp_iszero(pY)) {
+        err = ECC_INF_E;
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_tiny_load_pub_8(t, pX, pY, NULL);
+    }
+    if ((err == MP_OKAY) && (privm != NULL)) {
+        if (sp_256_from_mp(P256_TINY_E(t), privm) != MP_OKAY) {
+            err = ECC_OUT_OF_RANGE_E;
+        }
+        if (err == MP_OKAY) {
+            XMEMCPY(P256_TINY_QX(t), P256_TINY_PX(t), 2 * 32);
+            sp_256_tiny_set_base_8(t);
+            sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
+            P256_TINY_RUN(t, MONT_XY);
+            if ((sp_256_tiny_eq_8(P256_TINY_RX(t), P256_TINY_QX(t)) &
+                 sp_256_tiny_eq_8(P256_TINY_RY(t), P256_TINY_QY(t))) == 0) {
+                err = ECC_PRIV_KEY_E;
+            }
+        }
+        ForceZero(t, sizeof(t));
+    }
+
+    return err;
+}
+#endif
+
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+/* Add two projective EC points together.
+ * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
+ *
+ * @param [in]  pX  First EC point's X ordinate.
+ * @param [in]  pY  First EC point's Y ordinate.
+ * @param [in]  pZ  First EC point's Z ordinate.
+ * @param [in]  qX  Second EC point's X ordinate.
+ * @param [in]  qY  Second EC point's Y ordinate.
+ * @param [in]  qZ  Second EC point's Z ordinate.
+ * @param [out] rX  Resultant EC point's X ordinate.
+ * @param [out] rY  Resultant EC point's Y ordinate.
+ * @param [out] rZ  Resultant EC point's Z ordinate.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when a value is negative or wider than 256 bits.
+ */
+int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    sp_uint32 t[P256_TINY_REGS * 8];
+    int err;
+
+    err = sp_256_tiny_load_point_8(t, pX, pY, pZ, 1);
+    if (err == MP_OKAY) {
+        XMEMCPY(P256_TINY_QX(t), P256_TINY_RX(t), 2 * 32);
+        err = sp_256_tiny_load_point_8(t, qX, qY, qZ, 1);
+    }
+    if (err == MP_OKAY) {
+        sp_256_tiny_point_add_8(t);
+        err = sp_256_tiny_store_point_8(t, rX, rY, rZ, 0);
+    }
+
+    return err;
+}
+
+/* Double a projective EC point.
+ * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
+ *
+ * @param [in]  pX  EC point's X ordinate.
+ * @param [in]  pY  EC point's Y ordinate.
+ * @param [in]  pZ  EC point's Z ordinate.
+ * @param [out] rX  Resultant EC point's X ordinate.
+ * @param [out] rY  Resultant EC point's Y ordinate.
+ * @param [out] rZ  Resultant EC point's Z ordinate.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when a value is negative or wider than 256 bits.
+ */
+int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+    sp_uint32 t[P256_TINY_REGS * 8];
+    int err;
+
+    err = sp_256_tiny_load_point_8(t, pX, pY, pZ, 1);
+    if (err == MP_OKAY) {
+        XMEMCPY(P256_TINY_QX(t), P256_TINY_RX(t), 2 * 32);
+        sp_256_tiny_point_add_8(t);
+        err = sp_256_tiny_store_point_8(t, rX, rY, rZ, 0);
+    }
+
+    return err;
+}
+
+/* Map a projective EC point to affine in place.
+ * pZ will be one.
+ *
+ * @param [in] pX  EC point's X ordinate.
+ * @param [in] pY  EC point's Y ordinate.
+ * @param [in] pZ  EC point's Z ordinate.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when a value is negative or wider than 256 bits.
+ */
+int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+    sp_uint32 t[P256_TINY_REGS_MUL * 8];
+    int err;
+
+    err = sp_256_tiny_load_point_8(t, pX, pY, pZ, 1);
+    if (err == MP_OKAY) {
+        err = sp_256_tiny_store_point_8(t, pX, pY, pZ, 1);
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
+
+#ifdef HAVE_COMP_KEY
+/* (p + 1) / 4: the square root exponent as p is 3 mod 4. */
+static const sp_uint32 p256_tiny_sqrt_exp[8] = {
+    0x00000000U, 0x00000000U, 0x40000000U, 0x00000000U,
+    0x00000000U, 0x40000000U, 0xc0000000U, 0x3fffffffU
+};
+
+/* Uncompress the point given the X ordinate.
+ *
+ * @param [in]  xm   X ordinate.
+ * @param [in]  odd  Whether the Y ordinate is odd.
+ * @param [out] ym   Calculated Y ordinate.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_VAL when no point on the curve has the X ordinate.
+ */
+int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
+{
+    sp_tiny_work_256 wk;
+    sp_uint32 t[P256_TINY_REGS_MUL * 8];
+    sp_uint32* y = P256_TINY_PY(t);
+    sp_uint32* v = P256_TINY_T0(t);
+    sp_uint32* u = P256_TINY_T1(t);
+    int err;
+
+    err = sp_256_from_mp(P256_TINY_PX(t), xm);
+    if ((err != MP_OKAY) ||
+            (sp_256_tiny_lt_8(v, P256_TINY_PX(t), P256_TINY_PRIME->m) == 0)) {
+        err = MP_VAL;
+    }
+    if (err == MP_OKAY) {
+        /* With y of zero the curve program leaves x^3 - 3.x + b in t0 */
+        XMEMSET(y, 0, 32);
+        XMEMCPY(P256_TINY_T2(t), p256_tiny_b, 32);
+        P256_TINY_RUN(t, CRV);
+        wk.m = P256_TINY_PRIME;
+        sp_256_tiny_mont_exp_8(y, v, p256_tiny_sqrt_exp, &wk, 0);
+        sp_256_mont_mul_8(u, y, y, &wk);
+        if (sp_256_tiny_eq_8(u, v) == 0) {
+            err = MP_VAL;
+        }
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(u, 0, 32);
+        u[0] = 1;
+        sp_256_mont_mul_8(y, y, u, &wk);
+        (void)sp_256_sub_8(v, P256_TINY_PRIME->m, y);
+        sp_256_cond_copy_8(y, v, (sp_uint32)0 - ((y[0] ^ (sp_uint32)odd) & 1U));
+        err = sp_256_to_mp(y, ym);
+    }
+
+    return err;
+}
+#endif /* HAVE_COMP_KEY */
+#else
 
 /* Point structure to use. */
 typedef struct sp_point_256 {
@@ -31084,6 +32443,7 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     return err;
 }
 #endif
+#endif /* WOLFSSL_SP_TINY */
 #endif /* !WOLFSSL_SP_NO_256 */
 #ifdef WOLFSSL_SP_384
 

@@ -1147,15 +1147,9 @@ fi
 
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
-    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation, comma separated options include small, smallstack, nomalloc, nonblock, nonblocklarge and notransposedtable (default: disabled)])],
+    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation, comma separated options include small, tiny, smallstack, nomalloc, nonblock, nonblocklarge and notransposedtable. tiny is small with a size-first P-256 in the 32-bit C code, which needs 32-bit mp_int digits; assembly and 64-bit word builds stay small. tiny is refused with FIPS and non-blocking ECC in every build (default: disabled)])],
     [ ENABLED_SP=$enableval ],
     [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
-    )
-
-AC_ARG_ENABLE([sp-p256-small],
-    [AS_HELP_STRING([--enable-sp-p256-small],[Enable the size-first constant-time P-256 in place of the generated SP P-256 code, not for FIPS (default: disabled)])],
-    [ ENABLED_SP_P256_SMALL=$enableval ],
-    [ ENABLED_SP_P256_SMALL=no ],
     )
 
 AC_ARG_ENABLE([sp-math-all],
@@ -11896,11 +11890,28 @@ ENABLED_SP_SAKKE_1024=$ENABLED_SAKKE
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
 ENABLED_SP_SMALL=no
+ENABLED_SP_TINY=no
 ENABLED_SP_NO_TRANSPOSED_TABLE=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
   small)
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_FF_2048=yes
+    ENABLED_SP_FF_3072=yes
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_256=yes
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"; then
+      ENABLED_SP_FF_4096=yes
+      ENABLED_SP_EC_384=yes
+      ENABLED_SP_EC_521=yes
+    fi
+    ;;
+
+  tiny)
+    ENABLED_SP_TINY=yes
     ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
@@ -11949,6 +11960,12 @@ do
     ;;
 
   smallec256 | smallp256 | small256)
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_256=yes
+    ;;
+  tinyec256 | tinyp256 | tiny256)
+    ENABLED_SP_TINY=yes
     ENABLED_SP_SMALL=yes
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
@@ -12143,11 +12160,6 @@ if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
         ;;
     esac
 fi
-if test "$ENABLED_SP_P256_SMALL" = "yes" && \
-   { test "$ENABLED_ECC" = "no" || test "$ENABLED_SP_ECC" != "yes" || \
-     test "$ENABLED_SP_EC_256" = "no"; }; then
-    AC_MSG_ERROR([--enable-sp-p256-small needs ECC and --enable-sp with P-256.])
-fi
 if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     ENABLED_SP=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
@@ -12155,10 +12167,6 @@ if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     if test "$ENABLED_SP_EC_256" = "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_256"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_256"
-    fi
-    if test "$ENABLED_SP_P256_SMALL" = "yes"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_P256_SMALL"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_P256_SMALL"
     fi
     if test "$ENABLED_SP_EC_384" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC384 -DWOLFSSL_SP_384"
@@ -12180,6 +12188,10 @@ fi
 if test "$ENABLED_SP_SMALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+fi
+if test "$ENABLED_SP_TINY" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_TINY"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_TINY"
 fi
 if test "$ENABLED_SP_SMALL_STACK" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL_STACK"
@@ -12439,11 +12451,10 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
 fi
 
-if test "$ENABLED_SP_P256_SMALL" = "yes" && \
-   { test "$ENABLED_ECC" = "nonblock" || \
-     { test "$ENABLED_SP_MATH" != "yes" && \
-       test "$ENABLED_SP_MATH_ALL" != "yes"; }; }; then
-    AC_MSG_ERROR([--enable-sp-p256-small needs sp-math or sp-math-all and blocking ECC.])
+if test "$ENABLED_SP_TINY" = "yes" && \
+   { test "$ENABLED_FIPS" != "no" || test "$ENABLED_ECC" = "nonblock" || \
+     test "$ENABLED_SP_NONBLOCK" = "yes"; }; then
+    AC_MSG_ERROR([--enable-sp=tiny does not support FIPS or non-blocking ECC.])
 fi
 
 ################################################################################
