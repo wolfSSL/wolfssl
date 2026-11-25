@@ -699,5 +699,13 @@
 {"name": "certext-ignore-netscape",
  "comment": "Certificate extensions without the Netscape certificate type.",
  "configure": ["--enable-certgen", "--enable-certext",
-  "CPPFLAGS=-DIGNORE_NETSCAPE_CERT_TYPE"]}
+  "CPPFLAGS=-DIGNORE_NETSCAPE_CERT_TYPE"]},
+{"name": "aesgcm-word-opensslextra",
+ "comment": "--enable-aesgcm=word selects the 64-bit word GHASH; nothing else in CI runs it, and the --enable-all entries use AES-NI for GHASH on x86_64. With the compatibility layer and the streaming API, so one Aes object is used for one-shot and stream AES-GCM calls in turn and the EVP AES-GCM tests run on it.",
+ "configure": ["--enable-aesgcm=word", "--enable-opensslextra", "--enable-opensslall",
+  "--enable-aesgcm-stream"]},
+{"name": "aesgcm-word32-opensslextra",
+ "comment": "As aesgcm-word-opensslextra, with the 32-bit word GHASH.",
+ "configure": ["--enable-aesgcm=word32", "--enable-opensslextra", "--enable-opensslall",
+  "--enable-aesgcm-stream"]}
 ]
