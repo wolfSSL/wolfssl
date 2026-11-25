@@ -1250,13 +1250,15 @@ int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder, int checkPriv)
         /* a key with no host-side public point is represented by
          * ECC_PRIVATEKEY_ONLY and crosses as pubKey = NULL / pubKeySz = 0.
          * If the key state says a public point exists, serialize it even when
-         * the coordinates are invalid (e.g. 0,0) so the device can reject the
-         * actual input instead of seeing "no public point". */
+         * it is (0,0) so the device can distinguish it from an absent point. */
         int havePub    = (key->type != ECC_PRIVATEKEY_ONLY);
         WC_DECLARE_VAR(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap);
 
         ret = MP_OKAY;
         if (havePub) {
+            /* X9.63 encodes unsigned coordinates and would lose the sign. */
+            if (mp_isneg(key->pubkey.x) || mp_isneg(key->pubkey.y))
+                return ECC_OUT_OF_RANGE_E;
             WC_ALLOC_VAR_EX(buf, byte, (1 + 2 * MAX_ECC_BYTES), key->heap,
                 DYNAMIC_TYPE_ECC_BUFFER, return MEMORY_E);
             /* serialize key->pubkey to X9.63 uncompressed (0x04 || X || Y) */

@@ -85,3 +85,13 @@ Montgomery and non-Montgomery paths.
    its white-box step handles build, link and coverage export.
 3. Re-measure the module and confirm the targeted `line:col` keys no longer
    appear among its uncovered conditions.
+
+## ARM SP ECC range checks
+
+The `sp-arm-lanes` campaign runs AArch64, ARM32, Thumb-2, and Cortex-M.
+Include a build with `-DWOLFSSL_SP_INT_NEGATIVE` in each lane to measure
+both sides of the signed-coordinate checks. Apply the flag to the library,
+API tests, and white-box drivers because it changes the SP integer layout.
+The three QEMU lanes run the ECC API group and the SP white-box drivers.
+The Cortex-M firmware runs the wolfCrypt tests and the SP constructor
+driver, with separate builds for the crafted and allocation-failure drivers.

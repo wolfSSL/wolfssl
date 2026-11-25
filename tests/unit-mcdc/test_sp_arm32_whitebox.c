@@ -129,6 +129,7 @@
 #include <stdio.h>
 
 static int wb_fail = 0;
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 /* Crafted-input driver shared with the SP host-backend white-boxes. The four
@@ -2036,6 +2037,8 @@ static void wb_run_mod_inv(void)
 
 #endif /* WOLFSSL_HAVE_SP_ECC || WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 
+#include "test_sp_arm_point_specials.h"
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -2046,6 +2049,10 @@ int main(void)
     defined(WOLFSSL_HAVE_SP_DH)
     wb_run_cache_mutex();
     wb_run_ecc();
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    wb_run_point_specials_all();
+#endif
     wb_run_rsa();
     wb_run_dh();
     wb_run_gap_256();
@@ -2057,10 +2064,11 @@ int main(void)
     wb_run_mod_inv();
     wb_spc_all();
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_bad ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
 #else
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
-    return 0;
+    return wb_bad ? 1 : 0;
 }
