@@ -144,6 +144,7 @@ EXTRA_DIST += \
          certs/test/cert-events/bc-malformed.der \
          certs/test/cert-events/chain-good.pem \
          certs/test/cert-events/chain-leaf-eku-client-only.pem \
+         certs/test/cert-events/chain-leaf-ku-certsign.pem \
          certs/test/cert-events/chain-leaf-ku-no-digsig.pem \
          certs/test/cert-events/chain-pathlen-exceeded.pem \
          certs/test/cert-events/chain-signer-no-certsign.pem \
@@ -158,6 +159,7 @@ EXTRA_DIST += \
          certs/test/cert-events/leaf-unknown-issuer.der \
          certs/test/cert-events/policy-malformed.der \
          certs/test/cert-events/san-malformed.der \
+         certs/test/cert-events/serial-absent.der \
          certs/test/cert-events/serial-empty.der \
          certs/test/cert-events/serial-not-integer.der \
          certs/test/cert-events/sigalg-mismatch.der \
