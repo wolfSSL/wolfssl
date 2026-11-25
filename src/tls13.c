@@ -16998,6 +16998,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
+    if (HandshakeEndedByFatalAlert(ssl))
+        return WOLFSSL_FATAL_ERROR;
+
     if (ssl->options.side != WOLFSSL_CLIENT_END) {
         ssl->error = SIDE_ERROR;
         WOLFSSL_ERROR(ssl->error);
@@ -18280,6 +18283,9 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
 
     if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (HandshakeEndedByFatalAlert(ssl))
         return WOLFSSL_FATAL_ERROR;
 
 #if !defined(NO_CERTS) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))

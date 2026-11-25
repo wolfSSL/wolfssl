@@ -68,6 +68,7 @@
 #define ERR_R_PASSED_NULL_PARAMETER             BAD_FUNC_ARG
 #define ERR_R_DISABLED                          NOT_COMPILED_IN
 #define ERR_R_PASSED_INVALID_ARGUMENT           BAD_FUNC_ARG
+#define ERR_R_INTERNAL_ERROR                    BAD_STATE_E
 #define RSA_R_UNKNOWN_PADDING_TYPE              RSA_PAD_E
 #define RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE       WC_KEY_SIZE_E
 #define EC_R_BUFFER_TOO_SMALL                   BUFFER_E

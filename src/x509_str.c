@@ -614,6 +614,18 @@ static WOLFSSL_X509_STORE_CTX_verify_cb X509StoreGetVerifyCb(
     return NULL;
 }
 
+/* Call the verify callback. The callback may set the current cert, but chain
+ * building tracks the cert being verified with it, so put it back. */
+static int X509StoreCallVerifyCb(WOLFSSL_X509_STORE_CTX* ctx,
+        WOLFSSL_X509_STORE_CTX_verify_cb verifyCb, int ok)
+{
+    WOLFSSL_X509* cur = ctx->current_cert;
+    int ret = verifyCb(ok, ctx);
+
+    ctx->current_cert = cur;
+    return ret;
+}
+
 /* Verify ctx->current_cert against the store.
  *
  * <cbRejected> is an out-parameter, never NULL. It is set to 1 when the
@@ -660,7 +672,8 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         /* Revocation is reported before the dates, as OpenSSL does. */
         if (crlRet != 0) {
             SetupStoreCtxError(ctx, crlRet);
-            if ((verifyCb == NULL) || (verifyCb(0, ctx) != 1)) {
+            if ((verifyCb == NULL) ||
+                    (X509StoreCallVerifyCb(ctx, verifyCb, 0) != 1)) {
                 return crlRet;
             }
         }
@@ -679,7 +692,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
              * verified. */
             int preCbError = ctx->error;
 
-            if (verifyCb(ret >= 0 ? 1 : 0, ctx) == 1) {
+            if (X509StoreCallVerifyCb(ctx, verifyCb, ret >= 0 ? 1 : 0) == 1) {
                 accepted = (ret >= 0);
                 ret = WOLFSSL_SUCCESS;
             }
@@ -717,7 +730,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
             SetupStoreCtxError(ctx, ret);
             ret = ret == WOLFSSL_SUCCESS ? 1 : 0;
             if (verifyCb != NULL) {
-                if (verifyCb(ret, ctx) == 1) {
+                if (X509StoreCallVerifyCb(ctx, verifyCb, ret) == 1) {
                     ret = WOLFSSL_SUCCESS;
                 }
                 else {
@@ -757,7 +770,7 @@ static int X509StoreVerifyIssuer(WOLFSSL_X509_STORE_CTX* ctx,
     ctx->current_cert = issuer;
     ctx->error = WOLFSSL_X509_V_OK;
     ctx->error_depth = depth;
-    if (verifyCb(1, ctx) != 1)
+    if (X509StoreCallVerifyCb(ctx, verifyCb, 1) != 1)
         return WOLFSSL_FAILURE;
     ctx->current_cert = cur;
     ctx->error = err;
@@ -996,7 +1009,8 @@ static int X509StoreCheckPathLen(WOLFSSL_X509_STORE_CTX* ctx,
                     WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED, i);
                 /* Allow an application verify callback to override, matching
                  * the INVALID_CA handling in wolfSSL_X509_verify_cert(). */
-                if (verifyCb != NULL && verifyCb(0, ctx) == 1) {
+                if (verifyCb != NULL &&
+                        X509StoreCallVerifyCb(ctx, verifyCb, 0) == 1) {
                     /* Overridden: keep walking without decrementing (budget is
                      * already exhausted). */
                     continue;
@@ -1162,7 +1176,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_INVALID_CA,
                                 (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
                 if (verifyCb != NULL) {
-                    ret = verifyCb(0, ctx);
+                    ret = X509StoreCallVerifyCb(ctx, verifyCb, 0);
                     if (ret != WOLFSSL_SUCCESS) {
                         ret = WOLFSSL_FAILURE;
                         goto exit;
@@ -1399,7 +1413,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ctx->error = WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH;
                 ctx->error_depth = 0;
                 ctx->current_cert = orig;
-                if (verifyCb == NULL || verifyCb(0, ctx) != 1) {
+                if (verifyCb == NULL ||
+                        X509StoreCallVerifyCb(ctx, verifyCb, 0) != 1) {
                     ret = WOLFSSL_FAILURE;
                 }
             }
@@ -1411,7 +1426,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ctx->error = WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH;
                 ctx->error_depth = 0;
                 ctx->current_cert = orig;
-                if (verifyCb == NULL || verifyCb(0, ctx) != 1) {
+                if (verifyCb == NULL ||
+                        X509StoreCallVerifyCb(ctx, verifyCb, 0) != 1) {
                     ret = WOLFSSL_FAILURE;
                 }
             }
@@ -1471,6 +1487,16 @@ WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
     if (ctx)
         return ctx->current_cert;
     return NULL;
+}
+
+/* Set the cert returned by wolfSSL_X509_STORE_CTX_get_current_cert().
+ * The ctx does not take ownership of x509. */
+void wolfSSL_X509_STORE_CTX_set_current_cert(WOLFSSL_X509_STORE_CTX* ctx,
+                                             WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_current_cert");
+    if (ctx != NULL)
+        ctx->current_cert = x509;
 }
 
 /* get X509_STORE_CTX ex_data, max idx is MAX_EX_DATA */

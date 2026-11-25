@@ -3074,9 +3074,9 @@ WOLFSSL_LOCAL void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 
 WOLFSSL_LOCAL int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,
-        int cert_err, void* heap, int* x509Free);
+        int cert_err, void* heap, WOLFSSL_X509** x509Owned);
 WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
-        WOLFSSL* ssl, void* heap, int x509Free);
+        WOLFSSL* ssl, void* heap, WOLFSSL_X509* x509Owned);
 #endif /* !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH) */
 WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type);
@@ -7996,6 +7996,7 @@ WOLFSSL_LOCAL int IsTLS_ex(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_3(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsWriteClosed(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int HandshakeEndedByFatalAlert(WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsEncryptionOn(const WOLFSSL* ssl, int isSend);
 WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 

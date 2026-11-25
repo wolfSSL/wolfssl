@@ -2328,3 +2328,197 @@ int test_wolfSSL_write_dup_max_fragment(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    ((!defined(WOLFSSL_NO_TLS12) && \
+      (defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) || \
+       defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) || \
+       defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256))) || \
+     (defined(WOLFSSL_TLS13) && \
+      (defined(BUILD_TLS_AES_128_GCM_SHA256) || \
+       defined(BUILD_TLS_AES_128_CCM_SHA256) || \
+       defined(BUILD_TLS_CHACHA20_POLY1305_SHA256))))
+    #define TEST_BAD_RECORD_MEMIO
+#endif
+
+#ifdef TEST_BAD_RECORD_MEMIO
+/* The server reads a record from the client that fails authentication or
+ * decryption, and reports err.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @param [in] cipher    Cipher suite to use.
+ * @param [in] trunc     Drop the last byte of the record instead of changing
+ *                       it. Encrypt-then-MAC is off, so the length is checked.
+ * @param [in] err       Error the server reports.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_get_error_bad_record(method_provider method_c,
+    method_provider method_s, const char* cipher, int trunc, int err)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "corrupt record";
+    char buf[sizeof(msg)];
+    int rec = 0;
+    int len;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = cipher;
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+#ifdef HAVE_ENCRYPT_THEN_MAC
+    if (trunc) {
+        ExpectIntEQ(wolfSSL_AllowEncryptThenMac(ssl_c, 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_AllowEncryptThenMac(ssl_s, 0), WOLFSSL_SUCCESS);
+    }
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    rec = test_ctx.s_len;
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    if (EXPECT_SUCCESS() && trunc) {
+        len = ((int)test_ctx.s_buff[rec + 3] << 8) | test_ctx.s_buff[rec + 4];
+        len--;
+        test_ctx.s_buff[rec + 3] = (byte)(len >> 8);
+        test_ctx.s_buff[rec + 4] = (byte)len;
+        test_ctx.s_len--;
+    }
+    else if (EXPECT_SUCCESS()) {
+        test_ctx.s_buff[test_ctx.s_len - 1] ^= 0x01;
+    }
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    wolfSSL_ERR_clear_error();
+#endif
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        TEST_RECORD_ERR(err));
+    ExpectIntEQ(wolfSSL_state(ssl_s), err);
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    /* The detail is on the error queue. */
+    ExpectIntEQ(wolfSSL_ERR_GET_REASON(wolfSSL_ERR_peek_last_error()), err);
+    wolfSSL_ERR_clear_error();
+#endif
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* With the OpenSSL compatibility layer, wolfSSL_get_error() reports
+ * SSL_ERROR_SSL for a record that fails authentication or decryption, as
+ * OpenSSL does. wolfSSL_state() still returns the error. Other errors, DTLS
+ * and builds without the compatibility layer are not changed.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_get_error_bad_record(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    static const int bad_record[] = {
+        WC_NO_ERR_TRACE(VERIFY_MAC_ERROR),
+        WC_NO_ERR_TRACE(DECRYPT_ERROR),
+        WC_NO_ERR_TRACE(SANITY_CIPHER_E),
+        WC_NO_ERR_TRACE(AES_GCM_AUTH_E),
+        WC_NO_ERR_TRACE(AES_CCM_AUTH_E),
+        WC_NO_ERR_TRACE(MAC_CMP_FAILED_E),
+        WC_NO_ERR_TRACE(SM4_GCM_AUTH_E),
+        WC_NO_ERR_TRACE(SM4_CCM_AUTH_E)
+    };
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    size_t i;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    for (i = 0; EXPECT_SUCCESS() &&
+            (i < sizeof(bad_record) / sizeof(bad_record[0])); i++) {
+        ssl->error = bad_record[i];
+        ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+            TEST_RECORD_ERR(bad_record[i]));
+        ExpectIntEQ(wolfSSL_state(ssl), bad_record[i]);
+    }
+    if (EXPECT_SUCCESS()) {
+        ssl->error = WC_NO_ERR_TRACE(FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(FATAL_ERROR));
+        ssl->error = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ssl->error = WC_NO_ERR_TRACE(WANT_READ);
+        ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 1), WOLFSSL_ERROR_NONE);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+#ifdef WOLFSSL_DTLS
+    /* DTLS drops a bad record and goes on, so it keeps reporting the error. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    for (i = 0; EXPECT_SUCCESS() &&
+            (i < sizeof(bad_record) / sizeof(bad_record[0])); i++) {
+        ssl->error = bad_record[i];
+        ExpectIntEQ(wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR),
+            bad_record[i]);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+
+#ifdef TEST_BAD_RECORD_MEMIO
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    /* TLS 1.2 reports an AEAD tag failure as VERIFY_MAC_ERROR. */
+    ExpectIntEQ(test_get_error_bad_record(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, "ECDHE-RSA-AES128-GCM-SHA256", 0,
+        WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)), TEST_SUCCESS);
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
+    ExpectIntEQ(test_get_error_bad_record(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, "ECDHE-RSA-CHACHA20-POLY1305", 0,
+        WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)), TEST_SUCCESS);
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256)
+    ExpectIntEQ(test_get_error_bad_record(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, "ECDHE-RSA-AES128-SHA256", 0,
+        WC_NO_ERR_TRACE(DECRYPT_ERROR)), TEST_SUCCESS);
+    ExpectIntEQ(test_get_error_bad_record(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, "ECDHE-RSA-AES128-SHA256", 1,
+        WC_NO_ERR_TRACE(SANITY_CIPHER_E)), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(BUILD_TLS_AES_128_GCM_SHA256)
+    ExpectIntEQ(test_get_error_bad_record(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, "TLS13-AES128-GCM-SHA256", 0,
+        WC_NO_ERR_TRACE(AES_GCM_AUTH_E)), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(BUILD_TLS_AES_128_CCM_SHA256)
+    ExpectIntEQ(test_get_error_bad_record(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, "TLS13-AES128-CCM-SHA256", 0,
+        WC_NO_ERR_TRACE(AES_CCM_AUTH_E)), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(BUILD_TLS_CHACHA20_POLY1305_SHA256)
+    ExpectIntEQ(test_get_error_bad_record(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, "TLS13-CHACHA20-POLY1305-SHA256", 0,
+        WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}

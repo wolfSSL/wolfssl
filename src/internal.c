@@ -813,6 +813,28 @@ int IsWriteClosed(const WOLFSSL* ssl)
     return ssl->options.sentNotify || ssl->options.fatalAlert;
 }
 
+/* A fatal alert ends the connection (RFC 5246 7.2.2, RFC 8446 6.2), so the
+ * handshake can't continue or run again once one was sent or received.
+ * Returns 1, with ssl->error set, when a handshake call must fail. */
+int HandshakeEndedByFatalAlert(WOLFSSL* ssl)
+{
+    if (!ssl->options.fatalAlert)
+        return 0;
+
+    WOLFSSL_MSG("Fatal alert sent or received, handshake ended");
+    /* Keep the reason the connection failed, but not a result that would
+     * have the caller try again. */
+    if ((ssl->error == 0) ||
+            (ssl->error == WC_NO_ERR_TRACE(WANT_READ)) ||
+            (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) ||
+            (ssl->error == WOLFSSL_ERROR_WANT_READ) ||
+            (ssl->error == WOLFSSL_ERROR_WANT_WRITE) ||
+            (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN))) {
+        ssl->error = SOCKET_PEER_CLOSED_E;
+    }
+    return 1;
+}
+
 int IsEncryptionOn(const WOLFSSL* ssl, int isSend)
 {
     if (ssl == NULL) {
@@ -17478,7 +17500,7 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 
 int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,
-        int cert_err, void* heap, int* x509Free)
+        int cert_err, void* heap, WOLFSSL_X509** x509Owned)
 {
     WOLFSSL_X509_STORE_CTX* store = NULL;
     char* domain = NULL;
@@ -17486,7 +17508,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
     WOLFSSL_X509* x509 = NULL;
 #endif
 
-    *x509Free = 0;
+    *x509Owned = NULL;
 
     store = wolfSSL_X509_STORE_CTX_new_ex(heap);
     if (store == NULL)
@@ -17604,7 +17626,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
                 goto mem_error;
             if (CopyDecodedToX509(x509, args->dCert) == 0) {
                 store->current_cert = x509;
-                *x509Free = 1;
+                *x509Owned = x509;
             }
             else {
                 goto mem_error;
@@ -17631,10 +17653,10 @@ mem_error:
 }
 
 void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
-        WOLFSSL* ssl, void* heap, int x509Free)
+        WOLFSSL* ssl, void* heap, WOLFSSL_X509* x509Owned)
 {
     (void)ssl;
-    (void)x509Free;
+    (void)x509Owned;
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     wolfSSL_sk_X509_pop_free(store->chain, NULL);
@@ -17652,8 +17674,8 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
     XFREE(store->domain, heap, DYNAMIC_TYPE_STRING);
     store->domain = NULL;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (x509Free)
-        wolfSSL_X509_free(store->current_cert);
+    /* A callback may have set another current cert. */
+    wolfSSL_X509_free(x509Owned);
     store->current_cert = NULL;
 #endif
     wolfSSL_X509_STORE_CTX_free(store);
@@ -17661,6 +17683,23 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 
 /* WOLFSSL_ALWAYS_VERIFY_CB: Use verify callback for success or failure cases */
 /* WOLFSSL_VERIFY_CB_ALL_CERTS: Issue callback for all intermediate certificates */
+
+/* Call a verify callback. The callback may set the current cert, so put the
+ * cert being verified back for the next callback. */
+static int StoreCtxCallVerifyCb(VerifyCallback verifyCb, int ok,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    int ret;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    WOLFSSL_X509* cur = store->current_cert;
+#endif
+
+    ret = verifyCb(ok, store);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    store->current_cert = cur;
+#endif
+    return ret;
+}
 
 /* Callback is issued for certificate presented in TLS Certificate (11) packet.
  * The intermediates are done first then peer leaf cert last. Use the
@@ -17720,9 +17759,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         ) {
         int verifyFail = 0;
         WOLFSSL_X509_STORE_CTX* store = NULL;
-        int x509Free = 0;
+        WOLFSSL_X509* x509Owned = NULL;
         int setupRet = SetupStoreCtxCallback(&store, ssl, cm, args, cert_err,
-                heap, &x509Free);
+                heap, &x509Owned);
 
         if (setupRet != 0)
             return setupRet;
@@ -17731,7 +17770,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         /* non-zero return code indicates failure override */
         if (cm->verifyCallback != NULL) {
             store->userCtx = cm;
-            if (cm->verifyCallback(verify_ok, store)) {
+            if (StoreCtxCallVerifyCb(cm->verifyCallback, verify_ok, store)) {
                 if (cert_err != 0) {
                     WOLFSSL_MSG("Verify CM callback overriding error!");
                     ret = 0;
@@ -17784,7 +17823,8 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     #endif
             /* non-zero return code indicates failure override */
             if (callVerifyCb && ssl->verifyCallback) {
-                if (ssl->verifyCallback(verify_ok, store)) {
+                if (StoreCtxCallVerifyCb(ssl->verifyCallback, verify_ok,
+                        store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Verify callback overriding error!");
                         ret = 0;
@@ -17798,7 +17838,8 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
             if (callVerifyCb && SSL_STORE(ssl) != NULL &&
                     SSL_STORE(ssl)->verify_cb != NULL) {
-                if (SSL_STORE(ssl)->verify_cb(verify_ok, store)) {
+                if (StoreCtxCallVerifyCb(SSL_STORE(ssl)->verify_cb, verify_ok,
+                        store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Store Verify callback overriding error!");
                         ret = 0;
@@ -17825,7 +17866,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
             /* mark as verify error */
             args->verifyErr = 1;
         }
-        CleanupStoreCtxCallback(store, ssl, heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, heap, x509Owned);
     }
 
     (void)heap;
@@ -17886,7 +17927,7 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
 {
     int ret;
     int verifyFail = 0;
-    int x509Free = 0;
+    WOLFSSL_X509* x509Owned = NULL;
     int certIdx = args->certIdx;
     DecodedCert* dCert = args->dCert;
     Signer* ca;
@@ -17944,21 +17985,23 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
         args->dCert = issuer;
         args->certIdx = certIdx + 1;
         ret = SetupStoreCtxCallback(&store, ssl, SSL_CM(ssl), args, 0,
-            ssl->heap, &x509Free);
+            ssl->heap, &x509Owned);
         args->dCert = dCert;
         args->certIdx = certIdx;
     }
     if (ret == 0) {
-        if (ssl->verifyCallback != NULL && !ssl->verifyCallback(1, store))
+        if (ssl->verifyCallback != NULL &&
+                !StoreCtxCallVerifyCb(ssl->verifyCallback, 1, store)) {
             verifyFail = 1;
+        }
 #if defined(WOLFSSL_LOCAL_X509_STORE) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
         if (SSL_STORE(ssl) != NULL && SSL_STORE(ssl)->verify_cb != NULL &&
-                !SSL_STORE(ssl)->verify_cb(1, store)) {
+                !StoreCtxCallVerifyCb(SSL_STORE(ssl)->verify_cb, 1, store)) {
             verifyFail = 1;
         }
 #endif
-        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Owned);
         if (verifyFail) {
             WOLFSSL_MSG("Verify callback rejected issuer");
             ret = VERIFY_CERT_ERROR;
@@ -17986,10 +18029,10 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
     if (cert_store != NULL && cert_store->get_crl_cb != NULL) {
         WOLFSSL_CRL* userCrl = NULL;
         WOLFSSL_X509_STORE_CTX* store = NULL;
-        int x509Free = 0;
+        WOLFSSL_X509* x509Owned = NULL;
 
         ret = SetupStoreCtxCallback(&store, ssl, cm, args, 0, heap,
-                &x509Free);
+                &x509Owned);
         if (ret != 0) {
             *outRet = ret;
             return;
@@ -18007,7 +18050,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 
         if (userCrl != NULL)
             wolfSSL_X509_CRL_free(userCrl);
-        CleanupStoreCtxCallback(store, ssl, heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, heap, x509Owned);
     }
 #else
     (void)cm;

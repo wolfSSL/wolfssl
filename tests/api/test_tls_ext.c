@@ -1177,7 +1177,8 @@ int test_tls12_chacha20_poly1305_bad_tag(void)
     ret = wolfSSL_read(ssl_s, recvBuf, sizeof(recvBuf));
     ExpectIntLE(ret, 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
-            WC_NO_ERR_TRACE(VERIFY_MAC_ERROR));
+            TEST_RECORD_ERR(WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)));
+    ExpectIntEQ(wolfSSL_state(ssl_s), WC_NO_ERR_TRACE(VERIFY_MAC_ERROR));
 
     test_chacha_bad_tag_trigger = 0;
     wolfSSL_free(ssl_c);
@@ -1242,7 +1243,8 @@ int test_tls13_null_cipher_bad_hmac(void)
     ret = wolfSSL_read(ssl_s, recvBuf, sizeof(recvBuf));
     ExpectIntLE(ret, 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
-            WC_NO_ERR_TRACE(DECRYPT_ERROR));
+            TEST_RECORD_ERR(WC_NO_ERR_TRACE(DECRYPT_ERROR)));
+    ExpectIntEQ(wolfSSL_state(ssl_s), WC_NO_ERR_TRACE(DECRYPT_ERROR));
 
     test_tls13_null_bad_hmac_trigger = 0;
     wolfSSL_free(ssl_c);

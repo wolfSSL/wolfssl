@@ -344,9 +344,9 @@ static int wolfssl_handshake_done(WOLFSSL* ssl)
  * @return  WOLFSSL_SUCCESS when the handshake completes.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  * @return  WOLFSSL_FATAL_ERROR when the object is not a client, a message
- *          cannot be sent or received, or the peer reports an error. Call
- *          wolfSSL_get_error() to determine whether the operation should be
- *          retried.
+ *          cannot be sent or received, the peer reports an error, or a fatal
+ *          alert was sent or received earlier. Call wolfSSL_get_error() to
+ *          determine whether the operation should be retried.
  * @return  The error from ReinitSSL(), unchanged, when the object cannot be
  *          prepared for a handshake. This is a raw error code rather than
  *          WOLFSSL_FATAL_ERROR, and ssl->error is not set with it.
@@ -374,6 +374,10 @@ int wolfSSL_connect(WOLFSSL* ssl)
 
     if (ssl == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    if (HandshakeEndedByFatalAlert(ssl)) {
+        return WOLFSSL_FATAL_ERROR;
     }
 
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
@@ -846,9 +850,10 @@ static int wolfssl_accept_check_creds(WOLFSSL* ssl)
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS when the handshake completes.
- * @return  WOLFSSL_FATAL_ERROR when ssl is NULL or the handshake fails.
- *          Call wolfSSL_get_error() for the reason. WOLFSSL_ERROR_WANT_READ
- *          and WOLFSSL_ERROR_WANT_WRITE mean call again.
+ * @return  WOLFSSL_FATAL_ERROR when ssl is NULL, the handshake fails, or a
+ *          fatal alert was sent or received earlier. Call wolfSSL_get_error()
+ *          for the reason. WOLFSSL_ERROR_WANT_READ and
+ *          WOLFSSL_ERROR_WANT_WRITE mean call again.
  * @return  The error from ReinitSSL(), unchanged, when the object cannot be
  *          prepared for a handshake. This is a raw error code rather than
  *          WOLFSSL_FATAL_ERROR, and ssl->error is not set with it.
@@ -867,6 +872,10 @@ int wolfSSL_accept(WOLFSSL* ssl)
     (void)ret;
 
     if (ssl == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (HandshakeEndedByFatalAlert(ssl)) {
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -1643,17 +1652,19 @@ void wolfSSL_set_accept_state(WOLFSSL* ssl)
 
 /* Determine whether the handshake has completed.
  *
- * Works for both TLS and DTLS.
+ * Works for both TLS and DTLS. A fatal alert ends the handshake, as in
+ * OpenSSL.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  1 when the handshake has completed.
- * @return  0 when the handshake has not completed or ssl is NULL.
+ * @return  0 when the handshake has not completed, a fatal alert was sent or
+ *          received, or ssl is NULL.
  */
 int wolfSSL_is_init_finished(const WOLFSSL* ssl)
 {
     int ret = 0;
 
-    if (ssl != NULL) {
+    if ((ssl != NULL) && (!ssl->options.fatalAlert)) {
         #if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT)
         if ((ssl->options.side == WOLFSSL_CLIENT_END) && (ssl->options.dtls)
                 && (IsAtLeastTLSv1_3(ssl->version))) {
