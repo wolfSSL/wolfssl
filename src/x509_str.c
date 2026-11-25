@@ -626,17 +626,6 @@ static int X509StoreCallVerifyCb(WOLFSSL_X509_STORE_CTX* ctx,
     return ret;
 }
 
-/* Verify ctx->current_cert against the store.
- *
- * <cbRejected> is an out-parameter, never NULL. It is set to 1 when the
- * application's per-context verify callback explicitly rejected a certificate
- * the verification itself accepted, and to 0 otherwise. The rejection is
- * reported out of band rather than as a return value so that it cannot be
- * confused with any of the internal error codes this function passes through.
- *
- * A caller must stop chain building when it is set: a veto must not be turned
- * into a retry with another issuer, and must not be cleared by the
- * partial-chain fallback in wolfSSL_X509_verify_cert(). */
 #if defined(WOLFSSL_CHAIN_CA_DATES) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 /* One handshake-local date override for the issuer the chain builder
@@ -668,10 +657,24 @@ static int X509StoreChainCaLink(WOLFSSL_X509* issuer, ChainCADate* link)
         return 0;
     XMEMCPY(link->validity.notBefore, before, nBefore);
     XMEMCPY(link->validity.notAfter, after, nAfter);
+    /* This is the issuer of this link. The CAs above it are checked when
+     * the chain builder verifies them. */
+    link->linkOnly = 1;
     return 1;
 }
 #endif
 
+/* Verify ctx->current_cert against the store.
+ *
+ * <cbRejected> is an out-parameter, never NULL. It is set to 1 when the
+ * application's per-context verify callback explicitly rejected a certificate
+ * the verification itself accepted, and to 0 otherwise. The rejection is
+ * reported out of band rather than as a return value so that it cannot be
+ * confused with any of the internal error codes this function passes through.
+ *
+ * A caller must stop chain building when it is set: a veto must not be turned
+ * into a retry with another issuer, and must not be cleared by the
+ * partial-chain fallback in wolfSSL_X509_verify_cert(). */
 static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         WOLFSSL_X509_STORE_CTX_verify_cb verifyCb)
 {
@@ -679,8 +682,8 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     int crlRet = 0;
     int datesChecked = 0;
     int accepted = 0; /* callback accepted a cert that verified */
-    int issuerDate = 0;
 #ifdef WOLFSSL_CHAIN_CA_DATES
+    int issuerDate = 0;
     int dateCheck = 0;
     time_t atTime = 0;
     const struct ChainCADate* caDates = NULL;
@@ -752,12 +755,17 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     #ifndef NO_ASN_TIME
         /* update return value with any date validation overrides */
         ret = X509StoreVerifyCertDate(ctx, ret);
+        #ifdef WOLFSSL_CHAIN_CA_DATES
         /* The override above looks only at the certificate just verified.
-         * An issuer date error must still fail the link. */
+         * A passing certificate takes the issuer date error as its result,
+         * so the callback sees that error. A failing certificate keeps its
+         * own error. issuerDate is shown only if the callback accepts it. */
         if (issuerDate != 0 && (ret == WC_NO_ERR_TRACE(WOLFSSL_SUCCESS) ||
                 ret == 0)) {
             ret = issuerDate;
+            issuerDate = 0;
         }
+        #endif
     #endif
         SetupStoreCtxError(ctx, ret);
         if (verifyCb != NULL) {
@@ -772,6 +780,16 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
             if (X509StoreCallVerifyCb(ctx, verifyCb, ret >= 0 ? 1 : 0) == 1) {
                 accepted = (ret >= 0);
                 ret = WOLFSSL_SUCCESS;
+            #ifdef WOLFSSL_CHAIN_CA_DATES
+                /* The callback accepted this certificate. A date error on a
+                 * cached chain CA is a separate decision, as on the TLS and
+                 * CertManager paths. */
+                if (issuerDate != 0) {
+                    SetupStoreCtxError(ctx, issuerDate);
+                    if (X509StoreCallVerifyCb(ctx, verifyCb, 0) != 1)
+                        ret = issuerDate;
+                }
+            #endif
             }
             else if (ret >= 0 && ctx->verify_cb != NULL) {
                 /* Returning 0 must reject a chain the cert manager accepted. */

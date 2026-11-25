@@ -19191,8 +19191,12 @@ static int SelfIssuedCaKeyDiffers(const DecodedCert* cert)
  * the cached CA by wolfssl_local_CommitChainCADates() when the handshake
  * verifies the peer. A verified certificate for the same key with a different
  * issuer is used for this handshake only and is not stored.
+ * persist is 0 when the CA is kept only for this handshake: a renewal is
+ * recorded with store clear so the leaf walk uses these dates and the cached
+ * signer is left unchanged.
  * Returns 0, MEMORY_E, BAD_MUTEX_E or a CalcHashId() or date error. */
-static int AddChainCADate(WOLFSSL* ssl, const DecodedCert* cert, int waived)
+static int AddChainCADate(WOLFSSL* ssl, const DecodedCert* cert, int waived,
+    int persist)
 {
     int ret;
     ChainCADate* entry;
@@ -19230,7 +19234,8 @@ static int AddChainCADate(WOLFSSL* ssl, const DecodedCert* cert, int waived)
             entry->keyHash, cert, &entry->validity);
         if (ret == 1) {
             WOLFSSL_MSG("Peer sent a renewed cached chain CA");
-            entry->store = 1;
+            if (persist)
+                entry->store = 1;
             ret = 0;
         }
         else if (ret == 0) {
@@ -21059,15 +21064,19 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == 0 && args->dCert->isCA &&
                             !ssl->options.verifyNone) {
                         /* A CA kept only for this handshake must not write
-                         * new dates onto the cached signer. */
-                        if (caVerifyRet == 0 && !caIsTemp) {
-                            ret = AddChainCADate(ssl, args->dCert, 0);
+                         * new dates onto the cached signer. caIsTemp with a
+                         * waived verify (held CRL, or a callback that
+                         * accepted another error) still records the dates
+                         * for this handshake, with store clear. */
+                        if (caVerifyRet == 0) {
+                            ret = AddChainCADate(ssl, args->dCert, 0,
+                                !caIsTemp);
                         }
                         else if (caVerifyRet ==
                                      WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
                                  caVerifyRet ==
                                      WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
-                            ret = AddChainCADate(ssl, args->dCert, 1);
+                            ret = AddChainCADate(ssl, args->dCert, 1, 0);
                         }
                     }
                 #endif

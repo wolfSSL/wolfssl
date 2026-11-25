@@ -3007,13 +3007,44 @@ static const ChainCADate* cm_find_chain_ca_date(const ChainCADate* dates,
     return dates;
 }
 
+static int cm_validity_date_error(const SignerValidity* validity, time_t atTime)
+{
+#ifdef USE_WOLF_VALIDDATE
+    /* wc_ValidateDateWithTime() exists only in this build. A user-supplied
+     * XVALIDATE_DATE has no custom-time entry point, so atTime falls through
+     * to that macro below. */
+    if (atTime != 0) {
+        if (wc_ValidateDateWithTime(&validity->notBefore[2],
+                validity->notBefore[0], ASN_BEFORE, atTime,
+                validity->notBefore[1]) < 1)
+            return ASN_BEFORE_DATE_E;
+        if (wc_ValidateDateWithTime(&validity->notAfter[2],
+                validity->notAfter[0], ASN_AFTER, atTime,
+                validity->notAfter[1]) < 1)
+            return ASN_AFTER_DATE_E;
+        return 0;
+    }
+#else
+    (void)atTime;
+#endif
+    if (!XVALIDATE_DATE(&validity->notBefore[2], validity->notBefore[0],
+            ASN_BEFORE, validity->notBefore[1]))
+        return ASN_BEFORE_DATE_E;
+    if (!XVALIDATE_DATE(&validity->notAfter[2], validity->notAfter[0],
+            ASN_AFTER, validity->notAfter[1]))
+        return ASN_AFTER_DATE_E;
+    return 0;
+}
+
 /* Check the dates of each CA cached from a peer's chain on the path from ca up
  * to the trust anchor. Such a CA is not a trust anchor, so it is checked each
  * time it is used and not only when the peer that sent it was verified. Other
  * CAs keep no dates and are skipped. The walk stops at a self-signed CA and at
  * a CA the application loaded (WOLFSSL_USER_CA or WOLFSSL_USER_INTER): the
- * path ends at that trust anchor. With IGNORE_NAME_CONSTRAINTS there is no
- * issuer lookup and only ca is checked.
+ * path ends at that trust anchor. A linkOnly entry stops the walk after ca:
+ * the caller supplied that issuer and checks the CAs above it on their own
+ * links. With IGNORE_NAME_CONSTRAINTS there is no issuer lookup and only ca
+ * is checked.
  *
  * @param [in] cm       Certificate manager.
  * @param [in] ca       CA that verified the certificate. May be NULL.
@@ -3029,28 +3060,6 @@ static const ChainCADate* cm_find_chain_ca_date(const ChainCADate* dates,
  * @return  MAX_CHAIN_ERROR when the path is longer than
  *          WOLFSSL_MAX_CHAIN_DEPTH.
  */
-static int cm_validity_date_error(const SignerValidity* validity, time_t atTime)
-{
-    if (atTime == 0) {
-        if (!XVALIDATE_DATE(&validity->notBefore[2], validity->notBefore[0],
-                ASN_BEFORE, validity->notBefore[1]))
-            return ASN_BEFORE_DATE_E;
-        if (!XVALIDATE_DATE(&validity->notAfter[2], validity->notAfter[0],
-                ASN_AFTER, validity->notAfter[1]))
-            return ASN_AFTER_DATE_E;
-        return 0;
-    }
-    if (wc_ValidateDateWithTime(&validity->notBefore[2],
-            validity->notBefore[0], ASN_BEFORE, atTime,
-            validity->notBefore[1]) < 1)
-        return ASN_BEFORE_DATE_E;
-    if (wc_ValidateDateWithTime(&validity->notAfter[2],
-            validity->notAfter[0], ASN_AFTER, atTime,
-            validity->notAfter[1]) < 1)
-        return ASN_AFTER_DATE_E;
-    return 0;
-}
-
 static int cm_check_chain_ca_dates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
     Signer* pending, const ChainCADate* dates, time_t atTime)
 {
@@ -3109,6 +3118,10 @@ static int cm_check_chain_ca_dates(WOLFSSL_CERT_MANAGER* cm, Signer* ca,
             }
         }
         if (ca->selfSigned)
+            break;
+        /* The caller supplied this issuer and will check each CA above it
+         * when that CA is the issuer of its own link. */
+        if (dates != NULL && dates->linkOnly)
             break;
         /* A handshake certificate for this key was verified by a different
          * issuer. Follow that issuer, not the cached certificate's. */

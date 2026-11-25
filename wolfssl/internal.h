@@ -3039,7 +3039,9 @@ WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
  * entry with store set holds the dates of a renewed CA. Those dates are
  * written to the cached CA only when the handshake verifies the peer. An
  * entry with store clear holds dates for this handshake only: the peer sent
- * a verified certificate for the same key, issued by a different CA. */
+ * a verified certificate for the same key, issued by a different CA. An
+ * entry with linkOnly set is the one issuer a chain builder supplied. The
+ * walk checks that CA and does not continue to the CAs above it. */
 typedef struct ChainCADate {
     struct ChainCADate* next;
     byte hash[SIGNER_DIGEST_SIZE];   /* hash AddCA() files the CA under */
@@ -3049,6 +3051,7 @@ typedef struct ChainCADate {
     byte waived;
     byte store;
     byte haveIssuer;
+    byte linkOnly;
 } ChainCADate;
 #endif
 
