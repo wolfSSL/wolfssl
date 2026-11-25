@@ -385,7 +385,8 @@ int test_wolfSSL_alt_chain_same_dn_root(void)
 /* Chain CAs that alternate chain mode does not skip still fail on their
  * signature: a root with a trusted CA's key, roots with an AKID by key id or
  * by issuer and serial, a CA that is not self-issued and a corrupted copy of a
- * trusted root.
+ * trusted root. With WOLFSSL_AKID_NAME, the root with an AKID by issuer and
+ * serial has no signer instead.
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -397,16 +398,30 @@ int test_wolfSSL_alt_chain_bad_sig(void)
     static const char* chains[] = {
         "./certs/intermediate/server-chain-alt-same-key-ecc.pem",
         "./certs/intermediate/server-chain-alt-same-dn-akid-ecc.pem",
-        "./certs/intermediate/server-chain-alt-same-dn-akid-name-ecc.pem",
         "./certs/intermediate/server-chain-alt-same-dn-int-ecc.pem"
     };
     size_t i;
+#if defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE)
+    /* The root's AKID serial rules out the trusted CA as its signer. The
+     * root has no signer and the rest of the chain is valid. */
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+    int akidNameErr = 0;
+#else
+    int akidNameErr = WC_NO_ERR_TRACE(ASN_NO_SIGNER_E);
+#endif
+#else
+    int akidNameErr = WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E);
+#endif
 
     for (i = 0; i < XELEM_CNT(chains); i++) {
         ExpectIntEQ(test_alt_chain_connect(chains[i], "./certs/ecc-key.pem",
             "./certs/ca-ecc-cert.pem", WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E)),
             TEST_SUCCESS);
     }
+    ExpectIntEQ(test_alt_chain_connect(
+        "./certs/intermediate/server-chain-alt-same-dn-akid-name-ecc.pem",
+        "./certs/ecc-key.pem", "./certs/ca-ecc-cert.pem", akidNameErr),
+        TEST_SUCCESS);
 #endif
 #ifndef NO_RSA
     ExpectIntEQ(test_alt_chain_connect(
