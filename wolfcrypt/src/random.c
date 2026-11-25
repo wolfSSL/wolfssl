@@ -10096,10 +10096,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      * forever on chips where the RNG kernel clock is unstable
      * (e.g. WL55 with RNGSEL = MSI under sustained ECDSA-key-gen
      * load), because once the IP latches a Seed-error or Clock-
-     * error condition it stops asserting DRDY. Per the STM32 RM
-     * recovery sequence: clear SEIS/CEIS, toggle RNGEN, discard the
-     * stale words sitting in the RNG output, then retry. The bounds are
-     * STM32_BARE_RNG_BYTE_TIMEOUT / STM32_BARE_RNG_MAX_RETRIES (above). */
+     * error condition it stops asserting DRDY. A clock error is first
+     * ridden out within the poll budget (DRDY returns when the clock
+     * recovers); a seed error, or no data by the end of the budget, runs
+     * the STM32 RM recovery sequence: clear SEIS/CEIS, toggle RNGEN,
+     * discard the stale words sitting in the RNG output, then retry. The
+     * bounds are STM32_BARE_RNG_BYTE_TIMEOUT / STM32_BARE_RNG_MAX_RETRIES
+     * (above). */
 
     /* Bring the direct-register RNG to a producing state: clock enable, the
      * new-gen (C5) NIST conditioning under CONDRST on the first call, and
@@ -10209,6 +10212,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         word32 guard;
         word32 retries;
         word32 sr;
+        int clkErr;
         (void)os;
 
         ret = wolfSSL_CryptHwMutexLock();
@@ -10244,25 +10248,37 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                  * happy-path / error checks have a defined value even
                  * if STM32_BARE_RNG_BYTE_TIMEOUT is configured to 0. */
                 sr = WC_RNG_SR;
-                /* Bounded DRDY poll -- breaks on either DRDY or any
-                 * error indication (SECS/CECS). */
+                clkErr = 0;
+                /* Bounded DRDY poll -- breaks on DRDY or a seed error
+                 * (SECS). A clock error (CECS) is ridden out here: data
+                 * already generated stays valid and DRDY returns once the
+                 * kernel clock recovers, so restarting the RNG at the first
+                 * sign of one would only burn the retry budget on a
+                 * transient glitch. */
                 while (t < STM32_BARE_RNG_BYTE_TIMEOUT) {
                     sr = WC_RNG_SR;
-                    if ((sr & (RNG_SR_DRDY | RNG_SR_SECS |
-                               RNG_SR_CECS)) != 0U) {
+                    if ((sr & (RNG_SR_DRDY | RNG_SR_SECS)) != 0U) {
                         break;
+                    }
+                    if ((sr & RNG_SR_CECS) != 0U) {
+                        clkErr = 1;
                     }
                     t++;
                 }
 
-                /* Happy path: data ready and no error. */
-                if ((sr & RNG_SR_DRDY) != 0U &&
-                    (sr & (RNG_SR_SECS | RNG_SR_CECS)) == 0U) {
+                /* Happy path: data ready and no seed error. */
+                if ((sr & RNG_SR_DRDY) != 0U && (sr & RNG_SR_SECS) == 0U) {
                     output[i] = WC_RNG_DR;
+                    if (clkErr || (sr & RNG_SR_CECS) != 0U) {
+                        /* Acknowledge the clock error (clears CEIS; see
+                         * the SR write note in the recovery below). */
+                        WC_RNG_SR = 0;
+                    }
                     break;
                 }
 
-                /* Either timed out or an error latched. Recover. */
+                /* Seed error, or no data within the poll budget (which
+                 * includes a clock error that outlasted it). Recover. */
                 if (++retries > STM32_BARE_RNG_MAX_RETRIES) {
 #ifdef WC_STM32_RNG_DIAG
                     printf("[RNG] retry max byte=%lu sr=%08lx CR=%08lx\n",
@@ -10308,10 +10324,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                         (void)WC_RNG_DR;
                         t++;
                     }
-                    else if ((WC_RNG_SR &
-                              (RNG_SR_SECS | RNG_SR_CECS)) != 0U) {
-                        /* Clock-error during recovery -- bail and
-                         * let the outer retry handle it. */
+                    else if ((WC_RNG_SR & RNG_SR_SECS) != 0U) {
+                        /* Seed error during recovery -- bail and let
+                         * the outer retry handle it. A clock error is
+                         * ridden out within 'guard', as above. */
                         break;
                     }
                 }
