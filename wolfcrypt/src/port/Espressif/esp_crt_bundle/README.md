@@ -14,6 +14,66 @@ Use the `idf.py menuconfig`,
 
 When in doubt, delete the `./build` directory. This is particularly important when changing Certificate Bundle PEM files.
 
+## Bundle Contents
+
+| File | Contents | Included |
+|---|---|---|
+| `cacrt_all.pem` | Mozilla's trusted TLS roots (curl `cacert.pem`) | FULL; CMN filters it |
+| `cacrt_local.pem` | Extra roots for this port (currently none) | FULL and CMN |
+| `cacrt_deprecated.pem` | Unexpired roots Mozilla removed for age, retirement or at the CA's request | Only with `WOLFSSL_CERTIFICATE_BUNDLE_DEPRECATED_LIST` |
+
+To update the bundle:
+
+1. Replace `cacrt_all.pem` with a current curl `cacert.pem`.
+2. Move roots that are no longer in it but have not expired into
+   `cacrt_deprecated.pem`, except the excluded roots listed below. Check
+   Mozilla's removal reason in the CCADB removed-certificates report first:
+   a root removed or distrusted after a compromise or compliance failure is
+   excluded instead. The bundle has no distrust-after dates, so keeping such
+   a root would fully trust it again.
+3. Update `cmn_crt_authorities.csv` if a listed root was renamed or removed.
+4. Run `./test_gen_crt_bundle.sh` to check the certificate count of every
+   bundle mode.
+5. From the root of a wolfSSL tree that is not configured in place (a fresh
+   checkout, or after `make distclean`), run `./autogen.sh`, then
+   `wolfcrypt/src/port/Espressif/esp_crt_bundle/test/test_esp_crt_bundle.sh`.
+   It checks that every bundle mode is in the order the verify callback's
+   binary search needs, and that the excluded roots are still rejected.
+
+Both test scripts need python3 with the `cryptography` package.
+`test_gen_crt_bundle.sh` also needs the `openssl` command, and the host test
+needs gcc with AddressSanitizer.
+`test/certs/gen_test_certs.sh` needs OpenSSL 3.4 or later.
+
+These roots are excluded on purpose and must never be re-added to any of the
+files:
+
+- `emSign ECC Root CA - G3`: root of the compromised eMudhra G3 intermediates
+  (Mozilla bug 2083449).
+- `Comodo AAA Services root` (`AAA Certificate Services`): Sectigo
+  cross-signed the same intermediates (Mozilla bug 2083449).
+- `E-Tugra Global Root CA RSA v3` and `E-Tugra Global Root CA ECC v3`:
+  removed by Mozilla after E-Tugra's security breach (Mozilla bug 1842928).
+- The Entrust roots (`Entrust Root Certification Authority`, its `- G2`,
+  `- EC1` and `- G4`, and `Entrust.net Premium 2048 Secure Server CA`) and
+  the Entrust-owned `AffirmTrust Commercial`, `Networking`, `Premium` and
+  `Premium ECC`: Mozilla distrusted Entrust for TLS after compliance failures
+  (Mozilla bug 1922387).
+- The 2009 `Autoridad de Certificacion Firmaprofesional CIF A62634068`: its
+  2014 reissue has the same name, and the bundle needs unique names.
+
+When a server's chain ends in a cross-sign whose issuer is not in the bundle,
+the verify callback accepts it if a bundle root has the same subject, public
+key and subject key ID, the root is self-issued with no path length, name or
+policy constraints, and the cross-signed cert is a CA. With
+`WOLFSSL_ALT_CERT_CHAINS` this check is not used: the callback looks for the
+issuer of each cert in the chain instead. For example, Google's `GTS Root R4` cross-signed by the retired
+`GlobalSign Root CA`, or `USERTrust ECC Certification Authority` cross-signed
+by `AAA Certificate Services`, both verify through the bundled self-signed root.
+When the server also sends the root that is not in the bundle, such as
+`AAA Certificate Services` after the USERTrust cross-sign, the chain verifies
+only with `WOLFSSL_ALT_CERT_CHAINS`. Without it, the chain is rejected.
+
 ## Certificate Inspection
 
 The certificates in the bundle are in PEM format. The [gen_crt_bundle.py script](./gen_crt_bundle.py)
@@ -140,14 +200,12 @@ See the `.timeout_ms` and make adjustments as necessary in the `esp_http_client_
     };
 ```
 
-## Failed to load CA
+## No certificate bundle root verifies the chain
 
 This is expected to be a common error to encounter:
 
 ```
-E (28454) esp_crt_bundle-wolfssl: Failed to load CA
-W (28454) esp_crt_bundle-wolfssl: Warning: found a matching cert, but not added to the Certificate Manager. error: 0
-E (28454) esp_crt_bundle-wolfssl: Did not find a matching crt
+E (28454) esp_crt_bundle-wolfssl: No certificate bundle root verifies the chain.
 E (28464) internal.c: ssl != NULL; no callback, verifyFail = 1
 W (28474) internal.c: CleanupStoreCtxCallback
 E (28474) internal.c: DoCertFatalAlert = -188
@@ -158,6 +216,9 @@ E (28504) transport_base: Failed to open a new connection
 E (28514) HTTP_CLIENT: Connection failed, sock < 0
 E (28514) HTTP_CLIENT: HTTP request failed: ESP_ERR_HTTP_CONNECT
 ```
+
+Which bundle roots were found, and whether loading or verifying with them
+failed, is logged only with `CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE`.
 
 The problem here is that the example [esp_http_client](https://github.com/espressif/esp-idf/tree/master/examples/protocols/esp_http_client)
 app _does not work_ immediately out of the box unless changes are made to the source:

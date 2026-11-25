@@ -28,8 +28,27 @@ jobs:
       # image: espressif/idf:latest # The "latest" has breaking changes for ESP-IDF V6
     steps:
       - uses: actions/checkout@v5
+      - name: Check certificate bundle generation for each bundle mode
+        run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; wolfcrypt/src/port/Espressif/esp_crt_bundle/test_gen_crt_bundle.sh python
       - name: Initialize Espressif IDE and build examples
         run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; IDE/Espressif/ESP-IDF/compileAllExamples.sh
+  espressif_crt_bundle_host:
+    name: Certificate bundle verify callback (host)
+    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # Builds a host wolfSSL with autotools, which the espressif/idf images
+    # don't have.
+    runs-on: ubuntu-24.04
+    # install-apt-deps needs up to ~16 minutes, then two wolfSSL builds.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: autoconf automake build-essential libtool python3-cryptography
+          ghcr-debs-tag: ubuntu-24.04-minimal
+      - name: Test the certificate bundle verify callback
+        run: ./autogen.sh && wolfcrypt/src/port/Espressif/esp_crt_bundle/test/test_esp_crt_bundle.sh python3
   espressif_v4_4:
     name: v4.4 Docker container
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
