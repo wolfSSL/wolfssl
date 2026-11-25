@@ -1342,17 +1342,32 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * issuer below - never skip X509StoreVerifyCert. */
             if (!issuer->isCa) {
                 /* error depth is current depth + 1 */
+                int evDepth = (ctx->chain) ? (int)(ctx->chain->num + 1) : 1;
+                int rejected;
+
                 SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_INVALID_CA,
-                                (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
+                                evDepth);
                 if (verifyCb != NULL) {
-                    ret = X509StoreCallVerifyCb(ctx, verifyCb, 0);
-                    if (ret != WOLFSSL_SUCCESS) {
-                        ret = WOLFSSL_FAILURE;
-                        goto exit;
-                    }
+                    rejected = (X509StoreCallVerifyCb(ctx, verifyCb, 0) !=
+                        WOLFSSL_SUCCESS);
                 }
                 else {
+                    rejected = 1;
+                }
+                if (rejected) {
                     ret = WOLFSSL_FAILURE;
+#ifdef WOLFSSL_CERT_EVENTS
+                    /* This link never reaches X509StoreVerifyCert, so it
+                     * has no result yet. Report the issuer that is not a CA. */
+                    {
+                        WOLFSSL_X509* saved = ctx->current_cert;
+
+                        ctx->current_cert = issuer;
+                        X509StoreCertEventFailure(ctx,
+                            WOLFSSL_X509_V_ERR_INVALID_CA, ctx->error_depth);
+                        ctx->current_cert = saved;
+                    }
+#endif
                     goto exit;
                 }
             }
@@ -1462,6 +1477,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     X509StoreVerifyIssuer(ctx, issuer, verifyCb) !=
                     WOLFSSL_SUCCESS) {
                 ret = WOLFSSL_FAILURE;
+#ifdef WOLFSSL_CERT_EVENTS
+                /* The issuer callback rejected it. X509StoreVerifyIssuer
+                 * sends nothing of its own. */
+                X509StoreCertEventFailure(ctx,
+                    (ctx->error != 0) ? ctx->error : VERIFY_CERT_ERROR,
+                    ctx->error_depth);
+#endif
                 goto exit;
             }
             ret = X509StoreVerifyCert(ctx, &cbRejected, verifyCb);
@@ -1511,6 +1533,13 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             done = 1;
         }
         else {
+#ifdef WOLFSSL_CERT_EVENTS
+            /* GetIssuer returned an error other than not found. */
+            X509StoreCertEventFailure(ctx,
+                (ctx->error != 0) ? ctx->error : ret,
+                ctx->peerCertDepth + ((ctx->chain != NULL) ?
+                    (int)ctx->chain->num : 0));
+#endif
             goto exit;
         }
 
@@ -1666,8 +1695,18 @@ exit:
                     != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Failed to unload temporary intermediates");
                 /* Residue would anchor later verifications. */
-                if (ret == WOLFSSL_SUCCESS)
+                if (ret == WOLFSSL_SUCCESS) {
                     ret = WOLFSSL_FAILURE;
+#ifdef WOLFSSL_CERT_EVENTS
+                    /* The pass result is already out. Send the failure
+                     * that replaces it. */
+                    if ((ctx->current_cert == NULL) ||
+                            (ctx->current_cert->derCert == NULL)) {
+                        ctx->current_cert = orig;
+                    }
+                    X509StoreCertEventFailure(ctx, VERIFY_CERT_ERROR, 0);
+#endif
+                }
             }
         }
         if (orig != NULL) {

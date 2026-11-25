@@ -2010,6 +2010,177 @@ int test_wolfSSL_X509_STORE_CertEvents(void)
     wolfSSL_X509_STORE_CTX_free(sctx);
     sctx = NULL;
 
+    /* The chain passes, then the IP check fails. The last RESULT is the
+     * IP mismatch. */
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, leaf, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(
+        wolfSSL_X509_STORE_CTX_get0_param(sctx), "192.0.2.1"),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+        WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH);
+    ExpectIntGE(log.results, 2);
+    ExpectIntEQ(log.firstResult.error, 0);
+    ExpectIntEQ(log.result.error, WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH);
+    wolfSSL_X509_STORE_CTX_free(sctx);
+    sctx = NULL;
+
+#if defined(WOLFSSL_PEM_TO_DER)
+    /* Leaf, two intermediates, and a trust anchor. Depth 1 stops the
+     * chain after the loop. The last RESULT is that failure. The links
+     * before it passed. */
+    {
+        WOLFSSL_X509* srv = NULL;
+        WOLFSSL_X509* mid = NULL;
+        WOLFSSL_X509* mid2 = NULL;
+        WOLF_STACK_OF(WOLFSSL_X509)* untrusted = NULL;
+
+        XMEMSET(&log, 0, sizeof(log));
+        ExpectNotNull(srv = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(mid = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/ca-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(mid2 = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(untrusted = wolfSSL_sk_X509_new_null());
+        if (untrusted != NULL) {
+            ExpectIntGT(wolfSSL_sk_X509_push(untrusted, mid), 0);
+            ExpectIntGT(wolfSSL_sk_X509_push(untrusted, mid2), 0);
+        }
+        ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, srv, untrusted),
+            WOLFSSL_SUCCESS);
+        wolfSSL_X509_STORE_CTX_set_depth(sctx, 1);
+        ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+            WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG);
+        ExpectIntGE(log.results, 2);
+        ExpectIntEQ(log.firstResult.error, 0);
+        ExpectIntEQ(log.result.error, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG);
+        wolfSSL_X509_STORE_CTX_free(sctx);
+        sctx = NULL;
+        wolfSSL_sk_X509_free(untrusted);
+        wolfSSL_X509_free(srv);
+        wolfSSL_X509_free(mid);
+        wolfSSL_X509_free(mid2);
+    }
+#endif
+#if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_BIO)
+    /* pathLenConstraint 0 is violated after the certificates verify.
+     * The last RESULT is that failure. */
+    {
+        WOLFSSL_BIO* bio = NULL;
+        WOLFSSL_X509* got = NULL;
+        WOLFSSL_X509* chainLeaf = NULL;
+        WOLFSSL_X509* extra[3];
+        WOLF_STACK_OF(WOLFSSL_X509)* untrusted = NULL;
+        int n = 0;
+        int i;
+
+        for (i = 0; i < 3; i++) {
+            extra[i] = NULL;
+        }
+        XMEMSET(&log, 0, sizeof(log));
+        ExpectNotNull(untrusted = wolfSSL_sk_X509_new_null());
+        ExpectNotNull(bio = wolfSSL_BIO_new_file(
+            "./certs/test/cert-events/chain-pathlen-exceeded.pem", "rb"));
+        while ((bio != NULL) && (untrusted != NULL) &&
+                ((got = wolfSSL_PEM_read_bio_X509(bio, NULL, NULL, NULL))
+                    != NULL)) {
+            if (chainLeaf == NULL) {
+                chainLeaf = got;
+            }
+            else if (n < 3) {
+                extra[n] = got;
+                ExpectIntGT(wolfSSL_sk_X509_push(untrusted, got), 0);
+                n++;
+            }
+            else {
+                wolfSSL_X509_free(got);
+            }
+        }
+        if (bio != NULL) {
+            wolfSSL_BIO_free(bio);
+        }
+        wolfSSL_ERR_clear_error();
+        ExpectNotNull(chainLeaf);
+        ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, chainLeaf,
+            untrusted), WOLFSSL_SUCCESS);
+        ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+            WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED);
+        ExpectIntGE(log.results, 2);
+        ExpectIntEQ(log.firstResult.error, 0);
+        ExpectIntEQ(log.result.error,
+            WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED);
+        wolfSSL_X509_STORE_CTX_free(sctx);
+        sctx = NULL;
+        wolfSSL_sk_X509_free(untrusted);
+        wolfSSL_X509_free(chainLeaf);
+        for (i = 0; i < 3; i++) {
+            wolfSSL_X509_free(extra[i]);
+        }
+    }
+    /* The issuer in the untrusted list is not a CA. That link emits the
+     * INVALID_CA result. */
+    {
+        WOLFSSL_BIO* bio = NULL;
+        WOLFSSL_X509* got = NULL;
+        WOLFSSL_X509* chainLeaf = NULL;
+        WOLFSSL_X509* extra[3];
+        WOLF_STACK_OF(WOLFSSL_X509)* untrusted = NULL;
+        int n = 0;
+        int i;
+
+        for (i = 0; i < 3; i++) {
+            extra[i] = NULL;
+        }
+        XMEMSET(&log, 0, sizeof(log));
+        ExpectNotNull(untrusted = wolfSSL_sk_X509_new_null());
+        ExpectNotNull(bio = wolfSSL_BIO_new_file(
+            "./certs/test/cert-events/chain-signer-not-ca.pem", "rb"));
+        while ((bio != NULL) && (untrusted != NULL) &&
+                ((got = wolfSSL_PEM_read_bio_X509(bio, NULL, NULL, NULL))
+                    != NULL)) {
+            if (chainLeaf == NULL) {
+                chainLeaf = got;
+            }
+            else if (n < 3) {
+                extra[n] = got;
+                ExpectIntGT(wolfSSL_sk_X509_push(untrusted, got), 0);
+                n++;
+            }
+            else {
+                wolfSSL_X509_free(got);
+            }
+        }
+        if (bio != NULL) {
+            wolfSSL_BIO_free(bio);
+        }
+        wolfSSL_ERR_clear_error();
+        ExpectNotNull(chainLeaf);
+        ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, chainLeaf,
+            untrusted), WOLFSSL_SUCCESS);
+        ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+            WOLFSSL_X509_V_ERR_INVALID_CA);
+        ExpectIntGE(log.results, 1);
+        ExpectIntEQ(log.result.error, WOLFSSL_X509_V_ERR_INVALID_CA);
+        wolfSSL_X509_STORE_CTX_free(sctx);
+        sctx = NULL;
+        wolfSSL_sk_X509_free(untrusted);
+        wolfSSL_X509_free(chainLeaf);
+        for (i = 0; i < 3; i++) {
+            wolfSSL_X509_free(extra[i]);
+        }
+    }
+#endif
+
     /* The context setter and the store setter share the certificate
      * manager. The call made second is the callback that runs. */
 #if !defined(NO_TLS)
