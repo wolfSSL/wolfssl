@@ -4686,13 +4686,17 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
                 (stir_ret != WC_NO_ERR_TRACE(NOT_READY_E)) &&
                 (stir_ret != WC_NO_ERR_TRACE(NEEDS_RECOVERY_E)))
             {
-                wc_UnLockMutex(&globalRNGMutex);
+                (void)wc_UnLockMutex(&globalRNGMutex);
                 WOLFSSL_MSG("RAND_load_file: DRBG stir failed");
                 ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
         }
-        wc_UnLockMutex(&globalRNGMutex);
+        if (wc_UnLockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("RAND_load_file: unlock failed");
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+        }
 #else
         /* Each reseed here draws fresh entropy, so collect the file and
          * reseed once below. */
@@ -4720,7 +4724,10 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
                 WOLFSSL_MSG("RAND_load_file: DRBG reseed failed");
                 ret = WOLFSSL_FATAL_ERROR;
             }
-            wc_UnLockMutex(&globalRNGMutex);
+            if (wc_UnLockMutex(&globalRNGMutex) != 0) {
+                WOLFSSL_MSG("RAND_load_file: unlock failed");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
         }
     }
 #endif
