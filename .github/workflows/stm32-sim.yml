@@ -46,7 +46,7 @@ permissions:
 # simulators pull request.
 
 env:
-  SIMULATORS_REF: 2bb0193ff557a1038bcbebabe96c2bb21f72a458
+  SIMULATORS_REF: 02351c8ca4d11fa19b52c5c8b14a7b9901d4b250
 
 jobs:
   stm32_sim:
