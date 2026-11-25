@@ -92,6 +92,54 @@ static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte* hash_data,
 
     return ret;
 }
+
+/* hash_data must be exactly one DigestInfo for hash_type. */
+static int wc_SignatureCheckDigestInfo(enum wc_HashType hash_type,
+    const byte* hash_data, word32 hash_len, int digest_len)
+{
+    int len;
+    int hash_oid;
+    word32 idx = 0;
+    word32 algoEnd;
+    word32 oidIdx;
+    word32 oidSz;
+    word32 expOidSz = 0;
+    const byte* expOid;
+
+    if (hash_type == WC_HASH_TYPE_MD5_SHA)
+        return HASH_TYPE_E;
+    hash_oid = wc_HashGetOID(hash_type);
+    if (hash_oid < 0)
+        return hash_oid;
+    expOid = OidFromId((word32)hash_oid, oidHashType, &expOidSz);
+    if (expOid == NULL)
+        return HASH_TYPE_E;
+    if (GetSequence(hash_data, &idx, &len, hash_len) < 0)
+        return ASN_PARSE_E;
+    if (idx + (word32)len != hash_len)
+        return BAD_LENGTH_E;
+    if (GetSequence(hash_data, &idx, &len, hash_len) < 0)
+        return ASN_PARSE_E;
+    algoEnd = idx + (word32)len;
+    if (GetASNObjectId(hash_data, &idx, &len, algoEnd) < 0)
+        return ASN_PARSE_E;
+    oidIdx = idx;
+    oidSz = (word32)len;
+    idx += oidSz;
+    if (idx != algoEnd && (idx + 2 != algoEnd ||
+            hash_data[idx] != ASN_TAG_NULL || hash_data[idx + 1] != 0))
+        return ASN_PARSE_E;
+    idx = algoEnd;
+    if (GetOctetString(hash_data, &idx, &len, hash_len) < 0)
+        return ASN_PARSE_E;
+    if (len != digest_len || idx + (word32)len != hash_len)
+        return BAD_LENGTH_E;
+    if (expOidSz != oidSz ||
+            XMEMCMP(hash_data + oidIdx, expOid, oidSz) != 0)
+        return ASN_SIG_OID_E;
+
+    return 0;
+}
 #endif /* !NO_RSA && !NO_ASN */
 
 int wc_SignatureGetSize(enum wc_SignatureType sig_type,
@@ -194,32 +242,18 @@ int wc_SignatureVerifyHash(
         return ret;
     }
 
-#if !defined(NO_RSA) && !defined(NO_ASN)
-    /* For WC_SIGNATURE_TYPE_RSA_W_ENC, we need to extract the actual size of
-     * the ASN.1-encoded hash.
-     */
     if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
-        int hash_dec_len;
-        word32 idx = 0;
-        if (GetSequence(hash_data, &idx, &hash_dec_len, hash_len) < 0)
-            return ASN_PARSE_E;
-        /* skip the AlgorithmIdentifier */
-        if (GetSequence(hash_data, &idx, &hash_dec_len, hash_len) < 0)
-            return ASN_PARSE_E;
-        idx += (word32)hash_dec_len;
-        /* now sitting at the OCTET STRING containing the digest */
-        if (GetOctetString(hash_data, &idx, &hash_dec_len, hash_len) < 0)
-            return ASN_PARSE_E;
-        if (hash_dec_len != ret)
-            return BAD_LENGTH_E;
-    }
-    else
+#if !defined(NO_RSA) && !defined(NO_ASN)
+        ret = wc_SignatureCheckDigestInfo(hash_type, hash_data, hash_len, ret);
+        if (ret != 0)
+            return ret;
+#else
+        return SIG_TYPE_E;
 #endif
-    {
-        if (hash_len != (word32)ret) {
-            WOLFSSL_MSG("wc_SignatureVerify: Invalid hash size");
-            return BAD_LENGTH_E;
-        }
+    }
+    else if (hash_len != (word32)ret) {
+        WOLFSSL_MSG("wc_SignatureVerify: Invalid hash size");
+        return BAD_LENGTH_E;
     }
 
     ret = 0;
@@ -442,6 +476,19 @@ int wc_SignatureGenerateHash_ex(
     if (ret < 0) {
         WOLFSSL_MSG("wc_SignatureGenerate: Invalid hash type/len");
         return ret;
+    }
+    if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
+#if !defined(NO_RSA) && !defined(NO_ASN)
+        ret = wc_SignatureCheckDigestInfo(hash_type, hash_data, hash_len, ret);
+        if (ret != 0)
+            return ret;
+#else
+        return SIG_TYPE_E;
+#endif
+    }
+    else if (hash_len != (word32)ret) {
+        WOLFSSL_MSG("wc_SignatureGenerate: Invalid hash size");
+        return BAD_LENGTH_E;
     }
     ret = 0;
 

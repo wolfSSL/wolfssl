@@ -737,6 +737,12 @@ int test_wc_SignatureFeatureCoverage(void)
             ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256, sig_type,
                 hash, (word32)sizeof(hash), sig2, sig2_len, &ecc, key_len),
                 0);
+
+            /* Hash length that does not match hash_type */
+            sig2_len = (word32)sizeof(sig2);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                sig_type, hash, (word32)sizeof(hash) - 1, sig2, &sig2_len,
+                &ecc, key_len, &rng, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
         }
 
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -808,6 +814,12 @@ int test_wc_SignatureFeatureCoverage(void)
             WC_SIGNATURE_TYPE_RSA, data, data_len, sig, sig_len, &rsa_key,
             key_len), 0);
 
+        /* Plain RSA hash length that does not match hash_type */
+        sig_len = (word32)sizeof(sig);
+        ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+            WC_SIGNATURE_TYPE_RSA, data, data_len - 1, sig, &sig_len,
+            &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
 #ifndef NO_ASN
         /* RSA_W_ENC round trip: true branch of
          * "hash_enc_len += MAX_DER_DIGEST_ASN_SZ", wc_SignatureDerEncode()'s
@@ -825,6 +837,212 @@ int test_wc_SignatureFeatureCoverage(void)
             ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_SHA256,
                 WC_SIGNATURE_TYPE_RSA_W_ENC, data, data_len, sigEnc,
                 sigEncLen, &rsa_key, key_len), 0);
+        }
+
+        /* RSA_W_ENC hash APIs take the DigestInfo for hash_type */
+        {
+            byte hash[WC_SHA256_DIGEST_SIZE];
+            byte enc[MAX_DER_DIGEST_SZ + 1];
+            byte encNoNull[MAX_DER_DIGEST_SZ];
+            word32 encLen = 0;
+            byte sigData[512] = {0};
+            word32 sigDataLen = (word32)sizeof(sigData);
+        #ifndef NO_SHA
+            byte encSha1[MAX_DER_DIGEST_SZ];
+            word32 encSha1Len = 0;
+        #endif
+        #if !defined(NO_MD5) && !defined(NO_SHA)
+            byte md5Sha[WC_MD5_DIGEST_SIZE + WC_SHA_DIGEST_SIZE];
+        #endif
+        #ifdef WOLFSSL_SM3
+            byte encSm3[18 + WC_SM3_DIGEST_SIZE] = {
+                0x30, 0x30, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x81, 0x1c, 0xcf,
+                0x55, 0x01, 0x83, 0x11, 0x05, 0x00, 0x04, 0x20
+            };
+        #endif
+
+            ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, data, data_len, hash,
+                (word32)sizeof(hash)), 0);
+            ExpectIntGT((int)(encLen = wc_EncodeSignature(enc, hash,
+                (word32)sizeof(hash), wc_HashGetOID(WC_HASH_TYPE_SHA256))),
+                0);
+
+            /* Same signature as the data API */
+            ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, data, data_len, sigData,
+                &sigDataLen, &rsa_key, key_len, &rng), 0);
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng), 0);
+            ExpectIntEQ(sig_len, sigDataLen);
+            ExpectBufEQ(sig, sigData, sig_len);
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, sig_len,
+                &rsa_key, key_len), 0);
+
+            /* Bare hash is rejected before signing */
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, hash, (word32)sizeof(hash), sig,
+                &sig_len, &rsa_key, key_len, &rng, 0),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+            ExpectIntEQ(sig_len, (word32)sizeof(sig));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, hash, (word32)sizeof(hash),
+                sigData, sigDataLen, &rsa_key, key_len),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+            /* Trailing byte after the DigestInfo */
+            enc[encLen] = 0;
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen + 1, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen + 1, sigData,
+                sigDataLen, &rsa_key, key_len), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+            /* Layout 30 31 30 0d 06 09 <oid> 05 00 04 20 <digest> */
+            /* Digest nested inside the AlgorithmIdentifier SEQUENCE */
+            enc[3] = (byte)(encLen - 4);
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sigData, sigDataLen,
+                &rsa_key, key_len), WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+            /* AlgorithmIdentifier parameters other than NULL */
+            ExpectIntGT((int)(encLen = wc_EncodeSignature(enc, hash,
+                (word32)sizeof(hash), wc_HashGetOID(WC_HASH_TYPE_SHA256))),
+                0);
+            if (EXPECT_SUCCESS())
+                enc[encLen - sizeof(hash) - 4] = 0x04;
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sigData, sigDataLen,
+                &rsa_key, key_len), WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+            /* Indefinite-length NULL parameter (05 80) */
+            if (EXPECT_SUCCESS()) {
+                enc[encLen - sizeof(hash) - 4] = ASN_TAG_NULL;
+                enc[encLen - sizeof(hash) - 3] = 0x80;
+            }
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sigData, sigDataLen,
+                &rsa_key, key_len), WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+            /* AES-128-CBC OID, same old OID sum as SHA-256 */
+            ExpectIntGT((int)(encLen = wc_EncodeSignature(enc, hash,
+                (word32)sizeof(hash), wc_HashGetOID(WC_HASH_TYPE_SHA256))),
+                0);
+            if (EXPECT_SUCCESS()) {
+                enc[encLen - sizeof(hash) - 6] = 0x01;
+                enc[encLen - sizeof(hash) - 5] = 0x02;
+            }
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(ASN_SIG_OID_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sigData, sigDataLen,
+                &rsa_key, key_len), WC_NO_ERR_TRACE(ASN_SIG_OID_E));
+
+            /* DigestInfo without the NULL parameter is accepted */
+            ExpectIntGT((int)(encLen = wc_EncodeSignature(enc, hash,
+                (word32)sizeof(hash), wc_HashGetOID(WC_HASH_TYPE_SHA256))),
+                0);
+            if (EXPECT_SUCCESS()) {
+                XMEMCPY(encNoNull, enc, encLen - sizeof(hash) - 4);
+                XMEMCPY(encNoNull + encLen - sizeof(hash) - 4,
+                    enc + encLen - sizeof(hash) - 2, sizeof(hash) + 2);
+                encNoNull[1] = (byte)(encLen - 4);
+                encNoNull[3] = (byte)(enc[3] - 2);
+            }
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, encNoNull, encLen - 2, sig,
+                &sig_len, &rsa_key, key_len, &rng), 0);
+
+        #ifdef HAVE_BLAKE2B
+            /* Hash type without a DigestInfo OID */
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_BLAKE2B,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(HASH_TYPE_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_BLAKE2B,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sigData, sigDataLen,
+                &rsa_key, key_len), WC_NO_ERR_TRACE(HASH_TYPE_E));
+        #endif
+
+        #ifndef NO_SHA
+            /* SHA-256 DigestInfo signed as SHA-1 */
+            ExpectIntGT((int)(encLen = wc_EncodeSignature(enc, hash,
+                (word32)sizeof(hash), wc_HashGetOID(WC_HASH_TYPE_SHA256))),
+                0);
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+
+            /* SHA-1 OID around a SHA-256 sized digest */
+            ExpectIntGT((int)(encSha1Len = wc_EncodeSignature(encSha1, hash,
+                (word32)sizeof(hash), wc_HashGetOID(WC_HASH_TYPE_SHA))), 0);
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, encSha1, encSha1Len, sig,
+                &sig_len, &rsa_key, key_len, &rng, 0),
+                WC_NO_ERR_TRACE(ASN_SIG_OID_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, encSha1, encSha1Len, sigData,
+                sigDataLen, &rsa_key, key_len),
+                WC_NO_ERR_TRACE(ASN_SIG_OID_E));
+        #endif
+
+        #if !defined(NO_MD5) && !defined(NO_SHA)
+            /* MD5||SHA-1 has no DigestInfo OID */
+            ExpectIntEQ(wc_Hash(WC_HASH_TYPE_MD5_SHA, data, data_len, md5Sha,
+                (word32)sizeof(md5Sha)), 0);
+            ExpectIntGT((int)(encLen = wc_EncodeSignature(enc, md5Sha,
+                (word32)sizeof(md5Sha), wc_HashGetOID(WC_HASH_TYPE_MD5_SHA))),
+                0);
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_MD5_SHA,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sig, &sig_len,
+                &rsa_key, key_len, &rng, 0), WC_NO_ERR_TRACE(HASH_TYPE_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_MD5_SHA,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, enc, encLen, sigData, sigDataLen,
+                &rsa_key, key_len), WC_NO_ERR_TRACE(HASH_TYPE_E));
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerate(WC_HASH_TYPE_MD5_SHA,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, data, data_len, sig, &sig_len,
+                &rsa_key, key_len, &rng), WC_NO_ERR_TRACE(HASH_TYPE_E));
+            ExpectIntEQ(wc_SignatureVerify(WC_HASH_TYPE_MD5_SHA,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, data, data_len, sigData,
+                sigDataLen, &rsa_key, key_len), WC_NO_ERR_TRACE(HASH_TYPE_E));
+        #endif
+
+        #ifdef WOLFSSL_SM3
+            /* SM3 DigestInfo OID is not supported */
+            sig_len = (word32)sizeof(sig);
+            ExpectIntEQ(wc_SignatureGenerateHash_ex(WC_HASH_TYPE_SM3,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, encSm3, (word32)sizeof(encSm3),
+                sig, &sig_len, &rsa_key, key_len, &rng, 0),
+                WC_NO_ERR_TRACE(HASH_TYPE_E));
+            ExpectIntEQ(wc_SignatureVerifyHash(WC_HASH_TYPE_SM3,
+                WC_SIGNATURE_TYPE_RSA_W_ENC, encSm3, (word32)sizeof(encSm3),
+                sigData, sigDataLen, &rsa_key, key_len),
+                WC_NO_ERR_TRACE(HASH_TYPE_E));
+        #endif
         }
 #endif /* !NO_ASN */
 

@@ -168,13 +168,21 @@ int wc_SignatureGenerate(
     \brief This function verifies a signature using a pre-computed hash.
     Unlike wc_SignatureVerify which hashes the data first, this function
     takes the hash directly and verifies the signature against it.
-    If sig_type is WC_SIGNATURE_TYPE_RSA_W_ENC, hash data must be encoded
-    with wc_EncodeSignature prior to calling.
+    If sig_type is WC_SIGNATURE_TYPE_RSA_W_ENC, hash data must be the
+    DigestInfo for hash_type, as output by wc_EncodeSignature.
 
     \return 0 Success
     \return SIG_TYPE_E Signature type not enabled/available
     \return BAD_FUNC_ARG Bad function argument provided
     \return BUFFER_E Output buffer too small or input too large
+    \return ASN_PARSE_E RSA_W_ENC hash data is not a DigestInfo or its OID
+    is invalid
+    \return BAD_LENGTH_E Hash, digest or DigestInfo length does not match
+    hash_type
+    \return ASN_SIG_OID_E DigestInfo OID does not match hash_type
+    \return HASH_TYPE_E Hash type not available or its DigestInfo OID is
+    not supported
+    \return MEMORY_E Memory allocation failed
 
     \param hash_type A hash type from enum wc_HashType
     \param sig_type A signature type such as WC_SIGNATURE_TYPE_ECC or
@@ -221,13 +229,21 @@ int wc_SignatureVerifyHash(enum wc_HashType hash_type,
     \brief This function generates a signature from a pre-computed hash.
     Unlike wc_SignatureGenerate which hashes the data first, this
     function takes the hash directly and signs it.
-    If sig_type is WC_SIGNATURE_TYPE_RSA_W_ENC, hash data must be encoded
-    with wc_EncodeSignature prior to calling.
+    If sig_type is WC_SIGNATURE_TYPE_RSA_W_ENC, hash data must be the
+    DigestInfo for hash_type, as output by wc_EncodeSignature.
 
     \return 0 Success
     \return SIG_TYPE_E Signature type not enabled/available
     \return BAD_FUNC_ARG Bad function argument provided
     \return BUFFER_E Output buffer too small or input too large
+    \return ASN_PARSE_E RSA_W_ENC hash data is not a DigestInfo or its OID
+    is invalid
+    \return BAD_LENGTH_E Hash, digest or DigestInfo length does not match
+    hash_type
+    \return ASN_SIG_OID_E DigestInfo OID does not match hash_type
+    \return HASH_TYPE_E Hash type not available or its DigestInfo OID is
+    not supported
+    \return MEMORY_E Memory allocation failed
 
     \param hash_type A hash type from enum wc_HashType
     \param sig_type A signature type such as WC_SIGNATURE_TYPE_ECC or
@@ -276,11 +292,21 @@ int wc_SignatureGenerateHash(enum wc_HashType hash_type,
     \brief This function generates a signature from a pre-computed hash
     with extended options. This is similar to wc_SignatureGenerateHash
     but allows optional verification of the signature after generation.
+    If sig_type is WC_SIGNATURE_TYPE_RSA_W_ENC, hash data must be the
+    DigestInfo for hash_type, as output by wc_EncodeSignature.
 
     \return 0 Success
     \return SIG_TYPE_E Signature type not enabled/available
     \return BAD_FUNC_ARG Bad function argument provided
     \return BUFFER_E Output buffer too small or input too large
+    \return ASN_PARSE_E RSA_W_ENC hash data is not a DigestInfo or its OID
+    is invalid
+    \return BAD_LENGTH_E Hash, digest or DigestInfo length does not match
+    hash_type
+    \return ASN_SIG_OID_E DigestInfo OID does not match hash_type
+    \return HASH_TYPE_E Hash type not available or its DigestInfo OID is
+    not supported
+    \return MEMORY_E Memory allocation failed
 
     \param hash_type A hash type from enum wc_HashType
     \param sig_type A signature type such as WC_SIGNATURE_TYPE_ECC or
