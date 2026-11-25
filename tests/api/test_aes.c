@@ -5437,6 +5437,179 @@ int test_wc_AesGcmStream_BadAuthTag(void)
 }
 
 /*******************************************************************************
+ * AES-GCM 8-byte tags: SP 800-38D Appendix C Table 2 row 1
+ ******************************************************************************/
+int test_wc_AesGcmShortTag(void)
+{
+    EXPECT_DECLS;
+#if defined(WC_AESGCM_SHORT_TAG) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AES_DECRYPT)
+    WC_RNG rng[1];
+    Aes enc[1];
+    Aes dec[1];
+    Aes chk[1];
+    byte key[AES_128_KEY_SIZE] = { 1, };
+    byte key2[AES_128_KEY_SIZE] = { 2, };
+    byte iv[GCM_NONCE_MID_SZ];
+    byte ivX[GCM_NONCE_MID_SZ];
+#ifdef OPENSSL_EXTRA
+    byte chkOut[16];
+    int r;
+#endif
+    byte aad[WC_AES_BLOCK_SIZE] = { 0, };
+    byte tag[WC_AES_BLOCK_SIZE];
+    byte tagX[WC_AES_BLOCK_SIZE];
+    byte* pt = NULL;
+    byte* ct = NULL;
+    byte* out = NULL;
+    word32 max = (word32)1 << 15;
+    word32 sz = max - (word32)sizeof(aad);
+
+    XMEMSET(rng, 0, sizeof(rng));
+    XMEMSET(enc, 0, sizeof(enc));
+    XMEMSET(dec, 0, sizeof(dec));
+    XMEMSET(chk, 0, sizeof(chk));
+    ExpectIntEQ(wc_InitRng(rng), 0);
+    ExpectIntEQ(wc_AesInit(chk, NULL, INVALID_DEVID), 0);
+    ExpectNotNull(pt = (byte*)XMALLOC(max, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(ct = (byte*)XMALLOC(max, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(out = (byte*)XMALLOC(max, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (pt != NULL) {
+        XMEMSET(pt, 0x5a, max);
+    }
+    ExpectIntEQ(wc_AesInit(enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(dec, NULL, INVALID_DEVID), 0);
+
+    /* 2^15 bytes of ciphertext plus AAD round trips with an 8-byte tag. */
+    ExpectIntEQ(wc_AesGcmSetKey(enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(enc, sizeof(iv), NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, ct, pt, sz, iv, sizeof(iv), tag, 8,
+        aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(dec, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 8,
+        aad, sizeof(aad)), 0);
+    ExpectBufEQ(out, pt, sz);
+    /* One byte over the row's length is refused both ways, and not counted. */
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz + 1, iv, sizeof(iv), tag, 8,
+        aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, out, pt, sz + 1, ivX, sizeof(ivX),
+        tagX, 8, aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Setting the same key again keeps an encrypt-only 8-byte binding. */
+    ExpectIntEQ(wc_AesGcmSetKey(enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, out, pt, 64, ivX, sizeof(ivX), tagX,
+        16, aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifdef OPENSSL_EXTRA
+    /* After an AAD-only call, the next call is refused if it would reuse the
+     * cached AAD; if allowed, its tag covers no AAD. */
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, NULL, NULL, 0, ivX, sizeof(ivX), tagX,
+        8, pt, max), 0);
+    r = wc_AesGcmEncrypt_ex(enc, out, pt, 16, ivX, sizeof(ivX), tagX, 8, NULL,
+        0);
+    if (r == 0) {
+        ExpectIntEQ(wc_AesGcmSetKey(chk, key, sizeof(key)), 0);
+        ExpectIntEQ(wc_AesGcmDecrypt(chk, chkOut, out, 16, ivX, sizeof(ivX),
+            tagX, 8, NULL, 0), 0);
+    } else {
+        ExpectIntEQ(r, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+    /* The key stays bound to 8 bytes (SP 800-38D 5.2.1.2). */
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 16,
+        aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* A failed tag check is a decrypt too. */
+    tag[0] ^= 1;
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 8,
+        aad, sizeof(aad)), WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
+    tag[0] ^= 1;
+    ExpectIntEQ(dec->gcmShortDec, 2);
+
+    /* Decrypt 2^32 - 1 passes and the next is refused, even for the same key
+     * set again; 2^32 decrypts cannot run in a test, so start near the end. */
+    dec->gcmShortDec = 0xFFFFFFFEU;
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 8,
+        aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 8,
+        aad, sizeof(aad)), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
+    ExpectIntEQ(wc_AesGcmSetKey(dec, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 8,
+        aad, sizeof(aad)), WC_NO_ERR_TRACE(AES_GCM_OVERFLOW_E));
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, sz, iv, sizeof(iv), tag, 16,
+        aad, sizeof(aad)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* A new key starts again. */
+    ExpectIntEQ(wc_AesGcmSetKey(dec, key2, sizeof(key2)), 0);
+    ExpectIntEQ(dec->gcmShortDec, 0);
+
+    /* 16-byte tags keep no length limit and no count. */
+    ExpectIntEQ(wc_AesGcmSetKey(enc, key2, sizeof(key2)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(enc, sizeof(iv), NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncrypt_ex(enc, ct, pt, max, iv, sizeof(iv), tag, 16,
+        aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(dec, out, ct, max, iv, sizeof(iv), tag, 16,
+        aad, sizeof(aad)), 0);
+    ExpectBufEQ(out, pt, max);
+    ExpectIntEQ(dec->gcmShortDec, 0);
+
+    /* GMAC verify uses a new Aes per call, so it cannot count 8-byte tags. */
+    ExpectIntEQ(wc_GmacVerify(key, sizeof(key), iv, sizeof(iv), aad,
+        sizeof(aad), tag, 8), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* Streams are held to the same row at Final. */
+    wc_AesFree(enc);
+    wc_AesFree(dec);
+    XMEMSET(enc, 0, sizeof(enc));
+    XMEMSET(dec, 0, sizeof(dec));
+    ExpectIntEQ(wc_AesInit(enc, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesInit(dec, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(enc, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmSetIV(enc, sizeof(iv), NULL, 0, rng), 0);
+    ExpectIntEQ(wc_AesGcmEncryptInit_ex(enc, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(enc, ct, pt, sz, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(enc, tag, 8), 0);
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, key, sizeof(key), iv, sizeof(iv)),
+        0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(dec, tag, 8), 0);
+    ExpectIntEQ(dec->gcmShortDec, 1);
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, key, sizeof(key), iv, sizeof(iv)),
+        0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz + 1, aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(dec, tag, 8),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* Init with the same key kept the count. */
+    ExpectIntEQ(dec->gcmShortDec, 1);
+    /* A refused Final ends the stream, so a restart without the key works. */
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz, aad, sizeof(aad)),
+        WC_NO_ERR_TRACE(MISSING_IV));
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(dec, tag, 8), 0);
+    ExpectIntEQ(dec->gcmShortDec, 2);
+    /* An unfinished stream still matches the same key. */
+    ExpectIntEQ(wc_AesGcmDecryptInit(dec, key, sizeof(key), iv, sizeof(iv)),
+        0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(dec, out, ct, sz, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(dec, key, sizeof(key)), 0);
+    ExpectIntEQ(dec->gcmShortDec, 2);
+    /* A finished stream's AAD is not counted in the next stream. */
+    ExpectIntEQ(wc_AesGcmEncryptInit_ex(enc, NULL, 0, iv, sizeof(iv)), 0);
+    ExpectIntEQ(wc_AesGcmEncryptUpdate(enc, out, pt, max, NULL, 0), 0);
+    ExpectIntEQ(wc_AesGcmEncryptFinal(enc, tag, 8), 0);
+#endif
+
+    wc_AesFree(enc);
+    wc_AesFree(dec);
+    wc_AesFree(chk);
+    XFREE(pt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(rng);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_AesGcmShortTag */
+
+/*******************************************************************************
  * GMAC
  ******************************************************************************/
 

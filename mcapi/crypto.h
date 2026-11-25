@@ -173,9 +173,9 @@ enum {
 typedef struct CRYPT_AES_CTX {
     /* big enough to hold internal, but check on init */
     #ifdef WOLF_PRIVATE_KEY_ID
-    int holder[122];
+    int holder[126];
     #else
-    int holder[104];
+    int holder[108];
     #endif
 } CRYPT_AES_CTX;
 

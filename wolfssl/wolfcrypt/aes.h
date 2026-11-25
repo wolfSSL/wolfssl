@@ -78,6 +78,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 typedef struct Gcm {
     ALIGN16 byte H[16];
+#ifdef WC_AESGCM_IV_LOCK
+    byte keyH[16]; /* H as set with the key; a stream may change H's form */
+#endif
 #ifdef OPENSSL_EXTRA
     word32 aadH[4]; /* additional authenticated data GHASH */
     word32 aadLen;  /* additional authenticated data len */
@@ -384,6 +387,9 @@ struct Aes {
     byte gcmIvMasked; /* gcmIvMask is XORed into each 8.2.1 IV used */
     byte gcmIvMask[GCM_NONCE_MID_SZ];
     byte gcmIvNext[GCM_NONCE_MAX_SZ]; /* the next generated IV */
+#endif
+#ifdef WC_AESGCM_SHORT_TAG
+    word32 gcmShortDec; /* decrypts under this key with an 8-byte tag */
 #endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
