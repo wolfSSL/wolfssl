@@ -202,6 +202,8 @@ int main(int argc, char** argv)
 #ifdef WB_MLKEM_CACHE_ROWS
     {
         byte msg[WC_ML_KEM_ENC_RAND_SZ] = {0};
+        /* Noise generation writes a counter after the seed. */
+        byte coins[WC_ML_KEM_SYM_SZ + 1] = {0};
         int allocError = WC_NO_ERR_TRACE(MEMORY_E);
         int matrixError;
         int filled;
@@ -211,14 +213,14 @@ int main(int argc, char** argv)
         key.flags &= ~(int)MLKEM_FLAG_A_SET;
 #if !defined(MCDC_FA_UNAVAILABLE) && !defined(WOLFSSL_NO_MALLOC)
         mcdc_fa_arm(1);
-        allocError = mlkemkey_encapsulate(&key, msg, msg, ct, NULL, NULL);
+        allocError = mlkemkey_encapsulate(&key, msg, coins, ct, NULL, NULL);
         mcdc_fa_disarm();
 #endif
         wb_fail_matrix = 1;
-        matrixError = mlkemkey_encapsulate(&key, msg, msg, ct, NULL, NULL);
+        matrixError = mlkemkey_encapsulate(&key, msg, coins, ct, NULL, NULL);
         wb_fail_matrix = 0;
         filled = (key.flags & MLKEM_FLAG_A_SET) != 0;
-        ret = mlkemkey_encapsulate(&key, msg, msg, ct, NULL, NULL);
+        ret = mlkemkey_encapsulate(&key, msg, coins, ct, NULL, NULL);
         cached = (key.flags & MLKEM_FLAG_A_SET) != 0;
         if (allocError != WC_NO_ERR_TRACE(MEMORY_E) ||
                 matrixError != WC_NO_ERR_TRACE(WC_HW_E) || filled ||
@@ -276,14 +278,15 @@ int main(int argc, char** argv)
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     {
         byte msg[WC_ML_KEM_ENC_RAND_SZ] = {0};
+        byte coins[WC_ML_KEM_SYM_SZ + 1] = {0};
         int fail = 0;
         int type = key.type;
         int withCompare;
         int unknownType;
 
-        withCompare = mlkemkey_encapsulate(&key, msg, msg, ct, ct, &fail);
+        withCompare = mlkemkey_encapsulate(&key, msg, coins, ct, ct, &fail);
         key.type = -1;
-        unknownType = mlkemkey_encapsulate(&key, msg, msg, ct, ct, &fail);
+        unknownType = mlkemkey_encapsulate(&key, msg, coins, ct, ct, &fail);
         key.type = type;
         if (withCompare != WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
                 unknownType != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
