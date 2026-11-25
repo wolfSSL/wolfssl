@@ -1319,8 +1319,11 @@ enum wc_CertEventCondition {
     WC_CEV_COND_CERT_SIG_ALG_KEY         = 33,
     /* The EC curve in the subject public key is not supported. */
     WC_CEV_COND_CERT_CURVE_UNSUPPORTED   = 34,
-    /* basicConstraints pathLenConstraint is negative or too large. A chain
-     * longer than pathLenConstraint stays WC_CEV_COND_CERT_PATH_LEN. */
+    /* basicConstraints pathLenConstraint is a negative INTEGER. A value
+     * of 128 or more is ASN_PARSE_E from the 7-bit check, and the default
+     * maximum path length is 127, so the size error is not reached. A
+     * chain longer than pathLenConstraint stays
+     * WC_CEV_COND_CERT_PATH_LEN. */
     WC_CEV_COND_CERT_BC_PATHLEN          = 35
 };
 

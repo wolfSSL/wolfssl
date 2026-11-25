@@ -18432,6 +18432,11 @@ static void PeerCertEventResult(WOLFSSL* ssl, ProcPeerCertArgs* args, int ret)
     else if (ret == WC_NO_ERR_TRACE(MAX_CHAIN_ERROR)) {
         ev.condition = WC_CEV_COND_TLS_CHAIN_TOO_LONG;
     }
+    else {
+        /* The same revocation error carries the same condition here and
+         * through the certificate manager. */
+        ev.condition = wc_CertEventRevocationCondition(ret);
+    }
     if (haveCert) {
         ev.der   = args->certs[0].buffer;
         ev.derSz = args->certs[0].length;
@@ -22953,6 +22958,27 @@ static void PeerCertEventStatusResult(WOLFSSL* ssl, int ret)
     if ((ret == 0) || again || (cm == NULL) || (cm->certEventCb == NULL)) {
         return;
     }
+    /* This function runs for every ServerHelloDone that fails its sanity
+     * check. A server, a duplicate, or a message that arrives out of order
+     * is not a certificate-status result. Only a client that asked for a
+     * status has one. */
+    if (ssl->options.side != WOLFSSL_CLIENT_END) {
+        return;
+    }
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if ((ssl->status_request == 0) && (ssl->status_request_v2 == 0)) {
+        return;
+    }
+#elif defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    if (ssl->status_request == 0) {
+        return;
+    }
+#else
+    if (ssl->status_request_v2 == 0) {
+        return;
+    }
+#endif
 
     XMEMSET(&ev, 0, sizeof(ev));
     ev.kind     = WC_CEV_KIND_RESULT;

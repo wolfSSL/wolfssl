@@ -21980,7 +21980,9 @@ int DecodeBasicCaConstraint(const byte* input, int sz, byte *isCa,
             ret = ASN_PARSE_E;
         }
 #endif
-        /* Path length must be a 7-bit value. */
+        /* Path length must be a 7-bit value. This check is first. The
+         * default maximum path length is 127, so a value that fails it
+         * never reaches the size error below. */
         if ((ret == 0) && (*pathLength >= (1 << 7))) {
             WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
@@ -23843,8 +23845,11 @@ WOLFSSL_TEST_VIS int DecodeExtensionType(const byte* input, word32 length,
             ret = DecodeBasicCaConstraintInternal(input, (int)length, cert);
             if (ret < 0) {
 #ifdef WOLFSSL_CERT_EVENTS
-                /* Keep the error code ASN_PARSE_E. Name the pathLen subfield
-                 * so it is not the same event as a chain that is too long. */
+                /* Keep the error code ASN_PARSE_E. Name a negative
+                 * pathLenConstraint so it is not the same event as a chain
+                 * that is too long. A value of 128 or more is ASN_PARSE_E
+                 * from the 7-bit check, before the size check, and the
+                 * default maximum path length is 127. */
                 if ((ret == WC_NO_ERR_TRACE(ASN_EXPECT_0_E)) ||
                         (ret == WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E))) {
                     cert->certEventCondHint = WC_CEV_COND_CERT_BC_PATHLEN;
@@ -24379,13 +24384,13 @@ static int CertEventCondition(const DecodedCert* cert, int error, int field,
     }
 
     if (error == WC_NO_ERR_TRACE(ASN_SIG_OID_E)) {
-        /* Inner and outer algorithms that differ name the signature field.
-         * The same error with no field is the algorithm against the key. */
-        if ((field == WC_CEV_FIELD_SIGALG) ||
-                (field == WC_CEV_FIELD_TBS_SIGALG)) {
-            return WC_CEV_COND_CERT_SIG_ALG_MISMATCH;
+        /* The signature field is the algorithm against the issuer key.
+         * Every other field, including none, is the inner algorithm and
+         * the outer algorithm differing. */
+        if (field == WC_CEV_FIELD_SIGNATURE) {
+            return WC_CEV_COND_CERT_SIG_ALG_KEY;
         }
-        return WC_CEV_COND_CERT_SIG_ALG_KEY;
+        return WC_CEV_COND_CERT_SIG_ALG_MISMATCH;
     }
     switch (field) {
         case WC_CEV_FIELD_EXTENSION:

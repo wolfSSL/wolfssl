@@ -1074,6 +1074,7 @@ int test_wolfSSL_CertEvents_storeRevoked(void)
     ExpectIntEQ(log.accepted, 0);
     ExpectIntEQ(log.result.kind, WC_CEV_KIND_RESULT);
     ExpectIntEQ(log.result.error, WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    ExpectIntEQ(log.result.condition, WC_CEV_COND_CERT_REVOKED);
 
     wolfSSL_X509_STORE_CTX_free(sctx);
     wolfSSL_X509_CRL_free(crl);
