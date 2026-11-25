@@ -39,7 +39,7 @@
 	.type	L_mldsa_aarch64_consts, %object
 	.size	L_mldsa_aarch64_consts, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -55,7 +55,7 @@ L_mldsa_aarch64_consts:
 	.type	L_mldsa_aarch64_zetas, %object
 	.size	L_mldsa_aarch64_zetas, 1280
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -150,7 +150,7 @@ L_mldsa_aarch64_zetas:
 	.type	L_mldsa_aarch64_zetas_qinv, %object
 	.size	L_mldsa_aarch64_zetas_qinv, 1280
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -245,7 +245,7 @@ L_mldsa_aarch64_zetas_qinv:
 	.type	L_mldsa_aarch64_zetas_inv, %object
 	.size	L_mldsa_aarch64_zetas_inv, 1280
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -340,7 +340,7 @@ L_mldsa_aarch64_zetas_inv:
 	.type	L_mldsa_aarch64_zetas_inv_qinv, %object
 	.size	L_mldsa_aarch64_zetas_inv_qinv, 1280
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -20439,7 +20439,7 @@ _mldsa_mul_sqrdmlsh_neon:
 	.type	L_mldsa_decompose_q88_consts, %object
 	.size	L_mldsa_decompose_q88_consts, 96
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -20584,7 +20584,7 @@ L_mldsa_decompose_q88_loop:
 	.type	L_mldsa_decompose_q32_consts, %object
 	.size	L_mldsa_decompose_q32_consts, 80
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -20707,7 +20707,7 @@ L_mldsa_decompose_q32_loop:
 	.type	L_mldsa_use_hint_q88_consts, %object
 	.size	L_mldsa_use_hint_q88_consts, 96
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -20859,7 +20859,7 @@ L_mldsa_use_hint_q88_loop:
 	.type	L_mldsa_use_hint_q32_consts, %object
 	.size	L_mldsa_use_hint_q32_consts, 80
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -20989,7 +20989,7 @@ L_mldsa_use_hint_q32_loop:
 	.type	L_mldsa_make_hint_bits, %object
 	.size	L_mldsa_make_hint_bits, 64
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -26831,7 +26831,7 @@ _mldsa_mul_vec_7_neon:
 	.type	L_mldsa_aarch64_q, %object
 	.size	L_mldsa_aarch64_q, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -26847,7 +26847,7 @@ L_mldsa_aarch64_q:
 	.type	L_mldsa_decode_eta_2_neon_idx, %object
 	.size	L_mldsa_decode_eta_2_neon_idx, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -26886,7 +26886,7 @@ L_mldsa_decode_eta_2_neon_idx:
 	.type	L_mldsa_decode_eta_2_neon_shift, %object
 	.size	L_mldsa_decode_eta_2_neon_shift, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -26903,7 +26903,7 @@ L_mldsa_decode_eta_2_neon_shift:
 	.type	L_mldsa_decode_eta_2_neon_mask, %object
 	.size	L_mldsa_decode_eta_2_neon_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -26919,7 +26919,7 @@ L_mldsa_decode_eta_2_neon_mask:
 	.type	L_mldsa_decode_eta_2_neon_konst, %object
 	.size	L_mldsa_decode_eta_2_neon_konst, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27075,7 +27075,7 @@ L_mldsa_decode_eta_2_neon_loop:
 	.type	L_mldsa_decode_eta_4_neon_idx, %object
 	.size	L_mldsa_decode_eta_4_neon_idx, 128
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27106,7 +27106,7 @@ L_mldsa_decode_eta_4_neon_idx:
 	.type	L_mldsa_decode_eta_4_neon_shift, %object
 	.size	L_mldsa_decode_eta_4_neon_shift, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27122,7 +27122,7 @@ L_mldsa_decode_eta_4_neon_shift:
 	.type	L_mldsa_decode_eta_4_neon_mask, %object
 	.size	L_mldsa_decode_eta_4_neon_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27138,7 +27138,7 @@ L_mldsa_decode_eta_4_neon_mask:
 	.type	L_mldsa_decode_eta_4_neon_konst, %object
 	.size	L_mldsa_decode_eta_4_neon_konst, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27266,7 +27266,7 @@ L_mldsa_decode_eta_4_neon_loop:
 	.type	L_mldsa_decode_t1_neon_idx, %object
 	.size	L_mldsa_decode_t1_neon_idx, 64
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27289,7 +27289,7 @@ L_mldsa_decode_t1_neon_idx:
 	.type	L_mldsa_decode_t1_neon_shift, %object
 	.size	L_mldsa_decode_t1_neon_shift, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27305,7 +27305,7 @@ L_mldsa_decode_t1_neon_shift:
 	.type	L_mldsa_decode_t1_neon_mask, %object
 	.size	L_mldsa_decode_t1_neon_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27397,7 +27397,7 @@ L_mldsa_decode_t1_neon_loop:
 	.type	L_mldsa_decode_t0_neon_idx, %object
 	.size	L_mldsa_decode_t0_neon_idx, 64
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27420,7 +27420,7 @@ L_mldsa_decode_t0_neon_idx:
 	.type	L_mldsa_decode_t0_neon_shift, %object
 	.size	L_mldsa_decode_t0_neon_shift, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27437,7 +27437,7 @@ L_mldsa_decode_t0_neon_shift:
 	.type	L_mldsa_decode_t0_neon_mask, %object
 	.size	L_mldsa_decode_t0_neon_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27453,7 +27453,7 @@ L_mldsa_decode_t0_neon_mask:
 	.type	L_mldsa_decode_t0_neon_konst, %object
 	.size	L_mldsa_decode_t0_neon_konst, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27557,7 +27557,7 @@ L_mldsa_decode_t0_neon_loop:
 	.type	L_mldsa_decode_gamma1_17_neon_idx, %object
 	.size	L_mldsa_decode_gamma1_17_neon_idx, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27576,7 +27576,7 @@ L_mldsa_decode_gamma1_17_neon_idx:
 	.type	L_mldsa_decode_gamma1_17_neon_shift, %object
 	.size	L_mldsa_decode_gamma1_17_neon_shift, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27592,7 +27592,7 @@ L_mldsa_decode_gamma1_17_neon_shift:
 	.type	L_mldsa_decode_gamma1_17_neon_mask, %object
 	.size	L_mldsa_decode_gamma1_17_neon_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27608,7 +27608,7 @@ L_mldsa_decode_gamma1_17_neon_mask:
 	.type	L_mldsa_decode_gamma1_17_neon_konst, %object
 	.size	L_mldsa_decode_gamma1_17_neon_konst, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27694,7 +27694,7 @@ L_mldsa_decode_gamma1_17_neon_loop:
 	.type	L_mldsa_decode_gamma1_19_neon_idx, %object
 	.size	L_mldsa_decode_gamma1_19_neon_idx, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27713,7 +27713,7 @@ L_mldsa_decode_gamma1_19_neon_idx:
 	.type	L_mldsa_decode_gamma1_19_neon_shift, %object
 	.size	L_mldsa_decode_gamma1_19_neon_shift, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27729,7 +27729,7 @@ L_mldsa_decode_gamma1_19_neon_shift:
 	.type	L_mldsa_decode_gamma1_19_neon_mask, %object
 	.size	L_mldsa_decode_gamma1_19_neon_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27745,7 +27745,7 @@ L_mldsa_decode_gamma1_19_neon_mask:
 	.type	L_mldsa_decode_gamma1_19_neon_konst, %object
 	.size	L_mldsa_decode_gamma1_19_neon_konst, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27831,7 +27831,7 @@ L_mldsa_decode_gamma1_19_neon_loop:
 	.type	L_mldsa_encode_w1_88_neon_idx, %object
 	.size	L_mldsa_encode_w1_88_neon_idx, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27902,7 +27902,7 @@ L_mldsa_encode_w1_88_neon_loop:
 	.type	L_mldsa_encode_w1_32_neon_idx, %object
 	.size	L_mldsa_encode_w1_32_neon_idx, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27968,7 +27968,7 @@ L_mldsa_encode_w1_32_neon_loop:
 	.type	L_mldsa_encode_gamma1_17_neon_idx, %object
 	.size	L_mldsa_encode_gamma1_17_neon_idx, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -27987,7 +27987,7 @@ L_mldsa_encode_gamma1_17_neon_idx:
 	.type	L_mldsa_encode_gamma1_17_neon_shift, %object
 	.size	L_mldsa_encode_gamma1_17_neon_shift, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28003,7 +28003,7 @@ L_mldsa_encode_gamma1_17_neon_shift:
 	.type	L_mldsa_encode_gamma1_17_neon_gam, %object
 	.size	L_mldsa_encode_gamma1_17_neon_gam, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28077,7 +28077,7 @@ L_mldsa_encode_gamma1_17_neon_loop:
 	.type	L_mldsa_encode_gamma1_19_neon_idx, %object
 	.size	L_mldsa_encode_gamma1_19_neon_idx, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28096,7 +28096,7 @@ L_mldsa_encode_gamma1_19_neon_idx:
 	.type	L_mldsa_encode_gamma1_19_neon_shift, %object
 	.size	L_mldsa_encode_gamma1_19_neon_shift, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28112,7 +28112,7 @@ L_mldsa_encode_gamma1_19_neon_shift:
 	.type	L_mldsa_encode_gamma1_19_neon_gam, %object
 	.size	L_mldsa_encode_gamma1_19_neon_gam, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28330,7 +28330,7 @@ L_mldsa_poly_sub_neon_loop:
 	.type	L_mldsa_poly_make_pos_neon_q, %object
 	.size	L_mldsa_poly_make_pos_neon_q, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28398,7 +28398,7 @@ L_mldsa_poly_make_pos_neon_loop:
 	.type	L_mldsa_poly_red_neon_q, %object
 	.size	L_mldsa_poly_red_neon_q, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28472,7 +28472,7 @@ L_mldsa_poly_red_neon_loop:
 	.type	L_mldsa_extract_coeffs_eta2_neon_map, %object
 	.size	L_mldsa_extract_coeffs_eta2_neon_map, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28489,7 +28489,7 @@ L_mldsa_extract_coeffs_eta2_neon_map:
 	.type	L_mldsa_extract_coeffs_eta2_neon_lim, %object
 	.size	L_mldsa_extract_coeffs_eta2_neon_lim, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28506,7 +28506,7 @@ L_mldsa_extract_coeffs_eta2_neon_lim:
 	.type	L_mldsa_extract_coeffs_eta2_neon_bits, %object
 	.size	L_mldsa_extract_coeffs_eta2_neon_bits, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28522,7 +28522,7 @@ L_mldsa_extract_coeffs_eta2_neon_bits:
 	.type	L_mldsa_extract_coeffs_eta2_neon_idx, %object
 	.size	L_mldsa_extract_coeffs_eta2_neon_idx, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28735,7 +28735,7 @@ L_mldsa_extract_coeffs_eta2_neon_done:
 	.type	L_mldsa_extract_coeffs_eta4_neon_map, %object
 	.size	L_mldsa_extract_coeffs_eta4_neon_map, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28752,7 +28752,7 @@ L_mldsa_extract_coeffs_eta4_neon_map:
 	.type	L_mldsa_extract_coeffs_eta4_neon_lim, %object
 	.size	L_mldsa_extract_coeffs_eta4_neon_lim, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28769,7 +28769,7 @@ L_mldsa_extract_coeffs_eta4_neon_lim:
 	.type	L_mldsa_extract_coeffs_eta4_neon_bits, %object
 	.size	L_mldsa_extract_coeffs_eta4_neon_bits, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28785,7 +28785,7 @@ L_mldsa_extract_coeffs_eta4_neon_bits:
 	.type	L_mldsa_extract_coeffs_eta4_neon_idx, %object
 	.size	L_mldsa_extract_coeffs_eta4_neon_idx, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -28998,7 +28998,7 @@ L_mldsa_extract_coeffs_eta4_neon_done:
 	.type	L_mldsa_rej_uniform_mask, %object
 	.size	L_mldsa_rej_uniform_mask, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -29014,7 +29014,7 @@ L_mldsa_rej_uniform_mask:
 	.type	L_mldsa_rej_uniform_shuffle0, %object
 	.size	L_mldsa_rej_uniform_shuffle0, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -29031,7 +29031,7 @@ L_mldsa_rej_uniform_shuffle0:
 	.type	L_mldsa_rej_uniform_shuffle1, %object
 	.size	L_mldsa_rej_uniform_shuffle1, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -29048,7 +29048,7 @@ L_mldsa_rej_uniform_shuffle1:
 	.type	L_mldsa_rej_uniform_bits, %object
 	.size	L_mldsa_rej_uniform_bits, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -29064,7 +29064,7 @@ L_mldsa_rej_uniform_bits:
 	.type	L_mldsa_rej_uniform_indices, %object
 	.size	L_mldsa_rej_uniform_indices, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__

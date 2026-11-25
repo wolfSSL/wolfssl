@@ -1115,9 +1115,9 @@ L_AES_CBC_decrypt_AESNI_done_dec:
 .size	AES_CBC_decrypt_AESNI,.-AES_CBC_decrypt_AESNI
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -1127,9 +1127,9 @@ L_AES_CBC_decrypt_AESNI_done_dec:
 L_aes_ctr_aesni_bswap:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -1961,9 +1961,9 @@ L_AES_CBC_decrypt_avx1_done_dec:
 .size	AES_CBC_decrypt_avx1,.-AES_CBC_decrypt_avx1
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -1973,9 +1973,9 @@ L_AES_CBC_decrypt_avx1_done_dec:
 L_aes_ctr_avx1_bswap:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -3156,9 +3156,9 @@ L_AES_CBC_decrypt_vaes_done_dec:
 .size	AES_CBC_decrypt_vaes,.-AES_CBC_decrypt_vaes
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -3168,9 +3168,9 @@ L_AES_CBC_decrypt_vaes_done_dec:
 L_aes_ctr_bswap_vaes:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -4658,9 +4658,9 @@ L_AES_CBC_decrypt_avx512_done_dec:
 .size	AES_CBC_decrypt_avx512,.-AES_CBC_decrypt_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -4670,9 +4670,9 @@ L_AES_CBC_decrypt_avx512_done_dec:
 L_aes_ctr_bswap_avx512:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32

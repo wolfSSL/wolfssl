@@ -38,7 +38,7 @@
 	.type	L_SHA512_transform_len_k, %object
 	.size	L_SHA512_transform_len_k, 640
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__

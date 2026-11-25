@@ -38,7 +38,7 @@
 	.type	L_AES_PPC32_te, %object
 	.size	L_AES_PPC32_te, 4096
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -308,7 +308,7 @@ L_AES_PPC32_te:
 	.type	L_AES_PPC32_td, %object
 	.size	L_AES_PPC32_td, 4096
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -578,7 +578,7 @@ L_AES_PPC32_td:
 	.type	L_AES_PPC32_sbox, %object
 	.size	L_AES_PPC32_sbox, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -624,7 +624,7 @@ L_AES_PPC32_sbox:
 	.type	L_AES_PPC32_inv_sbox, %object
 	.size	L_AES_PPC32_inv_sbox, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -670,7 +670,7 @@ L_AES_PPC32_inv_sbox:
 	.type	L_AES_PPC32_rcon, %object
 	.size	L_AES_PPC32_rcon, 40
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -2902,7 +2902,7 @@ L_AES_GCM_encrypt_round:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 128
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -3648,7 +3648,7 @@ L_GCM_gmult_len_block:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 512
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__

@@ -263,7 +263,7 @@ L_poly1305_thumb2_16_done:
 	.type	L_poly1305_thumb2_clamp, %object
 	.size	L_poly1305_thumb2_clamp, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	/* 8-byte aligned, 64-bit aligned */
 #ifndef __APPLE__

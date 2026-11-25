@@ -46,7 +46,7 @@
 	.type	L_sha3_thumb2_rt, %object
 	.size	L_sha3_thumb2_rt, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	/* 16-byte aligned, 128-bit aligned */
 #ifndef __APPLE__

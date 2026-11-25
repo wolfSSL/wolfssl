@@ -39,7 +39,7 @@
 	.type	L_chacha20_arm64_ctr, %object
 	.size	L_chacha20_arm64_ctr, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -55,7 +55,7 @@ L_chacha20_arm64_ctr:
 	.type	L_chacha20_arm64_rol8, %object
 	.size	L_chacha20_arm64_rol8, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1015,7 +1015,7 @@ _wc_chacha_setiv:
 	.type	L_chacha_setkey_arm64_constant, %object
 	.size	L_chacha_setkey_arm64_constant, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
