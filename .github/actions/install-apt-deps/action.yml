@@ -16,7 +16,7 @@ inputs:
       the retry delays plus up to 20s of SIGKILL grace per attempt, and the
       per-command floors make values below retries*80 inert. This, plus
       pull-timeout, plus any ccache-setup in the same job, has to fit the
-      caller's timeout-minutes - the defaults need ~16 minutes.
+      caller's timeout-minutes; check-workflows.py checks it.
     required: false
     default: '600'
   pull-timeout:
@@ -24,7 +24,7 @@ inputs:
       Deadline for the ghcr bundle pull. Counts against the same
       timeout-minutes as budget-seconds.
     required: false
-    default: '300'
+    default: '120'
   retry-delay:
     description: 'Initial delay between retries (seconds, doubles each attempt)'
     required: false

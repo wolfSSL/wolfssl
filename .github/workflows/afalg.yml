@@ -35,7 +35,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -83,7 +83,7 @@ jobs:
           if [ -n "$missing" ]; then
             grep -rn 'algif_' /etc/modprobe.d /lib/modprobe.d || true
             .github/actions/install-apt-deps/apt-install.sh --tries 2 \
-              --warn-only --drop-vendor-sources \
+              --budget 600 --warn-only --drop-vendor-sources \
               "linux-modules-extra-$(uname -r)" || true
             for m in $missing; do
               if sudo modprobe --ignore-install "$m"; then

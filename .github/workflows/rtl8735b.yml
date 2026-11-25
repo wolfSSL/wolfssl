@@ -37,7 +37,7 @@ jobs:
     name: build + helper KATs (--enable-rtl8735b)
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
