@@ -5994,7 +5994,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t asn_test(void)
     const byte* datePart;
 #ifndef NO_ASN_TIME
     struct tm timearg;
-    time_t now;
+    WC_TIME_T now;
 #endif
     int i;
     unsigned char buf[16];
@@ -38717,7 +38717,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
             api_ret = WC_TEST_RET_ENC_EC(UNEXPECTED_STATE_E);
         }
         if (api_ret == 0) {
-            time_t ts1 = XTIME(0);
+            WC_TIME_T ts1 = XTIME(0);
             api_ret = wc_rng_bank_reseed_range(bank, 0, -1, NULL, 0, 3,
                                                WC_RNG_BANK_FLAG_CAN_WAIT |
                                                WC_RNG_BANK_FLAG_RBGC);
@@ -38857,7 +38857,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rng_lifecycle_test(void)
 
         /* the root's verdict, promptly: well inside the 3 s timeout */
         if (api_ret == 0) {
-            time_t ts1 = XTIME(0);
+            WC_TIME_T ts1 = XTIME(0);
             api_ret = wc_rng_bank_recover_inst(bank, 0, 3,
                                                WC_RNG_BANK_FLAG_CAN_WAIT);
             if (api_ret == WC_NO_ERR_TRACE(NOT_READY_E)) {
@@ -42786,8 +42786,8 @@ static int cert_date_year(const byte* dateTLV)
     return -1;
 }
 
-static time_t certGenBoundaryTime;
-static time_t cert_gen_boundary_time_cb(time_t* t)
+static WC_TIME_T certGenBoundaryTime;
+static WC_TIME_T cert_gen_boundary_time_cb(WC_TIME_T* t)
 {
     if (t != NULL)
         *t = certGenBoundaryTime;
@@ -42801,23 +42801,23 @@ static wc_test_ret_t cert_gen_time_boundary_test(Cert* cert, byte* der,
         RsaKey* key, WC_RNG* rng, DecodedCert* decode)
 {
     static const struct {
-        time_t now;
+        WC_TIME_T now;
         int    daysValid;
         byte   beforeTag;
         byte   afterTag;
         int    beforeYear;
         int    afterYear;
     } cases[] = {
-        { (time_t)2508710400UL, 100, ASN_UTC_TIME,         ASN_UTC_TIME,
+        { (WC_TIME_T)2508710400UL, 100, ASN_UTC_TIME,         ASN_UTC_TIME,
           2049, 2049 },
-        { (time_t)2540246400UL, 100, ASN_GENERALIZED_TIME, ASN_GENERALIZED_TIME,
-          2050, 2050 },
-        { (time_t)2508710400UL, 400, ASN_UTC_TIME,         ASN_GENERALIZED_TIME,
-          2049, 2050 }
+        { (WC_TIME_T)2540246400UL, 100, ASN_GENERALIZED_TIME,
+          ASN_GENERALIZED_TIME, 2050, 2050 },
+        { (WC_TIME_T)2508710400UL, 400, ASN_UTC_TIME,
+          ASN_GENERALIZED_TIME, 2049, 2050 }
     };
     wc_test_ret_t ret = 0;
-    int tSz = (int)sizeof(time_t);
-    int tSigned = ((time_t)-1 < 0);
+    int tSz = (int)sizeof(WC_TIME_T);
+    int tSigned = ((WC_TIME_T)-1 < 0);
     int certSz;
     int i;
 
@@ -111789,7 +111789,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certpiv_test(void)
 #endif /* WOLFSSL_CERT_PIV */
 
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
-static time_t time_cb(time_t* t)
+static WC_TIME_T time_cb(WC_TIME_T* t)
 {
     if (t != NULL) {
         *t = 99;
@@ -111800,7 +111800,7 @@ static time_t time_cb(time_t* t)
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t time_test(void)
 {
-    time_t t;
+    WC_TIME_T t;
     wc_test_ret_t ret;
     WOLFSSL_ENTER("time_test");
 
@@ -111810,7 +111810,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t time_test(void)
     t = wc_Time(NULL);
     if (t != 99)
         return WC_TEST_RET_ENC_NC;
-    ret = wc_GetTime(&t, sizeof(time_t));
+    ret = wc_GetTime(&t, sizeof(WC_TIME_T));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if (t != 99)

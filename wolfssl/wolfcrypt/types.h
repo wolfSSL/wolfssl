@@ -2599,6 +2599,14 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         struct wc_static_assert_dummy_struct
 #endif
 
+#if defined(WOLFSSL_TIME_T_SIZE) && defined(WC_TIME_T_IS_TIME_T) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_LINUXKM) && \
+    !defined(WOLFSSL_BSDKM)
+    /* The application must use the library's time_t width. */
+    wc_static_assert2(sizeof(time_t) == WOLFSSL_TIME_T_SIZE,
+        "time_t width differs from the wolfSSL library build");
+#endif
+
 #ifndef WC_RELAX_LONG_LOOP
     #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
 #endif

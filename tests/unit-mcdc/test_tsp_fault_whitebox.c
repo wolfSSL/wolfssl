@@ -120,7 +120,7 @@
  * extern declarations, so redefining them here rebinds tsp.c's call sites
  * and nothing else):
  *   tsp.c:808  idx0        - XSNPRINTF reporting an encoding error
- *   tsp.c:1112 idx0,idx1   - CheckGenTime's two GetFormattedTime_ex bounds
+ *   tsp.c:1112 idx0,idx1   - CheckGenTime's two GetFormattedTimeTm bounds
  *   tsp.c:1676 idx3        - Tsp_CheckTsaName inner Name shorter than the
  *                            GeneralName (no mock needed)
  *   tsp.c:2135 idx2        - TspResponse_Verify tokenSz==0 with a token
@@ -151,8 +151,11 @@
 static int wbGmtimeMode = 0; /* 0 passthrough, 1 NULL, 2 invalid tm, 3 huge year */
 static struct tm wbFakeTm;
 
-static struct tm* wbXGMTIME(const time_t* clock, struct tm* tmpBuf)
+/* void* as WC_TIME_T is not defined until tsp.c's headers. */
+static struct tm* wbXGMTIME(const void* clockArg, struct tm* tmpBuf)
 {
+    const time_t* clock = (const time_t*)clockArg;
+
     (void)tmpBuf;
     if (wbGmtimeMode == 1) {
         /* 797 idx0 true: XGMTIME "fails". */
@@ -205,20 +208,19 @@ static int wbXSNPRINTF(char* buf, size_t len, const char* fmt, ...)
 }
 #define XSNPRINTF wbXSNPRINTF
 
-/* ---- GetFormattedTime_ex mock: the function lives in asn.c, so the XGMTIME
+/* ---- GetFormattedTimeTm mock: the function lives in asn.c, so the XGMTIME
  * mock above cannot reach it - it is replaced by name for tsp.c's two call
  * sites in wc_TspTstInfo_CheckGenTime(). Declared by asn.h through the macro;
  * defined after the include, where the wolfSSL types exist. ---- */
 static int wbGftCall = 0;     /* call counter, reset per case */
 static int wbGftFailCall = 0; /* which call fails: 0 none, 1 first, 2 second */
-#define GetFormattedTime_ex wbGetFormattedTime
+#define GetFormattedTimeTm wbGetFormattedTimeTm
 
 #include <wolfcrypt/src/tsp.c>
 
-WOLFSSL_LOCAL int wbGetFormattedTime(void* currTime, byte* buf, word32 len,
+WOLFSSL_LOCAL int wbGetFormattedTimeTm(struct tm* ts, byte* buf, word32 len,
     byte format)
 {
-    struct tm* ts;
     int n;
 
     wbGftCall++;
@@ -227,7 +229,6 @@ WOLFSSL_LOCAL int wbGetFormattedTime(void* currTime, byte* buf, word32 len,
         return 0;
     }
     (void)format;
-    ts = gmtime((const time_t*)currTime);
     if (ts == NULL) {
         return 0;
     }
@@ -238,6 +239,13 @@ WOLFSSL_LOCAL int wbGetFormattedTime(void* currTime, byte* buf, word32 len,
         return 0;
     }
     return n;
+}
+
+static int wbGetFormattedTime(void* currTime, byte* buf, word32 len,
+    byte format)
+{
+    return wbGetFormattedTimeTm(gmtime((const time_t*)currTime), buf, len,
+        format);
 }
 
 #include <wolfssl/ssl.h>
@@ -287,7 +295,7 @@ static void wb_gentime_as_time_guards(void)
     /* all-false baseline: real clock, in range, fits bufSz - closes 797
      * idx0/idx1 FALSE and 808 idx0/idx1 FALSE rows. */
     wbGmtimeMode = 0;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     if (ret != 0) {
         WB_NOTE("SetGenTimeAsTime baseline misbehaved");
@@ -296,7 +304,7 @@ static void wb_gentime_as_time_guards(void)
 
     /* 797 idx0 true. */
     wbGmtimeMode = 1;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbGmtimeMode = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -306,7 +314,7 @@ static void wb_gentime_as_time_guards(void)
 
     /* 797 idx1 true, idx0 false. */
     wbGmtimeMode = 2;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbGmtimeMode = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -316,7 +324,7 @@ static void wb_gentime_as_time_guards(void)
 
     /* 808 idx1 true, 797 false. */
     wbGmtimeMode = 3;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbGmtimeMode = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -327,7 +335,7 @@ static void wb_gentime_as_time_guards(void)
     /* 808 idx0 true, 797 false: the formatting call itself reports an
      * encoding error. See the XSNPRINTF mock at the top of this file. */
     wbSnprintfFail = 1;
-    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (time_t)1700000000, buf,
+    ret = wc_TspTstInfo_SetGenTimeAsTime(&tst, (WC_TIME_T)1700000000, buf,
         sizeof(buf));
     wbSnprintfFail = 0;
     if (ret != WC_NO_ERR_TRACE(ASN_TIME_E)) {
@@ -343,10 +351,10 @@ static void wb_gentime_as_time_guards(void) { WB_NOTE("NO_ASN_TIME or WOLFSSL_TS
 
 /* ------------------------------------------------------------------------- *
  * tsp.c:1112 - wc_TspTstInfo_CheckGenTime() formats the two bounds of the
- * acceptable period with GetFormattedTime_ex(). The `ret == 0` operand of the
+ * acceptable period with GetFormattedTimeTm(). The `ret == 0` operand of the
  * second call's guard needs the FIRST call to have failed, and the second
  * call's own operand needs that call to fail; neither is reachable with a
- * working clock. See the GetFormattedTime_ex mock at the top of this file.
+ * working clock. See the GetFormattedTimeTm mock at the top of this file.
  * ------------------------------------------------------------------------- */
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES) && \
     defined(WOLFSSL_TSP_VERIFIER)
@@ -354,7 +362,7 @@ static void wb_check_gentime_bounds(void)
 {
     TspTstInfo tst;
     byte genTime[ASN_GENERALIZED_TIME_SIZE];
-    time_t now;
+    WC_TIME_T now;
     int ret;
 
     XMEMSET(&tst, 0, sizeof(tst));

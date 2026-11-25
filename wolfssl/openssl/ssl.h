@@ -1348,6 +1348,8 @@ typedef wolfSSL_custom_ext_parse_cb custom_ext_parse_cb;
 #define SSL_SESSION_get_timeout         wolfSSL_SESSION_get_timeout
 #define SSL_SESSION_set_time            wolfSSL_SESSION_set_time
 #define SSL_SESSION_get_time            wolfSSL_SESSION_get_time
+#define SSL_SESSION_set_time_ex         wolfSSL_SESSION_set_time_ex
+#define SSL_SESSION_get_time_ex         wolfSSL_SESSION_get_time_ex
 
 #define SSL_CTX_get_ex_new_index        wolfSSL_CTX_get_ex_new_index
 #define PEM_read                        wolfSSL_PEM_read

@@ -67,7 +67,7 @@ int test_wolfSSL_X509_STORE_CTX_set_time(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_X509_STORE_CTX* ctx = NULL;
-    time_t c_time;
+    WC_TIME_T c_time;
 
     ExpectNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
     c_time = 365*24*60*60;
@@ -90,7 +90,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
     WOLFSSL_X509* ca = NULL;
     WOLFSSL_X509* cert = NULL;
     int ret;
-    time_t check_time;
+    WC_TIME_T check_time;
     const char* srvCertFile = "./certs/server-cert.pem";
     const char* expiredCertFile = "./certs/test/expired/expired-cert.pem";
 
@@ -103,7 +103,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
         ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
 
         /* Set check_time to May 26, 2000 (timestamp: 959320800) */
-        check_time = (time_t)959320800; /* May 26, 2000 00:00:00 UTC */
+        check_time = (WC_TIME_T)959320800; /* May 26, 2000 00:00:00 UTC */
         store->param->check_time = check_time;
         wolfSSL_X509_VERIFY_PARAM_set_flags(store->param,
             WOLFSSL_USE_CHECK_TIME);
@@ -170,7 +170,7 @@ int test_wolfSSL_X509_STORE_check_time(void)
         ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(ctx, store, cert, NULL),
                     WOLFSSL_SUCCESS);
         if (ctx != NULL) {
-            ctx->param->check_time = (time_t)959320800;
+            ctx->param->check_time = (WC_TIME_T)959320800;
             ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(ctx->param,
                 WOLFSSL_X509_V_FLAG_CRL_CHECK), WOLFSSL_SUCCESS);
             ExpectIntEQ(ctx->param->flags & WOLFSSL_USE_CHECK_TIME, 0);
@@ -298,11 +298,11 @@ int test_wolfSSL_X509_STORE_check_time(void)
  * test CRL's nextUpdate. */
 #define TEST_CRL_DATE_BEFORE_NOTBEFORE 1609459200L
 
-static time_t test_crl_date_override_time_cb(time_t* t)
+static WC_TIME_T test_crl_date_override_time_cb(WC_TIME_T* t)
 {
     if (t != NULL)
-        *t = (time_t)TEST_CRL_DATE_BEFORE_NOTBEFORE;
-    return (time_t)TEST_CRL_DATE_BEFORE_NOTBEFORE;
+        *t = (WC_TIME_T)TEST_CRL_DATE_BEFORE_NOTBEFORE;
+    return (WC_TIME_T)TEST_CRL_DATE_BEFORE_NOTBEFORE;
 }
 #endif
 
@@ -322,7 +322,7 @@ int test_wolfSSL_X509_verify_cert_crl_date_override(void)
     const char srvRevokedCert[] = "./certs/server-revoked-cert.pem";
     const char crlRevoked[] = "./certs/crl/crl.revoked";
     /* The suite relies on the test certificates being valid now. */
-    time_t inValidity = wc_Time(NULL);
+    WC_TIME_T inValidity = wc_Time(NULL);
 
     ExpectNotNull(store = X509_STORE_new());
     ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(caCert,

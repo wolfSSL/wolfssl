@@ -160,7 +160,20 @@ include(CheckTypeSize)
 check_type_size("__uint128_t" __UINT128_T)
 check_type_size("long long" SIZEOF_LONG_LONG)
 check_type_size("long" SIZEOF_LONG)
+# 64-bit time_t where the C library offers both (32-bit glibc >= 2.34).
+# Applications must use the same definitions; options.h records them.
+add_option("WOLFSSL_YEAR2038"
+    "Use a 64-bit time_t where the C library offers both (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_YEAR2038)
+    list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_TIME_BITS=64"
+        "-D_FILE_OFFSET_BITS=64")
+    list(APPEND WOLFSSL_DEFINITIONS "-D_TIME_BITS=64" "-D_FILE_OFFSET_BITS=64")
+endif()
 check_type_size("time_t" SIZEOF_TIME_T)
+if(SIZEOF_TIME_T)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TIME_T_SIZE=${SIZEOF_TIME_T}")
+endif()
 check_type_size("uintptr_t" HAVE_UINTPTR_T)
 
 # By default, HAVE___UINT128_T gets defined as TRUE,

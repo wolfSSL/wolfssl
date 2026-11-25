@@ -44,8 +44,8 @@
 /* <time.h> and TIME(3) are userspace only in FreeBSD.
  * Use a small wrapper around <sys/time.h> time_second instead. */
 #include <sys/time.h>
-static inline time_t wolfkmod_time(time_t * tloc) {
-    time_t _now = time_second;
+static inline WC_TIME_T wolfkmod_time(WC_TIME_T * tloc) {
+    WC_TIME_T _now = time_second;
     if (tloc) {
         *tloc = _now;
     }

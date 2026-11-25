@@ -2537,6 +2537,245 @@ int test_wolfSSL_SetServerID_resume(void)
     return EXPECT_RESULT();
 }
 
+/* The WC_TIME_T session time accessors carry times past 2038. */
+int test_wolfSSL_SESSION_time_ex(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_ASN_TIME) && \
+    (defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE))
+    WOLFSSL_SESSION* sess = NULL;
+    WC_TIME_T t = (WC_TIME_T)2000000000L;
+
+    ExpectIntEQ(wolfSSL_SESSION_get_time_ex(NULL), 0);
+    ExpectIntEQ(wolfSSL_SESSION_set_time_ex(NULL, t), 0);
+    ExpectNotNull(sess = wolfSSL_SESSION_new());
+    ExpectIntEQ(wolfSSL_SESSION_set_time_ex(sess, 0), 0);
+    ExpectTrue(wolfSSL_SESSION_set_time_ex(sess, t) == t);
+    ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+    if (sizeof(WC_TIME_T) >= 8) {
+        /* 2040-06-01: past a 32-bit long, so only the _ex API can set it. */
+        t = (WC_TIME_T)2000000000L;
+        t += (WC_TIME_T)222121600L;
+        ExpectTrue(wolfSSL_SESSION_set_time_ex(sess, t) == t);
+        ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+        /* 2106-02-07 06:28:15, the last second that fits. */
+        t = (WC_TIME_T)65536;
+        t *= 65536;
+        t -= 1;
+        ExpectTrue(wolfSSL_SESSION_set_time_ex(sess, t) == t);
+        ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+        /* One second later is rejected and leaves the time unchanged. */
+        ExpectIntEQ(wolfSSL_SESSION_set_time_ex(sess, t + 1), 0);
+        ExpectTrue(wolfSSL_SESSION_get_time_ex(sess) == t);
+    }
+    wolfSSL_SESSION_free(sess);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Session lifetimes are measured from bornOn, so they survive a clock wrap. */
+int test_wolfSSL_session_expiry_wrap(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SESSION_CACHE) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_ASN_TIME) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    struct test_memio_ctx test_ctx;
+    word32 now;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+
+    now = (word32)wc_Time(0);
+
+    /* Born before the clock wrapped: long expired. */
+    if (sess != NULL) {
+        sess->bornOn = now + 1000;
+        sess->timeout = 500;
+    }
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+#if !defined(OPENSSL_EXTRA) || !defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#else
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+#endif
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.resuming, 0);
+    }
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+
+    /* A lifetime whose end does not fit in 32 bits is still in force. */
+    if (sess != NULL) {
+        sess->bornOn = now - 10;
+        sess->timeout = 0xFFFFFFF0U;
+    }
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->options.resuming, 1);
+    }
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_ASN_TIME) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+static WC_TIME_T test_ticket_clock;
+static WC_TIME_T test_ticket_clock_cb(WC_TIME_T* t)
+{
+    if (t != NULL)
+        *t = test_ticket_clock;
+    return test_ticket_clock;
+}
+
+/* Full TLS 1.3 handshake, creating the contexts on first use; returns the
+ * client's session with the ticket read in. */
+static int test_ticket_wrap_connect(WOLFSSL_CTX** ctx_c, WOLFSSL_CTX** ctx_s,
+    WOLFSSL_SESSION* resume, int* reused, WOLFSSL_SESSION** sess)
+{
+    EXPECT_DECLS;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte buf[16];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, ctx_c, ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    if (resume != NULL) {
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, resume), WOLFSSL_SUCCESS);
+    }
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* Read the NewSessionTicket. */
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    if (reused != NULL)
+        *reused = wolfSSL_session_reused(ssl_c);
+    if (sess != NULL)
+        ExpectNotNull(*sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A ticket key is aged from its creation so a clock wrap retires it. */
+int test_wolfSSL_ticket_key_expiry_wrap(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_ASN_TIME) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    byte keys[WOLFSSL_TICKET_KEYS_SZ];
+    byte* exp0 = keys + WOLFSSL_TICKET_NAME_SZ + 2 * WOLFSSL_TICKET_KEY_SZ;
+    int reused = -1;
+    word32 now;
+
+    ExpectIntEQ(test_ticket_wrap_connect(&ctx_c, &ctx_s, NULL, NULL, &sess),
+        TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ctx_s, keys, sizeof(keys)),
+        WOLFSSL_SUCCESS);
+    now = (word32)wc_Time(0);
+
+    /* Key 0 made 10 seconds ago: still decrypts. */
+    c32toa(now - 10 + WOLFSSL_TICKET_KEY_LIFETIME, exp0);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ctx_s, keys, sizeof(keys)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ticket_wrap_connect(&ctx_c, &ctx_s, sess, &reused, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(reused, 1);
+
+    /* Key 0 made before the clock wrapped: its expiry is still ahead in
+     * absolute terms but the key is past its lifetime. */
+    c32toa(now + 1000 + WOLFSSL_TICKET_KEY_LIFETIME, exp0);
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ctx_s, keys, sizeof(keys)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_ticket_wrap_connect(&ctx_c, &ctx_s, sess, &reused, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(reused, 0);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Tickets age by the application clock when one is set, and a ticket younger
+ * than zero (the clock went back) is not accepted whatever age the client
+ * claims. */
+int test_wolfSSL_ticket_age_negative(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(WOLFSSL_TLS13) && !defined(NO_ASN_TIME) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL_SESSION* sess = NULL;
+    /* Well away from the system clock. */
+    WC_TIME_T start = wc_Time(0) + 10 * 86400;
+    int reused = -1;
+
+    ExpectIntEQ(wc_SetTimeCb(test_ticket_clock_cb), 0);
+
+    /* Creates the ticket key at start. */
+    test_ticket_clock = start;
+    ExpectIntEQ(test_ticket_wrap_connect(&ctx_c, &ctx_s, NULL, NULL, NULL),
+        TEST_SUCCESS);
+    /* Ticket issued at start + 100. */
+    test_ticket_clock = start + 100;
+    ExpectIntEQ(test_ticket_wrap_connect(&ctx_c, &ctx_s, NULL, NULL, &sess),
+        TEST_SUCCESS);
+    /* Resumed when the clock reads 50 seconds earlier. The client keeps the
+     * session; its ticket age, like the server's, comes out negative. */
+    if (sess != NULL)
+        sess->bornOn = (word32)(start + 40);
+    test_ticket_clock = start + 50;
+    ExpectIntEQ(test_ticket_wrap_connect(&ctx_c, &ctx_s, sess, &reused, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(reused, 0);
+
+    /* Control: resumed later on the same clock. */
+    test_ticket_clock = start + 150;
+    ExpectIntEQ(test_ticket_wrap_connect(&ctx_c, &ctx_s, sess, &reused, NULL),
+        TEST_SUCCESS);
+    ExpectIntEQ(reused, 1);
+
+    ExpectIntEQ(wc_SetTimeCb(NULL), 0);
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_client_cache_id_overwrite(void)
 {
     EXPECT_DECLS;

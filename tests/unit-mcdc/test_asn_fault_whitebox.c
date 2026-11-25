@@ -1824,7 +1824,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
 static void wb_get_formatted_time_null_args(void)
 {
     byte   buf[ASN_GENERALIZED_TIME_SIZE + 8];
-    time_t now = 1700000000; /* fixed instant: deterministic, valid gmtime */
+    WC_TIME_T now = 1700000000; /* fixed instant: deterministic, valid gmtime */
     int    ret;
 
     WB_NOTE("GetFormattedTime_ex(): buf/len/format OR [:15901]");

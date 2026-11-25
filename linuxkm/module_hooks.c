@@ -620,12 +620,12 @@ static void wc_linuxkm_time_read_latch(unsigned long *rj, unsigned long *rs,
 }
 #endif
 
-time_t wc_linuxkm_time_epoch_secs(time_t *tp) {
+WC_TIME_T wc_linuxkm_time_epoch_secs(WC_TIME_T *tp) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
     u64 s = div_u64(ktime_get_real_fast_ns(), NSEC_PER_SEC);
     if (tp)
-        *tp = (time_t)s;
-    return (time_t)s;
+        *tp = (WC_TIME_T)s;
+    return (WC_TIME_T)s;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
     /* Note that an NMI-context read can lag a bracketing task-context read by
      * up to a second, i.e. time can appear to step back 1 s across contexts.
@@ -640,8 +640,8 @@ time_t wc_linuxkm_time_epoch_secs(time_t *tp) {
     else
         s = div_u64(ktime_get_mono_fast_ns(), NSEC_PER_SEC) + READ_ONCE(wc_real_offset_s);
     if (tp)
-        *tp = (time_t)s;
-    return (time_t)s;
+        *tp = (WC_TIME_T)s;
+    return (WC_TIME_T)s;
 #else
     /* < 3.17: [existing contraption comment, unchanged] */
     unsigned long now_jiffies = jiffies;
@@ -664,8 +664,8 @@ time_t wc_linuxkm_time_epoch_secs(time_t *tp) {
         s = rs + (jiffies - rj) / HZ;
     }
     if (tp)
-        *tp = (time_t)s;
-    return (time_t)s;
+        *tp = (WC_TIME_T)s;
+    return (WC_TIME_T)s;
 #endif
 }
 

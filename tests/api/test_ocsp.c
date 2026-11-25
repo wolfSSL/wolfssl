@@ -6897,7 +6897,7 @@ typedef struct {
     const char* responderKeyPath;
     const char* targetCertPath;
     enum Ocsp_Cert_Status certStatus;
-    time_t revocationTime;               /* Used when status is CERT_REVOKED */
+    WC_TIME_T revocationTime;            /* Used when status is CERT_REVOKED */
     enum WC_CRL_Reason revocationReason; /* Used when status is CERT_REVOKED */
     word32 validityPeriod;               /* Used when status is CERT_GOOD */
     int expectedResult;
@@ -6905,6 +6905,13 @@ typedef struct {
 } OcspResponderTestConfig;
 
 /* Helper function to run a single OCSP responder test configuration */
+static WC_TIME_T ocspResponderTest_BadClock(WC_TIME_T* t)
+{
+    if (t != NULL)
+        *t = (WC_TIME_T)-1;
+    return (WC_TIME_T)-1;
+}
+
 static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
 {
     EXPECT_DECLS;
@@ -7022,6 +7029,13 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
                                                config->revocationReason,
                                                config->validityPeriod), 0);
 
+    /* A failed clock gives no response rather than one dated 1969. */
+    ExpectIntEQ(wc_SetTimeCb(ocspResponderTest_BadClock), 0);
+    ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
+                                               NULL, &respSz),
+                WC_NO_ERR_TRACE(ASN_TIME_E));
+    ExpectIntEQ(wc_SetTimeCb(NULL), 0);
+
     /* Get required response size */
     ExpectIntEQ(wc_OcspResponder_WriteResponse(responder, reqBuf, reqSz,
                                                NULL, &respSz), 0);
@@ -7057,7 +7071,7 @@ static int ocspResponderTest_Run(OcspResponderTestConfig* config, int sendCerts)
 int test_ocsp_responder(void)
 {
     EXPECT_DECLS;
-    time_t now = wc_Time(NULL);
+    WC_TIME_T now = wc_Time(NULL);
     OcspResponderTestConfig configs[] = {
         {
             "./certs/ca-cert.der",
@@ -7386,7 +7400,7 @@ int test_wolfIO_DecodeUrl_host_bounds(void)
 int test_ocsp_check_validity(void)
 {
     EXPECT_DECLS;
-    time_t now = wc_Time(0);
+    WC_TIME_T now = wc_Time(0);
     WOLFSSL_ASN1_TIME thisUpd;
     WOLFSSL_ASN1_TIME nextUpd;
     const long DAY = 24L * 60 * 60;

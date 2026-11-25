@@ -8275,6 +8275,8 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
+/* Seconds from start to now on a LowResTimer() clock, correct across a wrap. */
+#define ELAPSED_SEC(now, start) ((word32)((word32)(now) - (word32)(start)))
 
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
 WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);

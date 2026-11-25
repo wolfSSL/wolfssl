@@ -97,7 +97,7 @@ int  atmel_get_random_number(uint32_t count, uint8_t* rand_out);
     int  atmel_get_random_block(unsigned char* output, unsigned int sz);
     #define ATMEL_GET_RANDOM_BLOCK_DEFINED
 #endif
-long atmel_get_curr_time_and_date(long* tm);
+WC_TIME_T atmel_get_curr_time_and_date(WC_TIME_T* tm);
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_MICROCHIP_TA100)

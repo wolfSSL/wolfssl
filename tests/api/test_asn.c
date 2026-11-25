@@ -5675,8 +5675,8 @@ int test_wc_MakeCert_generalizedTimeValidity(void)
 }
 
 #if defined(TEST_SIGN_CERT_BOUNDS_RSA) && !defined(NO_ASN_TIME)
-static time_t test_asn_validityNow;
-static time_t test_asn_validity_time_cb(time_t* t)
+static WC_TIME_T test_asn_validityNow;
+static WC_TIME_T test_asn_validity_time_cb(WC_TIME_T* t)
 {
     if (t != NULL)
         *t = test_asn_validityNow;
@@ -5685,7 +5685,7 @@ static time_t test_asn_validity_time_cb(time_t* t)
 
 /* Make a cert valid for daysValid at the fixed time and check both dates. */
 static int test_asn_validity_days(Cert* cert, RsaKey* key, WC_RNG* rng,
-    byte* der, time_t now, int daysValid, const char* expBefore,
+    byte* der, WC_TIME_T now, int daysValid, const char* expBefore,
     const char* expAfter)
 {
     EXPECT_DECLS;
@@ -5738,8 +5738,8 @@ int test_wc_MakeCert_validityDays(void)
     int    rngInit = 0;
     int    keyInit = 0;
     /* 2026-11-19T12:00:00Z and 2028-03-01T00:00:00Z */
-    const time_t now = (time_t)1795089600L;
-    const time_t leapNow = (time_t)1835481600L;
+    const WC_TIME_T now = (WC_TIME_T)1795089600L;
+    const WC_TIME_T leapNow = (WC_TIME_T)1835481600L;
 
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&cert, 0, sizeof(cert));
@@ -5775,12 +5775,12 @@ int test_wc_MakeCert_validityDays(void)
         NULL, NULL), TEST_SUCCESS);
     /* An XTIME error, then a clock before 1970 as a signed 32-bit time_t
      * after 2038 gives. */
-    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, (time_t)-1,
+    ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der, (WC_TIME_T)-1,
         365, NULL, NULL), TEST_SUCCESS);
 #ifndef WOLFSSL_GMTIME
-    if ((time_t)-1 < (time_t)1) {
+    if ((WC_TIME_T)-1 < (WC_TIME_T)1) {
         ExpectIntEQ(test_asn_validity_days(&cert, &key, &rng, der,
-            (time_t)-86400, 365, NULL, NULL), TEST_SUCCESS);
+            (WC_TIME_T)-86400, 365, NULL, NULL), TEST_SUCCESS);
     }
 #endif
 

@@ -1035,7 +1035,7 @@
     #else
     typedef __kernel_time64_t time_t;
     #endif
-    WOLFSSL_API time_t wc_linuxkm_time_epoch_secs(time_t *tp);
+    WOLFSSL_API WC_TIME_T wc_linuxkm_time_epoch_secs(WC_TIME_T *tp);
     WOLFSSL_API long long wc_linuxkm_time_epoch_msecs(void);
 
     #define PTR_ERR(x) ((int)PTR_ERR(x))

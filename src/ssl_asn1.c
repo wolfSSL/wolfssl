@@ -4015,7 +4015,7 @@ void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t)
  * @param [in]      t   Unix time GMT.
  * @return  An ASN.1 TIME object.
  */
-WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *a, time_t t)
+WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *a, WC_TIME_T t)
 {
     WOLFSSL_STUB("wolfSSL_ASN1_TIME_set");
     (void)a;
@@ -4190,20 +4190,32 @@ int wolfSSL_ASN1_TIME_compare(const WOLFSSL_ASN1_TIME *a,
  * @return  NULL when formatting time fails.
  * @return  NULL when dynamic memory allocation fails.
  */
-WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* a, time_t t,
+WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME* a, WC_TIME_T t,
     int offset_day, long offset_sec)
 {
     WOLFSSL_ASN1_TIME* ret = NULL;
-    const time_t sec_per_day = 24*60*60;
-    int time_get;
+    int time_get = ASN_TIME_E;
     char time_str[MAX_TIME_STRING_SZ];
-    time_t offset_day_sec = offset_day * sec_per_day;
-    time_t t_adj          = t + offset_day_sec + offset_sec;
+    struct tm* ts;
+    struct tm* tmpTs = NULL;
+    struct tm adj;
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+    tmpTs = &tmpTimeStorage;
+#endif
+    (void)tmpTs;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_adj");
 
-    /* Get time string as either UTC or GeneralizedTime. */
-    time_get = GetFormattedTime(&t_adj, (byte*)time_str, MAX_TIME_STRING_SZ);
+    /* Offset in calendar terms, not bounded by the time type. */
+    ts = XGMTIME(&t, tmpTs);
+    if (ts != NULL) {
+        adj = *ts;
+        if (AdjustGmtime(&adj, offset_day, offset_sec) == 0) {
+            time_get = GetFormattedTimeTm(&adj, (byte*)time_str,
+                MAX_TIME_STRING_SZ, 0);
+        }
+    }
     if (time_get > 0) {
         ret = a;
         if (ret == NULL) {
@@ -4434,7 +4446,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
 }
 
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
-WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
+WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, WC_TIME_T t)
 {
     WOLFSSL_ASN1_TIME* ret = s;
 
@@ -4734,7 +4746,7 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
 static int wolfssl_get_current_time_tm(struct tm* tm)
 {
     int ret = 1;
-    time_t currentTime;
+    WC_TIME_T currentTime;
     struct tm *tmpTs;
 #if defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
