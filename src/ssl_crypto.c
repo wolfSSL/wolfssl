@@ -4734,8 +4734,10 @@ cleanup:
     wc_MemZero_Check(buf, WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
 #endif
 #ifndef WC_RNG_HAVE_STIR
-    if (hashInit)
-        wc_HashFree(hash, hashType);
+    if (hashInit && (wc_HashFree(hash, hashType) != 0)) {
+        WOLFSSL_MSG("RAND_load_file: hash free failed");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
     ForceZero(hash, sizeof(*hash));
     ForceZero(digest, sizeof(digest));
     WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHES);

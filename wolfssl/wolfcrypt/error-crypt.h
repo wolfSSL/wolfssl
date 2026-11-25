@@ -198,9 +198,10 @@ enum wolfCrypt_ErrorCodes {
     HMAC_KAT_FIPS_E     = -206,  /* HMAC KAT failure */
     RSA_KAT_FIPS_E      = -207,  /* RSA KAT failure */
     DRBG_KAT_FIPS_E     = -208,  /* Hash_DRBG self-test (CAST) failure;
-                                  * recoverable by rerunning the self-test */
-    DRBG_CONT_FIPS_E    = -209,  /* Hash_DRBG health test failure; latches
-                                  * the module failed until it is reloaded
+                                  * the DRBG stays refused (module degraded)
+                                  * until reload (SP 800-90Ar1 sec 11.4.2) */
+    DRBG_CONT_FIPS_E    = -209,  /* Hash_DRBG health test failure; the whole
+                                  * module stays failed until reload
                                   * (SP 800-90Ar1 sec 11.4.2) */
     AESGCM_KAT_FIPS_E   = -210,  /* AESGCM KAT failure */
     THREAD_STORE_KEY_E  = -211,  /* Thread local storage key create failure */
