@@ -49,7 +49,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # A cold-ccache run takes ~27 min, set by kernel-settings-all-pqc-asm.
-    timeout-minutes: 40
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -147,6 +147,8 @@ jobs:
           #            "--enable-linuxkm-benchmarks", "--with-max-rsa-bits=16384",
           #            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1"]}
           .github/scripts/parallel-make-check.py \
+            --timeout=41 \
+            --deadline=41 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/fips-dev-no-post-configs.json"
 

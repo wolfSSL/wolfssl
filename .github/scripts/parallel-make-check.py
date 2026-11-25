@@ -96,6 +96,8 @@
 # every other config's result and skips any "upload logs on failure" step,
 # since a job timeout cancels rather than fails. With it only the wedged
 # config dies, as a failure, and its make-check.log is still reported.
+# --deadline bounds the whole run from the script's start, so it also stops
+# configs that started late; each one it cuts off reports "run deadline".
 
 from __future__ import annotations
 
@@ -162,8 +164,11 @@ print_lock = threading.Lock()
 # exactly one config is reported as the origin) and kills the other
 # workers' in-flight process groups.
 stop_event = threading.Event()
+deadline_event = threading.Event()
 fail_lock = threading.Lock()
 live_procs: set[subprocess.Popen] = set()
+# Processes the --deadline sweep signalled while they were still running.
+deadline_killed: set[subprocess.Popen] = set()
 procs_lock = threading.Lock()
 
 
@@ -179,9 +184,11 @@ def kill_group(p: subprocess.Popen, sig: signal.Signals) -> None:
             pass
 
 
-def abort_others() -> None:
+def abort_others(for_deadline: bool = False) -> None:
     with procs_lock:
         procs = list(live_procs)
+        if for_deadline:
+            deadline_killed.update(p for p in procs if p.poll() is None)
     for p in procs:
         kill_group(p, signal.SIGTERM)
     # Bounded escalation: SIGKILL whatever ignored the SIGTERM, so
@@ -203,9 +210,9 @@ def wait_bounded(p: subprocess.Popen,
     # abort_others() does - SIGTERM, then SIGKILL after a 10 s grace - so a
     # test that traps SIGTERM cannot outlive its timeout. Returns the exit
     # status and whether the deadline ended the wait.
-    if deadline is None:
-        return p.wait(), False
     try:
+        if deadline is None:
+            return p.wait(), False
         return p.wait(timeout=max(0.0, deadline - time.monotonic())), False
     except subprocess.TimeoutExpired:
         kill_group(p, signal.SIGTERM)
@@ -215,6 +222,9 @@ def wait_bounded(p: subprocess.Popen,
             kill_group(p, signal.SIGKILL)
             p.wait()
         return -1, True
+    except KeyboardInterrupt:
+        kill_group(p, signal.SIGTERM)
+        raise
 
 
 def nproc() -> int:
@@ -430,10 +440,22 @@ def stale_estimate(cfg: Config, minutes: float) -> bool:
             and not 0.5 * cfg.minutes <= minutes <= 1.5 * cfg.minutes)
 
 
+def aborted_by_failure(opts: argparse.Namespace) -> bool:
+    # True when fail-fast stopped the run for a real failure.
+    return (opts.fail_fast and stop_event.is_set()
+            and not deadline_event.is_set())
+
+
+def failed_step(label: str) -> str:
+    return label.removeprefix("run deadline in ").removeprefix("timeout in ")
+
+
 def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                                                                float]:
-    if opts.fail_fast and stop_event.is_set():
+    if aborted_by_failure(opts):
         return "aborted", 0.0
+    if opts.run_deadline is not None and time.monotonic() >= opts.run_deadline:
+        return "run deadline before start", 0.0
     bdir = SRCDIR / f"build-{cfg.name}"
     if bdir.exists():
         shutil.rmtree(bdir)
@@ -482,23 +504,43 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
     # Budget for the whole step sequence, not per step: the total is what
     # has to stay under the CI job's timeout-minutes.
     deadline = start + opts.timeout * 60 if opts.timeout else None
+    run_binds = opts.run_deadline is not None \
+        and (deadline is None or opts.run_deadline <= deadline)
+    if run_binds:
+        deadline = opts.run_deadline
     log = bdir / "make-check.log"
 
     def record_failure(step: str) -> str:
-        # Classify a failed step, doing the fail-fast bookkeeping: the
-        # first failure wins and aborts everyone else; any failure after
-        # the abort began is reported as aborted instead.
+        # Under fail-fast the first failure aborts the others, and failures
+        # after an abort that a failure began are reported as aborted.
         if not opts.fail_fast:
             return step
         with fail_lock:
-            label = "aborted" if stop_event.is_set() else step
+            first = not stop_event.is_set()
             stop_event.set()
-        if label != "aborted":
+        if first:
             abort_others()
+        return step if first or deadline_event.is_set() else "aborted"
+
+    def deadline_failure(label: str) -> str:
+        # Every config the deadline cuts off keeps its own label and log.
+        if opts.fail_fast:
+            with fail_lock:
+                first = not stop_event.is_set()
+                deadline_event.set()
+                stop_event.set()
+            if first:
+                abort_others(for_deadline=True)
         return label
 
     with open(log, "w") as logf:
         for step, cmd in steps:
+            if run_binds and time.monotonic() >= opts.run_deadline \
+                    and not aborted_by_failure(opts):
+                print(f"+ skipped: {step} after --deadline="
+                      f"{opts.deadline:g} min", file=logf, flush=True)
+                failed = deadline_failure(f"run deadline before {step}")
+                break
             if opts.fail_fast and stop_event.is_set():
                 failed = "aborted"
                 break
@@ -527,6 +569,8 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                 # just now, this process escaped the sweep - kill it
                 # ourselves (the wait() below then reaps it), escalating
                 # like the sweep does if SIGTERM is ignored.
+                if deadline_event.is_set():
+                    deadline_killed.add(proc)
                 kill_group(proc, signal.SIGTERM)
                 try:
                     proc.wait(timeout=10)
@@ -537,6 +581,12 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
             finally:
                 with procs_lock:
                     live_procs.discard(proc)
+            if run_binds and (timed_out or proc in deadline_killed) \
+                    and not aborted_by_failure(opts):
+                print(f"+ killed: {step} hit --deadline={opts.deadline:g} "
+                      f"min", file=logf, flush=True)
+                failed = deadline_failure(f"run deadline in {step}")
+                break
             if timed_out:
                 print(f"+ killed: {step} exceeded --timeout={opts.timeout:g} "
                       f"min", file=logf, flush=True)
@@ -561,9 +611,9 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
             sys.stdout.flush()
         else:
             dump(f"{cfg.name}: FAIL ({failed}) [{minutes:.1f} min]", log)
-            if failed == "configure":
+            if failed_step(failed) == "configure":
                 dump(f"{cfg.name}: config.log", bdir / "config.log")
-            elif failed == "make check":
+            elif failed_step(failed) == "make check":
                 dump(f"{cfg.name}: test-suite.log", bdir / "test-suite.log")
     return failed, minutes
 
@@ -662,6 +712,13 @@ def main() -> int:
                         "every other config's result with it (default: 0, "
                         "no limit). Set it well above the slowest config's "
                         "normal time - this catches hangs, not slowness")
+    p.add_argument("--deadline", type=float, default=0, metavar="MINUTES",
+                   help="wall-clock limit for the whole run, counted from "
+                        "start: configs still running are killed and pending "
+                        "ones fail without starting, so the summary and logs "
+                        "come out before the CI job's timeout-minutes, "
+                        "including for a config that started late "
+                        "(default: 0, no limit)")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
                    else None,
                    help="compiler passed to configure as CC= for configs "
@@ -688,6 +745,10 @@ def main() -> int:
     opts = p.parse_args()
     if opts.timeout < 0:
         p.error("--timeout must be a non-negative number of minutes")
+    if opts.deadline < 0:
+        p.error("--deadline must be a non-negative number of minutes")
+    opts.run_deadline = (time.monotonic() + opts.deadline * 60
+                         if opts.deadline else None)
 
     all_configs = load_configs(opts, p.error)
     if opts.build_only:
@@ -767,7 +828,16 @@ def main() -> int:
         return 0
 
     if any(cfg.build for cfg in selected) and not (SRCDIR / "configure").exists():
-        subprocess.run(["./autogen.sh"], cwd=SRCDIR, check=True)
+        proc = subprocess.Popen(["./autogen.sh"], cwd=SRCDIR,
+                                start_new_session=True)
+        rc, timed_out = wait_bounded(proc, opts.run_deadline)
+        if timed_out:
+            msg = f"autogen.sh hit --deadline={opts.deadline:g} min"
+            print(f"::error{GH_FILE_PROP}::{gh_escape(msg)}"
+                  if ON_GITHUB else msg)
+            return 1
+        if rc != 0:
+            raise subprocess.CalledProcessError(rc, ["./autogen.sh"])
 
     nthreads = max(1, min(opts.threads, len(selected)))
     wall_start = time.monotonic()

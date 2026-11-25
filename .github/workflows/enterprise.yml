@@ -39,7 +39,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -87,6 +87,8 @@ jobs:
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
+            --timeout=27 \
+            --deadline=27 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --extra-cflags='-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE' \

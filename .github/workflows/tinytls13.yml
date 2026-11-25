@@ -25,7 +25,7 @@ jobs:
     name: make check
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -133,6 +133,8 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=10 \
+            --deadline=15 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
             "$RUNNER_TEMP/tinytls13-configs.json"

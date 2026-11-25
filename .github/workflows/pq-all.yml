@@ -48,7 +48,7 @@ jobs:
     # dependencies" was seen to spend 30 min pulling the cross-compilers from a
     # slow archive mirror, which used up the whole budget before a single
     # config built.
-    timeout-minutes: 70
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -106,6 +106,8 @@ jobs:
       - name: Build and make check this shard's configs (parallel, out-of-tree)
         run: |
           .github/scripts/parallel-make-check.py \
+            --timeout=66 \
+            --deadline=66 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --shard "${{ matrix.shard }}/${{ strategy.job-total }}" \
             --private-dir=certs \

@@ -118,6 +118,7 @@ jobs:
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
             --timeout=45 \
+            --deadline=45 \
             "$RUNNER_TEMP/trackmemory-configs.json"
 
       - name: ccache stats

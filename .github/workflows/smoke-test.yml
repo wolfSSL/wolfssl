@@ -166,6 +166,8 @@ jobs:
         if: steps.merge_check.outputs.skip != 'true'
         run: |
           .github/scripts/parallel-make-check.py ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
+            --timeout=23 \
+            --deadline=30 \
             --extra-cflags="-Werror -Wdeclaration-after-statement" \
             --private-dir=certs .github/configs/smoke-test.json
 
