@@ -1348,6 +1348,59 @@ int test_wolfSSL_CertEvents_fields(void)
     return EXPECT_RESULT();
 }
 
+/* Parsing without a certificate manager uses the DecodedCert callback. */
+int test_wolfSSL_CertEvents_noCertManager(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CERT_EVENTS
+    DecodedCert cert;
+    CertEventLog log;
+    byte* der = NULL;
+    size_t derSz = 0;
+
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectIntEQ(wc_SetCertEventCallback(NULL, certEventLogCb, &log),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* A self-signed CA verifies against its own key, so no manager is
+     * needed. */
+    ExpectIntEQ(load_file("./certs/ca-cert.der", &der, &derSz), 0);
+
+    /* Today it parses cleanly: no events. */
+    wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
+    ExpectIntEQ(wc_SetCertEventCallback(&cert, certEventLogCb, &log), 0);
+    ExpectIntEQ(wc_ParseCert(&cert, CA_TYPE, VERIFY, NULL), 0);
+    wc_FreeDecodedCert(&cert);
+    ExpectIntEQ(log.defects, 0);
+
+    /* In 2038 it has expired: one defect, no RESULT event (results come
+     * from the certificate manager). */
+    ExpectIntEQ(wc_SetTimeCb(certEventAfterExpiryTimeCb), 0);
+    wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
+    ExpectIntEQ(wc_SetCertEventCallback(&cert, certEventLogCb, &log), 0);
+    ExpectIntEQ(wc_ParseCert(&cert, CA_TYPE, VERIFY, NULL),
+        WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    wc_FreeDecodedCert(&cert);
+    ExpectIntEQ(log.defects, 1);
+    ExpectIntEQ(log.defect.field, WC_CEV_FIELD_VALIDITY);
+    ExpectIntEQ(log.defect.reason, WC_CEV_REASON_EXPIRED);
+    ExpectIntEQ(log.results, 0);
+
+    /* Without a callback the same failure raises nothing. */
+    XMEMSET(&log, 0, sizeof(log));
+    wc_InitDecodedCert(&cert, der, (word32)derSz, NULL);
+    ExpectIntEQ(wc_ParseCert(&cert, CA_TYPE, VERIFY, NULL),
+        WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    wc_FreeDecodedCert(&cert);
+    ExpectIntEQ(log.defects, 0);
+
+    (void)wc_SetTimeCb(NULL);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 #if defined(TEST_CERT_EVENTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
 /* Accept every certificate, as a Warn-Allow policy would. */
 static int certEventAllowCb(int preverify, WOLFSSL_X509_STORE_CTX* store)
@@ -1703,6 +1756,390 @@ int test_wolfSSL_CertEvents_heldStatus(void)
     ExpectIntEQ(log.results, 1);
     ExpectIntEQ(log.result.error, 0);
     ExpectPtrEq(log.result.ssl, test_ctx.c_ssl);
+    test_ssl_memio_cleanup(&test_ctx);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+/* A CA the application loads as trusted is reported in the trust anchor
+ * role. */
+int test_wolfSSL_CertEvents_trustAnchor(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CERT_EVENTS
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    CertEventLog log;
+    byte* der = NULL;
+    size_t derSz = 0;
+
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerSetCertEventCb(cm, certEventLogCb, &log),
+        WOLFSSL_SUCCESS);
+
+    /* A good CA: no defect. */
+    ExpectIntEQ(load_file("./certs/ca-cert.der", &der, &derSz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer_ex(cm, der, (long)derSz,
+        WOLFSSL_FILETYPE_ASN1, 0, WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = NULL;
+    ExpectIntEQ(log.defects, 0);
+
+    /* An expired CA, loaded without permission to ignore its dates. */
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectIntEQ(load_file("./certs/test/expired/expired-ca.der", &der,
+        &derSz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer_ex(cm, der, (long)derSz,
+        WOLFSSL_FILETYPE_ASN1, 0, WOLFSSL_LOAD_FLAG_NONE),
+        WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectIntEQ(log.defects, 1);
+    ExpectIntEQ(log.defect.role, WC_CEV_ROLE_TRUST_ANCHOR);
+    ExpectIntEQ(log.defect.depth, -1);
+    ExpectIntEQ(log.defect.condition, WC_CEV_COND_CERT_EXPIRED);
+
+    /* A CA with a key below the minimum: checked after parsing. */
+    XMEMSET(&log, 0, sizeof(log));
+    der = NULL;
+    if (cm != NULL) {
+        cm->minRsaKeySz = 4096 / 8;
+    }
+    ExpectIntEQ(load_file("./certs/ca-cert.der", &der, &derSz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer_ex(cm, der, (long)derSz,
+        WOLFSSL_FILETYPE_ASN1, 0, WOLFSSL_LOAD_FLAG_NONE),
+        WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectIntEQ(log.defects, 1);
+    ExpectIntEQ(log.defect.error, WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
+    ExpectIntEQ(log.defect.role, WC_CEV_ROLE_TRUST_ANCHOR);
+    ExpectIntEQ(log.defect.field, WC_CEV_FIELD_SPKI);
+    ExpectIntEQ(log.defect.reason, WC_CEV_REASON_POLICY);
+    ExpectIntEQ(log.defect.condition, WC_CEV_COND_CERT_KEY_TOO_SMALL);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+/* X509_verify_cert() reports events through the store's certificate
+ * manager, as used by nginx and other OpenSSL-compatible applications. */
+int test_wolfSSL_X509_STORE_CertEvents(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CERT_EVENTS) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_X509_STORE_CTX* sctx = NULL;
+    WOLFSSL_X509* ca = NULL;
+    WOLFSSL_X509* leaf = NULL;
+    CertEventLog log;
+
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectIntEQ(wolfSSL_X509_STORE_SetCertEventCb(NULL, certEventLogCb,
+        &log), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(
+        "./certs/ca-cert.der", WOLFSSL_FILETYPE_ASN1));
+    ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, ca), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_SetCertEventCb(store, certEventLogCb,
+        &log), WOLFSSL_SUCCESS);
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(
+        "./certs/server-cert.der", WOLFSSL_FILETYPE_ASN1));
+
+    /* A good chain: no defects, and the last result passed. */
+    ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, leaf, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(log.defects, 0);
+    ExpectIntGE(log.results, 1);
+    ExpectIntEQ(log.result.error, 0);
+    wolfSSL_X509_STORE_CTX_free(sctx);
+    sctx = NULL;
+
+    /* An expired leaf: the OpenSSL error is unchanged, and the event says
+     * which field failed and why. */
+    ExpectIntEQ(wc_SetTimeCb(certEventAfterExpiryTimeCb), 0);
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, leaf, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED);
+    ExpectIntGE(log.defects, 1);
+    ExpectIntEQ(log.defect.error, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    ExpectIntEQ(log.defect.field, WC_CEV_FIELD_VALIDITY);
+    ExpectIntEQ(log.defect.reason, WC_CEV_REASON_EXPIRED);
+    /* The event's depth matches the depth OpenSSL-style callers see. */
+    ExpectIntEQ(log.defect.depth,
+        wolfSSL_X509_STORE_CTX_get_error_depth(sctx));
+    ExpectIntEQ(log.defect.role, WC_CEV_ROLE_CANDIDATE);
+    ExpectIntGE(log.results, 1);
+    ExpectIntEQ(log.result.error, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    /* Not in a handshake: no connection. */
+    ExpectNull(log.defect.ssl);
+    ExpectNull(log.result.ssl);
+    (void)wc_SetTimeCb(NULL);
+    wolfSSL_X509_STORE_CTX_free(sctx);
+    sctx = NULL;
+
+#ifdef USE_WOLF_VALIDDATE
+    /* The certificate manager accepts the dates, but the time set on the
+     * context is past the leaf's notAfter: the store's own date check fails
+     * it, and that failure is reported too. */
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, leaf, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_X509_STORE_CTX_set_time(sctx, 0, (time_t)2145916800);
+    ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+        WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED);
+    ExpectIntEQ(log.defects, 1);
+    ExpectIntEQ(log.defect.error, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    ExpectIntEQ(log.defect.field, WC_CEV_FIELD_VALIDITY);
+    ExpectIntEQ(log.defect.reason, WC_CEV_REASON_EXPIRED);
+    ExpectIntEQ(log.defect.condition, WC_CEV_COND_CERT_EXPIRED);
+    ExpectIntEQ(log.defect.depth, 0);
+    ExpectIntEQ(log.defect.role, WC_CEV_ROLE_CANDIDATE);
+    ExpectIntEQ(log.result.error, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    wolfSSL_X509_STORE_CTX_free(sctx);
+    sctx = NULL;
+#endif
+#ifdef WOLFSSL_PEM_TO_DER
+    /* Trust only the leaf's issuer, an intermediate. The partial-chain
+     * flag accepts that issuer after its own verify fails. The last
+     * RESULT is the acceptance. */
+    {
+        WOLFSSL_X509_STORE* pstore = NULL;
+        WOLFSSL_X509* mid = NULL;
+        WOLFSSL_X509* pleaf = NULL;
+
+        XMEMSET(&log, 0, sizeof(log));
+        ExpectNotNull(pstore = wolfSSL_X509_STORE_new());
+        ExpectNotNull(mid = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_X509_STORE_add_cert(pstore, mid), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_set_flags(pstore, WOLFSSL_PARTIAL_CHAIN),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_SetCertEventCb(pstore, certEventLogCb,
+            &log), WOLFSSL_SUCCESS);
+        ExpectNotNull(pleaf = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/server-chain.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, pstore, pleaf, NULL),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+        ExpectIntGE(log.results, 1);
+        ExpectIntEQ(log.result.kind, WC_CEV_KIND_RESULT);
+        ExpectIntEQ(log.result.error, 0);
+        wolfSSL_X509_STORE_CTX_free(sctx);
+        sctx = NULL;
+        wolfSSL_X509_free(pleaf);
+        wolfSSL_X509_free(mid);
+        wolfSSL_X509_STORE_free(pstore);
+    }
+    /* The same partial chain, with a host the leaf does not have. The
+     * acceptance RESULT is followed by the host mismatch. */
+    {
+        WOLFSSL_X509_STORE* pstore = NULL;
+        WOLFSSL_X509* mid = NULL;
+        WOLFSSL_X509* pleaf = NULL;
+
+        XMEMSET(&log, 0, sizeof(log));
+        ExpectNotNull(pstore = wolfSSL_X509_STORE_new());
+        ExpectNotNull(mid = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectIntEQ(wolfSSL_X509_STORE_add_cert(pstore, mid), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_set_flags(pstore, WOLFSSL_PARTIAL_CHAIN),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_SetCertEventCb(pstore, certEventLogCb,
+            &log), WOLFSSL_SUCCESS);
+        ExpectNotNull(pleaf = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/server-chain.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, pstore, pleaf, NULL),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(
+            wolfSSL_X509_STORE_CTX_get0_param(sctx), "no.such.host", 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+            WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH);
+        ExpectIntGE(log.results, 1);
+        ExpectIntEQ(log.result.error, WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH);
+        wolfSSL_X509_STORE_CTX_free(sctx);
+        sctx = NULL;
+        wolfSSL_X509_free(pleaf);
+        wolfSSL_X509_free(mid);
+        wolfSSL_X509_STORE_free(pstore);
+    }
+#endif
+    /* A negative depth rejects the chain before it is built. */
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, leaf, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_X509_STORE_CTX_set_depth(sctx, -1);
+    ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+        WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    ExpectIntGE(log.results, 1);
+    ExpectIntEQ(log.result.error, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    wolfSSL_X509_STORE_CTX_free(sctx);
+    sctx = NULL;
+
+    /* The chain passes, then the host check fails. The last RESULT is the
+     * host mismatch. */
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, leaf, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set1_host(
+        wolfSSL_X509_STORE_CTX_get0_param(sctx), "no.such.host", 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_CTX_get_error(sctx),
+        WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH);
+    ExpectIntGE(log.results, 2);
+    ExpectIntEQ(log.firstResult.error, 0);
+    ExpectIntEQ(log.result.error, WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH);
+    wolfSSL_X509_STORE_CTX_free(sctx);
+    sctx = NULL;
+
+    /* The context setter and the store setter share the certificate
+     * manager. The call made second is the callback that runs. */
+    {
+        WOLFSSL_CTX* ctx = NULL;
+        WOLFSSL_X509_STORE* cstore = NULL;
+        CertEventLog second;
+
+        XMEMSET(&log, 0, sizeof(log));
+        XMEMSET(&second, 0, sizeof(second));
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_SetCertEventCb(ctx, certEventLogCb, &log),
+            WOLFSSL_SUCCESS);
+        ExpectNotNull(cstore = wolfSSL_CTX_get_cert_store(ctx));
+        ExpectIntEQ(wolfSSL_X509_STORE_SetCertEventCb(cstore, certEventLogCb,
+            &second), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_STORE_add_cert(cstore, ca), WOLFSSL_SUCCESS);
+        ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, cstore, leaf, NULL),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(log.results, 0);
+        ExpectIntGE(second.results, 1);
+        ExpectIntEQ(second.result.error, 0);
+        wolfSSL_X509_STORE_CTX_free(sctx);
+        sctx = NULL;
+        wolfSSL_CTX_free(ctx);
+    }
+    wolfSSL_X509_free(leaf);
+    wolfSSL_X509_free(ca);
+    wolfSSL_X509_STORE_free(store);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+#if defined(TEST_CERT_EVENTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(OPENSSL_ALL)
+/* What X509_verify_cert() reported from the cert verify callback. */
+typedef struct CertEventStoreLog {
+    void* ssl;       /* Connection the events must name. */
+    int   calls;     /* Calls of the cert verify callback. */
+    int   maxBase;   /* Largest peer chain depth verified from. */
+    int   results;   /* RESULT events in the current call. */
+    int   firstDepth; /* Depth of the first RESULT in the current call. */
+    int   firstRole;  /* Role of the first RESULT in the current call. */
+    int   badDepth;  /* Calls whose first RESULT had the wrong position. */
+    int   badSsl;    /* Events that did not name the connection. */
+    int   signerHi;  /* A RESULT at depth > 0 with role SIGNER. */
+} CertEventStoreLog;
+
+static void certEventStoreLogCb(const WOLFSSL_CERT_EVENT* ev, void* ctx)
+{
+    CertEventStoreLog* log = (CertEventStoreLog*)ctx;
+
+    if (ev->ssl != log->ssl) {
+        log->badSsl++;
+    }
+    if (ev->kind == WC_CEV_KIND_RESULT) {
+        if (log->results == 0) {
+            log->firstDepth = ev->depth;
+            log->firstRole = ev->role;
+        }
+        if ((ev->depth > 0) && (ev->role == WC_CEV_ROLE_SIGNER)) {
+            log->signerHi = 1;
+        }
+        log->results++;
+    }
+}
+
+/* Verify with X509_verify_cert(), as OpenVPN's cert verify callback does.
+ * The first RESULT is for the certificate being verified, at its depth in
+ * the peer's chain. */
+static int certEventStoreVerifyCb(WOLFSSL_X509_STORE_CTX* store, void* arg)
+{
+    CertEventStoreLog* log = (CertEventStoreLog*)arg;
+    int base = store->peerCertDepth;
+    int ret;
+
+    log->results = 0;
+    ret = wolfSSL_X509_verify_cert(store);
+    log->calls++;
+    if (base > log->maxBase) {
+        log->maxBase = base;
+    }
+    if ((log->results == 0) || (log->firstDepth != base) ||
+            (log->firstRole != ((base > 0) ? WC_CEV_ROLE_SIGNER :
+                                             WC_CEV_ROLE_CANDIDATE))) {
+        log->badDepth++;
+    }
+    return ret;
+}
+#endif
+
+/* X509_verify_cert() called from a handshake reports the connection, and
+ * the depth in the peer's chain that the verify callback sees. */
+int test_wolfSSL_CertEvents_storeInHandshake(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CERT_EVENTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(OPENSSL_ALL)
+    test_ssl_memio_ctx test_ctx;
+    CertEventStoreLog log;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&log, 0, sizeof(log));
+    /* The server sends its intermediate CAs too. */
+    test_ctx.s_cb.certPemFile = "./certs/intermediate/server-chain.pem";
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+#ifdef HAVE_EX_DATA
+    log.ssl = test_ctx.c_ssl;
+#else
+    /* OPENSSL_ALL sets HAVE_EX_DATA. A build without it keeps ssl NULL. */
+    log.ssl = NULL;
+#endif
+    ExpectIntEQ(wolfSSL_CTX_SetCertEventCb(test_ctx.c_ctx,
+        certEventStoreLogCb, &log), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_cert_verify_callback(test_ctx.c_ctx,
+        certEventStoreVerifyCb, &log);
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_PEER, NULL);
+    wolfSSL_set_verify(test_ctx.s_ssl, WOLFSSL_VERIFY_NONE, NULL);
+
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    /* Called for the CAs the peer sent, not only for its certificate. */
+    ExpectIntGE(log.calls, 2);
+    ExpectIntGE(log.maxBase, 1);
+    ExpectIntEQ(log.signerHi, 1);
+    ExpectIntEQ(log.badDepth, 0);
+    ExpectIntEQ(log.badSsl, 0);
+
     test_ssl_memio_cleanup(&test_ctx);
 #endif
 

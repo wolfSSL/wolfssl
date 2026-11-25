@@ -626,6 +626,128 @@ static int X509StoreCallVerifyCb(WOLFSSL_X509_STORE_CTX* ctx,
     return ret;
 }
 
+#ifdef WOLFSSL_CERT_EVENTS
+/* Get the TLS connection whose handshake runs this verification.
+ *
+ * @param [in] ctx  X509 store context.
+ * @return  The WOLFSSL object, or NULL when not in a handshake.
+ */
+static void* X509StoreCertEventSsl(WOLFSSL_X509_STORE_CTX* ctx)
+{
+#ifdef HAVE_EX_DATA
+    /* Only the handshake sets the peer's certificates. ssl is NULL when
+     * HAVE_EX_DATA is off, including a plain OPENSSL_EXTRA build. */
+    if (ctx->totalCerts > 0) {
+        return wolfSSL_CRYPTO_get_ex_data(&ctx->ex_data,
+            wolfSSL_get_ex_data_X509_STORE_CTX_idx());
+    }
+#endif
+    (void)ctx;
+    return NULL;
+}
+
+/* Send the RESULT event for ctx->current_cert.
+ *
+ * @param [in] ctx    X509 store context.
+ * @param [in] ret    Outcome: WOLFSSL_SUCCESS or the error it failed with.
+ * @param [in] err    Error the certificate failed with, 0 when not known.
+ * @param [in] depth  Chain depth.
+ * @param [in] ssl    TLS connection (WOLFSSL*), or NULL.
+ */
+static void X509StoreCertEventResult(WOLFSSL_X509_STORE_CTX* ctx, int ret,
+    int err, int depth, void* ssl)
+{
+    if (ret == WOLFSSL_SUCCESS) {
+        err = 0;
+    }
+    else if (err == 0) {
+        /* Rejected by the verify callback or a date check. */
+        err = VERIFY_CERT_ERROR;
+    }
+    CM_CertEventResult(ctx->store->cm, err, depth,
+        ctx->current_cert->derCert->buffer,
+        ctx->current_cert->derCert->length, NULL, ssl);
+}
+
+/* Send a RESULT for a check that runs after the per-certificate results.
+ *
+ * The host name, the chain length, and pathLenConstraint run after the
+ * verify loop. A failure there used to leave the last RESULT as a pass.
+ *
+ * @param [in] ctx    X509 store context.
+ * @param [in] error  Store error for the RESULT.
+ * @param [in] depth  Chain depth of the certificate the error is about.
+ */
+static void X509StoreCertEventFailure(WOLFSSL_X509_STORE_CTX* ctx, int error,
+    int depth)
+{
+    if ((ctx == NULL) || (ctx->store == NULL) || (ctx->store->cm == NULL) ||
+            (ctx->current_cert == NULL) ||
+            (ctx->current_cert->derCert == NULL)) {
+        return;
+    }
+    X509StoreCertEventResult(ctx, WOLFSSL_FAILURE, error, depth,
+        X509StoreCertEventSsl(ctx));
+}
+
+/* The partial-chain fallback accepted a certificate the verify call had
+ * already logged as rejected. Send a RESULT with error 0 so the last event
+ * matches the acceptance. Call this before the certificate is pushed onto
+ * ctx->chain: the depth is the same value the failed verify used. */
+static void X509StoreCertEventAccepted(WOLFSSL_X509_STORE_CTX* ctx)
+{
+    int evDepth = ctx->peerCertDepth +
+        ((ctx->chain != NULL) ? (int)ctx->chain->num : 0);
+
+    if ((ctx->current_cert != NULL) && (ctx->current_cert->derCert != NULL)) {
+        X509StoreCertEventResult(ctx, WOLFSSL_SUCCESS, 0, evDepth,
+            X509StoreCertEventSsl(ctx));
+    }
+}
+
+#ifndef NO_ASN_TIME
+/* Check the dates with the store's settings, and send a DEFECT event when
+ * that finds a date failure the certificate manager did not report.
+ *
+ * @param [in] ctx    X509 store context.
+ * @param [in] ret    Result of the certificate manager's verification.
+ * @param [in] depth  Chain depth.
+ * @param [in] ssl    TLS connection (WOLFSSL*), or NULL.
+ * @return  The result after the store's date checks.
+ */
+static int X509StoreVerifyCertDateEvent(WOLFSSL_X509_STORE_CTX* ctx, int ret,
+    int depth, void* ssl)
+{
+    WOLFSSL_CERT_MANAGER* cm = ctx->store->cm;
+    WOLFSSL_CERT_EVENT ev;
+    int dateRet = X509StoreVerifyCertDate(ctx, ret);
+    int expired = (dateRet == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+
+    if ((cm->certEventCb == NULL) || (dateRet == ret) || ((!expired) &&
+            (dateRet != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)))) {
+        return dateRet;
+    }
+
+    XMEMSET(&ev, 0, sizeof(ev));
+    ev.kind      = WC_CEV_KIND_DEFECT;
+    ev.category  = WC_CEV_CAT_CERT;
+    ev.error     = dateRet;
+    ev.role      = (depth > 0) ? WC_CEV_ROLE_SIGNER : WC_CEV_ROLE_CANDIDATE;
+    ev.depth     = depth;
+    ev.field     = WC_CEV_FIELD_VALIDITY;
+    ev.reason    = expired ? WC_CEV_REASON_EXPIRED :
+                             WC_CEV_REASON_NOT_YET_VALID;
+    ev.condition = expired ? WC_CEV_COND_CERT_EXPIRED :
+                             WC_CEV_COND_CERT_NOT_YET_VALID;
+    ev.der       = ctx->current_cert->derCert->buffer;
+    ev.derSz     = ctx->current_cert->derCert->length;
+    ev.ssl       = ssl;
+    wc_CertEventSend(cm->certEventCb, cm->certEventCtx, &ev);
+    return dateRet;
+}
+#endif /* !NO_ASN_TIME */
+#endif /* WOLFSSL_CERT_EVENTS */
+
 /* Verify ctx->current_cert against the store.
  *
  * <cbRejected> is an out-parameter, never NULL. It is set to 1 when the
@@ -644,15 +766,30 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
     int crlRet = 0;
     int datesChecked = 0;
     int accepted = 0; /* callback accepted a cert that verified */
+#ifdef WOLFSSL_CERT_EVENTS
+    /* Same depth as SetupStoreCtxError() reports for this certificate. */
+    int depth = ctx->peerCertDepth +
+        ((ctx->chain != NULL) ? (int)ctx->chain->num : 0);
+    /* The error the certificate failed with, for the RESULT event. */
+    int evErr = 0;
+    void* evSsl = X509StoreCertEventSsl(ctx);
+#endif
     WOLFSSL_ENTER("X509StoreVerifyCert");
 
     *cbRejected = 0;
 
     if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
+    #ifdef WOLFSSL_CERT_EVENTS
+        ret = CM_VerifyBufferDepth(ctx->store->cm,
+                    ctx->current_cert->derCert->buffer, ctx->extraCa,
+                    (long)ctx->current_cert->derCert->length,
+                    WOLFSSL_FILETYPE_ASN1, depth, &crlRet, evSsl);
+    #else
         ret = CM_VerifyBuffer_ex(ctx->store->cm,
                     ctx->current_cert->derCert->buffer, ctx->extraCa,
                     ctx->current_cert->derCert->length,
                     WOLFSSL_FILETYPE_ASN1, 0, &crlRet);
+    #endif
         datesChecked = (ret == WOLFSSL_SUCCESS) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
@@ -674,13 +811,25 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
             SetupStoreCtxError(ctx, crlRet);
             if ((verifyCb == NULL) ||
                     (X509StoreCallVerifyCb(ctx, verifyCb, 0) != 1)) {
+            #ifdef WOLFSSL_CERT_EVENTS
+                X509StoreCertEventResult(ctx, crlRet, crlRet, depth, evSsl);
+            #endif
                 return crlRet;
             }
         }
 #endif
     #ifndef NO_ASN_TIME
         /* update return value with any date validation overrides */
+        #ifdef WOLFSSL_CERT_EVENTS
+        ret = X509StoreVerifyCertDateEvent(ctx, ret, depth, evSsl);
+        #else
         ret = X509StoreVerifyCertDate(ctx, ret);
+        #endif
+    #endif
+    #ifdef WOLFSSL_CERT_EVENTS
+        if (ret != WOLFSSL_SUCCESS) {
+            evErr = ret;
+        }
     #endif
         SetupStoreCtxError(ctx, ret);
         if (verifyCb != NULL) {
@@ -724,7 +873,16 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
         * after certificate manager verification,
         * as it skips date validation when other errors are present.
         */
+    #ifdef WOLFSSL_CERT_EVENTS
+        ret = X509StoreVerifyCertDateEvent(ctx, ret, depth, evSsl);
+    #else
         ret = X509StoreVerifyCertDate(ctx, ret);
+    #endif
+    #ifdef WOLFSSL_CERT_EVENTS
+        if (ret != WOLFSSL_SUCCESS) {
+            evErr = ret;
+        }
+    #endif
         /* Like OpenSSL, report a cert that verified only once. */
         if (!accepted || ret != WOLFSSL_SUCCESS) {
             SetupStoreCtxError(ctx, ret);
@@ -738,6 +896,13 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx, int* cbRejected,
                 }
             }
         }
+    }
+#endif
+#ifdef WOLFSSL_CERT_EVENTS
+    /* The final outcome, after the date overrides, the context's CRLs and
+     * the verify callback. */
+    if (ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
+        X509StoreCertEventResult(ctx, ret, evErr, depth, evSsl);
     }
 #endif
     (void)datesChecked;
@@ -1140,6 +1305,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
      * not even a trusted leaf: reject before building one. */
     if (ctx->depth < 0) {
         SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG, 0);
+#ifdef WOLFSSL_CERT_EVENTS
+        X509StoreCertEventFailure(ctx,
+            WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG, 0);
+#endif
         ret = WOLFSSL_FAILURE;
         goto exit;
     }
@@ -1209,6 +1378,20 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * needing it must use a store per thread. */
             ret = X509StoreAddCa(ctx->store, issuer, WOLFSSL_TEMP_CA);
             if (ret != WOLFSSL_SUCCESS) {
+#ifdef WOLFSSL_CERT_EVENTS
+                /* The intermediate was rejected before the leaf was
+                 * verified. Report that certificate. */
+                if ((issuer != NULL) && (issuer->derCert != NULL)) {
+                    WOLFSSL_X509* saved = ctx->current_cert;
+                    int evDepth = ctx->peerCertDepth +
+                        ((ctx->chain != NULL) ? (int)ctx->chain->num : 0);
+
+                    ctx->current_cert = issuer;
+                    X509StoreCertEventFailure(ctx, VERIFY_CERT_ERROR,
+                        evDepth + 1);
+                    ctx->current_cert = saved;
+                }
+#endif
                 X509VerifyCertSetupRetry(ctx, certsToUse, failedCerts,
                     &depth, origDepth);
                 continue;
@@ -1296,6 +1479,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 if (X509StoreCertPartialChainEnabled(ctx) &&
                     X509StoreCertIsTrusted(ctx->store, ctx->current_cert,
                         origTrustedSk)) {
+#ifdef WOLFSSL_CERT_EVENTS
+                    X509StoreCertEventAccepted(ctx);
+#endif
                     X509StoreChainPush(ctx->chain, ctx->current_cert);
                     /* Clear error set by the failed X509StoreVerifyCert
                      * attempt; the partial-chain fallback accepted the
@@ -1369,6 +1555,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 if (ret != WOLFSSL_SUCCESS) {
                     /* the partial chain is accepted at a caller-trusted
                      * cert; clear the error from the failed verify */
+#ifdef WOLFSSL_CERT_EVENTS
+                    X509StoreCertEventAccepted(ctx);
+#endif
                     ctx->error = 0;
                 }
                 anchorEndsPath = 1;
@@ -1381,6 +1570,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         else {
             SetupStoreCtxError_ex(ctx, WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG,
                 wolfSSL_sk_X509_num(ctx->chain));
+#ifdef WOLFSSL_CERT_EVENTS
+            X509StoreCertEventFailure(ctx,
+                WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG,
+                wolfSSL_sk_X509_num(ctx->chain));
+#endif
             ret = WOLFSSL_FAILURE;
         }
     }
@@ -1390,6 +1584,20 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
      * API path, so check it over the assembled path before reporting success. */
     if (ret == WOLFSSL_SUCCESS) {
         ret = X509StoreCheckPathLen(ctx, verifyCb);
+#ifdef WOLFSSL_CERT_EVENTS
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_X509* saved = ctx->current_cert;
+            int evDepth = ctx->error_depth;
+
+            if ((ctx->chain != NULL) && (evDepth >= 0) &&
+                    (evDepth < wolfSSL_sk_X509_num(ctx->chain))) {
+                ctx->current_cert = wolfSSL_sk_X509_value(ctx->chain,
+                    evDepth);
+            }
+            X509StoreCertEventFailure(ctx, ctx->error, evDepth);
+            ctx->current_cert = saved;
+        }
+#endif
     }
 
     /* Enforce hostname / IP verification from X509_VERIFY_PARAM if set.
@@ -1416,6 +1624,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 if (verifyCb == NULL ||
                         X509StoreCallVerifyCb(ctx, verifyCb, 0) != 1) {
                     ret = WOLFSSL_FAILURE;
+#ifdef WOLFSSL_CERT_EVENTS
+                    X509StoreCertEventFailure(ctx,
+                        WOLFSSL_X509_V_ERR_HOSTNAME_MISMATCH, 0);
+#endif
                 }
             }
         }
@@ -1429,6 +1641,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 if (verifyCb == NULL ||
                         X509StoreCallVerifyCb(ctx, verifyCb, 0) != 1) {
                     ret = WOLFSSL_FAILURE;
+#ifdef WOLFSSL_CERT_EVENTS
+                    X509StoreCertEventFailure(ctx,
+                        WOLFSSL_X509_V_ERR_IP_ADDRESS_MISMATCH, 0);
+#endif
                 }
             }
         }
@@ -2464,6 +2680,29 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 
     return result;
 }
+
+#ifdef WOLFSSL_CERT_EVENTS
+/* Set the validation event callback into the store's certificate manager.
+ *
+ * X509_verify_cert() verifies through this certificate manager.
+ *
+ * @param [in] store  X509 certificate store.
+ * @param [in] cb     Event callback. NULL turns events off.
+ * @param [in] ctx    Context passed to the callback.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when store is NULL or has no certificate manager.
+ */
+int wolfSSL_X509_STORE_SetCertEventCb(WOLFSSL_X509_STORE* store,
+    WOLFSSL_CERT_EVENT_CB cb, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_SetCertEventCb");
+    if (store == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wolfSSL_CertManagerSetCertEventCb(store->cm, cb, ctx);
+}
+#endif /* WOLFSSL_CERT_EVENTS */
 
 int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
 {
