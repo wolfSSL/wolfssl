@@ -289,6 +289,11 @@ int test_wolfSSL_RAND_load_file(void)
     ExpectIntEQ(RAND_load_file("/no/such/file/wolfssl_rand_load_file_test",
         32), -1);
 
+    /* A regular file read over several chunks: len caps the read, -1 reads to
+     * the end of the file. */
+    ExpectIntEQ(RAND_load_file("./certs/ca-cert.der", 600), 600);
+    ExpectIntGT(RAND_load_file("./certs/ca-cert.der", -1), 600);
+
 #if defined(__linux__) || defined(__FreeBSD__)
     /* Reading from the OS entropy source returns the requested byte count. */
     ExpectIntEQ(RAND_load_file("/dev/urandom", 32), 32);

@@ -163,6 +163,15 @@
 
 #ifndef NO_TLS
 
+#ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+/* wolfCrypt's hybrid join takes the TLS code point as its group. A FIPS
+ * bundle's older kdf.h has neither the join nor these names. */
+wc_static_assert((int)WC_SECP256R1MLKEM768 == (int)WOLFSSL_SECP256R1MLKEM768);
+wc_static_assert((int)WC_X25519MLKEM768 == (int)WOLFSSL_X25519MLKEM768);
+wc_static_assert((int)WC_SECP384R1MLKEM1024 ==
+                 (int)WOLFSSL_SECP384R1MLKEM1024);
+#endif
+
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 #endif

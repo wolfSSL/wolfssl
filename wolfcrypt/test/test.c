@@ -51943,9 +51943,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
             (const byte*)label, (word32)XSTRLEN(label), seed, seedSz,
             1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_FIPS_TLS12_EMS_ONLY)
+    /* A master secret without EMS is refused: IG D.Q. */
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+#else
 #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
     !defined(FIPS_NO_WRAPPERS)
-    /* A master secret without EMS is derived but flagged: IG D.Q. */
+    /* An older module derives a master secret without EMS but flags it. */
     if (ret == WC_FIPS_NOT_APPROVED)
         ret = 0;
 #endif
@@ -51958,9 +51964,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
 
     if (XMEMCMP(result, ms, msSz) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif
 
     /* The label at the front of the seed, as OpenSSL passes it, gives the same
-     * master secret and the same flag. */
+     * master secret, or the same refusal. */
     XMEMCPY(lblSeed, label, XSTRLEN(label));
     XMEMCPY(lblSeed + XSTRLEN(label), seed, seedSz);
     XMEMSET(result, 0, sizeof(result));
@@ -51968,6 +51975,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
     ret = wc_PRF_TLS(result, msSz, pms, pmsSz, (const byte*)"", 0, lblSeed,
             (word32)XSTRLEN(label) + seedSz, 1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_FIPS_TLS12_EMS_ONLY)
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+#else
 #if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
     !defined(FIPS_NO_WRAPPERS)
     if (ret != WC_FIPS_NOT_APPROVED)
@@ -51978,6 +51990,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(result, ms, msSz) != 0)
         return WC_TEST_RET_ENC_NC;
+#endif
 
     /* An extended master secret passed the same way is approved. */
     XMEMCPY(lblSeed, emsLabel, XSTRLEN(emsLabel));
@@ -63702,11 +63715,11 @@ static wc_test_ret_t curve25519_hybrid_only_test(WC_RNG* rng,
 #ifdef WOLFSSL_HAVE_TLS13_HYBRID_X25519
     /* X25519MLKEM768 puts the ML-KEM secret first (RFC 10024 sec 4.3). */
     XMEMSET(kemSs, 0x5a, sizeof(kemSs));
-    ret = wc_Tls13_HybridSharedSecretX25519(4588, 1, userA, userB, ssA,
-              sizeof(ssA), &ssASz, kemSs, sizeof(kemSs));
+    ret = wc_Tls13_HybridSharedSecretX25519(WC_X25519MLKEM768, 1, userA,
+              userB, ssA, sizeof(ssA), &ssASz, kemSs, sizeof(kemSs));
     if (ret == 0)
-        ret = wc_Tls13_HybridSharedSecretX25519(4588, 1, userB, userA, ssB,
-                  sizeof(ssB), &ssBSz, kemSs, sizeof(kemSs));
+        ret = wc_Tls13_HybridSharedSecretX25519(WC_X25519MLKEM768, 1, userB,
+                  userA, ssB, sizeof(ssB), &ssBSz, kemSs, sizeof(kemSs));
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if ((ssASz != sizeof(ssA)) || (ssBSz != ssASz) ||

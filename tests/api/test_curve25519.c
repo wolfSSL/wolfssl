@@ -560,11 +560,13 @@ int test_wc_curve25519_shared_secret_ex_kat(void)
             WC_NO_ERR_TRACE(FIPS_WRONG_API_E));
     #ifdef WOLFSSL_HAVE_TLS13_HYBRID_X25519
         hybridSz = sizeof(hybrid);
-        ExpectIntEQ(wc_Tls13_HybridSharedSecretX25519(4587, 0, &private_key,
+        ExpectIntEQ(wc_Tls13_HybridSharedSecretX25519(
+            WC_SECP256R1MLKEM768, 0, &private_key,
             &public_key, hybrid, sizeof(hybrid), &hybridSz, kemSs,
             sizeof(kemSs)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         hybridSz = sizeof(hybrid);
-        ExpectIntEQ(wc_Tls13_HybridSharedSecretX25519(4588, 1, &private_key,
+        ExpectIntEQ(wc_Tls13_HybridSharedSecretX25519(
+            WC_X25519MLKEM768, 1, &private_key,
             &public_key, hybrid, sizeof(hybrid), &hybridSz, kemSs,
             sizeof(kemSs)), 0);
         ExpectIntEQ(hybridSz, sizeof(hybrid));
