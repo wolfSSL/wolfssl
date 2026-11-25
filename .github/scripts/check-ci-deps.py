@@ -210,6 +210,24 @@ class Checker:
                                   f"{tag}.txt (or point this call at a bundle "
                                   f"that has it).")
 
+    def check_runners(self, where: str, label: str, pairs: list,
+                      called: set) -> None:
+        """Check each runner of the job against the tag it runs with."""
+        for runner, tag in dict.fromkeys(pairs):
+            if (runner, tag) not in called and series(runner) \
+                    and series(tag) and series(runner) != series(tag):
+                self.error(where, f"{label}: runs-on '{runner}' does not "
+                                  f"match ghcr-debs-tag '{tag}': the "
+                                  f"bundle holds .debs for {series(tag)}")
+        for runner, tag in dict.fromkeys(pairs):
+            if runner.startswith("ubuntu-latest") and series(tag):
+                self.error(where, f"{label}: runs-on '{runner}' with "
+                                  f"ghcr-debs-tag '{tag}': ubuntu-latest "
+                                  f"moves to new releases, so the bundle "
+                                  f"stops matching and every run falls back "
+                                  f"to the apt mirror. Pin runs-on to "
+                                  f"{series(tag)}.")
+
     def check_ccache(self, label: str, tags: list, job: dict) -> None:
         """ccache-setup installs ccache from whatever bundle the job unpacked.
 
@@ -254,6 +272,10 @@ class Checker:
         tags = resolve(tag_raw, job)
         packages = resolve(with_.get("packages"), job)
         runners = resolve(job.get("runs-on"), job) or [""]
+        pairs = [(runner, tag) for runner in runners for tag in tags]
+        called = {(runners[0], tag) for tag in tags} if packages else set()
+        if not job_container(job):
+            self.check_runners(where, label, pairs, called)
         if not tags or not packages:
             self.unchecked.append(f"{label}: {tag_raw} / "
                                   f"{with_.get('packages')}")

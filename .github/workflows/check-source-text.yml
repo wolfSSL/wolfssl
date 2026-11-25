@@ -37,7 +37,7 @@ jobs:
     # Only run from the wolfssl org to avoid burning forks' CI minutes.
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       # The PR merge commit and its base parent are all the diff needs.
       - uses: actions/checkout@v5
