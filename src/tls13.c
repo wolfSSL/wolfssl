@@ -10719,13 +10719,16 @@ static int IsSha1SignedCert(const byte* der, word32 derSz)
  * name), which is enough here: the chain is the one this end was configured
  * with, not one an attacker supplies.
  *
- * The certificate is parsed as CA_TYPE rather than CERT_TYPE so a trust anchor
- * carrying serial number 0 still decodes. ParseCertRelative() rejects a zero
- * serial for CERT_TYPE, and legacy roots, the certificates most likely to be
- * SHA-1 signed, are the ones that use it. With NO_VERIFY and no certificate
- * manager the serial exemption is all the type changes, and that exemption
- * still requires a self-issued CA, so a leaf carrying serial 0 is reported as
- * not self issued and stays subject to the SHA-1 rule.
+ * The certificate is parsed as CA_TYPE: legacy roots, the certificates most
+ * likely to be SHA-1 signed, are what this is for. ParseCertRelative()
+ * accepts a zero serial for a self-issued CA under every parse type, so a
+ * trust anchor carrying serial number 0 decodes here, and it still rejects a
+ * zero serial on anything else, so a leaf carrying serial 0 fails to parse
+ * and is reported as not self issued, staying subject to the SHA-1 rule.
+ * The type no longer affects the serial check. CA_TYPE is kept because a
+ * root whose AKID names its own key (and whose keyUsage, if present, allows
+ * certificate signing) then skips the self-signature confirmation in
+ * ParseCertRelative(), which every other type runs.
  *
  * ssl           The SSL/TLS object.
  * der           Buffer holding the DER encoded certificate.

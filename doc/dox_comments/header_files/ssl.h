@@ -4258,8 +4258,10 @@ void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
     only requires one with WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, so a server
     that relies on the callback for client authentication must set both.
     Malformed DER, a certificate the parser refuses regardless of the verify
-    mode such as one with a zero serial number, or one whose decoding stops
-    part way such as one with an unsupported key algorithm, still fails the
+    mode such as a certificate with a zero serial number that is not a
+    self-issued CA certificate (unless WOLFSSL_ASN_ALLOW_0_SERIAL is defined),
+    whatever its validity dates, or one whose decoding stops part
+    way such as one with an unsupported key algorithm, still fails the
     handshake before the callback is called. An unknown critical extension
     or a key usage inconsistent with the basic constraints is left for the
     callback to judge. The callback returns 0 to accept, CHAIN_VERIFY_WANT_E

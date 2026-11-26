@@ -17293,6 +17293,21 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 #endif /* !NO_ASN_TIME */
 
 #ifndef NO_CERTS
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
+/* RFC 5280 section 4.1.2.2 requires a positive serial number. A serial of a
+ * single zero byte is tolerated only for a self-issued CA (some widely
+ * deployed roots, e.g. Go Daddy G2 and Starfield G2, carry serial 0; issue
+ * #11952) and for a certificate request, whose serial is a PKCS#9 attribute.
+ * Shared by DecodeCertInternal() and ParseCertRelative() so the two sites
+ * cannot drift. */
+#ifdef WOLFSSL_CERT_REQ
+    #define ZERO_SERIAL_ALLOWED(cert) \
+        (((cert)->isCA && (cert)->selfIssued) || (cert)->isCSR)
+#else
+    #define ZERO_SERIAL_ALLOWED(cert) ((cert)->isCA && (cert)->selfIssued)
+#endif
+#endif /* zero-serial policy */
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* TODO: move code around to not require this. */
 static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
@@ -24985,18 +25000,16 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     /* Structural serial-0 rejection. RFC 5280 4.1.2.2 requires positive
      * serials; reject here so non-trust-bearing pubkey-extraction callers
      * (DecodeToKey, wc_GetPubX509, d2i_X509-style decode) do not silently
-     * accept malformed certs. ParseCertRelative performs the authoritative
-     * trust-bearing check (with the CA_TYPE/TRUSTED_PEER_TYPE exemption
-     * for legacy self-issued root CAs); the exemption here is intentionally
-     * narrow: when extensions are not parsed (stopAtPubKey/stopAfterPubKey)
-     * isCA is not populated, so the exemption never fires and serial-0 is
-     * always rejected on those paths. */
-    if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-        if (!(cert->isCA && cert->selfIssued)
-#ifdef WOLFSSL_CERT_REQ
-            && !cert->isCSR
-#endif
-        ) {
+     * accept malformed certs. ParseCertRelative applies the same
+     * ZERO_SERIAL_ALLOWED() rule after the full parse; the exemption here
+     * is intentionally narrow: when extensions are not parsed
+     * (stopAtPubKey/stopAfterPubKey) isCA is not populated, so the
+     * exemption never fires and serial-0 is always rejected on those
+     * paths. A date error does not skip the check: a verify callback may
+     * accept the date error, but not the serial. */
+    if (((ret == 0) || (ret == badDate)) && (cert->serialSz == 1) &&
+            (cert->serial[0] == 0)) {
+        if (!ZERO_SERIAL_ALLOWED(cert)) {
             WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
             ret = ASN_PARSE_E;
         }
@@ -26785,18 +26798,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
          * positive serial numbers; the same section notes that verifiers
          * SHOULD gracefully handle non-conforming certs with zero or
          * negative serials. wolfSSL's policy is to reject as a security
-         * guard, with an exemption for self-issued CA certs loaded as
-         * explicitly-trusted anchors (some legacy real-world roots have
-         * serial 0). */
-        if ((ret == 0) && (cert->serialSz == 1) && (cert->serial[0] == 0)) {
-            int isTrustAnchorLoad =
-                (type == CA_TYPE || type == TRUSTED_PEER_TYPE)
-                && cert->isCA && cert->selfIssued;
-            int isCsr = 0;
-        #ifdef WOLFSSL_CERT_REQ
-            isCsr = cert->isCSR;
-        #endif
-            if (!isTrustAnchorLoad && !isCsr) {
+         * guard, with an exemption for self-issued CA certificates (some
+         * widely deployed roots, e.g. Go Daddy G2 and Starfield G2, have
+         * serial 0). The exemption does not depend on the parse type:
+         * servers commonly send their root in the TLS chain
+         * (CHAIN_CERT_TYPE) and the OpenSSL-compat loaders parse as
+         * CERT_TYPE. Accepting serial 0 here grants no trust; the signer
+         * lookup below still requires the certificate, or its issuer, to
+         * be in the CA store. In WOLFSSL_ASN_TEMPLATE builds DecodeCert()
+         * above has already applied the same rule, so this check can only
+         * fire in original-ASN builds, whose decoder carries no serial
+         * check. A date error kept for the caller (ret == cert->badDate)
+         * does not skip the check. */
+        if (((ret == 0) || (ret == cert->badDate)) &&
+                (cert->serialSz == 1) && (cert->serial[0] == 0)) {
+            if (!ZERO_SERIAL_ALLOWED(cert)) {
                 WOLFSSL_MSG("Error serial number of 0 for non-root certificate");
                 return ASN_PARSE_E;
             }

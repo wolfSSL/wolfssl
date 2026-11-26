@@ -30449,13 +30449,18 @@ static int test_PathLenNoKeyUsage(void)
  * wolfSSL, so the test cannot pass for the wrong reason if wc_MakeCert
  * encoding ever drifts.
  *
- * Predicate exempts only (CA_TYPE|TRUSTED_PEER_TYPE) && isCA && selfIssued.
+ * Predicate exempts isCA && selfIssued under every parse type, so each
+ * fixture has one outcome across CERT_TYPE, CHAIN_CERT_TYPE, CA_TYPE and
+ * TRUSTED_PEER_TYPE. CHAIN_CERT_TYPE is how ProcessPeerCerts parses the
+ * certificates a peer sends (issue #11952).
  *
- *   Fixture                          isCA selfIssued CERT_TYPE CA_TYPE
- *   root_serial0.pem                 1    1          reject    accept
- *   intermediate_serial0.pem         1    0          reject    reject
- *   selfsigned_nonca_serial0.pem     0    1          reject    reject
- *   ee_serial0.pem                   0    0          reject    reject
+ *   Fixture                          isCA selfIssued outcome
+ *   root_serial0.pem                 1    1          accept
+ *   intermediate_serial0.pem         1    0          reject
+ *   selfsigned_nonca_serial0.pem     0    1          reject
+ *   ee_serial0.pem                   0    0          reject
+ *   ee_serial0_expired.pem           0    0          reject, under VERIFY
+ *                                                    too (no date error)
  */
 static int test_ParseSerial0FixtureMatrix(void)
 {
@@ -30473,19 +30478,23 @@ static int test_ParseSerial0FixtureMatrix(void)
      * specific code is brittle across configs. */
     struct {
         const char* path;
-        int  certTypeShouldPass; /* 1: expect ret == 0; 0: expect ret != 0 */
-        int  caTypeShouldPass;
+        int  shouldPass; /* 1: expect ret == 0; 0: expect ret != 0 */
     } cases[] = {
-        /* Root CA serial 0 is rejected as CERT_TYPE, accepted as trust
-         * anchor (CA_TYPE) per the exemption in ParseCertRelative. */
-        { "./certs/test-serial0/root_serial0.pem",         0, 1 },
-        /* Intermediate CA: CA:TRUE but issuer != subject, so the trust
-         * anchor exemption (cert->selfIssued) does not apply. */
-        { "./certs/test-serial0/intermediate_serial0.pem", 0, 0 },
-        { "./certs/test-serial0/selfsigned_nonca_serial0.pem", 0, 0 },
-        { "./certs/test-serial0/ee_serial0.pem",           0, 0 },
+        /* Root CA serial 0 is accepted under every type: servers commonly
+         * send their root in the TLS chain and the OpenSSL-compat loaders
+         * parse as CERT_TYPE. Accepting it grants no trust. */
+        { "./certs/test-serial0/root_serial0.pem",             1 },
+        /* Intermediate CA: CA:TRUE but issuer != subject, so the
+         * self-issued exemption (cert->selfIssued) does not apply. */
+        { "./certs/test-serial0/intermediate_serial0.pem",     0 },
+        { "./certs/test-serial0/selfsigned_nonca_serial0.pem", 0 },
+        { "./certs/test-serial0/ee_serial0.pem",               0 },
+    };
+    const int types[] = {
+        CERT_TYPE, CHAIN_CERT_TYPE, CA_TYPE, TRUSTED_PEER_TYPE
     };
     size_t i;
+    size_t t;
 
     for (i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
         byte*  pemBuf = NULL;
@@ -30501,18 +30510,11 @@ static int test_ParseSerial0FixtureMatrix(void)
         ExpectIntGE(derSz = wc_CertPemToDer(pemBuf, (int)pemSz, derBuf,
             (int)pemSz, CERT_TYPE), 0);
 
-        if (EXPECT_SUCCESS()) {
+        for (t = 0; EXPECT_SUCCESS() && t < sizeof(types) / sizeof(types[0]);
+                ++t) {
             wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
-            ret = wc_ParseCert(&dc, CERT_TYPE, NO_VERIFY, NULL);
-            if (cases[i].certTypeShouldPass)
-                ExpectIntEQ(ret, 0);
-            else
-                ExpectIntNE(ret, 0);
-            wc_FreeDecodedCert(&dc);
-
-            wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
-            ret = wc_ParseCert(&dc, CA_TYPE, NO_VERIFY, NULL);
-            if (cases[i].caTypeShouldPass)
+            ret = wc_ParseCert(&dc, types[t], NO_VERIFY, NULL);
+            if (cases[i].shouldPass)
                 ExpectIntEQ(ret, 0);
             else
                 ExpectIntNE(ret, 0);
@@ -30522,6 +30524,146 @@ static int test_ParseSerial0FixtureMatrix(void)
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(pemBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
+
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    /* Accepting the serial-0 root is not trusting it. Under VERIFY the signer
+     * lookup still runs for the peer types: with an empty store the root is
+     * refused for want of a signer, and once it is loaded as a CA it verifies
+     * against itself.
+     *
+     * Not under WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION: there
+     * wolfSSL_CertManagerLoadCA() hands the CA to Security.framework and
+     * empties the certificate manager's own store, so the loaded-CA case
+     * cannot be set up. */
+    {
+        const char* rootPath = cases[0].path;
+        const int peerTypes[] = { CERT_TYPE, CHAIN_CERT_TYPE };
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        byte*  pemBuf = NULL;
+        size_t pemSz  = 0;
+        byte*  derBuf = NULL;
+        int    derSz  = 0;
+        DecodedCert dc;
+        int    ret;
+
+        ExpectIntEQ(load_file(rootPath, &pemBuf, &pemSz), 0);
+        ExpectNotNull(derBuf = (byte*)XMALLOC(pemSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntGE(derSz = wc_CertPemToDer(pemBuf, (int)pemSz, derBuf,
+            (int)pemSz, CERT_TYPE), 0);
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+        for (t = 0; EXPECT_SUCCESS() &&
+                t < sizeof(peerTypes) / sizeof(peerTypes[0]); ++t) {
+            wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
+            ret = wc_ParseCert(&dc, peerTypes[t], VERIFY, cm);
+            ExpectTrue(ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
+                       ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E));
+            wc_FreeDecodedCert(&dc);
+        }
+
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, rootPath, NULL),
+            WOLFSSL_SUCCESS);
+        for (t = 0; EXPECT_SUCCESS() &&
+                t < sizeof(peerTypes) / sizeof(peerTypes[0]); ++t) {
+            wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
+            ExpectIntEQ(wc_ParseCert(&dc, peerTypes[t], VERIFY, cm), 0);
+            wc_FreeDecodedCert(&dc);
+        }
+
+        wolfSSL_CertManagerFree(cm);
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pemBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+
+    /* A date error must not hide the serial-0 rejection. An expired serial-0
+     * end-entity certificate parsed with VERIFY has to fail with ASN_PARSE_E,
+     * not with ASN_AFTER_DATE_E, which a verify callback may accept. */
+    {
+        byte*  pemBuf = NULL;
+        size_t pemSz  = 0;
+        byte*  derBuf = NULL;
+        int    derSz  = 0;
+        DecodedCert dc;
+
+        ExpectIntEQ(load_file("./certs/test-serial0/ee_serial0_expired.pem",
+            &pemBuf, &pemSz), 0);
+        ExpectNotNull(derBuf = (byte*)XMALLOC(pemSz, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntGE(derSz = wc_CertPemToDer(pemBuf, (int)pemSz, derBuf,
+            (int)pemSz, CERT_TYPE), 0);
+        for (t = 0; EXPECT_SUCCESS() && t < sizeof(types) / sizeof(types[0]);
+                ++t) {
+            wc_InitDecodedCert(&dc, derBuf, (word32)derSz, NULL);
+            ExpectIntEQ(wc_ParseCert(&dc, types[t], VERIFY, NULL),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
+            wc_FreeDecodedCert(&dc);
+        }
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pemBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_NO_PEM) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+/* Under OPENSSL_COMPATIBLE_DEFAULTS a new client CTX starts in VERIFY_NONE,
+ * as in OpenSSL, so ask for verification explicitly: the test is about
+ * whether the chain is accepted once it is verified. */
+static int test_serial0_client_verify_peer(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    return TEST_SUCCESS;
+}
+#endif
+
+/* A server that sends a self-issued serial-0 root in its chain, as the stock
+ * Go Daddy and Starfield bundles do, must still complete the handshake
+ * (issue #11952). ProcessPeerCerts parses chain certificates as
+ * CHAIN_CERT_TYPE, and a parse error there fails the handshake before any
+ * trust decision is made. Trust is still decided by the CA store: with the
+ * root loaded the handshake succeeds, with a different CA it fails on the
+ * signer lookup, not on parsing. */
+static int test_wolfSSL_Serial0RootInPeerChain(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(WOLFSSL_NO_PEM) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    test_ssl_memio_ctx test_ctx;
+
+    /* Client trusts the serial-0 root that the server presents. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.certPemFile = "./certs/test-serial0/ee_normal_chain.pem";
+    test_ctx.s_cb.keyPemFile = "./certs/test-serial0/ee_normal_key.pem";
+    test_ctx.c_cb.caPemFile = "./certs/test-serial0/root_serial0.pem";
+    test_ctx.c_cb.ctx_ready = test_serial0_client_verify_peer;
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    test_ssl_memio_cleanup(&test_ctx);
+    ExpectIntEQ(test_ctx.c_cb.last_err, 0);
+
+    /* Same chain, client trusts an unrelated CA: the serial-0 root parses
+     * but nothing in the chain has a trusted signer. The client reports the
+     * missing signer, not a parse error. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.s_cb.certPemFile = "./certs/test-serial0/ee_normal_chain.pem";
+    test_ctx.s_cb.keyPemFile = "./certs/test-serial0/ee_normal_key.pem";
+    test_ctx.c_cb.caPemFile = "./certs/ca-cert.pem";
+    test_ctx.c_cb.ctx_ready = test_serial0_client_verify_peer;
+    ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    ExpectIntNE(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+        TEST_SUCCESS);
+    /* test_ssl_memio_cleanup records each side's last error. */
+    test_ssl_memio_cleanup(&test_ctx);
+    ExpectTrue(test_ctx.c_cb.last_err == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
+               test_ctx.c_cb.last_err == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E));
 #endif
     return EXPECT_RESULT();
 }
@@ -49246,6 +49388,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_NameConstraints_RolloverCa),
     TEST_DECL(test_NameConstraints_RootAkid),
     TEST_DECL(test_ParseSerial0FixtureMatrix),
+    TEST_DECL(test_wolfSSL_Serial0RootInPeerChain),
     TEST_DECL(test_MakeCertWithCaFalse),
     TEST_DECL(test_wc_SignCert_cb),
     TEST_DECL(test_wc_SetAcmeIdentifierExt),
