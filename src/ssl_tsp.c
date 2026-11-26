@@ -202,21 +202,16 @@ struct WOLFSSL_TS_VERIFY_CTX {
 static int ts_asn1_integer_get(const WOLFSSL_ASN1_INTEGER* a,
     const unsigned char** data, word32* len)
 {
-    word32 idx = 1;
-    int length = 0;
-
-    if ((a == NULL) || (a->length < 3) || (a->data[0] != ASN_INTEGER))
+    if ((a == NULL) || (a->data == NULL) || (a->length <= 0))
         return 0;
     /* The number is an unsigned big-endian value. The data holds the
-     * magnitude; the sign is carried separately - reject a negative value
-     * rather than use its magnitude as if positive. */
-    if (a->negative || (a->type == WOLFSSL_V_ASN1_NEG_INTEGER))
-        return 0;
-    if (GetLength(a->data, &idx, &length, (word32)a->length) < 0)
+     * magnitude; the sign is in the type - reject a negative value rather
+     * than use its magnitude as if positive. */
+    if ((a->type & WOLFSSL_V_ASN1_NEG) != 0)
         return 0;
 
-    *data = a->data + idx;
-    *len = (word32)length;
+    *data = a->data;
+    *len = (word32)a->length;
     return 1;
 }
 #endif /* WOLFSSL_TSP_REQUESTER || WOLFSSL_TSP_RESPONDER */
@@ -2324,9 +2319,6 @@ WOLFSSL_TS_RESP* wolfSSL_TS_RESP_create_response(WOLFSSL_TS_RESP_CTX* ctx,
     serialInt = ctx->serialCb(ctx, ctx->serialCbData);
     if (ts_asn1_integer_get(serialInt, &serial, &serialSz) != 1)
         goto cleanup;
-    /* ts_asn1_integer_get returns the raw INTEGER content, which keeps the
-     * leading 0x00 pad of a positive value whose top byte has the high bit
-     * set. wc_TspTstInfo_SetFromRequest strips it before encoding. */
 
     /* Get the time from the callback. Without time support (NO_ASN_TIME) the
      * callback's time cannot be formatted as a GeneralizedTime, and the
