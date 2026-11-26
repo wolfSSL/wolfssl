@@ -350,6 +350,19 @@ void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx,
     }
 }
 
+/* Get the untrusted certificates passed to wolfSSL_X509_STORE_CTX_init(). The
+ * stack is still owned by the caller of init and must not be freed. */
+WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_CTX_get0_untrusted(
+    const WOLFSSL_X509_STORE_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get0_untrusted");
+
+    if (ctx == NULL) {
+        return NULL;
+    }
+    return ctx->ctxIntermediates;
+}
+
 
 #endif /* OPENSSL_EXTRA */
 
@@ -1513,6 +1526,21 @@ void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 #endif
     return NULL;
 }
+
+#ifdef HAVE_EX_DATA_CRYPTO
+/* Get a new X509_STORE_CTX ex_data index. Never 0, which holds the WOLFSSL
+ * object. Returns -1 on failure. */
+int wolfSSL_X509_STORE_CTX_get_ex_new_index(long idx, void* arg,
+                                            WOLFSSL_CRYPTO_EX_new* new_func,
+                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
+                                            WOLFSSL_CRYPTO_EX_free* free_func)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_ex_new_index");
+
+    return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX,
+        idx, arg, new_func, dup_func, free_func);
+}
+#endif /* HAVE_EX_DATA_CRYPTO */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 

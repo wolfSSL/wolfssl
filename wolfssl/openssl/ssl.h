@@ -649,6 +649,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_check_host                 wolfSSL_X509_check_host
 #define X509_check_email                wolfSSL_X509_check_email
 #define X509_check_ip_asc               wolfSSL_X509_check_ip_asc
+#define X509_check_ip                   wolfSSL_X509_check_ip
 #define X509_email_free                 wolfSSL_X509_email_free
 #define X509_check_issued               wolfSSL_X509_check_issued
 #define X509_dup                        wolfSSL_X509_dup
@@ -797,6 +798,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
 #define X509_STORE_CTX_get0_chain       wolfSSL_X509_STORE_CTX_get_chain
 #define X509_STORE_CTX_get1_chain       wolfSSL_X509_STORE_CTX_get1_chain
+#define X509_STORE_CTX_get0_untrusted   wolfSSL_X509_STORE_CTX_get0_untrusted
 #define X509_STORE_CTX_get0_parent_ctx  wolfSSL_X509_STORE_CTX_get0_parent_ctx
 #define X509_STORE_CTX_get_error        wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth  wolfSSL_X509_STORE_CTX_get_error_depth
@@ -806,6 +808,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_set_error_depth  wolfSSL_X509_STORE_CTX_set_error_depth
 #define X509_STORE_CTX_get_ex_data      wolfSSL_X509_STORE_CTX_get_ex_data
 #define X509_STORE_CTX_set_ex_data      wolfSSL_X509_STORE_CTX_set_ex_data
+#define X509_STORE_CTX_get_ex_new_index wolfSSL_X509_STORE_CTX_get_ex_new_index
 #define X509_STORE_CTX_set_depth        wolfSSL_X509_STORE_CTX_set_depth
 #define X509_STORE_CTX_verify_cb        WOLFSSL_X509_STORE_CTX_verify_cb
 #define X509_STORE_CTX_get0_current_issuer \
@@ -848,6 +851,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_VERIFY_PARAM_get_flags     wolfSSL_X509_VERIFY_PARAM_get_flags
 #define X509_VERIFY_PARAM_clear_flags   wolfSSL_X509_VERIFY_PARAM_clear_flags
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
+#define X509_VERIFY_PARAM_get_hostflags wolfSSL_X509_VERIFY_PARAM_get_hostflags
 #define SSL_set1_host                   wolfSSL_set1_host
 #define X509_VERIFY_PARAM_set1_host     wolfSSL_X509_VERIFY_PARAM_set1_host
 #define X509_VERIFY_PARAM_set1_ip_asc   wolfSSL_X509_VERIFY_PARAM_set1_ip_asc

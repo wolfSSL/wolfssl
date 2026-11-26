@@ -46,6 +46,7 @@ int test_wolfSSL_get_tbs(void);
 int test_wolfSSL_X509_ext_get_critical_by_NID(void);
 int test_wolfSSL_X509_CRL_distribution_points(void);
 int test_wolfSSL_X509_check_ip_asc(void);
+int test_wolfSSL_X509_check_ip(void);
 int test_wolfSSL_X509_bad_altname(void);
 int test_wolfSSL_X509_name_match1(void);
 int test_wolfSSL_X509_name_match2(void);
@@ -84,6 +85,7 @@ int test_wolfSSL_X509_cmp(void);
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_ext_get_critical_by_NID),   \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_CRL_distribution_points),   \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_ip_asc),              \
+    TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_check_ip),                  \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_bad_altname),               \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_name_match1),               \
     TEST_DECL_GROUP("ossl_x509", test_wolfSSL_X509_name_match2),               \

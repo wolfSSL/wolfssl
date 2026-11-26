@@ -1363,6 +1363,102 @@ int test_wolfSSL_X509_check_ip_asc(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_check_ip(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_ASN)
+    WOLFSSL_X509 *x509 = NULL;
+    WOLFSSL_X509 *empty = NULL;
+    WOLFSSL_X509 *cnIp = NULL;
+    /* cliCertFile has the iPAddress 127.0.0.1 and no IPv6 address. */
+    static const unsigned char ip4[] = { 127, 0, 0, 1 };
+    static const unsigned char ip4Other[] = { 127, 0, 0, 2 };
+    /* 2001:db8::1 */
+    static const unsigned char ip6[] = {
+        0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+    /* 127.0.0.1 followed by zeros, long enough for every length below. */
+    static const unsigned char ip4Padded[17] = { 127, 0, 0, 1 };
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(empty = wolfSSL_X509_new());
+
+#ifdef WOLFSSL_IP_ALT_NAME
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4, sizeof(ip4), 0), 1);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0), 1);
+#endif
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Other, sizeof(ip4Other), 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.2", 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip6, sizeof(ip6), 0), 0);
+
+    /* CN=127.0.0.1 and no SAN: the subject is never checked for an IP, not
+     * even with WOLFSSL_ALWAYS_CHECK_SUBJECT. */
+    ExpectNotNull(cnIp = wolfSSL_X509_load_certificate_buffer(
+        cn_ip_literal_der, (int)sizeof(cn_ip_literal_der),
+        WOLFSSL_FILETYPE_ASN1));
+    ExpectIntEQ(wolfSSL_X509_check_ip(cnIp, ip4, sizeof(ip4), 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(cnIp, ip4, sizeof(ip4),
+        WOLFSSL_ALWAYS_CHECK_SUBJECT), 0);
+
+    /* Only 4 and 16 byte addresses exist. A matching prefix is not a match. */
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 0, 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 1, 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 3, 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 5, 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 15, 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 16, 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 17, 0), 0);
+
+    ExpectIntEQ(wolfSSL_X509_check_ip(NULL, ip4, sizeof(ip4), 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, NULL, sizeof(ip4), 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(x509, NULL, 0, 0), 0);
+    ExpectIntEQ(wolfSSL_X509_check_ip(NULL, NULL, 0, 0), 0);
+    /* No certificate data to check against. */
+    ExpectIntEQ(wolfSSL_X509_check_ip(empty, ip4, sizeof(ip4), 0), 0);
+
+#if defined(WOLFSSL_IP_ALT_NAME) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_ALT_NAMES) && !defined(NO_SHA256)
+    {
+        /* 2001:db8::2 */
+        static const unsigned char ip6Other[] = {
+            0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
+        };
+        WOLFSSL_EVP_PKEY* priv = NULL;
+        const unsigned char* keyPt = client_key_der_2048;
+
+        /* Add an IPv6 iPAddress and re-sign so it is in the DER. */
+        ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+            &keyPt, sizeof_client_key_der_2048));
+        ExpectIntEQ(wolfSSL_X509_add_altname_ex(x509, (const char*)ip6,
+            sizeof(ip6), ASN_IP_TYPE), WOLFSSL_SUCCESS);
+        ExpectIntGT(wolfSSL_X509_sign(x509, priv, wolfSSL_EVP_sha256()), 0);
+
+        ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip6, sizeof(ip6), 0), 1);
+        ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509,
+            "2001:0DB8:0000:0000:0000:0000:0000:0001", 0), 1);
+        ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip6Other, sizeof(ip6Other),
+            0), 0);
+        ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4, sizeof(ip4), 0), 1);
+        /* The IPv4 address as the first bytes of an IPv6 address. */
+        ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip4Padded, 16, 0), 0);
+        /* The IPv6 address cut to IPv4 length. */
+        ExpectIntEQ(wolfSSL_X509_check_ip(x509, ip6, 4, 0), 0);
+
+        wolfSSL_EVP_PKEY_free(priv);
+    }
+#endif
+
+    wolfSSL_X509_free(cnIp);
+    wolfSSL_X509_free(empty);
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_bad_altname(void)
 {
     EXPECT_DECLS;

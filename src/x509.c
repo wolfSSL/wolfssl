@@ -11712,6 +11712,17 @@ void wolfSSL_X509_VERIFY_PARAM_set_hostflags(WOLFSSL_X509_VERIFY_PARAM* param,
     }
 }
 
+/* Get the host flags in the X509_VERIFY_PARAM structure. 0 when param is
+ * NULL. */
+unsigned int wolfSSL_X509_VERIFY_PARAM_get_hostflags(
+    const WOLFSSL_X509_VERIFY_PARAM* param)
+{
+    if (param == NULL) {
+        return 0;
+    }
+    return param->hostFlags;
+}
+
 /* Sets the expected IP address to ipasc.
  *
  * param is a pointer to the X509_VERIFY_PARAM structure
@@ -17550,6 +17561,46 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
 
     return ret;
 }
+
+#ifdef OPENSSL_EXTRA
+/* Binary form of wolfSSL_X509_check_ip_asc(): chk is a 4 byte IPv4 or 16 byte
+ * IPv6 address. It is printed the way the certificate parser prints iPAddress
+ * names, so the string check applies unchanged.
+ *
+ * return 1 on a match and 0 otherwise */
+int wolfSSL_X509_check_ip(WOLFSSL_X509 *x, const unsigned char *chk,
+        size_t chklen, unsigned int flags)
+{
+    char ipasc[WOLFSSL_MAX_IPSTR];
+    size_t i;
+
+    WOLFSSL_ENTER("wolfSSL_X509_check_ip");
+
+    if ((x == NULL) || (chk == NULL)) {
+        WOLFSSL_MSG("Invalid parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (chklen == WOLFSSL_IP4_ADDR_LEN) {
+        (void)XSNPRINTF(ipasc, sizeof(ipasc), "%u.%u.%u.%u",
+            (unsigned int)chk[0], (unsigned int)chk[1], (unsigned int)chk[2],
+            (unsigned int)chk[3]);
+    }
+    else if (chklen == WOLFSSL_IP6_ADDR_LEN) {
+        for (i = 0; i < 8; i++) {
+            (void)XSNPRINTF(ipasc + i * 5, sizeof(ipasc) - i * 5, "%02X%02X%s",
+                (unsigned int)chk[2 * i], (unsigned int)chk[2 * i + 1],
+                (i < 7) ? ":" : "");
+        }
+    }
+    else {
+        WOLFSSL_MSG("IP address must be 4 or 16 bytes");
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_X509_check_ip_asc(x, ipasc, flags);
+}
+#endif /* OPENSSL_EXTRA */
 #endif
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)

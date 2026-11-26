@@ -8396,6 +8396,9 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
     static int ssl_idx = 0;
     static int ssl_session_idx = 0;
     static int x509_idx = 0;
+    /* Index 0 holds the WOLFSSL object, see
+     * wolfSSL_get_ex_data_X509_STORE_CTX_idx(). */
+    static int x509_store_ctx_idx = 1;
 
     int idx = -1;
 
@@ -8421,9 +8424,13 @@ int wolfssl_local_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
                 return WOLFSSL_FATAL_ERROR;
             idx = ssl_session_idx++;
             break;
+        case WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX:
+            WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
+                    dup_func, free_func);
+            idx = x509_store_ctx_idx++;
+            break;
         /* following class indexes are not supoprted */
         case WOLF_CRYPTO_EX_INDEX_X509_STORE:
-        case WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX:
         case WOLF_CRYPTO_EX_INDEX_DH:
         case WOLF_CRYPTO_EX_INDEX_DSA:
         case WOLF_CRYPTO_EX_INDEX_EC_KEY:
@@ -10669,6 +10676,7 @@ int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
  *  - WOLF_CRYPTO_EX_INDEX_SSL
  *  - WOLF_CRYPTO_EX_INDEX_SSL_CTX
  *  - WOLF_CRYPTO_EX_INDEX_X509
+ *  - WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX
  * @param class_index index one of CRYPTO_EX_INDEX_xxx
  * @param argp  parameters to be saved
  * @param argl  parameters to be saved

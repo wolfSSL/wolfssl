@@ -18066,6 +18066,7 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
            - wolfSSL_get_ex_new_index
            - wolfSSL_SESSION_get_ex_new_index
            - wolfSSL_X509_get_ex_new_index
+           - wolfSSL_X509_STORE_CTX_get_ex_new_index
 
     \param [in] class_index Identifier for the object class the external data
                  index applies to. Ignored by wolfSSL.
