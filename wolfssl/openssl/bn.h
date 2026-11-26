@@ -140,7 +140,9 @@ WOLFSSL_API int wolfSSL_BN_bn2binpad(const WOLFSSL_BIGNUM* bn, unsigned char* r,
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
                                               WOLFSSL_BIGNUM* ret);
 
+#ifndef WOLFSSL_SP_MATH
 WOLFSSL_API int wolfSSL_mask_bits(WOLFSSL_BIGNUM* bn, int n);
+#endif
 
 WOLFSSL_API int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM* bn, int bits, int top,
                                        int bottom);
@@ -263,7 +265,9 @@ typedef WOLFSSL_BN_GENCB    BN_GENCB;
 #define BN_gcd       wolfSSL_BN_gcd
 #define BN_value_one wolfSSL_BN_value_one
 
+#ifndef WOLFSSL_SP_MATH
 #define BN_mask_bits wolfSSL_mask_bits
+#endif
 
 #define BN_pseudo_rand wolfSSL_BN_pseudo_rand
 #define BN_rand        wolfSSL_BN_rand
