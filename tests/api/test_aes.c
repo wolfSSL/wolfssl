@@ -5641,6 +5641,134 @@ int test_wc_AesGcmStream_BadAuthTag(void)
     return EXPECT_RESULT();
 }
 
+/* One Aes object: an earlier AAD-only call, or a stream that was finished,
+ * started twice or left open, must not change the tag of a later call. */
+int test_wc_AesGcm_NoStateCarryOver(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_256) && !defined(HAVE_SELFTEST)
+    static const byte key[] = {
+        0x60,0x61,0x62,0x63,0x64,0x65,0x66,0x67,0x68,0x69,0x6a,0x6b,
+        0x6c,0x6d,0x6e,0x6f,0x70,0x71,0x72,0x73,0x74,0x75,0x76,0x77,
+        0x78,0x79,0x7a,0x7b,0x7c,0x7d,0x7e,0x7f
+    };
+    static const byte aad[] = {
+        0xa0,0xa1,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7,0xa8,0xa9,0xaa,0xab,
+        0xac,0xad,0xae,0xaf
+    };
+    static const byte pt[] = {
+        0x01,0x06,0x0b,0x10,0x15,0x1a,0x1f,0x24,0x29,0x2e,0x33,0x38,
+        0x3d,0x42,0x47,0x4c,0x51,0x56,0x5b,0x60,0x65,0x6a,0x6f,0x74,
+        0x79,0x7e,0x83,0x88,0x8d,0x92,0x97,0x9c
+    };
+    static const byte iv1[] = {
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01
+    };
+    static const byte ct1[] = {
+        0x38,0xd4,0xe4,0xaf,0x4c,0x0f,0xf5,0x4c,0x07,0xc4,0x25,0x10,
+        0xfe,0xb9,0x81,0x20,0xe2,0xf2,0xc6,0x02,0x62,0xaa,0x83,0x42,
+        0x5a,0xc2,0xb1,0xde,0x44,0xf2,0xde,0x21
+    };
+    static const byte tag1[] = {
+        0x70,0x75,0xe6,0x6b,0xab,0x25,0x12,0xbf,0x5e,0xcf,0xa0,0x50,
+        0x74,0x40,0x37,0x23
+    };
+    static const byte iv2[] = {
+        0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02
+    };
+    static const byte ct2[] = {
+        0xd4,0xbd,0xa8,0x82,0x4c,0xf0,0xd8,0xce,0x2a,0x0f,0x37,0x62,
+        0xdf,0xb6,0x22,0x24,0x4a,0xbb,0x92,0xad,0x60,0xf1,0x2e,0x97,
+        0xee,0x0c,0x31,0x81,0x42,0xbe,0xeb,0x56
+    };
+    static const byte tag2[] = {
+        0x36,0x46,0x33,0x68,0x3c,0x05,0x35,0x15,0xcf,0x17,0x3d,0x2e,
+        0x42,0xe6,0xaa,0x3d
+    };
+    static const byte iv3[] = {
+        0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03
+    };
+    static const byte tag3[] = {
+        0xbd,0x82,0xf8,0x73,0x8c,0x9c,0x76,0xe3,0x1e,0xaa,0xe6,0xbb,
+        0x94,0xe5,0x6f,0x93
+    };
+    Aes aes[1];
+    byte out[sizeof(pt)];
+#ifndef HAVE_FIPS
+    byte tag[WC_AES_BLOCK_SIZE];
+#endif
+
+    XMEMSET(aes, 0, sizeof(aes));
+    ExpectIntEQ(wc_AesInit(aes, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesGcmSetKey(aes, key, sizeof(key)), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(aes, out, ct2, sizeof(ct2), iv2, sizeof(iv2),
+        tag2, sizeof(tag2), aad, 8), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+    /* 16 bytes of AAD and no data, then the 8-byte AAD frame again */
+    ExpectIntEQ(wc_AesGcmDecrypt(aes, NULL, NULL, 0, iv3, sizeof(iv3), tag3,
+        sizeof(tag3), aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(aes, out, ct2, sizeof(ct2), iv2, sizeof(iv2),
+        tag2, sizeof(tag2), aad, 8), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+#ifndef HAVE_FIPS
+    /* the same two steps encrypting, as wc_GmacUpdate() then a message; not
+     * in FIPS builds, where v7 refuses a one-shot encrypt on a caller's IV */
+    ExpectIntEQ(wc_AesGcmEncrypt(aes, NULL, NULL, 0, iv3, sizeof(iv3), tag,
+        sizeof(tag), aad, sizeof(aad)), 0);
+    ExpectBufEQ(tag, tag3, sizeof(tag3));
+    ExpectIntEQ(wc_AesGcmEncrypt(aes, out, pt, sizeof(pt), iv2, sizeof(iv2),
+        tag, sizeof(tag), aad, 8), 0);
+    ExpectBufEQ(out, ct2, sizeof(ct2));
+    ExpectBufEQ(tag, tag2, sizeof(tag2));
+#endif
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* a stream with 16 bytes of AAD, then the 8-byte AAD frame again */
+    ExpectIntEQ(wc_AesGcmDecryptInit(aes, NULL, 0, iv1, sizeof(iv1)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aes, out, ct1, sizeof(ct1), aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(aes, tag1, sizeof(tag1)), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+    ExpectIntEQ(wc_AesGcmDecrypt(aes, out, ct2, sizeof(ct2), iv2, sizeof(iv2),
+        tag2, sizeof(tag2), aad, 8), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+    /* a stream started twice before its data */
+    ExpectIntEQ(wc_AesGcmDecryptInit(aes, NULL, 0, iv1, sizeof(iv1)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptInit(aes, NULL, 0, iv1, sizeof(iv1)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aes, out, ct1, sizeof(ct1), aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(aes, tag1, sizeof(tag1)), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+    /* a stream whose Final is refused for its tag length */
+    ExpectIntEQ(wc_AesGcmDecryptInit(aes, NULL, 0, iv1, sizeof(iv1)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aes, out, ct1, sizeof(ct1), aad,
+        sizeof(aad)), 0);
+    ExpectIntNE(wc_AesGcmDecryptFinal(aes, tag1, WC_AES_BLOCK_SIZE + 1), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(aes, out, ct2, sizeof(ct2), iv2, sizeof(iv2),
+        tag2, sizeof(tag2), aad, 8), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+    /* a stream left open, then the 8-byte AAD frame and a new stream */
+    ExpectIntEQ(wc_AesGcmDecryptInit(aes, NULL, 0, iv1, sizeof(iv1)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aes, out, ct1, sizeof(ct1), aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecrypt(aes, out, ct2, sizeof(ct2), iv2, sizeof(iv2),
+        tag2, sizeof(tag2), aad, 8), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+    ExpectIntEQ(wc_AesGcmDecryptInit(aes, NULL, 0, iv1, sizeof(iv1)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptUpdate(aes, out, ct1, sizeof(ct1), aad,
+        sizeof(aad)), 0);
+    ExpectIntEQ(wc_AesGcmDecryptFinal(aes, tag1, sizeof(tag1)), 0);
+    ExpectBufEQ(out, pt, sizeof(pt));
+#else
+    (void)iv1;
+    (void)ct1;
+    (void)tag1;
+#endif
+    wc_AesFree(aes);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*******************************************************************************
  * GMAC
  ******************************************************************************/
