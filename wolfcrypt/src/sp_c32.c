@@ -24818,7 +24818,7 @@ static void sp_256_tiny_to_bin_8(const sp_uint32* r, byte* a)
 /* Convert an mp_int into 8 words. The digit count is not branched on.
  * Returns MP_VAL when a is negative or wider than 256 bits.
  */
-static int sp_256_from_mp(sp_uint32* r, const mp_int* a)
+static int sp_256_tiny_from_mp(sp_uint32* r, const mp_int* a)
 {
     sp_uint32 used = (sp_uint32)a->used;
     sp_uint32 i;
@@ -24862,9 +24862,9 @@ static int sp_256_tiny_load_pub_8(sp_uint32* r, const mp_int* x,
     sp_uint32* t = P256_TINY_T0(r);
     int err;
 
-    err = sp_256_from_mp(px, x);
+    err = sp_256_tiny_from_mp(px, x);
     if (err == MP_OKAY) {
-        err = sp_256_from_mp(py, y);
+        err = sp_256_tiny_from_mp(py, y);
     }
     if ((err != MP_OKAY) ||
             ((sp_256_tiny_lt_8(t, px, P256_TINY_PRIME->m) &
@@ -24891,12 +24891,12 @@ static int sp_256_tiny_load_point_8(sp_uint32* r, const mp_int* x,
     int err;
     int i;
 
-    err = sp_256_from_mp(P256_TINY_RX(r), x);
+    err = sp_256_tiny_from_mp(P256_TINY_RX(r), x);
     if (err == MP_OKAY) {
-        err = sp_256_from_mp(P256_TINY_RY(r), y);
+        err = sp_256_tiny_from_mp(P256_TINY_RY(r), y);
     }
     if (err == MP_OKAY) {
-        err = sp_256_from_mp(P256_TINY_RZ(r), z);
+        err = sp_256_tiny_from_mp(P256_TINY_RZ(r), z);
     }
     if (err == MP_OKAY) {
         if (inMont) {
@@ -24998,7 +24998,7 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
 
     (void)heap;
 
-    err = sp_256_from_mp(P256_TINY_E(t), km);
+    err = sp_256_tiny_from_mp(P256_TINY_E(t), km);
     if (err == MP_OKAY) {
         err = sp_256_tiny_load_point_8(t, gm->x, gm->y, gm->z, 0);
     }
@@ -25022,7 +25022,7 @@ static int sp_256_tiny_mulmod_add_8(const mp_int* km, const ecc_point* gm,
     sp_uint32 t[P256_TINY_REGS * 8];
     int err;
 
-    err = sp_256_from_mp(P256_TINY_E(t), km);
+    err = sp_256_tiny_from_mp(P256_TINY_E(t), km);
     if ((err == MP_OKAY) && (gm != NULL)) {
         err = sp_256_tiny_load_point_8(t, gm->x, gm->y, gm->z, 0);
         if (err == MP_OKAY) {
@@ -25087,7 +25087,7 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
 
     (void)heap;
 
-    err = sp_256_from_mp(P256_TINY_E(t), km);
+    err = sp_256_tiny_from_mp(P256_TINY_E(t), km);
     if (err == MP_OKAY) {
         sp_256_tiny_set_base_8(t);
         sp_256_ecc_mulmod_8(t, P256_TINY_E(t));
@@ -25181,7 +25181,7 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
         err = BUFFER_E;
     }
     if (err == MP_OKAY) {
-        err = sp_256_from_mp(P256_TINY_E(t), priv);
+        err = sp_256_tiny_from_mp(P256_TINY_E(t), priv);
     }
     if (err == MP_OKAY) {
         err = sp_256_tiny_load_pub_8(t, pub->x, pub->y, pub->z);
@@ -25239,11 +25239,11 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
 
     (void)heap;
 
-    err = sp_256_from_mp(P256_TINY_D(t), priv);
+    err = sp_256_tiny_from_mp(P256_TINY_D(t), priv);
     for (i = 0; (err == MP_OKAY) && (done == 0) && (i < SP_ECC_MAX_SIG_GEN);
             i++) {
         if ((km != NULL) && !mp_iszero(km)) {
-            err = sp_256_from_mp(k, km);
+            err = sp_256_tiny_from_mp(k, km);
             mp_zero(km);
         }
         else {
@@ -25320,8 +25320,8 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     err = sp_256_tiny_load_pub_8(t, pX, pY, pZ);
     if (err == MP_OKAY) {
         /* An r or s out of range is an invalid signature, not an error */
-        ok = (sp_uint32)((sp_256_from_mp(rr, rm) == MP_OKAY) &&
-                         (sp_256_from_mp(s, sm) == MP_OKAY));
+        ok = (sp_uint32)((sp_256_tiny_from_mp(rr, rm) == MP_OKAY) &&
+                         (sp_256_tiny_from_mp(s, sm) == MP_OKAY));
         if (ok != 0) {
             ok = sp_256_tiny_lt_8(rx, rr, P256_TINY_ORDER->m) &
                  sp_256_tiny_lt_8(rx, s, P256_TINY_ORDER->m) &
@@ -25394,7 +25394,7 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
         err = sp_256_tiny_load_pub_8(t, pX, pY, NULL);
     }
     if ((err == MP_OKAY) && (privm != NULL)) {
-        if (sp_256_from_mp(P256_TINY_E(t), privm) != MP_OKAY) {
+        if (sp_256_tiny_from_mp(P256_TINY_E(t), privm) != MP_OKAY) {
             err = ECC_OUT_OF_RANGE_E;
         }
         if (err == MP_OKAY) {
@@ -25529,7 +25529,7 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     sp_uint32* u = P256_TINY_T1(t);
     int err;
 
-    err = sp_256_from_mp(P256_TINY_PX(t), xm);
+    err = sp_256_tiny_from_mp(P256_TINY_PX(t), xm);
     if ((err != MP_OKAY) ||
             (sp_256_tiny_lt_8(v, P256_TINY_PX(t), P256_TINY_PRIME->m) == 0)) {
         err = MP_VAL;
