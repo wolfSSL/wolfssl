@@ -127,19 +127,23 @@ static void *echoclient_test_wrapper(void* args) {
 }
 #endif
 
-int testsuite_test(int argc, char** argv)
-{
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && \
     (defined(WOLFSSL_SWDEV) || \
      (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)))
+    #define HAVE_TESTSUITE_TLS_TESTS_DEPENDENCIES
+#endif
+
+int testsuite_test(int argc, char** argv)
+{
+    func_args wc_args;
+    int ret;
+#ifdef HAVE_TESTSUITE_TLS_TESTS_DEPENDENCIES
     func_args server_args;
 
     tcp_ready ready;
 #if !defined(NETOS)
     THREAD_TYPE serverThread;
-
-    int ret;
 #endif
 
 #ifndef USE_WINDOWS_API
@@ -155,7 +159,47 @@ int testsuite_test(int argc, char** argv)
 #ifdef HAVE_STACK_SIZE
     void *serverThreadStackContext = NULL;
 #endif
+#endif /* HAVE_TESTSUITE_TLS_TESTS_DEPENDENCIES */
 
+    XMEMSET(&wc_args, 0, sizeof(wc_args));
+    wc_args.argc = argc;
+    wc_args.argv = argv;
+
+    ret = wolfCrypt_Init();
+    if (ret != 0) {
+        printf("wolfCrypt_Init failed: %d\n", ret);
+        return EXIT_FAILURE;
+    }
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+    wolfSSL_Debugging_ON();
+#endif
+
+#if !defined(WOLFSSL_TIRTOS)
+    ChangeToWolfRoot();
+#endif
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+#ifdef WOLFSSL_SWDEV
+    if (wc_SwDev_Init() != 0) {
+        printf("wc_SwDev_Init failed\n");
+        return EXIT_FAILURE;
+    }
+#endif
+
+#ifndef NO_CRYPT_TEST
+    /* wc_ test */
+    #ifdef HAVE_STACK_SIZE
+        StackSizeCheck(&wc_args, wolfcrypt_test);
+    #else
+        wolfcrypt_test(&wc_args);
+    #endif
+    if (wc_args.return_code != 0) return wc_args.return_code;
+#endif
+
+#ifdef HAVE_TESTSUITE_TLS_TESTS_DEPENDENCIES
 #ifndef USE_WINDOWS_API
 #ifdef XGETENV
     tempDir = XGETENV("TMPDIR");
@@ -176,37 +220,9 @@ int testsuite_test(int argc, char** argv)
     server_args.argv = argv;
 
     wolfSSL_Init();
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
-    wolfSSL_Debugging_ON();
-#endif
-
-#if !defined(WOLFSSL_TIRTOS)
-    ChangeToWolfRoot();
-#endif
-
-#ifdef WOLFSSL_TIRTOS
-    fdOpenSession(Task_self());
-#endif
 
     server_args.signal = &ready;
     InitTcpReady(&ready);
-
-#ifdef WOLFSSL_SWDEV
-    if (wc_SwDev_Init() != 0) {
-        printf("wc_SwDev_Init failed\n");
-        return EXIT_FAILURE;
-    }
-#endif
-
-#ifndef NO_CRYPT_TEST
-    /* wc_ test */
-    #ifdef HAVE_STACK_SIZE
-        StackSizeCheck(&server_args, wolfcrypt_test);
-    #else
-        wolfcrypt_test(&server_args);
-    #endif
-    if (server_args.return_code != 0) return server_args.return_code;
-#endif
 
     /* Simple wolfSSL client server test */
     #ifdef HAVE_STACK_SIZE
@@ -282,23 +298,25 @@ int testsuite_test(int argc, char** argv)
         return EXIT_FAILURE;
 #endif
 
+    wolfSSL_Cleanup();
+    FreeTcpReady(&ready);
+#endif /* HAVE_TESTSUITE_TLS_TESTS_DEPENDENCIES */
+
 #ifdef WOLFSSL_SWDEV
     wc_SwDev_Cleanup();
 #endif
-
-    wolfSSL_Cleanup();
-    FreeTcpReady(&ready);
 
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
 
-    printf("\nAll tests passed!\n");
+    ret = wolfCrypt_Cleanup();
+    if (ret != 0) {
+        printf("wolfCrypt_Cleanup failed: %d\n", ret);
+        return EXIT_FAILURE;
+    }
 
-#else
-    (void)argc;
-    (void)argv;
-#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
+    printf("\nAll tests passed!\n");
 
     return EXIT_SUCCESS;
 }

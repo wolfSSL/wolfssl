@@ -5433,8 +5433,12 @@ if(WOLFSSL_EXAMPLES)
     set_property(TARGET unit_test
                  PROPERTY RUNTIME_OUTPUT_NAME
                  unit.test)
+    set(UNIT_TEST_ARGS "")
+    if(WOLFSSL_CRYPT_TESTS)
+        set(UNIT_TEST_ARGS --no-wc)
+    endif()
     add_test(NAME unit_test
-             COMMAND $<TARGET_FILE:unit_test>
+             COMMAND $<TARGET_FILE:unit_test> ${UNIT_TEST_ARGS}
              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
