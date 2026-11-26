@@ -107,63 +107,6 @@ elif [ "${AM_BWRAPPED-}" != "yes" ]; then
     unset AM_BWRAPPED
 fi
 
-# need a unique port since may run the same time as testsuite
-# Track ports already assigned in this script run to prevent intra-run collisions
-used_ports=()
-
-generate_port() {
-    #-------------------------------------------------------------------------#
-    # Generate a random port number, guaranteed unique within this script run.
-    # Checks both the intra-run used_ports list and system-level bound ports.
-    #-------------------------------------------------------------------------#
-    local attempts=0 collision p
-
-    while true; do
-        if [[ "$OSTYPE" == "linux"* ]]; then
-            p=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
-        elif [[ "$OSTYPE" == "darwin"* ]]; then
-            p=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
-        else
-            echo "skipping due to unsupported OS"
-            exit 0
-        fi
-
-        # Check against ports already assigned in this run
-        collision=0
-        for up in "${used_ports[@]}"; do
-            if [ "$up" = "$p" ]; then
-                collision=1
-                break
-            fi
-        done
-
-        # Also check if the port is already bound on this system
-        if [ "$collision" -eq 0 ]; then
-            # TCP and UDP, established as well as listening, matched on the
-            # local port. -lnt saw only TCP listeners, so it was blind to the
-            # UDP sockets the DTLS cases here bind and to a port held by an
-            # unrelated outbound connection - both of which still block bind.
-            # A false positive only costs another iteration of this loop.
-            if command -v ss &>/dev/null; then
-                [ -n "$(ss -Hantu "sport = :${p}" 2>/dev/null)" ] && collision=1
-            elif command -v netstat &>/dev/null; then
-                netstat -an 2>/dev/null | grep -q "[:.]${p}[[:space:]]" && collision=1
-            fi
-        fi
-
-        [ "$collision" -eq 0 ] && break
-
-        ((attempts++))
-        if [ "$attempts" -ge 100 ]; then
-            echo "ERROR: generate_port could not find a free port after 100 attempts"
-            exit 1
-        fi
-    done
-
-    port=$p
-    used_ports+=("$p")
-}
-
 WOLFSSL_SERVER=./examples/server/server
 WOLFSSL_CLIENT=./examples/client/client
 
@@ -204,7 +147,7 @@ fail_case() {
     echo "--- wolfSSL/OpenSSL server output ---"
     cat rsapss.server.log
     echo "--- client output ---"
-    cat rsapss.client.log
+    cat rsapss.client.log 2>/dev/null
     fails=$((fails+1))
 }
 
@@ -219,22 +162,25 @@ no_connection() {
         grep -q "can't load" rsapss.server.log
 }
 
-# Wait up to five seconds for the server to bind $port: a fixed pause falls
-# short on a loaded machine. Without ss or netstat, pause as before.
-wait_for_server() {
+# Wait up to five seconds for the server to report the port it bound.
+wait_for_port() {
     local i=0
+    port=""
     while [ "$i" -lt 50 ]; do
-        if command -v ss >/dev/null 2>&1; then
-            [ -n "$(ss -Hantu "sport = :$port" 2>/dev/null)" ] && return
-        elif command -v netstat >/dev/null 2>&1; then
-            netstat -an 2>/dev/null | grep -q "[:.]${port}[[:space:]]" && return
-        else
-            sleep 1
-            return
-        fi
+        port="$("$@" 2>/dev/null)"
+        [ -n "$port" ] && return 0
+        kill -0 "$server_pid" 2>/dev/null || return 1
         sleep 0.1
         i=$((i+1))
     done
+    return 1
+}
+
+no_port_case() {
+    kill $server_pid 2>/dev/null
+    wait $server_pid 2>/dev/null
+    fail_case "$1: server reported no port"
+    rm -f rsapss.server.log rsapss.ready
 }
 
 # SignatureScheme code point (RFC 8446 4.2.3) of a scheme name.
@@ -308,11 +254,12 @@ wire_sig_scheme() {
 wolfssl_server_case() {
     local name="$1" expect="$2" sargs="$3" cargs="$4" result
     cases=$((cases+1))
-    generate_port
-    $TIMEOUT_KILL_2M $WOLFSSL_SERVER -p "$port" $SVR_NO_CRL $sargs \
+    rm -f rsapss.ready
+    $TIMEOUT_KILL_2M $WOLFSSL_SERVER -p 0 -R rsapss.ready $SVR_NO_CRL $sargs \
         > rsapss.server.log 2>&1 &
     server_pid=$!
-    wait_for_server
+    wait_for_port sed -n '/^[1-9][0-9]*$/p' rsapss.ready ||
+        { no_port_case "$name"; return; }
     echo "test connection" | $TIMEOUT_KILL_2M $OPENSSL s_client $V4V6_FLAG \
         -connect "$LOCALHOST:$port" -msg -cipher DEFAULT:!kRSA \
         -legacy_renegotiation $cargs > rsapss.client.log 2>&1
@@ -332,7 +279,7 @@ wolfssl_server_case() {
             "$(scheme_code "$expect")" ]; then
         fail_case "$name: server did not sign with $expect"
     fi
-    rm -f rsapss.server.log rsapss.client.log
+    rm -f rsapss.server.log rsapss.client.log rsapss.ready
 }
 
 # OpenSSL s_server with client auth, wolfSSL client: $1 name, $2 scheme the
@@ -343,13 +290,14 @@ openssl_server_case() {
     local name="$1" expect="$2" sargs="$3" cargs="$4" ccert="$5" cca="$6"
     local result
     cases=$((cases+1))
-    generate_port
-    $TIMEOUT_KILL_2M $OPENSSL s_server $V4V6_FLAG -www -accept "$port" \
+    rm -f rsapss.server.log
+    $TIMEOUT_KILL_2M $OPENSSL s_server $V4V6_FLAG -www -accept 0 \
         -Verify 1 -CAfile "$cca" \
         -cert "$CERT_DIR"/server-cert.pem -key "$CERT_DIR"/server-key.pem \
         -msg $sargs > rsapss.server.log 2>&1 &
     server_pid=$!
-    wait_for_server
+    wait_for_port sed -n 's/^ACCEPT .*:\([1-9][0-9]*\)$/\1/p' rsapss.server.log ||
+        { no_port_case "$name"; return; }
     $TIMEOUT_KILL_2M $WOLFSSL_CLIENT -p "$port" $CLI_NO_CRL -g \
         -A "$CERT_DIR"/ca-cert.pem $ccert $cargs > rsapss.client.log 2>&1
     result=$?
