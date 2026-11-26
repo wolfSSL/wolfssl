@@ -22288,6 +22288,12 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     return 0;
 }
 
+#if defined(WOLFSSL_CERT_EVENTS) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+static void PeerCertEventStatusResult(WOLFSSL* ssl, int ret);
+#endif
+
 /* Make sure no duplicates, no fast forward, or other problems; 0 on success */
 static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 {
@@ -22639,6 +22645,9 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                         TLSX_CSR2_ClearPendingCA(ssl);
 #endif
                     WOLFSSL_ERROR_VERBOSE(OCSP_CERT_UNKNOWN);
+#ifdef WOLFSSL_CERT_EVENTS
+                    PeerCertEventStatusResult(ssl, OCSP_CERT_UNKNOWN);
+#endif
                     return OCSP_CERT_UNKNOWN;
                 }
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
@@ -22684,6 +22693,9 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 #endif
                         ) {
                         SetRevocationVerifyRet(ssl, csrRet);
+#ifdef WOLFSSL_CERT_EVENTS
+                        PeerCertEventStatusResult(ssl, csrRet);
+#endif
                         return csrRet;
                     }
                 }
@@ -22937,7 +22949,8 @@ static int ResetHandshakeStateForReneg(WOLFSSL* ssl)
  *
  * The chain RESULT was already sent, with the certificate's identity. This
  * one carries the status error. A result that will be tried again is not a
- * verdict.
+ * verdict. Call this from the status-check returns only. A duplicate or an
+ * out-of-order ServerHelloDone is not a certificate-status result.
  *
  * @param [in] ssl  SSL/TLS object.
  * @param [in] ret  Result of the ServerHelloDone status check.
@@ -22958,27 +22971,6 @@ static void PeerCertEventStatusResult(WOLFSSL* ssl, int ret)
     if ((ret == 0) || again || (cm == NULL) || (cm->certEventCb == NULL)) {
         return;
     }
-    /* This function runs for every ServerHelloDone that fails its sanity
-     * check. A server, a duplicate, or a message that arrives out of order
-     * is not a certificate-status result. Only a client that asked for a
-     * status has one. */
-    if (ssl->options.side != WOLFSSL_CLIENT_END) {
-        return;
-    }
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    if ((ssl->status_request == 0) && (ssl->status_request_v2 == 0)) {
-        return;
-    }
-#elif defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-    if (ssl->status_request == 0) {
-        return;
-    }
-#else
-    if (ssl->status_request_v2 == 0) {
-        return;
-    }
-#endif
 
     XMEMSET(&ev, 0, sizeof(ev));
     ev.kind     = WC_CEV_KIND_RESULT;
@@ -23073,15 +23065,6 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* sanity check msg received */
     if ( (ret = SanityCheckMsgReceived(ssl, type)) != 0) {
         WOLFSSL_MSG("Sanity Check on handshake message type received failed");
-#if defined(WOLFSSL_CERT_EVENTS) && \
-    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-        /* The certificate-status check runs at ServerHelloDone. A later
-         * handshake error is not a certificate verdict. */
-        if (type == server_hello_done) {
-            PeerCertEventStatusResult(ssl, ret);
-        }
-#endif
 #ifdef WOLFSSL_NONBLOCK_OCSP
         if (ret == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
             word32 hdrSz = HANDSHAKE_HEADER_SZ;

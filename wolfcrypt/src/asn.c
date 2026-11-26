@@ -24555,9 +24555,12 @@ void wc_CertEventFailureCond(DecodedCert* cert, int error, int field,
 int wc_CertEventRevocationCondition(int error)
 {
     switch (error) {
-        /* These names are in error-ssl.h. A crypt-only build defines
-         * HAVE_CRL and does not include that header. */
-#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
+        /* These names are in error-ssl.h. A crypt-only build does not
+         * include that header. */
+#if !defined(WOLFCRYPT_ONLY)
+        case WC_NO_ERR_TRACE(OCSP_CERT_REVOKED):
+            return WC_CEV_COND_CERT_REVOKED;
+#if defined(HAVE_CRL)
         case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
             return WC_CEV_COND_CERT_REVOKED;
         case WC_NO_ERR_TRACE(CRL_MISSING):
@@ -24565,6 +24568,7 @@ int wc_CertEventRevocationCondition(int error)
         case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
             return WC_CEV_COND_CRL_EXPIRED;
 #endif
+#endif /* !WOLFCRYPT_ONLY */
         default:
             break;
     }
@@ -25075,50 +25079,6 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
  * @param [in] dataASN  Template data from a failed GetASN_Items() call.
  * @return  Field that failed. enum wc_CertEventField.
  */
-/* A required item whose tag was not consumed.
- *
- * Missing when the bytes at its offset are a later field, or the encoding
- * ended. A different tag that is not a later field is a bad encoding.
- *
- * @param [in] cert     Decoded certificate.
- * @param [in] dataASN  Template data from a failed GetASN_Items() call.
- * @return  WC_CEV_REASON_MISSING or WC_CEV_REASON_MALFORMED.
- */
-static int CertEventTemplateReason(const DecodedCert* cert,
-    const ASNGetData* dataASN)
-{
-    int i;
-    int j;
-    word32 off;
-    byte found;
-
-    for (i = (int)x509CertASN_Length - 1; i > 0; i--) {
-        if (dataASN[i].offset != 0) {
-            break;
-        }
-    }
-    if ((i <= 0) || (dataASN[i].tag != 0) || (x509CertASN[i].optional != 0)) {
-        return WC_CEV_REASON_MALFORMED;
-    }
-    off = dataASN[i].offset;
-    if ((cert->source == NULL) || (off >= cert->maxIdx)) {
-        return WC_CEV_REASON_MISSING;
-    }
-    found = (byte)(cert->source[off] & ~ASN_CONSTRUCTED);
-    for (j = i + 1; j < (int)x509CertASN_Length; j++) {
-        /* Stop once the template has left the item and its parent. */
-        if (x509CertASN[j].depth + 1 < x509CertASN[i].depth) {
-            break;
-        }
-        if (((x509CertASN[j].depth == x509CertASN[i].depth) ||
-                (x509CertASN[j].depth + 1 == x509CertASN[i].depth)) &&
-                (found == x509CertASN[j].tag)) {
-            return WC_CEV_REASON_MISSING;
-        }
-    }
-    return WC_CEV_REASON_MALFORMED;
-}
-
 static int CertEventTemplateField(const ASNGetData* dataASN)
 {
     int i;
@@ -25166,6 +25126,50 @@ static int CertEventTemplateField(const ASNGetData* dataASN)
     if (i >= X509CERTASN_IDX_TBS_VER)
         return WC_CEV_FIELD_VERSION;
     return WC_CEV_FIELD_ENCODING;
+}
+
+/* A required item whose tag was not consumed.
+ *
+ * Missing when the bytes at its offset are a later field, or the encoding
+ * ended. A different tag that is not a later field is a bad encoding.
+ *
+ * @param [in] cert     Decoded certificate.
+ * @param [in] dataASN  Template data from a failed GetASN_Items() call.
+ * @return  WC_CEV_REASON_MISSING or WC_CEV_REASON_MALFORMED.
+ */
+static int CertEventTemplateReason(const DecodedCert* cert,
+    const ASNGetData* dataASN)
+{
+    int i;
+    int j;
+    word32 off;
+    byte found;
+
+    for (i = (int)x509CertASN_Length - 1; i > 0; i--) {
+        if (dataASN[i].offset != 0) {
+            break;
+        }
+    }
+    if ((i <= 0) || (dataASN[i].tag != 0) || (x509CertASN[i].optional != 0)) {
+        return WC_CEV_REASON_MALFORMED;
+    }
+    off = dataASN[i].offset;
+    if ((cert->source == NULL) || (off >= cert->maxIdx)) {
+        return WC_CEV_REASON_MISSING;
+    }
+    found = (byte)(cert->source[off] & ~ASN_CONSTRUCTED);
+    for (j = i + 1; j < (int)x509CertASN_Length; j++) {
+        /* Stop once the template has left the item and its parent. */
+        if (x509CertASN[j].depth + 1 < x509CertASN[i].depth) {
+            break;
+        }
+        if (((x509CertASN[j].depth == x509CertASN[i].depth) ||
+                (x509CertASN[j].depth + 1 == x509CertASN[i].depth)) &&
+                (found == x509CertASN[j].tag)) {
+            return WC_CEV_REASON_MISSING;
+        }
+    }
+    return WC_CEV_REASON_MALFORMED;
 }
 
     /* Record the field about to be decoded, for the event sent on failure. */
