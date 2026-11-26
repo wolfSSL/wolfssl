@@ -9397,7 +9397,7 @@ int test_wolfSSL_X509_STORE_CTX_set_current_cert(void)
         test_set_cur_cert_bad = 0;
         ExpectIntEQ(X509_verify_cert(ctx), WOLFSSL_SUCCESS);
         ExpectIntEQ(X509_STORE_CTX_get_error(ctx), X509_V_OK);
-        ExpectIntEQ(test_set_cur_cert_calls, 3);
+        ExpectIntEQ(test_set_cur_cert_calls, 4);
         ExpectIntEQ(test_set_cur_cert_bad, 0);
         ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
         ExpectIntEQ(sk_X509_num(chain), 4);

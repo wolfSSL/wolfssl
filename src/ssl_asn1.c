@@ -1082,7 +1082,7 @@ const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(const WOLFSSL_ASN1_INTEGER* 
 }
 
 /* Get the type of the INTEGER, as ASN1_STRING_type() on an ASN1_INTEGER in
- * OpenSSL. The sign is in the negative flag, as for the other INTEGER APIs.
+ * OpenSSL. The sign is in the type, as for the other INTEGER APIs.
  *
  * @param [in] ai  ASN.1 INTEGER object.
  * @return  WOLFSSL_V_ASN1_NEG_INTEGER when negative.
@@ -1094,7 +1094,7 @@ int wolfSSL_ASN1_INTEGER_get_type(const WOLFSSL_ASN1_INTEGER* ai)
     int type = 0;
 
     if (ai != NULL) {
-        type = ai->negative ? WOLFSSL_V_ASN1_NEG_INTEGER :
+        type = (ai->type & WOLFSSL_V_ASN1_NEG) ? WOLFSSL_V_ASN1_NEG_INTEGER :
             WOLFSSL_V_ASN1_INTEGER;
     }
 
@@ -1389,6 +1389,10 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
             else if (aLen > 0) {
                 /* Compare data given they are the same length. */
                 ret = XMEMCMP(aMag, bMag, (size_t)aLen);
+            }
+            else {
+                /* An empty INTEGER is less than 0, as in OpenSSL. */
+                ret = (a->length > 0) - (b->length > 0);
             }
             /* Reverse comparison result when both negative. */
             if (aNeg) {
