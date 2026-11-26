@@ -17382,6 +17382,90 @@ out:
     }
 
 #if !defined(WOLFSSL_NO_AES_CFB_1_8)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* Exercise the one-shot API with a full byte length, independently of
+     * CipherUpdate and of a round-trip through the same implementation. */
+    static wc_test_ret_t aescfb1_evp_cipher_test(void)
+    {
+        static const byte key[] = {
+            0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
+            0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
+        };
+        static const byte iv[] = {
+            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+            0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+        };
+        static const byte plain[] = {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+        };
+        static const byte expected[] = {
+            0x68,0xb3,0xa2,0x64,0xf8,0x38,0xf5,0xf8,
+            0xc3,0x10,0x10,0x70,0xd1,0xab,0x4c,0x2e
+        };
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        WOLFSSL_EVP_CIPHER_CTX* ctx = wolfSSL_EVP_CIPHER_CTX_new();
+#else
+        WOLFSSL_EVP_CIPHER_CTX ctx[1];
+#endif
+        byte out[sizeof(plain)];
+        const byte* input;
+        const byte* result;
+        int enc, inPlace, cipherRet;
+        wc_test_ret_t ret = 0;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        if (ctx == NULL)
+            return MEMORY_E;
+#endif
+        for (enc = 0; enc <= 1; enc++) {
+            input = enc ? plain : expected;
+            result = enc ? expected : plain;
+            for (inPlace = 0; inPlace <= 1; inPlace++) {
+                wolfSSL_EVP_CIPHER_CTX_init(ctx);
+                if (wolfSSL_EVP_CipherInit(ctx, wolfSSL_EVP_aes_128_cfb1(),
+                        key, iv, enc) != WOLFSSL_SUCCESS) {
+                    ret = WC_TEST_RET_ENC_NC;
+                }
+                else {
+                    XMEMSET(out, 0xa5, sizeof(out));
+                    if (inPlace)
+                        XMEMCPY(out, input, sizeof(out));
+                    if (wolfSSL_EVP_Cipher(ctx, out, inPlace ? out : input,
+                            sizeof(out)) != (int)sizeof(out) ||
+                            XMEMCMP(out, result, sizeof(out)) != 0) {
+                        ret = WC_TEST_RET_ENC_NC;
+                    }
+                }
+                if (wolfSSL_EVP_CIPHER_CTX_cleanup(ctx) != WOLFSSL_SUCCESS)
+                    ret = WC_TEST_RET_ENC_NC;
+                if (ret != 0)
+                    goto done;
+            }
+        }
+
+        wolfSSL_EVP_CIPHER_CTX_init(ctx);
+        if (wolfSSL_EVP_CipherInit(ctx, wolfSSL_EVP_aes_128_cfb1(), key, iv,
+                1) != WOLFSSL_SUCCESS) {
+            ret = WC_TEST_RET_ENC_NC;
+        }
+        else {
+            cipherRet = wolfSSL_EVP_Cipher(ctx, out, plain,
+                    WOLFSSL_MAX_32BIT / WOLFSSL_BIT_SIZE + 1U);
+            if (cipherRet != WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR))
+                ret = WC_TEST_RET_ENC_NC;
+        }
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(ctx) != WOLFSSL_SUCCESS)
+            ret = WC_TEST_RET_ENC_NC;
+    done:
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        wolfSSL_EVP_CIPHER_CTX_free(ctx);
+#endif
+        return ret;
+    }
+#endif
+
     static wc_test_ret_t aescfb1_test(void)
     {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -17502,6 +17586,12 @@ out:
 #endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 
 #ifdef WOLFSSL_AES_128
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        ret = aescfb1_evp_cipher_test();
+        if (ret != 0)
+            goto out;
+#endif
         /* 128 key tests */
         ret = wc_AesSetKey(enc, key1, WC_AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret != 0)
