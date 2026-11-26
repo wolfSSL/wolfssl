@@ -11658,8 +11658,8 @@ AC_ARG_WITH([libz],
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <zlib.h>]], [[ deflateInit(0, 8); ]])],[ libz_linked=yes ],[ libz_linked=no ])
 
             if test "x$libz_linked" = "xno" ; then
-                AC_MSG_ERROR([libz isn't found.
-                If it's already installed, specify its path using --with-libz=/dir/])
+                AC_MSG_ERROR([libz isn't found. If it's already
+                installed, specify its path using --with-libz=/dir/])
             fi
             AC_MSG_RESULT([yes])
         else

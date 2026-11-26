@@ -21397,6 +21397,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->peerCertSet = 1;
                     }
                     else if (copyRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+                        /* Report the allocation failure: leaving ret at 0 here
+                         * exits ProcessPeerCerts() successfully with the
+                         * message only partly consumed, and the caller then
+                         * mistakes the short index for a malformed
+                         * Certificate message (DECODE_E). */
                         args->fatal = 1;
                         ret = copyRet;
                     }
