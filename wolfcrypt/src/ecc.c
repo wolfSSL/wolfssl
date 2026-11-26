@@ -5012,6 +5012,11 @@ static void wc_ecc_free_async(ecc_key* key)
 
 #if defined(HAVE_ECC_DHE) && defined(WOLFSSL_CUSTOM_CURVES) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+static int ecc_dp_param_eq(const char* a, const char* b)
+{
+    return (a != NULL) && (b != NULL) && (XSTRCMP(a, b) == 0);
+}
+
 /* Return whether two custom curves have the same domain parameters. */
 static int ecc_custom_curve_equal(const ecc_set_type* a,
                                   const ecc_set_type* b)
@@ -5021,20 +5026,13 @@ static int ecc_custom_curve_equal(const ecc_set_type* a,
     if (a == NULL || b == NULL)
         return 0;
 
-#ifndef WOLFSSL_ECC_CURVE_STATIC
-    if (a->prime == NULL || b->prime == NULL || a->Af == NULL ||
-        b->Af == NULL || a->Bf == NULL || b->Bf == NULL ||
-        a->order == NULL || b->order == NULL || a->Gx == NULL ||
-        b->Gx == NULL || a->Gy == NULL || b->Gy == NULL) {
-        return 0;
-    }
-#endif
-
     return a->size == b->size && a->cofactor == b->cofactor &&
-           XSTRCMP(a->prime, b->prime) == 0 &&
-           XSTRCMP(a->Af, b->Af) == 0 && XSTRCMP(a->Bf, b->Bf) == 0 &&
-           XSTRCMP(a->order, b->order) == 0 &&
-           XSTRCMP(a->Gx, b->Gx) == 0 && XSTRCMP(a->Gy, b->Gy) == 0;
+           ecc_dp_param_eq(a->prime, b->prime) &&
+           ecc_dp_param_eq(a->Af, b->Af) &&
+           ecc_dp_param_eq(a->Bf, b->Bf) &&
+           ecc_dp_param_eq(a->order, b->order) &&
+           ecc_dp_param_eq(a->Gx, b->Gx) &&
+           ecc_dp_param_eq(a->Gy, b->Gy);
 }
 #endif /* HAVE_ECC_DHE && WOLFSSL_CUSTOM_CURVES &&
         * !WOLF_CRYPTO_CB_ONLY_ECC */
@@ -12361,9 +12359,9 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
                 #if defined(WOLFSSL_SM2)
                     if (err != MP_OKAY && curve_id < 0) {
                         /* Retry with SM2 curve when P-256 returns invalid.
-                        * Only when no explicit curve was requested (curve_id < 0).
-                        * Needed because SM2 keys can be mis-identified as
-                        * SECP256R1 during parsing. */
+                         * Only when no explicit curve was requested (curve_id < 0).
+                         * Needed because SM2 keys can be mis-identified as
+                         * SECP256R1 during parsing. */
                     #if defined(WOLFSSL_SP_SM2)
                         err = sp_ecc_is_point_sm2_256(key->pubkey.x,
                                                     key->pubkey.y);
