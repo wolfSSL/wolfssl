@@ -1013,6 +1013,34 @@ jobs:
           (
               cd /tmp/strace
               patch -p1 < bomtrace3.patch
+              # Linux 6.12 renamed nexthop_grp.resvd1 to weight_high.
+              # Some ubuntu-24.04 images already ship that header.
+              # Older images in this fleet still have resvd1.
+              # strace v6.7 prints resvd1.  Select the member present
+              # on this host.  Configure keeps these system headers:
+              # both current images are newer than the bundled 6.7
+              # headers, so the build does not use the bundled copy.
+              if printf '%s\n' \
+                  '#include <linux/nexthop.h>' \
+                  'int f(struct nexthop_grp *g) { return g->weight_high; }' \
+                | env -u CFLAGS -u CPPFLAGS gcc -fsyntax-only -x c -
+              then
+                sed -i \
+                  -e 's/grp->resvd1/grp->weight_high/' \
+                  -e 's/PRINT_FIELD_X(\*grp, resvd1)/PRINT_FIELD_U(*grp, weight_high)/' \
+                  src/rtnl_nh.c
+                grep -q 'grp->weight_high' src/rtnl_nh.c
+                grep -q 'PRINT_FIELD_U(\*grp, weight_high)' src/rtnl_nh.c
+                if grep -q 'resvd1' src/rtnl_nh.c; then
+                  echo "rtnl_nh.c still contains resvd1" >&2
+                  exit 1
+                fi
+                echo "nexthop_grp: weight_high"
+              else
+                grep -q 'grp->resvd1' src/rtnl_nh.c
+                grep -q 'PRINT_FIELD_X(\*grp, resvd1)' src/rtnl_nh.c
+                echo "nexthop_grp: resvd1"
+              fi
               ./bootstrap
               ./configure --enable-mpers=check
               make -j"$(nproc)"
