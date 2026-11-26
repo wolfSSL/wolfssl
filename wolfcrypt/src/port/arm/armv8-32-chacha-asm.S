@@ -53,7 +53,7 @@ wc_chacha_setiv:
 	.type	L_chacha_arm32_constants, %object
 	.size	L_chacha_arm32_constants, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1164,7 +1164,7 @@ L_chacha_crypt_bytes_arm32_done_all:
 	.type	L_chacha_setkey_arm32_constant, %object
 	.size	L_chacha_setkey_arm32_constant, 32
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
