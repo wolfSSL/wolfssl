@@ -32169,7 +32169,9 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
     /* last time system socket output buffer was full, try again to send */
     if (ssl->buffers.outputBuffer.length > 0
     #if defined(WOLFSSL_EARLY_DATA) && defined(WOLFSSL_EARLY_DATA_GROUP)
-        && !groupMsgs
+        /* a record of an earlier call is not left to be grouped */
+        && (!groupMsgs || ssl->buffers.prevSent != 0 ||
+            ssl->buffers.plainSz != 0)
     #endif
         ) {
         WOLFSSL_MSG("output buffer was full, trying to send again");
@@ -32184,18 +32186,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             }
             return (ssl->error = error);
         }
-        else {
-            /* advance sent to previous sent + plain size just sent */
-            sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
-            ssl->buffers.prevSent = 0;
-            ssl->buffers.plainSz = 0;
-            WOLFSSL_MSG("sent write buffered data");
-
-            if (sent > (word32)sz) {
-                WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
-                return (ssl->error = BAD_FUNC_ARG);
-            }
-        }
+        WOLFSSL_MSG("sent write buffered data");
     }
 
     ret = RetrySendAlert(ssl);
@@ -32226,9 +32217,8 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 
 #ifdef WOLFSSL_TLS13
     /* A KeyUpdate response the read side left for the write side to send. It
-     * goes out ahead of the application data, and only once the output buffer
-     * is flushed, so that the record of an earlier call is accounted for above
-     * instead of being sent from here and then built again. */
+     * goes out ahead of the application data, once the output buffer is
+     * flushed. */
     if (ssl->options.sendKeyUpdate) {
         /* RFC 9846 Section 4.7.3: at the key update limit, ignore the
          * request rather than fail the write. */
@@ -32258,6 +32248,17 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
     }
 #endif
+
+    /* Resume after the record an earlier call left in the output buffer. It
+     * has been sent by now, by the flush above or with another message. The
+     * count is kept until here so that a retry asked for above keeps it. */
+    sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
+    ssl->buffers.prevSent = 0;
+    ssl->buffers.plainSz = 0;
+    if (sent > (word32)sz) {
+        WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
+        return (ssl->error = BAD_FUNC_ARG);
+    }
 
 #ifdef WOLFSSL_THREADED_CRYPT
     ret = SendAsyncData(ssl);

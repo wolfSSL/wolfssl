@@ -15752,6 +15752,150 @@ int test_tls13_KeyUpdate_deferred_want_write(void)
     return EXPECT_RESULT();
 }
 
+/* A blocked wolfSSL_write() left a record in the output buffer. The retry
+ * flushes it and then the deferred KeyUpdate response is refused. The next
+ * retry must not send the record's data again. */
+int test_tls13_KeyUpdate_deferred_want_write_resume(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_KU_DEFERRED_WANT_WRITE
+    struct test_memio_ctx test_ctx;
+    struct test_tls13_ku_deferred_ctx deferred;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    const char msg[] = "key-update-deferred-resume";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    XMEMSET(&deferred, 0, sizeof(deferred));
+    deferred.test_ctx = &test_ctx;
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(wolfSSL_update_keys(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntLT(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ExpectIntEQ(ssl_c->options.sendKeyUpdate, 1);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    if (EXPECT_SUCCESS()) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_tls13_ku_deferred_write_cb);
+        wolfSSL_SetIOWriteCtx(ssl_c, &deferred);
+    }
+
+    /* The record is sent, the response is queued. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(deferred.calls, 2);
+
+    /* Only the response is left to send. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)), (int)sizeof(msg));
+    ExpectIntEQ(deferred.calls, 3);
+    if (EXPECT_SUCCESS() && ssl_c != NULL)
+        ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), (int)sizeof(msg));
+    ExpectIntEQ(XMEMCMP(buf, msg, sizeof(msg)), 0);
+    ExpectIntLT(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* TEST_TLS13_KU_DEFERRED_WANT_WRITE */
+    return EXPECT_RESULT();
+}
+
+/* With WOLFSSL_EARLY_DATA_GROUP the early data is sent together with the
+ * ClientHello. When that send is refused, the retried
+ * wolfSSL_write_early_data() sends what is buffered and nothing more. */
+int test_tls13_early_data_group_want_write(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA) && \
+    defined(WOLFSSL_EARLY_DATA_GROUP) && defined(HAVE_SESSION_TICKET) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_THREADED_CRYPT)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    const char earlyMsg[] = "This is early data";
+    char buf[64];
+    int written = 0;
+    int earlyRead = 0;
+    int sLen = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* A full handshake to get a ticket to resume with. */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_CTX_set_max_early_data(ctx_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntGE(wolfSSL_set_max_early_data(ssl_s, MAX_EARLY_DATA_SZ), 0);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+        &written), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c,
+        WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(written, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+    if (EXPECT_SUCCESS())
+        sLen = (int)ssl_c->buffers.outputBuffer.length;
+    ExpectIntGT(sLen, 0);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, earlyMsg, (int)sizeof(earlyMsg),
+        &written), (int)sizeof(earlyMsg));
+    ExpectIntEQ(written, (int)sizeof(earlyMsg));
+    /* The buffered ClientHello and early data, with nothing added. */
+    ExpectIntEQ(test_ctx.s_len, sLen);
+    if (EXPECT_SUCCESS())
+        ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
+
+    XMEMSET(buf, 0, sizeof(buf));
+    (void)test_tls13_early_data_read_until_write_ok(ssl_s, buf, sizeof(buf),
+        &earlyRead);
+    ExpectIntEQ(earlyRead, (int)sizeof(earlyMsg));
+    ExpectStrEQ(earlyMsg, buf);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectTrue(wolfSSL_session_reused(ssl_c));
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* RFC 8446 Section 4.6.3: the response to a KeyUpdate is due before the next
  * application data record, which "causes an implementation which receives
  * multiple KeyUpdates while it is silent to respond with a single update".
