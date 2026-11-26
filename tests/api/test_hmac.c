@@ -233,6 +233,30 @@ int test_wc_Sha256HmacSetKey(void)
     ExpectIntEQ(ret, 0);
 #endif
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    /* Key is internally cast to word16 in software version so larger keys
+     * should fail before being truncated */
+    {
+        byte* bigKey = NULL;
+        const word32 maxLen = (word32)WOLFSSL_MAX_16BIT;
+
+        ExpectNotNull(bigKey = (byte*)XMALLOC(maxLen + 1, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (bigKey != NULL) {
+            XMEMSET(bigKey, 0xA5, maxLen + 1);
+        }
+        ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, bigKey, maxLen), 0);
+        ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, bigKey, maxLen + 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_HmacSetKey_ex(&hmac, WC_SHA256, bigKey, maxLen + 1, 1),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        /* Check fires before the key is read. */
+        ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, bigKey, 0xFFFFFFFFU),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        XFREE(bigKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
     wc_HmacFree(&hmac);
 #endif
     return EXPECT_RESULT();

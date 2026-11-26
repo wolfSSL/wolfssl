@@ -675,7 +675,8 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     int    cbRet;
 #endif
 
-    if (hmac == NULL || (key == NULL && length != 0) ||
+    if (hmac == NULL ||
+        ((key == NULL && length != 0) || (length > WOLFSSL_MAX_16BIT)) ||
        !(type == WC_MD5 || type == WC_SHA ||
     #ifdef WOLFSSL_SM3
             type == WC_SM3 ||
