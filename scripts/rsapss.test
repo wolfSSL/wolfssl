@@ -356,8 +356,10 @@ for ver in tls12 tls13 dtls12; do
     wolfssl_server_case "$ver PSS server, rsa_pss_rsae_* only offered" FAIL \
         "$sv -d $PSS_SVR" "$cv -sigalgs rsa_pss_rsae_sha256"
     if [ "$SVR_CLI_CERT" = yes ]; then
+        # Older OpenSSL 1.1.1 clients ignore the key's SHA-256 restriction.
         wolfssl_server_case "$ver PSS server, PSS client certificate" rsa_pss_pss_sha256 \
-            "$sv $PSS_SVR -A $CERT_DIR/rsapss/client-rsapss.pem" "$cv $PSS_CLI_OPENSSL"
+            "$sv $PSS_SVR -A $CERT_DIR/rsapss/client-rsapss.pem" \
+            "$cv $PSS_CLI_OPENSSL -client_sigalgs rsa_pss_pss_sha256"
     fi
     wolfssl_server_case "$ver rsaEncryption server, rsa_pss_rsae_*" rsa_pss_rsae_sha256 \
         "$sv -d $RSA_SVR" "$cv -sigalgs rsa_pss_rsae_sha256:rsa_pss_pss_sha256"
