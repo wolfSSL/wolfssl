@@ -1153,6 +1153,7 @@ int test_TLSX_SecureRenegotiation_parse(void)
     /* Client side response direction: *input == 2*TLS_FINISHED_SZ, but the
      * declared extension length disagrees with it -- length is the
      * second, independent half of that check. */
+#ifndef NO_WOLFSSL_CLIENT
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     ExpectNotNull(ctx);
     ssl = NULL;
@@ -1183,6 +1184,7 @@ int test_TLSX_SecureRenegotiation_parse(void)
     }
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
 #endif
     return EXPECT_RESULT();
 }
