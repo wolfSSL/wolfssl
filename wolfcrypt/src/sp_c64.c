@@ -30660,17 +30660,23 @@ static int sp_256_div_5(const sp_digit* a, const sp_digit* d,
             sp_256_mul_d_5(t2, sd, r1);
             (void)sp_256_sub_5(&t1[i], &t1[i], t2);
             t1[5 + i] -= t2[5];
-            sp_256_norm_5(&t1[i + 1]);
+            sp_256_norm_5(&t1[i]);
+            t1[5 + i] += t1[5 + i - 1] >> 52;
+            t1[5 + i - 1] &= 0xfffffffffffffL;
 
             r1 = t1[5 + i];
             sp_256_mul_d_5(t2, sd, r1);
             (void)sp_256_sub_5(&t1[i], &t1[i], t2);
             t1[5 + i] -= t2[5];
-            sp_256_norm_5(&t1[i + 1]);
+            sp_256_norm_5(&t1[i]);
+            t1[5 + i] += t1[5 + i - 1] >> 52;
+            t1[5 + i - 1] &= 0xfffffffffffffL;
 
             mask = ~((t1[5 + i] - 1) >> 63);
             sp_256_cond_sub_5(t1 + i, t1 + i, sd, mask);
-            sp_256_norm_5(&t1[i + 1]);
+            sp_256_norm_5(&t1[i]);
+            t1[5 + i] += t1[5 + i - 1] >> 52;
+            t1[5 + i - 1] &= 0xfffffffffffffL;
         }
         sp_256_norm_5(t1);
         sp_256_rshift_5(r, t1, 4);
@@ -37934,11 +37940,15 @@ static int sp_384_div_7(const sp_digit* a, const sp_digit* d,
             sp_384_mul_d_7(t2, sd, r1);
             (void)sp_384_sub_7(&t1[i], &t1[i], t2);
             t1[7 + i] -= t2[7];
-            sp_384_norm_7(&t1[i + 1]);
+            sp_384_norm_7(&t1[i]);
+            t1[7 + i] += t1[7 + i - 1] >> 55;
+            t1[7 + i - 1] &= 0x7fffffffffffffL;
 
             mask = ~((t1[7 + i] - 1) >> 63);
             sp_384_cond_sub_7(t1 + i, t1 + i, sd, mask);
-            sp_384_norm_7(&t1[i + 1]);
+            sp_384_norm_7(&t1[i]);
+            t1[7 + i] += t1[7 + i - 1] >> 55;
+            t1[7 + i - 1] &= 0x7fffffffffffffL;
         }
         sp_384_norm_7(t1);
         sp_384_cond_add_7(t1, t1, sd, t1[6] >> 63);
@@ -45186,11 +45196,15 @@ static int sp_521_div_9(const sp_digit* a, const sp_digit* d,
             sp_521_mul_d_9(t2, sd, r1);
             (void)sp_521_sub_9(&t1[i], &t1[i], t2);
             t1[9 + i] -= t2[9];
-            sp_521_norm_9(&t1[i + 1]);
+            sp_521_norm_9(&t1[i]);
+            t1[9 + i] += t1[9 + i - 1] >> 58;
+            t1[9 + i - 1] &= 0x3ffffffffffffffL;
 
             mask = ~((t1[9 + i] - 1) >> 63);
             sp_521_cond_sub_9(t1 + i, t1 + i, sd, mask);
-            sp_521_norm_9(&t1[i + 1]);
+            sp_521_norm_9(&t1[i]);
+            t1[9 + i] += t1[9 + i - 1] >> 58;
+            t1[9 + i - 1] &= 0x3ffffffffffffffL;
         }
         sp_521_norm_9(t1);
         sp_521_cond_add_9(t1, t1, sd, t1[8] >> 63);

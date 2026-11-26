@@ -29350,11 +29350,15 @@ static int sp_256_div_9(const sp_digit* a, const sp_digit* d,
             sp_256_mul_d_9(t2, sd, r1);
             (void)sp_256_sub_9(&t1[i], &t1[i], t2);
             t1[9 + i] -= t2[9];
-            sp_256_norm_9(&t1[i + 1]);
+            sp_256_norm_9(&t1[i]);
+            t1[9 + i] += t1[9 + i - 1] >> 29;
+            t1[9 + i - 1] &= 0x1fffffff;
 
             mask = ~((t1[9 + i] - 1) >> 31);
             sp_256_cond_sub_9(t1 + i, t1 + i, sd, mask);
-            sp_256_norm_9(&t1[i + 1]);
+            sp_256_norm_9(&t1[i]);
+            t1[9 + i] += t1[9 + i - 1] >> 29;
+            t1[9 + i - 1] &= 0x1fffffff;
         }
         sp_256_norm_9(t1);
         sp_256_cond_add_9(t1, t1, sd, t1[8] >> 31);
@@ -37210,11 +37214,15 @@ static int sp_384_div_15(const sp_digit* a, const sp_digit* d,
             sp_384_mul_d_15(t2, sd, r1);
             (void)sp_384_sub_15(&t1[i], &t1[i], t2);
             t1[15 + i] -= t2[15];
-            sp_384_norm_15(&t1[i + 1]);
+            sp_384_norm_15(&t1[i]);
+            t1[15 + i] += t1[15 + i - 1] >> 26;
+            t1[15 + i - 1] &= 0x3ffffff;
 
             mask = ~((t1[15 + i] - 1) >> 31);
             sp_384_cond_sub_15(t1 + i, t1 + i, sd, mask);
-            sp_384_norm_15(&t1[i + 1]);
+            sp_384_norm_15(&t1[i]);
+            t1[15 + i] += t1[15 + i - 1] >> 26;
+            t1[15 + i - 1] &= 0x3ffffff;
         }
         sp_384_norm_15(t1);
         sp_384_cond_add_15(t1, t1, sd, t1[14] >> 31);
@@ -45147,11 +45155,15 @@ static int sp_521_div_21(const sp_digit* a, const sp_digit* d,
             sp_521_mul_d_21(t2, sd, r1);
             (void)sp_521_sub_21(&t1[i], &t1[i], t2);
             t1[21 + i] -= t2[21];
-            sp_521_norm_21(&t1[i + 1]);
+            sp_521_norm_21(&t1[i]);
+            t1[21 + i] += t1[21 + i - 1] >> 25;
+            t1[21 + i - 1] &= 0x1ffffff;
 
             mask = ~((t1[21 + i] - 1) >> 31);
             sp_521_cond_sub_21(t1 + i, t1 + i, sd, mask);
-            sp_521_norm_21(&t1[i + 1]);
+            sp_521_norm_21(&t1[i]);
+            t1[21 + i] += t1[21 + i - 1] >> 25;
+            t1[21 + i - 1] &= 0x1ffffff;
         }
         sp_521_norm_21(t1);
         sp_521_cond_add_21(t1, t1, sd, t1[20] >> 31);
