@@ -154,40 +154,44 @@ EXTRA_DIST += \
          certs/test/alt-chain-forged-ca/realRoot-cert.pem \
          certs/test/alt-chain-forged-ca/leaf-key.pem \
          certs/test/alt-chain-forged-ca/server-chain.pem \
-         certs/test/gen-cert-events.py \
-         certs/test/cert-events/aia-malformed.der \
-         certs/test/cert-events/akid-malformed.der \
-         certs/test/cert-events/bc-malformed.der \
-         certs/test/cert-events/chain-good.pem \
-         certs/test/cert-events/chain-leaf-eku-client-only.pem \
-         certs/test/cert-events/chain-leaf-ku-certsign.pem \
-         certs/test/cert-events/chain-leaf-ku-no-digsig.pem \
-         certs/test/cert-events/chain-pathlen-exceeded.pem \
-         certs/test/cert-events/chain-signer-no-certsign.pem \
-         certs/test/cert-events/chain-signer-not-ca.pem \
-         certs/test/cert-events/crldp-malformed.der \
-         certs/test/cert-events/eku-malformed.der \
-         certs/test/cert-events/good.der \
-         certs/test/cert-events/issuer-malformed.der \
-         certs/test/cert-events/issuer-uid.der \
-         certs/test/cert-events/ku-malformed.der \
-         certs/test/cert-events/leaf-bad-signature.der \
-         certs/test/cert-events/leaf-unknown-issuer.der \
-         certs/test/cert-events/policy-malformed.der \
-         certs/test/cert-events/san-malformed.der \
-         certs/test/cert-events/serial-absent.der \
-         certs/test/cert-events/serial-empty.der \
-         certs/test/cert-events/serial-not-integer.der \
-         certs/test/cert-events/sigalg-mismatch.der \
-         certs/test/cert-events/signature-not-bitstring.der \
-         certs/test/cert-events/skid-malformed.der \
-         certs/test/cert-events/spki-bad-bitstring.der \
-         certs/test/cert-events/spki-unknown-alg.der \
-         certs/test/cert-events/subject-malformed.der \
-         certs/test/cert-events/subject-uid.der \
-         certs/test/cert-events/tbs-sigalg-unknown.der \
-         certs/test/cert-events/trailing-data.der \
-         certs/test/cert-events/unknown-critical.der \
-         certs/test/cert-events/validity-not-time.der \
-         certs/test/cert-events/version-not-integer.der \
-         certs/test/cert-events/version-unsupported.der
+         certs/test/gen-cert-events.py
+# certs/test/cert-events/ is copied by the dist-hook in Makefile.am.
+# Listing each file here puts the names on automake's one distdir argument,
+# which is already at the 128 KiB limit. The names stay in this file so the
+# dist check can find them:
+# certs/test/cert-events/aia-malformed.der
+# certs/test/cert-events/akid-malformed.der
+# certs/test/cert-events/bc-malformed.der
+# certs/test/cert-events/chain-good.pem
+# certs/test/cert-events/chain-leaf-eku-client-only.pem
+# certs/test/cert-events/chain-leaf-ku-certsign.pem
+# certs/test/cert-events/chain-leaf-ku-no-digsig.pem
+# certs/test/cert-events/chain-pathlen-exceeded.pem
+# certs/test/cert-events/chain-signer-no-certsign.pem
+# certs/test/cert-events/chain-signer-not-ca.pem
+# certs/test/cert-events/crldp-malformed.der
+# certs/test/cert-events/eku-malformed.der
+# certs/test/cert-events/good.der
+# certs/test/cert-events/issuer-malformed.der
+# certs/test/cert-events/issuer-uid.der
+# certs/test/cert-events/ku-malformed.der
+# certs/test/cert-events/leaf-bad-signature.der
+# certs/test/cert-events/leaf-unknown-issuer.der
+# certs/test/cert-events/policy-malformed.der
+# certs/test/cert-events/san-malformed.der
+# certs/test/cert-events/serial-absent.der
+# certs/test/cert-events/serial-empty.der
+# certs/test/cert-events/serial-not-integer.der
+# certs/test/cert-events/sigalg-mismatch.der
+# certs/test/cert-events/signature-not-bitstring.der
+# certs/test/cert-events/skid-malformed.der
+# certs/test/cert-events/spki-bad-bitstring.der
+# certs/test/cert-events/spki-unknown-alg.der
+# certs/test/cert-events/subject-malformed.der
+# certs/test/cert-events/subject-uid.der
+# certs/test/cert-events/tbs-sigalg-unknown.der
+# certs/test/cert-events/trailing-data.der
+# certs/test/cert-events/unknown-critical.der
+# certs/test/cert-events/validity-not-time.der
+# certs/test/cert-events/version-not-integer.der
+# certs/test/cert-events/version-unsupported.der

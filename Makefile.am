@@ -554,9 +554,16 @@ CLEANFILES += advisories/out/*.csaf.json advisories/out/*.cdx.json
 # a newly-added record ships automatically: a hardcoded list silently drops
 # new records from `make dist`, and the omission only surfaces as a failing
 # downstream `make advisory`.
+# certs/test/cert-events/ is copied the same way. Those paths on the one
+# distdir argument push it past the 128 KiB limit.
 EXTRA_DIST += advisories/vex-overlay.json
 
 dist-hook:
+	$(MKDIR_P) $(distdir)/certs/test/cert-events
+	@for f in $(srcdir)/certs/test/cert-events/*; do \
+	    test -f "$$f" || continue; \
+	    cp -p "$$f" $(distdir)/certs/test/cert-events/; \
+	done
 	$(MKDIR_P) $(distdir)/advisories/records
 	@for f in $(srcdir)/advisories/records/*.json; do \
 	    test -f "$$f" || continue; \

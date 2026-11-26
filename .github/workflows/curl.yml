@@ -84,25 +84,4 @@ jobs:
 
     - name: Test curl
       working-directory: curl
-      run: |
-        # runtests.pl stops the suite when a test name is wider than 70
-        # columns. Shorten those names so one new curl test cannot abort
-        # the run.
-        python3 -c '
-        import pathlib, re
-        for path in pathlib.Path("tests/data").glob("test*"):
-            if not path.is_file():
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace")
-            def shorten(match):
-                body = match.group(1).strip("\n")
-                if len(body) <= 70:
-                    return match.group(0)
-                print("%s: %d columns" % (path.name, len(body)))
-                return "<name>\n%s\n" % body[:70]
-            new = re.sub(r"<name>\n?(.*?)\n?</name>", shorten, text,
-                         count=1, flags=re.S)
-            if new != text:
-                path.write_text(new, encoding="utf-8")
-        '
-        make -j $(nproc) test-nonflaky
+      run: make -j $(nproc) test-nonflaky

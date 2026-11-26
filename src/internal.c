@@ -22401,7 +22401,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     return 0;
 }
 
-#if defined(WOLFSSL_CERT_EVENTS) && \
+#if defined(WOLFSSL_CERT_EVENTS) && !defined(NO_WOLFSSL_CLIENT) && \
     (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
 static void PeerCertEventStatusResult(WOLFSSL* ssl, int ret);
@@ -23055,7 +23055,7 @@ static int ResetHandshakeStateForReneg(WOLFSSL* ssl)
 }
 #endif
 
-#if defined(WOLFSSL_CERT_EVENTS) && \
+#if defined(WOLFSSL_CERT_EVENTS) && !defined(NO_WOLFSSL_CLIENT) && \
     (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
 /* Send a second RESULT when the TLS 1.2 certificate-status check fails.
