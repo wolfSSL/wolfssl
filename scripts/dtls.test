@@ -124,10 +124,7 @@ print(s.getsockname()[1])
 s.close()'
 }
 
-# A usable port is a non-zero decimal below 65536. Worth checking rather than
-# assuming: a SINGLE_THREADED build never resolves the ephemeral port in
-# udp_accept(), so the ready file legitimately contains 0 there, and pointing
-# the proxy at port 0 would report every test as a DTLS failure instead.
+# A usable port is a non-zero decimal below 65536.
 valid_port() {
     case "$1" in
         ''|*[!0-9]*) return 1 ;;
@@ -162,11 +159,7 @@ if [ "$DTLS_VERSION" = "-v4" ]; then
     UDP_PROXY_EXTRA_ARGS="-u"
 fi
 
-# Everything below depends on the server being able to report the port it bound.
-# A SINGLE_THREADED or WOLFSSL_TIRTOS build never resolves an ephemeral port in
-# udp_accept(), and a NO_FILESYSTEM or NETOS build compiles write_ready_file()
-# to a no-op, so probe the capability once here rather than rediscovering it on
-# every one of the tests below.
+# Probe once whether the server can report the port it bound with -p 0 -R.
 check_ready_file_support() {
     local probe_pid counter port
 
@@ -199,7 +192,7 @@ check_ready_file_support() {
 
 if ! check_ready_file_support; then
     echo 'skipping dtls.test because the server cannot report an ephemeral port' 1>&2
-    echo 'with -p 0 -R (needs threads and a filesystem in the build).' 1>&2
+    echo 'with -p 0 -R (needs a filesystem in the build).' 1>&2
     exit 77
 fi
 
