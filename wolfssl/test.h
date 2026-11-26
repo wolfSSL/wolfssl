@@ -1990,7 +1990,6 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
     if (args != NULL && args->signal != NULL) {
-#ifndef SINGLE_THREADED
         tcp_ready* ready = args->signal;
     #ifdef WOLFSSL_COND
         THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
@@ -2002,7 +2001,6 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
         THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
     #endif
-#endif /* !SINGLE_THREADED */
     }
     else {
         fprintf(stderr, "args or args->signal was NULL. Not setting ready info.");
@@ -2032,7 +2030,6 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
-#ifndef SINGLE_THREADED
         /* signal ready to tcp_accept */
         if (args)
             ready = args->signal;
@@ -2047,7 +2044,6 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
             THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
         #endif
         }
-#endif /* !SINGLE_THREADED */
 
         if (ready_file) {
             write_ready_file(args, port);
