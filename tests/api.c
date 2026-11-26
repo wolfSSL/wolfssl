@@ -7390,6 +7390,51 @@ static int test_wolfSSL_CTX_set_max_proto_version_suites(void)
     return EXPECT_RESULT();
 }
 
+/* Lowering the max after the suites were derived drops the TLS 1.3 suites. */
+static int test_wolfSSL_CTX_set_max_proto_version_suites_lower(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    word16 i;
+    int found = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, NULL, NULL,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, TLS1_3_VERSION),
+        WOLFSSL_SUCCESS);
+    /* Derive the suites with a TLS 1.3 max */
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    ExpectIntEQ(wolfSSL_CTX_set_max_proto_version(ctx_c, TLS1_2_VERSION),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(ctx_c->suites);
+    for (i = 0; (ctx_c != NULL) && (ctx_c->suites != NULL) &&
+            (i + 1 < ctx_c->suites->suiteSz); i += 2) {
+        if (ctx_c->suites->suites[i] == TLS13_BYTE)
+            found = 1;
+    }
+    ExpectIntEQ(found, 0);
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectStrEQ(wolfSSL_get_version(ssl_c), "TLSv1.2");
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* A new max derives the sigalgs again, unless they were set by the user. */
 static int test_wolfSSL_CTX_set_max_proto_version_sigalgs(void)
 {
@@ -49909,6 +49954,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_set_minmax_proto_version_opts),
     TEST_DECL(test_wolfSSL_CTX_set_max_proto_version),
     TEST_DECL(test_wolfSSL_CTX_set_max_proto_version_suites),
+    TEST_DECL(test_wolfSSL_CTX_set_max_proto_version_suites_lower),
     TEST_DECL(test_wolfSSL_CTX_set_max_proto_version_sigalgs),
     TEST_DECL(test_wolfSSL_CTX_set_min_proto_version_above_max),
     TEST_DECL(test_wolfSSL_set_max_proto_version_raise),
