@@ -1,14 +1,14 @@
 #!/bin/sh
 
 if [ -n "$NETWORK_UNSHARE_HELPER" ]; then
-    exec "${NETWORK_UNSHARE_HELPER}" "@builddir@/tests/unit.test" "$@" || exit $?
+    exec "${NETWORK_UNSHARE_HELPER}" "@builddir@/tests/unit.test" @UNIT_TEST_WC_ARG@ "$@" || exit $?
 elif [ "${AM_BWRAPPED-}" != "yes" ]; then
     bwrap_path="$(command -v bwrap)"
     if [ -n "$bwrap_path" ]; then
-        exec "$bwrap_path" --unshare-net --dev-bind / / "@builddir@/tests/unit.test" "$@"
+        exec "$bwrap_path" --unshare-net --dev-bind / / "@builddir@/tests/unit.test" @UNIT_TEST_WC_ARG@ "$@"
     else
-        exec "@builddir@/tests/unit.test" "$@"
+        exec "@builddir@/tests/unit.test" @UNIT_TEST_WC_ARG@ "$@"
     fi
 else
-        exec "@builddir@/tests/unit.test" "$@"
+        exec "@builddir@/tests/unit.test" @UNIT_TEST_WC_ARG@ "$@"
 fi
