@@ -8388,7 +8388,9 @@ WOLFSSL_LOCAL int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys,
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 
 /* A wolfCrypt key keeps state while an operation runs. Operations on a compat
- * key that threads share run one at a time under the key's lock. */
+ * key that threads share run one at a time under the key's lock. The lock is
+ * not recursive: a public function takes it and calls a static *_locked
+ * function, which never takes a key lock. */
 #ifndef SINGLE_THREADED
     #define WOLFSSL_KEY_OP_LOCK_INIT(key) wc_InitMutex(&(key)->opLock)
     #define WOLFSSL_KEY_OP_LOCK_FREE(key) ((void)wc_FreeMutex(&(key)->opLock))
@@ -8417,6 +8419,9 @@ WOLFSSL_LOCAL int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
     unsigned char* sigRet, WOLFSSL_DSA* dsa);
 WOLFSSL_LOCAL int wolfssl_local_dsa_do_verify(const unsigned char* d, int dLen,
     unsigned char* sig, WOLFSSL_DSA* dsa, int* dsacheck);
+WOLFSSL_LOCAL int wolfssl_local_dsa_lock(WOLFSSL_DSA* dsa);
+WOLFSSL_LOCAL void wolfssl_local_dsa_unlock(WOLFSSL_DSA* dsa);
+WOLFSSL_LOCAL int wolfssl_local_dsa_set_external(WOLFSSL_DSA* dsa);
 #endif
 WOLFSSL_LOCAL int SetRsaExternal(WOLFSSL_RSA* rsa);
 WOLFSSL_LOCAL int SetRsaInternal(WOLFSSL_RSA* rsa);

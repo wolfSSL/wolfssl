@@ -1184,11 +1184,14 @@ int SetDsaInternal(WOLFSSL_DSA* dsa)
  * @return  1 on success.
  * @return  0 on failure. Key is not locked.
  */
-static int wolfssl_dsa_lock(WOLFSSL_DSA* dsa)
+int wolfssl_local_dsa_lock(WOLFSSL_DSA* dsa)
 {
     int ret = 1;
 
-    if (WOLFSSL_KEY_OP_LOCK(dsa) != 0) {
+    if ((dsa == NULL) || (dsa->internal == NULL)) {
+        ret = 0;
+    }
+    else if (WOLFSSL_KEY_OP_LOCK(dsa) != 0) {
         WOLFSSL_MSG("DSA key lock failed");
         ret = 0;
     }
@@ -1196,6 +1199,41 @@ static int wolfssl_dsa_lock(WOLFSSL_DSA* dsa)
         WOLFSSL_MSG("SetDsaInternal failed");
         WOLFSSL_KEY_OP_UNLOCK(dsa);
         ret = 0;
+    }
+
+    return ret;
+}
+
+/* Unlock DSA key after an operation.
+ *
+ * @param [in, out] dsa  DSA key locked with wolfssl_local_dsa_lock().
+ */
+void wolfssl_local_dsa_unlock(WOLFSSL_DSA* dsa)
+{
+    WOLFSSL_KEY_OP_UNLOCK(dsa);
+}
+
+/* Set the external data from the wolfCrypt DSA key if not done.
+ *
+ * Threads may share the key, so the copy is made under its lock.
+ *
+ * @param [in, out] dsa  DSA key.
+ * @return  1 on success.
+ * @return  -1 on failure.
+ */
+int wolfssl_local_dsa_set_external(WOLFSSL_DSA* dsa)
+{
+    int ret = 1;
+
+    if (WOLFSSL_KEY_OP_LOCK(dsa) != 0) {
+        WOLFSSL_MSG("DSA key lock failed");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    else {
+        if (!dsa->exSet) {
+            ret = SetDsaExternal(dsa);
+        }
+        WOLFSSL_KEY_OP_UNLOCK(dsa);
     }
 
     return ret;
@@ -1635,59 +1673,38 @@ WOLFSSL_DSA_SIG* wolfSSL_d2i_DSA_SIG(WOLFSSL_DSA_SIG **sig,
 
 #endif /* !HAVE_SELFTEST */
 
-static int dsa_do_sign(const unsigned char* d, int dLen,
+static int dsa_do_sign_locked(const unsigned char* d, int dLen,
+        unsigned char* sigRet, WOLFSSL_DSA* dsa, WC_RNG* rng);
+
+int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
         unsigned char* sigRet, WOLFSSL_DSA* dsa)
 {
     int     ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int     initTmpRng = 0;
-#ifdef HAVE_SELFTEST
-    int     qSz;
-#endif
     WC_RNG* rng = NULL;
     WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
+
+    if (d == NULL || sigRet == NULL || dsa == NULL || dLen < 0) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
         return WOLFSSL_FATAL_ERROR);
 
+    /* Seed the RNG before taking the key lock. */
     if (wc_InitRng(tmpRng) == 0) {
         rng = tmpRng;
         initTmpRng = 1;
     }
     else {
         WOLFSSL_MSG("Bad RNG Init, trying global");
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-        tmpRng = NULL;
-#endif
         rng = wolfssl_get_global_rng();
-        if (! rng)
-            return WOLFSSL_FATAL_ERROR;
     }
 
-    if (rng) {
-#ifdef HAVE_SELFTEST
-        /* FIPS 186-4 4.2, as wc_DsaSign_ex() does below. wc_DsaSign() reads
-         * exactly WC_SHA_DIGEST_SIZE bytes, so it can only serve the digests
-         * that truncate to that. */
-        qSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
-        if (qSz > 0 && dLen > qSz)
-            dLen = qSz;
-        if (dLen != WC_SHA_DIGEST_SIZE) {
-            WOLFSSL_MSG("dLen wrong length for this build");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-        else if (wc_DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
-            WOLFSSL_MSG("wc_DsaSign failed");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-#else
-        if (wc_DsaSign_ex(d, dLen, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
-            WOLFSSL_MSG("wc_DsaSign_ex failed");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-#endif
-        else
-            ret = WOLFSSL_SUCCESS;
+    if ((rng != NULL) && wolfssl_local_dsa_lock(dsa)) {
+        ret = dsa_do_sign_locked(d, dLen, sigRet, dsa, rng);
+        wolfssl_local_dsa_unlock(dsa);
     }
 
     if (initTmpRng)
@@ -1697,20 +1714,38 @@ static int dsa_do_sign(const unsigned char* d, int dLen,
     return ret;
 }
 
-int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
-        unsigned char* sigRet, WOLFSSL_DSA* dsa)
+/* Sign the digest with the DSA key. The key is locked. */
+static int dsa_do_sign_locked(const unsigned char* d, int dLen,
+        unsigned char* sigRet, WOLFSSL_DSA* dsa, WC_RNG* rng)
 {
-    int ret;
+    int     ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+#ifdef HAVE_SELFTEST
+    int     qSz;
+#endif
 
-    if (d == NULL || sigRet == NULL || dsa == NULL || dLen < 0) {
-        WOLFSSL_MSG("Bad function arguments");
-        return WOLFSSL_FATAL_ERROR;
+#ifdef HAVE_SELFTEST
+    /* FIPS 186-4 4.2, as wc_DsaSign_ex() does below. wc_DsaSign() reads
+     * exactly WC_SHA_DIGEST_SIZE bytes, so it can only serve the digests
+     * that truncate to that. */
+    qSz = mp_unsigned_bin_size(&((DsaKey*)dsa->internal)->q);
+    if (qSz > 0 && dLen > qSz)
+        dLen = qSz;
+    if (dLen != WC_SHA_DIGEST_SIZE) {
+        WOLFSSL_MSG("dLen wrong length for this build");
+        ret = WOLFSSL_FATAL_ERROR;
     }
-    if (!wolfssl_dsa_lock(dsa)) {
-        return WOLFSSL_FATAL_ERROR;
+    else if (wc_DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
+        WOLFSSL_MSG("wc_DsaSign failed");
+        ret = WOLFSSL_FATAL_ERROR;
     }
-    ret = dsa_do_sign(d, dLen, sigRet, dsa);
-    WOLFSSL_KEY_OP_UNLOCK(dsa);
+#else
+    if (wc_DsaSign_ex(d, dLen, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
+        WOLFSSL_MSG("wc_DsaSign_ex failed");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+#endif
+    else
+        ret = WOLFSSL_SUCCESS;
 
     return ret;
 }
@@ -1760,8 +1795,30 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
 }
 #endif
 
-static int dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
+static int dsa_do_verify_locked(const unsigned char* d, int dLen,
+    unsigned char* sig, WOLFSSL_DSA* dsa, int *dsacheck);
+
+int wolfssl_local_dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
                         WOLFSSL_DSA* dsa, int *dsacheck)
+{
+    int ret;
+
+    if (d == NULL || sig == NULL || dsa == NULL || dLen < 0) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FATAL_ERROR;
+    }
+    if (!wolfssl_local_dsa_lock(dsa)) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    ret = dsa_do_verify_locked(d, dLen, sig, dsa, dsacheck);
+    wolfssl_local_dsa_unlock(dsa);
+
+    return ret;
+}
+
+/* Verify the signature with the DSA key. The key is locked. */
+static int dsa_do_verify_locked(const unsigned char* d, int dLen,
+    unsigned char* sig, WOLFSSL_DSA* dsa, int *dsacheck)
 {
     int    ret;
 #ifdef HAVE_SELFTEST
@@ -1793,24 +1850,6 @@ static int dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
     return WOLFSSL_SUCCESS;
 }
 
-int wolfssl_local_dsa_do_verify(const unsigned char* d, int dLen,
-    unsigned char* sig, WOLFSSL_DSA* dsa, int *dsacheck)
-{
-    int ret;
-
-    if (d == NULL || sig == NULL || dsa == NULL || dLen < 0) {
-        WOLFSSL_MSG("Bad function arguments");
-        return WOLFSSL_FATAL_ERROR;
-    }
-    if (!wolfssl_dsa_lock(dsa)) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-    ret = dsa_do_verify(d, dLen, sig, dsa, dsacheck);
-    WOLFSSL_KEY_OP_UNLOCK(dsa);
-
-    return ret;
-}
-
 int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
                         WOLFSSL_DSA* dsa, int *dsacheck)
 {
@@ -1820,18 +1859,50 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
 }
 
 
+static int dsa_bits_locked(WOLFSSL_DSA *d);
+
 int wolfSSL_DSA_bits(const WOLFSSL_DSA *d)
 {
+    int ret;
+    WOLFSSL_DSA* dsa = (WOLFSSL_DSA*)d;
+
     if (!d)
         return 0;
-    if (!d->exSet && SetDsaExternal((WOLFSSL_DSA*)d) != 1)
+    /* The body sets the data it uses, so only take the lock. */
+    if (WOLFSSL_KEY_OP_LOCK(dsa) != 0)
+        return 0;
+    ret = dsa_bits_locked(dsa);
+    WOLFSSL_KEY_OP_UNLOCK(dsa);
+    return ret;
+}
+
+/* Get the size in bits of the DSA key. The key is locked. */
+static int dsa_bits_locked(WOLFSSL_DSA *d)
+{
+    if (!d->exSet && SetDsaExternal(d) != 1)
         return 0;
     return wolfSSL_BN_num_bits(d->p);
 }
 
 #ifndef HAVE_SELFTEST
+static int dsa_do_verify_ex_locked(const unsigned char* digest,
+    int digest_len, WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa);
+
 int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
                              WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa)
+{
+    int ret;
+
+    if (!wolfssl_local_dsa_lock(dsa))
+        return 0;
+    ret = dsa_do_verify_ex_locked(digest, digest_len, sig, dsa);
+    wolfssl_local_dsa_unlock(dsa);
+    return ret;
+}
+
+/* Verify the DSA signature object. The key is locked. */
+static int dsa_do_verify_ex_locked(const unsigned char* digest,
+    int digest_len, WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa)
 {
     int dsacheck, sz;
     byte sigBin[DSA_MAX_SIG_SIZE];
@@ -1841,7 +1912,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
 
     WOLFSSL_ENTER("wolfSSL_DSA_do_verify_ex");
 
-    if (!digest || !sig || !dsa) {
+    if (!digest || !sig || !dsa || digest_len < 0) {
         WOLFSSL_MSG("Bad function arguments");
         return 0;
     }
@@ -1849,14 +1920,6 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
     if (!sig->r || !sig->s) {
         WOLFSSL_MSG("No signature found in DSA_SIG");
         return 0;
-    }
-
-    if (dsa->inSet == 0) {
-        WOLFSSL_MSG("No DSA internal set, do it");
-        if (SetDsaInternal(dsa) != 1) {
-            WOLFSSL_MSG("SetDsaInternal failed");
-            return 0;
-        }
     }
 
     key = (DsaKey*)dsa->internal;
@@ -1893,7 +1956,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
     if (wolfSSL_BN_bn2bin(sig->s, sigBinPtr) == -1)
         return 0;
 
-    if ((wolfssl_local_dsa_do_verify(digest, digest_len, sigBin, dsa, &dsacheck)
+    if ((dsa_do_verify_locked(digest, digest_len, sigBin, dsa, &dsacheck)
                                          != 1) || dsacheck != 1) {
         return 0;
     }
@@ -2151,15 +2214,6 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     if (wc_PemGetHeaderFooter(type, &header, &footer) != 0)
         return 0;
 
-    if (dsa->inSet == 0) {
-        WOLFSSL_MSG("No DSA internal set, do it");
-
-        if (SetDsaInternal(dsa) != 1) {
-            WOLFSSL_MSG("SetDsaInternal failed");
-            return 0;
-        }
-    }
-
     der_max_len = MAX_DSA_PRIVKEY_SZ;
 
     derBuf = (byte*)XMALLOC((size_t)der_max_len, NULL, DYNAMIC_TYPE_DER);
@@ -2169,7 +2223,12 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     }
 
     /* Key to DER */
+    if (!wolfssl_local_dsa_lock(dsa)) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+        return 0;
+    }
     derSz = wc_DsaKeyToDer((DsaKey*)dsa->internal, derBuf, (word32)der_max_len);
+    wolfssl_local_dsa_unlock(dsa);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_DsaKeyToDer failed");
         ForceZero(derBuf, (word32)der_max_len);
@@ -2958,6 +3017,8 @@ int wolfSSL_DH_up_ref(WOLFSSL_DH* dh)
     defined(OPENSSL_EXTRA)
 
 #ifdef WOLFSSL_DH_EXTRA
+static WOLFSSL_DH* dh_dup_locked(WOLFSSL_DH* dh);
+
 /* Duplicate the DH key.
  *
  * Internal DH key in 'dh' is updated if necessary.
@@ -2968,6 +3029,18 @@ int wolfSSL_DH_up_ref(WOLFSSL_DH* dh)
  */
 WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 {
+    WOLFSSL_DH* ret;
+
+    if (!wolfssl_local_dh_lock(dh))
+        return NULL;
+    ret = dh_dup_locked(dh);
+    wolfssl_local_dh_unlock(dh);
+    return ret;
+}
+
+/* Duplicate the DH key. The key is locked. */
+static WOLFSSL_DH* dh_dup_locked(WOLFSSL_DH* dh)
+{
     WOLFSSL_DH* ret = NULL;
     int err = 0;
 
@@ -2976,12 +3049,6 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
     /* Validate parameters. */
     if (dh == NULL) {
         WOLFSSL_ERROR_MSG("Bad parameter");
-        err = 1;
-    }
-
-    /* Ensure internal DH key is set. */
-    if ((!err) && (dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
-        WOLFSSL_ERROR_MSG("Bad DH set internal");
         err = 1;
     }
 
@@ -3728,17 +3795,10 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH** dh, const unsigned char** pp,
 }
 #endif /* !HAVE_FIPS || FIPS_VERSION_GT(2,0) */
 
-/* Converts internal WOLFSSL_DH structure to DER encoded DH parameters.
- *
- * @params [in]      dh   DH key with parameters to encode.
- * @params [in, out] out  Pointer to buffer to encode into.
- *                        When NULL or pointer to NULL, only length returned.
- * @return  0 on error.
- * @return  Size of DER encoding in bytes on success.
- */
-int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
-{
 #if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(5,0)) && defined(WOLFSSL_DH_EXTRA)
+/* Encode the DH parameters as DER. The key is locked. */
+static int i2d_dhparams_locked(WOLFSSL_DH *dh, unsigned char **out)
+{
     /* Set length to an arbitrarily large value for wc_DhParamsToDer(). */
     word32 len = (word32)-1;
     int err = 0;
@@ -3749,11 +3809,6 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
         err = 1;
     }
 
-    /* Push external DH data into internal DH key if not set. */
-    if ((!err) && (!dh->inSet) && (SetDhInternal((WOLFSSL_DH*)dh) != 1)) {
-        WOLFSSL_ERROR_MSG("Bad DH set internal");
-        err = 1;
-    }
     if (!err) {
         int ret;
         unsigned char* der = NULL;
@@ -3779,6 +3834,28 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
         len = 0;
     }
     return (int)len;
+}
+#endif
+
+/* Converts internal WOLFSSL_DH structure to DER encoded DH parameters.
+ *
+ * @params [in]      dh   DH key with parameters to encode.
+ * @params [in, out] out  Pointer to buffer to encode into.
+ *                        When NULL or pointer to NULL, only length returned.
+ * @return  0 on error.
+ * @return  Size of DER encoding in bytes on success.
+ */
+int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
+{
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(5,0)) && defined(WOLFSSL_DH_EXTRA)
+    int ret;
+    WOLFSSL_DH* key = (WOLFSSL_DH*)dh;
+
+    if (!wolfssl_local_dh_lock(key))
+        return 0;
+    ret = i2d_dhparams_locked(key, out);
+    wolfssl_local_dh_unlock(key);
+    return ret;
 #else
     word32 len;
     int ret = 0;
@@ -4046,6 +4123,9 @@ WOLFSSL_DH* wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH** dh,
 #endif /* !NO_FILESYSTEM */
 
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
+static int dhparams_to_der_locked(WOLFSSL_DH* dh, unsigned char** out,
+    void* heap);
+
 /* Encoded parameter data in DH key as DER.
  *
  * @param [in, out] dh    DH key object to encode.
@@ -4057,6 +4137,19 @@ WOLFSSL_DH* wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH** dh,
 static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
     void* heap)
 {
+    int ret;
+
+    if (!wolfssl_local_dh_lock(dh))
+        return WOLFSSL_FATAL_ERROR;
+    ret = dhparams_to_der_locked(dh, out, heap);
+    wolfssl_local_dh_unlock(dh);
+    return ret;
+}
+
+/* Encode the DH parameters as DER. The key is locked. */
+static int dhparams_to_der_locked(WOLFSSL_DH* dh, unsigned char** out,
+    void* heap)
+{
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int err = 0;
     byte* der = NULL;
@@ -4065,11 +4158,6 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
 
     (void)heap;
 
-    /* Set internal parameters based on external parameters. */
-    if ((dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
-        WOLFSSL_ERROR_MSG("Unable to set internal DH structure");
-        err = 1;
-    }
     if (!err) {
         /* Use wolfSSL API to get length of DER encode DH parameters. */
         key = (DhKey*)dh->internal;
@@ -4973,11 +5061,26 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 }
 
 
+static int dh_compute_key_locked(unsigned char* key,
+    const WOLFSSL_BIGNUM* otherPub, WOLFSSL_DH* dh, int ct);
+
 static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     WOLFSSL_DH* dh, int ct)
 {
+    int ret;
+
+    if (!wolfssl_local_dh_lock(dh))
+        return WOLFSSL_FATAL_ERROR;
+    ret = dh_compute_key_locked(key, otherPub, dh, ct);
+    wolfssl_local_dh_unlock(dh);
+    return ret;
+}
+
+/* Compute the shared key with the DH key. The key is locked. */
+static int dh_compute_key_locked(unsigned char* key,
+    const WOLFSSL_BIGNUM* otherPub, WOLFSSL_DH* dh, int ct)
+{
     int            ret    = 0;
-    int            locked = 0;
     word32         keySz  = 0;
     int            pubSz  = MAX_DHKEY_SZ;
     int            privSz = MAX_DHKEY_SZ;
@@ -5064,12 +5167,6 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
-    if (ret == 0) {
-        locked = wolfssl_local_dh_lock(dh);
-        if (!locked) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
 
     PRIVATE_KEY_UNLOCK();
     /* Calculate shared secret from private and public keys. */
@@ -5112,9 +5209,6 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         ret = (int)keySz;
     }
     PRIVATE_KEY_LOCK();
-    if (locked) {
-        wolfssl_local_dh_unlock(dh);
-    }
 
     if (privSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK

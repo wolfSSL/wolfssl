@@ -791,6 +791,9 @@ int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
     return ret;
 }
 
+static int rsa_to_der_locked(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
+    void* heap);
+
 /* Create a DER encoding of key.
  *
  * Buffer allocated with heap and DYNAMIC_TYPE_TMP_BUFFER.
@@ -808,6 +811,21 @@ int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
 static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
     void* heap)
 {
+    int ret;
+
+    if ((rsa == NULL) || ((publicKey != 0) && (publicKey != 1)))
+        return BAD_FUNC_ARG;
+    if (!wolfssl_local_rsa_lock(rsa))
+        return WOLFSSL_FATAL_ERROR;
+    ret = rsa_to_der_locked(rsa, outBuf, publicKey, heap);
+    wolfssl_local_rsa_unlock(rsa);
+    return ret;
+}
+
+/* Create a DER encoding of key. The key is locked. */
+static int rsa_to_der_locked(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
+    void* heap)
+{
     int ret = 1;
     int derSz = 0;
     word32 derAllocSz = 0;
@@ -822,10 +840,6 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
     if ((rsa == NULL) || ((publicKey != 0) && (publicKey != 1))) {
         WOLFSSL_LEAVE("wolfSSL_RSA_To_Der", BAD_FUNC_ARG);
         ret = BAD_FUNC_ARG;
-    }
-    /* Push external RSA data into internal RSA key if not set. */
-    if ((ret == 1) && (!rsa->inSet)) {
-        ret = SetRsaInternal(rsa);
     }
     /* wc_RsaKeyToPublicDer encode regardless of values. */
     if ((ret == 1) && publicKey && (mp_iszero(&((RsaKey*)rsa->internal)->n) ||
@@ -1333,11 +1347,6 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(WOLFSSL_RSA* rsa,
         ret = 0;
     }
 
-    /* Set the RSA key data into the wolfCrypt RSA key if not done so. */
-    if ((ret == 1) && (!rsa->inSet) && (SetRsaInternal(rsa) != 1)) {
-        ret = 0;
-    }
-
     /* Encode wolfCrypt RSA key to DER - derBuf allocated in call. */
     if ((ret == 1) && ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 0,
             rsa->heap)) < 0)) {
@@ -1541,6 +1550,8 @@ WOLFSSL_RSA* wolfSSL_PEM_read_RSAPrivateKey(XFILE fp, WOLFSSL_RSA** out,
 
 #if defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM)
+static int rsa_print_fp_locked(XFILE fp, WOLFSSL_RSA* rsa, int indent);
+
 /* Print an RSA key to a file pointer.
  *
  * @param [in] fp      File pointer to write to.
@@ -1550,6 +1561,21 @@ WOLFSSL_RSA* wolfSSL_PEM_read_RSAPrivateKey(XFILE fp, WOLFSSL_RSA** out,
  * @return  0 on failure.
  */
 int wolfSSL_RSA_print_fp(XFILE fp, WOLFSSL_RSA* rsa, int indent)
+{
+    int ret;
+
+    if ((fp == XBADFILE) || (rsa == NULL))
+        return 0;
+    /* The body sets the data it uses, so only take the lock. */
+    if (WOLFSSL_KEY_OP_LOCK(rsa) != 0)
+        return WOLFSSL_FATAL_ERROR;
+    ret = rsa_print_fp_locked(fp, rsa, indent);
+    WOLFSSL_KEY_OP_UNLOCK(rsa);
+    return ret;
+}
+
+/* Print an RSA key to a file pointer. The key is locked. */
+static int rsa_print_fp_locked(XFILE fp, WOLFSSL_RSA* rsa, int indent)
 {
     int ret = 1;
 
@@ -1987,6 +2013,8 @@ const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(const WOLFSSL_RSA *rsa)
     return (rsa != NULL) ? rsa->meth : NULL;
 }
 
+static int rsa_size_locked(WOLFSSL_RSA* rsa);
+
 /* Get the size in bytes of the RSA key.
  *
  * Return compliant with OpenSSL
@@ -1998,15 +2026,27 @@ const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(const WOLFSSL_RSA *rsa)
 int wolfSSL_RSA_size(const WOLFSSL_RSA* rsa)
 {
     int ret = 0;
+    WOLFSSL_RSA* key = (WOLFSSL_RSA*)rsa;
 
     WOLFSSL_ENTER("wolfSSL_RSA_size");
 
-    if (rsa != NULL) {
-        /* Make sure we have set the RSA values into wolfCrypt RSA key. */
-        if (rsa->inSet || (SetRsaInternal((WOLFSSL_RSA*)rsa) == 1)) {
-            /* Get key size in bytes using wolfCrypt RSA key. */
-            ret = wc_RsaEncryptSize((RsaKey*)rsa->internal);
-        }
+    if (wolfssl_local_rsa_lock(key)) {
+        ret = rsa_size_locked(key);
+        wolfssl_local_rsa_unlock(key);
+    }
+
+    return ret;
+}
+
+/* Get the size in bytes of the RSA key. The key is locked. */
+static int rsa_size_locked(WOLFSSL_RSA* rsa)
+{
+    int ret = 0;
+
+    /* Make sure we have set the RSA values into wolfCrypt RSA key. */
+    if (rsa->inSet || (SetRsaInternal(rsa) == 1)) {
+        /* Get key size in bytes using wolfCrypt RSA key. */
+        ret = wc_RsaEncryptSize((RsaKey*)rsa->internal);
     }
 
     return ret;
@@ -2405,6 +2445,8 @@ int wolfSSL_RSA_set_ex_data_with_cleanup(WOLFSSL_RSA *rsa, int idx, void *data,
  */
 
 #ifdef WOLFSSL_RSA_KEY_CHECK
+static int rsa_check_key_locked(WOLFSSL_RSA* rsa);
+
 /* Check that the RSA key is valid using wolfCrypt.
  *
  * @param [in] rsa  RSA key.
@@ -2412,6 +2454,19 @@ int wolfSSL_RSA_set_ex_data_with_cleanup(WOLFSSL_RSA *rsa, int idx, void *data,
  * @return  0 on failure.
  */
 int wolfSSL_RSA_check_key(const WOLFSSL_RSA* rsa)
+{
+    int ret;
+    WOLFSSL_RSA* key = (WOLFSSL_RSA*)rsa;
+
+    if (!wolfssl_local_rsa_lock(key))
+        return 0;
+    ret = rsa_check_key_locked(key);
+    wolfssl_local_rsa_unlock(key);
+    return ret;
+}
+
+/* Check that the RSA key is valid. The key is locked. */
+static int rsa_check_key_locked(WOLFSSL_RSA* rsa)
 {
     int ret = 1;
 
@@ -2422,17 +2477,9 @@ int wolfSSL_RSA_check_key(const WOLFSSL_RSA* rsa)
         ret = 0;
     }
 
-    /* Constant RSA - assume internal data has been set. */
-
-    if ((ret == 1) && (!wolfssl_local_rsa_lock((WOLFSSL_RSA*)rsa))) {
+    /* Check wolfCrypt RSA key. */
+    if ((ret == 1) && (wc_CheckRsaKey((RsaKey*)rsa->internal) != 0)) {
         ret = 0;
-    }
-    if (ret == 1) {
-        /* Check wolfCrypt RSA key. */
-        if (wc_CheckRsaKey((RsaKey*)rsa->internal) != 0) {
-            ret = 0;
-        }
-        wolfssl_local_rsa_unlock((WOLFSSL_RSA*)rsa);
     }
 
     WOLFSSL_LEAVE("wolfSSL_RSA_check_key", ret);
@@ -2731,6 +2778,11 @@ static int rsa_pss_calc_salt(int saltLen, int hashLen, int emLen)
      defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
 
+static int rsa_padding_add_pkcs1_pss_mgf1_locked(WOLFSSL_RSA *rsa,
+        unsigned char *em, const unsigned char *mHash,
+        const WOLFSSL_EVP_MD *hashAlg, const WOLFSSL_EVP_MD *mgf1Hash,
+        int saltLen, WC_RNG* rng);
+
 /* Add PKCS#1 PSS padding to hash.
  *
  *
@@ -2774,11 +2826,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
         const unsigned char *mHash, const WOLFSSL_EVP_MD *hashAlg,
         const WOLFSSL_EVP_MD *mgf1Hash, int saltLen)
 {
-    int ret = 1;
-    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
-    int hashLen = 0;
-    int emLen = 0;
-    int mgf = 0;
+    int ret = 0;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -2787,6 +2835,45 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
     WC_RNG  _tmpRng[1];
     WC_RNG* tmpRng = _tmpRng;
 #endif
+
+    if ((rsa == NULL) || (em == NULL) || (mHash == NULL) || (hashAlg == NULL))
+        return 0;
+
+    /* Get/create an RNG before taking the key lock. The body sets the data
+     * it uses, so only take the lock. */
+    rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
+    if (rng == NULL) {
+        WOLFSSL_ERROR_MSG("WOLFSSL_RSA_GetRNG error");
+    }
+    else if (WOLFSSL_KEY_OP_LOCK(rsa) != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    else {
+        ret = rsa_padding_add_pkcs1_pss_mgf1_locked(rsa, em, mHash, hashAlg,
+            mgf1Hash, saltLen, rng);
+        WOLFSSL_KEY_OP_UNLOCK(rsa);
+    }
+
+    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
+    if (initTmpRng) {
+        wc_FreeRng(tmpRng);
+    }
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
+
+    return ret;
+}
+
+/* Add PKCS#1 PSS padding to hash. The key is locked. */
+static int rsa_padding_add_pkcs1_pss_mgf1_locked(WOLFSSL_RSA *rsa,
+        unsigned char *em, const unsigned char *mHash,
+        const WOLFSSL_EVP_MD *hashAlg, const WOLFSSL_EVP_MD *mgf1Hash,
+        int saltLen, WC_RNG* rng)
+{
+    int ret = 1;
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+    int hashLen = 0;
+    int emLen = 0;
+    int mgf = 0;
 
     WOLFSSL_ENTER("wolfSSL_RSA_padding_add_PKCS1_PSS");
 
@@ -2797,15 +2884,6 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
 
     if (mgf1Hash == NULL)
         mgf1Hash = hashAlg;
-
-    if (ret == 1) {
-        /* Get/create an RNG. */
-        rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
-        if (rng == NULL) {
-            WOLFSSL_ERROR_MSG("WOLFSSL_RSA_GetRNG error");
-            ret = 0;
-        }
-    }
 
     /* TODO: use wolfCrypt RSA key to get emLen and bits? */
     /* Set the external data from the wolfCrypt RSA key if not done. */
@@ -2840,7 +2918,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
 
     if (ret == 1) {
         /* Get length of RSA key - encrypted message length. */
-        emLen = wolfSSL_RSA_size(rsa);
+        emLen = rsa_size_locked(rsa);
         if (emLen <= 0) {
             WOLFSSL_ERROR_MSG("wolfSSL_RSA_size error");
             ret = 0;
@@ -2861,12 +2939,6 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
         }
     }
 
-    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
-    if (initTmpRng) {
-        wc_FreeRng(tmpRng);
-    }
-    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-
     return ret;
 }
 
@@ -2876,6 +2948,10 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
     return wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(rsa, em, mHash, hashAlg, NULL,
             saltLen);
 }
+
+static int rsa_verify_pkcs1_pss_mgf1_locked(WOLFSSL_RSA *rsa,
+        const unsigned char *mHash, const WOLFSSL_EVP_MD *hashAlg,
+        const WOLFSSL_EVP_MD *mgf1Hash, const unsigned char *em, int saltLen);
 
 /* Checks that the hash is valid for the RSA PKCS#1 PSS encoded message.
  *
@@ -2891,6 +2967,24 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
  * @return  0 on failure.
  */
 int wolfSSL_RSA_verify_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
+        const unsigned char *mHash, const WOLFSSL_EVP_MD *hashAlg,
+        const WOLFSSL_EVP_MD *mgf1Hash, const unsigned char *em, int saltLen)
+{
+    int ret;
+
+    if ((rsa == NULL) || (mHash == NULL) || (hashAlg == NULL) || (em == NULL))
+        return 0;
+    /* The body sets the data it uses, so only take the lock. */
+    if (WOLFSSL_KEY_OP_LOCK(rsa) != 0)
+        return WOLFSSL_FATAL_ERROR;
+    ret = rsa_verify_pkcs1_pss_mgf1_locked(rsa, mHash, hashAlg, mgf1Hash, em,
+        saltLen);
+    WOLFSSL_KEY_OP_UNLOCK(rsa);
+    return ret;
+}
+
+/* Check PSS padding of the encoded message. The key is locked. */
+static int rsa_verify_pkcs1_pss_mgf1_locked(WOLFSSL_RSA *rsa,
         const unsigned char *mHash, const WOLFSSL_EVP_MD *hashAlg,
         const WOLFSSL_EVP_MD *mgf1Hash, const unsigned char *em, int saltLen)
 {
@@ -2929,7 +3023,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
 
     if (ret == 1) {
         /* Get length of RSA key - encrypted message length. */
-        emLen = wolfSSL_RSA_size(rsa);
+        emLen = rsa_size_locked(rsa);
         if (emLen <= 0) {
             WOLFSSL_ERROR_MSG("wolfSSL_RSA_size error");
             ret = 0;
@@ -3139,6 +3233,10 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         padding, hashAlg, DEF_PSS_SALT_LEN);
 }
 
+static int rsa_sign_mgf_locked(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, unsigned char* sigRet, unsigned int* sigLen,
+    WOLFSSL_RSA* rsa, int padding, int mgf1Hash, int saltLen, WC_RNG* rng);
+
 /**
  * Sign a message hash with the chosen message digest, padding, and RSA key.
  *
@@ -3166,39 +3264,65 @@ int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
     unsigned int hLen, unsigned char* sigRet, unsigned int* sigLen,
     WOLFSSL_RSA* rsa, int flag, int padding, int mgf1Hash, int saltLen)
 {
-    int     ret        = 1;
-    word32  outLen     = 0;
-    int     signSz     = 0;
-    WC_RNG* rng        = NULL;
-    int     initTmpRng = 0;
-    int     locked     = 0;
+    int ret = 0;
+    int initTmpRng = 0;
+    WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng     = NULL;
-    byte*   encodedSig = NULL;
+    WC_RNG* tmpRng = NULL;
 #else
     WC_RNG  _tmpRng[1];
     WC_RNG* tmpRng = _tmpRng;
-    byte    encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
 #endif
-    unsigned int encSz = 0;
-
-    WOLFSSL_ENTER("wolfSSL_RSA_sign_mgf");
 
     if (flag == 0) {
         /* Only encode message. */
         return wolfssl_rsa_sig_encode(hashAlg, hash, hLen, sigRet, sigLen,
             padding);
     }
+    if ((rsa == NULL) || (rsa->internal == NULL))
+        return 0;
+
+    /* Get/create an RNG before taking the key lock. */
+    rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
+    if (rng == NULL) {
+        WOLFSSL_ERROR_MSG("WOLFSSL_RSA_GetRNG error");
+    }
+    else if (wolfssl_local_rsa_lock(rsa)) {
+        ret = rsa_sign_mgf_locked(hashAlg, hash, hLen, sigRet, sigLen, rsa,
+            padding, mgf1Hash, saltLen, rng);
+        wolfssl_local_rsa_unlock(rsa);
+    }
+
+    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
+    if (initTmpRng) {
+        wc_FreeRng(tmpRng);
+    }
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
+
+    return ret;
+}
+
+/* Sign a message hash with the RSA key. The key is locked. */
+static int rsa_sign_mgf_locked(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, unsigned char* sigRet, unsigned int* sigLen,
+    WOLFSSL_RSA* rsa, int padding, int mgf1Hash, int saltLen, WC_RNG* rng)
+{
+    int     ret        = 1;
+    word32  outLen     = 0;
+    int     signSz     = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    byte*   encodedSig = NULL;
+#else
+    byte    encodedSig[MAX_ENCODED_CLASSIC_SIG_SZ];
+#endif
+    unsigned int encSz = 0;
+
+    WOLFSSL_ENTER("wolfSSL_RSA_sign_mgf");
 
     /* Validate parameters. */
     if ((hash == NULL) || (sigRet == NULL) || sigLen == NULL || rsa == NULL) {
         WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = 0;
-    }
-
-    if (ret == 1) {
-        locked = wolfssl_local_rsa_lock(rsa);
-        ret = locked;
     }
 
     if (ret == 1) {
@@ -3226,15 +3350,6 @@ int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
         }
     }
 #endif
-
-    if (ret == 1) {
-        /* Get/create an RNG. */
-        rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
-        if (rng == NULL) {
-            WOLFSSL_ERROR_MSG("WOLFSSL_RSA_GetRNG error");
-            ret = 0;
-        }
-    }
 
     /* Either encodes with PKCS#1.5 or copies hash into encodedSig. */
     if ((ret == 1) && (wolfssl_rsa_sig_encode(hashAlg, hash, hLen, encodedSig,
@@ -3266,7 +3381,7 @@ int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
             mgf1 = wc_OidGetHash((int)nid2oid(mgf1Hash, oidHashType));
             /* handle compat layer salt special cases */
             saltLen = rsa_pss_calc_salt(saltLen, wc_HashGetDigestSize(hType),
-                wolfSSL_RSA_size(rsa));
+                rsa_size_locked(rsa));
 
             /* Create RSA PSS signature. */
             if ((signSz = wc_RsaPSS_Sign_ex(encodedSig, encSz, sigRet, outLen,
@@ -3304,19 +3419,11 @@ int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
         }
     }
 
-    if (locked) {
-        wolfssl_local_rsa_unlock(rsa);
-    }
     if (ret == 1) {
         /* Return the size of signature generated. */
         *sigLen = (unsigned int)signSz;
     }
 
-    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
-    if (initTmpRng) {
-        wc_FreeRng(tmpRng);
-    }
-    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
     WC_FREE_VAR_EX(encodedSig, NULL, DYNAMIC_TYPE_SIGNATURE);
 
     WOLFSSL_LEAVE("wolfSSL_RSA_sign_mgf", ret);
@@ -3351,6 +3458,10 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         padding, hashAlg, DEF_PSS_SALT_LEN);
 }
 
+static int rsa_verify_mgf_locked(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, const unsigned char* sig, unsigned int sigLen,
+    WOLFSSL_RSA* rsa, int padding, int mgf1Hash, int saltLen);
+
 /**
  * Verify a message hash with the chosen message digest, padding, and RSA key.
  *
@@ -3371,6 +3482,21 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
  * @return  0 on failure.
  */
 int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, const unsigned char* sig, unsigned int sigLen,
+    WOLFSSL_RSA* rsa, int padding, int mgf1Hash, int saltLen)
+{
+    int ret;
+
+    if (!wolfssl_local_rsa_lock(rsa))
+        return 0;
+    ret = rsa_verify_mgf_locked(hashAlg, hash, hLen, sig, sigLen, rsa, padding,
+        mgf1Hash, saltLen);
+    wolfssl_local_rsa_unlock(rsa);
+    return ret;
+}
+
+/* Verify a message hash with the RSA key. The key is locked. */
+static int rsa_verify_mgf_locked(int hashAlg, const unsigned char* hash,
     unsigned int hLen, const unsigned char* sig, unsigned int sigLen,
     WOLFSSL_RSA* rsa, int padding, int mgf1Hash, int saltLen)
 {
@@ -3416,16 +3542,10 @@ int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
 
         /* handle compat layer salt special cases */
         saltLen = rsa_pss_calc_salt(saltLen, wc_HashGetDigestSize(hType),
-            wolfSSL_RSA_size(rsa));
+            rsa_size_locked(rsa));
 
-        if (!wolfssl_local_rsa_lock(rsa)) {
-            verLen = WOLFSSL_FATAL_ERROR;
-        }
-        else {
-            verLen = wc_RsaPSS_Verify_ex((byte*)sig, sigLen, sigDec, sigLen,
-                hType, wc_hash2mgf(mgf1), saltLen, key);
-            wolfssl_local_rsa_unlock(rsa);
-        }
+        verLen = wc_RsaPSS_Verify_ex((byte*)sig, sigLen, sigDec, sigLen,
+            hType, wc_hash2mgf(mgf1), saltLen, key);
         if (verLen > 0) {
             /* Check PSS padding is valid. */
             if (wc_RsaPSS_CheckPadding_ex(hash, hLen, sigDec, (word32)verLen,
@@ -3470,9 +3590,6 @@ int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
             ret = 0;
         }
     }
-    if ((ret == 1) && (!wolfssl_local_rsa_lock(rsa))) {
-        ret = 0;
-    }
     if (ret == 1) {
         /* Decrypt signature */
     #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 1)) && \
@@ -3490,7 +3607,6 @@ int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
             ret = 0;
         }
     #endif
-        wolfssl_local_rsa_unlock(rsa);
     }
     if (ret == 1) {
         /* Compare decrypted signature to encoded signature. */
@@ -3513,6 +3629,9 @@ int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
  * RSA public/private encrypt/decrypt APIs
  */
 
+static int rsa_public_encrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding, WC_RNG* rng);
+
 /* Encrypt with the RSA public key.
  *
  * Return compliant with OpenSSL.
@@ -3528,8 +3647,7 @@ int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
 int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
-    int ret = 0;
-    int locked = 0;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3538,6 +3656,31 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     WC_RNG  _tmpRng[1];
     WC_RNG* tmpRng = _tmpRng;
 #endif
+
+    if ((rsa == NULL) || (rsa->internal == NULL))
+        return WOLFSSL_FATAL_ERROR;
+
+    /* Get an RNG before taking the key lock. */
+    rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
+    if ((rng != NULL) && wolfssl_local_rsa_lock(rsa)) {
+        ret = rsa_public_encrypt_locked(len, from, to, rsa, padding, rng);
+        wolfssl_local_rsa_unlock(rsa);
+    }
+
+    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
+    if (initTmpRng) {
+        wc_FreeRng(tmpRng);
+    }
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
+
+    return ret;
+}
+
+/* Encrypt with the RSA public key. The key is locked. */
+static int rsa_public_encrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding, WC_RNG* rng)
+{
+    int ret = 0;
 #if !defined(HAVE_FIPS)
     int  mgf = WC_MGF1NONE;
     enum wc_HashType hash = WC_HASH_TYPE_NONE;
@@ -3586,25 +3729,10 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     }
 
     if (ret == 0) {
-        locked = wolfssl_local_rsa_lock(rsa);
-        if (!locked) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
         /* Calculate maximum length of encrypted data. */
-        outLen = wolfSSL_RSA_size(rsa);
+        outLen = rsa_size_locked(rsa);
         if (outLen == 0) {
             WOLFSSL_ERROR_MSG("Bad RSA size");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
-        /* Get an RNG. */
-        rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
-        if (rng == NULL) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -3620,16 +3748,6 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     #endif
     }
 
-    if (locked) {
-        wolfssl_local_rsa_unlock(rsa);
-    }
-
-    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
-    if (initTmpRng) {
-        wc_FreeRng(tmpRng);
-    }
-    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {
         ret = WOLFSSL_FATAL_ERROR;
@@ -3637,6 +3755,9 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     WOLFSSL_LEAVE("wolfSSL_RSA_public_encrypt", ret);
     return ret;
 }
+
+static int rsa_private_decrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding);
 
 /* Decrypt with the RSA public key.
  *
@@ -3653,8 +3774,20 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
 int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
+    int ret;
+
+    if (!wolfssl_local_rsa_lock(rsa))
+        return WOLFSSL_FATAL_ERROR;
+    ret = rsa_private_decrypt_locked(len, from, to, rsa, padding);
+    wolfssl_local_rsa_unlock(rsa);
+    return ret;
+}
+
+/* Decrypt with the RSA private key. The key is locked. */
+static int rsa_private_decrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding)
+{
     int ret = 0;
-    int locked = 0;
 #if !defined(HAVE_FIPS)
     int mgf = WC_MGF1NONE;
     enum wc_HashType hash = WC_HASH_TYPE_NONE;
@@ -3701,15 +3834,8 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     }
 
     if (ret == 0) {
-        locked = wolfssl_local_rsa_lock(rsa);
-        if (!locked) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
         /* Calculate maximum length of decrypted data. */
-        outLen = wolfSSL_RSA_size(rsa);
+        outLen = rsa_size_locked(rsa);
         if (outLen == 0) {
             WOLFSSL_ERROR_MSG("Bad RSA size");
             ret = WOLFSSL_FATAL_ERROR;
@@ -3728,10 +3854,6 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     #endif
     }
 
-    if (locked) {
-        wolfssl_local_rsa_unlock(rsa);
-    }
-
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {
         ret = WOLFSSL_FATAL_ERROR;
@@ -3739,6 +3861,9 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     WOLFSSL_LEAVE("wolfSSL_RSA_private_decrypt", ret);
     return ret;
 }
+
+static int rsa_public_decrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding);
 
 /* Decrypt with the RSA public key.
  *
@@ -3753,8 +3878,20 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
 int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
     unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
+    int ret;
+
+    if (!wolfssl_local_rsa_lock(rsa))
+        return WOLFSSL_FATAL_ERROR;
+    ret = rsa_public_decrypt_locked(len, from, to, rsa, padding);
+    wolfssl_local_rsa_unlock(rsa);
+    return ret;
+}
+
+/* Decrypt with the RSA public key. The key is locked. */
+static int rsa_public_decrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding)
+{
     int ret = 0;
-    int locked = 0;
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
     int pad_type = WC_RSA_NO_PAD;
 #endif
@@ -3793,15 +3930,8 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
     }
 
     if (ret == 0) {
-        locked = wolfssl_local_rsa_lock(rsa);
-        if (!locked) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
         /* Calculate maximum length of encrypted data. */
-        outLen = wolfSSL_RSA_size(rsa);
+        outLen = rsa_size_locked(rsa);
         if (outLen == 0) {
             WOLFSSL_ERROR_MSG("Bad RSA size");
             ret = WOLFSSL_FATAL_ERROR;
@@ -3821,10 +3951,6 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
     #endif
     }
 
-    if (locked) {
-        wolfssl_local_rsa_unlock(rsa);
-    }
-
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {
         ret = WOLFSSL_FATAL_ERROR;
@@ -3832,6 +3958,9 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
     WOLFSSL_LEAVE("wolfSSL_RSA_public_decrypt", ret);
     return ret;
 }
+
+static int rsa_private_encrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding, WC_RNG* rng);
 
 /* Encrypt with the RSA private key.
  *
@@ -3848,8 +3977,7 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
 int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
-    int ret = 0;
-    int locked = 0;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3858,6 +3986,31 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     WC_RNG  _tmpRng[1];
     WC_RNG* tmpRng = _tmpRng;
 #endif
+
+    if ((rsa == NULL) || (rsa->internal == NULL))
+        return WOLFSSL_FATAL_ERROR;
+
+    /* Get an RNG before taking the key lock. */
+    rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
+    if ((rng != NULL) && wolfssl_local_rsa_lock(rsa)) {
+        ret = rsa_private_encrypt_locked(len, from, to, rsa, padding, rng);
+        wolfssl_local_rsa_unlock(rsa);
+    }
+
+    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
+    if (initTmpRng) {
+        wc_FreeRng(tmpRng);
+    }
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
+
+    return ret;
+}
+
+/* Encrypt with the RSA private key. The key is locked. */
+static int rsa_private_encrypt_locked(int len, const unsigned char* from,
+    unsigned char* to, WOLFSSL_RSA* rsa, int padding, WC_RNG* rng)
+{
+    int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_RSA_private_encrypt");
 
@@ -3883,30 +4036,15 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     }
 
     if (ret == 0) {
-        locked = wolfssl_local_rsa_lock(rsa);
-        if (!locked) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
-        /* Get an RNG. */
-        rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
-        if (rng == NULL) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
         /* Use wolfCrypt to private-encrypt with RSA key.
          * Size of output buffer must be size of RSA key. */
         if (padding == WC_RSA_PKCS1_PADDING) {
             ret = wc_RsaSSL_Sign(from, (word32)len, to,
-                (word32)wolfSSL_RSA_size(rsa), (RsaKey*)rsa->internal, rng);
+                (word32)rsa_size_locked(rsa), (RsaKey*)rsa->internal, rng);
         }
     #ifdef WC_RSA_NO_PADDING
         else if (padding == WC_RSA_NO_PAD) {
-            word32 outLen = (word32)wolfSSL_RSA_size(rsa);
+            word32 outLen = (word32)rsa_size_locked(rsa);
             ret = wc_RsaFunction(from, (word32)len, to, &outLen,
                     RSA_PRIVATE_ENCRYPT, (RsaKey*)rsa->internal, rng);
             if (ret == 0)
@@ -3914,16 +4052,6 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
         }
     #endif
     }
-
-    if (locked) {
-        wolfssl_local_rsa_unlock(rsa);
-    }
-
-    /* Finalize RNG if initialized in WOLFSSL_RSA_GetRNG(). */
-    if (initTmpRng) {
-        wc_FreeRng(tmpRng);
-    }
-    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {

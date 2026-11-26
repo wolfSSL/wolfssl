@@ -2802,11 +2802,13 @@ int wolfSSL_EVP_PKEY_CTX_ctrl_str(WOLFSSL_EVP_PKEY_CTX *ctx,
  * @param [out] key     Buffer for the secret. NULL to only get the length.
  * @param [in]  keylen  Length of key buffer in bytes.
  * @param [out] outLen  Length of the secret in bytes.
+ * @param [in]  rng     Seeded RNG for timing resistance. May be NULL when
+ *                      key is NULL.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FAILURE on failure.
  */
 static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
-    size_t keylen, int *outLen)
+    size_t keylen, int *outLen, WC_RNG* rng)
 {
     int len;
 
@@ -2818,13 +2820,9 @@ static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
     && (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-
-        WC_RNG rng;
-        if (wc_InitRng(&rng) != MP_OKAY) {
-            WOLFSSL_MSG("Init RNG failed");
-            return WOLFSSL_FAILURE;
-        }
-        ((ecc_key*)ctx->pkey->ecc->internal)->rng = &rng;
+        ((ecc_key*)ctx->pkey->ecc->internal)->rng = rng;
+#else
+        (void)rng;
 #endif
         if (keylen < len32) {
             WOLFSSL_MSG("buffer too short");
@@ -2832,7 +2830,6 @@ static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
     && (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
             ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
-            wc_FreeRng(&rng);
 #endif
             return WOLFSSL_FAILURE;
         }
@@ -2844,7 +2841,6 @@ static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
     && (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
             ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
-            wc_FreeRng(&rng);
 #endif
             return WOLFSSL_FAILURE;
         }
@@ -2852,7 +2848,6 @@ static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
     && (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
         ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
-        wc_FreeRng(&rng);
 #endif
         len = (int)len32;
     }
@@ -2868,6 +2863,12 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
     int len;
 #if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     int ecdhRet;
+    WC_RNG* ecdhRng = NULL;
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+    WC_RNG rng;
+#endif
 #endif
 #ifdef HAVE_HKDF
     enum wc_HashType hkdfHashType;
@@ -2930,11 +2931,32 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
             }
         }
         wolfssl_local_ec_key_unlock(ctx->peerKey->ecc);
-        if (!wolfssl_local_ec_key_lock(ctx->pkey->ecc)) {
-            return WOLFSSL_FAILURE;
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+        /* Seed the RNG before taking the key lock. */
+        if (key) {
+            if (wc_InitRng(&rng) != MP_OKAY) {
+                WOLFSSL_MSG("Init RNG failed");
+                return WOLFSSL_FAILURE;
+            }
+            ecdhRng = &rng;
         }
-        ecdhRet = evp_pkey_derive_ecdh(ctx, key, *keylen, &len);
-        wolfssl_local_ec_key_unlock(ctx->pkey->ecc);
+#endif
+        if (!wolfssl_local_ec_key_lock(ctx->pkey->ecc)) {
+            ecdhRet = WOLFSSL_FAILURE;
+        }
+        else {
+            ecdhRet = evp_pkey_derive_ecdh(ctx, key, *keylen, &len, ecdhRng);
+            wolfssl_local_ec_key_unlock(ctx->pkey->ecc);
+        }
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+        if (ecdhRng != NULL) {
+            wc_FreeRng(ecdhRng);
+        }
+#endif
         if (ecdhRet != WOLFSSL_SUCCESS) {
             return WOLFSSL_FAILURE;
         }
@@ -3752,8 +3774,7 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
 #ifndef NO_DSA
     case WC_EVP_PKEY_DSA:
         if (pkey->dsa == NULL ||
-                (!pkey->dsa->exSet &&
-                        SetDsaExternal(pkey->dsa) != WOLFSSL_SUCCESS))
+                wolfssl_local_dsa_set_external(pkey->dsa) != WOLFSSL_SUCCESS)
             break;
         ret = wolfSSL_BN_num_bytes(pkey->dsa->p);
         break;
@@ -4171,8 +4192,7 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 #ifndef NO_DSA
     case WC_EVP_PKEY_DSA:
         if (pkey->dsa == NULL ||
-                (!pkey->dsa->exSet &&
-                        SetDsaExternal(pkey->dsa) != WOLFSSL_SUCCESS))
+                wolfssl_local_dsa_set_external(pkey->dsa) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
         return wolfSSL_BN_num_bytes(pkey->dsa->p);
 #endif
@@ -4346,6 +4366,47 @@ int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
 }
 #endif
 
+#ifdef HAVE_ECC
+/* Get the wolfCrypt key of an EC key ready to compare.
+ *
+ * Threads may share the key, so this is done under its lock.
+ *
+ * @param [in, out] ec  EC key.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+static int evp_pkey_ec_cmp_prepare(WOLFSSL_EC_KEY* ec)
+{
+    int ret;
+    ecc_key* key;
+
+    /* Ensure internal ecc_key is synced from external representation.
+     * After d2i_PrivateKey, the external BIGNUMs may be set but the
+     * internal ecc_key.pubkey may not be populated. */
+    ret = wolfssl_local_ec_key_lock(ec);
+    if (ret) {
+        key = (ecc_key*)ec->internal;
+        if (wc_ecc_size(key) <= 0) {
+            ret = 0;
+        }
+        /* If a key was imported as private-only (e.g. RFC 5915 without the
+         * optional public key), the pubkey point will not be populated.
+         * Derive it from the private key so the comparison can succeed. */
+        else if (key->type == ECC_PRIVATEKEY_ONLY) {
+            if (wc_ecc_make_pub(key, NULL) != MP_OKAY) {
+                ret = 0;
+            }
+            else {
+                key->type = ECC_PRIVATEKEY;
+            }
+        }
+        wolfssl_local_ec_key_unlock(ec);
+    }
+
+    return ret;
+}
+#endif /* HAVE_ECC */
+
 /* wolfSSL_EVP_PKEY_cmp
  * returns 0 on success, -1 on failure.
  *
@@ -4401,44 +4462,13 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
             return ret;
         }
 
-        /* Ensure internal ecc_key is synced from external representation.
-         * After d2i_PrivateKey, the external BIGNUMs may be set but the
-         * internal ecc_key.pubkey may not be populated. */
-        if (a->ecc->inSet == 0) {
-            if (SetECKeyInternal((WOLFSSL_EC_KEY*)a->ecc) != 1) {
-                return ret;
-            }
-        }
-        if (b->ecc->inSet == 0) {
-            if (SetECKeyInternal((WOLFSSL_EC_KEY*)b->ecc) != 1) {
-                return ret;
-            }
-        }
-
-        if (a->ecc->internal == NULL || b->ecc->internal == NULL ||
-            wc_ecc_size((ecc_key*)a->ecc->internal) <= 0 ||
-            wc_ecc_size((ecc_key*)b->ecc->internal) <= 0) {
+        if (!evp_pkey_ec_cmp_prepare(a->ecc) ||
+                !evp_pkey_ec_cmp_prepare(b->ecc)) {
             return ret;
         }
 
         ecc_key_a = (ecc_key*)a->ecc->internal;
         ecc_key_b = (ecc_key*)b->ecc->internal;
-
-        /* If a key was imported as private-only (e.g. RFC 5915 without the
-         * optional public key), the pubkey point will not be populated.
-         * Derive it from the private key so the comparison can succeed. */
-        if (ecc_key_a->type == ECC_PRIVATEKEY_ONLY) {
-            if (wc_ecc_make_pub(ecc_key_a, NULL) != MP_OKAY) {
-                return ret;
-            }
-            ecc_key_a->type = ECC_PRIVATEKEY;
-        }
-        if (ecc_key_b->type == ECC_PRIVATEKEY_ONLY) {
-            if (wc_ecc_make_pub(ecc_key_b, NULL) != MP_OKAY) {
-                return ret;
-            }
-            ecc_key_b->type = ECC_PRIVATEKEY;
-        }
 
         /* check curve */
         if (a->ecc->group->curve_idx != b->ecc->group->curve_idx) {
@@ -9720,12 +9750,12 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
     pkey->ownRsa = 1; /* pkey does not own RSA but needs to call free on it */
     pkey->type   = WC_EVP_PKEY_RSA;
     pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
-    if (key->inSet == 0) {
-        if (SetRsaInternal(key) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("SetRsaInternal failed");
-            return WOLFSSL_FAILURE;
-        }
+    /* Lock to set the wolfCrypt key if needed. */
+    if (!wolfssl_local_rsa_lock(key)) {
+        WOLFSSL_MSG("SetRsaInternal failed");
+        return WOLFSSL_FAILURE;
     }
+    wolfssl_local_rsa_unlock(key);
 
 #ifdef WOLFSSL_KEY_TO_DER
     if (PopulateRSAEvpPkeyDer(pkey) != WOLFSSL_SUCCESS) {
@@ -9765,12 +9795,12 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
     pkey->dsa    = key;
     pkey->ownDsa = 0; /* pkey does not own DSA */
     pkey->type   = WC_EVP_PKEY_DSA;
-    if (key->inSet == 0) {
-        if (SetDsaInternal(key) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("SetDsaInternal failed");
-            return WOLFSSL_FAILURE;
-        }
+    /* Lock to set the wolfCrypt key if needed. */
+    if (!wolfssl_local_dsa_lock(key)) {
+        WOLFSSL_MSG("SetDsaInternal failed");
+        return WOLFSSL_FAILURE;
     }
+    wolfssl_local_dsa_unlock(key);
     dsa = (DsaKey*)key->internal;
 
     /* 4 > size of pub, priv, p, q, g + ASN.1 additional information */
@@ -9960,12 +9990,12 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     pkey->dh    = key;
     pkey->ownDh = 1; /* pkey does not own DH but needs to call free on it */
     pkey->type  = WC_EVP_PKEY_DH;
-    if (key->inSet == 0) {
-        if (SetDhInternal(key) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("SetDhInternal failed");
-            return WOLFSSL_FAILURE;
-        }
+    /* Lock to set the wolfCrypt key if needed. */
+    if (!wolfssl_local_dh_lock(key)) {
+        WOLFSSL_MSG("SetDhInternal failed");
+        return WOLFSSL_FAILURE;
     }
+    wolfssl_local_dh_unlock(key);
 
     dhkey = (DhKey*)key->internal;
 
