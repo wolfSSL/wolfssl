@@ -580,7 +580,18 @@ enum {
     #if defined(_MSC_VER) || defined(__WATCOMC__)
         #define THREAD_LS_T __declspec(thread)
         #define WC_THREAD_LS_T_IS_REAL
-    /* Thread local storage only in FreeRTOS v8.2.1 and higher */
+    /* Zephyr gives each thread its own copy: Zephyr docs,
+     * doc/kernel/services/other/thread_local_storage.rst */
+    #elif defined(WOLFSSL_ZEPHYR) && defined(CONFIG_THREAD_LOCAL_STORAGE)
+        #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
+    /* FreeRTOS switches the compiler TLS pointer per task only with picolibc:
+     * FreeRTOS-Kernel 11.1.0 include/picolibc-freertos.h configSET_TLS_BLOCK */
+    #elif defined(FREERTOS) && defined(configUSE_PICOLIBC_TLS) && \
+          (configUSE_PICOLIBC_TLS == 1)
+        #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
+    /* Other FreeRTOS and Zephyr builds: compiler TLS is not per task. */
     #elif defined(FREERTOS) || defined(FREERTOS_TCP) || \
                                                         defined(WOLFSSL_ZEPHYR)
         #define THREAD_LS_T
