@@ -580,7 +580,18 @@ enum {
     #if defined(_MSC_VER) || defined(__WATCOMC__)
         #define THREAD_LS_T __declspec(thread)
         #define WC_THREAD_LS_T_IS_REAL
-    /* Thread local storage only in FreeRTOS v8.2.1 and higher */
+    /* Zephyr gives each thread its own copy: Zephyr docs,
+     * doc/kernel/services/other/thread_local_storage.rst */
+    #elif defined(WOLFSSL_ZEPHYR) && defined(CONFIG_THREAD_LOCAL_STORAGE)
+        #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
+    /* FreeRTOS switches the compiler TLS pointer per task only with picolibc:
+     * FreeRTOS-Kernel 11.1.0 include/picolibc-freertos.h configSET_TLS_BLOCK */
+    #elif defined(FREERTOS) && defined(configUSE_PICOLIBC_TLS) && \
+          (configUSE_PICOLIBC_TLS == 1)
+        #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
+    /* Other FreeRTOS and Zephyr builds: compiler TLS is not per task. */
     #elif defined(FREERTOS) || defined(FREERTOS_TCP) || \
                                                         defined(WOLFSSL_ZEPHYR)
         #define THREAD_LS_T
@@ -2200,6 +2211,8 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         k_thread_stack_t* threadStack;
     } THREAD_TYPE;
     #define WOLFSSL_THREAD
+    /* Heap hint for thread allocations. Set it before the first
+     * wolfSSL_NewThread call and do not change it afterwards. */
     extern void* wolfsslThreadHeapHint;
     /* Native Zephyr condition variable (k_condvar) built on a k_mutex; no
      * POSIX pthread layer required. Only reached when !SINGLE_THREADED, so
@@ -2293,6 +2306,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #undef THREAD_TYPE
     typedef uintptr_t     THREAD_TYPE;
     #define WOLFSSL_THREAD __stdcall
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+    /* Same types as the generic branch below, but without __stdcall, which
+     * only MSVC-style compilers accept (e.g. a GCC build without
+     * WOLFSSL_MDK_ARM). */
+    typedef unsigned int  THREAD_RETURN;
+    typedef size_t        THREAD_TYPE;
+    #define WOLFSSL_THREAD
 #else
     typedef unsigned int  THREAD_RETURN;
     typedef size_t        THREAD_TYPE;

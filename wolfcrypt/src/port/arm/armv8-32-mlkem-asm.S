@@ -38,7 +38,7 @@
 	.type	L_mlkem_arm32_ntt_zetas, %object
 	.size	L_mlkem_arm32_ntt_zetas, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -3060,7 +3060,7 @@ L_mlkem_arm32_ntt_loop_567:
 	.type	L_mlkem_invntt_zetas_inv, %object
 	.size	L_mlkem_invntt_zetas_inv, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -7476,7 +7476,7 @@ L_mlkem_invntt_loop_321:
 	.type	L_mlkem_basemul_mont_zetas, %object
 	.size	L_mlkem_basemul_mont_zetas, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__

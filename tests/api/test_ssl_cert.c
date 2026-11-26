@@ -6918,7 +6918,7 @@ int test_wolfSSL_dtls_api_more_guards(void)
     (void)wolfSSL_dtls_get0_peer(dssl, &p0, NULL);
     (void)wolfSSL_dtls_get0_peer(dssl, &p0, &p0Sz);
 
-    /* `ssl && timeleft` -- both operands */
+    /* `ssl == NULL || timeleft == NULL` -- both operands */
     {
         WOLFSSL_TIMEVAL tv;
 

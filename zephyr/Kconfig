@@ -323,6 +323,16 @@ config WOLFSSL_FALCON
     Enable PQC Falcon (FN-DSA) signatures. Needs SHAKE, which the FIPS v2
     and v5 boundaries do not build.
 
+config WOLFSSL_SHA3_SMALL
+  bool "Smaller, slower SHA-3/SHAKE"
+  depends on !WOLFSSL_HAS_SETTINGS_FILE
+  depends on !WOLFCRYPT_ARM_SYMMETRIC_ASM
+  depends on !WOLFCRYPT_FIPS_V2 && !WOLFCRYPT_FIPS_V5
+  depends on !WOLFCRYPT_FIPS_V7 && !WOLFCRYPT_FIPS_READY
+  help
+    Define WOLFSSL_SHA3_SMALL, a smaller and about 1.5x slower C Keccak
+    permutation.
+
 config WOLFSSL_RSA
   bool "wolfCrypt RSA support"
   depends on !WOLFSSL_HAS_SETTINGS_FILE

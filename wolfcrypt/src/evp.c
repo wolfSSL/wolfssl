@@ -664,6 +664,8 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case WC_AES_128_CFB1_TYPE:
         case WC_AES_192_CFB1_TYPE:
         case WC_AES_256_CFB1_TYPE:
+            if (inl > WOLFSSL_MAX_32BIT / WOLFSSL_BIT_SIZE)
+                return WOLFSSL_FAILURE;
             if (ctx->enc)
                 ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, out, in,
                         inl * WOLFSSL_BIT_SIZE);
@@ -9100,10 +9102,15 @@ void wolfSSL_EVP_init(void)
             case WC_AES_192_CFB1_TYPE:
             case WC_AES_256_CFB1_TYPE:
                 WOLFSSL_MSG("AES CFB1");
-                if (ctx->enc)
-                    ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, dst, src, len);
+                if (len > WOLFSSL_MAX_32BIT / WOLFSSL_BIT_SIZE) {
+                    ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+                }
+                else if (ctx->enc)
+                    ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, dst, src,
+                            len * WOLFSSL_BIT_SIZE);
                 else
-                    ret = wc_AesCfb1Decrypt(&ctx->cipher.aes, dst, src, len);
+                    ret = wc_AesCfb1Decrypt(&ctx->cipher.aes, dst, src,
+                            len * WOLFSSL_BIT_SIZE);
                 if (ret == 0)
                     ret = (int)len;
                 break;

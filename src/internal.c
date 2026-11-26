@@ -813,6 +813,28 @@ int IsWriteClosed(const WOLFSSL* ssl)
     return ssl->options.sentNotify || ssl->options.fatalAlert;
 }
 
+/* A fatal alert ends the connection (RFC 5246 7.2.2, RFC 8446 6.2), so the
+ * handshake can't continue or run again once one was sent or received.
+ * Returns 1, with ssl->error set, when a handshake call must fail. */
+int HandshakeEndedByFatalAlert(WOLFSSL* ssl)
+{
+    if (!ssl->options.fatalAlert)
+        return 0;
+
+    WOLFSSL_MSG("Fatal alert sent or received, handshake ended");
+    /* Keep the reason the connection failed, but not a result that would
+     * have the caller try again. */
+    if ((ssl->error == 0) ||
+            (ssl->error == WC_NO_ERR_TRACE(WANT_READ)) ||
+            (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) ||
+            (ssl->error == WOLFSSL_ERROR_WANT_READ) ||
+            (ssl->error == WOLFSSL_ERROR_WANT_WRITE) ||
+            (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN))) {
+        ssl->error = SOCKET_PEER_CLOSED_E;
+    }
+    return 1;
+}
+
 int IsEncryptionOn(const WOLFSSL* ssl, int isSend)
 {
     if (ssl == NULL) {
@@ -4118,14 +4140,18 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
       #endif
     #endif /* WOLFSSL_HAVE_SLHDSA */
 #ifdef WC_RSA_PSS
-        if (sigAlgo == rsa_pss_sa_algo) {
-            /* RSA PSS is sig then mac */
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo, macAlgo);
-    #ifdef WOLFSSL_TLS13
-            /* Add the certificate algorithm as well */
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo,
-                PSS_RSAE_TO_PSS_PSS(macAlgo));
-    #endif
+        /* RSA-PSS schemes exist for SHA-256, SHA-384 and SHA-512 only. */
+        if (sigAlgo == rsa_pss_sa_algo || sigAlgo == rsa_pss_pss_algo) {
+            if (macAlgo >= sha256_mac && macAlgo <= sha512_mac) {
+                if (sigAlgo == rsa_pss_sa_algo) {
+                    /* RSA PSS is sig then mac */
+                    ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo,
+                        macAlgo);
+                }
+                /* rsa_pss_pss_* too, also in TLS 1.2 (RFC 8446 1.3). */
+                ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, rsa_pss_sa_algo,
+                    PSS_RSAE_TO_PSS_PSS(macAlgo));
+            }
         }
         else
 #endif
@@ -6251,10 +6277,15 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[1] = rsa_sa_algo;
             break;
     #ifdef WC_RSA_PSS
-        /* PSS signatures: 0x080[4-6] */
+        /* PSS signatures with an rsaEncryption key: 0x080[4-6] */
         case rsa_pss_sa_algo:
             output[0] = rsa_pss_sa_algo;
             output[1] = hashAlgo;
+            break;
+        /* PSS signatures with an id-RSASSA-PSS key: 0x080[9-b] */
+        case rsa_pss_pss_algo:
+            output[0] = rsa_pss_sa_algo;
+            output[1] = PSS_RSAE_TO_PSS_PSS(hashAlgo);
             break;
     #endif
 #endif
@@ -6430,7 +6461,7 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 #endif
 
 #if defined(WC_RSA_PSS)
-    if (sigAlgo == rsa_pss_sa_algo) {
+    if (sigAlgo == rsa_pss_sa_algo || sigAlgo == rsa_pss_pss_algo) {
         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
         int mgf = 0;
 
@@ -6482,6 +6513,53 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     return ret;
 }
 #endif
+
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+/* Whether rsa_pss_*_<hashAlgo> fits an id-RSASSA-PSS key's parameters: the
+ * declared hash and MGF, and a salt no shorter than declared (RFC 4055 3.3);
+ * the scheme's salt is the digest length (RFC 8446 4.2.3). */
+static int MatchRsaPssParams(byte keyHash, byte keyMgf, word16 keySaltLen,
+    int hashAlgo)
+{
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+    int mgf = WC_MGF1NONE;
+
+    if (ConvertHashPss(hashAlgo, &hashType, &mgf) != 0)
+        return 0;
+    if (keyHash != 0 && hashType != (enum wc_HashType)keyHash)
+        return 0;
+    if (keyMgf != 0 && mgf != (int)keyMgf)
+        return 0;
+    return (int)keySaltLen <= wc_HashGetDigestSize(hashType);
+}
+
+/* Check the peer's RSA signature scheme against its key: rsa_pss_rsae_* needs
+ * an rsaEncryption key and rsa_pss_pss_* an id-RSASSA-PSS key (RFC 8446 4.2.3),
+ * used only as its parameters allow (RFC 4055 1.2).
+ * Returns 0 or INVALID_PARAMETER. */
+int CheckPeerRsaSigAlgo(const WOLFSSL* ssl, byte sigAlgo, byte hashAlgo)
+{
+    if (ssl->peerRsaPss) {
+        if (sigAlgo != rsa_pss_pss_algo) {
+            WOLFSSL_MSG("Peer id-RSASSA-PSS key used without rsa_pss_pss_*");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+        if (!MatchRsaPssParams(ssl->peerRsaPssHash, ssl->peerRsaPssMgf,
+                ssl->peerRsaPssSaltLen, hashAlgo)) {
+            WOLFSSL_MSG("Peer RSA-PSS scheme not allowed by key parameters");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+    }
+    else if (sigAlgo == rsa_pss_pss_algo) {
+        WOLFSSL_MSG("Peer sent rsa_pss_pss_* with an rsaEncryption key");
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
+    return 0;
+}
+#endif /* !NO_RSA && WC_RSA_PSS */
 
 int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
               int hashAlgo, RsaKey* key, buffer* keyBufInfo)
@@ -6605,7 +6683,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 #endif
 
 #if defined(WC_RSA_PSS)
-    if (sigAlgo == rsa_pss_sa_algo) {
+    if (sigAlgo == rsa_pss_sa_algo || sigAlgo == rsa_pss_pss_algo) {
         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
         int mgf = 0;
 
@@ -8637,6 +8715,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.minRsaKeySz = ctx->minRsaKeySz;
   #ifdef WC_RSA_PSS
     ssl->useRsaPss = ctx->useRsaPss;
+    ssl->rsaPssHash = ctx->rsaPssHash;
+    ssl->rsaPssMgf = ctx->rsaPssMgf;
+    ssl->rsaPssSaltLen = ctx->rsaPssSaltLen;
   #endif
 #endif
 #ifdef HAVE_ECC
@@ -16286,6 +16367,11 @@ static int CopyDecodedPubKey(WOLFSSL_X509* x509, DecodedCert* dCert, int ret)
                         dCert->pubKeySize, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if (x509->pubKey.buffer != NULL) {
             x509->pubKeyOID = (int)dCert->keyOID;
+        #ifdef WC_RSA_PSS
+            x509->keyPssHash = dCert->keyPssHash;
+            x509->keyPssMgf = dCert->keyPssMgf;
+            x509->keyPssSaltLen = dCert->keyPssSaltLen;
+        #endif
         #ifdef OPENSSL_EXTRA_X509_SMALL
             /* Set now as the getters that cache objects made from the key
              * may run in parallel. */
@@ -17414,7 +17500,7 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 
 int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,
-        int cert_err, void* heap, int* x509Free)
+        int cert_err, void* heap, WOLFSSL_X509** x509Owned)
 {
     WOLFSSL_X509_STORE_CTX* store = NULL;
     char* domain = NULL;
@@ -17422,7 +17508,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
     WOLFSSL_X509* x509 = NULL;
 #endif
 
-    *x509Free = 0;
+    *x509Owned = NULL;
 
     store = wolfSSL_X509_STORE_CTX_new_ex(heap);
     if (store == NULL)
@@ -17540,7 +17626,7 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
                 goto mem_error;
             if (CopyDecodedToX509(x509, args->dCert) == 0) {
                 store->current_cert = x509;
-                *x509Free = 1;
+                *x509Owned = x509;
             }
             else {
                 goto mem_error;
@@ -17567,10 +17653,10 @@ mem_error:
 }
 
 void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
-        WOLFSSL* ssl, void* heap, int x509Free)
+        WOLFSSL* ssl, void* heap, WOLFSSL_X509* x509Owned)
 {
     (void)ssl;
-    (void)x509Free;
+    (void)x509Owned;
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     wolfSSL_sk_X509_pop_free(store->chain, NULL);
@@ -17588,8 +17674,8 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
     XFREE(store->domain, heap, DYNAMIC_TYPE_STRING);
     store->domain = NULL;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (x509Free)
-        wolfSSL_X509_free(store->current_cert);
+    /* A callback may have set another current cert. */
+    wolfSSL_X509_free(x509Owned);
     store->current_cert = NULL;
 #endif
     wolfSSL_X509_STORE_CTX_free(store);
@@ -17597,6 +17683,23 @@ void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
 
 /* WOLFSSL_ALWAYS_VERIFY_CB: Use verify callback for success or failure cases */
 /* WOLFSSL_VERIFY_CB_ALL_CERTS: Issue callback for all intermediate certificates */
+
+/* Call a verify callback. The callback may set the current cert, so put the
+ * cert being verified back for the next callback. */
+static int StoreCtxCallVerifyCb(VerifyCallback verifyCb, int ok,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    int ret;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    WOLFSSL_X509* cur = store->current_cert;
+#endif
+
+    ret = verifyCb(ok, store);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    store->current_cert = cur;
+#endif
+    return ret;
+}
 
 /* Callback is issued for certificate presented in TLS Certificate (11) packet.
  * The intermediates are done first then peer leaf cert last. Use the
@@ -17656,9 +17759,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         ) {
         int verifyFail = 0;
         WOLFSSL_X509_STORE_CTX* store = NULL;
-        int x509Free = 0;
+        WOLFSSL_X509* x509Owned = NULL;
         int setupRet = SetupStoreCtxCallback(&store, ssl, cm, args, cert_err,
-                heap, &x509Free);
+                heap, &x509Owned);
 
         if (setupRet != 0)
             return setupRet;
@@ -17667,7 +17770,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
         /* non-zero return code indicates failure override */
         if (cm->verifyCallback != NULL) {
             store->userCtx = cm;
-            if (cm->verifyCallback(verify_ok, store)) {
+            if (StoreCtxCallVerifyCb(cm->verifyCallback, verify_ok, store)) {
                 if (cert_err != 0) {
                     WOLFSSL_MSG("Verify CM callback overriding error!");
                     ret = 0;
@@ -17720,7 +17823,8 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     #endif
             /* non-zero return code indicates failure override */
             if (callVerifyCb && ssl->verifyCallback) {
-                if (ssl->verifyCallback(verify_ok, store)) {
+                if (StoreCtxCallVerifyCb(ssl->verifyCallback, verify_ok,
+                        store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Verify callback overriding error!");
                         ret = 0;
@@ -17734,7 +17838,8 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
             if (callVerifyCb && SSL_STORE(ssl) != NULL &&
                     SSL_STORE(ssl)->verify_cb != NULL) {
-                if (SSL_STORE(ssl)->verify_cb(verify_ok, store)) {
+                if (StoreCtxCallVerifyCb(SSL_STORE(ssl)->verify_cb, verify_ok,
+                        store)) {
                     if (cert_err != 0) {
                         WOLFSSL_MSG("Store Verify callback overriding error!");
                         ret = 0;
@@ -17761,7 +17866,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
             /* mark as verify error */
             args->verifyErr = 1;
         }
-        CleanupStoreCtxCallback(store, ssl, heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, heap, x509Owned);
     }
 
     (void)heap;
@@ -17822,7 +17927,7 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
 {
     int ret;
     int verifyFail = 0;
-    int x509Free = 0;
+    WOLFSSL_X509* x509Owned = NULL;
     int certIdx = args->certIdx;
     DecodedCert* dCert = args->dCert;
     Signer* ca;
@@ -17880,21 +17985,23 @@ static int DoVerifyCallbackIssuer(WOLFSSL* ssl, ProcPeerCertArgs* args,
         args->dCert = issuer;
         args->certIdx = certIdx + 1;
         ret = SetupStoreCtxCallback(&store, ssl, SSL_CM(ssl), args, 0,
-            ssl->heap, &x509Free);
+            ssl->heap, &x509Owned);
         args->dCert = dCert;
         args->certIdx = certIdx;
     }
     if (ret == 0) {
-        if (ssl->verifyCallback != NULL && !ssl->verifyCallback(1, store))
+        if (ssl->verifyCallback != NULL &&
+                !StoreCtxCallVerifyCb(ssl->verifyCallback, 1, store)) {
             verifyFail = 1;
+        }
 #if defined(WOLFSSL_LOCAL_X509_STORE) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
         if (SSL_STORE(ssl) != NULL && SSL_STORE(ssl)->verify_cb != NULL &&
-                !SSL_STORE(ssl)->verify_cb(1, store)) {
+                !StoreCtxCallVerifyCb(SSL_STORE(ssl)->verify_cb, 1, store)) {
             verifyFail = 1;
         }
 #endif
-        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, ssl->heap, x509Owned);
         if (verifyFail) {
             WOLFSSL_MSG("Verify callback rejected issuer");
             ret = VERIFY_CERT_ERROR;
@@ -17922,10 +18029,10 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
     if (cert_store != NULL && cert_store->get_crl_cb != NULL) {
         WOLFSSL_CRL* userCrl = NULL;
         WOLFSSL_X509_STORE_CTX* store = NULL;
-        int x509Free = 0;
+        WOLFSSL_X509* x509Owned = NULL;
 
         ret = SetupStoreCtxCallback(&store, ssl, cm, args, 0, heap,
-                &x509Free);
+                &x509Owned);
         if (ret != 0) {
             *outRet = ret;
             return;
@@ -17943,7 +18050,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 
         if (userCrl != NULL)
             wolfSSL_X509_CRL_free(userCrl);
-        CleanupStoreCtxCallback(store, ssl, heap, x509Free);
+        CleanupStoreCtxCallback(store, ssl, heap, x509Owned);
     }
 #else
     (void)cm;
@@ -19401,6 +19508,12 @@ static int ProcessPeerCertDecodeKey(WOLFSSL* ssl, ProcPeerCertArgs* args,
             }
             else {
                 ssl->peerRsaKeyPresent = 1;
+            #ifdef WC_RSA_PSS
+                ssl->peerRsaPss = (args->dCert->keyOID == RSAPSSk);
+                ssl->peerRsaPssHash = args->dCert->keyPssHash;
+                ssl->peerRsaPssMgf = args->dCert->keyPssMgf;
+                ssl->peerRsaPssSaltLen = args->dCert->keyPssSaltLen;
+            #endif
         #if defined(WOLFSSL_RENESAS_TSIP_TLS) || \
                                  defined(WOLFSSL_RENESAS_FSPSM_TLS)
             /* copy encrypted tsip key index into ssl object */
@@ -23179,9 +23292,8 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  * "certificate" or "server_key_exchange" are received then we
                  * are doing a full handshake */
 
-                /* If the server included a session id then we
-                 * treat this as a fatal error, since the server said it was
-                 * doing resumption, but did not. */
+                /* A server that echoed the client's session id said it was
+                 * resuming, so a full handshake after it is a fatal error. */
 
                 /* https://www.rfc-editor.org/rfc/rfc5077.html#section-3.4
                  *   Alternatively, the client MAY include an empty Session ID
@@ -23191,7 +23303,12 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  *   messages.
                  */
 #ifndef WOLFSSL_WPAS
-                if (ssl->arrays->sessionIDSz != 0) {
+                if (ssl->arrays->sessionIDSz != 0
+    #ifdef HAVE_SESSION_TICKET
+                        /* A ticket goes out with an empty session ID */
+                        && ssl->session->ticketLen == 0
+    #endif
+                        ) {
                     /* Fatal error. Only try to send an alert. RFC 5246 does not
                      * allow for reverting back to a full handshake after the
                      * server has indicated the intention to do a resumption. */
@@ -23207,6 +23324,24 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.resuming = 0;
                 /* No longer resuming, reset peer authentication state. */
                 ssl->options.peerAuthGood = 0;
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_CLIENT)
+                /* The declined ticket does not belong to the new session */
+                if (ssl->session->ticketLen > 0) {
+                    if (!HaveUniqueSessionObj(ssl))
+                        return MEMORY_ERROR;
+                    ForceZero(ssl->session->ticket, ssl->session->ticketLen);
+                    if (ssl->session->ticketLenAlloc > 0) {
+                        XFREE(ssl->session->ticket, ssl->session->heap,
+                              DYNAMIC_TYPE_SESSION_TICK);
+                        ssl->session->ticket = ssl->session->staticTicket;
+                        ssl->session->ticketLenAlloc = 0;
+                    }
+                    ssl->session->ticketLen = 0;
+                    /* The ID made up for the ticket goes with it */
+                    ForceZero(ssl->session->altSessionID, ID_LEN);
+                    ssl->session->haveAltSessionID = 0;
+                }
+#endif
             }
         }
     }
@@ -35677,6 +35812,8 @@ struct sig_algs {
 #ifdef WC_RSA_PSS
     { rsa_pss_sa_algo, "RSA-PSS" },
     { rsa_pss_sa_algo, "PSS" },
+    { rsa_pss_pss_algo, "RSA-PSS-PSS" },
+    { rsa_pss_pss_algo, "PSS-PSS" },
 #endif
 #endif
 #ifdef HAVE_ECC
@@ -35761,10 +35898,19 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     ret = 0;
                     break;
                 }
+            #ifdef WC_RSA_PSS
+                /* No RSA-PSS scheme with any other hash. */
+                if ((sig_alg == rsa_pss_sa_algo ||
+                        sig_alg == rsa_pss_pss_algo) &&
+                        (mac_alg < sha256_mac || mac_alg > sha512_mac)) {
+                    ret = 0;
+                    break;
+                }
+            #endif
             }
             {
                 word32 needed = 2;
-#if defined(WC_RSA_PSS) && defined(WOLFSSL_TLS13)
+#if defined(WC_RSA_PSS)
                 if (sig_alg == rsa_pss_sa_algo)
                     needed = 4;
 #endif
@@ -35796,7 +35942,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
 #endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_TLS) && (!defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS))
-#ifdef WC_RSA_PSS
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
 /* Smallest RSA key able to make an RSA-PSS signature with the given hash:
  * emLen >= 2*hLen + 2 (RFC 8017 9.1.1, salt length = hash length).
  * Returns 0 when the hash isn't one used with RSA-PSS - no restriction. */
@@ -35900,17 +36046,34 @@ static int MatchSigAlgo(WOLFSSL* ssl, int hashAlgo, int sigAlgo)
         return sigAlgo == mldsa_87_sa_algo;
     }
 #endif /* WOLFSSL_HAVE_MLDSA */
-#ifdef WC_RSA_PSS
-    /* RSA certificate and PSS sig alg. */
-    if (ssl->options.sigAlgo == rsa_sa_algo) {
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    /* RSA certificate and PSS sig alg. Also entered once a candidate was
+     * chosen, so each later one is held to the key as well. */
+    if (ssl->options.sigAlgo == rsa_sa_algo ||
+            ssl->options.sigAlgo == rsa_pss_sa_algo ||
+            ssl->options.sigAlgo == rsa_pss_pss_algo) {
+        if (ssl->useRsaPss) {
+            /* id-RSASSA-PSS key: rsa_pss_pss_* only (RFC 8446 4.2.3), as its
+             * parameters allow (RFC 4055 1.2). */
+            if (sigAlgo != rsa_pss_pss_algo)
+                return 0;
+            if (!MatchRsaPssParams(ssl->rsaPssHash, ssl->rsaPssMgf,
+                    ssl->rsaPssSaltLen, hashAlgo))
+                return 0;
+        }
+        else {
     #if defined(WOLFSSL_TLS13)
-        /* TLS 1.3 only supports RSA-PSS. */
-        if (IsAtLeastTLSv1_3(ssl->version))
-            return sigAlgo == rsa_pss_sa_algo;
+            /* TLS 1.3 only supports RSA-PSS. */
+            if (IsAtLeastTLSv1_3(ssl->version))
+                return sigAlgo == rsa_pss_sa_algo;
     #endif
-        /* TLS 1.2 and below - RSA-PSS allowed, but only if the RSA key is big
-         * enough to actually produce an RSA-PSS signature with this hash. */
-        if (sigAlgo == rsa_pss_sa_algo) {
+            /* rsa_pss_pss_* needs an id-RSASSA-PSS key. */
+            if (sigAlgo == rsa_pss_pss_algo)
+                return 0;
+        }
+        /* RSA-PSS allowed, but only if the RSA key is big enough to actually
+         * produce an RSA-PSS signature with this hash. */
+        if (sigAlgo == rsa_pss_sa_algo || sigAlgo == rsa_pss_pss_algo) {
             word32 minSz = MinRsaPssKeySz(hashAlgo);
 
             if (minSz != 0 && ssl->buffers.keySz != 0 &&
@@ -36061,6 +36224,17 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
     }
     ssl->options.hashAlgo = minHash = MinHashAlgo(ssl);
 
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    /* Without a list a TLS 1.2 server signs rsa_pkcs1 (RFC 5246 7.4.1.4.1),
+     * which an id-RSASSA-PSS key must not do (RFC 4055 1.2). */
+    if (hashSigAlgoSz == 0 && ssl->useRsaPss &&
+            ssl->options.sigAlgo == rsa_sa_algo &&
+            ssl->options.side == WOLFSSL_SERVER_END &&
+            !IsAtLeastTLSv1_3(ssl->version)) {
+        WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
+        return MATCH_SUITE_ERROR;
+    }
+#endif
     /* No list means go with the defaults. */
     if (hashSigAlgoSz == 0)
         return 0;
@@ -38463,7 +38637,9 @@ static int IsTls13CipherSuite(byte first, byte second)
         /* RFC 9146 Sect. 3: the CID is only in use when the peer answered with
          * its own connection_id. Drop the state otherwise, or the record layer
          * keeps framing and authenticating receives as if a CID were there.
-         * The DTLS 1.3 client does this in DoTls13ServerHello(). */
+         * The DTLS 1.3 client does this in DoTls13ServerHello(), but a 1.3
+         * client downgraded to 1.2 gets here, since its extensions are only
+         * parsed in this function. */
         if (ssl->options.dtls && ssl->options.useDtlsCID)
             DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */
@@ -39599,6 +39775,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
                         DecodeSigAlg(&input[args->idx], &ssl->options.peerHashAlgo,
                                      &sigAlgo);
+                    #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+                        if (ssl->peerRsaKeyPresent) {
+                            ret = CheckPeerRsaSigAlgo(ssl, sigAlgo,
+                                ssl->options.peerHashAlgo);
+                            if (ret != 0) {
+                                ERROR_OUT(ret, exit_dske);
+                            }
+                        }
+                    #endif
                     #ifndef NO_RSA
                         if (sigAlgo == rsa_pss_sa_algo &&
                                                  ssl->options.peerSigAlgo == rsa_sa_algo) {
@@ -41414,8 +41599,12 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-        #ifdef WC_RSA_PSS
-                if (IsAtLeastTLSv1_2(ssl) &&
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+                if (IsAtLeastTLSv1_2(ssl) && ssl->useRsaPss) {
+                    /* id-RSASSA-PSS key: rsa_pss_pss_* (RFC 8446 4.2.3). */
+                    args->sigAlgo = rsa_pss_pss_algo;
+                }
+                else if (IsAtLeastTLSv1_2(ssl) &&
                                 (ssl->pssAlgo & (1 << ssl->options.hashAlgo))) {
                     args->sigAlgo = rsa_pss_sa_algo;
                 }
@@ -41469,7 +41658,8 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 c16toa((word16)args->length, args->verify + args->extraSz);
             }
             #ifdef WC_RSA_PSS
-            else if (args->sigAlgo == rsa_pss_sa_algo) {
+            else if (args->sigAlgo == rsa_pss_sa_algo ||
+                     args->sigAlgo == rsa_pss_pss_algo) {
                 XMEMCPY(ssl->buffers.sig.buffer, ssl->buffers.digest.buffer,
                         ssl->buffers.digest.length);
                 ssl->buffers.sig.length = ssl->buffers.digest.length;
@@ -42042,6 +42232,7 @@ const byte* MaskCurve25519PeerKey(const byte* pub, word32 pubSz,
         #ifndef NO_RSA
         #ifdef WC_RSA_PSS
             case rsa_pss_sa_algo:
+            case rsa_pss_pss_algo:
         #endif
             case rsa_sa_algo:
                 sigSz = ssl->buffers.keySz;
@@ -42784,6 +42975,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         #ifndef NO_RSA
         #ifdef WC_RSA_PSS
             case rsa_pss_sa_algo:
+            case rsa_pss_pss_algo:
         #endif
             case rsa_sa_algo:
             {
@@ -43448,6 +43640,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                             }
                         #ifdef WC_RSA_PSS
                             case rsa_pss_sa_algo:
+                            case rsa_pss_pss_algo:
                                 /* write sig size here */
                                 c16toa((word16)args->sigSz,
                                     args->output + args->idx);
@@ -43624,6 +43817,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                             !defined(WOLFSSL_RSA_VERIFY_ONLY)
                         #ifdef WC_RSA_PSS
                             case rsa_pss_sa_algo:
+                            case rsa_pss_pss_algo:
                         #endif
                             case rsa_sa_algo:
                             {
@@ -43740,6 +43934,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                             !defined(WOLFSSL_RSA_VERIFY_ONLY)
                         #ifdef WC_RSA_PSS
                             case rsa_pss_sa_algo:
+                            case rsa_pss_pss_algo:
                         #endif
                             case rsa_sa_algo:
                             {
@@ -43818,6 +44013,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         #ifndef NO_RSA
                         #ifdef WC_RSA_PSS
                             case rsa_pss_sa_algo:
+                            case rsa_pss_pss_algo:
                         #endif
                             case rsa_sa_algo:
                             {
@@ -44122,6 +44318,20 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 return 0;
             }
         }
+
+    #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+        /* An id-RSASSA-PSS key only signs (RFC 4055 1.2): no RSA key
+         * transport, so none of the static RSA suites. */
+        if (ssl->useRsaPss && CipherRequires(first, second, REQUIRES_RSA)) {
+            CipherSpecs specs;
+
+            if (GetCipherSpec(ssl->options.side, first, second, &specs,
+                    NULL) == 0 && specs.kea == rsa_kea) {
+                WOLFSSL_MSG("id-RSASSA-PSS key cannot do RSA key transport");
+                return 0;
+            }
+        }
+    #endif
 
         if (CipherRequires(first, second, REQUIRES_DHE)) {
             WOLFSSL_MSG("Requires DHE");
@@ -45799,12 +46009,20 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                         if (ssl->options.peerSigAlgo != rsa_sa_algo
                         #ifdef WC_RSA_PSS
                             && ssl->options.peerSigAlgo != rsa_pss_sa_algo
+                            && ssl->options.peerSigAlgo != rsa_pss_pss_algo
                         #endif
                             ) {
                             WOLFSSL_MSG("Oops, peer sent RSA key but not in "
                                                                       "verify");
                             ERROR_OUT(INVALID_PARAMETER, exit_dcv);
                         }
+                    #ifdef WC_RSA_PSS
+                        ret = CheckPeerRsaSigAlgo(ssl, ssl->options.peerSigAlgo,
+                            ssl->options.peerHashAlgo);
+                        if (ret != 0) {
+                            ERROR_OUT(ret, exit_dcv);
+                        }
+                    #endif
                     }
                     else
                 #endif
@@ -46051,7 +46269,8 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
                     if (IsAtLeastTLSv1_2(ssl)) {
                     #ifdef WC_RSA_PSS
-                        if (ssl->options.peerSigAlgo == rsa_pss_sa_algo) {
+                        if (ssl->options.peerSigAlgo == rsa_pss_sa_algo ||
+                            ssl->options.peerSigAlgo == rsa_pss_pss_algo) {
                         #ifdef HAVE_SELFTEST
                             ret = wc_RsaPSS_CheckPadding(
                                             ssl->buffers.digest.buffer,

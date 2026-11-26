@@ -49,9 +49,9 @@
 #endif /* NO_AVX512_SUPPORT */
 
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -108,9 +108,9 @@ L_sha3_avx2_r:
 .quad	0x8000000080008008,0x8000000080008008
 .quad	0x8000000080008008,0x8000000080008008
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -9315,9 +9315,9 @@ L_sha3_block_n_bmi2_rounds:
 .size	sha3_block_n_bmi2,.-sha3_block_n_bmi2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -9338,9 +9338,9 @@ L_sha3_block_avx2_rotl:
 .quad	0x0000000000000002,0x000000000000003d
 .quad	0x0000000000000038,0x000000000000000e
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -9536,9 +9536,9 @@ L_sha3_block_avx2_start:
 .size	sha3_block_avx2,.-sha3_block_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -9559,9 +9559,9 @@ L_sha3_block_n_avx2_rotl:
 .quad	0x0000000000000002,0x000000000000003d
 .quad	0x0000000000000038,0x000000000000000e
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -15303,9 +15303,9 @@ _sha3_blocksx4_avx2:
 #endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA) || defined(WOLFSSL_HAVE_FRODOKEM) || defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) */
 #ifdef WOLFSSL_HAVE_XMSS
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -15316,9 +15316,9 @@ L_sha3_xmss_blocksx4_avx2_end_mark:
 .quad	0x8000000000000000,0x8000000000000000
 .quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -15329,9 +15329,9 @@ L_sha3_xmss_blocksx4_avx2_dom:
 .quad	0x000000000000001f,0x000000000000001f
 .quad	0x000000000000001f,0x000000000000001f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -15342,9 +15342,9 @@ L_sha3_xmss_blocksx4_avx2_not_chain:
 .quad	0x00ffffffffffffff,0x00ffffffffffffff
 .quad	0x00ffffffffffffff,0x00ffffffffffffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -20810,9 +20810,9 @@ L_sha3_xmss_blocksx4_avx2_filled:
 #endif /* WOLFSSL_HAVE_XMSS */
 #ifdef WOLFSSL_HAVE_LMS
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -20823,9 +20823,9 @@ L_sha3_lms_blocksx4_avx2_end_mark:
 .quad	0x8000000000000000,0x8000000000000000
 .quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -20836,9 +20836,9 @@ L_sha3_lms_blocksx4_avx2_idx_lo:
 .quad	0x0000ff0000000000,0x0000ff0000000000
 .quad	0x0000ff0000000000,0x0000ff0000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -20849,9 +20849,9 @@ L_sha3_lms_blocksx4_avx2_idx_hi:
 .quad	0x000000ff00000000,0x000000ff00000000
 .quad	0x000000ff00000000,0x000000ff00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -20862,9 +20862,9 @@ L_sha3_lms_blocksx4_avx2_dom:
 .quad	0x1f00000000000000,0x1f00000000000000
 .quad	0x1f00000000000000,0x1f00000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26370,9 +26370,9 @@ L_sha3_lms_blocksx4_avx2_filled:
 .size	sha3_lms_blocksx4_avx2,.-sha3_lms_blocksx4_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26383,9 +26383,9 @@ L_sha3_lms_chainx4_avx2_end_mark:
 .quad	0x8000000000000000,0x8000000000000000
 .quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26396,9 +26396,9 @@ L_sha3_lms_chainx4_avx2_idx_lo:
 .quad	0x0000ff0000000000,0x0000ff0000000000
 .quad	0x0000ff0000000000,0x0000ff0000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26409,9 +26409,9 @@ L_sha3_lms_chainx4_avx2_idx_hi:
 .quad	0x000000ff00000000,0x000000ff00000000
 .quad	0x000000ff00000000,0x000000ff00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26422,9 +26422,9 @@ L_sha3_lms_chainx4_avx2_dom:
 .quad	0x1f00000000000000,0x1f00000000000000
 .quad	0x1f00000000000000,0x1f00000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -31876,9 +31876,9 @@ L_sha3_lms_chainx4_avx2_done:
 #endif /* WOLFSSL_HAVE_LMS */
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_SLHDSA)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -42659,9 +42659,9 @@ L_sha3_blocksx4_out_avx2_done:
 #endif /* WOLFSSL_HAVE_FRODOKEM */
 #ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -48041,9 +48041,9 @@ _sha3_256_blocksx4_seed_avx2:
 #endif /* WOLFSSL_HAVE_MLKEM */
 #ifdef WOLFSSL_HAVE_MLDSA
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -53453,9 +53453,9 @@ _sha3_256_blocksx4_seed_64_avx2:
 #ifdef HAVE_INTEL_AVX512
 #if defined(WOLFSSL_HAVE_FRODOKEM) || defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_SLHDSA)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -59386,9 +59386,9 @@ _sha3_blocksx8_avx512:
 #endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_SLHDSA) */
 #ifdef WOLFSSL_HAVE_XMSS
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -59401,9 +59401,9 @@ L_sha3_xmss_blocksx8_avx512_end_mark:
 .quad	0x8000000000000000,0x8000000000000000
 .quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -59416,9 +59416,9 @@ L_sha3_xmss_blocksx8_avx512_dom:
 .quad	0x000000000000001f,0x000000000000001f
 .quad	0x000000000000001f,0x000000000000001f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -59431,9 +59431,9 @@ L_sha3_xmss_blocksx8_avx512_not_chain:
 .quad	0x00ffffffffffffff,0x00ffffffffffffff
 .quad	0x00ffffffffffffff,0x00ffffffffffffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -62352,9 +62352,9 @@ L_sha3_xmss_blocksx8_avx512_filled:
 #endif /* WOLFSSL_HAVE_XMSS */
 #ifdef WOLFSSL_HAVE_LMS
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -62367,9 +62367,9 @@ L_sha3_lms_blocksx8_avx512_end_mark:
 .quad	0x8000000000000000,0x8000000000000000
 .quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -62382,9 +62382,9 @@ L_sha3_lms_blocksx8_avx512_idx_lo:
 .quad	0x0000ff0000000000,0x0000ff0000000000
 .quad	0x0000ff0000000000,0x0000ff0000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -62397,9 +62397,9 @@ L_sha3_lms_blocksx8_avx512_idx_hi:
 .quad	0x000000ff00000000,0x000000ff00000000
 .quad	0x000000ff00000000,0x000000ff00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -62412,9 +62412,9 @@ L_sha3_lms_blocksx8_avx512_dom:
 .quad	0x1f00000000000000,0x1f00000000000000
 .quad	0x1f00000000000000,0x1f00000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -65383,9 +65383,9 @@ L_sha3_lms_blocksx8_avx512_filled:
 .size	sha3_lms_blocksx8_avx512,.-sha3_lms_blocksx8_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -65398,9 +65398,9 @@ L_sha3_lms_chainx8_avx512_end_mark:
 .quad	0x8000000000000000,0x8000000000000000
 .quad	0x8000000000000000,0x8000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -65413,9 +65413,9 @@ L_sha3_lms_chainx8_avx512_idx_lo:
 .quad	0x0000ff0000000000,0x0000ff0000000000
 .quad	0x0000ff0000000000,0x0000ff0000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -65428,9 +65428,9 @@ L_sha3_lms_chainx8_avx512_idx_hi:
 .quad	0x000000ff00000000,0x000000ff00000000
 .quad	0x000000ff00000000,0x000000ff00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -65443,9 +65443,9 @@ L_sha3_lms_chainx8_avx512_dom:
 .quad	0x1f00000000000000,0x1f00000000000000
 .quad	0x1f00000000000000,0x1f00000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -68367,9 +68367,9 @@ L_sha3_lms_chainx8_avx512_done:
 #endif /* WOLFSSL_HAVE_LMS */
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -71262,9 +71262,9 @@ _sha3_128_blocksx8_seed_avx512:
 #endif /* defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_MLDSA) */
 #ifdef WOLFSSL_HAVE_MLKEM
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -74157,9 +74157,9 @@ _sha3_256_blocksx8_seed_avx512:
 #endif /* WOLFSSL_HAVE_MLKEM */
 #ifdef WOLFSSL_HAVE_MLDSA
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32

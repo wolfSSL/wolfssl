@@ -359,6 +359,12 @@ int wc_strncasecmp(const char *s1, const char *s2, size_t n);
     \ingroup Threading
     \brief Creates a new thread.
 
+    On Zephyr the thread object and its stack are allocated with the
+    global heap hint wolfsslThreadHeapHint and freed with it in
+    wolfSSL_JoinThread. Set the hint before the first call to
+    wolfSSL_NewThread. It must not be changed once it has been used for
+    an allocation: memory would be freed to the wrong heap.
+
     \return 0 on success
     \return negative on error
 

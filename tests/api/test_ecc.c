@@ -445,6 +445,100 @@ int test_wc_ecc_check_key_invalid_pubkey(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_check_key_invalid_pubkey */
 
+/* A generator passes validation. A coordinate equal to the field prime
+ * fits in the field width and must fail the field range check. */
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(WOLFSSL_HAVE_SP_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_CHECK_PUBKEY_ORDER)
+#define TEST_ECC_SP_PUBKEY_RANGE
+static int ecc_check_raw(int curveId, const char* x, const char* y)
+{
+    ecc_key key;
+    int ret;
+
+    ret = wc_ecc_init(&key);
+    if (ret == 0) {
+        ret = wc_ecc_import_raw_ex(&key, x, y, NULL, curveId);
+        if (ret == 0)
+            ret = wc_ecc_check_key(&key);
+        wc_ecc_free(&key);
+    }
+
+    return ret;
+}
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+static int ecc_check_negative_point(const ecc_set_type* curve, int negateY)
+{
+    EXPECT_DECLS;
+    ecc_key key;
+    int ret = wc_ecc_init(&key);
+
+    ExpectIntEQ(ret, 0);
+    if (ret == 0) {
+        ExpectIntEQ(wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, NULL,
+            curve->id), 0);
+        if (EXPECT_SUCCESS()) {
+            mp_int* coord = negateY ? key.pubkey.y : key.pubkey.x;
+            mp_setneg(coord);
+            ExpectIntEQ(wc_ecc_check_key(&key),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        }
+        wc_ecc_free(&key);
+    }
+    return EXPECT_RESULT();
+}
+#endif
+#endif
+
+int test_wc_ecc_sp_pubkey_range(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_ECC_SP_PUBKEY_RANGE
+    static const int curveIds[] = {
+    #ifndef WOLFSSL_SP_NO_256
+        ECC_SECP256R1,
+    #endif
+    #ifdef WOLFSSL_SP_384
+        ECC_SECP384R1,
+    #endif
+    #ifdef WOLFSSL_SP_521
+        ECC_SECP521R1,
+    #endif
+        ECC_CURVE_INVALID
+    };
+    int i;
+
+    for (i = 0; EXPECT_SUCCESS() && curveIds[i] != ECC_CURVE_INVALID; i++) {
+        int curveId = curveIds[i];
+        int idx = wc_ecc_get_curve_idx(curveId);
+        const ecc_set_type* curve;
+
+        if (idx < 0)
+            continue;
+        curve = wc_ecc_get_curve_params(idx);
+        ExpectNotNull(curve);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(ecc_check_raw(curveId, curve->Gx, curve->Gy), 0);
+            ExpectIntEQ(ecc_check_raw(curveId, curve->prime, curve->Gy),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+            ExpectIntEQ(ecc_check_raw(curveId, curve->Gx, curve->prime),
+                WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
+            EXPECT_TEST(ecc_check_negative_point(curve, 0));
+            EXPECT_TEST(ecc_check_negative_point(curve, 1));
+        #endif
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ecc_sp_pubkey_range */
+
 /*
  * Testing wc_ecc_get_generator()
  */
@@ -3785,6 +3879,9 @@ int test_wc_ecc_ecies_ctx_devid_steps(void)
 typedef struct EciesFindSeen {
     int invoked;
     int devId;
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    int error;
+#endif
 } EciesFindSeen;
 
 static int eciesFindArmed = 0;
@@ -3812,6 +3909,12 @@ static int myEciesFindCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
     seen->devId = devIdArg;
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    if (seen->error != 0) {
+        seen->invoked = 1;
+        return seen->error;
+    }
+#endif
     eciesFindArmed = 0;
     ret = myEciesApiCryptoCb(devIdArg, info, &seen->invoked);
     eciesFindArmed = 1;
@@ -3923,6 +4026,42 @@ int test_wc_ecc_ecies_find_cb(void)
         ExpectIntEQ(plainSz, sizeof(msg));
         ExpectIntEQ(XMEMCMP(plain, msg, sizeof(msg)), 0);
     }
+
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
+        !defined(WOLFSSL_ECIES_GEN_IV))
+    /* The finder can route a NULL context, too. Exercise both device
+     * errors and a successful round trip through that route. */
+    eciesFindArmed = 1;
+    wc_CryptoCb_SetDeviceFindCb(myEciesFindCb);
+    seen.error = WC_NO_ERR_TRACE(WC_HW_E);
+    seen.invoked = 0;
+    outSz = (word32)sizeof(out);
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+        &outSz, NULL), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(seen.invoked, 1);
+
+    seen.error = 0;
+    seen.invoked = 0;
+    ExpectIntEQ(wc_ecc_encrypt(&cliKey, &srvKey, msg, sizeof(msg), out,
+        &outSz, NULL), 0);
+    ExpectIntEQ(seen.invoked, 1);
+
+    seen.error = WC_NO_ERR_TRACE(WC_HW_E);
+    seen.invoked = 0;
+    plainSz = (word32)sizeof(plain);
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain,
+        &plainSz, NULL), WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(seen.invoked, 1);
+
+    seen.error = 0;
+    seen.invoked = 0;
+    ExpectIntEQ(wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain,
+        &plainSz, NULL), 0);
+    ExpectIntEQ(seen.invoked, 1);
+    ExpectIntEQ(plainSz, sizeof(msg));
+    ExpectBufEQ(plain, msg, sizeof(msg));
+#endif
 
     wc_CryptoCb_SetDeviceFindCb(NULL);
     eciesFindArmed = 0;
@@ -4809,6 +4948,8 @@ int test_wc_ecc_mulmod_negative(void)
         WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
     ExpectIntEQ(wc_ecc_mulmod(&wide, &base.pubkey, r, curve.pubkey.x,
         curve.pubkey.y, 1), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
+    ExpectIntEQ(wc_ecc_mulmod_ex(&wide, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1, NULL), WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
     ExpectIntEQ(wc_ecc_mulmod_ex2(&wide, &base.pubkey, r, curve.pubkey.x,
         curve.pubkey.y, &order, NULL, 1, NULL),
         WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E));
@@ -4822,12 +4963,30 @@ int test_wc_ecc_mulmod_negative(void)
     ExpectIntEQ(ecc_mul2add(&base.pubkey, NULL, &base.pubkey, &five, r,
         curve.pubkey.x, curve.pubkey.y, NULL),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(ecc_mul2add(NULL, &five, &base.pubkey, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, NULL, &five, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, NULL, r,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, &five, NULL,
+        curve.pubkey.x, curve.pubkey.y, NULL),
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+    ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, &five, r,
+        curve.pubkey.x, NULL, NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(ecc_mul2add(&base.pubkey, &five, &base.pubkey, &five, r,
         curve.pubkey.x, curve.pubkey.y, NULL), 0);
 #endif
     /* Positive scalars are still accepted. */
     ExpectIntEQ(wc_ecc_mulmod(&five, &base.pubkey, r, curve.pubkey.x,
         curve.pubkey.y, 1), 0);
+    ExpectIntEQ(wc_ecc_mulmod_ex(&five, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, 1, NULL), 0);
+    ExpectIntEQ(wc_ecc_mulmod_ex2(&five, &base.pubkey, r, curve.pubkey.x,
+        curve.pubkey.y, &order, NULL, 1, NULL), 0);
 
     wc_ecc_del_point(r);
     mp_free(&wide);
@@ -6011,23 +6170,6 @@ int test_wc_EccDecisionCoverage4(void)
     }
     ExpectIntEQ(ret, 0);
 
-    /* ---- ecc_mul2add argument guard: the uncovered-condition report 8446 ----
-     * NOT closeable by any current variant, API or white-box: both bodies
-     * of ecc_mul2add() (the argument-checked "normal" one at line ~8417 and
-     * the Shamir/fixed-point-cache one at line ~13909 that supersedes it
-     * when FP_ECC is also on) live inside an outer #ifdef ECC_SHAMIR /
-     * #endif block (lines 8349-8701 and 13616-14035). Every one of this
-     * module's 6 variants has ECC_SHAMIR either ON-with-FP_ECC-ON (base:
-     * sp_default/sp_ecc/sp_ecc_nonblock/fastmath/small_stack, which
-     * exercises the unchecked Shamir body under the name ecc_mul2add) or
-     * turns BOTH ECC_SHAMIR and FP_ECC OFF together (no_fp_shamir, per its
-     * config_base's philosophy of flipping the FALSE side of both feature
-     * guards at once -- see the module registry's ecc notes), which compiles
-     * *neither* body, making ecc_mul2add an undefined symbol there (link
-     * failure, confirmed empirically). Reaching this decision needs a new,
-     * not-yet-scaffolded variant: ECC_SHAMIR on + FP_ECC off. Classified as
-     * a needs-variant residual; see RESIDUALS.md. */
-
     /* ---- wc_ecc_ctx_set_kdf_salt: the uncovered-condition report 14607 ----
      * if (ctx == NULL || (salt == NULL && sz != 0))
      * ctx==NULL already the common BAD_FUNC_ARG idiom shown elsewhere; add
@@ -6049,12 +6191,26 @@ int test_wc_EccDecisionCoverage4(void)
 #if defined(WOLFSSL_CUSTOM_CURVES)
     {
         ecc_key ccKey2;
+        ecc_set_type customDp;
+
         XMEMSET(&ccKey2, 0, sizeof(ccKey2));
         ExpectIntEQ(wc_ecc_init(&ccKey2), 0);
         ExpectIntEQ(wc_ecc_set_custom_curve(NULL, key.dp),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_ecc_set_custom_curve(&ccKey2, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectNotNull(key.dp);
+        if (EXPECT_SUCCESS()) {
+            XMEMCPY(&customDp, key.dp, sizeof(customDp));
+            customDp.size = 0;
+            ExpectIntEQ(wc_ecc_set_custom_curve(&ccKey2, &customDp),
+                WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+            customDp.size = MAX_ECC_BYTES + 1;
+            ExpectIntEQ(wc_ecc_set_custom_curve(&ccKey2, &customDp),
+                WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+            customDp.size = key.dp->size;
+            ExpectIntEQ(wc_ecc_set_custom_curve(&ccKey2, &customDp), 0);
+        }
         wc_ecc_free(&ccKey2);
     }
 #endif

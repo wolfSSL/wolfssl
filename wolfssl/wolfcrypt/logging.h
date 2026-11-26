@@ -240,6 +240,8 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
             const char **file, int *line, const char **data, int *flags,
             int (*ignore_err)(int err));
     WOLFSSL_LOCAL int wc_GetErrorNodeErr(void);
+    WOLFSSL_LOCAL int wc_SetErrorNodeMark(void);
+    WOLFSSL_LOCAL int wc_PopErrorNodesToMark(void);
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         WOLFSSL_API void wc_ERR_print_errors_fp(XFILE fp);
         WOLFSSL_API void wc_ERR_print_errors_cb(int (*cb)(const char *str,

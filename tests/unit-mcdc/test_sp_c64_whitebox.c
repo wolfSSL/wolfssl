@@ -965,11 +965,11 @@ int main(void)
     wb_run_point_specials_all();
     wb_spc_all();
 
-    printf("done (%s)\n", wb_bad ? "with failures" :
+    printf("done (%s)\n", (wb_bad || WB_SPC_RANGE_FAILED) ? "with failures" :
         (wb_fail ? "with skips" : "ok"));
 #else
     printf("  no SP feature; nothing to exercise\n");
 #endif
     (void)wb_fail;
-    return wb_bad ? 1 : 0;
+    return wb_bad || WB_SPC_RANGE_FAILED;
 }

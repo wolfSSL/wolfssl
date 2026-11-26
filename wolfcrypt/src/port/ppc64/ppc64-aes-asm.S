@@ -38,7 +38,7 @@
 	.type	L_AES_PPC64_td, %object
 	.size	L_AES_PPC64_td, 1024
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -120,7 +120,7 @@ L_AES_PPC64_td:
 	.type	L_AES_PPC64_te, %object
 	.size	L_AES_PPC64_te, 1024
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -422,7 +422,7 @@ L_AES_invert_key_mix_loop:
 	.type	L_AES_PPC64_rcon, %object
 	.size	L_AES_PPC64_rcon, 40
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -871,7 +871,7 @@ L_AES_set_encrypt_key_end:
 	.type	L_AES_PPC64_te4_0, %object
 	.size	L_AES_PPC64_te4_0, 4096
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -3899,7 +3899,7 @@ L_AES_XTS_encrypt_done_data:
 	.type	L_AES_PPC64_td4, %object
 	.size	L_AES_PPC64_td4, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -6540,7 +6540,7 @@ L_AES_XTS_decrypt_done_data:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 128
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -7379,7 +7379,7 @@ L_GCM_gmult_len_start_block:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 512
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -7954,7 +7954,7 @@ L_GCM_gmult_len_start_block:
 	.type	L_AES_PPC64_crypto_sbox, %object
 	.size	L_AES_PPC64_crypto_sbox, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8000,7 +8000,7 @@ L_AES_PPC64_crypto_sbox:
 	.type	L_AES_PPC64_crypto_rcon, %object
 	.size	L_AES_PPC64_crypto_rcon, 40
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8017,7 +8017,7 @@ L_AES_PPC64_crypto_rcon:
 	.type	L_AES_PPC64_crypto_bswap, %object
 	.size	L_AES_PPC64_crypto_bswap, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -8034,7 +8034,7 @@ L_AES_PPC64_crypto_bswap:
 	.type	L_AES_PPC64_crypto_one, %object
 	.size	L_AES_PPC64_crypto_one, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__

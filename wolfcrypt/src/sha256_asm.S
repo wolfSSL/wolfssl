@@ -50,9 +50,9 @@
 
 #ifdef WOLFSSL_X86_64_BUILD
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -77,9 +77,9 @@ L_sse2_sha256_sha_k:
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -494,9 +494,9 @@ L_sha256_sha_len_sse2_start:
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -521,9 +521,9 @@ L_avx1_sha256_k:
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -533,9 +533,9 @@ L_avx1_sha256_k:
 L_avx1_sha256_shuf_00BA:
 .quad	0x0b0a090803020100,0xffffffffffffffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -545,9 +545,9 @@ L_avx1_sha256_shuf_00BA:
 L_avx1_sha256_shuf_DC00:
 .quad	0xffffffffffffffff,0x0b0a090803020100
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5358,9 +5358,9 @@ L_sha256_len_avx1_start:
 .size	Transform_Sha256_AVX1_Len,.-Transform_Sha256_AVX1_Len
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5385,9 +5385,9 @@ L_avx1_rorx_sha256_k:
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5397,9 +5397,9 @@ L_avx1_rorx_sha256_k:
 L_avx1_rorx_sha256_shuf_00BA:
 .quad	0x0b0a090803020100,0xffffffffffffffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5409,9 +5409,9 @@ L_avx1_rorx_sha256_shuf_00BA:
 L_avx1_rorx_sha256_shuf_DC00:
 .quad	0xffffffffffffffff,0x0b0a090803020100
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -10139,9 +10139,9 @@ L_sha256_len_avx1_len_rorx_start:
 .size	Transform_Sha256_AVX1_RORX_Len,.-Transform_Sha256_AVX1_RORX_Len
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -10166,9 +10166,9 @@ L_avx1_sha256_sha_k:
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -10528,9 +10528,9 @@ L_sha256_sha_len_avx1_start:
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -10571,9 +10571,9 @@ L_avx2_sha256_k:
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -10584,9 +10584,9 @@ L_avx2_sha256_shuf_00BA:
 .quad	0x0b0a090803020100,0xffffffffffffffff
 .quad	0x0b0a090803020100,0xffffffffffffffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -10597,9 +10597,9 @@ L_avx2_sha256_shuf_DC00:
 .quad	0xffffffffffffffff,0x0b0a090803020100
 .quad	0xffffffffffffffff,0x0b0a090803020100
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -17136,9 +17136,9 @@ L_sha256_len_avx2_done:
 .size	Transform_Sha256_AVX2_Len,.-Transform_Sha256_AVX2_Len
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -17179,9 +17179,9 @@ L_avx2_rorx_sha256_k:
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -17192,9 +17192,9 @@ L_avx2_rorx_sha256_flip_mask:
 .quad	0x0405060700010203,0x0c0d0e0f08090a0b
 .quad	0x0405060700010203,0x0c0d0e0f08090a0b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -17205,9 +17205,9 @@ L_avx2_rorx_sha256_shuf_00BA:
 .quad	0x0b0a090803020100,0xffffffffffffffff
 .quad	0x0b0a090803020100,0xffffffffffffffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -23549,9 +23549,9 @@ L_sha256_len_avx2_rorx_done:
 #endif /* __APPLE__ */
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_SLHDSA)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -23562,9 +23562,9 @@ L_avx2_sha256_x8_flip_mask:
 .quad	0x0405060700010203,0x0c0d0e0f08090a0b
 .quad	0x0405060700010203,0x0c0d0e0f08090a0b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -25439,9 +25439,9 @@ L_sha256_x8_avx2_start:
 #endif /* NO_AVX512_SUPPORT */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -25454,9 +25454,9 @@ L_avx512_sha256_x16_bswap_mask:
 .long	0xff00ff00,0xff00ff00,0xff00ff00,0xff00ff00
 .long	0xff00ff00,0xff00ff00,0xff00ff00,0xff00ff00
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26547,9 +26547,9 @@ L_sha256_x16_avx512_start:
 #endif /* __APPLE__ */
 #if !defined(NO_AVX512BW_SUPPORT)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -27597,9 +27597,9 @@ L_sha256_x16_avx512_bw_start:
 #endif /* !defined(NO_AVX512BW_SUPPORT) */
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_SLHDSA)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -27612,9 +27612,9 @@ L_avx512_sha256_x16_iv:
 #endif /* defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || defined(WOLFSSL_HAVE_SLHDSA) */
 #ifdef WOLFSSL_HAVE_LMS
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -27627,9 +27627,9 @@ L_avx512_sha256_x16_lane:
 .long	0x00000008,0x00000009,0x0000000a,0x0000000b
 .long	0x0000000c,0x0000000d,0x0000000e,0x0000000f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -27642,9 +27642,9 @@ L_avx512_sha256_x16_lo16:
 .long	0x0000ffff,0x0000ffff,0x0000ffff,0x0000ffff
 .long	0x0000ffff,0x0000ffff,0x0000ffff,0x0000ffff
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33363,9 +33363,9 @@ L_sha256_x16_lms192_chain_done:
 #endif /* WOLFSSL_HAVE_LMS */
 #ifdef WOLFSSL_HAVE_XMSS
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -33375,9 +33375,9 @@ L_sha256_x16_lms192_chain_done:
 L_avx512_sha256_x16_pad80w:
 .long	0x80000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36144,9 +36144,9 @@ L_sha256_x16_xmss_f_blk2:
 .size	Transform_Sha256_x16_XmssF_AVX512,.-Transform_Sha256_x16_XmssF_AVX512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36156,9 +36156,9 @@ L_sha256_x16_xmss_f_blk2:
 L_avx512_sha256_x16_len480:
 .long	0x000001e0
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16

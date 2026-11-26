@@ -45,7 +45,7 @@
 	.type	L_sha3_arm32_neon_rt, %object
 	.size	L_sha3_arm32_neon_rt, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
@@ -338,7 +338,7 @@ L_sha3_arm32_neon_begin:
 	.type	L_sha3_arm32_neon_x3_rt, %object
 	.size	L_sha3_arm32_neon_x3_rt, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
@@ -637,7 +637,7 @@ L_sha3_arm32_neon_x3_begin:
 	.type	L_sha3_128_blocksx3_seed_neon_rt, %object
 	.size	L_sha3_128_blocksx3_seed_neon_rt, 200
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
@@ -952,7 +952,7 @@ L_sha3_128_blocksx3_seed_neon_begin:
 	.type	L_sha3_256_blocksx3_seed_neon_rt, %object
 	.size	L_sha3_256_blocksx3_seed_neon_rt, 200
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
@@ -1267,7 +1267,7 @@ L_sha3_256_blocksx3_seed_neon_begin:
 	.type	L_sha3_256_blocksx3_seed_64_neon_rt, %object
 	.size	L_sha3_256_blocksx3_seed_64_neon_rt, 200
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__
@@ -1582,7 +1582,7 @@ L_sha3_256_blocksx3_seed_64_neon_begin:
 	.type	L_sha3_arm32_rt, %object
 	.size	L_sha3_arm32_rt, 192
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 16-byte aligned, 128-bit aligned
 #ifndef __APPLE__

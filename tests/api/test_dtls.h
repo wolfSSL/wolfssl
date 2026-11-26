@@ -123,6 +123,7 @@ int test_wolfSSL_dtls_get0_peer(void);
 int test_wolfSSL_dtls_set_timeout_init(void);
 int test_wolfSSL_dtls_retransmit(void);
 int test_wolfSSL_DTLSv1_compat_timeouts(void);
+int test_wolfSSL_DTLSv1_timer(void);
 int test_wolfSSL_dtls13_set_send_more_acks(void);
 int test_wolfSSL_dtls_srtp_keying_material(void);
 int test_wolfSSL_mcast_peers(void);
@@ -217,6 +218,8 @@ int test_wolfSSL_dtls_stateless_maxfrag(void);
 int test_wolfSSL_dtls_stateless_resume(void);
 int test_wolfSSL_dtls_stateless_downgrade(void);
 int test_WOLFSSL_dtls_version_alert(void);
+int test_dtls13_cid_downgrade_to_dtls12(void);
+int test_dtls13_cid_downgrade_not_negotiated(void);
 
 /* Shared with tests/api/test_dtls13.c. */
 #define TEST_DTLS13_FOUR_FRAG_CH_SZ 832
@@ -380,6 +383,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_timeout_init),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_retransmit),                 \
         TEST_DECL_GROUP("dtls", test_wolfSSL_DTLSv1_compat_timeouts),          \
+        TEST_DECL_GROUP("dtls", test_wolfSSL_DTLSv1_timer),                    \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls13_set_send_more_acks),       \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_srtp_keying_material),       \
         TEST_DECL_GROUP("dtls", test_wolfSSL_mcast_peers),                     \
@@ -424,5 +428,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_dtls12_cookie_secret_generate_fail),      \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_generate_fail),  \
         TEST_DECL_GROUP("dtls", test_dtls_max_fragment_write),                 \
-        TEST_DECL_GROUP("dtls", test_dtls_set_rfd_wfd)
+        TEST_DECL_GROUP("dtls", test_dtls_set_rfd_wfd),                        \
+        TEST_DECL_GROUP("dtls", test_dtls13_cid_downgrade_to_dtls12),          \
+        TEST_DECL_GROUP("dtls", test_dtls13_cid_downgrade_not_negotiated)
 #endif /* TESTS_API_DTLS_H */

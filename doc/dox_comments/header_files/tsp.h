@@ -1621,7 +1621,13 @@ int wc_TspTstInfo_SignWithPkcs7(const TspTstInfo* tstInfo, wc_PKCS7* pkcs7,
     signer's certificate.
     \return HASH_TYPE_E Returned when a hash algorithm is not available or
     below WC_TSP_MIN_HASH_STRENGTH_BITS.
-    \return ASN_PARSE_E Returned when an encoding is invalid.
+    \return ASN_PARSE_E Returned when an encoding is invalid, including a
+    legacy ANY eContent that is not a single DER element spanning the whole
+    content (an element shorter than two octets, trailing bytes, a non-minimal,
+    out-of-range or indefinite length, the end-of-contents identifier (0x00),
+    or a high-tag-number identifier). A
+    well-formed ANY eContent that is not a TSTInfo SEQUENCE is also rejected
+    with ASN_PARSE_E when the content is decoded as a TSTInfo.
     \return MEMORY_E Returned on dynamic memory allocation failure.
 
     \param [in] pkcs7 Pointer to an initialized PKCS7 object.

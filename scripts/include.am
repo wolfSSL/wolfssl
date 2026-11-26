@@ -90,6 +90,9 @@ endif
 if BUILD_TLS13
 dist_noinst_SCRIPTS+= scripts/tls13.test
 endif
+if BUILD_RSA
+dist_noinst_SCRIPTS+= scripts/rsapss.test
+endif
 
 endif # end of BUILD_EXAMPLE_SERVERS
 
@@ -160,7 +163,6 @@ EXTRA_DIST +=  scripts/sniffer-static-rsa.pcap \
 
 # leave openssl.test as extra until non bash works
 EXTRA_DIST +=  scripts/openssl.test
-EXTRA_DIST +=  scripts/rsapss.test
 
 EXTRA_DIST +=  scripts/dertoc.pl
 
@@ -184,17 +186,38 @@ EXTRA_DIST += scripts/benchmark_compare.sh
 
 EXTRA_DIST += scripts/user_settings_asm.sh
 
-# SBOM generator (invoked from `make sbom` in the top-level Makefile.am).
-# Must be in the dist tarball, otherwise `make dist && cd <tarball> &&
-# ./configure && make sbom` fails for downstream consumers.
+# Customer entry point. Forwards to the vendored generator in
+# tools/sbom/gen-sbom. Must be in the dist tarball.
 EXTRA_DIST += scripts/gen-sbom
 
-# Canonical shared Automake SBOM recipe.  wolfSSL's own top-level Makefile.am
-# does not `include` this fragment (it drives gen-sbom directly against its
-# generated wolfssl/options.h), but the canonical copy lives here and is
-# shipped so downstream wolfSSL-stack products (wolfSSH, wolfEngine, wolfCLU,
-# ...) can vendor an identical copy and stay in sync.
+# Old include path. Pulls in tools/sbom/sbom.am. Must stay in the tarball
+# so an existing `include scripts/sbom.am` still finds a file.
 EXTRA_DIST += scripts/sbom.am
+
+# Vendored wolfssl-compliance-tooling snapshot. The dist check searches
+# include.am for each new path, so list every file. Makefile.am dist-hook
+# copies the same tree and skips __pycache__. A pin that adds a file must
+# add that path here too.
+EXTRA_DIST += tools/sbom/.wolfssl-compliance-tooling-rev \
+              tools/sbom/README.md \
+              tools/sbom/VERSION \
+              tools/sbom/build/install-sbom.cmake \
+              tools/sbom/build/sbom-fail.cmake \
+              tools/sbom/build/sbom-paths.cmake \
+              tools/sbom/build/sbom-validate.cmake \
+              tools/sbom/build/sbom-with-sde.cmake \
+              tools/sbom/build/sbom.cmake \
+              tools/sbom/build/sbom.mk \
+              tools/sbom/build/uninstall-sbom.cmake \
+              tools/sbom/frontends/compdb_sbom.py \
+              tools/sbom/frontends/iar_sbom.py \
+              tools/sbom/frontends/included_sources.py \
+              tools/sbom/frontends/zephyr_sbom.py \
+              tools/sbom/gen-sbom \
+              tools/sbom/sbom-driver \
+              tools/sbom/sbom-driver.py \
+              tools/sbom/sbom.am \
+              tools/sbom/validate_sbom.py
 
 # SBOM generator unit tests.  Shipped so downstream consumers building
 # from a release tarball can re-run the regression suite.

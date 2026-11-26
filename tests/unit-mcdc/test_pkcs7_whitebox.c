@@ -860,7 +860,7 @@ static void wb_verify_guards(void)
 
 /* ------------------------------------------------------------------------- *
  * Section 9: BuildSignedDataDigest/VerifyContentMessageDigest guards and
- * internal branches [:5706,:5717,:5722,:5742,:5836,:5853,:5886,:5929],
+ * internal branches [:5865,:5876,:5881,:5901,:5995,:6012,:6069,:6112],
  * SignedDataVerifySignature guard [:5964-area], SetPublicKeyOID [:6170 area],
  * GetSignerSID [:8271-area, already simple].
  * ------------------------------------------------------------------------- */
@@ -876,23 +876,23 @@ static void wb_digest_verify(void)
     XMEMSET(&pkcs7, 0, sizeof(pkcs7));
     pkcs7.hashOID = SHA256h;
 
-    WB_NOTE("wc_PKCS7_BuildSignedDataDigest(): NULL guard [:5706]");
+    WB_NOTE("wc_PKCS7_BuildSignedDataDigest(): NULL guard [:5865]");
     ret = wc_PKCS7_BuildSignedDataDigest(NULL, NULL, 0, pkcs7Digest,
             &pkcs7DigestSz, &plainDigest, &plainDigestSz, NULL, 0, 0);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5706 pkcs7==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5865 pkcs7==NULL");
     ret = wc_PKCS7_BuildSignedDataDigest(&pkcs7, NULL, 0, NULL,
             &pkcs7DigestSz, &plainDigest, &plainDigestSz, NULL, 0, 0);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5706 pkcs7Digest==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5865 pkcs7Digest==NULL");
     ret = wc_PKCS7_BuildSignedDataDigest(&pkcs7, NULL, 0, pkcs7Digest,
             NULL, &plainDigest, &plainDigestSz, NULL, 0, 0);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5706 pkcs7DigestSz==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5865 pkcs7DigestSz==NULL");
     ret = wc_PKCS7_BuildSignedDataDigest(&pkcs7, NULL, 0, pkcs7Digest,
             &pkcs7DigestSz, NULL, &plainDigestSz, NULL, 0, 0);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5706 plainDigest==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5865 plainDigest==NULL");
 
     WB_NOTE("wc_PKCS7_BuildSignedDataDigest(): signedAttribSz==0 branch"
-            " [:5722,:5742]");
-    /* hashBuf given, no content: :5722 both true, hashSz mismatch check */
+            " [:5881,:5901]");
+    /* hashBuf given, no content: :5881 both true, hashSz mismatch check */
     {
         byte userHash[8];
         XMEMSET(userHash, 0xAB, sizeof(userHash));
@@ -900,7 +900,7 @@ static void wb_digest_verify(void)
                 &pkcs7DigestSz, &plainDigest, &plainDigestSz, userHash,
                 sizeof(userHash), 0);
         WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
-                ":5722 both true, hashSz mismatch (WC_SHA256_DIGEST_SIZE!=8)");
+                ":5881 both true, hashSz mismatch (WC_SHA256_DIGEST_SIZE!=8)");
     }
     {
         byte userHash[WC_SHA256_DIGEST_SIZE];
@@ -910,17 +910,17 @@ static void wb_digest_verify(void)
                 &pkcs7DigestSz, &plainDigest, &plainDigestSz, userHash,
                 sizeof(userHash), 0);
         WB_CHECK(ret == 0,
-                ":5722 both true, hashSz matches -> :5742 all true (copy path)");
+                ":5881 both true, hashSz matches -> :5901 all true (copy path)");
     }
-    /* :5722 1st operand false (hashBuf==NULL), pkcs7->content==NULL ->
-     * BAD_FUNC_ARG at the else-if; :5742 1st operand false (hashBuf==NULL). */
+    /* :5881 1st operand false (hashBuf==NULL), pkcs7->content==NULL ->
+     * BAD_FUNC_ARG at the else-if; :5901 1st operand false (hashBuf==NULL). */
     pkcs7.content = NULL;
     pkcs7DigestSz = sizeof(pkcs7Digest);
     ret = wc_PKCS7_BuildSignedDataDigest(&pkcs7, NULL, 0, pkcs7Digest,
             &pkcs7DigestSz, &plainDigest, &plainDigestSz, NULL, 0, 0);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG),
-            ":5722/:5742 1st operand false (hashBuf==NULL), content==NULL");
-    /* :5742 3rd operand false: hashBuf valid but signedAttribSz>0 -- goes to
+            ":5881/:5901 1st operand false (hashBuf==NULL), content==NULL");
+    /* :5901 3rd operand false: hashBuf valid but signedAttribSz>0 -- goes to
      * hash-over-signedAttrib path instead (needs signedAttrib!=NULL). */
     {
         byte userHash[WC_SHA256_DIGEST_SIZE];
@@ -931,18 +931,18 @@ static void wb_digest_verify(void)
                 pkcs7Digest, &pkcs7DigestSz, &plainDigest, &plainDigestSz,
                 userHash, sizeof(userHash), 0);
         WB_CHECK(ret == 0,
-                ":5742 3rd operand false (signedAttribSz>0, hash-over-attrib path)");
+                ":5901 3rd operand false (signedAttribSz>0, hash-over-attrib path)");
     }
 
-    WB_NOTE("wc_PKCS7_VerifyContentMessageDigest(): NULL guard [:5836] and"
-            " attrib->value checks [:5853] via real ParseAttribs()");
+    WB_NOTE("wc_PKCS7_VerifyContentMessageDigest(): NULL guard [:5995] and"
+            " attrib->value checks [:6012] via real ParseAttribs()");
     XMEMSET(&pkcs7, 0, sizeof(pkcs7));
     pkcs7.hashOID = SHA256h;
     ret = wc_PKCS7_VerifyContentMessageDigest(NULL, NULL, 0);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5836 pkcs7==NULL");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), ":5995 pkcs7==NULL");
     /* no messageDigest attrib in bundle at all: findAttrib returns NULL,
-     * ASN_PARSE_E before reaching :5853 -- not the gap; build one instead
-     * with an empty OCTET STRING value to hit :5853 true. */
+     * ASN_PARSE_E before reaching :6012 -- not the gap; build one instead
+     * with an empty OCTET STRING value to hit :6012 true. */
     {
         /* messageDigest attrib SEQ { OID mdOid, SET { OCTET_STRING(empty) } } */
         static const byte mdOid[] =
@@ -963,13 +963,13 @@ static void wb_digest_verify(void)
         ret = wc_PKCS7_ParseAttribs(&pkcs7, attrBuf, (int)idx);
         WB_CHECK(ret == 1, "ParseAttribs found 1 attrib (messageDigest, empty value)");
         ret = wc_PKCS7_VerifyContentMessageDigest(&pkcs7, NULL, 0);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":5853 attrib->valueSz==0 true");
+        WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E), ":6012 attrib->valueSz==0 true");
     }
     wc_PKCS7_FreeDecodedAttrib(pkcs7.decodedAttrib, NULL);
     pkcs7.decodedAttrib = NULL;
 
     WB_NOTE("wc_PKCS7_VerifyContentMessageDigest(): content-is-pkcs7-type OR"
-            " [:5886] and mismatch compare [:5929]");
+            " [:6069] and mismatch compare [:6112]");
     {
         static const byte mdOid[] =
             { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x04 };
@@ -997,12 +997,12 @@ static void wb_digest_verify(void)
         ret = wc_PKCS7_ParseAttribs(&pkcs7, attrBuf, (int)idx);
         WB_CHECK(ret == 1, "ParseAttribs found messageDigest w/ correct hash");
 
-        pkcs7.content = NULL; /* :5886 1st operand false (content==NULL) */
+        pkcs7.content = NULL; /* :6069 1st operand false (content==NULL) */
         pkcs7.contentIsPkcs7Type = 0;
         ret = wc_PKCS7_VerifyContentMessageDigest(&pkcs7, NULL, 0);
-        WB_CHECK(ret == 0, ":5886 both false (empty content, hash matches -> :5929 false)");
+        WB_CHECK(ret == 0, ":6069 both false (empty content, hash matches -> :6112 false)");
 
-        /* :5929 true: wrong-length messageDigest attrib value (mismatch). */
+        /* :6112 true: wrong-length messageDigest attrib value (mismatch). */
         wc_PKCS7_FreeDecodedAttrib(pkcs7.decodedAttrib, NULL);
         pkcs7.decodedAttrib = NULL;
         idx = 0;
@@ -1020,7 +1020,7 @@ static void wb_digest_verify(void)
         ret = wc_PKCS7_ParseAttribs(&pkcs7, attrBuf, (int)idx);
         WB_CHECK(ret == 1, "ParseAttribs found messageDigest w/ wrong-size hash");
         ret = wc_PKCS7_VerifyContentMessageDigest(&pkcs7, NULL, 0);
-        WB_CHECK(ret == WC_NO_ERR_TRACE(SIG_VERIFY_E), ":5929 1st operand true (size mismatch)");
+        WB_CHECK(ret == WC_NO_ERR_TRACE(SIG_VERIFY_E), ":6112 1st operand true (size mismatch)");
         wc_PKCS7_FreeDecodedAttrib(pkcs7.decodedAttrib, NULL);
         pkcs7.decodedAttrib = NULL;
     }

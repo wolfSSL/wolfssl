@@ -50,9 +50,9 @@
 
 #ifdef WOLFSSL_X86_64_BUILD
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -62,9 +62,9 @@
 L_GCM_generate_m0_aesni_rev8:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -318,9 +318,9 @@ _GCM_generate_m0_aesni:
 .size	GCM_generate_m0_aesni,.-GCM_generate_m0_aesni
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -330,9 +330,9 @@ _GCM_generate_m0_aesni:
 L_aes_gcm_one:
 .quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -342,9 +342,9 @@ L_aes_gcm_one:
 L_aes_gcm_two:
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -354,9 +354,9 @@ L_aes_gcm_two:
 L_aes_gcm_three:
 .quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -366,9 +366,9 @@ L_aes_gcm_three:
 L_aes_gcm_four:
 .quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -378,9 +378,9 @@ L_aes_gcm_four:
 L_aes_gcm_five:
 .quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -390,9 +390,9 @@ L_aes_gcm_five:
 L_aes_gcm_six:
 .quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -402,9 +402,9 @@ L_aes_gcm_six:
 L_aes_gcm_seven:
 .quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -414,9 +414,9 @@ L_aes_gcm_seven:
 L_aes_gcm_eight:
 .quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -426,9 +426,9 @@ L_aes_gcm_eight:
 L_aes_gcm_bswap_epi64:
 .quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -438,9 +438,9 @@ L_aes_gcm_bswap_epi64:
 L_aes_gcm_bswap_mask:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -6510,9 +6510,9 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_done:
 #endif /* WOLFSSL_AESGCM_STREAM */
 #ifdef WOLFSSL_AESGCM_SIV
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -6875,9 +6875,9 @@ L_AES_GCMSIV_polyval_aesni_done:
 .size	AES_GCMSIV_polyval_aesni,.-AES_GCMSIV_polyval_aesni
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7080,9 +7080,9 @@ L_AES_GCMSIV_ctr_aesni_done_enc:
 #endif /* WOLFSSL_AESGCM_SIV */
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7092,9 +7092,9 @@ L_AES_GCMSIV_ctr_aesni_done_enc:
 L_GCM_generate_m0_avx1_rev8:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7314,9 +7314,9 @@ _GCM_generate_m0_avx1:
 .size	GCM_generate_m0_avx1,.-GCM_generate_m0_avx1
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7326,9 +7326,9 @@ _GCM_generate_m0_avx1:
 L_avx1_aes_gcm_one:
 .quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7338,9 +7338,9 @@ L_avx1_aes_gcm_one:
 L_avx1_aes_gcm_two:
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7350,9 +7350,9 @@ L_avx1_aes_gcm_two:
 L_avx1_aes_gcm_three:
 .quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7362,9 +7362,9 @@ L_avx1_aes_gcm_three:
 L_avx1_aes_gcm_four:
 .quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7374,9 +7374,9 @@ L_avx1_aes_gcm_four:
 L_avx1_aes_gcm_five:
 .quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7386,9 +7386,9 @@ L_avx1_aes_gcm_five:
 L_avx1_aes_gcm_six:
 .quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7398,9 +7398,9 @@ L_avx1_aes_gcm_six:
 L_avx1_aes_gcm_seven:
 .quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7410,9 +7410,9 @@ L_avx1_aes_gcm_seven:
 L_avx1_aes_gcm_eight:
 .quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7422,9 +7422,9 @@ L_avx1_aes_gcm_eight:
 L_avx1_aes_gcm_bswap_epi64:
 .quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7434,9 +7434,9 @@ L_avx1_aes_gcm_bswap_epi64:
 L_avx1_aes_gcm_bswap_mask:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12573,9 +12573,9 @@ L_AES_GCM_decrypt_final_avx1_cmp_tag_done:
 #endif /* WOLFSSL_AESGCM_STREAM */
 #ifdef WOLFSSL_AESGCM_SIV
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -12842,9 +12842,9 @@ L_AES_GCMSIV_polyval_avx1_done:
 .size	AES_GCMSIV_polyval_avx1,.-AES_GCMSIV_polyval_avx1
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13043,9 +13043,9 @@ L_AES_GCMSIV_ctr_avx1_done_enc:
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13055,9 +13055,9 @@ L_AES_GCMSIV_ctr_avx1_done_enc:
 L_GCM_generate_m0_avx2_rev8:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13277,9 +13277,9 @@ _GCM_generate_m0_avx2:
 .size	GCM_generate_m0_avx2,.-GCM_generate_m0_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13289,9 +13289,9 @@ _GCM_generate_m0_avx2:
 L_avx2_aes_gcm_one:
 .quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13301,9 +13301,9 @@ L_avx2_aes_gcm_one:
 L_avx2_aes_gcm_two:
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13313,9 +13313,9 @@ L_avx2_aes_gcm_two:
 L_avx2_aes_gcm_three:
 .quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13325,9 +13325,9 @@ L_avx2_aes_gcm_three:
 L_avx2_aes_gcm_four:
 .quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13337,9 +13337,9 @@ L_avx2_aes_gcm_four:
 L_avx2_aes_gcm_five:
 .quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13349,9 +13349,9 @@ L_avx2_aes_gcm_five:
 L_avx2_aes_gcm_six:
 .quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13361,9 +13361,9 @@ L_avx2_aes_gcm_six:
 L_avx2_aes_gcm_seven:
 .quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13373,9 +13373,9 @@ L_avx2_aes_gcm_seven:
 L_avx2_aes_gcm_eight:
 .quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13385,9 +13385,9 @@ L_avx2_aes_gcm_eight:
 L_avx2_aes_gcm_bswap_one:
 .quad	0x0000000000000000,0x0100000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13397,9 +13397,9 @@ L_avx2_aes_gcm_bswap_one:
 L_avx2_aes_gcm_bswap_epi64:
 .quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -13409,9 +13409,9 @@ L_avx2_aes_gcm_bswap_epi64:
 L_avx2_aes_gcm_bswap_mask:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18070,9 +18070,9 @@ L_AES_GCM_decrypt_final_avx2_cmp_tag_done:
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_VAES
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -18083,9 +18083,9 @@ L_vaes_aes_gcm_inc_y0:
 .quad	0x0000000000000000,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -18096,9 +18096,9 @@ L_vaes_aes_gcm_inc_y1:
 .quad	0x0000000000000000,0x0000000000000002
 .quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -18109,9 +18109,9 @@ L_vaes_aes_gcm_inc_y2:
 .quad	0x0000000000000000,0x0000000000000004
 .quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -18122,9 +18122,9 @@ L_vaes_aes_gcm_inc_y3:
 .quad	0x0000000000000000,0x0000000000000006
 .quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18134,9 +18134,9 @@ L_vaes_aes_gcm_inc_y3:
 L_GCM_generate_m0_vaes_rev8:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18356,9 +18356,9 @@ _GCM_generate_m0_vaes:
 .size	GCM_generate_m0_vaes,.-GCM_generate_m0_vaes
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18368,9 +18368,9 @@ _GCM_generate_m0_vaes:
 L_vaes_aes_gcm_one:
 .quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18380,9 +18380,9 @@ L_vaes_aes_gcm_one:
 L_vaes_aes_gcm_two:
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18392,9 +18392,9 @@ L_vaes_aes_gcm_two:
 L_vaes_aes_gcm_three:
 .quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18404,9 +18404,9 @@ L_vaes_aes_gcm_three:
 L_vaes_aes_gcm_four:
 .quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18416,9 +18416,9 @@ L_vaes_aes_gcm_four:
 L_vaes_aes_gcm_five:
 .quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18428,9 +18428,9 @@ L_vaes_aes_gcm_five:
 L_vaes_aes_gcm_six:
 .quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18440,9 +18440,9 @@ L_vaes_aes_gcm_six:
 L_vaes_aes_gcm_seven:
 .quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18452,9 +18452,9 @@ L_vaes_aes_gcm_seven:
 L_vaes_aes_gcm_eight:
 .quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18464,9 +18464,9 @@ L_vaes_aes_gcm_eight:
 L_vaes_aes_gcm_bswap_epi64:
 .quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -18476,9 +18476,9 @@ L_vaes_aes_gcm_bswap_epi64:
 L_vaes_aes_gcm_bswap_mask:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -25477,9 +25477,9 @@ L_AES_GCM_decrypt_final_vaes_cmp_tag_done:
 #endif /* WOLFSSL_AESGCM_STREAM */
 #ifdef WOLFSSL_AESGCM_SIV
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26010,9 +26010,9 @@ L_AES_GCMSIV_polyval_vaes_done:
 .size	AES_GCMSIV_polyval_vaes,.-AES_GCMSIV_polyval_vaes
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26283,12 +26283,11 @@ L_AES_GCMSIV_ctr_vaes_done_enc:
 .size	AES_GCMSIV_ctr_vaes,.-AES_GCMSIV_ctr_vaes
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AESGCM_SIV */
-#endif /* HAVE_INTEL_VAES */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26301,9 +26300,9 @@ L_avx512_aes_gcm_inc_z0:
 .quad	0x0000000000000000,0x0000000000000002
 .quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26316,9 +26315,9 @@ L_avx512_aes_gcm_inc_z1:
 .quad	0x0000000000000000,0x0000000000000006
 .quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26331,9 +26330,9 @@ L_avx512_aes_gcm_inc_z2:
 .quad	0x0000000000000000,0x000000000000000a
 .quad	0x0000000000000000,0x000000000000000b
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -26346,9 +26345,9 @@ L_avx512_aes_gcm_inc_z3:
 .quad	0x0000000000000000,0x000000000000000e
 .quad	0x0000000000000000,0x000000000000000f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26358,9 +26357,9 @@ L_avx512_aes_gcm_inc_z3:
 L_avx512_aes_gcm_sixteen:
 .quad	0x0000000000000000,0x0000000000000010
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26370,9 +26369,9 @@ L_avx512_aes_gcm_sixteen:
 L_GCM_generate_m0_avx512_rev8:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26592,9 +26591,9 @@ _GCM_generate_m0_avx512:
 .size	GCM_generate_m0_avx512,.-GCM_generate_m0_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26604,9 +26603,9 @@ _GCM_generate_m0_avx512:
 L_avx512_aes_gcm_one:
 .quad	0x0000000000000000,0x0000000000000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26616,9 +26615,9 @@ L_avx512_aes_gcm_one:
 L_avx512_aes_gcm_two:
 .quad	0x0000000000000000,0x0000000000000002
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26628,9 +26627,9 @@ L_avx512_aes_gcm_two:
 L_avx512_aes_gcm_three:
 .quad	0x0000000000000000,0x0000000000000003
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26640,9 +26639,9 @@ L_avx512_aes_gcm_three:
 L_avx512_aes_gcm_four:
 .quad	0x0000000000000000,0x0000000000000004
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26652,9 +26651,9 @@ L_avx512_aes_gcm_four:
 L_avx512_aes_gcm_five:
 .quad	0x0000000000000000,0x0000000000000005
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26664,9 +26663,9 @@ L_avx512_aes_gcm_five:
 L_avx512_aes_gcm_six:
 .quad	0x0000000000000000,0x0000000000000006
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26676,9 +26675,9 @@ L_avx512_aes_gcm_six:
 L_avx512_aes_gcm_seven:
 .quad	0x0000000000000000,0x0000000000000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26688,9 +26687,9 @@ L_avx512_aes_gcm_seven:
 L_avx512_aes_gcm_eight:
 .quad	0x0000000000000000,0x0000000000000008
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26700,9 +26699,9 @@ L_avx512_aes_gcm_eight:
 L_avx512_aes_gcm_bswap_epi64:
 .quad	0x0001020304050607,0x08090a0b0c0d0e0f
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -26712,9 +26711,9 @@ L_avx512_aes_gcm_bswap_epi64:
 L_avx512_aes_gcm_bswap_mask:
 .quad	0x08090a0b0c0d0e0f,0x0001020304050607
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -36298,9 +36297,9 @@ L_AES_GCM_decrypt_final_avx512_cmp_tag_done:
 #endif /* WOLFSSL_AESGCM_STREAM */
 #ifdef WOLFSSL_AESGCM_SIV
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -37030,9 +37029,9 @@ L_AES_GCMSIV_polyval_avx512_done:
 .size	AES_GCMSIV_polyval_avx512,.-AES_GCMSIV_polyval_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -37302,6 +37301,7 @@ L_AES_GCMSIV_ctr_avx512_done_enc:
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AESGCM_SIV */
 #endif /* HAVE_INTEL_AVX512 */
+#endif /* HAVE_INTEL_VAES */
 #endif /* WOLFSSL_X86_64_BUILD */
 
 #if defined(__linux__) && defined(__ELF__)

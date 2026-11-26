@@ -6611,7 +6611,6 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
  * @param  [in]   hashType  Hash algorithm to use.
  * @param  [in]   a         Hash of original data.
  * @param  [in]   q         MP integer representing modulus.
- * @param  [in]   n         Size of output in bytes.
  * @param  [out]  r         MP integer representing modulo reduced hashes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when hashType is not supported.
@@ -6619,19 +6618,37 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
  * @return  Other -ve value on internal failure.
  */
 static int sakke_hash_to_range_int(SakkeKey* key, enum wc_HashType hashType,
-        const byte* a, mp_int* q, word32 n, mp_int* r)
+        const byte* a, mp_int* q, mp_int* r)
 {
     int err;
+    word32 hashSz = 0;
+    word32 qSz;
+    word32 fullSz = 0;
     byte* rb = key->data;
 
+    err = wc_HashGetDigestSize(hashType);
+    if (err > 0) {
+        hashSz = (word32)err;
+        qSz = (word32)WC_BITS_TO_BYTES(mp_count_bits(q));
+        fullSz = ((qSz + hashSz - 1U) / hashSz) * hashSz;
+        err = 0;
+    }
+    else if (err == 0) {
+        err = BAD_FUNC_ARG;
+    }
+
     /* Make all zeros so that hash output can be XORed in. */
-    XMEMSET(rb, 0, n);
+    if (err == 0) {
+        XMEMSET(rb, 0, fullSz);
+    }
 
     /* Steps 1-4 */
-    err = sakke_hash_to_range(key, hashType, a, rb, n);
+    if (err == 0) {
+        err = sakke_hash_to_range(key, hashType, a, rb, fullSz);
+    }
     if (err == 0) {
         /* Steps 5 v' = v_1 | ...  | v_l */
-        err = mp_read_unsigned_bin(r, rb, n);
+        err = mp_read_unsigned_bin(r, rb, fullSz);
     }
     if (err == 0) {
         /* Steps 6 v = v' mod n */
@@ -7070,7 +7087,7 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
     }
     if (err == 0) {
         r = key->tmp.p3->z;
-        err = sakke_hash_to_range_int(key, hashType, a, &key->params.q, n, r);
+        err = sakke_hash_to_range_int(key, hashType, a, &key->params.q, r);
     }
     /* Step 3: Compute R_(b,S) = [r]([b]P + Z_S) in E(F_p) */
     if (err == 0) {
@@ -7264,7 +7281,7 @@ int wc_DeriveSakkeSSV(SakkeKey* key, enum wc_HashType hashType, byte* ssv,
     }
     if (err == 0) {
         ri = &key->tmp.m1;
-        err = sakke_hash_to_range_int(key, hashType, a, &key->params.q, n, ri);
+        err = sakke_hash_to_range_int(key, hashType, a, &key->params.q, ri);
     }
 
     /* Step 5: Compute TEST = [r]([b]P + Z_S) == R_(b,S) */

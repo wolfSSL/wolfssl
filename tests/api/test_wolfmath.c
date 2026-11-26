@@ -1441,6 +1441,23 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
     ExpectIntEQ(sp_set(&a, 20), 0);
     ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, &m), WC_NO_ERR_TRACE(MP_VAL));
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    /* Base 2 with a multi-digit exponent, using both a single-digit and
+     * a multi-digit odd modulus. The exponent is 2^64 + 5. */
+    ExpectIntEQ(sp_set(&a, 2), MP_OKAY);
+    ExpectIntEQ(sp_2expt(&b, 64), MP_OKAY);
+    ExpectIntEQ(sp_add_d(&b, 5, &b), MP_OKAY);
+    ExpectIntEQ(sp_set(&m, 17), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 15), MP_EQ);
+
+    /* 2^128 == -1 modulo (2^128 + 1), so 2^256 == 1. */
+    ExpectIntEQ(sp_2expt(&m, 128), MP_OKAY);
+    ExpectIntEQ(sp_add_d(&m, 1, &m), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 32), MP_EQ);
+#endif
+
     /* sp_gcd: NULL args; a or b too big (>= SP_INT_DIGITS, skipped: needs
      * an operand at the compile limit, documented residual); undersized
      * dest; both zero (undefined); a zero, b nonzero (gcd = b); normal;

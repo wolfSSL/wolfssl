@@ -1005,7 +1005,9 @@ static WC_INLINE void wc_Stm32_CrypAesBlock(const byte* in, byte* out)
         #if !defined(NO_VAES_SUPPORT) && !defined(HAVE_INTEL_VAES)
             #define HAVE_INTEL_VAES
         #endif
-        #if !defined(NO_AVX512_SUPPORT) && !defined(HAVE_INTEL_AVX512)
+        /* The AVX512 AES kernels are VAES code. */
+        #if !defined(NO_VAES_SUPPORT) && !defined(NO_AVX512_SUPPORT) && \
+            !defined(HAVE_INTEL_AVX512)
             #define HAVE_INTEL_AVX512
         #endif
 
@@ -6645,7 +6647,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
-        /* This function allows key sizes that are not 128/192/256 bits */
+        /* Accepts the same key sizes as wc_AesSetKey */
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                            const byte* iv, int dir)
     {
@@ -9235,9 +9237,9 @@ void GenerateM0(Gcm* gcm)
     #ifdef WOLFSSL_X86_64_BUILD
         #ifndef NO_VAES_SUPPORT
             #define HAVE_INTEL_VAES
-        #endif
-        #ifndef NO_AVX512_SUPPORT
-            #define HAVE_INTEL_AVX512
+            #ifndef NO_AVX512_SUPPORT
+                #define HAVE_INTEL_AVX512
+            #endif
         #endif
     #endif
 #endif
@@ -9324,10 +9326,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
         return BAD_FUNC_ARG;
     }
-#ifdef OPENSSL_EXTRA
-    XMEMSET(aes->gcm.aadH, 0, sizeof(aes->gcm.aadH));
-    aes->gcm.aadLen = 0;
-#endif
     XMEMSET(iv, 0, WC_AES_BLOCK_SIZE);
     WC_AES_GCM_UNKEY(aes);
     /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesGcmSetExtIV(). */
@@ -10887,13 +10885,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
             x[1] ^= bigA[1];
             GMULT(x, bigH, &gmultScratch);
         }
-#ifdef OPENSSL_EXTRA
-        /* store AAD partial tag for next call */
-        gcm->aadH[0] = (word32)((x[0] & 0xFFFFFFFF00000000ULL) >> 32);
-        gcm->aadH[1] = (word32)(x[0] & 0xFFFFFFFF);
-        gcm->aadH[2] = (word32)((x[1] & 0xFFFFFFFF00000000ULL) >> 32);
-        gcm->aadH[3] = (word32)(x[1] & 0xFFFFFFFF);
-#endif
     }
 
     /* Hash in C, the Ciphertext */
@@ -10901,13 +10892,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         word64 bigC[2];
         blocks = cSz / WC_AES_BLOCK_SIZE;
         partial = cSz % WC_AES_BLOCK_SIZE;
-#ifdef OPENSSL_EXTRA
-        /* Start from last AAD partial tag */
-        if(gcm->aadLen) {
-            x[0] = ((word64)gcm->aadH[0]) << 32 | gcm->aadH[1];
-            x[1] = ((word64)gcm->aadH[2]) << 32 | gcm->aadH[3];
-         }
-#endif
         while (blocks--) {
             XMEMCPY(bigC, c, WC_AES_BLOCK_SIZE);
             #ifdef LITTLE_ENDIAN_ORDER
@@ -10934,10 +10918,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     {
         word64 len[2];
         len[0] = aSz; len[1] = cSz;
-#ifdef OPENSSL_EXTRA
-        if (gcm->aadLen)
-            len[0] = (word64)gcm->aadLen;
-#endif
         /* Lengths are in bytes. Convert to bits. */
         len[0] *= 8;
         len[1] *= 8;
@@ -10967,12 +10947,12 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
 #ifdef LITTLE_ENDIAN_ORDER
 
-/* No extra initialization for small implementation.
+/* No extra initialization: H stays as set with the key, and each block
+ * multiplies by a byte-reversed copy.
  *
  * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes)                                               \
-    ByteReverseWords64((word64*)aes->gcm.H, (word64*)aes->gcm.H, WC_AES_BLOCK_SIZE)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -10984,17 +10964,19 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK_SW(aes, block)                           \
     do {                                                         \
         word64* x = (word64*)AES_TAG(aes);                       \
-        word64* h = (word64*)aes->gcm.H;                         \
+        word64 h[2];                                             \
         word64 block64[2];                                       \
+        ByteReverseWords64(h, (word64*)aes->gcm.H,               \
+            WC_AES_BLOCK_SIZE);                                  \
         XMEMCPY(block64, block, WC_AES_BLOCK_SIZE);              \
         ByteReverseWords64(block64, block64, WC_AES_BLOCK_SIZE); \
         x[0] ^= block64[0];                                      \
         x[1] ^= block64[1];                                      \
         GMULT(x, h, &gmultScratch);                              \
+        ForceZero(h, sizeof(h));                                 \
     }                                                            \
     while (0)
 
-#ifdef OPENSSL_EXTRA
 /* GHASH in AAD and cipher text lengths in bits.
  *
  * Convert tag back to little-endian.
@@ -11004,33 +10986,10 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #define GHASH_LEN_BLOCK(aes)                            \
     do {                                                \
         word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->gcm.H;                \
+        word64 h[2];                                    \
         word64 len[2];                                  \
-        len[0] = aes->aSz; len[1] = aes->cSz;           \
-        if (aes->gcm.aadLen)                            \
-            len[0] = (word64)aes->gcm.aadLen;           \
-        /* Lengths are in bytes. Convert to bits. */    \
-        len[0] *= 8;                                    \
-        len[1] *= 8;                                    \
-                                                        \
-        x[0] ^= len[0];                                 \
-        x[1] ^= len[1];                                 \
-        GMULT(x, h, &gmultScratch);                     \
-        ByteReverseWords64(x, x, WC_AES_BLOCK_SIZE);    \
-    }                                                   \
-    while (0)
-#else
-/* GHASH in AAD and cipher text lengths in bits.
- *
- * Convert tag back to little-endian.
- *
- * @param [in, out] aes  AES GCM object.
- */
-#define GHASH_LEN_BLOCK(aes)                            \
-    do {                                                \
-        word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->gcm.H;                \
-        word64 len[2];                                  \
+        ByteReverseWords64(h, (word64*)aes->gcm.H,      \
+            WC_AES_BLOCK_SIZE);                         \
         len[0] = aes->aSz; len[1] = aes->cSz;           \
         /* Lengths are in bytes. Convert to bits. */    \
         len[0] *= 8;                                    \
@@ -11039,10 +10998,10 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         x[0] ^= len[0];                                 \
         x[1] ^= len[1];                                 \
         GMULT(x, h, &gmultScratch);                     \
+        ForceZero(h, sizeof(h));                        \
         ByteReverseWords64(x, x, WC_AES_BLOCK_SIZE);    \
     }                                                   \
     while (0)
-#endif
 
 #else
 
@@ -11071,31 +11030,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     }                                               \
     while (0)
 
-#ifdef OPENSSL_EXTRA
-/* GHASH in AAD and cipher text lengths in bits.
- *
- * Convert tag back to little-endian.
- *
- * @param [in, out] aes  AES GCM object.
- */
-#define GHASH_LEN_BLOCK(aes)                            \
-    do {                                                \
-        word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->gcm.H;                \
-        word64 len[2];                                  \
-        len[0] = aes->aSz; len[1] = aes->cSz;           \
-        if (aes->gcm.aadLen)                            \
-            len[0] = (word64)aes->gcm.aadLen;           \
-        /* Lengths are in bytes. Convert to bits. */    \
-        len[0] *= 8;                                    \
-        len[1] *= 8;                                    \
-                                                        \
-        x[0] ^= len[0];                                 \
-        x[1] ^= len[1];                                 \
-        GMULT(x, h, &gmultScratch);                     \
-    }                                                   \
-    while (0)
-#else
 /* GHASH in AAD and cipher text lengths in bits.
  *
  * Convert tag back to little-endian.
@@ -11117,7 +11051,6 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         GMULT(x, h, &gmultScratch);                     \
     }                                                   \
     while (0)
-#endif
 
 #endif /* !LITTLE_ENDIAN_ORDER */
 
@@ -11280,14 +11213,12 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
 #ifdef WOLFSSL_AESGCM_STREAM
 #ifdef LITTLE_ENDIAN_ORDER
-/* Little-endian 32-bit word implementation requires byte reversal of H.
+/* No extra initialization: H stays as set with the key, and each block
+ * multiplies by a byte-reversed copy.
  *
- * H is all-zeros block encrypted with key.
- *
- * @param [in, out] aes  AES GCM object.
+ * @param [in] aes  AES GCM object.
  */
-#define GHASH_INIT_EXTRA(aes) \
-    ByteReverseWords((word32*)aes->gcm.H, (word32*)aes->gcm.H, WC_AES_BLOCK_SIZE)
+#define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
 /* GHASH one block of data..
  *
@@ -11299,8 +11230,10 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK_SW(aes, block)                       \
     do {                                                     \
         word32* x = (word32*)AES_TAG(aes);                   \
-        word32* h = (word32*)aes->gcm.H;                     \
+        word32 h[4];                                         \
         word32 bigEnd[4];                                    \
+        ByteReverseWords(h, (word32*)aes->gcm.H,             \
+            WC_AES_BLOCK_SIZE);                              \
         XMEMCPY(bigEnd, block, WC_AES_BLOCK_SIZE);           \
         ByteReverseWords(bigEnd, bigEnd, WC_AES_BLOCK_SIZE); \
         x[0] ^= bigEnd[0];                                   \
@@ -11308,6 +11241,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         x[2] ^= bigEnd[2];                                   \
         x[3] ^= bigEnd[3];                                   \
         GMULT(x, h, &gmultScratch);                          \
+        ForceZero(h, sizeof(h));                             \
     }                                                        \
     while (0)
 
@@ -11321,7 +11255,9 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     do {                                                    \
         word32 len[4];                                      \
         word32* x = (word32*)AES_TAG(aes);                  \
-        word32* h = (word32*)aes->gcm.H;                    \
+        word32 h[4];                                        \
+        ByteReverseWords(h, (word32*)aes->gcm.H,            \
+            WC_AES_BLOCK_SIZE);                             \
         len[0] = (aes->aSz >> (CHAR_BIT*sizeof(aes->aSz) - 3));    \
         len[1] = aes->aSz << 3;                             \
         len[2] = (aes->cSz >> (CHAR_BIT*sizeof(aes->cSz) - 3));    \
@@ -11331,6 +11267,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         x[2] ^= len[2];                                     \
         x[3] ^= len[3];                                     \
         GMULT(x, h, &gmultScratch);                         \
+        ForceZero(h, sizeof(h));                            \
         ByteReverseWords(x, x, WC_AES_BLOCK_SIZE);          \
     }                                                       \
     while (0)
@@ -11569,8 +11506,6 @@ static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
     GHASH_LEN_BLOCK(aes);
     /* Copy the result into s. */
     XMEMCPY(s, AES_TAG(aes), sSz);
-    /* reset aes->gcm.H in case of reuse */
-    GHASH_INIT_EXTRA(aes);
 #ifdef GCM_C_GMULT
     ForceZero(&gmultScratch, sizeof(gmultScratch));
 #endif
@@ -11982,14 +11917,7 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
     }
     else {
         /* Counter is GHASH of IV. */
-#ifdef OPENSSL_EXTRA
-        word32 aadTemp = aes->gcm.aadLen;
-        aes->gcm.aadLen = 0;
-#endif
         GHASH(&aes->gcm, NULL, 0, iv, ivSz, counter, WC_AES_BLOCK_SIZE);
-#ifdef OPENSSL_EXTRA
-        aes->gcm.aadLen = aadTemp;
-#endif
     }
     XMEMCPY(initialCounter, counter, WC_AES_BLOCK_SIZE);
 
@@ -12062,11 +11990,6 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
             goto done;
         }
         xorbuf(authTag, scratch, authTagSz);
-#ifdef OPENSSL_EXTRA
-        if (!in && !sz)
-            /* store AAD size for next call */
-            aes->gcm.aadLen = authInSz;
-#endif
     }
 
 done:
@@ -12889,14 +12812,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     }
     else {
         /* Counter is GHASH of IV. */
-#ifdef OPENSSL_EXTRA
-        word32 aadTemp = aes->gcm.aadLen;
-        aes->gcm.aadLen = 0;
-#endif
         GHASH(&aes->gcm, NULL, 0, iv, ivSz, counter, WC_AES_BLOCK_SIZE);
-#ifdef OPENSSL_EXTRA
-        aes->gcm.aadLen = aadTemp;
-#endif
     }
 
     /* Calc the authTag again using received auth data and the cipher text */
@@ -12917,14 +12833,6 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     ret = res & AES_GCM_AUTH_E;
     if (ret != 0)
         goto done;
-#endif
-
-#ifdef OPENSSL_EXTRA
-    if (!out) {
-        /* authenticated, non-confidential data */
-        /* store AAD size for next call */
-        aes->gcm.aadLen = authInSz;
-    }
 #endif
 
 #if defined(WOLFSSL_PIC32MZ_CRYPT)
@@ -13490,14 +13398,7 @@ static WARN_UNUSED_RESULT int AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz
     }
     else {
         /* Counter is GHASH of IV. */
-    #ifdef OPENSSL_EXTRA
-        word32 aadTemp = aes->gcm.aadLen;
-        aes->gcm.aadLen = 0;
-    #endif
         GHASH(&aes->gcm, NULL, 0, iv, ivSz, counter, WC_AES_BLOCK_SIZE);
-    #ifdef OPENSSL_EXTRA
-        aes->gcm.aadLen = aadTemp;
-    #endif
     }
 
     /* Copy in the counter for use with cipher. */
@@ -13642,10 +13543,6 @@ static WARN_UNUSED_RESULT int AesGcmFinal_C(
     GHASH_FINAL(aes, authTag, authTagSz);
     /* XOR in as much of encrypted counter as is required. */
     xorbuf(authTag, AES_INITCTR(aes), authTagSz);
-#ifdef OPENSSL_EXTRA
-    /* store AAD size for next call */
-    aes->gcm.aadLen = aes->aSz;
-#endif
 
     return 0;
 }

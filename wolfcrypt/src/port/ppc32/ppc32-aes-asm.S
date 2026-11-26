@@ -38,7 +38,7 @@
 	.type	L_AES_PPC32_te, %object
 	.size	L_AES_PPC32_te, 4096
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -308,7 +308,7 @@ L_AES_PPC32_te:
 	.type	L_AES_PPC32_td, %object
 	.size	L_AES_PPC32_td, 4096
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -578,7 +578,7 @@ L_AES_PPC32_td:
 	.type	L_AES_PPC32_sbox, %object
 	.size	L_AES_PPC32_sbox, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -624,7 +624,7 @@ L_AES_PPC32_sbox:
 	.type	L_AES_PPC32_inv_sbox, %object
 	.size	L_AES_PPC32_inv_sbox, 256
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__
@@ -670,7 +670,7 @@ L_AES_PPC32_inv_sbox:
 	.type	L_AES_PPC32_rcon, %object
 	.size	L_AES_PPC32_rcon, 40
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1957,9 +1957,9 @@ L_AES_CBC_encrypt_round:
 	WC_ASM_ATT_HIDDEN(AES_CBC_decrypt)
 	.type	AES_CBC_decrypt, @function
 AES_CBC_decrypt:
-	stwu	1, -76(1)
+	stwu	1, -68(1)
 	mflr	0
-	stw	0, 72(1)
+	stw	0, 64(1)
 	stw	14, 0(1)
 	stw	15, 4(1)
 	stw	16, 8(1)
@@ -1976,8 +1976,6 @@ AES_CBC_decrypt:
 	stw	27, 52(1)
 	stw	28, 56(1)
 	stw	29, 60(1)
-	stw	30, 64(1)
-	stw	31, 68(1)
 	lis	21, L_AES_PPC32_td@ha
 	la	21, L_AES_PPC32_td@l(21)
 	addi	22, 21, 0x400
@@ -1985,6 +1983,8 @@ AES_CBC_decrypt:
 	addi	24, 21, 0xc00
 	lis	25, L_AES_PPC32_inv_sbox@ha
 	la	25, L_AES_PPC32_inv_sbox@l(25)
+	addi	7, 7, -2
+	srwi	7, 7, 1
 	lwz	17, 0(8)
 	lwz	18, 4(8)
 	lwz	19, 8(8)
@@ -1994,236 +1994,236 @@ L_AES_CBC_decrypt_block:
 	lwz	9, 4(3)
 	lwz	10, 8(3)
 	lwz	11, 12(3)
-	mr	26, 6
-	addi	27, 7, -2
-	lwz	28, 0(26)
-	lwz	29, 4(26)
-	lwz	30, 8(26)
-	lwz	31, 12(26)
-	xor	0, 0, 28
-	xor	9, 9, 29
-	xor	10, 10, 30
-	xor	11, 11, 31
-	addi	26, 26, 16
-	srwi	27, 27, 1
-	mtctr	27
+	lwz	26, 0(6)
+	lwz	27, 4(6)
+	lwz	28, 8(6)
+	lwz	29, 12(6)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
+	addi	6, 6, 16
+	mtctr	7
 L_AES_CBC_decrypt_round:
-	rlwinm	28, 0, 10, 22, 29
-	rlwinm	29, 11, 18, 22, 29
-	rlwinm	30, 10, 26, 22, 29
-	rlwinm	31, 9, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	rlwinm	26, 0, 10, 22, 29
+	rlwinm	27, 11, 18, 22, 29
+	rlwinm	28, 10, 26, 22, 29
+	rlwinm	29, 9, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	12, 28, 30
-	rlwinm	28, 9, 10, 22, 29
-	rlwinm	29, 0, 18, 22, 29
-	rlwinm	30, 11, 26, 22, 29
-	rlwinm	31, 10, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	12, 26, 28
+	rlwinm	26, 9, 10, 22, 29
+	rlwinm	27, 0, 18, 22, 29
+	rlwinm	28, 11, 26, 22, 29
+	rlwinm	29, 10, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	14, 28, 30
-	rlwinm	28, 10, 10, 22, 29
-	rlwinm	29, 9, 18, 22, 29
-	rlwinm	30, 0, 26, 22, 29
-	rlwinm	31, 11, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	14, 26, 28
+	rlwinm	26, 10, 10, 22, 29
+	rlwinm	27, 9, 18, 22, 29
+	rlwinm	28, 0, 26, 22, 29
+	rlwinm	29, 11, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	15, 28, 30
-	rlwinm	28, 11, 10, 22, 29
-	rlwinm	29, 10, 18, 22, 29
-	rlwinm	30, 9, 26, 22, 29
-	rlwinm	31, 0, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	15, 26, 28
+	rlwinm	26, 11, 10, 22, 29
+	rlwinm	27, 10, 18, 22, 29
+	rlwinm	28, 9, 26, 22, 29
+	rlwinm	29, 0, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	16, 28, 30
-	lwz	28, 0(26)
-	lwz	29, 4(26)
-	lwz	30, 8(26)
-	lwz	31, 12(26)
-	xor	12, 12, 28
-	xor	14, 14, 29
-	xor	15, 15, 30
-	xor	16, 16, 31
-	addi	26, 26, 16
-	rlwinm	28, 12, 10, 22, 29
-	rlwinm	29, 16, 18, 22, 29
-	rlwinm	30, 15, 26, 22, 29
-	rlwinm	31, 14, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	16, 26, 28
+	lwz	26, 0(6)
+	lwz	27, 4(6)
+	lwz	28, 8(6)
+	lwz	29, 12(6)
+	xor	12, 12, 26
+	xor	14, 14, 27
+	xor	15, 15, 28
+	xor	16, 16, 29
+	addi	6, 6, 16
+	rlwinm	26, 12, 10, 22, 29
+	rlwinm	27, 16, 18, 22, 29
+	rlwinm	28, 15, 26, 22, 29
+	rlwinm	29, 14, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	0, 28, 30
-	rlwinm	28, 14, 10, 22, 29
-	rlwinm	29, 12, 18, 22, 29
-	rlwinm	30, 16, 26, 22, 29
-	rlwinm	31, 15, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	0, 26, 28
+	rlwinm	26, 14, 10, 22, 29
+	rlwinm	27, 12, 18, 22, 29
+	rlwinm	28, 16, 26, 22, 29
+	rlwinm	29, 15, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	9, 28, 30
-	rlwinm	28, 15, 10, 22, 29
-	rlwinm	29, 14, 18, 22, 29
-	rlwinm	30, 12, 26, 22, 29
-	rlwinm	31, 16, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	9, 26, 28
+	rlwinm	26, 15, 10, 22, 29
+	rlwinm	27, 14, 18, 22, 29
+	rlwinm	28, 12, 26, 22, 29
+	rlwinm	29, 16, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	10, 28, 30
-	rlwinm	28, 16, 10, 22, 29
-	rlwinm	29, 15, 18, 22, 29
-	rlwinm	30, 14, 26, 22, 29
-	rlwinm	31, 12, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	10, 26, 28
+	rlwinm	26, 16, 10, 22, 29
+	rlwinm	27, 15, 18, 22, 29
+	rlwinm	28, 14, 26, 22, 29
+	rlwinm	29, 12, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	11, 28, 30
-	lwz	28, 0(26)
-	lwz	29, 4(26)
-	lwz	30, 8(26)
-	lwz	31, 12(26)
-	xor	0, 0, 28
-	xor	9, 9, 29
-	xor	10, 10, 30
-	xor	11, 11, 31
-	addi	26, 26, 16
+	xor	11, 26, 28
+	lwz	26, 0(6)
+	lwz	27, 4(6)
+	lwz	28, 8(6)
+	lwz	29, 12(6)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
+	addi	6, 6, 16
 	bdnz	L_AES_CBC_decrypt_round
-	rlwinm	28, 0, 10, 22, 29
-	rlwinm	29, 11, 18, 22, 29
-	rlwinm	30, 10, 26, 22, 29
-	rlwinm	31, 9, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	rlwinm	26, 0, 10, 22, 29
+	rlwinm	27, 11, 18, 22, 29
+	rlwinm	28, 10, 26, 22, 29
+	rlwinm	29, 9, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	12, 28, 30
-	rlwinm	28, 9, 10, 22, 29
-	rlwinm	29, 0, 18, 22, 29
-	rlwinm	30, 11, 26, 22, 29
-	rlwinm	31, 10, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	12, 26, 28
+	rlwinm	26, 9, 10, 22, 29
+	rlwinm	27, 0, 18, 22, 29
+	rlwinm	28, 11, 26, 22, 29
+	rlwinm	29, 10, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	14, 28, 30
-	rlwinm	28, 10, 10, 22, 29
-	rlwinm	29, 9, 18, 22, 29
-	rlwinm	30, 0, 26, 22, 29
-	rlwinm	31, 11, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	14, 26, 28
+	rlwinm	26, 10, 10, 22, 29
+	rlwinm	27, 9, 18, 22, 29
+	rlwinm	28, 0, 26, 22, 29
+	rlwinm	29, 11, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	15, 28, 30
-	rlwinm	28, 11, 10, 22, 29
-	rlwinm	29, 10, 18, 22, 29
-	rlwinm	30, 9, 26, 22, 29
-	rlwinm	31, 0, 2, 22, 29
-	lwzx	28, 21, 28
-	lwzx	29, 22, 29
-	lwzx	30, 23, 30
-	lwzx	31, 24, 31
+	xor	15, 26, 28
+	rlwinm	26, 11, 10, 22, 29
+	rlwinm	27, 10, 18, 22, 29
+	rlwinm	28, 9, 26, 22, 29
+	rlwinm	29, 0, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
 	xor	28, 28, 29
-	xor	30, 30, 31
-	xor	16, 28, 30
-	lwz	28, 0(26)
-	lwz	29, 4(26)
-	lwz	30, 8(26)
-	lwz	31, 12(26)
-	xor	12, 12, 28
-	xor	14, 14, 29
-	xor	15, 15, 30
-	xor	16, 16, 31
-	addi	26, 26, 16
-	rlwinm	28, 12, 8, 24, 31
-	rlwinm	29, 16, 16, 24, 31
-	rlwinm	30, 15, 24, 24, 31
-	rlwinm	31, 14, 0, 24, 31
+	xor	16, 26, 28
+	lwz	26, 0(6)
+	lwz	27, 4(6)
+	lwz	28, 8(6)
+	lwz	29, 12(6)
+	xor	12, 12, 26
+	xor	14, 14, 27
+	xor	15, 15, 28
+	xor	16, 16, 29
+	addi	6, 6, 16
+	rlwinm	26, 12, 8, 24, 31
+	rlwinm	27, 16, 16, 24, 31
+	rlwinm	28, 15, 24, 24, 31
+	rlwinm	29, 14, 0, 24, 31
+	lbzx	26, 25, 26
+	lbzx	27, 25, 27
 	lbzx	28, 25, 28
 	lbzx	29, 25, 29
-	lbzx	30, 25, 30
-	lbzx	31, 25, 31
-	slwi	0, 28, 24
-	rlwimi	0, 29, 16, 8, 15
-	rlwimi	0, 30, 8, 16, 23
-	rlwimi	0, 31, 0, 24, 31
-	rlwinm	28, 14, 8, 24, 31
-	rlwinm	29, 12, 16, 24, 31
-	rlwinm	30, 16, 24, 24, 31
-	rlwinm	31, 15, 0, 24, 31
+	slwi	0, 26, 24
+	rlwimi	0, 27, 16, 8, 15
+	rlwimi	0, 28, 8, 16, 23
+	rlwimi	0, 29, 0, 24, 31
+	rlwinm	26, 14, 8, 24, 31
+	rlwinm	27, 12, 16, 24, 31
+	rlwinm	28, 16, 24, 24, 31
+	rlwinm	29, 15, 0, 24, 31
+	lbzx	26, 25, 26
+	lbzx	27, 25, 27
 	lbzx	28, 25, 28
 	lbzx	29, 25, 29
-	lbzx	30, 25, 30
-	lbzx	31, 25, 31
-	slwi	9, 28, 24
-	rlwimi	9, 29, 16, 8, 15
-	rlwimi	9, 30, 8, 16, 23
-	rlwimi	9, 31, 0, 24, 31
-	rlwinm	28, 15, 8, 24, 31
-	rlwinm	29, 14, 16, 24, 31
-	rlwinm	30, 12, 24, 24, 31
-	rlwinm	31, 16, 0, 24, 31
+	slwi	9, 26, 24
+	rlwimi	9, 27, 16, 8, 15
+	rlwimi	9, 28, 8, 16, 23
+	rlwimi	9, 29, 0, 24, 31
+	rlwinm	26, 15, 8, 24, 31
+	rlwinm	27, 14, 16, 24, 31
+	rlwinm	28, 12, 24, 24, 31
+	rlwinm	29, 16, 0, 24, 31
+	lbzx	26, 25, 26
+	lbzx	27, 25, 27
 	lbzx	28, 25, 28
 	lbzx	29, 25, 29
-	lbzx	30, 25, 30
-	lbzx	31, 25, 31
-	slwi	10, 28, 24
-	rlwimi	10, 29, 16, 8, 15
-	rlwimi	10, 30, 8, 16, 23
-	rlwimi	10, 31, 0, 24, 31
-	rlwinm	28, 16, 8, 24, 31
-	rlwinm	29, 15, 16, 24, 31
-	rlwinm	30, 14, 24, 24, 31
-	rlwinm	31, 12, 0, 24, 31
+	slwi	10, 26, 24
+	rlwimi	10, 27, 16, 8, 15
+	rlwimi	10, 28, 8, 16, 23
+	rlwimi	10, 29, 0, 24, 31
+	rlwinm	26, 16, 8, 24, 31
+	rlwinm	27, 15, 16, 24, 31
+	rlwinm	28, 14, 24, 24, 31
+	rlwinm	29, 12, 0, 24, 31
+	lbzx	26, 25, 26
+	lbzx	27, 25, 27
 	lbzx	28, 25, 28
 	lbzx	29, 25, 29
-	lbzx	30, 25, 30
-	lbzx	31, 25, 31
-	slwi	11, 28, 24
-	rlwimi	11, 29, 16, 8, 15
-	rlwimi	11, 30, 8, 16, 23
-	rlwimi	11, 31, 0, 24, 31
-	lwz	28, 0(26)
-	lwz	29, 4(26)
-	lwz	30, 8(26)
-	lwz	31, 12(26)
-	xor	0, 0, 28
-	xor	9, 9, 29
-	xor	10, 10, 30
-	xor	11, 11, 31
+	slwi	11, 26, 24
+	rlwimi	11, 27, 16, 8, 15
+	rlwimi	11, 28, 8, 16, 23
+	rlwimi	11, 29, 0, 24, 31
+	lwz	26, 0(6)
+	lwz	27, 4(6)
+	lwz	28, 8(6)
+	lwz	29, 12(6)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
+	slwi	26, 7, 5
+	subf	6, 26, 6
+	addi	6, 6, -32
 	xor	0, 0, 17
 	xor	9, 9, 18
 	xor	10, 10, 19
@@ -2244,7 +2244,7 @@ L_AES_CBC_decrypt_round:
 	stw	18, 4(8)
 	stw	19, 8(8)
 	stw	20, 12(8)
-	lwz	0, 72(1)
+	lwz	0, 64(1)
 	mtlr	0
 	lwz	14, 0(1)
 	lwz	15, 4(1)
@@ -2262,9 +2262,7 @@ L_AES_CBC_decrypt_round:
 	lwz	27, 52(1)
 	lwz	28, 56(1)
 	lwz	29, 60(1)
-	lwz	30, 64(1)
-	lwz	31, 68(1)
-	addi	1, 1, 0x4c
+	addi	1, 1, 0x44
 	blr
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
 #endif /* HAVE_AES_DECRYPT */
@@ -2276,9 +2274,9 @@ L_AES_CBC_decrypt_round:
 	WC_ASM_ATT_HIDDEN(AES_CTR_encrypt)
 	.type	AES_CTR_encrypt, @function
 AES_CTR_encrypt:
-	stwu	1, -72(1)
+	stwu	1, -68(1)
 	mflr	0
-	stw	0, 68(1)
+	stw	0, 64(1)
 	stw	14, 0(1)
 	stw	15, 4(1)
 	stw	16, 8(1)
@@ -2295,12 +2293,13 @@ AES_CTR_encrypt:
 	stw	27, 52(1)
 	stw	28, 56(1)
 	stw	29, 60(1)
-	stw	30, 64(1)
 	lis	21, L_AES_PPC32_te@ha
 	la	21, L_AES_PPC32_te@l(21)
 	addi	22, 21, 0x400
 	addi	23, 21, 0x800
 	addi	24, 21, 0xc00
+	addi	7, 7, -2
+	srwi	7, 7, 1
 	lwz	17, 0(8)
 	lwz	18, 4(8)
 	lwz	19, 8(8)
@@ -2311,235 +2310,233 @@ L_AES_CTR_encrypt_block:
 	mr	10, 19
 	mr	11, 20
 	mr	25, 6
-	addi	26, 7, -2
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	0, 0, 27
-	xor	9, 9, 28
-	xor	10, 10, 29
-	xor	11, 11, 30
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
 	addi	25, 25, 16
-	srwi	26, 26, 1
-	mtctr	26
+	mtctr	7
 L_AES_CTR_encrypt_round:
-	rlwinm	27, 0, 10, 22, 29
-	rlwinm	28, 9, 18, 22, 29
-	rlwinm	29, 10, 26, 22, 29
-	rlwinm	30, 11, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	12, 27, 29
-	rlwinm	27, 9, 10, 22, 29
-	rlwinm	28, 10, 18, 22, 29
-	rlwinm	29, 11, 26, 22, 29
-	rlwinm	30, 0, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	14, 27, 29
-	rlwinm	27, 10, 10, 22, 29
-	rlwinm	28, 11, 18, 22, 29
-	rlwinm	29, 0, 26, 22, 29
-	rlwinm	30, 9, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	15, 27, 29
-	rlwinm	27, 11, 10, 22, 29
-	rlwinm	28, 0, 18, 22, 29
-	rlwinm	29, 9, 26, 22, 29
-	rlwinm	30, 10, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	16, 27, 29
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	12, 12, 27
-	xor	14, 14, 28
-	xor	15, 15, 29
-	xor	16, 16, 30
+	rlwinm	26, 0, 10, 22, 29
+	rlwinm	27, 9, 18, 22, 29
+	rlwinm	28, 10, 26, 22, 29
+	rlwinm	29, 11, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	12, 26, 28
+	rlwinm	26, 9, 10, 22, 29
+	rlwinm	27, 10, 18, 22, 29
+	rlwinm	28, 11, 26, 22, 29
+	rlwinm	29, 0, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	14, 26, 28
+	rlwinm	26, 10, 10, 22, 29
+	rlwinm	27, 11, 18, 22, 29
+	rlwinm	28, 0, 26, 22, 29
+	rlwinm	29, 9, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	15, 26, 28
+	rlwinm	26, 11, 10, 22, 29
+	rlwinm	27, 0, 18, 22, 29
+	rlwinm	28, 9, 26, 22, 29
+	rlwinm	29, 10, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	16, 26, 28
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	12, 12, 26
+	xor	14, 14, 27
+	xor	15, 15, 28
+	xor	16, 16, 29
 	addi	25, 25, 16
-	rlwinm	27, 12, 10, 22, 29
-	rlwinm	28, 14, 18, 22, 29
-	rlwinm	29, 15, 26, 22, 29
-	rlwinm	30, 16, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	0, 27, 29
-	rlwinm	27, 14, 10, 22, 29
-	rlwinm	28, 15, 18, 22, 29
-	rlwinm	29, 16, 26, 22, 29
-	rlwinm	30, 12, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	9, 27, 29
-	rlwinm	27, 15, 10, 22, 29
-	rlwinm	28, 16, 18, 22, 29
-	rlwinm	29, 12, 26, 22, 29
-	rlwinm	30, 14, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	10, 27, 29
-	rlwinm	27, 16, 10, 22, 29
-	rlwinm	28, 12, 18, 22, 29
-	rlwinm	29, 14, 26, 22, 29
-	rlwinm	30, 15, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	11, 27, 29
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	0, 0, 27
-	xor	9, 9, 28
-	xor	10, 10, 29
-	xor	11, 11, 30
+	rlwinm	26, 12, 10, 22, 29
+	rlwinm	27, 14, 18, 22, 29
+	rlwinm	28, 15, 26, 22, 29
+	rlwinm	29, 16, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	0, 26, 28
+	rlwinm	26, 14, 10, 22, 29
+	rlwinm	27, 15, 18, 22, 29
+	rlwinm	28, 16, 26, 22, 29
+	rlwinm	29, 12, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	9, 26, 28
+	rlwinm	26, 15, 10, 22, 29
+	rlwinm	27, 16, 18, 22, 29
+	rlwinm	28, 12, 26, 22, 29
+	rlwinm	29, 14, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	10, 26, 28
+	rlwinm	26, 16, 10, 22, 29
+	rlwinm	27, 12, 18, 22, 29
+	rlwinm	28, 14, 26, 22, 29
+	rlwinm	29, 15, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	11, 26, 28
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
 	addi	25, 25, 16
 	bdnz	L_AES_CTR_encrypt_round
-	rlwinm	27, 0, 10, 22, 29
-	rlwinm	28, 9, 18, 22, 29
-	rlwinm	29, 10, 26, 22, 29
-	rlwinm	30, 11, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	12, 27, 29
-	rlwinm	27, 9, 10, 22, 29
-	rlwinm	28, 10, 18, 22, 29
-	rlwinm	29, 11, 26, 22, 29
-	rlwinm	30, 0, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	14, 27, 29
-	rlwinm	27, 10, 10, 22, 29
-	rlwinm	28, 11, 18, 22, 29
-	rlwinm	29, 0, 26, 22, 29
-	rlwinm	30, 9, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	15, 27, 29
-	rlwinm	27, 11, 10, 22, 29
-	rlwinm	28, 0, 18, 22, 29
-	rlwinm	29, 9, 26, 22, 29
-	rlwinm	30, 10, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	16, 27, 29
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	12, 12, 27
-	xor	14, 14, 28
-	xor	15, 15, 29
-	xor	16, 16, 30
+	rlwinm	26, 0, 10, 22, 29
+	rlwinm	27, 9, 18, 22, 29
+	rlwinm	28, 10, 26, 22, 29
+	rlwinm	29, 11, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	12, 26, 28
+	rlwinm	26, 9, 10, 22, 29
+	rlwinm	27, 10, 18, 22, 29
+	rlwinm	28, 11, 26, 22, 29
+	rlwinm	29, 0, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	14, 26, 28
+	rlwinm	26, 10, 10, 22, 29
+	rlwinm	27, 11, 18, 22, 29
+	rlwinm	28, 0, 26, 22, 29
+	rlwinm	29, 9, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	15, 26, 28
+	rlwinm	26, 11, 10, 22, 29
+	rlwinm	27, 0, 18, 22, 29
+	rlwinm	28, 9, 26, 22, 29
+	rlwinm	29, 10, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	16, 26, 28
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	12, 12, 26
+	xor	14, 14, 27
+	xor	15, 15, 28
+	xor	16, 16, 29
 	addi	25, 25, 16
-	rlwinm	27, 12, 10, 22, 29
-	rlwinm	28, 14, 18, 22, 29
-	rlwinm	29, 15, 26, 22, 29
-	rlwinm	30, 16, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	0, 27, 0, 0, 7
-	rlwimi	0, 28, 0, 8, 15
-	rlwimi	0, 29, 0, 16, 23
-	rlwimi	0, 30, 0, 24, 31
-	rlwinm	27, 14, 10, 22, 29
-	rlwinm	28, 15, 18, 22, 29
-	rlwinm	29, 16, 26, 22, 29
-	rlwinm	30, 12, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	9, 27, 0, 0, 7
-	rlwimi	9, 28, 0, 8, 15
-	rlwimi	9, 29, 0, 16, 23
-	rlwimi	9, 30, 0, 24, 31
-	rlwinm	27, 15, 10, 22, 29
-	rlwinm	28, 16, 18, 22, 29
-	rlwinm	29, 12, 26, 22, 29
-	rlwinm	30, 14, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	10, 27, 0, 0, 7
-	rlwimi	10, 28, 0, 8, 15
-	rlwimi	10, 29, 0, 16, 23
-	rlwimi	10, 30, 0, 24, 31
-	rlwinm	27, 16, 10, 22, 29
-	rlwinm	28, 12, 18, 22, 29
-	rlwinm	29, 14, 26, 22, 29
-	rlwinm	30, 15, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	11, 27, 0, 0, 7
-	rlwimi	11, 28, 0, 8, 15
-	rlwimi	11, 29, 0, 16, 23
-	rlwimi	11, 30, 0, 24, 31
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	0, 0, 27
-	xor	9, 9, 28
-	xor	10, 10, 29
-	xor	11, 11, 30
+	rlwinm	26, 12, 10, 22, 29
+	rlwinm	27, 14, 18, 22, 29
+	rlwinm	28, 15, 26, 22, 29
+	rlwinm	29, 16, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	0, 26, 0, 0, 7
+	rlwimi	0, 27, 0, 8, 15
+	rlwimi	0, 28, 0, 16, 23
+	rlwimi	0, 29, 0, 24, 31
+	rlwinm	26, 14, 10, 22, 29
+	rlwinm	27, 15, 18, 22, 29
+	rlwinm	28, 16, 26, 22, 29
+	rlwinm	29, 12, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	9, 26, 0, 0, 7
+	rlwimi	9, 27, 0, 8, 15
+	rlwimi	9, 28, 0, 16, 23
+	rlwimi	9, 29, 0, 24, 31
+	rlwinm	26, 15, 10, 22, 29
+	rlwinm	27, 16, 18, 22, 29
+	rlwinm	28, 12, 26, 22, 29
+	rlwinm	29, 14, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	10, 26, 0, 0, 7
+	rlwimi	10, 27, 0, 8, 15
+	rlwimi	10, 28, 0, 16, 23
+	rlwimi	10, 29, 0, 24, 31
+	rlwinm	26, 16, 10, 22, 29
+	rlwinm	27, 12, 18, 22, 29
+	rlwinm	28, 14, 26, 22, 29
+	rlwinm	29, 15, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	11, 26, 0, 0, 7
+	rlwimi	11, 27, 0, 8, 15
+	rlwimi	11, 28, 0, 16, 23
+	rlwimi	11, 29, 0, 24, 31
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
 	lwz	12, 0(3)
 	lwz	14, 4(3)
 	lwz	15, 8(3)
@@ -2564,7 +2561,7 @@ L_AES_CTR_encrypt_round:
 	stw	18, 4(8)
 	stw	19, 8(8)
 	stw	20, 12(8)
-	lwz	0, 68(1)
+	lwz	0, 64(1)
 	mtlr	0
 	lwz	14, 0(1)
 	lwz	15, 4(1)
@@ -2582,8 +2579,7 @@ L_AES_CTR_encrypt_round:
 	lwz	27, 52(1)
 	lwz	28, 56(1)
 	lwz	29, 60(1)
-	lwz	30, 64(1)
-	addi	1, 1, 0x48
+	addi	1, 1, 0x44
 	blr
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
 #endif /* WOLFSSL_AES_COUNTER */
@@ -2594,9 +2590,9 @@ L_AES_CTR_encrypt_round:
 	WC_ASM_ATT_HIDDEN(AES_GCM_encrypt)
 	.type	AES_GCM_encrypt, @function
 AES_GCM_encrypt:
-	stwu	1, -72(1)
+	stwu	1, -68(1)
 	mflr	0
-	stw	0, 68(1)
+	stw	0, 64(1)
 	stw	14, 0(1)
 	stw	15, 4(1)
 	stw	16, 8(1)
@@ -2613,12 +2609,13 @@ AES_GCM_encrypt:
 	stw	27, 52(1)
 	stw	28, 56(1)
 	stw	29, 60(1)
-	stw	30, 64(1)
 	lis	21, L_AES_PPC32_te@ha
 	la	21, L_AES_PPC32_te@l(21)
 	addi	22, 21, 0x400
 	addi	23, 21, 0x800
 	addi	24, 21, 0xc00
+	addi	7, 7, -2
+	srwi	7, 7, 1
 	lwz	17, 0(8)
 	lwz	18, 4(8)
 	lwz	19, 8(8)
@@ -2630,235 +2627,233 @@ L_AES_GCM_encrypt_block:
 	mr	10, 19
 	mr	11, 20
 	mr	25, 6
-	addi	26, 7, -2
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	0, 0, 27
-	xor	9, 9, 28
-	xor	10, 10, 29
-	xor	11, 11, 30
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
 	addi	25, 25, 16
-	srwi	26, 26, 1
-	mtctr	26
+	mtctr	7
 L_AES_GCM_encrypt_round:
-	rlwinm	27, 0, 10, 22, 29
-	rlwinm	28, 9, 18, 22, 29
-	rlwinm	29, 10, 26, 22, 29
-	rlwinm	30, 11, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	12, 27, 29
-	rlwinm	27, 9, 10, 22, 29
-	rlwinm	28, 10, 18, 22, 29
-	rlwinm	29, 11, 26, 22, 29
-	rlwinm	30, 0, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	14, 27, 29
-	rlwinm	27, 10, 10, 22, 29
-	rlwinm	28, 11, 18, 22, 29
-	rlwinm	29, 0, 26, 22, 29
-	rlwinm	30, 9, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	15, 27, 29
-	rlwinm	27, 11, 10, 22, 29
-	rlwinm	28, 0, 18, 22, 29
-	rlwinm	29, 9, 26, 22, 29
-	rlwinm	30, 10, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	16, 27, 29
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	12, 12, 27
-	xor	14, 14, 28
-	xor	15, 15, 29
-	xor	16, 16, 30
+	rlwinm	26, 0, 10, 22, 29
+	rlwinm	27, 9, 18, 22, 29
+	rlwinm	28, 10, 26, 22, 29
+	rlwinm	29, 11, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	12, 26, 28
+	rlwinm	26, 9, 10, 22, 29
+	rlwinm	27, 10, 18, 22, 29
+	rlwinm	28, 11, 26, 22, 29
+	rlwinm	29, 0, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	14, 26, 28
+	rlwinm	26, 10, 10, 22, 29
+	rlwinm	27, 11, 18, 22, 29
+	rlwinm	28, 0, 26, 22, 29
+	rlwinm	29, 9, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	15, 26, 28
+	rlwinm	26, 11, 10, 22, 29
+	rlwinm	27, 0, 18, 22, 29
+	rlwinm	28, 9, 26, 22, 29
+	rlwinm	29, 10, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	16, 26, 28
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	12, 12, 26
+	xor	14, 14, 27
+	xor	15, 15, 28
+	xor	16, 16, 29
 	addi	25, 25, 16
-	rlwinm	27, 12, 10, 22, 29
-	rlwinm	28, 14, 18, 22, 29
-	rlwinm	29, 15, 26, 22, 29
-	rlwinm	30, 16, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	0, 27, 29
-	rlwinm	27, 14, 10, 22, 29
-	rlwinm	28, 15, 18, 22, 29
-	rlwinm	29, 16, 26, 22, 29
-	rlwinm	30, 12, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	9, 27, 29
-	rlwinm	27, 15, 10, 22, 29
-	rlwinm	28, 16, 18, 22, 29
-	rlwinm	29, 12, 26, 22, 29
-	rlwinm	30, 14, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	10, 27, 29
-	rlwinm	27, 16, 10, 22, 29
-	rlwinm	28, 12, 18, 22, 29
-	rlwinm	29, 14, 26, 22, 29
-	rlwinm	30, 15, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	11, 27, 29
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	0, 0, 27
-	xor	9, 9, 28
-	xor	10, 10, 29
-	xor	11, 11, 30
+	rlwinm	26, 12, 10, 22, 29
+	rlwinm	27, 14, 18, 22, 29
+	rlwinm	28, 15, 26, 22, 29
+	rlwinm	29, 16, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	0, 26, 28
+	rlwinm	26, 14, 10, 22, 29
+	rlwinm	27, 15, 18, 22, 29
+	rlwinm	28, 16, 26, 22, 29
+	rlwinm	29, 12, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	9, 26, 28
+	rlwinm	26, 15, 10, 22, 29
+	rlwinm	27, 16, 18, 22, 29
+	rlwinm	28, 12, 26, 22, 29
+	rlwinm	29, 14, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	10, 26, 28
+	rlwinm	26, 16, 10, 22, 29
+	rlwinm	27, 12, 18, 22, 29
+	rlwinm	28, 14, 26, 22, 29
+	rlwinm	29, 15, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	11, 26, 28
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
 	addi	25, 25, 16
 	bdnz	L_AES_GCM_encrypt_round
-	rlwinm	27, 0, 10, 22, 29
-	rlwinm	28, 9, 18, 22, 29
-	rlwinm	29, 10, 26, 22, 29
-	rlwinm	30, 11, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	12, 27, 29
-	rlwinm	27, 9, 10, 22, 29
-	rlwinm	28, 10, 18, 22, 29
-	rlwinm	29, 11, 26, 22, 29
-	rlwinm	30, 0, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	14, 27, 29
-	rlwinm	27, 10, 10, 22, 29
-	rlwinm	28, 11, 18, 22, 29
-	rlwinm	29, 0, 26, 22, 29
-	rlwinm	30, 9, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	15, 27, 29
-	rlwinm	27, 11, 10, 22, 29
-	rlwinm	28, 0, 18, 22, 29
-	rlwinm	29, 9, 26, 22, 29
-	rlwinm	30, 10, 2, 22, 29
-	lwzx	27, 21, 27
-	lwzx	28, 22, 28
-	lwzx	29, 23, 29
-	lwzx	30, 24, 30
-	xor	27, 27, 28
-	xor	29, 29, 30
-	xor	16, 27, 29
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	12, 12, 27
-	xor	14, 14, 28
-	xor	15, 15, 29
-	xor	16, 16, 30
+	rlwinm	26, 0, 10, 22, 29
+	rlwinm	27, 9, 18, 22, 29
+	rlwinm	28, 10, 26, 22, 29
+	rlwinm	29, 11, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	12, 26, 28
+	rlwinm	26, 9, 10, 22, 29
+	rlwinm	27, 10, 18, 22, 29
+	rlwinm	28, 11, 26, 22, 29
+	rlwinm	29, 0, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	14, 26, 28
+	rlwinm	26, 10, 10, 22, 29
+	rlwinm	27, 11, 18, 22, 29
+	rlwinm	28, 0, 26, 22, 29
+	rlwinm	29, 9, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	15, 26, 28
+	rlwinm	26, 11, 10, 22, 29
+	rlwinm	27, 0, 18, 22, 29
+	rlwinm	28, 9, 26, 22, 29
+	rlwinm	29, 10, 2, 22, 29
+	lwzx	26, 21, 26
+	lwzx	27, 22, 27
+	lwzx	28, 23, 28
+	lwzx	29, 24, 29
+	xor	26, 26, 27
+	xor	28, 28, 29
+	xor	16, 26, 28
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	12, 12, 26
+	xor	14, 14, 27
+	xor	15, 15, 28
+	xor	16, 16, 29
 	addi	25, 25, 16
-	rlwinm	27, 12, 10, 22, 29
-	rlwinm	28, 14, 18, 22, 29
-	rlwinm	29, 15, 26, 22, 29
-	rlwinm	30, 16, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	0, 27, 0, 0, 7
-	rlwimi	0, 28, 0, 8, 15
-	rlwimi	0, 29, 0, 16, 23
-	rlwimi	0, 30, 0, 24, 31
-	rlwinm	27, 14, 10, 22, 29
-	rlwinm	28, 15, 18, 22, 29
-	rlwinm	29, 16, 26, 22, 29
-	rlwinm	30, 12, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	9, 27, 0, 0, 7
-	rlwimi	9, 28, 0, 8, 15
-	rlwimi	9, 29, 0, 16, 23
-	rlwimi	9, 30, 0, 24, 31
-	rlwinm	27, 15, 10, 22, 29
-	rlwinm	28, 16, 18, 22, 29
-	rlwinm	29, 12, 26, 22, 29
-	rlwinm	30, 14, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	10, 27, 0, 0, 7
-	rlwimi	10, 28, 0, 8, 15
-	rlwimi	10, 29, 0, 16, 23
-	rlwimi	10, 30, 0, 24, 31
-	rlwinm	27, 16, 10, 22, 29
-	rlwinm	28, 12, 18, 22, 29
-	rlwinm	29, 14, 26, 22, 29
-	rlwinm	30, 15, 2, 22, 29
-	lwzx	27, 23, 27
-	lwzx	28, 24, 28
-	lwzx	29, 21, 29
-	lwzx	30, 22, 30
-	rlwinm	11, 27, 0, 0, 7
-	rlwimi	11, 28, 0, 8, 15
-	rlwimi	11, 29, 0, 16, 23
-	rlwimi	11, 30, 0, 24, 31
-	lwz	27, 0(25)
-	lwz	28, 4(25)
-	lwz	29, 8(25)
-	lwz	30, 12(25)
-	xor	0, 0, 27
-	xor	9, 9, 28
-	xor	10, 10, 29
-	xor	11, 11, 30
+	rlwinm	26, 12, 10, 22, 29
+	rlwinm	27, 14, 18, 22, 29
+	rlwinm	28, 15, 26, 22, 29
+	rlwinm	29, 16, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	0, 26, 0, 0, 7
+	rlwimi	0, 27, 0, 8, 15
+	rlwimi	0, 28, 0, 16, 23
+	rlwimi	0, 29, 0, 24, 31
+	rlwinm	26, 14, 10, 22, 29
+	rlwinm	27, 15, 18, 22, 29
+	rlwinm	28, 16, 26, 22, 29
+	rlwinm	29, 12, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	9, 26, 0, 0, 7
+	rlwimi	9, 27, 0, 8, 15
+	rlwimi	9, 28, 0, 16, 23
+	rlwimi	9, 29, 0, 24, 31
+	rlwinm	26, 15, 10, 22, 29
+	rlwinm	27, 16, 18, 22, 29
+	rlwinm	28, 12, 26, 22, 29
+	rlwinm	29, 14, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	10, 26, 0, 0, 7
+	rlwimi	10, 27, 0, 8, 15
+	rlwimi	10, 28, 0, 16, 23
+	rlwimi	10, 29, 0, 24, 31
+	rlwinm	26, 16, 10, 22, 29
+	rlwinm	27, 12, 18, 22, 29
+	rlwinm	28, 14, 26, 22, 29
+	rlwinm	29, 15, 2, 22, 29
+	lwzx	26, 23, 26
+	lwzx	27, 24, 27
+	lwzx	28, 21, 28
+	lwzx	29, 22, 29
+	rlwinm	11, 26, 0, 0, 7
+	rlwimi	11, 27, 0, 8, 15
+	rlwimi	11, 28, 0, 16, 23
+	rlwimi	11, 29, 0, 24, 31
+	lwz	26, 0(25)
+	lwz	27, 4(25)
+	lwz	28, 8(25)
+	lwz	29, 12(25)
+	xor	0, 0, 26
+	xor	9, 9, 27
+	xor	10, 10, 28
+	xor	11, 11, 29
 	lwz	12, 0(3)
 	lwz	14, 4(3)
 	lwz	15, 8(3)
@@ -2879,7 +2874,7 @@ L_AES_GCM_encrypt_round:
 	stw	18, 4(8)
 	stw	19, 8(8)
 	stw	20, 12(8)
-	lwz	0, 68(1)
+	lwz	0, 64(1)
 	mtlr	0
 	lwz	14, 0(1)
 	lwz	15, 4(1)
@@ -2897,8 +2892,7 @@ L_AES_GCM_encrypt_round:
 	lwz	27, 52(1)
 	lwz	28, 56(1)
 	lwz	29, 60(1)
-	lwz	30, 64(1)
-	addi	1, 1, 0x48
+	addi	1, 1, 0x44
 	blr
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
@@ -2908,7 +2902,7 @@ L_AES_GCM_encrypt_round:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 128
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -3654,7 +3648,7 @@ L_GCM_gmult_len_block:
 	.type	L_GCM_gmult_len_r, %object
 	.size	L_GCM_gmult_len_r, 512
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 4-byte aligned, 32-bit aligned
 #ifndef __APPLE__

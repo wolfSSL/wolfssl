@@ -256,6 +256,66 @@ static const byte wb_spc_zdigest[32] = {
     #define WB_SPC_HAVE_CHECK_KEY
 #endif
 
+#if (defined(WOLFSSL_SP_X86_64_ASM) || !defined(WOLFSSL_SP_ASM)) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+static int wb_spc_range_failed;
+#define WB_SPC_RANGE_FAILED wb_spc_range_failed
+
+static void wb_spc_check_point_range(int bits, const ecc_point* g,
+    const mp_int* prime, mp_int* other,
+    int (*is_point)(const mp_int*, const mp_int*))
+{
+    int xRet;
+    int yRet;
+    const int rangeErr = WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E);
+
+    /* Raw import screens out wide ordinates before this SP entry point. */
+    if (mp_2expt(other, bits) != MP_OKAY || mp_count_bits(prime) != bits) {
+        printf("  [wb][FAIL] P-%d point range test setup\n", bits);
+        wb_spc_range_failed = 1;
+        return;
+    }
+
+    xRet = is_point(other, g->y);
+    yRet = is_point(g->x, other);
+    if (xRet != rangeErr || yRet != rangeErr) {
+        printf("  [wb][FAIL] P-%d wide point range (X: %d, Y: %d)\n",
+            bits, xRet, yRet);
+        wb_spc_range_failed = 1;
+    }
+
+    xRet = is_point(prime, g->y);
+    yRet = is_point(g->x, prime);
+    if (xRet != rangeErr || yRet != rangeErr) {
+        printf("  [wb][FAIL] P-%d field prime range (X: %d, Y: %d)\n",
+            bits, xRet, yRet);
+        wb_spc_range_failed = 1;
+    }
+
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    if (mp_set(other, 1) != MP_OKAY) {
+        printf("  [wb][FAIL] P-%d signed point range test setup\n", bits);
+        wb_spc_range_failed = 1;
+        return;
+    }
+    mp_setneg(other);
+    xRet = is_point(other, g->y);
+    yRet = is_point(g->x, other);
+    if (xRet != rangeErr || yRet != rangeErr) {
+        printf("  [wb][FAIL] P-%d signed point range (X: %d, Y: %d)\n",
+            bits, xRet, yRet);
+        wb_spc_range_failed = 1;
+    }
+#endif
+}
+
+#define WB_SPC_POINT_RANGE(BITS) \
+    wb_spc_check_point_range(BITS, &key.pubkey, &modv, &bigv, \
+        sp_ecc_is_point_##BITS);
+#else
+#define WB_SPC_POINT_RANGE(BITS)
+#endif
+
 #define WB_SPC_DEFINE_CURVE(BITS, SZ, CURVE_ID, AMOK)                       \
 static void wb_spc_ecc_##BITS(void)                                         \
 {                                                                           \
@@ -344,6 +404,7 @@ static void wb_spc_ecc_##BITS(void)                                         \
         /* A real point, so the on-curve test passes and everything         \
          * behind it runs for the first time. */                            \
         (void)sp_ecc_is_point_##BITS(key.pubkey.x, key.pubkey.y);           \
+        WB_SPC_POINT_RANGE(BITS)                                           \
     }                                                                       \
                                                                             \
     WB_SPC_CHECK_KEY_BODY(BITS)                                             \
@@ -570,6 +631,10 @@ static void wb_spc_ecc_all(void)
 {
     WB_SPC_NOTE("SP ECC not compiled; crafted ECC skipped");
 }
+#endif
+
+#ifndef WB_SPC_RANGE_FAILED
+#define WB_SPC_RANGE_FAILED 0
 #endif
 
 /* ======================================================================= *

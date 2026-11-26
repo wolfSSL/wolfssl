@@ -1740,12 +1740,6 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
                 #ifdef MP_NEG
                     data->data.mp->sign = MP_NEG;
                 #else
-                    #ifdef OPENSSL_EXTRA
-                        /* public API wolfSSL_ASN1_INTEGER_get() depends
-                         * indirectly on negative bignum handling here.
-                         */
-                        #error OPENSSL_EXTRA requires negative bignum support.
-                    #endif
                     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
                     WOLFSSL_MSG_VSNPRINTF("ASN negative integer without bignum support.");
                     #endif
@@ -14577,6 +14571,10 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
                     WOLFSSL_MSG("RSA PSS: sig salt length too small");
                     return ASN_PARSE_E;
                 }
+                /* Keep the key's parameters, binding per RFC 4055 1.2. */
+                cert->keyPssHash = (hash != WC_HASH_TYPE_NONE) ? (byte)hash : 0;
+                cert->keyPssMgf = (mgf != -1) ? (byte)mgf : 0;
+                cert->keyPssSaltLen = (word16)saltLen;
                 srcIdx += (word32)seqLen;
             }
             FALL_THROUGH;
@@ -26185,6 +26183,18 @@ Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 
     return NULL;
 }
+
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip);
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip)
+{
+    (void)cm;
+    (void)hash;
+    (void)skip;
+
+    return NULL;
+}
 #endif /* NO_SKID */
 
 #ifdef WOLFSSL_AKID_NAME
@@ -26799,16 +26809,19 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
 #ifndef NO_SKID
     if (cert->authKeyIdSet) {
         signer = GetCA(cm, cert->authKeyIdHash);
+    #ifndef WOLFSSL_ALLOW_AKID_SKID_MATCH
         if (signer != NULL &&
                 XMEMCMP(signer->subjectNameHash, cert->issuerNameHash,
                         SIGNER_DIGEST_SIZE) != 0) {
             signer = NULL;
         }
+    #endif
         /* AKID is authoritative; do not fall back to name when AKID
          * is set (could substitute a same-DN sibling). */
     }
     else {
-        signer = GetCAByName(cm, cert->issuerNameHash);
+        /* A self-issued CA shares its issuer's name. */
+        signer = GetCAByNameSkip(cm, cert->issuerNameHash, cert);
     }
 #else
     signer = GetCA(cm, cert->issuerNameHash);
@@ -26840,6 +26853,34 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
     }
 
     return signer;
+}
+
+/* A CA cached from a peer's chain. Always 0 without a certificate
+ * manager, which only keeps application-loaded CAs. */
+static int SignerFromPeerChain(const Signer* signer)
+{
+#ifndef WOLFCRYPT_ONLY
+    return signer->type == WOLFSSL_CHAIN_CA;
+#else
+    (void)signer;
+    return 0;
+#endif
+}
+
+/* A self-signed CA ends the ancestor walk only when the application loaded
+ * it. One cached from a peer's chain is not a trust anchor. */
+static int SignerIsTrustAnchor(const Signer* signer)
+{
+    if (!signer->selfSigned) {
+        return 0;
+    }
+#ifndef WOLFCRYPT_ONLY
+    /* X509_verify_cert() holds its own intermediates as WOLFSSL_TEMP_CA. */
+    if (SignerFromPeerChain(signer) || signer->type == WOLFSSL_TEMP_CA) {
+        return 0;
+    }
+#endif
+    return 1;
 }
 #endif /* !IGNORE_NAME_CONSTRAINTS */
 
@@ -27854,14 +27895,23 @@ static int ParseCertRelativeInternal(DecodedCert* cert, int type, int verify,
                 WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
                 return ASN_NAME_INVALID_E;
             }
-            /* Stop at trust anchor (self-signed). */
-            if (ncSigner->selfSigned)
+            /* Stop at trust anchor. */
+            if (SignerIsTrustAnchor(ncSigner))
                 break;
             ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
             /* Stop on missing parent, self-loop, or A->B->A cycle. */
             if (ncParent == NULL || ncParent == ncSigner ||
-                    ncParent == ncPrev)
+                    ncParent == ncPrev) {
+                /* A CA from the peer's chain cannot end the walk: the
+                 * constraints of whatever issued it would go unapplied. */
+                if (SignerFromPeerChain(ncSigner)) {
+                    WOLFSSL_MSG("NC ancestor walk found no issuer for a "
+                                "chain CA");
+                    WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
+                    return ASN_NO_SIGNER_E;
+                }
                 break;
+            }
             if (++ncDepth >= WOLFSSL_MAX_CHAIN_DEPTH) {
                 WOLFSSL_MSG("NC ancestor walk exceeded WOLFSSL_MAX_CHAIN_DEPTH");
                 WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
@@ -27958,7 +28008,14 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
         XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
                 SIGNER_DIGEST_SIZE);
     #ifndef IGNORE_NAME_CONSTRAINTS
-        if (cert->extAuthKeyIdSet) {
+        /* Prefer the issuer ParseCertRelative() resolved, which may have
+         * been found by AKID issuer and serial. */
+        if (cert->ca != NULL) {
+            XMEMCPY(signer->authKeyIdHash, cert->ca->subjectKeyIdHash,
+                    SIGNER_DIGEST_SIZE);
+            signer->authKeyIdSet = 1;
+        }
+        else if (cert->extAuthKeyIdSet) {
             XMEMCPY(signer->authKeyIdHash, cert->extAuthKeyId,
                     SIGNER_DIGEST_SIZE);
             signer->authKeyIdSet = 1;

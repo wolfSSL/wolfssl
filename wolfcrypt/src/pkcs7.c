@@ -202,6 +202,7 @@ struct PKCS7State {
     word32 peakUsed; /* most bytes used for struct at any one time */
     word32 peakRead; /* most bytes used by read buffer */
 #endif
+    WC_BITFIELD hashAlgInit:1;
     WC_BITFIELD multi:1;  /* flag for if content is in multiple parts */
     WC_BITFIELD flagOne:1;
     WC_BITFIELD detached:1; /* flag to indicate detached signature is present */
@@ -317,6 +318,11 @@ static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
 static void wc_PKCS7_FreeStream(wc_PKCS7* pkcs7)
 {
     if (pkcs7 != NULL && pkcs7->stream != NULL) {
+        /* free before ResetStream clears hashType */
+        if (pkcs7->stream->hashAlgInit) {
+            wc_HashFree(&pkcs7->stream->hashAlg, WC_HASH_TYPE_NONE);
+            pkcs7->stream->hashAlgInit = 0;
+        }
         wc_PKCS7_ResetStream(pkcs7);
 
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -6480,6 +6486,32 @@ static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
         return BAD_FUNC_ARG;
     }
 
+    /* ANY-typed eContent must be a single element spanning content; checked
+     * here so it applies whether or not a precomputed hash is supplied. */
+    if (pkcs7->contentIsPkcs7Type && pkcs7->content != NULL &&
+            pkcs7->contentSz > 0) {
+        word32 spanIdx;
+        int    spanLen = 0; /* set by GetLength_ex below */
+        /* Need an identifier octet and a length. Reject the high-tag-number
+         * form (low five bits all set) so one identifier octet is correct,
+         * the end-of-contents identifier (0x00), which is not an element tag,
+         * and the indefinite length (0x80), which GetLength_ex reads as 0. */
+        if (pkcs7->contentSz < 2 || pkcs7->content[0] == 0x00 ||
+                (pkcs7->content[0] & 0x1F) == 0x1F ||
+                pkcs7->content[1] == ASN_INDEF_LENGTH) {
+            WOLFSSL_MSG("Unsupported PKCS7 eContent element encoding");
+            return ASN_PARSE_E;
+        }
+        spanIdx = 1;
+        if (GetLength_ex(pkcs7->content, &spanIdx, &spanLen,
+                pkcs7->contentSz, 1) < 0)
+            return ASN_PARSE_E;
+        if (spanIdx + (word32)spanLen != pkcs7->contentSz) {
+            WOLFSSL_MSG("PKCS7 eContent has data after the first element");
+            return ASN_PARSE_E;
+        }
+    }
+
     /* build content hash if needed, or use existing hash value */
     if (hashBuf == NULL) {
 
@@ -7675,6 +7707,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
     switch (pkcs7->state) {
         case WC_PKCS7_START:
+            /* per-message flag, clear any value left by a previous verify */
+            pkcs7->contentIsPkcs7Type = 0;
         #ifndef NO_PKCS7_STREAM
             /* The expected size calculation originally assumed digest OID
              * with NULL params, -2 to also accept with absent params */
@@ -8217,10 +8251,16 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         #ifdef ASN_BER_TO_DER
             /* setup hash struct for creating hash of content if needed */
             if (pkcs7->streamOutCb) {
+                /* free any previously initialized hash before re-init */
+                if (pkcs7->stream->hashAlgInit) {
+                    wc_HashFree(&pkcs7->stream->hashAlg, WC_HASH_TYPE_NONE);
+                    pkcs7->stream->hashAlgInit = 0;
+                }
                 ret = wc_HashInit_ex(&pkcs7->stream->hashAlg,
                     pkcs7->stream->hashType, pkcs7->heap, pkcs7->devId);
                 if (ret != 0)
                     break;
+                pkcs7->stream->hashAlgInit = 1;
             }
         #endif /* ASN_BER_TO_DER */
 
@@ -9050,6 +9090,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         }
                         wc_HashFree(&pkcs7->stream->hashAlg,
                             pkcs7->stream->hashType);
+                        pkcs7->stream->hashAlgInit = 0;
                         if (ret != 0)
                             break;
                     }

@@ -107,9 +107,9 @@ L_AES_XTS_init_aesni_tweak_aes_enc_block_last:
 .size	AES_XTS_init_aesni,.-AES_XTS_init_aesni
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -1508,9 +1508,9 @@ L_AES_XTS_init_avx1_tweak_aes_enc_block_last:
 .size	AES_XTS_init_avx1,.-AES_XTS_init_avx1
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -2870,9 +2870,9 @@ L_AES_XTS_init_vaes_tweak_aes_enc_block_last:
 .size	AES_XTS_init_vaes,.-AES_XTS_init_vaes
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -2882,9 +2882,9 @@ L_AES_XTS_init_vaes_tweak_aes_enc_block_last:
 L_vaes_aes_xts_gc_xts:
 .long	0x00000087,0x00000000,0x00000001,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -2894,9 +2894,9 @@ L_vaes_aes_xts_gc_xts:
 L_vaes_aes_xts_poly:
 .long	0x00000087,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -2907,9 +2907,9 @@ L_vaes_aes_xts_shl:
 .long	0x00000000,0x00000000,0x00000000,0x00000000
 .long	0x00000001,0x00000000,0x00000001,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5003,7 +5003,6 @@ L_AES_XTS_decrypt_update_vaes_done_dec:
 #ifndef __APPLE__
 .size	AES_XTS_decrypt_update_vaes,.-AES_XTS_decrypt_update_vaes
 #endif /* __APPLE__ */
-#endif /* HAVE_INTEL_VAES */
 #ifdef HAVE_INTEL_AVX512
 #ifndef __APPLE__
 .text
@@ -5062,9 +5061,9 @@ L_AES_XTS_init_avx512_tweak_aes_enc_block_last:
 .size	AES_XTS_init_avx512,.-AES_XTS_init_avx512
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5074,9 +5073,9 @@ L_AES_XTS_init_avx512_tweak_aes_enc_block_last:
 L_avx512_aes_xts_gc_xts:
 .long	0x00000087,0x00000000,0x00000001,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5086,9 +5085,9 @@ L_avx512_aes_xts_gc_xts:
 L_avx512_aes_xts_poly:
 .long	0x00000087,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -5101,9 +5100,9 @@ L_avx512_aes_xts_shl:
 .long	0x00000002,0x00000000,0x00000002,0x00000000
 .long	0x00000003,0x00000000,0x00000003,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -7248,6 +7247,7 @@ L_AES_XTS_decrypt_update_avx512_done_dec:
 .size	AES_XTS_decrypt_update_avx512,.-AES_XTS_decrypt_update_avx512
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX512 */
+#endif /* HAVE_INTEL_VAES */
 #endif /* WOLFSSL_X86_64_BUILD */
 #endif /* WOLFSSL_AES_XTS */
 

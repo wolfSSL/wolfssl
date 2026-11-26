@@ -69,6 +69,15 @@ extern const char* currentTestName;
         } while (0)
 #endif
 
+/* What wolfSSL_get_error() returns when a TLS record failed authentication or
+ * decryption with err. The OpenSSL compatibility layer reports SSL_ERROR_SSL;
+ * ssl->error keeps err. */
+#ifdef OPENSSL_EXTRA
+    #define TEST_RECORD_ERR(err) WOLFSSL_ERROR_SSL
+#else
+    #define TEST_RECORD_ERR(err) (err)
+#endif
+
 #ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 #define TEST_MEMIO_MAX_MSGS 32

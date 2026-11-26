@@ -13773,11 +13773,13 @@ static int test_tls13_cipher_fuzz_once(WC_RNG* rng,
     if (EXPECT_SUCCESS()) {
         if (side == 1) {
             ret = wolfSSL_accept(ssl_s);
-            err = wolfSSL_get_error(ssl_s, ret);
+            err = wolfSSL_state(ssl_s);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, ret), TEST_RECORD_ERR(err));
         }
         else {
             ret = wolfSSL_connect(ssl_c);
-            err = wolfSSL_get_error(ssl_c, ret);
+            err = wolfSSL_state(ssl_c);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, ret), TEST_RECORD_ERR(err));
         }
         ExpectIntEQ(ret, WOLFSSL_FATAL_ERROR);
         ExpectTrue((err == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR)) ||

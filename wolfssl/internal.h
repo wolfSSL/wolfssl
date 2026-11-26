@@ -3083,9 +3083,9 @@ WOLFSSL_LOCAL void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 
 WOLFSSL_LOCAL int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,
-        int cert_err, void* heap, int* x509Free);
+        int cert_err, void* heap, WOLFSSL_X509** x509Owned);
 WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
-        WOLFSSL* ssl, void* heap, int x509Free);
+        WOLFSSL* ssl, void* heap, WOLFSSL_X509* x509Owned);
 #endif /* !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH) */
 WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type);
@@ -4739,6 +4739,9 @@ struct WOLFSSL_CTX {
     short       minRsaKeySz;      /* minimum RSA key size */
 #ifdef WC_RSA_PSS
     word8       useRsaPss;        /* cert supports RSA-PSS */
+    word8       rsaPssHash;       /* hash declared by a PSS key, 0 if none */
+    word8       rsaPssMgf;        /* MGF declared by a PSS key, 0 if none */
+    word16      rsaPssSaltLen;    /* salt length declared by a PSS key */
 #endif
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
@@ -6432,6 +6435,11 @@ struct WOLFSSL_X509 {
 #endif
     buffer           pubKey;
     int              pubKeyOID;
+#ifdef WC_RSA_PSS
+    byte             keyPssHash;                     /* PSS key parameters, */
+    byte             keyPssMgf;                      /* 0 if not declared   */
+    word16           keyPssSaltLen;
+#endif
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
@@ -7215,6 +7223,13 @@ struct WOLFSSL {
     byte            peerRsaKeyPresent;
 #ifdef WC_RSA_PSS
     word8           useRsaPss;           /* cert supports RSA-PSS */
+    word8           rsaPssHash;          /* hash declared by own PSS key */
+    word8           rsaPssMgf;           /* MGF declared by own PSS key */
+    word16          rsaPssSaltLen;       /* salt length declared by own key */
+    byte            peerRsaPss;          /* peer key has id-RSASSA-PSS OID */
+    byte            peerRsaPssHash;      /* hash declared by peer PSS key */
+    byte            peerRsaPssMgf;       /* MGF declared by peer PSS key */
+    word16          peerRsaPssSaltLen;   /* salt length declared by peer key */
 #endif
 #endif
 #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
@@ -7290,6 +7305,9 @@ struct WOLFSSL {
     int             dtls_timeout;       /* current timeout value, changes */
 #ifndef NO_ASN_TIME
     word32          dtls_start_timeout;
+    word32          dtls_timer_start;   /* LowResTimer() when started */
+    word32          dtls_timer_len;     /* seconds, 0 when idle */
+    word16          dtls_timer_seq;     /* tx handshake seq when started */
 #endif /* !NO_ASN_TIME */
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
@@ -7990,6 +8008,7 @@ WOLFSSL_LOCAL int IsTLS_ex(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_3(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsWriteClosed(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int HandshakeEndedByFatalAlert(WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsEncryptionOn(const WOLFSSL* ssl, int isSend);
 WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 
@@ -8126,6 +8145,10 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
     #if !defined(NO_SKID) && !defined(GetCAByName)
         WOLFSSL_LOCAL Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm,
                 byte* hash);
+    #endif
+    #if !defined(NO_SKID) && !defined(GetCAByNameSkip)
+        WOLFSSL_LOCAL Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm,
+                byte* hash, const Signer* skip);
     #endif
 #endif /* !NO_CERTS */
 WOLFSSL_LOCAL int  BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash,
@@ -8265,6 +8288,10 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
 WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+WOLFSSL_LOCAL int CheckPeerRsaSigAlgo(const WOLFSSL* ssl, byte sigAlgo,
+                                      byte hashAlgo);
+#endif
 WOLFSSL_LOCAL void DecodeSigAlg(const byte* input, byte* hashAlgo,
         byte* hsType);
 #ifdef WOLFSSL_HAVE_SLHDSA
@@ -8746,6 +8773,11 @@ WOLFSSL_LOCAL WOLFSSL_STACK* wolfssl_sk_new_type_ex(WOLF_STACK_TYPE type,
 
 WOLFSSL_LOCAL int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj,
         const byte* der, word32 len, int addHdr);
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+WOLFSSL_LOCAL WOLFSSL_ASN1_INTEGER* wolfssl_asn1_integer_new_mag(
+        const unsigned char* mag, int len);
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)

@@ -46,8 +46,10 @@ int test_wolfSSL_X509V3_EXT_get(void);
 int test_wolfSSL_X509V3_EXT_nconf(void);
 int test_wolfSSL_X509V3_EXT_bc(void);
 int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void);
+int test_wolfSSL_X509_get_ext_d2i_dirname_san(void);
 int test_wolfSSL_X509V3_EXT_san(void);
 int test_wolfSSL_X509V3_EXT_aia(void);
+int test_wolfSSL_X509V3_EXT_d2i_keyid(void);
 int test_wolfSSL_X509V3_EXT(void);
 int test_wolfSSL_X509V3_EXT_print(void);
 int test_wolfSSL_X509_get_ext_d2i_name_constraints(void);
@@ -91,8 +93,11 @@ int test_wolfSSL_X509_add_ext_othername_types(void);
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_bc),              \
     TEST_DECL_GROUP("ossl_x509_ext",                                           \
                           test_wolfSSL_X509_get_ext_d2i_basic_constraints),    \
+    TEST_DECL_GROUP("ossl_x509_ext",                                           \
+                          test_wolfSSL_X509_get_ext_d2i_dirname_san),          \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_san),             \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_aia),             \
+    TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_d2i_keyid),       \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT),                 \
     TEST_DECL_GROUP("ossl_x509_ext", test_wolfSSL_X509V3_EXT_print),           \
     TEST_DECL_GROUP("ossl_x509_ext",                                           \

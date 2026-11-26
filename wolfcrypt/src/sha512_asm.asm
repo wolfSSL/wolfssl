@@ -5328,11 +5328,6 @@ L_avx2_sha512_k_2 QWORD 428a2f98d728ae22h, 7137449123ef65cdh
 ptr_L_avx2_sha512_k_2 QWORD L_avx2_sha512_k_2
 _DATA ENDS
 _DATA SEGMENT
-ALIGN 8
-L_avx2_sha512_k_2_end QWORD 1024+L_avx2_sha512_k_2
-ptr_L_avx2_sha512_k_2_end QWORD L_avx2_sha512_k_2_end
-_DATA ENDS
-_DATA SEGMENT
 ALIGN 16
 L_avx2_sha512_flip_mask QWORD 0001020304050607h, 08090a0b0c0d0e0fh
         QWORD 0001020304050607h, 08090a0b0c0d0e0fh
@@ -6455,7 +6450,7 @@ Transform_Sha512_AVX2_Len PROC
         sub	ebp, 128
         jz	L_sha512_len_avx2_done
 L_sha512_len_avx2_block:
-        sub	rsp, 1352
+        sub	rsp, 1368
         mov	rcx, QWORD PTR [rdi+224]
         vmovdqu	ymm15, YMMWORD PTR L_avx2_sha512_flip_mask
         mov	r8, QWORD PTR [rdi]
@@ -6467,6 +6462,9 @@ L_sha512_len_avx2_block:
         mov	r14, QWORD PTR [rdi+48]
         mov	r15, QWORD PTR [rdi+56]
         mov	QWORD PTR [rsp+1344], rbp
+        mov	rsi, QWORD PTR [ptr_L_avx2_sha512_k_2]
+        add	rsi, 1024
+        mov	QWORD PTR [rsp+1352], rsi
         ; Start of loop processing two blocks
 L_sha512_len_avx2_begin:
         mov	rbp, rsp
@@ -7134,7 +7132,7 @@ L_sha512_len_avx2_start:
         ; msg_sched done: 28-29
         add	rsi, 256
         add	rbp, 256
-        cmp	rsi, QWORD PTR [L_avx2_sha512_k_2_end]
+        cmp	rsi, QWORD PTR [rsp+1352]
         jne	L_sha512_len_avx2_start
         vpaddq	ymm8, ymm0, [rsi]
         vpaddq	ymm9, ymm1, [rsi+32]
@@ -8030,7 +8028,7 @@ L_sha512_len_avx2_tail:
         mov	QWORD PTR [rdi+48], r14
         mov	QWORD PTR [rdi+56], r15
         jnz	L_sha512_len_avx2_begin
-        add	rsp, 1352
+        add	rsp, 1368
 L_sha512_len_avx2_done:
         xor	rax, rax
         vzeroupper
@@ -8183,11 +8181,6 @@ L_avx2_rorx_sha512_k_2 QWORD 428a2f98d728ae22h, 7137449123ef65cdh
         QWORD 5fcb6fab3ad6faech, 6c44198c4a475817h
         QWORD 5fcb6fab3ad6faech, 6c44198c4a475817h
 ptr_L_avx2_rorx_sha512_k_2 QWORD L_avx2_rorx_sha512_k_2
-_DATA ENDS
-_DATA SEGMENT
-ALIGN 8
-L_avx2_rorx_sha512_k_2_end QWORD 1024+L_avx2_rorx_sha512_k_2
-ptr_L_avx2_rorx_sha512_k_2_end QWORD L_avx2_rorx_sha512_k_2_end
 _DATA ENDS
 _DATA SEGMENT
 ALIGN 16
@@ -9256,7 +9249,7 @@ Transform_Sha512_AVX2_RORX_Len PROC
         sub	esi, 128
         jz	L_sha512_len_avx2_rorx_done
 L_sha512_len_avx2_rorx_block:
-        sub	rsp, 1352
+        sub	rsp, 1368
         mov	rax, QWORD PTR [rdi+224]
         vmovdqu	ymm15, YMMWORD PTR L_avx2_rorx_sha512_flip_mask
         mov	r8, QWORD PTR [rdi]
@@ -9268,6 +9261,9 @@ L_sha512_len_avx2_rorx_block:
         mov	r14, QWORD PTR [rdi+48]
         mov	r15, QWORD PTR [rdi+56]
         mov	DWORD PTR [rsp+1344], esi
+        mov	rbp, QWORD PTR [ptr_L_avx2_rorx_sha512_k_2]
+        add	rbp, 1024
+        mov	QWORD PTR [rsp+1352], rbp
         ; Start of loop processing two blocks
 L_sha512_len_avx2_rorx_begin:
         mov	rsi, rsp
@@ -9903,7 +9899,7 @@ L_sha512_len_avx2_rorx_start:
         ; msg_sched done: 28-29
         add	rbp, 256
         add	rsi, 256
-        cmp	rbp, QWORD PTR [L_avx2_rorx_sha512_k_2_end]
+        cmp	rbp, QWORD PTR [rsp+1352]
         jne	L_sha512_len_avx2_rorx_start
         vpaddq	ymm8, ymm0, [rbp]
         vpaddq	ymm9, ymm1, [rbp+32]
@@ -10753,7 +10749,7 @@ L_sha512_len_avx2_rorx_tail:
         mov	QWORD PTR [rdi+48], r14
         mov	QWORD PTR [rdi+56], r15
         jnz	L_sha512_len_avx2_rorx_begin
-        add	rsp, 1352
+        add	rsp, 1368
 L_sha512_len_avx2_rorx_done:
         xor	rax, rax
         vzeroupper
@@ -12990,13 +12986,13 @@ Transform_Sha512_x8_XmssPrf_AVX512 PROC
         vpbroadcastq	zmm10, QWORD PTR [r8+16]
         vpbroadcastq	zmm25, QWORD PTR L_avx512_sha512_x8_hi32
         vpandq	zmm10, zmm10, zmm25
-        vpmovzxdq	zmm24, [r9]
+        vpmovzxdq	zmm24, YMMWORD PTR [r9]
         vporq	zmm10, zmm10, zmm24
         ; Word 3: the key-and-mask word, then the hash address over it
         vpbroadcastq	zmm11, QWORD PTR [r8+24]
         vpbroadcastq	zmm25, QWORD PTR L_avx512_sha512_x8_lo32
         vpandq	zmm11, zmm11, zmm25
-        vpmovzxdq	zmm24, [r10]
+        vpmovzxdq	zmm24, YMMWORD PTR [r10]
         vpsllq	zmm24, zmm24, 32
         vporq	zmm11, zmm11, zmm24
         ; Padding for a 160-byte message, the last 128 of it this block

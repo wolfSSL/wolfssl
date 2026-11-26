@@ -2,9 +2,15 @@
     \ingroup wolfEntropy
     \brief Gets raw entropy without DRBG processing.
 
+    For SP 800-90B assessment only, not for seeding.  Output is not
+    conditioned and is not gated on the startup health test, so samples can
+    be collected from a source that fails it.  Creates the mutex and SHA-3
+    object on first use.
+
     \return 0 On success
-    \return BAD_FUNC_ARG If raw is NULL
-    \return RNG_FAILURE_E Failed
+    \return BAD_FUNC_ARG If raw is NULL or cnt is not positive
+    \return BAD_MUTEX_E Unable to lock mutex
+    \return Negative Other failure (setup, noise collection, thread)
 
     \param raw Buffer for entropy
     \param cnt Bytes to retrieve
@@ -24,13 +30,22 @@ int wc_Entropy_GetRawEntropy(unsigned char* raw, int cnt);
     \ingroup wolfEntropy
     \brief Gets processed entropy with specified bits.
 
+    Creates the mutex and SHA-3 object on first use.  Runs the startup
+    health test once per call while none has passed since the last reset,
+    and returns its error on failure rather than retrying.
+
     \return 0 On success
-    \return BAD_FUNC_ARG If entropy is NULL
-    \return RNG_FAILURE_E Failed
+    \return BAD_FUNC_ARG If bits is not 1 to MAX_ENTROPY_BITS (256), or
+    entropy is NULL and len is not 0
+    \return ENTROPY_RT_E or ENTROPY_APT_E Health test failed
+    \return BAD_MUTEX_E Unable to lock mutex
+    \return Negative Other failure
 
     \param bits Entropy bits required
     \param entropy Buffer for entropy
-    \param len Buffer size
+    \param len Buffer size.  When 0, entropy may be NULL: nothing is
+    written, but setup and the startup health test still run, so the call
+    can prime the source and check its health.
 
     _Example_
     \code
@@ -80,10 +95,12 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len);
     \ingroup wolfEntropy
     \brief Tests entropy source on demand.
 
-    \return  0 on success.
-    \return  ENTROPY_RT_E or ENTROPY_APT_E on failure.
-    \return  BAD_MUTEX_E when unable to lock mutex.
-    \return  Negative when creating the counter thread fails.
+    Creates the mutex and SHA-3 object on first use.
+
+    \return 0 On success
+    \return ENTROPY_RT_E or ENTROPY_APT_E Test failed
+    \return BAD_MUTEX_E Unable to lock mutex
+    \return Negative Other failure
 
     _Example_
     \code

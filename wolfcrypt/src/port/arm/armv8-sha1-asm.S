@@ -40,7 +40,7 @@
 	.type	L_SHA1_trans_base_len_k, %object
 	.size	L_SHA1_trans_base_len_k, 16
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -1201,7 +1201,7 @@ L_sha1_len_base_begin:
 	.type	L_SHA1_trans_neon_len_k, %object
 	.size	L_SHA1_trans_neon_len_k, 64
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__
@@ -2225,7 +2225,7 @@ L_sha1_len_neon_begin:
 	.type	L_SHA1_trans_crypto_len_k, %object
 	.size	L_SHA1_trans_crypto_len_k, 64
 #else
-	.section	__DATA,__data
+	.section	__TEXT,__const
 #endif /* __APPLE__ */
 	# 8-byte aligned, 64-bit aligned
 #ifndef __APPLE__

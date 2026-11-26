@@ -5215,9 +5215,15 @@ then
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
     fi
     if test "$ENABLED_PPC32_ASM_INLINE_REG" = "yes"; then
-        # The inline-register variant names GPRs (r0..r31) in inline assembly,
-        # which the PowerPC assembler only accepts with -mregnames.
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE_REG -Wa,-mregnames"
+        # The inline-register variant names GPRs (r0..r31) in inline assembly.
+        # GNU as only accepts those names with -mregnames; other assemblers
+        # (e.g. Apple's cctools as on Darwin) accept them natively and reject
+        # the option, so only pass it when the toolchain takes it.
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE_REG"
+        AX_CHECK_COMPILE_FLAG([-Wa,-mregnames],
+            [AM_CFLAGS="$AM_CFLAGS -Wa,-mregnames"],
+            [],
+            [-Werror],[])
     fi
     if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"

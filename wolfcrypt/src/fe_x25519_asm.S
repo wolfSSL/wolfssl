@@ -2505,9 +2505,9 @@ _fe_invert_x64:
 #endif /* __APPLE__ */
 #if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -13462,9 +13462,9 @@ _fe_invert_avx2:
 #endif /* __APPLE__ */
 #if defined(WOLFSSL_CURVE25519_NOT_USE_ED25519)
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -21764,9 +21764,9 @@ _sc_muladd_avx2:
 .size	sc_muladd_avx2,.-sc_muladd_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -21779,9 +21779,9 @@ L_fe_invert_nct_avx2_prime:
 .long	0x03ffffff,0x03ffffff,0x03ffffff,0x03ffffff
 .long	0x001fffff,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -21792,9 +21792,9 @@ L_fe_invert_nct_avx2_one:
 .quad	0x0000000000000001,0x0000000000000000
 .quad	0x0000000000000000,0x0000000000000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -21805,9 +21805,9 @@ L_fe_invert_nct_avx2_all_one:
 .long	0x00000001,0x00000001,0x00000001,0x00000001
 .long	0x00000001,0x00000001,0x00000001,0x00000001
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -21818,9 +21818,9 @@ L_fe_invert_nct_avx2_mask01111:
 .long	0x00000000,0x00000001,0x00000001,0x00000001
 .long	0x00000001,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -21831,9 +21831,9 @@ L_fe_invert_nct_avx2_down_one_dword:
 .long	0x00000001,0x00000002,0x00000003,0x00000004
 .long	0x00000005,0x00000006,0x00000007,0x00000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -21844,9 +21844,9 @@ L_fe_invert_nct_avx2_neg:
 .long	0x00000000,0x00000000,0x00000000,0x00000000
 .long	0x80000000,0x00000000,0x00000000,0x00000000
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -21857,9 +21857,9 @@ L_fe_invert_nct_avx2_up_one_dword:
 .long	0x00000007,0x00000000,0x00000001,0x00000002
 .long	0x00000003,0x00000007,0x00000007,0x00000007
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	16
@@ -22182,9 +22182,9 @@ L_fe_invert_nct_avx2_uv_start_no_add_prime:
 #endif /* HAVE_ED25519 */
 #ifdef HAVE_INTEL_AVX512_IFMA
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32
@@ -25333,9 +25333,9 @@ L_curve25519_avx512_ifma_dq_bits:
 #endif /* __APPLE__ */
 #ifdef HAVE_ED25519
 #ifndef __APPLE__
-.data
+.section	.rodata
 #else
-.section	__DATA,__data
+.section	__TEXT,__const
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .align	32

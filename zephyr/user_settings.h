@@ -648,13 +648,12 @@ extern "C" {
 
 /* SHA-3 / SHAKE are required by ML-KEM, ML-DSA, and Falcon, and XMSS derives
  * its SHAKE parameter sets from WOLFSSL_SHAKE128/256 (see wc_xmss.h); enable
- * them (small variant) when any is on, and explicitly disable SHAKE otherwise
- * to keep a non-PQC build lean. LMS is deliberately absent: its SHAKE-256
- * support is opt-in via WOLFSSL_LMS_SHAKE256 and is never derived from
+ * them when any is on, and explicitly disable SHAKE otherwise to keep a
+ * non-PQC build lean. LMS is deliberately absent: its SHAKE-256 support is
+ * opt-in via WOLFSSL_LMS_SHAKE256 and is never derived from
  * WOLFSSL_SHAKE256. */
 #if defined(CONFIG_WOLFSSL_MLKEM) || defined(CONFIG_WOLFSSL_MLDSA) || \
     defined(CONFIG_WOLFSSL_XMSS) || defined(CONFIG_WOLFSSL_FALCON)
-    #define WOLFSSL_SHA3_SMALL
     #define WOLFSSL_SHAKE128
     #define WOLFSSL_SHAKE256
 #elif defined(CONFIG_WOLFSSL_ED448)
@@ -663,6 +662,10 @@ extern "C" {
 #else
     #define WOLFSSL_NO_SHAKE128
     #define WOLFSSL_NO_SHAKE256
+#endif
+
+#if defined(CONFIG_WOLFSSL_SHA3_SMALL)
+    #define WOLFSSL_SHA3_SMALL
 #endif
 #endif /* !WOLFSSL_ZEPHYR_FIPS_V7_H */
 
