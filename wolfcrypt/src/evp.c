@@ -12699,6 +12699,16 @@ int wolfssl_local_pkey_lock(WOLFSSL_EVP_PKEY* pkey)
             ret = wolfssl_local_ec_key_lock(pkey->ecc);
             break;
     #endif
+    #ifndef NO_DSA
+        case WC_EVP_PKEY_DSA:
+            ret = wolfssl_local_dsa_lock(pkey->dsa);
+            break;
+    #endif
+    #ifndef NO_DH
+        case WC_EVP_PKEY_DH:
+            ret = wolfssl_local_dh_lock(pkey->dh);
+            break;
+    #endif
     #ifdef WOLFSSL_HAVE_MLDSA
         case WC_EVP_PKEY_DILITHIUM:
             /* Only the DER is held. Each use decodes its own key. */
@@ -12728,6 +12738,16 @@ void wolfssl_local_pkey_unlock(WOLFSSL_EVP_PKEY* pkey)
     #ifdef HAVE_ECC
         case WC_EVP_PKEY_EC:
             wolfssl_local_ec_key_unlock(pkey->ecc);
+            break;
+    #endif
+    #ifndef NO_DSA
+        case WC_EVP_PKEY_DSA:
+            wolfssl_local_dsa_unlock(pkey->dsa);
+            break;
+    #endif
+    #ifndef NO_DH
+        case WC_EVP_PKEY_DH:
+            wolfssl_local_dh_unlock(pkey->dh);
             break;
     #endif
     #ifdef WOLFSSL_HAVE_MLDSA
