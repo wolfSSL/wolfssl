@@ -2707,13 +2707,18 @@ static int sp_256_ecc_mulmod_10(sp_point* r, const sp_point* g, const sp_digit* 
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache(g, &cache);
-        if (cache->cnt == 2)
-            sp_256_gen_stripe_table_10(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_256_gen_stripe_table_10(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_256_ecc_mulmod_fast_10(r, g, k, map, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_256_ecc_mulmod_stripe_10(r, g, cache->table, k,
                     map, heap);
         }
