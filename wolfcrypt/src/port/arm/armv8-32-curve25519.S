@@ -6479,6 +6479,59 @@ sc_reduce:
 	sbcs	r7, r7, #0
 	sbcs	r8, r8, #0
 	sbc	r9, r9, #0
+	#   Add order if negative
+	asr	lr, r9, #31
+	bic	r1, lr, r10
+	bic	r11, lr, r11
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+	orr	r10, r10, #0xd300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0xd300
+#else
+	mov	r10, #0xd3ed
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
+	movt	r10, #0x5cf5
+#endif
+#endif
+	and	r10, r10, lr
+	adds	r2, r2, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #26
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+	orr	r10, r10, #0x6300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0x1a
+	orr	r10, r10, #0x6300
+#else
+	mov	r10, #0x631a
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+#else
+	movt	r10, #0x5812
+#endif
+#endif
+	and	r10, r10, lr
+	adcs	r3, r3, r10
+	adcs	r4, r4, r1
+	adcs	r5, r5, r11
+	adcs	r6, r6, #0
+	adcs	r7, r7, #0
+	and	lr, lr, #0x10000000
+	adcs	r8, r8, #0
+	adc	r9, r9, lr
 	# Sub product of top 8 words and order
 	mov	r12, sp
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -6840,11 +6893,11 @@ sc_reduce:
 	adcs	r11, r11, #0
 	stm	r12!, {r10, r11}
 	ldm	r12, {r10}
-	adcs	r10, r10, #0
+	adc	r10, r10, r9
 	stm	r12!, {r10}
 	sub	r0, r0, #16
 	mov	r12, sp
-	# Load bits 252-376
+	# Load bits 252-377
 	add	r12, r12, #28
 	ldm	r12, {r1, r2, r3, r4, r5}
 	lsl	r5, r5, #4
@@ -6856,9 +6909,9 @@ sc_reduce:
 	lsl	r2, r2, #4
 	orr	r2, r2, r1, lsr #28
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xe0000000
+	bic	r5, r5, #0xc0000000
 #else
-	bfc	r5, #29, #3
+	bfc	r5, #30, #2
 #endif
 	sub	r12, r12, #28
 	# Sub product of top 4 words and order
@@ -7120,9 +7173,9 @@ sc_reduce:
 	adcs	r8, r8, #0
 	adc	r9, r9, r1
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xf0000000
+	bic	r9, r9, #0xe0000000
 #else
-	bfc	r9, #28, #4
+	bfc	r9, #29, #3
 #endif
 	# Store result
 	ldr	r0, [sp, #52]
@@ -7256,6 +7309,59 @@ sc_reduce:
 	sbcs	r7, r7, #0
 	sbcs	r8, r8, #0
 	sbc	r9, r9, #0
+	#   Add order if negative
+	asr	lr, r9, #31
+	bic	r1, lr, r10
+	bic	r11, lr, r11
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+	orr	r10, r10, #0xd300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0xd300
+#else
+	mov	r10, #0xd3ed
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
+	movt	r10, #0x5cf5
+#endif
+#endif
+	and	r10, r10, lr
+	adds	r2, r2, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #26
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+	orr	r10, r10, #0x6300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0x1a
+	orr	r10, r10, #0x6300
+#else
+	mov	r10, #0x631a
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+#else
+	movt	r10, #0x5812
+#endif
+#endif
+	and	r10, r10, lr
+	adcs	r3, r3, r10
+	adcs	r4, r4, r1
+	adcs	r5, r5, r11
+	adcs	r6, r6, #0
+	adcs	r7, r7, #0
+	and	lr, lr, #0x10000000
+	adcs	r8, r8, #0
+	adc	r9, r9, lr
 	# Sub product of top 8 words and order
 	mov	r12, sp
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -7533,11 +7639,11 @@ sc_reduce:
 	adcs	r11, r11, #0
 	stm	r12!, {r10, r11}
 	ldm	r12, {r10}
-	adcs	r10, r10, #0
+	adc	r10, r10, r9
 	stm	r12!, {r10}
 	sub	r0, r0, #16
 	mov	r12, sp
-	# Load bits 252-376
+	# Load bits 252-377
 	add	r12, r12, #28
 	ldm	r12, {r1, r2, r3, r4, r5}
 	lsl	r5, r5, #4
@@ -7549,9 +7655,9 @@ sc_reduce:
 	lsl	r2, r2, #4
 	orr	r2, r2, r1, lsr #28
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xe0000000
+	bic	r5, r5, #0xc0000000
 #else
-	bfc	r5, #29, #3
+	bfc	r5, #30, #2
 #endif
 	sub	r12, r12, #28
 	# Sub product of top 4 words and order
@@ -7777,9 +7883,9 @@ sc_reduce:
 	adcs	r8, r8, #0
 	adc	r9, r9, r1
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xf0000000
+	bic	r9, r9, #0xe0000000
 #else
-	bfc	r9, #28, #4
+	bfc	r9, #29, #3
 #endif
 	# Store result
 	ldr	r0, [sp, #52]
@@ -8274,6 +8380,59 @@ sc_muladd:
 	sbcs	r7, r7, #0
 	sbcs	r8, r8, #0
 	sbc	r9, r9, #0
+	#   Add order if negative
+	asr	lr, r9, #31
+	bic	r1, lr, r10
+	bic	r11, lr, r11
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+	orr	r10, r10, #0xd300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0xd300
+#else
+	mov	r10, #0xd3ed
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
+	movt	r10, #0x5cf5
+#endif
+#endif
+	and	r10, r10, lr
+	adds	r2, r2, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #26
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+	orr	r10, r10, #0x6300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0x1a
+	orr	r10, r10, #0x6300
+#else
+	mov	r10, #0x631a
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+#else
+	movt	r10, #0x5812
+#endif
+#endif
+	and	r10, r10, lr
+	adcs	r3, r3, r10
+	adcs	r4, r4, r1
+	adcs	r5, r5, r11
+	adcs	r6, r6, #0
+	adcs	r7, r7, #0
+	and	lr, lr, #0x10000000
+	adcs	r8, r8, #0
+	adc	r9, r9, lr
 	# Sub product of top 8 words and order
 	mov	r12, sp
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -8635,11 +8794,11 @@ sc_muladd:
 	adcs	r11, r11, #0
 	stm	r12!, {r10, r11}
 	ldm	r12, {r10}
-	adcs	r10, r10, #0
+	adc	r10, r10, r9
 	stm	r12!, {r10}
 	sub	r0, r0, #16
 	mov	r12, sp
-	# Load bits 252-376
+	# Load bits 252-377
 	add	r12, r12, #28
 	ldm	r12, {r1, r2, r3, r4, r5}
 	lsl	r5, r5, #4
@@ -8651,9 +8810,9 @@ sc_muladd:
 	lsl	r2, r2, #4
 	orr	r2, r2, r1, lsr #28
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xe0000000
+	bic	r5, r5, #0xc0000000
 #else
-	bfc	r5, #29, #3
+	bfc	r5, #30, #2
 #endif
 	sub	r12, r12, #28
 	# Sub product of top 4 words and order
@@ -8915,9 +9074,9 @@ sc_muladd:
 	adcs	r8, r8, #0
 	adc	r9, r9, r1
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xf0000000
+	bic	r9, r9, #0xe0000000
 #else
-	bfc	r9, #28, #4
+	bfc	r9, #29, #3
 #endif
 	ldr	r0, [sp, #68]
 	# Store result
@@ -9181,6 +9340,59 @@ sc_muladd:
 	sbcs	r7, r7, #0
 	sbcs	r8, r8, #0
 	sbc	r9, r9, #0
+	#   Add order if negative
+	asr	lr, r9, #31
+	bic	r1, lr, r10
+	bic	r11, lr, r11
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+	orr	r10, r10, #0xd300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0xed
+	orr	r10, r10, #0xd300
+#else
+	mov	r10, #0xd3ed
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
+	movt	r10, #0x5cf5
+#endif
+#endif
+	and	r10, r10, lr
+	adds	r2, r2, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #26
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+	orr	r10, r10, #0x6300
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r10, #0x1a
+	orr	r10, r10, #0x6300
+#else
+	mov	r10, #0x631a
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x58000000
+	orr	r10, r10, #0x120000
+#else
+	movt	r10, #0x5812
+#endif
+#endif
+	and	r10, r10, lr
+	adcs	r3, r3, r10
+	adcs	r4, r4, r1
+	adcs	r5, r5, r11
+	adcs	r6, r6, #0
+	adcs	r7, r7, #0
+	and	lr, lr, #0x10000000
+	adcs	r8, r8, #0
+	adc	r9, r9, lr
 	# Sub product of top 8 words and order
 	mov	r12, sp
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -9458,11 +9670,11 @@ sc_muladd:
 	adcs	r11, r11, #0
 	stm	r12!, {r10, r11}
 	ldm	r12, {r10}
-	adcs	r10, r10, #0
+	adc	r10, r10, r9
 	stm	r12!, {r10}
 	sub	r0, r0, #16
 	mov	r12, sp
-	# Load bits 252-376
+	# Load bits 252-377
 	add	r12, r12, #28
 	ldm	r12, {r1, r2, r3, r4, r5}
 	lsl	r5, r5, #4
@@ -9474,9 +9686,9 @@ sc_muladd:
 	lsl	r2, r2, #4
 	orr	r2, r2, r1, lsr #28
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xe0000000
+	bic	r5, r5, #0xc0000000
 #else
-	bfc	r5, #29, #3
+	bfc	r5, #30, #2
 #endif
 	sub	r12, r12, #28
 	# Sub product of top 4 words and order
@@ -9702,9 +9914,9 @@ sc_muladd:
 	adcs	r8, r8, #0
 	adc	r9, r9, r1
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xf0000000
+	bic	r9, r9, #0xe0000000
 #else
-	bfc	r9, #28, #4
+	bfc	r9, #29, #3
 #endif
 	ldr	r0, [sp, #68]
 	# Store result

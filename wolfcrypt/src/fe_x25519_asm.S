@@ -11952,6 +11952,19 @@ _sc_reduce_x64:
         adcq	%rdx, %r13
         adcq	%rsi, %r14
         adcq	$0x00, %r15
+        #   Add order if negative
+        movq	%r15, %rcx
+        sarq	$63, %rcx
+        movq	$0x5812631a5cf5d3ed, %rax
+        movq	$0x14def9dea2f79cd6, %rdx
+        movq	$0x1000000000000000, %rsi
+        andq	%rcx, %rax
+        andq	%rcx, %rdx
+        andq	%rcx, %rsi
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        adcq	%rsi, %r15
         # Sub product of top 4 words and order
         movq	$0xa7ed9ce5a30a2c13, %rcx
         movq	%r12, %rax
@@ -12068,7 +12081,7 @@ _sc_reduce_x64:
         andq	%rsi, %rdx
         andq	%rsi, %rbx
         addq	%rax, %r8
-        movq	$0xfffffffffffffff, %rax
+        movq	$0x1fffffffffffffff, %rax
         adcq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	%rbx, %r11
@@ -12240,6 +12253,19 @@ _sc_muladd_x64:
         adcq	%rdx, %r13
         adcq	%rcx, %r14
         adcq	$0x00, %r15
+        #   Add order if negative
+        movq	%r15, %rbx
+        sarq	$63, %rbx
+        movq	$0x5812631a5cf5d3ed, %rax
+        movq	$0x14def9dea2f79cd6, %rdx
+        movq	$0x1000000000000000, %rcx
+        andq	%rbx, %rax
+        andq	%rbx, %rdx
+        andq	%rbx, %rcx
+        addq	%rax, %r12
+        adcq	%rdx, %r13
+        adcq	$0x00, %r14
+        adcq	%rcx, %r15
         # Sub product of top 4 words and order
         movq	$0xa7ed9ce5a30a2c13, %rbx
         movq	%r12, %rax
@@ -12356,7 +12382,7 @@ _sc_muladd_x64:
         andq	%rcx, %rdx
         andq	%rcx, %rsi
         addq	%rax, %r8
-        movq	$0xfffffffffffffff, %rax
+        movq	$0x1fffffffffffffff, %rax
         adcq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	%rsi, %r11
@@ -21401,6 +21427,19 @@ _sc_reduce_avx2:
         adcq	%rbx, %r13
         adcq	%rcx, %r14
         adcq	$0x00, %r15
+        #   Add order if negative
+        movq	%r15, %rax
+        sarq	$63, %rax
+        movq	$0x5812631a5cf5d3ed, %rsi
+        movq	$0x14def9dea2f79cd6, %rbx
+        movq	$0x1000000000000000, %rcx
+        andq	%rax, %rsi
+        andq	%rax, %rbx
+        andq	%rax, %rcx
+        addq	%rsi, %r12
+        adcq	%rbx, %r13
+        adcq	$0x00, %r14
+        adcq	%rcx, %r15
         # Sub product of top 4 words and order
         movq	$0xa7ed9ce5a30a2c13, %rdx
         mulxq	%r12, %rcx, %rax
@@ -21497,7 +21536,7 @@ _sc_reduce_avx2:
         andq	%rcx, %rbx
         andq	%rcx, %rbp
         addq	%rsi, %r8
-        movq	$0xfffffffffffffff, %rsi
+        movq	$0x1fffffffffffffff, %rsi
         adcq	%rbx, %r9
         adcq	$0x00, %r10
         adcq	%rbp, %r11
@@ -21647,6 +21686,19 @@ _sc_muladd_avx2:
         adcq	%r8, %r15
         adcq	%rcx, %rbx
         adcq	$0x00, %rbp
+        #   Add order if negative
+        movq	%rbp, %rax
+        sarq	$63, %rax
+        movq	$0x5812631a5cf5d3ed, %rsi
+        movq	$0x14def9dea2f79cd6, %r8
+        movq	$0x1000000000000000, %rcx
+        andq	%rax, %rsi
+        andq	%rax, %r8
+        andq	%rax, %rcx
+        addq	%rsi, %r14
+        adcq	%r8, %r15
+        adcq	$0x00, %rbx
+        adcq	%rcx, %rbp
         # Sub product of top 4 words and order
         movq	$0xa7ed9ce5a30a2c13, %rdx
         mulxq	%r14, %rcx, %rax
@@ -21743,7 +21795,7 @@ _sc_muladd_avx2:
         andq	%rcx, %r8
         andq	%rcx, %r9
         addq	%rsi, %r10
-        movq	$0xfffffffffffffff, %rsi
+        movq	$0x1fffffffffffffff, %rsi
         adcq	%r8, %r11
         adcq	$0x00, %r12
         adcq	%r9, %r13

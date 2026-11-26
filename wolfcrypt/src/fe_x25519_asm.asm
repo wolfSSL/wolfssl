@@ -10644,6 +10644,19 @@ sc_reduce_x64 PROC
         adc	r14, rdx
         adc	r15, rsi
         adc	rdi, 0
+        ;   Add order if negative
+        mov	r8, rdi
+        sar	r8, 63
+        mov	rax, 6346243789798364141
+        mov	rdx, 1503914060200516822
+        mov	rsi, 1152921504606846976
+        and	rax, r8
+        and	rdx, r8
+        and	rsi, r8
+        add	r13, rax
+        adc	r14, rdx
+        adc	r15, 0
+        adc	rdi, rsi
         ; Sub product of top 4 words and order
         mov	r8, 12100500283911187475
         mov	rax, r13
@@ -10760,7 +10773,7 @@ sc_reduce_x64 PROC
         and	rdx, rsi
         and	rbx, rsi
         add	r9, rax
-        mov	rax, 1152921504606846975
+        mov	rax, 2305843009213693951
         adc	r10, rdx
         adc	r11, 0
         adc	r12, rbx
@@ -10924,6 +10937,19 @@ sc_muladd_x64 PROC
         adc	r15, rdx
         adc	rdi, r9
         adc	rsi, 0
+        ;   Add order if negative
+        mov	rbx, rsi
+        sar	rbx, 63
+        mov	rax, 6346243789798364141
+        mov	rdx, 1503914060200516822
+        mov	r9, 1152921504606846976
+        and	rax, rbx
+        and	rdx, rbx
+        and	r9, rbx
+        add	r14, rax
+        adc	r15, rdx
+        adc	rdi, 0
+        adc	rsi, r9
         ; Sub product of top 4 words and order
         mov	rbx, 12100500283911187475
         mov	rax, r14
@@ -11040,7 +11066,7 @@ sc_muladd_x64 PROC
         and	rdx, r9
         and	r8, r9
         add	r10, rax
-        mov	rax, 1152921504606846975
+        mov	rax, 2305843009213693951
         adc	r11, rdx
         adc	r12, 0
         adc	r13, r8
@@ -19677,6 +19703,19 @@ sc_reduce_avx2 PROC
         adc	r14, rbx
         adc	r15, rcx
         adc	rdi, 0
+        ;   Add order if negative
+        mov	rax, rdi
+        sar	rax, 63
+        mov	rsi, 6346243789798364141
+        mov	rbx, 1503914060200516822
+        mov	rcx, 1152921504606846976
+        and	rsi, rax
+        and	rbx, rax
+        and	rcx, rax
+        add	r13, rsi
+        adc	r14, rbx
+        adc	r15, 0
+        adc	rdi, rcx
         ; Sub product of top 4 words and order
         mov	rdx, 12100500283911187475
         mulx	rax, rcx, r13
@@ -19773,7 +19812,7 @@ sc_reduce_avx2 PROC
         and	rbx, rcx
         and	rbp, rcx
         add	r9, rsi
-        mov	rsi, 1152921504606846975
+        mov	rsi, 2305843009213693951
         adc	r10, rbx
         adc	r11, 0
         adc	r12, rbp
@@ -19916,6 +19955,19 @@ sc_muladd_avx2 PROC
         adc	rsi, r10
         adc	rbx, rcx
         adc	rbp, 0
+        ;   Add order if negative
+        mov	rax, rbp
+        sar	rax, 63
+        mov	r9, 6346243789798364141
+        mov	r10, 1503914060200516822
+        mov	rcx, 1152921504606846976
+        and	r9, rax
+        and	r10, rax
+        and	rcx, rax
+        add	rdi, r9
+        adc	rsi, r10
+        adc	rbx, 0
+        adc	rbp, rcx
         ; Sub product of top 4 words and order
         mov	rdx, 12100500283911187475
         mulx	rax, rcx, rdi
@@ -20012,7 +20064,7 @@ sc_muladd_avx2 PROC
         and	r10, rcx
         and	r11, rcx
         add	r12, r9
-        mov	r9, 1152921504606846975
+        mov	r9, 2305843009213693951
         adc	r13, r10
         adc	r14, 0
         adc	r15, r11
