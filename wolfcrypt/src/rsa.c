@@ -3704,23 +3704,18 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #elif defined(WOLF_CRYPTO_CB_ONLY_RSA)
     return NO_VALID_DEVID;
 #else /* !WOLF_CRYPTO_CB_ONLY_RSA */
+    ret = 0;
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
     !defined(NO_RSA_BOUNDS_CHECK)
     if (type == RSA_PRIVATE_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
-        if (ret != 0) {
-            return ret;
-        }
     }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY && !TEST_UNPAD_CONSTANT_TIME && \
         * !NO_RSA_BOUNDS_CHECK */
 #if !defined(NO_RSA_BOUNDS_CHECK)
     if (type == RSA_PUBLIC_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
-        if (ret != 0) {
-            return ret;
-        }
     }
 #endif
 
@@ -3730,14 +3725,11 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
      * caller's checkSmallCt: the standard gives no opt-out on this path. */
     if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, 1);
-        if (ret != 0) {
-            return ret;
-        }
     }
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
-    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
+    if (ret == 0 && key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                         key->n.raw.len > 0) {
         /* wc_RsaFunctionAsync dispatches to the SP nonblock state machine
          * in its compute path when key->nb is attached - wolfAsync_DoSw
@@ -3749,7 +3741,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     else
 #endif
 #ifdef WC_RSA_NONBLOCK
-    if (key->nb) {
+    if (ret == 0 && key->nb) {
         /* Direct (non-async) nonblock dispatch - the caller (e.g. wolfcrypt
          * test) drives the loop on MP_WOULDBLOCK directly. Reached when no
          * async marker is set on the key. */
@@ -3757,7 +3749,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     }
     else
 #endif
-    {
+    if (ret == 0) {
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     }
 

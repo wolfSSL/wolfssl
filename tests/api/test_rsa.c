@@ -2912,6 +2912,95 @@ int test_wc_RsaOaep_EncryptFailureWipe(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_RSA) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_RSA) && !defined(NO_RSA_BOUNDS_CHECK) && \
+    !defined(WC_NO_RSA_OAEP) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(NO_SHA256) && \
+    !defined(WC_NO_RNG) && defined(WC_RSA_BLINDING) && \
+    defined(USE_CERT_BUFFERS_2048) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#define TEST_RSA_OAEP_ASYNC_RESET
+
+/* One OAEP-SHA256 operation, waiting out the async software device. */
+static int test_rsa_oaep_async(int decrypt, const byte* in, word32 inLen,
+    byte* out, word32 outLen, RsaKey* key, WC_RNG* rng)
+{
+    int ret = 0;
+
+    do {
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret >= 0) {
+            if (decrypt) {
+                ret = wc_RsaPrivateDecrypt_ex(in, inLen, out, outLen, key,
+                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                    NULL, 0);
+            }
+            else {
+                ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outLen, key,
+                    rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                    NULL, 0);
+            }
+        }
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+
+    return ret;
+}
+#endif
+
+/* An OAEP ciphertext of 1 refused while the async device runs it must leave
+ * the key usable for the next decryption. */
+int test_wc_RsaOaep_AsyncRangeFailReset(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_OAEP_ASYNC_RESET
+    RsaKey key;
+    WC_RNG rng;
+    word32 idx = 0;
+    byte cipher[256];
+    byte one[256];
+    byte plain[256];
+    int cipherLen = 0;
+    int initKey = 0;
+    int initRng = 0;
+    static const byte msg[16] = {
+        0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+        0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f
+    };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(one, 0, sizeof(one));
+    one[sizeof(one) - 1] = 1;
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) initRng = 1;
+    /* devId 0 selects the async software device. */
+    ExpectIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, 0), 0);
+    if (EXPECT_SUCCESS()) initKey = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+        sizeof_client_key_der_2048), 0);
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+
+    if (EXPECT_SUCCESS()) {
+        cipherLen = test_rsa_oaep_async(0, msg, sizeof(msg), cipher,
+            sizeof(cipher), &key, &rng);
+    }
+    ExpectIntEQ(cipherLen, sizeof(cipher));
+
+    ExpectIntLT(test_rsa_oaep_async(1, one, sizeof(one), plain, sizeof(plain),
+        &key, &rng), 0);
+
+    XMEMSET(plain, 0, sizeof(plain));
+    ExpectIntEQ(test_rsa_oaep_async(1, cipher, sizeof(cipher), plain,
+        sizeof(plain), &key, &rng), sizeof(msg));
+    ExpectBufEQ(plain, msg, sizeof(msg));
+
+    if (initKey) DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if !defined(NO_RSA) && defined(WOLF_CRYPTO_CB) && \
     defined(WOLF_CRYPTO_CB_FREE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
     (defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)) && \
