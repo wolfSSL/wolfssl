@@ -3308,8 +3308,8 @@ int test_wc_LmsKey_make_key_id_dev(void)
     wc_LmsKey_Free(&key);
 
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
-#if !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_LMS) && \
-    !defined(WOLF_CRYPTO_CB_FIND)
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_LMS) && !defined(WOLF_CRYPTO_CB_FIND)
     /* Without the registered device, key generation checks the software
      * key's storage callbacks. The fresh key has no write callback. */
     ExpectIntEQ(wc_LmsKey_InitId(&key, id, (int)sizeof(id), NULL,
@@ -3359,8 +3359,8 @@ int test_wc_XmssKey_make_key_id_dev(void)
     wc_XmssKey_Free(&key);
 
     wc_CryptoCb_UnRegisterDevice(TEST_LMS_XMSS_CRYPTOCB_DEVID);
-#if !defined(HAVE_SELFTEST) && !defined(WOLF_CRYPTO_CB_ONLY_XMSS) && \
-    !defined(WOLF_CRYPTO_CB_FIND)
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_XMSS) && !defined(WOLF_CRYPTO_CB_FIND)
     /* Without the registered device, key generation checks the software
      * key's storage callbacks. The fresh key has no write callback. */
     ExpectIntEQ(wc_XmssKey_InitId(&key, id, (int)sizeof(id), NULL,
