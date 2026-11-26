@@ -5122,6 +5122,10 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         WOLFSSL_MSG("wolfSSL_EC_KEY_generate_key SetECKeyExternal failed");
         res = 0;
     }
+    if (res == 1) {
+        /* Internal matches external. */
+        key->inSet = 1;
+    }
 
     return res;
 }
