@@ -17729,6 +17729,50 @@ int test_dtls13_cid_downgrade_not_negotiated(void)
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Split the single ClientHello record queued for the server into two fragments
+ * carried by records seq and seq + 1. */
+static int test_dtls13_split_ch(struct test_memio_ctx* ctx, word32 seq)
+{
+    EXPECT_DECLS;
+    byte rec[2048];
+    byte frag[2048];
+    const char* msg = NULL;
+    int msgSz = 0;
+    word32 bodySz, off, fragSz;
+    int i;
+
+    ExpectIntEQ(ctx->s_msg_count, 1);
+    ExpectIntEQ(test_memio_get_message(ctx, 0, &msg, &msgSz, 0), 0);
+    ExpectIntGT(msgSz, DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + 1);
+    ExpectIntLE(msgSz, (int)sizeof(rec));
+    if (!EXPECT_SUCCESS())
+        return EXPECT_RESULT();
+    XMEMCPY(rec, msg, (size_t)msgSz);
+    ExpectIntEQ(rec[0], handshake);
+    ExpectIntEQ(rec[DTLS_RECORD_HEADER_SZ], client_hello);
+    bodySz = (word32)msgSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ;
+    test_memio_clear_buffer(ctx, 0);
+    for (i = 0, off = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        fragSz = i == 0 ? bodySz / 2 : bodySz - off;
+        XMEMCPY(frag, rec, DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ);
+        XMEMSET(frag + 5, 0, 2);
+        c32toa(seq + (word32)i, frag + 7);
+        c16toa((word16)(DTLS_HANDSHAKE_HEADER_SZ + fragSz),
+                frag + DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN);
+        c32to24(off, frag + DTLS_RECORD_HEADER_SZ + 6);
+        c32to24(fragSz, frag + DTLS_RECORD_HEADER_SZ + 9);
+        XMEMCPY(frag + DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ,
+                rec + DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + off,
+                fragSz);
+        ExpectIntEQ(test_memio_inject_message(ctx, 0, (const char*)frag,
+                (int)(DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+                        fragSz)), 0);
+        off += fragSz;
+    }
+    ExpectIntEQ(ctx->s_msg_count, 2);
+    return EXPECT_RESULT();
+}
+
 /* Simulate loss of the HelloRetryRequest.
  * - On a stateless server, recovery is accomplished through the client
  *   retransmitting its ClientHello, which the server answers with a freshly
@@ -17740,9 +17784,11 @@ int test_dtls13_cid_downgrade_not_negotiated(void)
  *   resends the buffered HRR.
  * - On a stateful server whose resent HRR is lost as well, the ACK sent with
  *   it has stopped the client from retransmitting, so only the server's timer
- *   can recover the handshake. */
+ *   can recover the handshake.
+ * - A fragmented first ClientHello (cookie off, fragments allowed) is
+ *   reassembled both on arrival and when retransmitted; otherwise as above. */
 static int test_dtls13_hrr_lost_ex(int cookie, int serverTimer,
-    int loseResend)
+    int loseResend, int fragCh)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
@@ -17762,10 +17808,16 @@ static int test_dtls13_hrr_lost_ex(int cookie, int serverTimer,
     else
         ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (fragCh)
+        ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+#endif
 
     ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
             WOLFSSL_ERROR_WANT_READ);
+    if (fragCh)
+        ExpectIntEQ(test_dtls13_split_ch(&test_ctx, 0), TEST_SUCCESS);
     ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
             WOLFSSL_ERROR_WANT_READ);
@@ -17793,7 +17845,9 @@ static int test_dtls13_hrr_lost_ex(int cookie, int serverTimer,
     else {
         for (i = 0; i < 2 && test_ctx.s_msg_count == 0; i++)
             ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
-        ExpectIntEQ(test_ctx.s_msg_count, 1);
+        if (fragCh)
+            ExpectIntEQ(test_dtls13_split_ch(&test_ctx, 2), TEST_SUCCESS);
+        ExpectIntEQ(test_ctx.s_msg_count, fragCh ? 2 : 1);
         ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
         ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
                 WOLFSSL_ERROR_WANT_READ);
@@ -17869,10 +17923,13 @@ int test_dtls13_hrr_lost(void)
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-    ExpectIntEQ(test_dtls13_hrr_lost_ex(1, 0, 0), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 0), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 1, 0), TEST_SUCCESS);
-    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 1), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(1, 0, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 1, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 1, 0), TEST_SUCCESS);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 0, 1), TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }
