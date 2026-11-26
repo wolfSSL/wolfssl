@@ -4299,6 +4299,7 @@ int test_wolfSSL_CTX_use_PrivateKey_pkcs8_repopulate(void)
     !defined(NO_BIO) && !defined(SINGLE_THREADED) && !defined(NO_SHA256)
 #define EVP_PKEY_SHARED_THREADS 4
 #define EVP_PKEY_SHARED_ROUNDS  16
+#define EVP_PKEY_SHARED_ENC_SZ  256
 
 typedef struct EvpPkeySharedThreadData {
     EVP_PKEY* key;
@@ -4307,7 +4308,12 @@ typedef struct EvpPkeySharedThreadData {
     size_t secretSz;
     int sign;
     int encrypt;
+    int encode;
     int failures;
+    unsigned char priv[EVP_PKEY_SHARED_ENC_SZ];
+    int privSz;
+    unsigned char pub[EVP_PKEY_SHARED_ENC_SZ];
+    int pubSz;
 } EvpPkeySharedThreadData;
 
 static int test_EVP_PKEY_shared_sign_verify(EVP_PKEY* key)
@@ -4367,6 +4373,63 @@ static int test_EVP_PKEY_shared_derive(EVP_PKEY* key, EVP_PKEY* peer,
     return ok;
 }
 
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+/* Encode the private key and the public key of an EC key. */
+static int test_EVP_PKEY_shared_encode(EVP_PKEY* key, unsigned char* priv,
+    int* privSz, unsigned char* pub, int* pubSz)
+{
+    EC_KEY* ec = EVP_PKEY_get0_EC_KEY(key);
+    unsigned char* der = NULL;
+    int ok;
+
+    *privSz = i2d_ECPrivateKey(ec, &der);
+    ok = (*privSz > 0) && (*privSz <= EVP_PKEY_SHARED_ENC_SZ);
+    if (ok) {
+        XMEMCPY(priv, der, (size_t)*privSz);
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = NULL;
+    if (ok) {
+        *pubSz = i2o_ECPublicKey(ec, &der);
+        ok = (*pubSz > 0) && (*pubSz <= EVP_PKEY_SHARED_ENC_SZ);
+    }
+    if (ok) {
+        XMEMCPY(pub, der, (size_t)*pubSz);
+    }
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    return ok;
+}
+#endif
+
+/* Encode the key and check it encodes the same as last time. */
+static int test_EVP_PKEY_shared_encode_check(EvpPkeySharedThreadData* data)
+{
+    int ok = 0;
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    unsigned char priv[EVP_PKEY_SHARED_ENC_SZ];
+    unsigned char pub[EVP_PKEY_SHARED_ENC_SZ];
+    int privSz = 0;
+    int pubSz = 0;
+
+    ok = test_EVP_PKEY_shared_encode(data->key, priv, &privSz, pub, &pubSz);
+    if (ok && (data->privSz == 0)) {
+        XMEMCPY(data->priv, priv, (size_t)privSz);
+        data->privSz = privSz;
+        XMEMCPY(data->pub, pub, (size_t)pubSz);
+        data->pubSz = pubSz;
+    }
+    else if (ok) {
+        ok = (privSz == data->privSz) &&
+            (XMEMCMP(priv, data->priv, (size_t)privSz) == 0) &&
+            (pubSz == data->pubSz) &&
+            (XMEMCMP(pub, data->pub, (size_t)pubSz) == 0);
+    }
+#else
+    (void)data;
+#endif
+    return ok;
+}
+
 static THREAD_RETURN WOLFSSL_THREAD test_EVP_PKEY_shared_thread(void* arg)
 {
     EvpPkeySharedThreadData* data = (EvpPkeySharedThreadData*)arg;
@@ -4382,6 +4445,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_EVP_PKEY_shared_thread(void* arg)
                 !test_EVP_PKEY_shared_encrypt_decrypt(data->key)) {
             data->failures++;
         }
+        if (data->encode && !test_EVP_PKEY_shared_encode_check(data)) {
+            data->failures++;
+        }
         if (data->peer != NULL) {
             secretSz = sizeof(secret);
             if (!test_EVP_PKEY_shared_derive(data->key, data->peer, secret,
@@ -4395,9 +4461,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_EVP_PKEY_shared_thread(void* arg)
 }
 
 /* Use the key in several threads at once. Every other thread uses key2 if
- * set. A peer is derived with and must give the same secret every time. */
+ * set. A peer is derived with and must give the same secret every time. An
+ * encoded EC key must be the same in every thread. */
 static int test_EVP_PKEY_shared_threads_key(EVP_PKEY* key, EVP_PKEY* key2,
-    EVP_PKEY* peer, int sign, int encrypt)
+    EVP_PKEY* peer, int sign, int encrypt, int encode)
 {
     EXPECT_DECLS;
     EvpPkeySharedThreadData data[EVP_PKEY_SHARED_THREADS];
@@ -4419,6 +4486,7 @@ static int test_EVP_PKEY_shared_threads_key(EVP_PKEY* key, EVP_PKEY* key2,
         data[started].secretSz = secretSz;
         data[started].sign = sign;
         data[started].encrypt = encrypt;
+        data[started].encode = encode;
         ExpectIntEQ(wolfSSL_NewThread(&threads[started],
             test_EVP_PKEY_shared_thread, &data[started]), 0);
         if (EXPECT_SUCCESS()) {
@@ -4431,6 +4499,24 @@ static int test_EVP_PKEY_shared_threads_key(EVP_PKEY* key, EVP_PKEY* key2,
     for (i = 0; i < started; i++) {
         ExpectIntEQ(data[i].failures, 0);
     }
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    if (encode) {
+        unsigned char priv[EVP_PKEY_SHARED_ENC_SZ];
+        unsigned char pub[EVP_PKEY_SHARED_ENC_SZ];
+        int privSz = 0;
+        int pubSz = 0;
+
+        /* All threads encoded what the key encodes now. */
+        ExpectIntEQ(test_EVP_PKEY_shared_encode(key, priv, &privSz, pub,
+            &pubSz), 1);
+        for (i = 0; i < started; i++) {
+            ExpectIntEQ(data[i].privSz, privSz);
+            ExpectBufEQ(data[i].priv, priv, privSz);
+            ExpectIntEQ(data[i].pubSz, pubSz);
+            ExpectBufEQ(data[i].pub, pub, pubSz);
+        }
+    }
+#endif
     return EXPECT_RESULT();
 }
 
@@ -4458,8 +4544,12 @@ int test_wolfSSL_EVP_PKEY_shared_threads(void)
     EVP_PKEY* key = NULL;
     EVP_PKEY* key2 = NULL;
     EVP_PKEY* peer = NULL;
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) || \
+    (defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
     EVP_PKEY_CTX* genCtx = NULL;
+#endif
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    EC_KEY* ec = NULL;
 #endif
 
 #ifndef NO_RSA
@@ -4467,7 +4557,7 @@ int test_wolfSSL_EVP_PKEY_shared_threads(void)
     /* A second key holding the same RSA object. */
     ExpectNotNull(key2 = EVP_PKEY_new());
     ExpectIntEQ(EVP_PKEY_set1_RSA(key2, EVP_PKEY_get0_RSA(key)), 1);
-    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key, key2, NULL, 1, 1),
+    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key, key2, NULL, 1, 1, 0),
         TEST_SUCCESS);
     EVP_PKEY_free(key);
     key = NULL;
@@ -4480,7 +4570,7 @@ int test_wolfSSL_EVP_PKEY_shared_threads(void)
     /* A second key holding the same EC_KEY object. */
     ExpectNotNull(key2 = EVP_PKEY_new());
     ExpectIntEQ(EVP_PKEY_set1_EC_KEY(key2, EVP_PKEY_get0_EC_KEY(key)), 1);
-    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key, key2, peer, 1, 0),
+    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key, key2, peer, 1, 0, 0),
         TEST_SUCCESS);
     EVP_PKEY_free(key);
     key = NULL;
@@ -4488,6 +4578,32 @@ int test_wolfSSL_EVP_PKEY_shared_threads(void)
     key2 = NULL;
     EVP_PKEY_free(peer);
     peer = NULL;
+
+    /* Keys first used by the threads: a generated key, and a key set from its
+     * parts whose public key is copied out on first use. */
+    ExpectNotNull(genCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(genCtx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(genCtx,
+        NID_X9_62_prime256v1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_PKEY_keygen(genCtx, &key), WOLFSSL_SUCCESS);
+    EVP_PKEY_CTX_free(genCtx);
+    genCtx = NULL;
+    ExpectNotNull(ec = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectIntEQ(EC_KEY_set_private_key(ec,
+        EC_KEY_get0_private_key(EVP_PKEY_get0_EC_KEY(key))), 1);
+    ExpectIntEQ(EC_KEY_set_public_key(ec,
+        EC_KEY_get0_public_key(EVP_PKEY_get0_EC_KEY(key))), 1);
+    ExpectNotNull(key2 = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_set1_EC_KEY(key2, ec), 1);
+    EC_KEY_free(ec);
+    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key, NULL, NULL, 1, 0, 1),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key2, NULL, NULL, 1, 0, 1),
+        TEST_SUCCESS);
+    EVP_PKEY_free(key);
+    key = NULL;
+    EVP_PKEY_free(key2);
+    key2 = NULL;
 #endif
 #ifdef HAVE_CURVE25519
     ExpectNotNull(genCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL));
@@ -4495,7 +4611,7 @@ int test_wolfSSL_EVP_PKEY_shared_threads(void)
     ExpectIntEQ(EVP_PKEY_keygen(genCtx, &key), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_PKEY_keygen(genCtx, &peer), WOLFSSL_SUCCESS);
     EVP_PKEY_CTX_free(genCtx);
-    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key, NULL, peer, 0, 0),
+    ExpectIntEQ(test_EVP_PKEY_shared_threads_key(key, NULL, peer, 0, 0, 0),
         TEST_SUCCESS);
     EVP_PKEY_free(key);
     EVP_PKEY_free(peer);
