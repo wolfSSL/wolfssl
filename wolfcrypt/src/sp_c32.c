@@ -5493,11 +5493,15 @@ SP_NOINLINE static void sp_2048_lshift_72(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[72] = a[71] >> (29 - n);
-    for (i=71; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<72; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[72] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
@@ -9854,11 +9858,15 @@ SP_NOINLINE static void sp_3072_lshift_106(sp_digit* r, const sp_digit* a,
         byte n)
 {
     int i;
+    sp_uint64 t;
 
-    r[106] = a[105] >> (29 - n);
-    for (i=105; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<106; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[106] = (sp_digit)t;
     r[0] = (sp_digit)(((sp_uint32)a[0] << n) & 0x1fffffff);
 }
 
@@ -18911,11 +18919,15 @@ SP_NOINLINE static void sp_4096_lshift_142(sp_digit* r, const sp_digit* a,
         byte n)
 {
     int i;
+    sp_uint64 t;
 
-    r[142] = a[141] >> (29 - n);
-    for (i=141; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<142; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[142] = (sp_digit)t;
     r[0] = (sp_digit)(((sp_uint32)a[0] << n) & 0x1fffffff);
 }
 
@@ -29245,11 +29257,15 @@ SP_NOINLINE static void sp_256_lshift_18(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[18] = a[17] >> (29 - n);
-    for (i=17; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<18; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[18] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
@@ -37077,11 +37093,15 @@ SP_NOINLINE static void sp_384_lshift_30(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[30] = a[29] >> (26 - n);
-    for (i=29; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (26 - n))) & 0x3ffffff);
+    t = ((sp_uint64)a[0] << n) >> 26;
+    for (i=1; i<30; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x3ffffff);
+        t >>= 26;
     }
+    r[30] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
@@ -44986,11 +45006,15 @@ SP_NOINLINE static void sp_521_lshift_42(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[42] = a[41] >> (25 - n);
-    for (i=41; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (25 - n))) & 0x1ffffff);
+    t = ((sp_uint64)a[0] << n) >> 25;
+    for (i=1; i<42; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1ffffff);
+        t >>= 25;
     }
+    r[42] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
