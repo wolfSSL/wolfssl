@@ -7627,9 +7627,18 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
  * contentSz, which a header/footer verify takes from the caller. */
 static void wc_PKCS7_DropVerifyContent(wc_PKCS7* pkcs7, int keepSz)
 {
-    if (pkcs7->content != NULL &&
-            (pkcs7->content == pkcs7->verifyContent ||
-             pkcs7->content == pkcs7->contentDynamic)) {
+    int drop = 0;
+
+    if (pkcs7->content != NULL) {
+        drop = (pkcs7->content == pkcs7->verifyContent ||
+                pkcs7->content == pkcs7->contentDynamic);
+    #ifndef NO_PKCS7_STREAM
+        /* a verify paused after stage 5 leaves content on the stream buffer */
+        if (pkcs7->stream != NULL && pkcs7->content == pkcs7->stream->content)
+            drop = 1;
+    #endif
+    }
+    if (drop) {
         pkcs7->content = NULL;
         if (!keepSz)
             pkcs7->contentSz = 0;

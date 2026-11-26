@@ -10958,6 +10958,74 @@ int test_wc_PKCS7_VerifySignedData_ReuseEmbeddedContent(void)
     return EXPECT_RESULT();
 }
 
+/* A streaming verify paused near the end and abandoned through another
+ * decoder's error path does not leave its content to the next verify. */
+int test_wc_PKCS7_VerifySignedData_ReusePausedVerify(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_PKCS7_STREAM)
+    static const byte data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    int    msgSz = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    byte   junk[64];
+    byte   out[256];
+    int    ret = 0;
+    int    z;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(junk, 0x30, sizeof(junk));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content      = (byte*)data;
+        pkcs7->contentSz    = sizeof(data);
+        pkcs7->contentOID   = DATA;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        pkcs7->rng          = &rng;
+    }
+    ExpectIntGT((msgSz = wc_PKCS7_EncodeSignedData(pkcs7, msg, msgMax)), 20);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    /* stop in the signerInfos, after the certificates stage */
+    for (z = 0; EXPECT_SUCCESS() && z < msgSz - 20; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, msg + z, 1);
+        if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+            break;
+    }
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+    ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(pkcs7, junk, sizeof(junk), out,
+        sizeof(out)), 0);
+
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+        ExpectNotNull(pkcs7->content);
+        if (pkcs7->content != NULL) {
+            ExpectBufEQ(pkcs7->content, data, sizeof(data));
+        }
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
     defined(USE_CERT_BUFFERS_2048) && !defined(NO_PKCS7_STREAM)
 /* Feed a message to wc_PKCS7_VerifySignedData() one byte per call. */
