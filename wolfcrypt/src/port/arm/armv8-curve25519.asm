@@ -11052,6 +11052,23 @@ sc_reduce PROC
 	adc	x9, x9, xzr
 	subs	x8, x8, x23
 	sbc	x9, x9, xzr
+	;   Add order if negative
+	asr	x23, x9, #63
+	mov	x10, #0xd3ed
+	movk	x10, #0x5cf5, lsl 16
+	movk	x10, #0x631a, lsl 32
+	movk	x10, #0x5812, lsl 48
+	mov	x11, #0x9cd6
+	movk	x11, #0xa2f7, lsl 16
+	movk	x11, #0xf9de, lsl 32
+	movk	x11, #0x14de, lsl 48
+	and	x10, x10, x23
+	and	x11, x11, x23
+	and	x23, x23, #0x1000000000000000
+	adds	x6, x6, x10
+	adcs	x7, x7, x11
+	adcs	x8, x8, xzr
+	adc	x9, x9, x23
 	; Sub product of top 4 words and order
 	mov	x1, #0x2c13
 	movk	x1, #0xa30a, lsl 16
@@ -11182,7 +11199,7 @@ sc_reduce PROC
 	adcs	x3, x3, x11
 	and	x1, x1, #0x1000000000000000
 	adcs	x4, x4, xzr
-	mov	x23, #15
+	mov	x23, #14
 	adc	x5, x5, x1
 	bic	x5, x5, x23, lsl 60
 	; Store result
@@ -11339,6 +11356,23 @@ sc_muladd PROC
 	adc	x11, x11, xzr
 	subs	x10, x10, x25
 	sbc	x11, x11, xzr
+	;   Add order if negative
+	asr	x25, x11, #63
+	mov	x21, #0xd3ed
+	movk	x21, #0x5cf5, lsl 16
+	movk	x21, #0x631a, lsl 32
+	movk	x21, #0x5812, lsl 48
+	mov	x22, #0x9cd6
+	movk	x22, #0xa2f7, lsl 16
+	movk	x22, #0xf9de, lsl 32
+	movk	x22, #0x14de, lsl 48
+	and	x21, x21, x25
+	and	x22, x22, x25
+	and	x25, x25, #0x1000000000000000
+	adds	x8, x8, x21
+	adcs	x9, x9, x22
+	adcs	x10, x10, xzr
+	adc	x11, x11, x25
 	; Sub product of top 4 words and order
 	mov	x26, #0x2c13
 	movk	x26, #0xa30a, lsl 16
@@ -11469,7 +11503,7 @@ sc_muladd PROC
 	adcs	x5, x5, x17
 	and	x26, x26, #0x1000000000000000
 	adcs	x6, x6, xzr
-	mov	x25, #15
+	mov	x25, #14
 	adc	x7, x7, x26
 	bic	x7, x7, x25, lsl 60
 	; Store result

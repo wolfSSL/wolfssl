@@ -5684,6 +5684,25 @@ sc_reduce:
 	SBCS	r7, r7, #0
 	SBCS	r8, r8, #0
 	SBC	r9, r9, #0
+	/*   Add order if negative */
+	ASR	lr, r9, #31
+	BIC	r1, lr, r10
+	BIC	r11, lr, r11
+	MOV	r10, #0xd3ed
+	MOVT	r10, #0x5cf5
+	AND	r10, r10, lr
+	ADDS	r2, r2, r10
+	MOV	r10, #0x631a
+	MOVT	r10, #0x5812
+	AND	r10, r10, lr
+	ADCS	r3, r3, r10
+	ADCS	r4, r4, r1
+	ADCS	r5, r5, r11
+	ADCS	r6, r6, #0
+	ADCS	r7, r7, #0
+	AND	lr, lr, #0x10000000
+	ADCS	r8, r8, #0
+	ADC	r9, r9, lr
 	/* Sub product of top 8 words and order */
 	MOV	r12, sp
 	MOV	r1, #0x2c13
@@ -5905,11 +5924,11 @@ sc_reduce:
 	ADCS	r11, r11, #0
 	STM	r12!, {r10, r11}
 	LDM	r12, {r10}
-	ADCS	r10, r10, #0
+	ADC	r10, r10, r9
 	STM	r12!, {r10}
 	SUB	r0, r0, #16
 	MOV	r12, sp
-	/* Load bits 252-376 */
+	/* Load bits 252-377 */
 	ADD	r12, r12, #28
 	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
@@ -5920,7 +5939,7 @@ sc_reduce:
 	ORR	r3, r3, r2, LSR #28
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
-	BFC	r5, #29, #3
+	BFC	r5, #30, #2
 	SUB	r12, r12, #28
 	/* Sub product of top 4 words and order */
 	MOV	r0, sp
@@ -6040,13 +6059,13 @@ sc_reduce:
 	AND	r1, r1, #0x10000000
 	ADCS	r8, r8, #0
 	ADC	r9, r9, r1
-	BFC	r9, #28, #4
+	BFC	r9, #29, #3
 	/* Store result */
 	LDR	r0, [sp, #52]
 	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
 	ADD	sp, sp, #56
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 588 */
+	/* Cycle Count = 606 */
 	.size	sc_reduce,.-sc_reduce
 #else
 	.text
@@ -6102,6 +6121,25 @@ sc_reduce:
 	SBCS	r7, r7, #0
 	SBCS	r8, r8, #0
 	SBC	r9, r9, #0
+	/*   Add order if negative */
+	ASR	lr, r9, #31
+	BIC	r1, lr, r10
+	BIC	r11, lr, r11
+	MOV	r10, #0xd3ed
+	MOVT	r10, #0x5cf5
+	AND	r10, r10, lr
+	ADDS	r2, r2, r10
+	MOV	r10, #0x631a
+	MOVT	r10, #0x5812
+	AND	r10, r10, lr
+	ADCS	r3, r3, r10
+	ADCS	r4, r4, r1
+	ADCS	r5, r5, r11
+	ADCS	r6, r6, #0
+	ADCS	r7, r7, #0
+	AND	lr, lr, #0x10000000
+	ADCS	r8, r8, #0
+	ADC	r9, r9, lr
 	/* Sub product of top 8 words and order */
 	MOV	r12, sp
 	MOV	r1, #0x2c13
@@ -6239,11 +6277,11 @@ sc_reduce:
 	ADCS	r11, r11, #0
 	STM	r12!, {r10, r11}
 	LDM	r12, {r10}
-	ADCS	r10, r10, #0
+	ADC	r10, r10, r9
 	STM	r12!, {r10}
 	SUB	r0, r0, #16
 	MOV	r12, sp
-	/* Load bits 252-376 */
+	/* Load bits 252-377 */
 	ADD	r12, r12, #28
 	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
@@ -6254,7 +6292,7 @@ sc_reduce:
 	ORR	r3, r3, r2, LSR #28
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
-	BFC	r5, #29, #3
+	BFC	r5, #30, #2
 	SUB	r12, r12, #28
 	/* Sub product of top 4 words and order */
 	MOV	r0, sp
@@ -6338,13 +6376,13 @@ sc_reduce:
 	AND	r1, r1, #0x10000000
 	ADCS	r8, r8, #0
 	ADC	r9, r9, r1
-	BFC	r9, #28, #4
+	BFC	r9, #29, #3
 	/* Store result */
 	LDR	r0, [sp, #52]
 	STM	r0, {r2, r3, r4, r5, r6, r7, r8, r9}
 	ADD	sp, sp, #56
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 502 */
+	/* Cycle Count = 520 */
 	.size	sc_reduce,.-sc_reduce
 #endif /* WOLFSSL_ARM_ARCH_7M */
 #ifdef HAVE_ED25519_SIGN
@@ -6761,6 +6799,25 @@ sc_muladd:
 	SBCS	r7, r7, #0
 	SBCS	r8, r8, #0
 	SBC	r9, r9, #0
+	/*   Add order if negative */
+	ASR	lr, r9, #31
+	BIC	r1, lr, r10
+	BIC	r11, lr, r11
+	MOV	r10, #0xd3ed
+	MOVT	r10, #0x5cf5
+	AND	r10, r10, lr
+	ADDS	r2, r2, r10
+	MOV	r10, #0x631a
+	MOVT	r10, #0x5812
+	AND	r10, r10, lr
+	ADCS	r3, r3, r10
+	ADCS	r4, r4, r1
+	ADCS	r5, r5, r11
+	ADCS	r6, r6, #0
+	ADCS	r7, r7, #0
+	AND	lr, lr, #0x10000000
+	ADCS	r8, r8, #0
+	ADC	r9, r9, lr
 	/* Sub product of top 8 words and order */
 	MOV	r12, sp
 	MOV	r1, #0x2c13
@@ -6982,11 +7039,11 @@ sc_muladd:
 	ADCS	r11, r11, #0
 	STM	r12!, {r10, r11}
 	LDM	r12, {r10}
-	ADCS	r10, r10, #0
+	ADC	r10, r10, r9
 	STM	r12!, {r10}
 	SUB	r0, r0, #16
 	MOV	r12, sp
-	/* Load bits 252-376 */
+	/* Load bits 252-377 */
 	ADD	r12, r12, #28
 	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
@@ -6997,7 +7054,7 @@ sc_muladd:
 	ORR	r3, r3, r2, LSR #28
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
-	BFC	r5, #29, #3
+	BFC	r5, #30, #2
 	SUB	r12, r12, #28
 	/* Sub product of top 4 words and order */
 	MOV	r0, sp
@@ -7117,7 +7174,7 @@ sc_muladd:
 	AND	r1, r1, #0x10000000
 	ADCS	r8, r8, #0
 	ADC	r9, r9, r1
-	BFC	r9, #28, #4
+	BFC	r9, #29, #3
 	LDR	r0, [sp, #68]
 	/* Store result */
 	STR	r2, [r0]
@@ -7130,7 +7187,7 @@ sc_muladd:
 	STR	r9, [r0, #28]
 	ADD	sp, sp, #0x50
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 994 */
+	/* Cycle Count = 1012 */
 	.size	sc_muladd,.-sc_muladd
 #else
 	.text
@@ -7309,6 +7366,25 @@ sc_muladd:
 	SBCS	r7, r7, #0
 	SBCS	r8, r8, #0
 	SBC	r9, r9, #0
+	/*   Add order if negative */
+	ASR	lr, r9, #31
+	BIC	r1, lr, r10
+	BIC	r11, lr, r11
+	MOV	r10, #0xd3ed
+	MOVT	r10, #0x5cf5
+	AND	r10, r10, lr
+	ADDS	r2, r2, r10
+	MOV	r10, #0x631a
+	MOVT	r10, #0x5812
+	AND	r10, r10, lr
+	ADCS	r3, r3, r10
+	ADCS	r4, r4, r1
+	ADCS	r5, r5, r11
+	ADCS	r6, r6, #0
+	ADCS	r7, r7, #0
+	AND	lr, lr, #0x10000000
+	ADCS	r8, r8, #0
+	ADC	r9, r9, lr
 	/* Sub product of top 8 words and order */
 	MOV	r12, sp
 	MOV	r1, #0x2c13
@@ -7446,11 +7522,11 @@ sc_muladd:
 	ADCS	r11, r11, #0
 	STM	r12!, {r10, r11}
 	LDM	r12, {r10}
-	ADCS	r10, r10, #0
+	ADC	r10, r10, r9
 	STM	r12!, {r10}
 	SUB	r0, r0, #16
 	MOV	r12, sp
-	/* Load bits 252-376 */
+	/* Load bits 252-377 */
 	ADD	r12, r12, #28
 	LDM	r12, {r1, r2, r3, r4, r5}
 	LSL	r5, r5, #4
@@ -7461,7 +7537,7 @@ sc_muladd:
 	ORR	r3, r3, r2, LSR #28
 	LSL	r2, r2, #4
 	ORR	r2, r2, r1, LSR #28
-	BFC	r5, #29, #3
+	BFC	r5, #30, #2
 	SUB	r12, r12, #28
 	/* Sub product of top 4 words and order */
 	MOV	r0, sp
@@ -7545,7 +7621,7 @@ sc_muladd:
 	AND	r1, r1, #0x10000000
 	ADCS	r8, r8, #0
 	ADC	r9, r9, r1
-	BFC	r9, #28, #4
+	BFC	r9, #29, #3
 	LDR	r0, [sp, #68]
 	/* Store result */
 	STR	r2, [r0]
@@ -7558,7 +7634,7 @@ sc_muladd:
 	STR	r9, [r0, #28]
 	ADD	sp, sp, #0x50
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	/* Cycle Count = 752 */
+	/* Cycle Count = 770 */
 	.size	sc_muladd,.-sc_muladd
 #endif /* WOLFSSL_ARM_ARCH_7M */
 #endif /* HAVE_ED25519_SIGN */

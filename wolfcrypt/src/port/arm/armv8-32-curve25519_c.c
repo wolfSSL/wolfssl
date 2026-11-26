@@ -7140,6 +7140,59 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "sbcs	r7, r7, #0\n\t"
         "sbcs	r8, r8, #0\n\t"
         "sbc	r9, r9, #0\n\t"
+        /*   Add order if negative */
+        "asr	lr, r9, #31\n\t"
+        "bic	r1, lr, r10\n\t"
+        "bic	r11, lr, r11\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+        "mov	r10, #0xd3ed\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
+        "movt	r10, #0x5cf5\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adds	r2, r2, r10\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #26\n\t"
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0x1a\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+        "mov	r10, #0x631a\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+#else
+        "movt	r10, #0x5812\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adcs	r3, r3, r10\n\t"
+        "adcs	r4, r4, r1\n\t"
+        "adcs	r5, r5, r11\n\t"
+        "adcs	r6, r6, #0\n\t"
+        "adcs	r7, r7, #0\n\t"
+        "and	lr, lr, #0x10000000\n\t"
+        "adcs	r8, r8, #0\n\t"
+        "adc	r9, r9, lr\n\t"
         /* Sub product of top 8 words and order */
         "mov	r12, sp\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -7501,11 +7554,11 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "adcs	r11, r11, #0\n\t"
         "stm	r12!, {r10, r11}\n\t"
         "ldm	r12, {r10}\n\t"
-        "adcs	r10, r10, #0\n\t"
+        "adc	r10, r10, r9\n\t"
         "stm	r12!, {r10}\n\t"
         "sub	%[s], %[s], #16\n\t"
         "mov	r12, sp\n\t"
-        /* Load bits 252-376 */
+        /* Load bits 252-377 */
         "add	r12, r12, #28\n\t"
         "ldm	r12, {r1, r2, r3, r4, r5}\n\t"
         "lsl	r5, r5, #4\n\t"
@@ -7517,9 +7570,9 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "lsl	r2, r2, #4\n\t"
         "orr	r2, r2, r1, lsr #28\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xe0000000\n\t"
+        "bic	r5, r5, #0xc0000000\n\t"
 #else
-        "bfc	r5, #29, #3\n\t"
+        "bfc	r5, #30, #2\n\t"
 #endif
         "sub	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
@@ -7781,9 +7834,9 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, r1\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xf0000000\n\t"
+        "bic	r9, r9, #0xe0000000\n\t"
 #else
-        "bfc	r9, #28, #4\n\t"
+        "bfc	r9, #29, #3\n\t"
 #endif
         /* Store result */
         "ldr	%[s], [sp, #52]\n\t"
@@ -7931,6 +7984,59 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "sbcs	r7, r7, #0\n\t"
         "sbcs	r8, r8, #0\n\t"
         "sbc	r9, r9, #0\n\t"
+        /*   Add order if negative */
+        "asr	lr, r9, #31\n\t"
+        "bic	r1, lr, r10\n\t"
+        "bic	r11, lr, r11\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+        "mov	r10, #0xd3ed\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
+        "movt	r10, #0x5cf5\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adds	r2, r2, r10\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #26\n\t"
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0x1a\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+        "mov	r10, #0x631a\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+#else
+        "movt	r10, #0x5812\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adcs	r3, r3, r10\n\t"
+        "adcs	r4, r4, r1\n\t"
+        "adcs	r5, r5, r11\n\t"
+        "adcs	r6, r6, #0\n\t"
+        "adcs	r7, r7, #0\n\t"
+        "and	lr, lr, #0x10000000\n\t"
+        "adcs	r8, r8, #0\n\t"
+        "adc	r9, r9, lr\n\t"
         /* Sub product of top 8 words and order */
         "mov	r12, sp\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -8208,11 +8314,11 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "adcs	r11, r11, #0\n\t"
         "stm	r12!, {r10, r11}\n\t"
         "ldm	r12, {r10}\n\t"
-        "adcs	r10, r10, #0\n\t"
+        "adc	r10, r10, r9\n\t"
         "stm	r12!, {r10}\n\t"
         "sub	%[s], %[s], #16\n\t"
         "mov	r12, sp\n\t"
-        /* Load bits 252-376 */
+        /* Load bits 252-377 */
         "add	r12, r12, #28\n\t"
         "ldm	r12, {r1, r2, r3, r4, r5}\n\t"
         "lsl	r5, r5, #4\n\t"
@@ -8224,9 +8330,9 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "lsl	r2, r2, #4\n\t"
         "orr	r2, r2, r1, lsr #28\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xe0000000\n\t"
+        "bic	r5, r5, #0xc0000000\n\t"
 #else
-        "bfc	r5, #29, #3\n\t"
+        "bfc	r5, #30, #2\n\t"
 #endif
         "sub	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
@@ -8452,9 +8558,9 @@ WC_OMIT_FRAME_POINTER void sc_reduce(byte* s)
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, r1\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xf0000000\n\t"
+        "bic	r9, r9, #0xe0000000\n\t"
 #else
-        "bfc	r9, #28, #4\n\t"
+        "bfc	r9, #29, #3\n\t"
 #endif
         /* Store result */
         "ldr	%[s], [sp, #52]\n\t"
@@ -8968,6 +9074,59 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "sbcs	r7, r7, #0\n\t"
         "sbcs	r8, r8, #0\n\t"
         "sbc	r9, r9, #0\n\t"
+        /*   Add order if negative */
+        "asr	lr, r9, #31\n\t"
+        "bic	%[a], lr, r10\n\t"
+        "bic	r11, lr, r11\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+        "mov	r10, #0xd3ed\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
+        "movt	r10, #0x5cf5\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adds	%[b], %[b], r10\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #26\n\t"
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0x1a\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+        "mov	r10, #0x631a\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+#else
+        "movt	r10, #0x5812\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adcs	%[c], %[c], r10\n\t"
+        "adcs	r4, r4, %[a]\n\t"
+        "adcs	r5, r5, r11\n\t"
+        "adcs	r6, r6, #0\n\t"
+        "adcs	r7, r7, #0\n\t"
+        "and	lr, lr, #0x10000000\n\t"
+        "adcs	r8, r8, #0\n\t"
+        "adc	r9, r9, lr\n\t"
         /* Sub product of top 8 words and order */
         "mov	r12, sp\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -9329,11 +9488,11 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "adcs	r11, r11, #0\n\t"
         "stm	r12!, {r10, r11}\n\t"
         "ldm	r12, {r10}\n\t"
-        "adcs	r10, r10, #0\n\t"
+        "adc	r10, r10, r9\n\t"
         "stm	r12!, {r10}\n\t"
         "sub	%[s], %[s], #16\n\t"
         "mov	r12, sp\n\t"
-        /* Load bits 252-376 */
+        /* Load bits 252-377 */
         "add	r12, r12, #28\n\t"
         "ldm	r12, {r1, r2, r3, r4, r5}\n\t"
         "lsl	r5, r5, #4\n\t"
@@ -9345,9 +9504,9 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "lsl	%[b], %[b], #4\n\t"
         "orr	%[b], %[b], %[a], lsr #28\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xe0000000\n\t"
+        "bic	r5, r5, #0xc0000000\n\t"
 #else
-        "bfc	r5, #29, #3\n\t"
+        "bfc	r5, #30, #2\n\t"
 #endif
         "sub	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
@@ -9609,9 +9768,9 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, %[a]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xf0000000\n\t"
+        "bic	r9, r9, #0xe0000000\n\t"
 #else
-        "bfc	r9, #28, #4\n\t"
+        "bfc	r9, #29, #3\n\t"
 #endif
         "ldr	%[s], [sp, #68]\n\t"
         /* Store result */
@@ -9894,6 +10053,59 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "sbcs	r7, r7, #0\n\t"
         "sbcs	r8, r8, #0\n\t"
         "sbc	r9, r9, #0\n\t"
+        /*   Add order if negative */
+        "asr	lr, r9, #31\n\t"
+        "bic	%[a], lr, r10\n\t"
+        "bic	r11, lr, r11\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0xed\n\t"
+        "orr	r10, r10, #0xd300\n\t"
+#else
+        "mov	r10, #0xd3ed\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
+        "movt	r10, #0x5cf5\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adds	%[b], %[b], r10\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #26\n\t"
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "mov	r10, #0x1a\n\t"
+        "orr	r10, r10, #0x6300\n\t"
+#else
+        "mov	r10, #0x631a\n\t"
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x58000000\n\t"
+        "orr	r10, r10, #0x120000\n\t"
+#else
+        "movt	r10, #0x5812\n\t"
+#endif
+#endif
+        "and	r10, r10, lr\n\t"
+        "adcs	%[c], %[c], r10\n\t"
+        "adcs	r4, r4, %[a]\n\t"
+        "adcs	r5, r5, r11\n\t"
+        "adcs	r6, r6, #0\n\t"
+        "adcs	r7, r7, #0\n\t"
+        "and	lr, lr, #0x10000000\n\t"
+        "adcs	r8, r8, #0\n\t"
+        "adc	r9, r9, lr\n\t"
         /* Sub product of top 8 words and order */
         "mov	r12, sp\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -10171,11 +10383,11 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "adcs	r11, r11, #0\n\t"
         "stm	r12!, {r10, r11}\n\t"
         "ldm	r12, {r10}\n\t"
-        "adcs	r10, r10, #0\n\t"
+        "adc	r10, r10, r9\n\t"
         "stm	r12!, {r10}\n\t"
         "sub	%[s], %[s], #16\n\t"
         "mov	r12, sp\n\t"
-        /* Load bits 252-376 */
+        /* Load bits 252-377 */
         "add	r12, r12, #28\n\t"
         "ldm	r12, {r1, r2, r3, r4, r5}\n\t"
         "lsl	r5, r5, #4\n\t"
@@ -10187,9 +10399,9 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "lsl	%[b], %[b], #4\n\t"
         "orr	%[b], %[b], %[a], lsr #28\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xe0000000\n\t"
+        "bic	r5, r5, #0xc0000000\n\t"
 #else
-        "bfc	r5, #29, #3\n\t"
+        "bfc	r5, #30, #2\n\t"
 #endif
         "sub	r12, r12, #28\n\t"
         /* Sub product of top 4 words and order */
@@ -10415,9 +10627,9 @@ WC_OMIT_FRAME_POINTER void sc_muladd(byte* s, const byte* a, const byte* b,
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, %[a]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xf0000000\n\t"
+        "bic	r9, r9, #0xe0000000\n\t"
 #else
-        "bfc	r9, #28, #4\n\t"
+        "bfc	r9, #29, #3\n\t"
 #endif
         "ldr	%[s], [sp, #68]\n\t"
         /* Store result */
