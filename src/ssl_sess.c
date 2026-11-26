@@ -293,9 +293,6 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
  * cache.
  */
 #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
-/* The rows follow the header in a saved cache and are read in place. */
-wc_static_assert((sizeof(cache_header_t) % 8) == 0);
-
 /* Rows hashed with a key only restore into a build that hashes with one, and
  * rows hashed without only into a build that does not. An all zero key
  * means no key. */
@@ -328,7 +325,7 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
 {
     int i;
     cache_header_t cache_header;
-    SessionRow*    row;
+    byte*          row;
 
     WOLFSSL_ENTER("wolfSSL_memsave_session_cache");
 
@@ -342,7 +339,8 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
     }
 
     XMEMSET(mem, 0, sz);
-    row = (SessionRow*)((byte*)mem + sizeof(cache_header));
+    /* Byte copies: the rows need not be aligned after the header. */
+    row = (byte*)mem + sizeof(cache_header);
 
     cache_header.version   = WOLFSSL_CACHE_VERSION;
     cache_header.rows      = SESSION_ROWS;
@@ -355,7 +353,7 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
     XMEMCPY(mem, &cache_header, sizeof(cache_header));
 
     #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
-    if (SESSION_ROW_RD_LOCK(row) != 0) {
+    if (SESSION_ROW_RD_LOCK(&SessionCache[0]) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         return BAD_MUTEX_E;
     }
@@ -368,13 +366,14 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
         }
     #endif
 
-        XMEMCPY(row++, &SessionCache[i], SIZEOF_SESSION_ROW);
+        XMEMCPY(row, &SessionCache[i], SIZEOF_SESSION_ROW);
+        row += sizeof(SessionRow);
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         SESSION_ROW_UNLOCK(&SessionCache[i]);
     #endif
     }
     #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
-    SESSION_ROW_UNLOCK(row);
+    SESSION_ROW_UNLOCK(&SessionCache[0]);
     #endif
 
     #ifndef NO_CLIENT_CACHE
@@ -559,7 +558,7 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
     word32 cacheGen;
     int    ret = 0;
     cache_header_t cache_header;
-    SessionRow*    row;
+    const byte*    row;
 
     WOLFSSL_ENTER("wolfSSL_memrestore_session_cache");
 
@@ -567,7 +566,7 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         return BAD_FUNC_ARG;
     }
 
-    row = (SessionRow*)((byte*)mem + sizeof(cache_header));
+    row = (const byte*)mem + sizeof(cache_header);
 
     if (sz < wolfSSL_get_session_cache_memsize()) {
         WOLFSSL_MSG("Memory buffer too small");
@@ -605,7 +604,8 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
     #endif
 
         cacheGen = SessionCache[i].cacheGen;
-        XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
+        XMEMCPY(&SessionCache[i], row, SIZEOF_SESSION_ROW);
+        row += sizeof(SessionRow);
         /* Generations already handed to live handles must not be reissued.
          * The entry keeps the one it was saved with, which is the generation
          * the restored ClientCache entries were issued against. */
