@@ -2504,6 +2504,7 @@ static int Pkcs11HmacTypes(int macType, int* mechType, int* keyType)
     defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM) || \
     (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
     !defined(NO_HMAC)
+static int Pkcs11CheckUserSession(Pkcs11Session* session);
 static int Pkcs11CheckNewTokenKey(Pkcs11Session* session, CK_KEY_TYPE keyType,
     byte* id, int idLen, char* label, int labelLen);
 #endif
@@ -2539,8 +2540,8 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
  * @return  BAD_FUNC_ARG when token or key is NULL, or a persistent key has
  *          neither id nor label.
  * @return  BAD_STATE_E when persistent is 0 and the token has no session
- *          from wc_Pkcs11Token_Open, or a token key of the type already has
- *          the persistent key's id or label.
+ *          from wc_Pkcs11Token_Open, or for a persistent key the user is not
+ *          logged in or a token key of the type already has its id or label.
  * @return  MEMORY_E when a memory allocation fails.
  * @return  NOT_COMPILED_IN when mechanism not available.
  * @return  WC_HW_E when a PKCS#11 library call fails.
@@ -3083,6 +3084,7 @@ static int Pkcs11FindKeyObject(Pkcs11Session* session,
 /**
  * Check a key can be created as a new token object.
  * Lookups go by label or by id, so neither may be in use by a token key.
+ * The user must be logged in so the search sees private token objects.
  *
  * @param  [in]  session   Session object.
  * @param  [in]  keyType   Key type.
@@ -3091,7 +3093,8 @@ static int Pkcs11FindKeyObject(Pkcs11Session* session,
  * @param  [in]  label     Label of key.
  * @param  [in]  labelLen  Length of label.
  * @return  BAD_FUNC_ARG when the key has neither id nor label.
- * @return  BAD_STATE_E when a token key of the type has the id or label.
+ * @return  BAD_STATE_E when the user is not logged in or a token key of the
+ *          type has the id or label.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
  */
@@ -3104,6 +3107,8 @@ static int Pkcs11CheckNewTokenKey(Pkcs11Session* session, CK_KEY_TYPE keyType,
 
     if (idLen <= 0 && labelLen <= 0)
         ret = BAD_FUNC_ARG;
+    if (ret == 0)
+        ret = Pkcs11CheckUserSession(session);
     if (ret == 0 && idLen > 0) {
         ret = Pkcs11FindKeyObject(session, NULL, keyType, CK_TRUE, id, idLen,
                                   NULL, 0, &handle, &count);
@@ -7361,8 +7366,8 @@ exit:
  * @param  [out]  sessKey   Handle of session object.
  * @param  [out]  tokenKey  Handle of new token object.
  * @return  BAD_FUNC_ARG when the key has neither id nor label.
- * @return  BAD_STATE_E when the token already holds a key with the id or
- *          label, or devCtx is a token object.
+ * @return  BAD_STATE_E when the user is not logged in, the token already
+ *          holds a key with the id or label, or devCtx is a token object.
  * @return  WC_HW_E when no session object is found or a PKCS#11 call fails.
  * @return  0 on success.
  */
@@ -7507,8 +7512,9 @@ static int Pkcs11DestroyKeyObjects(Pkcs11Session* session,
  * @param  [in]  key    Key with an id or label.
  * @return  BAD_FUNC_ARG when token or key is NULL, the key has neither id
  *          nor label, or an HMAC key has no hash type.
- * @return  BAD_STATE_E when the token already holds a key with the id or
- *          label, or the key already refers to a token object.
+ * @return  BAD_STATE_E when the user is not logged in, the token already
+ *          holds a key with the id or label, or the key already refers to a
+ *          token object.
  * @return  NOT_COMPILED_IN when the key type is not supported.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  * @return  0 on success.
@@ -7704,6 +7710,7 @@ int wc_Pkcs11PersistKey(Pkcs11Token* token, int type, void* key)
         }
 
         if (ret == 0) {
+            /* A failed destroy leaves it until the token session closes. */
             rv = session.func->C_DestroyObject(session.handle, sessKey);
             PKCS11_RV("C_DestroyObject", rv);
         }

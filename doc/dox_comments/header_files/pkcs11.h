@@ -112,10 +112,11 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token);
 
     Use it for tokens that cannot make a session key persistent later with
     wc_Pkcs11PersistKey. The public key is kept as a token object too. Key
-    generation fails with BAD_STATE_E when a token key of the type already
-    has the id or label. A key without a name, such as a TLS ephemeral key,
-    stays a session object, or is generated in software when no session
-    from wc_Pkcs11Token_Open is open.
+    generation fails with BAD_STATE_E when the user is not logged in or a
+    token key of the type already has the id or label, even if only one of
+    them matches. A key without a name, such as a TLS ephemeral key, stays a
+    session object, or is generated in software when no session from
+    wc_Pkcs11Token_Open is open.
 
     The private key gets CKA_PRIVATE, so the session must be logged in, and
     a session from wc_Pkcs11Token_Open must be read/write. Without such a
@@ -170,17 +171,20 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear,
     \brief Stores a private key on the token like wc_Pkcs11StoreKey. With
     persistent set, the objects are created with CKA_TOKEN set and stay on
     the token after the session closes; this needs a read/write session and
-    a logged in token, but not wc_Pkcs11Token_Open. A persistent private or
-    secret key also gets CKA_PRIVATE and CKA_SENSITIVE set and
-    CKA_EXTRACTABLE cleared, and needs an id or label that no token key of
-    the type has, or the call fails with BAD_FUNC_ARG or BAD_STATE_E.
+    a logged in token, even for a public key only, but not
+    wc_Pkcs11Token_Open. A persistent private or secret key also gets
+    CKA_PRIVATE and CKA_SENSITIVE set and CKA_EXTRACTABLE cleared. A
+    persistent key needs an id or label that no token key of the type has,
+    or the call fails with BAD_FUNC_ARG or BAD_STATE_E. A token key with
+    only the same id or only the same label, such as one another
+    application made, blocks the key too.
 
     \return 0 on success.
     \return BAD_FUNC_ARG when token or key is NULL, or a persistent key has
     neither id nor label.
     \return BAD_STATE_E when persistent is 0 and no session was opened with
-    wc_Pkcs11Token_Open, or a token key of the type already has the
-    persistent key's id or label.
+    wc_Pkcs11Token_Open, or for a persistent key the user is not logged in
+    or a token key of the type already has its id or label.
     \return MEMORY_E when a memory allocation fails.
     \return NOT_COMPILED_IN when the key type or mechanism is not available.
     \return WC_HW_E when a PKCS#11 call fails.
@@ -206,18 +210,22 @@ int wc_Pkcs11StoreKey_ex(Pkcs11Token* token, int type, int clear,
     public key also get a token object with the public key, which for ECC,
     ML-DSA and ML-KEM replaces any session public key with the same names. An
     ECC, ML-DSA or ML-KEM key without its public key gets a token copy of that
-    session public key instead. As in wc_Pkcs11StoreKey_ex, an ECC public key
-    is stored only when the token has ECDSA, and is left out when it cannot be
-    created for a key that cannot sign. RSA, ECC, ML-DSA and ML-KEM keys refer
-    to the new private object through devCtx. Freeing the key does not remove
+    session public key instead. As in wc_Pkcs11StoreKey_ex, the public key an
+    ECC key holds is stored only when the token has ECDSA, and is left out
+    when it cannot be created for a key that cannot sign. The session public
+    key is destroyed either way, so the token then keeps the private key
+    only. No token key of the type may have the id or the label, even if
+    only one of them matches. RSA, ECC, ML-DSA and ML-KEM keys refer to the
+    new private object through devCtx. Freeing the key does not remove
     token objects. The token session must be read/write and logged in, and
     stay open from key generation until this call.
 
     \return 0 on success.
     \return BAD_FUNC_ARG when token or key is NULL, the key has neither an
     id nor a label, or an Hmac has no hash type.
-    \return BAD_STATE_E when the token already holds a key with the same id
-    or label, or the key already refers to a token object.
+    \return BAD_STATE_E when the user is not logged in, the token already
+    holds a key with the same id or label, or the key already refers to a
+    token object.
     \return NOT_COMPILED_IN when the key type is not supported.
     \return WC_HW_E when no session object is found or a PKCS#11 call fails.
 
@@ -252,7 +260,9 @@ int wc_Pkcs11PersistKey(Pkcs11Token* token, int type, void* key);
     exists. An HMAC key is removed under its HMAC key type and as a generic
     secret. Finding nothing to remove is not an error. A token key with only
     the same id or only the same label is kept, and still keeps a new key
-    from using that id or label.
+    from using that id or label. A key with only a label, or only an id,
+    removes every token key of the type with that label or id, including
+    keys other applications made.
 
     \return 0 on success.
     \return BAD_FUNC_ARG when token or key is NULL, the key has neither an

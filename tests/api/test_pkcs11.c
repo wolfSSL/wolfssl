@@ -1862,6 +1862,14 @@ int test_wc_Pkcs11_StoreKeyPersistent(void)
     }
 
     test_pkcs11_reset();
+    test_pkcs11_session_state = CKS_RW_PUBLIC_SESSION;
+    ExpectIntEQ(wc_Pkcs11StoreKey_ex(&token, PKCS11_KEY_TYPE_EC, 0, &key, 1),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    test_pkcs11_session_state = CKS_RW_USER_FUNCTIONS;
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
+
+    test_pkcs11_reset();
     ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &key), 0);
     ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
 
@@ -1945,6 +1953,15 @@ int test_wc_Pkcs11_PersistKey(void)
 
     ExpectIntEQ(test_pkcs11_free_ecc(&token, &key), 0);
     ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+
+    test_pkcs11_reset();
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_EC, 0, &key), 0);
+    test_pkcs11_session_state = CKS_RW_PUBLIC_SESSION;
+    ExpectIntEQ(wc_Pkcs11PersistKey(&token, PKCS11_KEY_TYPE_EC, &key),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    test_pkcs11_session_state = CKS_RW_USER_FUNCTIONS;
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
 
     /* A reference without the public key keeps the session public key. */
     test_pkcs11_reset();
@@ -3187,6 +3204,18 @@ int test_wc_Pkcs11_SecretKeyPersist(void)
         ExpectIntEQ(secObj->keyType, CKK_SHA256_HMAC);
     ExpectIntEQ(wc_Pkcs11DeleteKey(&token, PKCS11_KEY_TYPE_HMAC, &hmac), 0);
     ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
+
+    test_pkcs11_session_state = CKS_RW_PUBLIC_SESSION;
+    ExpectIntEQ(wc_Pkcs11StoreKey_ex(&token, PKCS11_KEY_TYPE_HMAC, 0, &hmac,
+        1), WC_NO_ERR_TRACE(BAD_STATE_E));
+    test_pkcs11_session_state = CKS_RW_USER_FUNCTIONS;
+    ExpectIntEQ(wc_Pkcs11StoreKey(&token, PKCS11_KEY_TYPE_HMAC, 0, &hmac), 0);
+    test_pkcs11_session_state = CKS_RW_PUBLIC_SESSION;
+    ExpectIntEQ(wc_Pkcs11PersistKey(&token, PKCS11_KEY_TYPE_HMAC, &hmac),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    test_pkcs11_session_state = CKS_RW_USER_FUNCTIONS;
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 1);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
     wc_HmacFree(&hmac);
 #endif
 #endif
@@ -3204,6 +3233,8 @@ int test_wc_Pkcs11_PqcPersistDelete(void)
 #ifdef TEST_PKCS11_MLDSA_44
     wc_MlDsaKey dsa;
     wc_MlDsaKey ref;
+    byte pub[WC_MLDSA_44_PUB_KEY_SIZE];
+    word32 pubSz = (word32)sizeof(pub);
 #endif
 #ifdef TEST_PKCS11_MLKEM_768
     MlKemKey kem;
@@ -3249,6 +3280,21 @@ int test_wc_Pkcs11_PqcPersistDelete(void)
     ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
     ExpectIntNE(test_pkcs11_find_obj(CKO_PUBLIC_KEY, CK_TRUE), 0);
     ExpectIntEQ(wc_Pkcs11DeleteKey(&token, PKCS11_KEY_TYPE_MLDSA, &ref), 0);
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
+    wc_MlDsaKey_Free(&ref);
+
+    /* A public key on its own needs a login too. */
+    ExpectIntEQ(wc_MlDsaKey_ExportPubRaw(&dsa, pub, &pubSz), 0);
+    XMEMSET(&ref, 0, sizeof(ref));
+    ExpectIntEQ(wc_MlDsaKey_InitId(&ref, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlDsaKey_SetParams(&ref, WC_ML_DSA_44), 0);
+    ExpectIntEQ(wc_MlDsaKey_ImportPubRaw(&ref, pub, pubSz), 0);
+    test_pkcs11_session_state = CKS_RW_PUBLIC_SESSION;
+    ExpectIntEQ(wc_Pkcs11StoreKey_ex(&token, PKCS11_KEY_TYPE_MLDSA, 0, &ref,
+        1), WC_NO_ERR_TRACE(BAD_STATE_E));
+    test_pkcs11_session_state = CKS_RW_USER_FUNCTIONS;
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
     ExpectIntEQ(test_pkcs11_count(CK_TRUE), 0);
     wc_MlDsaKey_Free(&ref);
     wc_MlDsaKey_Free(&dsa);
@@ -3883,6 +3929,7 @@ int test_wc_Pkcs11_KeyGenPersistent(void)
     EXPECT_DECLS;
 #ifdef TEST_PKCS11_EC_KEYGEN
     static const byte id[] = { 0x21, 0x22 };
+    static const byte id2[] = { 0x23 };
     Pkcs11Token token;
     CK_FUNCTION_LIST func;
     ecc_key soft;
@@ -3943,6 +3990,16 @@ int test_wc_Pkcs11_KeyGenPersistent(void)
         WC_ECC_FLAG_DEC_SIGN), WC_NO_ERR_TRACE(BAD_STATE_E));
     wc_ecc_free(&key);
     ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+
+    test_pkcs11_session_state = CKS_RW_PUBLIC_SESSION;
+    ExpectIntEQ(wc_ecc_init_id(&key, (unsigned char*)id2, (int)sizeof(id2),
+        NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex2(&rng, 32, &key, ECC_SECP256R1,
+        WC_ECC_FLAG_DEC_SIGN), WC_NO_ERR_TRACE(BAD_STATE_E));
+    wc_ecc_free(&key);
+    test_pkcs11_session_state = CKS_RW_USER_FUNCTIONS;
+    ExpectIntEQ(test_pkcs11_count(CK_TRUE), 2);
+    ExpectIntEQ(test_pkcs11_count(CK_FALSE), 0);
 
     /* A key without a name, like a TLS ephemeral key, is a session key. */
     test_pkcs11_session_no_point = 0;
