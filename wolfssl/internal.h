@@ -8265,6 +8265,11 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
     WOLFSSL_LOCAL int  HashObjectKeyInit(WC_RNG* rng);
     WOLFSSL_LOCAL void HashObjectKeyFree(void);
 #endif
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define HashObject wolfSSL_HashObject
+    #define SessionCacheHash wolfSSL_SessionCacheHash
+    #define sessionCacheHashKey wolfSSL_sessionCacheHashKey
+#endif
 WOLFSSL_TEST_VIS word32 HashObject(const byte* o, word32 len, int* error);
 #ifndef NO_SESSION_CACHE
 /* The session cache hashes with a key of its own, which is saved and restored
