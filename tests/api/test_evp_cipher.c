@@ -3418,3 +3418,64 @@ int test_evp_cipher_update_no_padding_buffered(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_evp_cipher_cfb1_length_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_AES_CFB) && !defined(WOLFSSL_NO_AES_CFB_1_8) && \
+    defined(HAVE_AES_DECRYPT) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    const int boundary = 0x20000000;
+    byte key[AES_BLOCK_SIZE] = {0};
+    byte iv[AES_BLOCK_SIZE] = {0};
+    byte input[2] = {0x12, 0x34};
+    byte output[2];
+    byte expected[2];
+    byte* large = NULL;
+    EVP_CIPHER_CTX* ctx = NULL;
+    EVP_CIPHER_CTX* reference = NULL;
+    int direction;
+    int size;
+    int outSz;
+    int refSz;
+
+    /* The API requires a buffer as large as the supplied length, even though
+     * the overflow check must reject the call before accessing it. */
+    ExpectNotNull(large = (byte*)XMALLOC((size_t)boundary + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectNotNull(reference = EVP_CIPHER_CTX_new());
+
+    for (direction = 0; EXPECT_SUCCESS() && direction <= 1; direction++) {
+        ExpectIntEQ(EVP_CipherInit(ctx, EVP_aes_128_cfb1(), key, iv,
+            direction), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherInit(reference, EVP_aes_128_cfb1(), key, iv,
+            direction), WOLFSSL_SUCCESS);
+        for (size = boundary; EXPECT_SUCCESS() && size <= boundary + 1;
+                size++) {
+            large[0] = 0x5a;
+            large[size - 1] = 0xa5;
+            outSz = -1;
+            ExpectIntEQ(EVP_CipherUpdate(ctx, large, &outSz, large, size),
+                WOLFSSL_FAILURE);
+            ExpectIntEQ(outSz, 0);
+            ExpectIntEQ(large[0], 0x5a);
+            ExpectIntEQ(large[size - 1], 0xa5);
+        }
+        /* A rejected update must not advance the CFB feedback state. */
+        outSz = refSz = -1;
+        ExpectIntEQ(EVP_CipherUpdate(ctx, output, &outSz, input, sizeof(input)),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherUpdate(reference, expected, &refSz, input,
+            sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(outSz, (int)sizeof(input));
+        ExpectIntEQ(refSz, outSz);
+        ExpectBufEQ(output, expected, sizeof(output));
+    }
+    EVP_CIPHER_CTX_free(reference);
+    EVP_CIPHER_CTX_free(ctx);
+    XFREE(large, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}

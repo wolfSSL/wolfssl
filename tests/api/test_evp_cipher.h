@@ -72,6 +72,7 @@ int test_evp_cipher_pkcs7_pad_zero(void);
 int test_evp_cipher_aead_aad_overflow(void);
 int test_evp_cipher_update_chunked_bound(void);
 int test_evp_cipher_update_no_padding_buffered(void);
+int test_evp_cipher_cfb1_length_overflow(void);
 
 #define TEST_EVP_CIPHER_DECLS                                               \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX),             \
@@ -121,6 +122,7 @@ int test_evp_cipher_update_no_padding_buffered(void);
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_pkcs7_pad_zero),           \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aead_aad_overflow),      \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_update_chunked_bound),   \
-    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_update_no_padding_buffered)
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_update_no_padding_buffered), \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_cfb1_length_overflow)
 
 #endif /* WOLFCRYPT_TEST_EVP_CIPHER_H */

@@ -664,6 +664,8 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case WC_AES_128_CFB1_TYPE:
         case WC_AES_192_CFB1_TYPE:
         case WC_AES_256_CFB1_TYPE:
+            if (inl > WOLFSSL_MAX_32BIT / WOLFSSL_BIT_SIZE)
+                return WOLFSSL_FAILURE;
             if (ctx->enc)
                 ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, out, in,
                         inl * WOLFSSL_BIT_SIZE);
