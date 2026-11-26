@@ -11629,6 +11629,37 @@ int test_tls13_new_session_ticket_max_lifetime(void)
 }
 
 
+/* Encode a syntactically valid NewSessionTicket handshake message:
+ * lifetime(4) + age_add(4) + nonce(1+8) + ticket(2+32) + extensions(2).
+ * Shared by the fragmented-ticket tests so both inject identical messages. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13)
+#define TLS13_TEST_NST_MSG_SZ 57
+
+static int test_tls13_build_nst_msg(byte* msg)
+{
+    int idx = 0;
+    int i;
+
+    msg[idx++] = session_ticket;            /* handshake msg type */
+    msg[idx++] = 0x00;                      /* 24-bit body length */
+    msg[idx++] = 0x00;
+    msg[idx++] = 0x35;                      /* = 53 */
+    msg[idx++] = 0x00; msg[idx++] = 0x00;   /* lifetime = 3600 */
+    msg[idx++] = 0x0E; msg[idx++] = 0x10;
+    msg[idx++] = 0x01; msg[idx++] = 0x02;   /* ticket_age_add */
+    msg[idx++] = 0x03; msg[idx++] = 0x04;
+    msg[idx++] = 0x08;                      /* nonce length */
+    for (i = 0; i < 8; i++)
+        msg[idx++] = (byte)(0xA0 + i);      /* nonce */
+    msg[idx++] = 0x00; msg[idx++] = 0x20;   /* ticket length = 32 */
+    for (i = 0; i < 32; i++)
+        msg[idx++] = (byte)(0x40 + i);      /* ticket */
+    msg[idx++] = 0x00; msg[idx++] = 0x00;   /* extensions: none */
+
+    return idx;
+}
+#endif
+
 /* A TLS 1.3 client that does not retain its handshake arrays after the
  * handshake (e.g. built without HAVE_SESSION_TICKET, as on a small embedded
  * target) must still be able to receive a post-handshake NewSessionTicket that
@@ -11656,12 +11687,11 @@ int test_tls13_fragmented_session_ticket(void)
     char buf[64];
     /* NewSessionTicket: lifetime(4) + age_add(4) + nonce(1+8) + ticket(2+32) +
      * extensions(2) = 53 byte body, 4 + 53 = 57 byte handshake message. */
-    byte ticketMsg[57];
+    byte ticketMsg[TLS13_TEST_NST_MSG_SZ];
     byte rec[256];
     int  recSz = 0;
     int  split = 20; /* fragment boundary inside the message */
     int  readRet, errRet;
-    int  i, idx;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -11704,23 +11734,8 @@ int test_tls13_fragmented_session_ticket(void)
      * HAVE_SESSION_TICKET parses it cleanly; a client built without it simply
      * skips the body. Either way reassembly must succeed first. */
     if (EXPECT_SUCCESS()) {
-        idx = 0;
-        ticketMsg[idx++] = session_ticket;            /* handshake msg type */
-        ticketMsg[idx++] = 0x00;                       /* 24-bit body length */
-        ticketMsg[idx++] = 0x00;
-        ticketMsg[idx++] = 0x35;                       /* = 53 */
-        ticketMsg[idx++] = 0x00; ticketMsg[idx++] = 0x00; /* lifetime = 3600 */
-        ticketMsg[idx++] = 0x0E; ticketMsg[idx++] = 0x10;
-        ticketMsg[idx++] = 0x01; ticketMsg[idx++] = 0x02; /* ticket_age_add */
-        ticketMsg[idx++] = 0x03; ticketMsg[idx++] = 0x04;
-        ticketMsg[idx++] = 0x08;                       /* nonce length */
-        for (i = 0; i < 8; i++)
-            ticketMsg[idx++] = (byte)(0xA0 + i);       /* nonce */
-        ticketMsg[idx++] = 0x00; ticketMsg[idx++] = 0x20; /* ticket length=32 */
-        for (i = 0; i < 32; i++)
-            ticketMsg[idx++] = (byte)(0x40 + i);       /* ticket */
-        ticketMsg[idx++] = 0x00; ticketMsg[idx++] = 0x00; /* extensions: none */
-        ExpectIntEQ(idx, (int)sizeof(ticketMsg));
+        ExpectIntEQ(test_tls13_build_nst_msg(ticketMsg),
+                    (int)sizeof(ticketMsg));
     }
 
     /* Fragment 1: bytes [0, split) of the handshake message, encrypted with the
@@ -11752,6 +11767,92 @@ int test_tls13_fragmented_session_ticket(void)
         errRet = wolfSSL_get_error(ssl_c, readRet);
         ExpectIntEQ(readRet, -1);
         ExpectIntNE(errRet, WC_NO_ERR_TRACE(INCOMPLETE_DATA));
+        ExpectIntEQ(errRet, WOLFSSL_ERROR_WANT_READ);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* When a fragmented handshake message is followed by another handshake
+ * message in the same record, DoTls13HandShakeMsg() must clamp the input
+ * length to the bytes remaining in the pending message. The existing
+ * fragmented-ticket test puts only the remainder in the second record, so it
+ * never takes the `inputLength > pendSz` branch. Here the second record holds
+ * the remainder followed by a complete second NewSessionTicket: both must be
+ * consumed as separate messages, with no application data produced.
+ *
+ * The addition-overflow case itself is unreachable with the bounded record
+ * and handshake sizes, so this is branch coverage for the safe subtraction
+ * form, not a reproducer for a wraparound. */
+int test_tls13_fragmented_msg_with_trailing_msg(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    char buf[64];
+    byte ticketMsg[TLS13_TEST_NST_MSG_SZ];
+    byte combined[2 * TLS13_TEST_NST_MSG_SZ];
+    byte rec[256];
+    int  recSz = 0;
+    int  split = 20; /* fragment boundary inside the first ticket */
+    int  nstSz = (int)sizeof(ticketMsg);
+    int  combinedSz;
+    int  readRet, errRet;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Drain any genuine NewSessionTicket the server already sent. */
+    if (EXPECT_SUCCESS()) {
+        readRet = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        errRet = wolfSSL_get_error(ssl_c, readRet);
+        ExpectIntEQ(readRet, -1);
+        ExpectIntEQ(errRet, WOLFSSL_ERROR_WANT_READ);
+    }
+
+    /* Record 1: the first fragment of a NewSessionTicket. */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(test_tls13_build_nst_msg(ticketMsg), nstSz);
+        recSz = BuildTls13Message(ssl_s, rec, (int)sizeof(rec), ticketMsg,
+                                  split, handshake, 0, 0, 0);
+        ExpectIntGT(recSz, 0);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)rec,
+                                              recSz), 0);
+    }
+
+    /* Record 2: remainder of the first ticket plus a whole second ticket. */
+    if (EXPECT_SUCCESS()) {
+        combinedSz = 2 * nstSz - split;
+        XMEMCPY(combined, ticketMsg + split,
+                (size_t)(nstSz - split));
+        XMEMCPY(combined + nstSz - split, ticketMsg, (size_t)nstSz);
+
+        recSz = BuildTls13Message(ssl_s, rec, (int)sizeof(rec), combined,
+                                  combinedSz, handshake, 0, 0, 0);
+        ExpectIntGT(recSz, 0);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (const char*)rec,
+                                              recSz), 0);
+    }
+
+    /* Both tickets must be reassembled/parsed and consumed as separate
+     * messages, exercising the clamp that limits the first one to its
+     * remaining bytes. */
+    if (EXPECT_SUCCESS()) {
+        readRet = wolfSSL_read(ssl_c, buf, sizeof(buf));
+        errRet = wolfSSL_get_error(ssl_c, readRet);
+        ExpectIntEQ(readRet, -1);
         ExpectIntEQ(errRet, WOLFSSL_ERROR_WANT_READ);
     }
 
