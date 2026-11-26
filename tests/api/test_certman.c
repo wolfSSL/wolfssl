@@ -2180,6 +2180,47 @@ int test_wolfSSL_X509_STORE_CertEvents(void)
         }
     }
 #endif
+#if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_RSA)
+    /* An untrusted intermediate whose key is below the minimum is
+     * rejected when it is loaded. The RESULT carries that error. */
+    {
+        WOLFSSL_X509* srv = NULL;
+        WOLFSSL_X509* mid = NULL;
+        WOLF_STACK_OF(WOLFSSL_X509)* untrusted = NULL;
+        short savedMin = 0;
+
+        XMEMSET(&log, 0, sizeof(log));
+        if ((store != NULL) && (store->cm != NULL)) {
+            savedMin = store->cm->minRsaKeySz;
+            store->cm->minRsaKeySz = 4096 / 8;
+        }
+        ExpectNotNull(srv = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/server-int-cert.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(mid = wolfSSL_X509_load_certificate_file(
+            "./certs/intermediate/ca-int2-cert.pem", WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(untrusted = wolfSSL_sk_X509_new_null());
+        if (untrusted != NULL) {
+            ExpectIntGT(wolfSSL_sk_X509_push(untrusted, mid), 0);
+        }
+        ExpectNotNull(sctx = wolfSSL_X509_STORE_CTX_new());
+        ExpectIntEQ(wolfSSL_X509_STORE_CTX_init(sctx, store, srv, untrusted),
+            WOLFSSL_SUCCESS);
+        ExpectIntNE(wolfSSL_X509_verify_cert(sctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(log.defect.error, WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
+        ExpectIntEQ(log.defect.depth, -1);
+        ExpectIntEQ(log.defect.role, WC_CEV_ROLE_SIGNER);
+        ExpectIntGE(log.results, 1);
+        ExpectIntEQ(log.firstResult.error, WC_NO_ERR_TRACE(RSA_KEY_SIZE_E));
+        wolfSSL_X509_STORE_CTX_free(sctx);
+        sctx = NULL;
+        wolfSSL_sk_X509_free(untrusted);
+        wolfSSL_X509_free(srv);
+        wolfSSL_X509_free(mid);
+        if ((store != NULL) && (store->cm != NULL)) {
+            store->cm->minRsaKeySz = savedMin;
+        }
+    }
+#endif
 
     /* The context setter and the store setter share the certificate
      * manager. The call made second is the callback that runs. */

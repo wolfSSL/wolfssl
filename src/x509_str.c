@@ -1402,8 +1402,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                         ((ctx->chain != NULL) ? (int)ctx->chain->num : 0);
 
                     ctx->current_cert = issuer;
-                    X509StoreCertEventFailure(ctx, VERIFY_CERT_ERROR,
-                        evDepth + 1);
+                    /* ret is the error from X509StoreAddCa, such as a
+                     * key that is below the minimum. */
+                    X509StoreCertEventFailure(ctx, ret, evDepth + 1);
                     ctx->current_cert = saved;
                 }
 #endif
