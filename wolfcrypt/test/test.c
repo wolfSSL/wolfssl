@@ -98006,8 +98006,23 @@ static wc_test_ret_t mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* ex
 }
 #endif
 
-#if (!defined(WOLFSSL_SP_MATH) && !defined(USE_FAST_MATH)) || \
-    defined(WOLFSSL_SP_MATH_ALL)
+/* Fast math needs every digit at and above used to be zero. */
+static WC_MAYBE_UNUSED int mp_test_no_digits_above_used(const mp_int* a)
+{
+#if defined(USE_FAST_MATH) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    int i;
+
+    for (i = a->used; i < FP_SIZE; i++) {
+        if (a->dp[i] != 0)
+            return 0;
+    }
+#else
+    (void)a;
+#endif
+    return 1;
+}
+
 static wc_test_ret_t mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -98062,10 +98077,11 @@ static wc_test_ret_t mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng
         }
     }
 
-#if !defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_INT_NEGATIVE)
+#if (!defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_INT_NEGATIVE)) || \
+    defined(USE_FAST_MATH)
     /* Test negative value being moded. */
     for (j = 0; j < 20; j++) {
-        ret = randNum(a, 2, rng, NULL);
+        ret = randNum(a, 2 * (int)sizeof(mp_digit), rng, NULL);
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
         a->sign = MP_NEG;
@@ -98073,6 +98089,8 @@ static wc_test_ret_t mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng
             ret = mp_mod_2d(a, i, r);
             if (ret != 0)
                 return WC_TEST_RET_ENC_EC(ret);
+            if (!mp_test_no_digits_above_used(r))
+                return WC_TEST_RET_ENC_NC;
             mp_zero(t);
             ret = mp_set_bit(t, i);
             if (ret != 0)
@@ -98089,7 +98107,6 @@ static wc_test_ret_t mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng
 
     return 0;
 }
-#endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_EXTRA) ||  \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY))
@@ -99557,11 +99574,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
     if ((ret = mp_test_lcm_gcd(a, b, r1, r2, &rng)) != 0)
         goto done;
 #endif
-#if (!defined(WOLFSSL_SP_MATH) && !defined(USE_FAST_MATH)) || \
-    defined(WOLFSSL_SP_MATH_ALL)
     if ((ret = mp_test_mod_2d(a, r1, p, &rng)) != 0)
         goto done;
-#endif
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_EXTRA) ||  \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY))
     if ((ret = mp_test_mod_d(a, &rng)) != 0)

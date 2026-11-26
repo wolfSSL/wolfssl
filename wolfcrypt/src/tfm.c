@@ -1062,7 +1062,7 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
   if (c->sign == FP_NEG) {
      fp_digit carry = 0;
      /* negate value */
-     for (x = 0; x < (unsigned int)c->used; x++) {
+     for (x = 0; x < (unsigned int)c->used && x < bmax; x++) {
          fp_digit next = c->dp[x] > 0;
          c->dp[x] = (fp_digit)0 - c->dp[x] - carry;
          carry |= next;
