@@ -46524,6 +46524,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
          * async re-entry the size is the same and the buffer is kept. */
         if (ticketSz <= sizeof(ssl->session->staticTicket)) {
             if (ssl->session->ticket != ssl->session->staticTicket) {
+                if (ssl->session->ticket != NULL) {
+                    ForceZero(ssl->session->ticket,
+                        ssl->session->ticketLenAlloc);
+                }
                 XFREE(ssl->session->ticket, ssl->session->heap,
                       DYNAMIC_TYPE_SESSION_TICK);
                 ssl->session->ticket = ssl->session->staticTicket;
@@ -46538,6 +46542,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
                 return MEMORY_E;
             }
             if (ssl->session->ticketLenAlloc > 0) {
+                ForceZero(ssl->session->ticket, ssl->session->ticketLenAlloc);
                 XFREE(ssl->session->ticket, ssl->session->heap,
                       DYNAMIC_TYPE_SESSION_TICK);
             }
@@ -47143,6 +47148,10 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
      (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
             if (ssl->session->ticketNonce.data
                    != ssl->session->ticketNonce.dataStatic) {
+                if (ssl->session->ticketNonce.data != NULL) {
+                    ForceZero(ssl->session->ticketNonce.data,
+                        ssl->session->ticketNonce.len);
+                }
                 XFREE(ssl->session->ticketNonce.data, ssl->session->heap,
                     DYNAMIC_TYPE_SESSION_TICK);
                 ssl->session->ticketNonce.data =
