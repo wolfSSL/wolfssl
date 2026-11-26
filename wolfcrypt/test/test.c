@@ -98347,7 +98347,8 @@ static wc_test_ret_t mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1,
     return 0;
 }
 
-#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+#if (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH)) && \
+    defined(HAVE_ECC)
 /* Functional tests for the constant-time modular arithmetic used by ECC:
  * mp_addmod_ct, mp_submod_ct and mp_div_2_mod_ct.  These are not reached by
  * the parameter-validation tests so their computation paths are exercised
@@ -98378,41 +98379,48 @@ static wc_test_ret_t mp_test_addsubmod_ct(mp_int* a, mp_int* b, mp_int* m,
             break;
         }
 
-        /* addmod_ct must match the variable-time addmod. */
-        ret = mp_addmod_ct(a, b, m, r);
+        /* addmod_ct must match the variable-time addmod. The destination
+         * starts one digit wider than the modulus each time. */
+        ret = mp_2expt(r, m->used * DIGIT_BIT);
+        if (ret == MP_OKAY)
+            ret = mp_addmod_ct(a, b, m, r);
         if (ret == MP_OKAY)
             ret = mp_addmod(a, b, m, t);
         if (ret != MP_OKAY) {
             res = WC_TEST_RET_ENC_EC(ret);
             break;
         }
-        if (mp_cmp(r, t) != MP_EQ) {
+        if ((mp_cmp(r, t) != MP_EQ) || !mp_test_no_digits_above_used(r)) {
             res = WC_TEST_RET_ENC_NC;
             break;
         }
 
         /* submod_ct: (a - b) mod m, verified by adding b back gives a. */
-        ret = mp_submod_ct(a, b, m, r);
+        ret = mp_2expt(r, m->used * DIGIT_BIT);
+        if (ret == MP_OKAY)
+            ret = mp_submod_ct(a, b, m, r);
         if (ret == MP_OKAY)
             ret = mp_addmod_ct(r, b, m, t);
         if (ret != MP_OKAY) {
             res = WC_TEST_RET_ENC_EC(ret);
             break;
         }
-        if (mp_cmp(t, a) != MP_EQ) {
+        if ((mp_cmp(t, a) != MP_EQ) || !mp_test_no_digits_above_used(r)) {
             res = WC_TEST_RET_ENC_NC;
             break;
         }
 
         /* div_2_mod_ct: r = a/2 mod m, verified by doubling: 2*r mod m == a. */
-        ret = mp_div_2_mod_ct(a, m, r);
+        ret = mp_2expt(r, m->used * DIGIT_BIT);
+        if (ret == MP_OKAY)
+            ret = mp_div_2_mod_ct(a, m, r);
         if (ret == MP_OKAY)
             ret = mp_addmod_ct(r, r, m, t);
         if (ret != MP_OKAY) {
             res = WC_TEST_RET_ENC_EC(ret);
             break;
         }
-        if (mp_cmp(t, a) != MP_EQ) {
+        if ((mp_cmp(t, a) != MP_EQ) || !mp_test_no_digits_above_used(r)) {
             res = WC_TEST_RET_ENC_NC;
             break;
         }
@@ -98420,7 +98428,7 @@ static wc_test_ret_t mp_test_addsubmod_ct(mp_int* a, mp_int* b, mp_int* m,
 
     return res;
 }
-#endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
+#endif /* (WOLFSSL_SP_MATH_ALL || USE_FAST_MATH) && HAVE_ECC */
 
 #if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* Exercises mp_cmp_mag - magnitude comparison (sign-independent) including
@@ -99198,6 +99206,8 @@ static wc_test_ret_t mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC
         /* Result is m or 0 if reduced to range of modulus. */
         if (mp_cmp(a, r) != MP_EQ && mp_iszero(a) != MP_YES)
             return WC_TEST_RET_ENC_NC;
+        if (!mp_test_no_digits_above_used(a))
+            return WC_TEST_RET_ENC_NC;
     }
 
 #ifdef WOLFSSL_SP_INVMOD_MONT_CT
@@ -99604,7 +99614,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
     if ((ret = mp_test_mont(a, b, r1, r2, &rng)) != 0)
         goto done;
 #endif
-#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+#if (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH)) && \
+    defined(HAVE_ECC)
     if ((ret = mp_test_addsubmod_ct(a, b, r1, r2, p, &rng)) != 0)
         goto done;
 #endif

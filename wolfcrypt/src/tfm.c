@@ -957,6 +957,9 @@ int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
   }
   c->dp[i] = (c->dp[i] >> 1) | ((fp_digit)w << (DIGIT_BIT - 1));
   c->used = i + 1;
+  if (c->used < FP_SIZE) {
+    c->dp[c->used] = 0;
+  }
   c->sign = FP_ZPOS;
   fp_clamp(c);
 
@@ -1612,6 +1615,7 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
   /* Result will always have digits equal to or less than those in modulus. */
   d->used = i;
+  d->dp[i] = 0;
   d->sign = FP_ZPOS;
   fp_clamp(d);
 
@@ -1661,6 +1665,9 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
   /* Result will always have digits equal to or less than those in modulus. */
   d->used = i;
+  if (i < FP_SIZE) {
+    d->dp[i] = 0;
+  }
   d->sign = FP_ZPOS;
   fp_clamp(d);
 
