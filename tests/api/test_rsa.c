@@ -1997,12 +1997,21 @@ int test_wc_RsaDecisionCoverage(void)
     !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_NO_RSA_SW_PAD) && \
     !defined(WC_NO_RNG) && !defined(WC_NO_RSA_OAEP) && !defined(NO_SHA256) && \
-    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST)
+    defined(USE_CERT_BUFFERS_2048) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    (!defined(WOLFSSL_ASYNC_CRYPT) || !(defined(WOLFSSL_ASYNC_CRYPT_SW) || \
+     defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM)))
 #define TEST_RSA_PENDING_CB
+
+typedef struct RsaPendingCbCtx {
+    int error; /* returned instead of running the operation when non-zero */
+    int depth; /* WC_PENDING_E results before each operation runs */
+    int pends; /* WC_PENDING_E results given for the current operation */
+} RsaPendingCbCtx;
 
 static int rsa_pending_test_cb(int devId, wc_CryptoInfo* info, void* ctx)
 {
+    RsaPendingCbCtx* dev = (RsaPendingCbCtx*)ctx;
     RsaKey* key;
     int ret;
 
@@ -2015,18 +2024,23 @@ static int rsa_pending_test_cb(int devId, wc_CryptoInfo* info, void* ctx)
         return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
 #endif
-    if (*(const int*)ctx != 0) {
-        return *(const int*)ctx;
+    if (dev->error != 0) {
+        return dev->error;
     }
+    /* Queue the job, and run it only when called again for it. */
+    if (dev->pends < dev->depth) {
+        dev->pends++;
+        return WC_NO_ERR_TRACE(WC_PENDING_E);
+    }
+    dev->pends = 0;
 
-    /* Finish the raw calculation before the caller polls for completion. */
     key = info->pk.rsa.key;
     key->devId = INVALID_DEVID;
     ret = wc_RsaFunction(info->pk.rsa.in, info->pk.rsa.inLen,
         info->pk.rsa.out, info->pk.rsa.outLen, info->pk.rsa.type,
         key, info->pk.rsa.rng);
     key->devId = devId;
-    return ret == 0 ? WC_NO_ERR_TRACE(WC_PENDING_E) : ret;
+    return ret;
 }
 #endif
 
@@ -2260,30 +2274,33 @@ int test_wc_RsaFeatureCoverage(void)
 #ifdef TEST_RSA_PENDING_CB
     if (EXPECT_SUCCESS()) {
         int savedDevId = key.devId;
-        int deviceError = WC_NO_ERR_TRACE(WC_HW_E);
+        RsaPendingCbCtx dev;
         const int pendingDevId = 0x52534150;
         static const byte zeros[sizeof(cipher)] = {0};
 
+        XMEMSET(&dev, 0, sizeof(dev));
+        dev.error = WC_NO_ERR_TRACE(WC_HW_E);
         ExpectIntEQ(wc_CryptoCb_RegisterDevice(pendingDevId,
-            rsa_pending_test_cb, &deviceError), 0);
+            rsa_pending_test_cb, &dev), 0);
         if (EXPECT_SUCCESS()) {
             key.devId = pendingDevId;
             ExpectIntEQ(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), cipher,
                 sizeof(cipher), &key, &rng, WC_RSA_OAEP_PAD,
-                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0), deviceError);
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0), dev.error);
             ExpectBufEQ(cipher, zeros, sizeof(cipher));
             ExpectIntEQ(wc_RsaPublicEncrypt(msg, sizeof(msg), cipher,
-                sizeof(cipher), &key, &rng), deviceError);
+                sizeof(cipher), &key, &rng), dev.error);
 
 #ifdef WC_RSA_NONBLOCK
             /* A would-block callback must preserve the padded input for retry. */
-            deviceError = FP_WOULDBLOCK;
+            dev.error = FP_WOULDBLOCK;
             ExpectIntEQ(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), cipher,
                 sizeof(cipher), &key, &rng, WC_RSA_OAEP_PAD,
                 WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0), FP_WOULDBLOCK);
             ExpectIntNE(XMEMCMP(cipher, zeros, sizeof(cipher)), 0);
 #endif
-            deviceError = 0;
+            dev.error = 0;
+            dev.depth = 1;
             ExpectIntEQ(wc_RsaPublicEncrypt_ex(msg, sizeof(msg), cipher,
                 sizeof(cipher), &key, &rng, WC_RSA_OAEP_PAD,
                 WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0),
@@ -2358,6 +2375,118 @@ int test_wc_RsaFeatureCoverage(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_RsaFeatureCoverage */
+
+#define TEST_RSA_PENDING_MAX_CALLS 8
+
+#ifdef TEST_RSA_PENDING_CB
+static int test_rsa_pending_verify(const byte* in, word32 inLen, byte* out,
+    word32 outLen, RsaKey* key)
+{
+    int ret;
+    int calls = 0;
+
+    do {
+        ret = wc_RsaSSL_Verify(in, inLen, out, outLen, key);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+             ++calls < TEST_RSA_PENDING_MAX_CALLS);
+
+    return ret;
+}
+
+static int test_rsa_pending_encrypt(const byte* in, word32 inLen, byte* out,
+    word32 outLen, RsaKey* key, WC_RNG* rng)
+{
+    int ret;
+    int calls = 0;
+
+    do {
+        ret = wc_RsaPublicEncrypt(in, inLen, out, outLen, key, rng);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+             ++calls < TEST_RSA_PENDING_MAX_CALLS);
+
+    return ret;
+}
+#endif
+
+/* An RSA operation that a crypto callback pends must reach the callback again
+ * and return its result. */
+int test_wc_RsaPending_CryptoCbReinvoke(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_RSA_PENDING_CB
+    RsaKey key;
+    WC_RNG rng;
+    RsaPendingCbCtx dev;
+    word32 idx = 0;
+    byte block[256];
+    byte sig[256];
+    byte cipher[256];
+    byte out[256];
+    int depth;
+    int initKey = 0;
+    int initRng = 0;
+    int registered = 0;
+    const int devId = 0x52535052;
+    static const byte digest[32] = {
+        0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,
+        0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f,
+        0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,
+        0x48,0x49,0x4a,0x4b,0x4c,0x4d,0x4e,0x4f
+    };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&dev, 0, sizeof(dev));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) initRng = 1;
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    if (EXPECT_SUCCESS()) initKey = 1;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+        sizeof_client_key_der_2048), 0);
+#ifdef WC_RSA_BLINDING
+    ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
+#endif
+
+    ExpectIntEQ(wc_RsaSSL_Sign(digest, sizeof(digest), sig, sizeof(sig), &key,
+        &rng), sizeof(sig));
+    ExpectIntEQ(wc_RsaPad_ex(digest, sizeof(digest), block, sizeof(block),
+        RSA_BLOCK_TYPE_1, &rng, WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE,
+        WC_MGF1NONE, NULL, 0, 0, 2048, HEAP_HINT), 0);
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, rsa_pending_test_cb, &dev),
+        0);
+    if (EXPECT_SUCCESS()) registered = 1;
+
+    for (depth = 1; depth <= 2 && EXPECT_SUCCESS(); depth++) {
+        dev.depth = depth;
+        key.devId = devId;
+
+        ExpectIntLT(test_rsa_pending_verify(block, sizeof(block), out,
+            sizeof(out), &key), 0);
+
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(test_rsa_pending_verify(sig, sizeof(sig), out,
+            sizeof(out), &key), sizeof(digest));
+        ExpectBufEQ(out, digest, sizeof(digest));
+
+        ExpectIntEQ(test_rsa_pending_encrypt(digest, sizeof(digest), cipher,
+            sizeof(cipher), &key, &rng), sizeof(cipher));
+        /* Decrypt in software to check the ciphertext is real. */
+        key.devId = INVALID_DEVID;
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, sizeof(cipher), out,
+            sizeof(out), &key), sizeof(digest));
+        ExpectBufEQ(out, digest, sizeof(digest));
+    }
+
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(devId);
+    if (initKey) DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    if (initRng) DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* Test that wc_RsaPSS_VerifyCheck() routes RSA-PSS verification through a
  * registered crypto callback (CryptoCb) device. */
@@ -2926,6 +3055,7 @@ static int test_rsa_oaep_async(int decrypt, const byte* in, word32 inLen,
     byte* out, word32 outLen, RsaKey* key, WC_RNG* rng)
 {
     int ret = 0;
+    int calls = 0;
 
     do {
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -2941,7 +3071,8 @@ static int test_rsa_oaep_async(int decrypt, const byte* in, word32 inLen,
                     NULL, 0);
             }
         }
-    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+             ++calls < TEST_RSA_PENDING_MAX_CALLS);
 
     return ret;
 }

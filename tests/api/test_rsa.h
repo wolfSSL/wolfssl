@@ -51,6 +51,7 @@ int test_wc_RsaFunctionCheckIn_OversizedModulus(void);
 int test_wc_RsaKeyToDer_SizeOverflow(void);
 int test_wc_RsaDecisionCoverage(void);
 int test_wc_RsaFeatureCoverage(void);
+int test_wc_RsaPending_CryptoCbReinvoke(void);
 int test_wc_CryptoCb_RsaPssVerify(void);
 int test_wc_CryptoCb_RsaPssVerifyRecover(void);
 int test_wc_MakeRsaKey_id_dev(void);
@@ -84,6 +85,7 @@ int test_wc_FreeRsaKey_CryptoCb(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToDer_SizeOverflow),           \
     TEST_DECL_GROUP("rsa", test_wc_RsaDecisionCoverage),        \
     TEST_DECL_GROUP("rsa", test_wc_RsaFeatureCoverage),        \
+    TEST_DECL_GROUP("rsa", test_wc_RsaPending_CryptoCbReinvoke), \
     TEST_DECL_GROUP("rsa", test_wc_CryptoCb_RsaPssVerify),         \
     TEST_DECL_GROUP("rsa", test_wc_CryptoCb_RsaPssVerifyRecover),  \
     TEST_DECL_GROUP("rsa", test_wc_MakeRsaKey_id_dev),          \

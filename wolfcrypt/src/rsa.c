@@ -3556,7 +3556,12 @@ int wc_RsaDirect(const byte* in, word32 inLen, byte* out, word32* outSz,
             key->dataLen = *outSz;
 
             ret = wc_RsaFunction(in, inLen, out, &key->dataLen, type, key, rng);
-            if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            if (ret >= 0
+#if defined(WOLFSSL_ASYNC_CRYPT) && (defined(WOLFSSL_ASYNC_CRYPT_SW) || \
+    defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+                || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
+#endif
+                ) {
                 key->state = (type == RSA_PRIVATE_ENCRYPT ||
                     type == RSA_PUBLIC_ENCRYPT) ? RSA_STATE_ENCRYPT_RES:
                                                   RSA_STATE_DECRYPT_RES;
@@ -3986,7 +3991,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         ret = wc_RsaFunction(out, (word32)sz, out, &key->dataLen, rsa_type, key,
                              rng);
 
-        if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        if (ret >= 0
+#if defined(WOLFSSL_ASYNC_CRYPT) && (defined(WOLFSSL_ASYNC_CRYPT_SW) || \
+    defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+            || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
+#endif
+            ) {
             key->state = RSA_STATE_ENCRYPT_RES;
         }
         if (ret < 0) {
@@ -4232,7 +4242,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                                               rng, pad_type != WC_RSA_OAEP_PAD);
 #endif
 
-        if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        if (ret >= 0
+#if defined(WOLFSSL_ASYNC_CRYPT) && (defined(WOLFSSL_ASYNC_CRYPT_SW) || \
+    defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+            || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
+#endif
+            ) {
             key->state = RSA_STATE_DECRYPT_UNPAD;
         }
         if (ret < 0) {
