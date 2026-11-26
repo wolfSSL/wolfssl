@@ -64,6 +64,7 @@ include IDE/apple-universal/include.am
 include IDE/MPLABX16/include.am
 include IDE/MPLABX16/wolfcrypt_test.X/nbproject/include.am
 include IDE/MPLABX16/wolfssl.X/nbproject/include.am
+include IDE/Nordic/nRF54L15/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/DK-S7G2/include.am
 include IDE/Renesas/e2studio/Projects/include.am

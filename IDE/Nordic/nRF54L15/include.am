@@ -1,0 +1,13 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST+= IDE/Nordic/nRF54L15/.gitignore
+EXTRA_DIST+= IDE/Nordic/nRF54L15/Makefile
+EXTRA_DIST+= IDE/Nordic/nRF54L15/README.md
+EXTRA_DIST+= IDE/Nordic/nRF54L15/linker.ld
+EXTRA_DIST+= IDE/Nordic/nRF54L15/src/board.c
+EXTRA_DIST+= IDE/Nordic/nRF54L15/src/board.h
+EXTRA_DIST+= IDE/Nordic/nRF54L15/src/main.c
+EXTRA_DIST+= IDE/Nordic/nRF54L15/user_settings.h

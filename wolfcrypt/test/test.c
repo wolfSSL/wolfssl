@@ -543,6 +543,9 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
         #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
     #endif
+    #ifdef WOLFSSL_NRF54L_CRACEN
+        #include <wolfssl/wolfcrypt/port/nordic/cracen_cryptocb.h>
+    #endif
     #ifdef WOLFSSL_RTL8735B_HOST_TEST
         #include <wolfssl/wolfcrypt/port/realtek/rtl8735b.h>
     #endif
@@ -2727,6 +2730,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
      * AES-256-CTR cases reach the engine rather than running in software. */
     if ((ret = wc_MpfsAthena_RegisterDevice(WC_MPFS_ATHENA_DEVID)) != 0)
         TEST_FAIL("MPFS Athena register failed!\n", ret);
+#endif
+#ifdef WOLFSSL_NRF54L_CRACEN
+    if (wc_CracenInit() != 0 &&
+            !wc_CryptoCb_IsDeviceRegistered(WOLFSSL_CRACEN_DEVID)) {
+        printf("Couldn't init the CRACEN device\n");
+    }
 #endif
 #endif
 
