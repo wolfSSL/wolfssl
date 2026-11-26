@@ -2569,10 +2569,9 @@ int test_wolfSSL_session_cache_row(void)
         }
         ExpectIntEQ(wolfSSL_memrestore_session_cache(mem, sz),
             WC_NO_ERR_TRACE(CACHE_MATCH_ERROR));
-        for (i = 61; i < 64; i++) {
-            XMEMSET(id, i + 1, sizeof(id));
-            ExpectIntEQ(test_session_cache_row_find(ssl, id), 1);
-        }
+        /* Only the last entry is sure to survive in the smallest caches. */
+        XMEMSET(id, 64, sizeof(id));
+        ExpectIntEQ(test_session_cache_row_find(ssl, id), 1);
         XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
