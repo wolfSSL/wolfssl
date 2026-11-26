@@ -193,6 +193,9 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
     if (ret == MP_OKAY) {
+#ifdef USE_FAST_MATH
+        mp_zero(a);
+#endif
         a->used = (wc_mp_size_t)digits;
     }
 #endif

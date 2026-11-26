@@ -353,6 +353,10 @@ int test_mp_rand(void)
     WC_RNG rng;
     int    digits = 1;
     byte   wide[5 * sizeof(mp_digit)];
+#if defined(USE_FAST_MATH) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    int    i;
+#endif
 
     XMEMSET(&a, 0, sizeof(mp_int));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -380,6 +384,13 @@ int test_mp_rand(void)
     ExpectIntEQ(mp_rand(&a, 2, &rng), 0);
     ExpectIntLE(mp_count_bits(&a), 2 * DIGIT_BIT);
     ExpectIntGT(mp_count_bits(&a), DIGIT_BIT);
+#if defined(USE_FAST_MATH) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    /* Fast math needs every digit at and above used to be zero. */
+    for (i = a.used; i < FP_SIZE; i++) {
+        ExpectTrue(a.dp[i] == 0);
+    }
+#endif
 
     mp_clear(&a);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
