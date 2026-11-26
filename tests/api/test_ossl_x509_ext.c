@@ -1291,7 +1291,7 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
         ExpectNotNull(ext->obj);
         ExpectIntEQ(ext->obj->ca, 1);
         ExpectNotNull(ext->obj->pathlen);
-        ExpectIntEQ(ext->obj->pathlen->length, 2);
+        ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(ext->obj->pathlen), 2);
         ExpectIntEQ(ext->crit, 1);
     }
     ExpectIntEQ(X509_add_ext(x509, ext, -1), WOLFSSL_SUCCESS);

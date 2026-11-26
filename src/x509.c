@@ -3552,10 +3552,9 @@ static int wolfssl_ext_bc_from_str(WOLFSSL_X509_EXTENSION* ext,
 
     ext->obj->ca = isCa;
     if (pathLenSet) {
-        ext->obj->pathlen = wolfSSL_ASN1_INTEGER_new();
+        ext->obj->pathlen = x509_asn1_integer_new_word32((word32)pathLen);
         if (ext->obj->pathlen == NULL)
             return WOLFSSL_FAILURE;
-        ext->obj->pathlen->length = pathLen;
     }
 
     return WOLFSSL_SUCCESS;
