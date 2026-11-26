@@ -8255,8 +8255,12 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
 
 #if !defined(NO_HASH_WRAPPER) && \
     (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
-/* HashObject() is SipHash under a random key made in wolfSSL_Init(). */
-#if defined(WOLFSSL_SIPHASH) && !defined(WC_NO_RNG)
+/* HashObject() is SipHash under a random key made in wolfSSL_Init(). Not
+ * where wolfSSL_Init() can't run an RNG: a crypto callback only DRBG has no
+ * device yet. */
+#if defined(WOLFSSL_SIPHASH) && !defined(WC_NO_RNG) && \
+    !((defined(WOLF_CRYPTO_CB_ONLY_SHA256) || \
+       defined(WOLF_CRYPTO_CB_ONLY_SHA512)) && defined(HAVE_HASHDRBG))
     #define WC_HASH_OBJECT_SIPHASH
     WOLFSSL_LOCAL int  HashObjectKeyInit(WC_RNG* rng);
     WOLFSSL_LOCAL void HashObjectKeyFree(void);
