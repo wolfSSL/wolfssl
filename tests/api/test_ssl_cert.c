@@ -3165,6 +3165,13 @@ int test_wolfSSL_cert_api_arg_guards(void)
             sizeof(certTypes)), WOLFSSL_SUCCESS);
     }
 
+    /* A negative length is invalid even when no list is supplied. */
+    ExpectIntEQ(wolfSSL_CTX_set_client_cert_type(ctx, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_set_server_cert_type(ctx, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_set_client_cert_type(ssl, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, NULL, 0), WOLFSSL_SUCCESS);
+
     /* negotiated type read back before any handshake, and through NULL */
     (void)wolfSSL_get_negotiated_client_cert_type(NULL, &tp);
     (void)wolfSSL_get_negotiated_server_cert_type(NULL, &tp);
