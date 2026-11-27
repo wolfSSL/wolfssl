@@ -33,6 +33,7 @@ int test_wolfSSL_load_pathological_files(void);
 int test_wolfSSL_load_from_fifo(void);
 int test_wolfSSL_dtls_api_more_guards(void);
 int test_wolfSSL_alloc_failure_sweep(void);
+int test_wolfSSL_handshake_alloc_failure_sweep(void);
 
 int test_wolfSSL_get_verify_mode(void);
 int test_wolfSSL_CTX_get_verify_mode(void);
@@ -165,6 +166,7 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_from_fifo),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_more_guards),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep), \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_handshake_alloc_failure_sweep), \
         TEST_DECL_GROUP("ssl_cert", test_ssl_cert_decision_coverage)
 
 #endif /* TESTS_API_SSL_CERT_H */
