@@ -4692,7 +4692,8 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
 #ifdef WOLFSSL_CERT_EVENTS
     /* Register a callback that observes certificate validation events: one
      * DEFECT event per failed check, and one RESULT event when a verification
-     * finishes. Events never change the verification result. */
+     * finishes. A CRL that fails to load is a DEFECT in the CRL category.
+     * Events never change the verification result. */
     WOLFSSL_API int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_CERT_EVENT_CB cb, void* ctx);
     WOLFSSL_API int wolfSSL_CTX_SetCertEventCb(WOLFSSL_CTX* ctx,

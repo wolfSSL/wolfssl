@@ -3406,6 +3406,11 @@ struct DecodedCRL {
     WC_BITFIELD extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
 #endif
     WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */
+#ifdef WOLFSSL_CERT_EVENTS
+    /* An issuer was found. A later ASN_CRL_NO_SIGNER_E means that issuer
+     * may not sign CRLs. */
+    WC_BITFIELD crlSignerFound:1;
+#endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback     unknownExtCallback;
     wc_UnknownExtCallback32   unknownExtCallback32;

@@ -21,6 +21,10 @@
     sends. Their CAs use the keys in certs/intermediate/ and lead up to
     certs/ca-cert.pem.
 
+    The crl-*.der files are CRLs. Each has one fault, except crl-good.der.
+    crl-revokes-good.der revokes good.der. ca-no-crlsign.der is a CA that
+    may not sign CRLs, and crl-signer-no-crlsign.der is the CRL it signed.
+
     Requires: Python 3 and an openssl command line tool (no Python packages).
     Usage:    python3 ./certs/test/gen-cert-events.py
               (run from the top of the wolfSSL source tree)
@@ -56,6 +60,7 @@ OID_EXT_KEY_USAGE = '2.5.29.37'
 OID_AUTH_INFO = '1.3.6.1.5.5.7.1.1'
 OID_UNKNOWN = '1.3.6.1.4.1.99999.1'
 OID_SHA384_RSA = '1.2.840.113549.1.1.12'
+OID_CRL_NUMBER = '2.5.29.20'
 OID_COMMON_NAME = '2.5.4.3'
 OID_CLIENT_AUTH = '1.3.6.1.5.5.7.3.2'
 
@@ -428,6 +433,72 @@ def build(serial: int, exts: dict, uids: bytes, parts,
     return der_sequence(tbs, f['outer_sig_alg'], signature) + f['trailing']
 
 
+def build_crl(issuer: bytes, issuer_skid: bytes, key: str, revoked: list,
+              next_update: str = NOT_AFTER, extra: bytes = b'',
+              entry_serial: bytes = None,
+              outer_oid: str = OID_SHA256_RSA) -> bytes:
+    """A version 2 CRL with an authority key identifier and a CRL number."""
+    sig_alg = der_sequence(der_oid(OID_SHA256_RSA), tlv(0x05, b''))
+    outer_alg = der_sequence(der_oid(outer_oid), tlv(0x05, b''))
+    entries = [der_sequence(entry_serial or der_integer(sn),
+                            tlv(0x17, NOT_BEFORE.encode()))
+               for sn in revoked]
+    exts = [
+        extension(OID_AKID, der_sequence(tlv(0x80, issuer_skid))),
+        extension(OID_CRL_NUMBER, der_integer(1)),
+    ]
+    tbs = der_sequence(der_integer(1), sig_alg, issuer,
+                       tlv(0x17, NOT_BEFORE.encode()),
+                       tlv(0x17, next_update.encode()),
+                       der_sequence(*entries) if entries else b'',
+                       tlv(0xa0, der_sequence(*exts, extra)))
+    return der_sequence(tbs, outer_alg, tlv(0x03, b'\x00' + sign(tbs, key)))
+
+
+def build_crls(parts, serial: int):
+    """CRLs issued by certs/ca-cert.pem, and a CA that may not sign CRLs."""
+    _, _, root, root_skid = parts
+    int_spki = public_key(INT_KEY)
+    good_serial = FIRST_SERIAL  # good.der
+    out = {
+        'crl-good': ('a good CRL that revokes nothing',
+                     build_crl(root, root_skid, CA_KEY, [])),
+        'crl-revokes-good': ('revokes good.der',
+                             build_crl(root, root_skid, CA_KEY,
+                                       [good_serial])),
+        'crl-expired': ('nextUpdate is in 2025',
+                        build_crl(root, root_skid, CA_KEY, [],
+                                  next_update='250601000000Z')),
+        'crl-bad-signature': ('signed with a key other than the issuer\'s',
+                              build_crl(root, root_skid, SERVER_KEY, [])),
+        'crl-unknown-issuer': ('issued by a CA nobody trusts',
+                               build_crl(name('Cert Events Unknown CA'),
+                                         bytes(20), CA_KEY, [])),
+        'crl-malformed': ('a revoked entry\'s serial is an OCTET STRING',
+                          build_crl(root, root_skid, CA_KEY, [1],
+                                    entry_serial=der_octet_string(b'\x01'))),
+        'crl-unknown-critical': ('an unknown CRL extension marked critical',
+                                 build_crl(root, root_skid, CA_KEY, [],
+                                           extra=extension(OID_UNKNOWN,
+                                               b'\x05\x00',
+                                               critical=True))),
+        'crl-sigalg-mismatch': (
+            'the inner signature algorithm and the outer one differ',
+            build_crl(root, root_skid, CA_KEY, [],
+                      outer_oid=OID_SHA384_RSA)),
+    }
+    # keyCertSign is set. cRLSign is not.
+    cn = 'Cert Events Int No CRL Sign'
+    out['ca-no-crlsign'] = (
+        'a CA that may not sign CRLs',
+        chain_cert(serial, name(cn), int_spki, root, root_skid, CA_KEY,
+                   ca=True, key_usage=b'\x02\x04'))
+    out['crl-signer-no-crlsign'] = (
+        'signed by ca-no-crlsign.der',
+        build_crl(name(cn), skid_of(int_spki), INT_KEY, []))
+    return out
+
+
 def main():
     parts = load_parts()
     if parts[3] is None:
@@ -453,6 +524,12 @@ def main():
             f.write(''.join(pem(c) for c in certs))
         print('Created: %s (%s)' % (path, desc))
     for name_, (desc, der) in singles.items():
+        path = os.path.join(OUT_DIR, name_ + '.der')
+        with open(path, 'wb') as f:
+            f.write(der)
+        print('Created: %s (%s)' % (path, desc))
+
+    for name_, (desc, der) in build_crls(parts, FIRST_SERIAL + 0x200).items():
         path = os.path.join(OUT_DIR, name_ + '.der')
         with open(path, 'wb') as f:
             f.write(der)
