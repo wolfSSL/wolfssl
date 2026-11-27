@@ -1111,7 +1111,7 @@ static void wc_PKCS7_FreeCertSet(wc_PKCS7* pkcs7)
     return;
 }
 
-#ifndef NO_PKCS7_STREAM
+#if !defined(NO_PKCS7_STREAM) || defined(ASN_BER_TO_DER)
 /* return 1 when p points into buf of bufSz bytes */
 static int wc_PKCS7_InBuf(const byte* p, const byte* buf, word32 bufSz)
 {
@@ -1119,7 +1119,7 @@ static int wc_PKCS7_InBuf(const byte* p, const byte* buf, word32 bufSz)
         (wc_ptr_t)p - (wc_ptr_t)buf < (wc_ptr_t)bufSz;
 }
 
-/* clear the certificate references a verify pointed into stream->tmpCert */
+/* clear the certificate references a verify pointed into its message copy */
 static void wc_PKCS7_DropCertRefs(wc_PKCS7* pkcs7)
 {
     XMEMSET(pkcs7->cert, 0, sizeof(pkcs7->cert));
@@ -1146,6 +1146,24 @@ static int wc_PKCS7_CertRefsInBuf(const wc_PKCS7* pkcs7, const byte* buf,
             return 1;
     }
     return 0;
+}
+#endif
+
+#ifdef ASN_BER_TO_DER
+/* Free pkcs7->der and drop references into it. keepSz keeps contentSz,
+ * which a header/footer verify takes from the caller. */
+static void wc_PKCS7_FreeDer(wc_PKCS7* pkcs7, int keepSz)
+{
+    if (wc_PKCS7_InBuf(pkcs7->content, pkcs7->der, pkcs7->derSz)) {
+        pkcs7->content = NULL;
+        if (!keepSz)
+            pkcs7->contentSz = 0;
+    }
+    if (wc_PKCS7_CertRefsInBuf(pkcs7, pkcs7->der, pkcs7->derSz))
+        wc_PKCS7_DropCertRefs(pkcs7);
+    XFREE(pkcs7->der, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->der   = NULL;
+    pkcs7->derSz = 0;
 }
 #endif
 
@@ -1793,6 +1811,7 @@ void wc_PKCS7_Free(wc_PKCS7* pkcs7)
 #ifdef ASN_BER_TO_DER
     XFREE(pkcs7->der, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     pkcs7->der = NULL;
+    pkcs7->derSz = 0;
 #endif
     XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     pkcs7->contentDynamic = NULL;
@@ -7728,6 +7747,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     byte noDegenerate = 0;
 #ifdef ASN_BER_TO_DER
     byte* der;
+    word32 derSz;
 #endif
     int multiPart = 0, keepContent;
     int hasFooter, hashedFooter;
@@ -7770,8 +7790,12 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     idx = 0;
 
 #ifdef ASN_BER_TO_DER
-    if (pkcs7->derSz > 0 && pkcs7->der) {
-        pkiMsg = pkcs7->der;
+    if (pkcs7->state == WC_PKCS7_START && pkcs7->der != NULL) {
+        if (wc_PKCS7_InBuf(in, pkcs7->der, pkcs7->derSz) ||
+                wc_PKCS7_InBuf(in2, pkcs7->der, pkcs7->derSz))
+            return BAD_FUNC_ARG;
+        wc_PKCS7_FreeDer(pkcs7, pkiMsg2 && pkiMsg2Sz > 0 && hashBuf &&
+            hashSz > 0);
     }
 #endif
 
@@ -7838,17 +7862,20 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     #if defined(NO_PKCS7_STREAM)
         #ifdef ASN_BER_TO_DER
                 word32 len = 0;
+                byte* newDer;
 
                 ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
                 if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
                     return ret;
-                pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap,
-                                                        DYNAMIC_TYPE_PKCS7);
-                if (pkcs7->der == NULL)
+                newDer = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                if (newDer == NULL)
                     return MEMORY_E;
-                ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
-                if (ret < 0)
+                ret = wc_BerToDer(pkiMsg, pkiMsgSz, newDer, &len);
+                if (ret < 0) {
+                    XFREE(newDer, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                     return ret;
+                }
+                pkcs7->der = newDer;
 
                 pkiMsg   = in = pkcs7->der;
                 inSz = pkcs7->derSz = len;
@@ -8761,6 +8788,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     }
         #ifdef ASN_BER_TO_DER
                     der = pkcs7->der;
+                    derSz = pkcs7->derSz;
                     pkcs7->der = NULL;
         #endif
                     version = pkcs7->version;
@@ -8789,6 +8817,9 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                             if (contentDynamic == NULL) {
                             #ifndef NO_PKCS7_STREAM
                                 pkcs7->stream = stream;
+                            #endif
+                            #ifdef ASN_BER_TO_DER
+                                pkcs7->der = der;
                             #endif
                                 ret = MEMORY_E;
                                 break;
@@ -8834,6 +8865,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     pkcs7->version = (byte)version;
         #ifdef ASN_BER_TO_DER
                     pkcs7->der = der;
+                    pkcs7->derSz = derSz;
         #endif
                     if (ret != 0)
                         break;

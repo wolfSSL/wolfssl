@@ -11924,3 +11924,228 @@ int test_wc_PKCS7_VerifySignedData_DegenerateClearsVerifyCert(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(NO_PKCS7_STREAM)
+/* Re-encode the outer ContentInfo SEQUENCE with an indefinite length. */
+static int pkcs7_make_indef(byte* msg, int msgSz)
+{
+    if (msgSz < 4 || msg[0] != (ASN_SEQUENCE | ASN_CONSTRUCTED) ||
+            msg[1] != (ASN_LONG_LENGTH | 2))
+        return -1;
+    XMEMMOVE(msg + 2, msg + 4, (word32)msgSz - 4);
+    msg[1] = ASN_INDEF_LENGTH;
+    msg[msgSz - 2] = 0;
+    msg[msgSz - 1] = 0;
+    return 0;
+}
+#endif
+
+/* A verify drops the DER copy of a previous BER message and the references
+ * into it. */
+int test_wc_PKCS7_VerifySignedData_ReuseAfterBer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    defined(NO_PKCS7_STREAM)
+    byte   data1[] = { 0x01, 0x02, 0x03 };
+    byte   data2[] = { 0x04, 0x05, 0x06, 0x07 };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    byte*  inner = NULL;
+    byte*  in = NULL;
+    byte   hash[WC_SHA256_DIGEST_SIZE];
+    int    msgSz = 0;
+    int    innerSz = 0;
+    word32 inSz = 0;
+    word32 headSz = 0;
+    word32 footSz = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+#if MAX_PKCS7_CERTS > 3
+    int    found = 0;
+    int    c = 0;
+    word32 i;
+#endif
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(inner = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+
+    /* BER message without certificates, then a DER message */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data1,
+            sizeof(data1), PKCS7_SIGN_NO_CERTS, &rng)), 0);
+        ExpectIntEQ(pkcs7_make_indef(msg, msgSz), 0);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data2,
+            sizeof(data2), 0, &rng)), 0);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data2));
+        ExpectNotNull(pkcs7->content);
+        if (pkcs7->content != NULL) {
+            ExpectBufEQ(pkcs7->content, data2, sizeof(data2));
+        }
+    }
+
+    /* msg is reused, so drop the content the last verify pointed into it */
+    if (pkcs7 != NULL) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    /* the certificates of a BER message go with its DER copy */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data1,
+            sizeof(data1), 0, &rng)), 0);
+        ExpectIntEQ(pkcs7_make_indef(msg, msgSz), 0);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data2,
+            sizeof(data2), PKCS7_SIGN_NO_CERTS, &rng)), 0);
+    }
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNull(pkcs7->singleCert);
+    }
+
+#if MAX_PKCS7_CERTS > 3
+    /* a certificate set that does not start with a certificate */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax - 2, data1,
+            sizeof(data1), 0, &rng)), 0);
+    }
+    ExpectIntGT((c = test_PKCS7_findBytes(msg, msgSz, client_cert_der_2048,
+        sizeof_client_cert_der_2048)), 4);
+    ExpectIntEQ(msg[c - 4], ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(pkcs7_grow_outer(msg, 2), 0);
+        ExpectIntEQ(pkcs7_grow_der_len(msg, (word32)c - 4, 2), 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        XMEMMOVE(msg + c + 2, msg + c, (word32)(msgSz - c));
+        msg[c] = ASN_TAG_NULL;
+        msg[c + 1] = 0;
+        msgSz += 2;
+        ExpectIntEQ(pkcs7_make_indef(msg, msgSz), 0);
+    }
+    if (pkcs7 != NULL) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz),
+        0);
+    for (i = 0; pkcs7 != NULL && i < MAX_PKCS7_CERTS; i++) {
+        if (pkcs7->cert[i] != NULL)
+            found = 1;
+    }
+    ExpectIntEQ(found, 1);
+    if (pkcs7 != NULL) {
+        ExpectNull(pkcs7->singleCert);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data2,
+            sizeof(data2), PKCS7_SIGN_NO_CERTS, &rng)), 0);
+    }
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    for (i = 0; pkcs7 != NULL && i < MAX_PKCS7_CERTS; i++) {
+        ExpectNull(pkcs7->cert[i]);
+    }
+#endif
+
+    /* an input inside the DER copy of the previous message */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((innerSz = pkcs7_sign_data(inner, msgMax, data2,
+            sizeof(data2), 0, &rng)), 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, inner,
+            (word32)innerSz, 0, &rng)), 0);
+        ExpectIntEQ(pkcs7_make_indef(msg, msgSz), 0);
+    }
+    if (pkcs7 != NULL) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        in = pkcs7->content;
+        inSz = pkcs7->contentSz;
+    }
+    ExpectIntEQ(inSz, (word32)innerSz);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, in, inSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* header and footer verify, with contentSz set by the caller */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data1,
+            sizeof(data1), 0, &rng)), 0);
+        ExpectIntEQ(pkcs7_make_indef(msg, msgSz), 0);
+    }
+    if (pkcs7 != NULL) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    ExpectIntEQ(wc_Sha256Hash(data2, sizeof(data2), hash), 0);
+    if (EXPECT_SUCCESS()) {
+        PKCS7* signer = NULL;
+
+        headSz = msgMax;
+        footSz = msgMax;
+        ExpectNotNull(signer = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(signer,
+            (byte*)client_cert_der_2048, sizeof_client_cert_der_2048), 0);
+        if (signer != NULL) {
+            signer->contentSz    = sizeof(data2);
+            signer->contentOID   = DATA;
+            signer->hashOID      = SHA256h;
+            signer->encryptOID   = RSAk;
+            signer->privateKey   = (byte*)client_key_der_2048;
+            signer->privateKeySz = sizeof_client_key_der_2048;
+            signer->rng          = &rng;
+        }
+        ExpectIntEQ(wc_PKCS7_EncodeSignedData_ex(signer, hash, sizeof(hash),
+            msg, &headSz, inner, &footSz), 0);
+        wc_PKCS7_Free(signer);
+    }
+    if (pkcs7 != NULL) {
+        pkcs7->contentSz = sizeof(data2);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, sizeof(hash), msg,
+        headSz, inner, footSz), 0);
+
+    /* a footer inside the DER copy of the previous message */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data1,
+            sizeof(data1), 0, &rng)), 0);
+        ExpectIntEQ(pkcs7_make_indef(msg, msgSz), 0);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        in = pkcs7->content;
+        inSz = pkcs7->contentSz;
+        pkcs7->contentSz = sizeof(data2);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, sizeof(hash), inner,
+        headSz, in, inSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(inner, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
