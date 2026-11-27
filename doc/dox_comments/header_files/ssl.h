@@ -6916,6 +6916,87 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
 /*!
     \ingroup CertsKeys
 
+    \brief Gets the untrusted certificates of a store context. After
+    wolfSSL_X509_STORE_CTX_init() this is the stack passed to it. In a verify
+    callback of a handshake it is the certificates the peer sent, leaf first.
+    The stack is not a copy and must not be freed.
+
+    \return pointer to the stack of untrusted certificates.
+    \return NULL if ctx is NULL or there are no untrusted certificates.
+
+    \param ctx certificate store context.
+
+    _Example_
+    \code
+    int verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* ctx)
+    {
+        WOLF_STACK_OF(WOLFSSL_X509)* sk;
+        sk = wolfSSL_X509_STORE_CTX_get0_untrusted(ctx);
+        // inspect sk, do not free it
+        return preverify;
+    }
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_init
+    \sa wolfSSL_X509_STORE_CTX_get_chain
+*/
+WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_CTX_get0_untrusted(
+    const WOLFSSL_X509_STORE_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets the host name check flags of a verify parameter, as set with
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags().
+
+    \return the host flags.
+    \return 0 if param is NULL.
+
+    \param param verify parameter to get the flags from.
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_get0_param(ssl);
+    unsigned int flags = wolfSSL_X509_VERIFY_PARAM_get_hostflags(param);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set_hostflags
+*/
+unsigned int wolfSSL_X509_VERIFY_PARAM_get_hostflags(
+    const WOLFSSL_X509_VERIFY_PARAM* param);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks if a certificate has an iPAddress subject alternative name
+    matching a binary IP address. The subject common name is not checked.
+
+    \return 1 on a match.
+    \return 0 on no match, when x or chk is NULL, or when chklen is not 4
+    (IPv4) or 16 (IPv6).
+
+    \param x certificate to check.
+    \param chk IP address in network byte order.
+    \param chklen length of chk: 4 or 16.
+    \param flags check flags, as for wolfSSL_X509_check_ip_asc().
+
+    _Example_
+    \code
+    static const unsigned char ip[] = { 127, 0, 0, 1 };
+    if (wolfSSL_X509_check_ip(x509, ip, sizeof(ip), 0) != 1) {
+        // no match
+    }
+    \endcode
+
+    \sa wolfSSL_X509_check_ip_asc
+    \sa wolfSSL_X509_check_host
+*/
+int wolfSSL_X509_check_ip(WOLFSSL_X509 *x, const unsigned char *chk,
+    size_t chklen, unsigned int flags);
+
+/*!
+    \ingroup CertsKeys
+
     \brief This function takes in a flag to change the behavior of the
     WOLFSSL_X509_STORE structure passed in. An example of a flag used
     is WOLFSSL_CRL_CHECK. X509_V_FLAG_CRL_CHECK and
