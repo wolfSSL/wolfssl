@@ -382,6 +382,12 @@ int test_wolfSSL_tmp_dh_files(void)
 #endif
         ExpectIntEQ(wolfSSL_SetTmpDH_file(client, der, WOLFSSL_FILETYPE_ASN1),
             SIDE_ERROR);
+        ExpectIntEQ(wolfSSL_CTX_SetMaxDhKey_Sz(ctx, 2040), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, WOLFSSL_FILETYPE_ASN1),
+            DH_KEY_SIZE_E);
+        ExpectIntEQ(wolfSSL_CTX_SetMaxDhKey_Sz(ctx, 2048), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_SetMaxDhKey_Sz(ssl, 2040), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
             DH_KEY_SIZE_E);

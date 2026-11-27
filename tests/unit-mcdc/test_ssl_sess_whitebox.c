@@ -53,12 +53,12 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  */
 
 #include <wolfssl/options.h>
 
 #include <src/ssl.c>
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -69,8 +69,94 @@
 
 static int g_checks;
 
+/* Exercise the copy helper directly: normal callers own both sessions and
+ * never ask it to copy onto the source. */
+static int wb_session_copy_guards(void)
+{
+    WOLFSSL_SESSION* input = wolfSSL_SESSION_new();
+    WOLFSSL_SESSION* output = wolfSSL_SESSION_new();
+    int failed = 0;
+
+    if (input == NULL || output == NULL) {
+        failed = 1;
+        goto done;
+    }
+    if (wolfSSL_DupSession(NULL, output, 0) != WOLFSSL_FAILURE)
+        failed = 1;
+    if (wolfSSL_DupSession(input, NULL, 0) != WOLFSSL_FAILURE)
+        failed = 1;
+    if (wolfSSL_DupSession(input, input, 0) != WOLFSSL_FAILURE)
+        failed = 1;
+    if (wolfSSL_DupSession(input, output, 0) != WOLFSSL_SUCCESS)
+        failed = 1;
+
+done:
+    wolfSSL_SESSION_free(output);
+    wolfSSL_SESSION_free(input);
+    return failed;
+}
+
+#if defined(HAVE_SESSION_TICKET) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_session_ticket_copy(void)
+{
+    WOLFSSL_SESSION* input = wolfSSL_SESSION_new();
+    WOLFSSL_SESSION* output = wolfSSL_SESSION_new();
+    WOLFSSL_SESSION* copy = NULL;
+    byte ticket[sizeof(input->staticTicket) + 16];
+    word16 length = (word16)sizeof(ticket);
+    int failed = 0;
+
+    if (input == NULL || output == NULL) {
+        failed = 1;
+        goto done;
+    }
+    XMEMSET(ticket, 0x6a, sizeof(ticket));
+    if (SetSessionTicket(input, ticket, length) != 0) {
+        failed = 1;
+        goto done;
+    }
+
+    if (wolfSSL_DupSession(input, output, 1) != WOLFSSL_FAILURE)
+        failed = 1;
+    if (SetSessionTicket(output, ticket, length - 1) != 0)
+        failed = 1;
+    if (wolfSSL_DupSession(input, output, 1) != WOLFSSL_FAILURE)
+        failed = 1;
+
+    if (wolfSSL_DupSession(input, output, 0) != WOLFSSL_SUCCESS ||
+            output->ticket == input->ticket || output->ticketLen != length ||
+            XMEMCMP(output->ticket, ticket, length) != 0)
+        failed = 1;
+    if (wolfSSL_DupSession(input, output, 1) != WOLFSSL_SUCCESS ||
+            output->ticketLen != length)
+        failed = 1;
+
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    copy = wolfSSL_SESSION_dup(input);
+    mcdc_fa_restore();
+    if (copy != NULL) {
+        failed = 1;
+        wolfSSL_SESSION_free(copy);
+    }
+    copy = wolfSSL_SESSION_dup(input);
+    if (copy == NULL || copy->ticket == input->ticket ||
+            copy->ticketLen != length ||
+            XMEMCMP(copy->ticket, ticket, length) != 0)
+        failed = 1;
+
+done:
+    wolfSSL_SESSION_free(copy);
+    wolfSSL_SESSION_free(output);
+    wolfSSL_SESSION_free(input);
+    return failed;
+}
+#endif
+
 int main(void)
 {
+    int failed = 0;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
     byte         id[ID_LEN];
@@ -193,6 +279,18 @@ int main(void)
         }
     }
 
+    if (wb_session_copy_guards()) {
+        puts("ssl_sess white-box: unexpected session copy guard result");
+        failed = 1;
+    }
+#if defined(HAVE_SESSION_TICKET) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_session_ticket_copy()) {
+        puts("ssl_sess white-box: unexpected ticket copy result");
+        failed = 1;
+    }
+#endif
+
     printf("ssl_sess white-box: %d vectors driven\n", g_checks);
 
 done:
@@ -201,7 +299,7 @@ done:
     if (ctx != NULL)
         wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else
