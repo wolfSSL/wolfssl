@@ -296,6 +296,101 @@ done:
 }
 #endif
 
+#if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
+{
+    static const byte serverId[] = { 'c', 'a', 'c', 'h', 'e' };
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_SESSION* source = wolfSSL_SESSION_new();
+    WOLFSSL_SESSION* cached;
+    const WOLFSSL_SESSION* locked = NULL;
+    ClientSession* clientEntry = NULL;
+    byte id[ID_LEN];
+    byte secret[SECRET_LEN];
+    word32 row = 0;
+    int failed = 1;
+
+    if (ssl == NULL || source == NULL || ssl->arrays == NULL)
+        goto done;
+    XMEMSET(id, 0x48, sizeof(id));
+    XMEMSET(source->masterSecret, 0x51, sizeof(source->masterSecret));
+    XMEMCPY(source->sessionID, id, sizeof(id));
+    XMEMCPY(source->serverID, serverId, sizeof(serverId));
+    source->sessionIDSz = sizeof(id);
+    source->idLen = sizeof(serverId);
+    source->version = MakeTLSv1_2();
+    source->bornOn = LowResTimer();
+    source->timeout = 3600;
+    source->side = WOLFSSL_CLIENT_END;
+    source->isSetup = 1;
+    ssl->version = MakeTLSv1_2();
+    ssl->options.haveSessionId = 1;
+    XMEMCPY(ssl->arrays->sessionID, id, sizeof(id));
+
+#ifdef HAVE_SESSION_TICKET
+    {
+        byte ticket[sizeof(source->staticTicket) + 16];
+        XMEMSET(ticket, 0x2f, sizeof(ticket));
+        if (SetSessionTicket(source, ticket, sizeof(ticket)) != 0)
+            goto done;
+    }
+    /* A server with tickets uses its ticket lookup path instead. */
+    ssl->options.side = WOLFSSL_SERVER_END;
+    ssl->options.useTicket = 1;
+    if (GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_FAILURE)
+        goto done;
+    ssl->options.useTicket = 0;
+    if (GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_FAILURE)
+        goto done;
+    ssl->options.side = WOLFSSL_CLIENT_END;
+    ssl->options.useTicket = 1;
+#endif
+
+    if (AddSessionToCache(ctx, source, id, sizeof(id), NULL,
+            WOLFSSL_CLIENT_END, 0, &clientEntry) != 0 ||
+        clientEntry == NULL)
+        goto done;
+    if (TlsSessionCacheGetAndRdLock(id, &locked, &row,
+            WOLFSSL_CLIENT_END) != 0 || locked == NULL)
+        goto done;
+    TlsSessionCacheUnlockRow(row);
+
+    cached = wolfSSL_GetSessionClient(ssl, serverId, sizeof(serverId));
+    if (cached != locked ||
+        wolfSSL_SESSION_up_ref(cached) != WOLFSSL_FAILURE ||
+        wolfSSL_GetSession(ssl, NULL, 0) != ssl->session ||
+        wolfSSL_GetSession(ssl, secret, 0) != ssl->session ||
+        XMEMCMP(secret, source->masterSecret, sizeof(secret)) != 0)
+        goto done;
+
+    if (wolfSSL_SetSession(ssl, cached) != WOLFSSL_SUCCESS ||
+        !ssl->options.resuming)
+        goto done;
+
+    /* Expiring a genuine cached entry should evict it on the next lookup. */
+    source->timeout = 0;
+    if (AddSessionToCache(ctx, source, id, sizeof(id), NULL,
+            WOLFSSL_CLIENT_END, 0, &clientEntry) != 0 ||
+        GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_FAILURE)
+        goto done;
+    locked = NULL;
+    if (TlsSessionCacheGetAndRdLock(id, &locked, &row,
+            WOLFSSL_CLIENT_END) != 0)
+        goto done;
+    if (locked != NULL) {
+        TlsSessionCacheUnlockRow(row);
+        goto done;
+    }
+
+    failed = 0;
+
+done:
+    wolfSSL_SESSION_free(source);
+    wolfSSL_free(ssl);
+    return failed;
+}
+#endif
+
 int main(void)
 {
     int failed = 0;
@@ -446,6 +541,13 @@ int main(void)
     !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_external_cache_lookup(ctx)) {
         puts("ssl_sess white-box: unexpected external cache result");
+        failed = 1;
+    }
+#endif
+
+#if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_internal_cache_roundtrip(ctx)) {
+        puts("ssl_sess white-box: unexpected internal cache result");
         failed = 1;
     }
 #endif
