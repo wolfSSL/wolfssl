@@ -14779,18 +14779,23 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
     int done = 0;
     int mBits = sp_count_bits(m);
     int bBits = sp_count_bits(b);
-    /* Exponent may be secret - don't count bits of the top digit.
-     * Bit count rounded up to a whole number of digits is equivalent when
-     * comparing against sizes that are a multiple of the digit size. */
-    int eBits = (e == NULL) ? 0 : (int)e->used * SP_WORD_SIZE;
+    int eBits = 0;
 
+    /* digits must cover e and stay within its allocated words. */
     if ((b == NULL) || (e == NULL) || (m == NULL) || (r == NULL) ||
-             (digits < 0)) {
+             (digits < 0) || ((unsigned int)digits > (unsigned int)e->size) ||
+             ((int)e->used > digits)) {
         err = MP_VAL;
     }
     /* Ensure m is not too big. */
     else if (m->used * 2 >= SP_INT_DIGITS) {
         err = MP_VAL;
+    }
+    else {
+        /* Exponent may be secret - use the caller's digit count, not e->used.
+         * Bit count rounded up to a whole number of digits is equivalent when
+         * comparing against sizes that are a multiple of the digit size. */
+        eBits = digits * SP_WORD_SIZE;
     }
 
 #if 0

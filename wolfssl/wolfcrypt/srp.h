@@ -124,7 +124,9 @@ typedef struct Srp {
         /**< The default function used by this implementation is a modified   */
         /**< version of t_mgf1 that uses the proper hash function according   */
         /**< to srp->type.                                                    */
-    void*   heap;                   /**< heap hint pointer                    */
+        /**< secret is S as big-endian bytes. size is the minimal length of S */
+        /**< by default, or the length of N if WOLFSSL_SRP_CT_SECRET is set.  */
+    void*   heap;                  /**< heap hint pointer                    */
 } Srp;
 
 /**

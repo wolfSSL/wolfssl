@@ -96730,6 +96730,28 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
 
+    /* Digit counts that are negative, too large or shorter than e. */
+    ret = mp_set(a, 0xfb);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_set(b, 0);
+    if (ret == MP_OKAY)
+        ret = mp_set_bit(b, DIGIT_BIT);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_exptmod_ex(a, b, -1, a, r);
+    if (ret != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_exptmod_ex(a, b, -0x7fffffff - 1, a, r);
+    if (ret != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_exptmod_ex(a, b, 0x7fffffff, a, r);
+    if (ret != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = mp_exptmod_ex(a, b, 1, a, r);
+    if (ret != WC_NO_ERR_TRACE(MP_VAL))
+        return WC_TEST_RET_ENC_EC(ret);
+
     ret = mp_exptmod_nct(NULL, NULL, NULL, NULL);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);

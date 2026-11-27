@@ -825,7 +825,7 @@ static void wb_sp_backend_dispatch_one(int bits)
     wb_set_d(&b, (sp_int_digit)3);
     if ((wb_pow2(&e, bits) == MP_OKAY) && (sp_add_d(&e, 5, &e) == MP_OKAY)) {
         _sp_init_size(&r, SP_INT_DIGITS);
-        (void)sp_exptmod_ex(&b, &e, 1, &m, &r);
+        (void)sp_exptmod_ex(&b, &e, (int)e.used, &m, &r);
     }
 
     /* Even modulus of the same width: the oddness operand false. */

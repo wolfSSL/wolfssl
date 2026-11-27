@@ -1493,16 +1493,21 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
     ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, NULL, &r), WC_NO_ERR_TRACE(MP_VAL));
     ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, NULL), WC_NO_ERR_TRACE(MP_VAL));
     ExpectIntEQ(sp_exptmod_ex(&a, &b, -1, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
-    sp_zero(&m);
+    /* digits smaller than e->used is rejected. */
     ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    sp_zero(&m);
+    ExpectIntEQ(sp_exptmod_ex(&a, &b, (int)b.used, &m, &r),
+        WC_NO_ERR_TRACE(MP_VAL));
     ExpectIntEQ(sp_set(&m, 1), 0);
-    ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, &r), 0); /* m == 1: r = 0 */
+    /* m == 1: r = 0 */
+    ExpectIntEQ(sp_exptmod_ex(&a, &b, (int)b.used, &m, &r), 0);
     ExpectIntEQ(sp_set(&m, 15), 0);
     /* Base already less than modulus: ordinary path. */
-    ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, &r), 0);
+    ExpectIntEQ(sp_exptmod_ex(&a, &b, (int)b.used, &m, &r), 0);
     /* r aliases m, base not reduced (a >= m): rejected. */
     ExpectIntEQ(sp_set(&a, 20), 0);
-    ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, &m), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(sp_exptmod_ex(&a, &b, (int)b.used, &m, &m),
+        WC_NO_ERR_TRACE(MP_VAL));
 
 #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     /* Base 2 with a multi-digit exponent, using both a single-digit and
