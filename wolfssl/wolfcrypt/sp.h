@@ -294,6 +294,11 @@ WOLFSSL_LOCAL int sp_ecc_secret_gen_256(const mp_int* priv,
     const ecc_point* pub, byte* out, word32* outlen, void* heap);
 WOLFSSL_LOCAL int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
     const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap);
+#if defined(HAVE_ECC_SIGN) && defined(WOLFCRYPT_HAVE_ECCSI) && \
+    defined(WOLFSSL_SP_ASM)
+WOLFSSL_LOCAL int sp_ModDiv_order_256(const mp_int* a, const mp_int* b,
+    mp_int* r, void* heap);
+#endif
 WOLFSSL_LOCAL int sp_ecc_verify_256(const byte* hash, word32 hashLen,
     const mp_int* pX, const mp_int* pY, const mp_int* pZ, const mp_int* r,
     const mp_int* sm, int* res, void* heap);

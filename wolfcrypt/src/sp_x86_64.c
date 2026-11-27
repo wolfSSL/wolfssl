@@ -305,7 +305,7 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
     mp_digit d;
     /* mask = all ones while the read index is a valid digit (index < a->used),
      * else zero. It is recomputed at the end of each iteration and reused: it
-     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * zeros the digit at or after a->used, and its low bit (0 or 1)
      * advances the read index only while another digit remains, so o never
      * reads past the last valid digit. The first digit is always valid, so mask
      * starts as all ones and no pre-loop calculation is needed. */
@@ -337,11 +337,14 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
             }
         }
         s = (word32)DIGIT_BIT - s;
-        /* Recompute mask for the next read index, then advance o by -mask
-         * (0 or 1) so it only moves while another digit remains. */
-        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * CHAR_BIT - 1));
-        o += (int)((mp_digit)0 - mask);
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -351,10 +354,20 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 64 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 64 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 64) {
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= size) {
@@ -366,13 +379,21 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -3184,7 +3205,7 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
     mp_digit d;
     /* mask = all ones while the read index is a valid digit (index < a->used),
      * else zero. It is recomputed at the end of each iteration and reused: it
-     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * zeros the digit at or after a->used, and its low bit (0 or 1)
      * advances the read index only while another digit remains, so o never
      * reads past the last valid digit. The first digit is always valid, so mask
      * starts as all ones and no pre-loop calculation is needed. */
@@ -3216,11 +3237,14 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
             }
         }
         s = (word32)DIGIT_BIT - s;
-        /* Recompute mask for the next read index, then advance o by -mask
-         * (0 or 1) so it only moves while another digit remains. */
-        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * CHAR_BIT - 1));
-        o += (int)((mp_digit)0 - mask);
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -3230,10 +3254,20 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 64 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 64 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 64) {
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= size) {
@@ -3245,13 +3279,21 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -5998,7 +6040,7 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
     mp_digit d;
     /* mask = all ones while the read index is a valid digit (index < a->used),
      * else zero. It is recomputed at the end of each iteration and reused: it
-     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * zeros the digit at or after a->used, and its low bit (0 or 1)
      * advances the read index only while another digit remains, so o never
      * reads past the last valid digit. The first digit is always valid, so mask
      * starts as all ones and no pre-loop calculation is needed. */
@@ -6030,11 +6072,14 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
             }
         }
         s = (word32)DIGIT_BIT - s;
-        /* Recompute mask for the next read index, then advance o by -mask
-         * (0 or 1) so it only moves while another digit remains. */
-        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * CHAR_BIT - 1));
-        o += (int)((mp_digit)0 - mask);
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -6044,10 +6089,20 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 64 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 64 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 64) {
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= size) {
@@ -6059,13 +6114,21 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -8154,7 +8217,7 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
     mp_digit d;
     /* mask = all ones while the read index is a valid digit (index < a->used),
      * else zero. It is recomputed at the end of each iteration and reused: it
-     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * zeros the digit at or after a->used, and its low bit (0 or 1)
      * advances the read index only while another digit remains, so o never
      * reads past the last valid digit. The first digit is always valid, so mask
      * starts as all ones and no pre-loop calculation is needed. */
@@ -8186,11 +8249,14 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
             }
         }
         s = (word32)DIGIT_BIT - s;
-        /* Recompute mask for the next read index, then advance o by -mask
-         * (0 or 1) so it only moves while another digit remains. */
-        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * CHAR_BIT - 1));
-        o += (int)((mp_digit)0 - mask);
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -8200,10 +8266,20 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 64 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 64 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 64) {
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= size) {
@@ -8215,13 +8291,21 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -25158,6 +25242,121 @@ static int sp_256_calc_s_4(sp_digit* s, const sp_digit* r, sp_digit* k,
     return err;
 }
 
+#ifdef WOLFCRYPT_HAVE_ECCSI
+/* R^2 mod order of the curve P256: converts to Montgomery form with a
+ * Montgomery multiplication. */
+static const sp_digit p256_rr_order[4] = {
+    0x83244c95be79eea2L,0x4699799c49bd6fa6L,0x2845b2392b6bec59L,
+    0x66e12d94f3d95620L
+};
+
+/* Divide b by a modulo the order of the curve P256 in constant time.
+ * (r = b / a mod order)
+ *
+ * a and b are secret. The inverse of a is not returned - only the result,
+ * which, for ECCSI signing, is public.
+ *
+ * @param [in]  a     Number to invert. Must be less than the order and
+ *                    non-zero.
+ * @param [in]  b     Number to multiply by. Must be less than the order.
+ * @param [out] r     Result.
+ * @param [in]  heap  Heap to use for allocation.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a, b or r is NULL.
+ * @return  MEMORY_E when memory allocation fails.
+ */
+int sp_ModDiv_order_256(const mp_int* a, const mp_int* b, mp_int* r,
+    void* heap)
+{
+    SP_DECL_VAR(sp_digit, td, 6 * 2 * 4);
+    sp_digit* t = NULL;
+    sp_digit* m = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+    int saved_vector_registers = 0;
+    int use_avx2_lane = 0;
+#endif
+
+    (void)heap;
+
+    /* a and b are secret - sizes not checked as that is not constant time. */
+    if ((a == NULL) || (b == NULL) || (r == NULL)) {
+        err = MP_VAL;
+    }
+
+    SP_ALLOC_VAR(sp_digit, td, 6 * 2 * 4, heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY) {
+        t = td;
+        m = td + 2 * 4;
+        tmp = td + 4 * 4;
+
+        sp_256_from_mp(t, 4, a);
+        sp_256_from_mp(m, 4, b);
+
+        /* Conv a to Montgomery form (mod order) with a Montgomery
+         * multiplication: t = a * R^2 / R = a * R mod order. Constant time -
+         * division is not. */
+#ifdef HAVE_INTEL_AVX2
+        /* CPUID picks the lane; a failed save is an error, not a lane switch.
+         */
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags) &&
+                IS_INTEL_AVX2(cpuid_flags)) {
+            use_avx2_lane = 1;
+            err = SAVE_VECTOR_REGISTERS2();
+            if (err == 0) {
+                saved_vector_registers = 1;
+                sp_256_mont_mul_order_avx2_4(t, t,
+                    p256_rr_order);
+            }
+        }
+        else
+#endif
+            sp_256_mont_mul_order_4(t, t, p256_rr_order);
+    }
+    if (err == MP_OKAY) {
+        sp_256_norm_4(t);
+
+        /* t = 1/a mod order in Montgomery form */
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane)
+            sp_256_mont_inv_order_avx2_4(t, t, tmp);
+        else
+#endif
+            sp_256_mont_inv_order_4(t, t, tmp);
+        sp_256_norm_4(t);
+
+        /* t = (1/a mod order in Montgomery form) * b / R = b / a mod order */
+#ifdef HAVE_INTEL_AVX2
+        if (use_avx2_lane)
+            sp_256_mont_mul_order_avx2_4(t, t, m);
+        else
+#endif
+            sp_256_mont_mul_order_4(t, t, m);
+        sp_256_norm_4(t);
+        /* Montgomery reduction may leave t at or above the order. */
+        sp_256_cond_sub_4(t, t, p256_order,
+            (sp_digit)0 - (sp_digit)(sp_256_cmp_4(t,
+                p256_order) >= 0));
+        sp_256_norm_4(t);
+
+        err = sp_256_to_mp(t, r);
+    }
+
+#ifdef HAVE_INTEL_AVX2
+    if (saved_vector_registers)
+        RESTORE_VECTOR_REGISTERS();
+#endif
+
+    SP_ZEROFREE_VAR(sp_digit, td, 6 * 2 * 4, heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    return err;
+}
+#endif /* WOLFCRYPT_HAVE_ECCSI */
+
 /* Sign the hash using the private key.
  *   e = [hash, 256 bits] from binary
  *   r = (k.G)->x mod order
@@ -26831,7 +27030,7 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
     mp_digit d;
     /* mask = all ones while the read index is a valid digit (index < a->used),
      * else zero. It is recomputed at the end of each iteration and reused: it
-     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * zeros the digit at or after a->used, and its low bit (0 or 1)
      * advances the read index only while another digit remains, so o never
      * reads past the last valid digit. The first digit is always valid, so mask
      * starts as all ones and no pre-loop calculation is needed. */
@@ -26863,11 +27062,14 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
             }
         }
         s = (word32)DIGIT_BIT - s;
-        /* Recompute mask for the next read index, then advance o by -mask
-         * (0 or 1) so it only moves while another digit remains. */
-        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * CHAR_BIT - 1));
-        o += (int)((mp_digit)0 - mask);
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -26877,10 +27079,20 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 64 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 64 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 64) {
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= size) {
@@ -26892,13 +27104,21 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -51370,7 +51590,7 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
     mp_digit d;
     /* mask = all ones while the read index is a valid digit (index < a->used),
      * else zero. It is recomputed at the end of each iteration and reused: it
-     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * zeros the digit at or after a->used, and its low bit (0 or 1)
      * advances the read index only while another digit remains, so o never
      * reads past the last valid digit. The first digit is always valid, so mask
      * starts as all ones and no pre-loop calculation is needed. */
@@ -51402,11 +51622,14 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
             }
         }
         s = (word32)DIGIT_BIT - s;
-        /* Recompute mask for the next read index, then advance o by -mask
-         * (0 or 1) so it only moves while another digit remains. */
-        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * CHAR_BIT - 1));
-        o += (int)((mp_digit)0 - mask);
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -51416,10 +51639,20 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 64 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 64 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 64) {
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= size) {
@@ -51431,13 +51664,21 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -92296,7 +92537,7 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
     mp_digit d;
     /* mask = all ones while the read index is a valid digit (index < a->used),
      * else zero. It is recomputed at the end of each iteration and reused: it
-     * zeros the digit at or after a->used, and negated (-mask is 0 or 1) it
+     * zeros the digit at or after a->used, and its low bit (0 or 1)
      * advances the read index only while another digit remains, so o never
      * reads past the last valid digit. The first digit is always valid, so mask
      * starts as all ones and no pre-loop calculation is needed. */
@@ -92328,11 +92569,14 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
             }
         }
         s = (word32)DIGIT_BIT - s;
-        /* Recompute mask for the next read index, then advance o by -mask
-         * (0 or 1) so it only moves while another digit remains. */
-        mask = (mp_digit)0 - (((mp_digit)(i + 1U) - (mp_digit)(unsigned int)a->used) >>
-            (sizeof(mp_digit) * CHAR_BIT - 1));
-        o += (int)((mp_digit)0 - mask);
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
@@ -92342,10 +92586,20 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
     unsigned int i;
     int j = 0;
     int s = 0;
+    int o = 0;
+    mp_digit d;
+    /* mask = all ones while the read index is a valid digit (index < a->used),
+     * else zero - as for DIGIT_BIT > 64 above. The first digit is always
+     * valid. */
+    mp_digit mask = (mp_digit)0 - 1;
 
     r[0] = 0;
-    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
-        r[j] |= ((sp_uint64)a->dp[i]) << s;
+    /* Loop a fixed number of times (bounded by the output size, not by
+     * a->used) so a secret value is converted in constant time. */
+    for (i = 0; i < (unsigned int)((size * 64 + DIGIT_BIT - 1) /
+                                   DIGIT_BIT); i++) {
+        d = a->dp[o] & mask;
+        r[j] |= ((sp_uint64)d) << s;
         if (s + DIGIT_BIT >= 64) {
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= size) {
@@ -92357,13 +92611,21 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
                 s = 0;
             }
             else {
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(d >> s);
                 s = DIGIT_BIT - s;
             }
         }
         else {
             s += DIGIT_BIT;
         }
+        /* Recompute mask for the next read index: all ones while
+         * i + 1 < a->used, else zero. Compare in word32 rather than mp_digit:
+         * an mp_digit narrower than int is promoted to int (and an 8-bit one
+         * wraps the index). Advance o by the mask's low bit (0 or 1) so it
+         * only moves while another digit remains. */
+        mask = (mp_digit)((mp_digit)0 - (mp_digit)(((word32)(i + 1U) -
+            (word32)a->used) >> 31));
+        o += (int)(mask & 1U);
     }
 
     for (j++; j < size; j++) {
