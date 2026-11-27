@@ -154,6 +154,35 @@ static int wb_fatal_alert_errors(WbFix* f)
 
 #if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_rsa_pss_scheme_encoding(void)
+{
+    byte encoded[4] = {0};
+    byte hash = 0;
+    byte sig = 0;
+    word16 len = 0;
+
+    AddSuiteHashSigAlgo(encoded, sha_mac, rsa_pss_pss_algo, 0, &len);
+    AddSuiteHashSigAlgo(encoded, sha512_mac + 1, rsa_pss_pss_algo, 0, &len);
+    if (len != 0)
+        return 1;
+    AddSuiteHashSigAlgo(encoded, sha256_mac, rsa_pss_pss_algo, 0, &len);
+    if (len != 2 || encoded[0] != rsa_pss_sa_algo ||
+            encoded[1] != pss_sha256)
+        return 1;
+    DecodeSigAlg(encoded, &hash, &sig);
+    if (hash != sha256_mac || sig != rsa_pss_pss_algo)
+        return 1;
+
+    /* Decode an assigned later scheme when its optional support is absent. */
+#ifndef HAVE_ECC_BRAINPOOL
+    encoded[1] = ECDSA_BRAINPOOLP256R1TLS13_SHA256_MINOR;
+    DecodeSigAlg(encoded, &hash, &sig);
+    if (sig == rsa_pss_pss_algo)
+        return 1;
+#endif
+    return 0;
+}
+
 static int wb_rsa_pss_constraints(WbFix* f)
 {
     static const struct {
@@ -236,6 +265,41 @@ static int wb_handshake_hash_copy(WbFix* f)
 #endif
 
 #ifdef WOLFSSL_DTLS
+static int wb_dtls_message_list(void)
+{
+    DtlsMsg first, middle, last, absent;
+    DtlsMsg* head;
+    int failed = 0;
+
+    XMEMSET(&first, 0, sizeof(first));
+    XMEMSET(&middle, 0, sizeof(middle));
+    XMEMSET(&last, 0, sizeof(last));
+    XMEMSET(&absent, 0, sizeof(absent));
+    first.seq = 2;
+    middle.seq = 4;
+    last.seq = 6;
+    absent.seq = 8;
+
+    head = DtlsMsgInsert(NULL, &last);
+    head = DtlsMsgInsert(head, &first);
+    head = DtlsMsgInsert(head, &middle);
+    if (head != &first || first.next != &middle || middle.next != &last)
+        failed = 1;
+
+    head = DtlsMsgListUnlink(head, &absent);
+    if (head != &first || first.next != &middle || middle.next != &last)
+        failed = 1;
+    head = DtlsMsgListUnlink(head, &middle);
+    if (head != &first || first.next != &last || middle.next != NULL)
+        failed = 1;
+    head = DtlsMsgListUnlink(head, &first);
+    if (head != &last || first.next != NULL)
+        failed = 1;
+    if (DtlsMsgListUnlink(head, &last) != NULL)
+        failed = 1;
+    return failed;
+}
+
 static int wb_dtls_prev_sequence_limit(WbFix* f)
 {
     int failed = 0;
@@ -879,7 +943,7 @@ int main(void)
     }
 #if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    if (wb_rsa_pss_constraints(&f)) {
+    if (wb_rsa_pss_scheme_encoding() || wb_rsa_pss_constraints(&f)) {
         puts("internal null-guard white-box: RSA-PSS constraint check failed");
         failed = 1;
     }
@@ -891,8 +955,8 @@ int main(void)
     }
 #endif
 #ifdef WOLFSSL_DTLS
-    if (wb_dtls_prev_sequence_limit(&f)) {
-        puts("internal null-guard white-box: DTLS sequence limit check failed");
+    if (wb_dtls_message_list() || wb_dtls_prev_sequence_limit(&f)) {
+        puts("internal null-guard white-box: DTLS message bookkeeping failed");
         failed = 1;
     }
 #endif
