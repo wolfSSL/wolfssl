@@ -95,6 +95,63 @@ static void wb_reset(WbFix* f)
     f->ssl->version.minor = TLSv1_2_MINOR;
 }
 
+/* Protocol classifiers also see legacy version numbers supplied by callers. */
+static int wb_protocol_classifiers(WbFix* f)
+{
+    int failed = 0;
+
+    wb_reset(f);
+    if (!IsTLS(f->ssl) || !IsTLS_ex(f->ssl->version) ||
+            !IsAtLeastTLSv1_2(f->ssl))
+        failed = 1;
+    f->ssl->version.minor = SSLv3_MINOR;
+    if (IsTLS(f->ssl) || IsTLS_ex(f->ssl->version) ||
+            IsAtLeastTLSv1_2(f->ssl))
+        failed = 1;
+#ifdef WOLFSSL_DTLS
+    f->ssl->version.major = DTLS_MAJOR;
+    f->ssl->version.minor = DTLS_MINOR;
+    if (!IsTLS(f->ssl) || !IsTLS_ex(f->ssl->version) ||
+            IsAtLeastTLSv1_2(f->ssl))
+        failed = 1;
+    f->ssl->version.minor = DTLSv1_2_MINOR;
+    if (!IsAtLeastTLSv1_2(f->ssl))
+        failed = 1;
+#endif
+    wb_reset(f);
+    return failed;
+}
+
+/* A finished fatal-alert path must never report a retriable error. */
+static int wb_fatal_alert_errors(WbFix* f)
+{
+    static const int retryErrors[] = {
+        0, WANT_READ, WANT_WRITE, WOLFSSL_ERROR_WANT_READ,
+        WOLFSSL_ERROR_WANT_WRITE, ZERO_RETURN
+    };
+    size_t i;
+    int failed = 0;
+
+    wb_reset(f);
+    f->ssl->error = WANT_READ;
+    if (HandshakeEndedByFatalAlert(f->ssl) != 0 || f->ssl->error != WANT_READ)
+        failed = 1;
+
+    f->ssl->options.fatalAlert = 1;
+    for (i = 0; i < XELEM_CNT(retryErrors); i++) {
+        f->ssl->error = retryErrors[i];
+        if (HandshakeEndedByFatalAlert(f->ssl) != 1 ||
+                f->ssl->error != SOCKET_PEER_CLOSED_E)
+            failed = 1;
+    }
+    f->ssl->error = SOCKET_ERROR_E;
+    if (HandshakeEndedByFatalAlert(f->ssl) != 1 ||
+            f->ssl->error != SOCKET_ERROR_E)
+        failed = 1;
+    wb_reset(f);
+    return failed;
+}
+
 /* AllocateSuites can copy the CTX list or start with an empty local list. */
 static int wb_allocate_suites(WbFix* f)
 {
@@ -708,6 +765,14 @@ int main(void)
     }
 #endif
 
+    if (wb_protocol_classifiers(&f)) {
+        puts("internal null-guard white-box: protocol classification failed");
+        failed = 1;
+    }
+    if (wb_fatal_alert_errors(&f)) {
+        puts("internal null-guard white-box: fatal alert error check failed");
+        failed = 1;
+    }
     if (wb_allocate_suites(&f)) {
         puts("internal null-guard white-box: suite allocation failed");
         failed = 1;
