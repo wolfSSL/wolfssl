@@ -343,6 +343,68 @@ static void wb_set_keys_side(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 }
 
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_discard_alert(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)ctx;
+    return sz;
+}
+
+/* The handshake rejects missing required EMS before key derivation. */
+static int wb_master_secret_ems(void)
+{
+    static const struct {
+        byte required;
+        byte negotiated;
+        int expected;
+    } cases[] = {
+        {0, 0, 0},
+        {1, 0, EXT_MASTER_SECRET_NEEDED_E},
+        {1, 1, 0},
+    };
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    int failed = 0;
+    size_t i;
+
+    if (ctx == NULL)
+        return 1;
+    wolfSSL_CTX_SetIOSend(ctx, wb_discard_alert);
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        WOLFSSL* ssl = wolfSSL_new(ctx);
+        if (ssl == NULL) {
+            failed = 1;
+            break;
+        }
+
+        ssl->options.cipherSuite0 = ECC_BYTE;
+        ssl->options.cipherSuite =
+            TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 & 0xff;
+        if (SetCipherSpecs(ssl) != 0 || ssl->arrays == NULL ||
+                ssl->hsHashes == NULL) {
+            failed = 1;
+            wolfSSL_free(ssl);
+            break;
+        }
+
+        ssl->options.requireEMS = cases[i].required;
+        ssl->options.haveEMS = cases[i].negotiated;
+        XMEMSET(ssl->arrays->preMasterSecret, 0x5a, SECRET_LEN);
+        ssl->arrays->preMasterSz = SECRET_LEN;
+        if (MakeMasterSecret(ssl) != cases[i].expected ||
+                (cases[i].expected != 0 && ssl->arrays->preMasterSz != 0))
+            failed = 1;
+        wolfSSL_free(ssl);
+    }
+    wolfSSL_CTX_free(ctx);
+    return failed;
+}
+#endif
+
 /* ---------------------------------------------------------------- main */
 
 int main(void)
@@ -378,6 +440,15 @@ int main(void)
         puts("keys white-box: unexpected allocation failure behavior");
 #endif
     wb_set_keys_side(ssl, ctx);
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_master_secret_ems()) {
+        puts("keys white-box: unexpected EMS key derivation behavior");
+        failed = 1;
+    }
+#endif
 
     printf("keys white-box: %d vectors driven\n", g_checks);
 
