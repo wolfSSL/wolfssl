@@ -102,7 +102,10 @@ static int wb_copy_dh_params(WbFix* f)
 {
     byte prime = 23;
     byte generator = 2;
-    int ret, firstError, secondError;
+    byte* oldPrime;
+    byte* oldGenerator;
+    int ret, failed = 0;
+    int nth;
 
     wb_reset(f);
     f->ctx->serverDH_P.buffer = &prime;
@@ -110,20 +113,65 @@ static int wb_copy_dh_params(WbFix* f)
     f->ctx->serverDH_G.buffer = &generator;
     f->ctx->serverDH_G.length = 1;
 
-    mcdc_fa_install();
-    mcdc_fa_arm_only(1);
-    firstError = CopySSL_CTX_DhParams(f->ssl, f->ctx);
-    mcdc_fa_arm_only(2);
-    secondError = CopySSL_CTX_DhParams(f->ssl, f->ctx);
-    mcdc_fa_restore();
-
     ret = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+    oldPrime = f->ssl->buffers.serverDH_P.buffer;
+    oldGenerator = f->ssl->buffers.serverDH_G.buffer;
+    if (ret != 0 || !f->ssl->buffers.weOwnDH || oldPrime == NULL ||
+            oldGenerator == NULL || oldPrime == &prime ||
+            oldGenerator == &generator || *oldPrime != prime ||
+            *oldGenerator != generator) {
+        failed = 1;
+        goto cleanup;
+    }
+
+    prime = 47;
+    generator = 5;
+    for (nth = 1; nth <= 2; nth++) {
+        mcdc_fa_install();
+        mcdc_fa_arm_only(nth);
+        ret = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+        mcdc_fa_restore();
+        if (ret != MEMORY_E || !f->ssl->buffers.weOwnDH ||
+                f->ssl->buffers.serverDH_P.buffer != oldPrime ||
+                f->ssl->buffers.serverDH_G.buffer != oldGenerator ||
+                *oldPrime != 23 || *oldGenerator != 2) {
+            failed = 1;
+            goto cleanup;
+        }
+    }
+
+    /* A context with only one parameter must leave the owned copy intact. */
+    f->ctx->serverDH_P.buffer = NULL;
+    ret = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+    if (ret != 0 || f->ssl->buffers.serverDH_P.buffer != oldPrime ||
+            f->ssl->buffers.serverDH_G.buffer != oldGenerator)
+        failed = 1;
+
+    f->ctx->serverDH_P.buffer = &prime;
+    f->ctx->serverDH_G.buffer = NULL;
+    ret = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+    if (ret != 0 || f->ssl->buffers.serverDH_P.buffer != oldPrime ||
+            f->ssl->buffers.serverDH_G.buffer != oldGenerator)
+        failed = 1;
+
+    f->ctx->serverDH_G.buffer = &generator;
+    ret = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+    if (ret != 0 || !f->ssl->buffers.weOwnDH ||
+            f->ssl->buffers.serverDH_P.length != 1 ||
+            f->ssl->buffers.serverDH_G.length != 1 ||
+            f->ssl->buffers.serverDH_P.buffer == NULL ||
+            f->ssl->buffers.serverDH_G.buffer == NULL ||
+            *f->ssl->buffers.serverDH_P.buffer != prime ||
+            *f->ssl->buffers.serverDH_G.buffer != generator)
+        failed = 1;
+
+cleanup:
     if (f->ssl->buffers.weOwnDH) {
         XFREE(f->ssl->buffers.serverDH_P.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(f->ssl->buffers.serverDH_G.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     }
     wb_reset(f);
-    return firstError == MEMORY_E && secondError == MEMORY_E && ret == 0;
+    return !failed;
 }
 #endif
 

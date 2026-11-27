@@ -243,7 +243,8 @@ static void wb_set_auth_keys(void)
 #endif
 }
 
-#if defined(HAVE_CHACHA) && !defined(MCDC_FA_UNAVAILABLE) && \
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(NO_CHAPOL_AEAD) && !defined(MCDC_FA_UNAVAILABLE) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 /* Drive the static key setup helpers with each allocation failing in turn. */
 static int wb_key_allocation_failures(void)
@@ -369,7 +370,8 @@ int main(void)
     wb_set_cipher_specs(ssl, ctx);
     wb_set_keys();
     wb_set_auth_keys();
-#if defined(HAVE_CHACHA) && !defined(MCDC_FA_UNAVAILABLE) && \
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(NO_CHAPOL_AEAD) && !defined(MCDC_FA_UNAVAILABLE) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     failed = wb_key_allocation_failures();
     if (failed)
