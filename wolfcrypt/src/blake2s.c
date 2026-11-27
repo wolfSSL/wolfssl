@@ -166,8 +166,7 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
     XMEMSET( block, 0, BLAKE2S_BLOCKBYTES );
     XMEMCPY( block, key, keylen );
     ret = blake2s_update( S, block, BLAKE2S_BLOCKBYTES );
-    secure_zero_memory( block, BLAKE2S_BLOCKBYTES ); /* Burn the key from */
-                                                     /* memory */
+    ForceZero( block, BLAKE2S_BLOCKBYTES ); /* Burn the key from memory */
 
     WC_FREE_VAR_EX(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   }
