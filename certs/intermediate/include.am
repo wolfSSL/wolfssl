@@ -54,6 +54,7 @@ EXTRA_DIST += \
 	     certs/intermediate/server-int-cert.der \
 	     certs/intermediate/server-int-cert.pem \
 	     certs/intermediate/server-int-ecc-cert.der \
+	     certs/intermediate/server-int-ecc-cert.pem \
 	     certs/intermediate/ca_false_intermediate/gentestcert.sh \
          certs/intermediate/ca_false_intermediate/int_ca.key \
 	     certs/intermediate/ca_false_intermediate/server.key \
@@ -83,3 +84,6 @@ EXTRA_DIST += \
          certs/intermediate/untrusted_anchor/loop-b-key.pem \
          certs/intermediate/untrusted_anchor/loop-leaf-cert.pem \
          certs/intermediate/untrusted_anchor/loop-leaf-key.pem
+
+# Whole directory: keeps the make dist command under the shell's limit.
+EXTRA_DIST += certs/intermediate/trust_anchor

@@ -3373,6 +3373,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         return MEMORY_E;
     }
     XMEMSET(ctx->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+    ctx->param->depth = -1;
 
     /* WOLFSSL_X509_LOOKUP */
     if ((ctx->x509_store.lookup.dirs = (WOLFSSL_BY_DIR*)XMALLOC(
@@ -3391,6 +3392,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         return MEMORY_E;
     }
     XMEMSET(ctx->x509_store.param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+    ctx->x509_store.param->depth = -1;
 
     if (wc_InitMutex(&ctx->x509_store.lookup.dirs->lock) != 0) {
         WOLFSSL_MSG("Bad mutex init");
@@ -6072,6 +6074,10 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
         if (x509->serialNumber != NULL) {
             wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
         }
+        XFREE(x509->alias, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->alias = NULL;
+        XFREE(x509->keyid, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->keyid = NULL;
         #endif
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -6104,10 +6110,13 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
             x509->key.pkey = NULL;
         }
     #endif
-    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
+    #if (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)) && \
+        (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
         if (x509->reqAttributes) {
             wolfSSL_sk_pop_free(x509->reqAttributes, NULL);
         }
+    #endif
+    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
     #ifdef WOLFSSL_CUSTOM_OID
         for (idx = 0; idx < x509->customExtCount; idx++) {
             XFREE(x509->custom_exts[idx].oid, x509->heap,
@@ -9639,6 +9648,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return MEMORY_E;
         }
         XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+        ssl->param->depth = -1;
 
         /* pass on PARAM values from ctx to ssl, including the expected
          * hostname / IP */
@@ -15897,7 +15907,9 @@ int CheckHostName(DecodedCert* dCert, const char *domainName,
     /* RFC 6125: IP address identities must appear in an iPAddress SAN and
      * must never be matched against the Subject Common Name. Skip the CN
      * fallback when verifying an IP address. */
-    if (checkCN == 1 && !isIP) {
+    /* WOLFSSL_ALWAYS_CHECK_SUBJECT: try the CN when no SAN matched. */
+    if ((checkCN == 1 ||
+            (ret != 0 && (flags & WOLFSSL_ALWAYS_CHECK_SUBJECT))) && !isIP) {
         if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
                             domainName, (word32)domainNameLen, flags) == 1) {
             ret = 0;
@@ -15954,6 +15966,8 @@ WC_MAYBE_UNUSED static void ResetSessionCertChain(WOLFSSL* ssl)
     ssl->session->peer = NULL;
     wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
     ssl->peerCertChain = NULL;
+    wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+    ssl->verifiedChain = NULL;
 #endif
 }
 #endif
@@ -16649,6 +16663,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     /* CSR attributes */
     if (x509->isCSR) {
+        /* As OpenSSL, a request keeps the value of its version field */
+        x509->version = dCert->version;
         copyRet = CopyREQAttributes(x509, dCert);
         if (copyRet != 0)
             ret = copyRet;
@@ -17570,7 +17586,6 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         store->store = SSL_STORE(ssl);
 #if defined(OPENSSL_EXTRA)
-        store->depth = args->count;
         /* Overwrite with non-default param values in SSL */
         if (ssl->param) {
             if (ssl->param->check_time)
@@ -18043,7 +18058,7 @@ void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
             /* Point to current cm to be able to verify CRL */
             userCrl->cm = SSL_CM(ssl);
             *outRet = CheckCertCRLFromCm(SSL_CM(ssl), userCrl,
-                    args->dCert, ssl->waivedCAs);
+                    args->dCert, ssl->waivedCAs, NULL, NULL);
         }
         else
             *outRet = CRL_MISSING;
@@ -19005,8 +19020,9 @@ static int AdjustCMForParams(WOLFSSL* ssl)
     param = wolfSSL_get0_param(ssl);
     flags = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
     /* 0x2 in a param is X509_V_FLAG_USE_CHECK_TIME, but
-     * wolfSSL_X509_STORE_set_flags() reads it as WOLFSSL_CRL_CHECK. */
-    flags &= ~WOLFSSL_USE_CHECK_TIME;
+     * wolfSSL_X509_STORE_set_flags() reads it as WOLFSSL_CRL_CHECK. The
+     * X509_STRICT flag of the connection is not for the store. */
+    flags &= ~(WOLFSSL_USE_CHECK_TIME | WOLFSSL_X509_STRICT);
 
     /* For now there is a possible contradiction of PARAM flags and store flags.
      * Do not disable CRL support if it has already been enabled with store. */
@@ -34867,6 +34883,7 @@ static int ParseCipherList(Suites* suites,
     word16    haveRC4          = 1; /* allowed by default if compiled in */
     int       excludeAnon      = 0; /* "!aNULL"/DEFAULT seen (applied at end) */
     int       excludeNull      = 0; /* "!eNULL"/"!NULL"/DEFAULT seen */
+    int       removeAll        = 0; /* 1: "-ALL" seen, 2: "!ALL" seen */
 #endif
     int       tls1_3        = 0;
     const int suiteSz       = GetCipherNamesSize();
@@ -34941,6 +34958,20 @@ static int ParseCipherList(Suites* suites,
 
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+        /* "-ALL" and "!ALL" delete every TLS 1.2 and lower suite. A "!"
+         * delete is permanent. */
+        if ((!allowing && XSTRCMP(name, "ALL") == 0) ||
+                XSTRCMP(name, "-ALL") == 0) {
+            removeAll = (!allowing || removeAll == 2) ? 2 : 1;
+            idx = 0;
+            callInitSuites = 0;
+            ret = 0;
+            continue;
+        }
+        /* "+" only moves suites. */
+        if (removeAll && *current == '+')
+            continue;
+
         if (length > 1) {
             char* substr = NULL;
             char* substrCurrent = name;
@@ -35183,6 +35214,17 @@ static int ParseCipherList(Suites* suites,
              ) {
                 int j;
 
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+                /* The TLS 1.3 suites are set apart. ALL has no NULL ciphers,
+                 * so only those are left after "!ALL". */
+                if (removeAll && (cipher_names[i].cipherSuite0 == TLS13_BYTE ||
+                        cipher_names[i].minor == TLSv1_3_MINOR ||
+                        (removeAll == 2 &&
+                         XSTRSTR(cipher_names[i].name, "NULL") == NULL))) {
+                    break;
+                }
+            #endif
+
             #ifdef WOLFSSL_DTLS
                 /* don't allow stream ciphers with DTLS */
                 if (version.major == DTLS_MAJOR) {
@@ -35315,6 +35357,15 @@ static int ParseCipherList(Suites* suites,
     if (excludeNull) {
         haveNull = 0;
         RemoveExcludedSuites(suites->suites, &idx, 0, 1);
+    }
+    if (removeAll) {
+        /* "!ALL" also deletes what keywords add back. */
+        if (removeAll == 2)
+            callInitSuites = 0;
+        if (idx == 0 && !callInitSuites) {
+            WOLFSSL_MSG("Cipher list removes all TLS 1.2 and lower suites");
+            return 0;
+        }
     }
     /* If the user named suites but every one was excluded, fail like OpenSSL
      * (empty list) rather than silently returning an unusable suite set.
@@ -37562,12 +37613,8 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 }
 #endif
 
-#if defined(WOLFSSL_TLS13) && \
-    ((!defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-      !defined(WOLFSSL_NO_TLS12)) || \
-     (!defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)))
 /* Is this one of the cipher suites that can only be negotiated at TLS 1.3? */
-static int IsTls13CipherSuite(byte first, byte second)
+int IsTls13CipherSuite(byte first, byte second)
 {
     (void)second;
 
@@ -37589,7 +37636,6 @@ static int IsTls13CipherSuite(byte first, byte second)
 
     return 0;
 }
-#endif
 
 /* client only parts */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
@@ -47006,7 +47052,7 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
             #ifdef HAVE_CRL
                 if (ret == 0 && SSL_CM(ssl)->crlEnabled) {
                     ret = CheckCertCRLFromCm(SSL_CM(ssl), SSL_CM(ssl)->crl,
-                            dCert, ssl->waivedCAs);
+                            dCert, ssl->waivedCAs, NULL, NULL);
                 }
             #endif
                 if (ret == 0) {

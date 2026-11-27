@@ -18,6 +18,12 @@ exp_expired="\
 /test/expired/expired-ca.pem \
 /test/expired/expired-cert.der \
 /test/expired/expired-ca.der \
+/intermediate/trust_anchor/expired-root-cert.pem \
+/intermediate/trust_anchor/expired-int-cert.pem \
+/intermediate/trust_anchor/expired-root-old-link-cert.pem \
+/intermediate/trust_anchor/badkid-int-cert.pem \
+/intermediate/trust_anchor/alt-old-int-cert.pem \
+/intermediate/trust_anchor/wrongca-old-int-cert.pem \
 /certeccrsa.pem \
 /certeccrsa.der
 "

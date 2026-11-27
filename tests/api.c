@@ -3387,6 +3387,226 @@ static int test_wolfSSL_set_cipher_list_exclusions(void)
 #endif /* TEST_CIPHER_EXCLUDE_ANON || TEST_CIPHER_EXCLUDE_NULL */
     return EXPECT_RESULT();
 }
+
+/* SSL_get_ciphers() follows a cipher list set after it was first called. */
+static int test_wolfSSL_get_ciphers_after_set_cipher_list(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    int before = 0;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+    ExpectIntGT(before = wolfSSL_sk_SSL_CIPHER_num(sk), 1);
+
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"),
+        WOLFSSL_SUCCESS);
+    ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+    ExpectNotNull(ssl->suites);
+    if (ssl != NULL && ssl->suites != NULL) {
+        ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk),
+            ssl->suites->suiteSz / 2);
+    }
+    ExpectIntLT(wolfSSL_sk_SSL_CIPHER_num(sk), before);
+    /* Unchanged list: the same stack is returned. */
+    ExpectPtrEq(wolfSSL_get_ciphers_compat(ssl), sk);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION)
+/* Is this a suite only TLS 1.3 negotiates? */
+static int test_is_tls13_suite(byte first, byte second)
+{
+    if (first == TLS13_BYTE)
+        return 1;
+#ifdef HAVE_NULL_CIPHER
+    if (first == ECC_BYTE && (second == TLS_SHA256_SHA256 ||
+            second == TLS_SHA384_SHA384))
+        return 1;
+#endif
+#if (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+    defined(WOLFSSL_SM3)
+    if (first == CIPHER_BYTE && (second == TLS_SM4_GCM_SM3 ||
+            second == TLS_SM4_CCM_SM3))
+        return 1;
+#endif
+    (void)second;
+    return 0;
+}
+
+/* Count the TLS 1.3 suites, or -1 when any other suite is present. */
+static int test_count_tls13_only(const Suites* suites)
+{
+    int cnt = 0;
+    word16 i;
+
+    for (i = 0; suites != NULL && i + 1 < suites->suiteSz; i += 2) {
+        if (!test_is_tls13_suite(suites->suites[i], suites->suites[i + 1]))
+            return -1;
+        cnt++;
+    }
+    return cnt;
+}
+
+#if defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA)
+/* Count the suites that are not TLS 1.3 suites. */
+static int test_count_tls12(const Suites* suites)
+{
+    int cnt = 0;
+    word16 i;
+
+    for (i = 0; suites != NULL && i + 1 < suites->suiteSz; i += 2) {
+        if (!test_is_tls13_suite(suites->suites[i], suites->suites[i + 1]))
+            cnt++;
+    }
+    return cnt;
+}
+#endif
+#endif
+
+/* "-ALL" and "!ALL" drop every TLS 1.2 and lower suite and keep TLS 1.3.
+ * The call still fails, as in OpenSSL. */
+static int test_wolfSSL_set_cipher_list_remove_all(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION)
+    static const char* lists[] = {
+        "-ALL", "!ALL", "ALL:-ALL", "-ALL:!aNULL", "!ALL:ALL", "-ALL:+RSA",
+        "-ALL:@STRENGTH", "-ALL:@SECLEVEL=0", "-ALL:TLS_AES_128_GCM_SHA256",
+        "-ALL:TLS13-AES128-GCM-SHA256", "!ALL:ECDHE-RSA-AES128-GCM-SHA256",
+        "-ALL:ECDHE-RSA-AES128-GCM-SHA256:-ALL"
+    };
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    const Suites* suites = NULL;
+    size_t i;
+
+    for (i = 0; i < sizeof(lists) / sizeof(*lists); i++) {
+        int tls13 = 0;
+        word16 j;
+
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+        ExpectNotNull(suites = (ssl != NULL) ? WOLFSSL_SUITES(ssl) : NULL);
+        for (j = 0; suites != NULL && j + 1 < suites->suiteSz; j += 2) {
+            if (test_is_tls13_suite(suites->suites[j], suites->suites[j + 1]))
+                tls13++;
+        }
+        ExpectIntGT(tls13, 0);
+        ExpectIntEQ(test_count_tls13_only(suites), -1);
+        ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl, lists[i]), WOLFSSL_FAILURE);
+        ExpectIntEQ(test_count_tls13_only(ssl->suites), tls13);
+        ExpectNotNull(sk = wolfSSL_get_ciphers_compat(ssl));
+        ExpectIntEQ(wolfSSL_sk_SSL_CIPHER_num(sk), tls13);
+
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx, lists[i]),
+            WOLFSSL_FAILURE);
+        ExpectIntEQ(test_count_tls13_only(ctx->suites), tls13);
+
+        wolfSSL_free(ssl);
+        ssl = NULL;
+        wolfSSL_CTX_free(ctx);
+        ctx = NULL;
+    }
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    /* A suite named after "-ALL" is added back. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "-ALL:ECDHE-RSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls13_only(ssl->suites), -1);
+    /* "+" only reorders: nothing more is added. */
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "-ALL:+RSA:ECDHE-RSA-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls12(ssl->suites), 1);
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+    /* ALL has no NULL ciphers, so "!ALL" leaves them to be added. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl, "!ALL:ECDHE-ECDSA-NULL-SHA"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls12(ssl->suites), 1);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl,
+        "!ALL:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-NULL-SHA"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_count_tls12(ssl->suites), 1);
+    ExpectIntEQ(ssl->suites->suites[ssl->suites->suiteSz - 2], ECC_BYTE);
+    ExpectIntEQ(ssl->suites->suites[ssl->suites->suiteSz - 1],
+        TLS_ECDHE_ECDSA_WITH_NULL_SHA);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* "-ALL" on a CTX before any SSL is made keeps the default TLS 1.3 suites. */
+static int test_wolfSSL_CTX_set_cipher_list_remove_all_new(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(HAVE_RENEGOTIATION_INDICATION) && !defined(NO_RSA) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    static const char* lists[] = { "-ALL", "!ALL" };
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    size_t i;
+
+    for (i = 0; i < sizeof(lists) / sizeof(*lists); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+            WOLFSSL_SUCCESS);
+        wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+        ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c, lists[i]),
+            WOLFSSL_FAILURE);
+        ExpectIntGT(test_count_tls13_only(ctx_c->suites), 0);
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfSSLv23_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntGT(test_count_tls13_only(WOLFSSL_SUITES(ssl_c)), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(wolfSSL_version(ssl_c), TLS1_3_VERSION);
+
+        wolfSSL_free(ssl_c);
+        ssl_c = NULL;
+        wolfSSL_free(ssl_s);
+        ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c);
+        ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s);
+        ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
 #ifdef TEST_CIPHER_EXCLUDE_ANON
     #undef TEST_CIPHER_EXCLUDE_ANON
 #endif
@@ -22768,6 +22988,40 @@ static int test_wolfSSL_ERR_put_error(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_ERR_load_strings(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
+    static char libName[] = "test lib";
+    static char reasonStr[] = "test reason";
+    ERR_STRING_DATA lib[2];
+    ERR_STRING_DATA reason[2];
+    int libNum = 0;
+
+    ExpectIntEQ(ERR_PACK(0x80, 0x1, 0x2), 0x80001002UL);
+    ExpectIntGE(libNum = ERR_get_next_error_library(), 128);
+    ExpectIntEQ(ERR_get_next_error_library(), libNum + 1);
+
+    XMEMSET(lib, 0, sizeof(lib));
+    XMEMSET(reason, 0, sizeof(reason));
+    lib[0].error = ERR_PACK(libNum, 0, 0);
+    lib[0].string = libName;
+    reason[0].error = ERR_PACK(libNum, 0, 1);
+    reason[0].string = reasonStr;
+    ExpectIntEQ(ERR_load_strings(libNum, lib), 1);
+    ExpectIntEQ(ERR_load_strings(libNum, reason), 1);
+
+    /* Errors of application libraries are not queued. */
+    ERR_clear_error();
+    ERR_put_error(libNum, 0, 1, "this file", 1);
+    ExpectIntEQ(ERR_peek_error(), 0);
+
+    ExpectIntEQ(ERR_unload_strings(libNum, reason), 1);
+    ExpectIntEQ(ERR_unload_strings(libNum, lib), 1);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * This is a regression test for a bug where the peek/get error functions were
  * drawing from the end of the queue rather than the front.
@@ -23593,6 +23847,7 @@ static int test_othername_and_SID_ext(void)
     sid_oid = NULL;
     ASN1_OCTET_STRING_free(sid_data);
     X509_REQ_free(x509);
+    x509 = NULL;
     EVP_PKEY_free(priv);
 
     /* At this point everything used to generate what is in der is cleaned up.
@@ -28981,10 +29236,7 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
             X509_LU_X509, X509_get_issuer_name(cert)));
     ExpectNotNull(issuer = X509_OBJECT_get0_X509(x509_obj));
     ExpectTrue(wolfSSL_X509_OBJECT_get_type(NULL) == WOLFSSL_X509_LU_NONE);
-#ifndef NO_WOLFSSL_STUB
-    /* Not implemented and not in OpenSSL 1.1.0+ */
-    wolfSSL_X509_OBJECT_free_contents(x509_obj);
-#endif
+    wolfSSL_X509_OBJECT_free_contents(NULL);
     wolfSSL_X509_OBJECT_free(NULL);
 
     ExpectNotNull(req = OCSP_REQUEST_new());
@@ -29239,6 +29491,156 @@ static int test_wolfSSL_CRYPTO_memcmp(void)
 
     ExpectIntEQ(CRYPTO_memcmp(a, b, sizeof(a)), 0);
     ExpectIntNE(CRYPTO_memcmp(a, c, sizeof(a)), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+#ifdef OPENSSL_EXTRA
+static CRYPTO_malloc_fn  test_mem_prev_malloc = NULL;
+static CRYPTO_realloc_fn test_mem_prev_realloc = NULL;
+static CRYPTO_free_fn    test_mem_prev_free = NULL;
+static int test_mem_allocs = 0;
+static int test_mem_frees = 0;
+
+static void* test_mem_malloc(size_t sz, const char* file, int line)
+{
+    test_mem_allocs++;
+    return test_mem_prev_malloc(sz, file, line);
+}
+
+static void* test_mem_realloc(void* p, size_t sz, const char* file, int line)
+{
+    if (p == NULL)
+        test_mem_allocs++;
+    return test_mem_prev_realloc(p, sz, file, line);
+}
+
+static void test_mem_free(void* p, const char* file, int line)
+{
+    if (p != NULL)
+        test_mem_frees++;
+    test_mem_prev_free(p, file, line);
+}
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY)
+/* A native wrapper of wolfSSL's allocators that stops a loop. */
+static wolfSSL_Malloc_cb  test_mem_native_malloc = NULL;
+static wolfSSL_Free_cb    test_mem_native_free = NULL;
+static wolfSSL_Realloc_cb test_mem_native_realloc = NULL;
+static int test_mem_native_depth = 0;
+static int test_mem_native_loop = 0;
+
+static void* test_mem_native_wrap_malloc(size_t sz)
+{
+    void* p = NULL;
+
+    if (++test_mem_native_depth > 1)
+        test_mem_native_loop = 1;
+    else
+        p = test_mem_native_malloc(sz);
+    test_mem_native_depth--;
+    return p;
+}
+
+static void* test_mem_native_wrap_realloc(void* p, size_t sz)
+{
+    void* q = NULL;
+
+    if (++test_mem_native_depth > 1)
+        test_mem_native_loop = 1;
+    else
+        q = test_mem_native_realloc(p, sz);
+    test_mem_native_depth--;
+    return q;
+}
+
+static void test_mem_native_wrap_free(void* p)
+{
+    if (++test_mem_native_depth > 1)
+        test_mem_native_loop = 1;
+    else
+        test_mem_native_free(p);
+    test_mem_native_depth--;
+}
+#endif
+#endif
+
+static int test_wolfSSL_CRYPTO_get_mem_functions(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_EXTRA
+    CRYPTO_malloc_fn  m = NULL;
+    CRYPTO_realloc_fn r = NULL;
+    CRYPTO_free_fn    f = NULL;
+    void* p = NULL;
+    void* q = NULL;
+    int ret = 0;
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+    X509* x509 = NULL;
+#endif
+
+    CRYPTO_get_mem_functions(NULL, NULL, NULL);
+    CRYPTO_get_mem_functions(&test_mem_prev_malloc, &test_mem_prev_realloc,
+        &test_mem_prev_free);
+    ExpectTrue(test_mem_prev_malloc != NULL);
+    ExpectTrue(test_mem_prev_realloc != NULL);
+    ExpectTrue(test_mem_prev_free != NULL);
+
+    /* The returned functions can be called directly. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(p = test_mem_prev_malloc(16, __FILE__, __LINE__));
+        ExpectNotNull(q = test_mem_prev_realloc(p, 32, __FILE__, __LINE__));
+        if (q != NULL)
+            p = q;
+        test_mem_prev_free(p, __FILE__, __LINE__);
+        p = NULL;
+    }
+
+    /* Wrap them, allocate through wolfSSL and restore them. */
+    if (EXPECT_SUCCESS()) {
+        ret = CRYPTO_set_mem_functions(test_mem_malloc, test_mem_realloc,
+            test_mem_free);
+    }
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+    ExpectIntEQ(ret, 1);
+    CRYPTO_get_mem_functions(&m, &r, &f);
+    ExpectTrue(m == test_mem_malloc);
+    ExpectTrue(r == test_mem_realloc);
+    ExpectTrue(f == test_mem_free);
+    ExpectNotNull(x509 = X509_new());
+    X509_free(x509);
+    ExpectNotNull(p = OPENSSL_malloc(8));
+    OPENSSL_free(p);
+#ifndef WOLFSSL_DEBUG_MEMORY
+    /* Getting them while a native wrapper is installed changes nothing. */
+    if (EXPECT_SUCCESS()) {
+        (void)wolfSSL_GetAllocators(&test_mem_native_malloc,
+            &test_mem_native_free, &test_mem_native_realloc);
+        ExpectIntEQ(wolfSSL_SetAllocators(test_mem_native_wrap_malloc,
+            test_mem_native_wrap_free, test_mem_native_wrap_realloc), 0);
+        CRYPTO_get_mem_functions(&m, &r, &f);
+        ExpectIntEQ(wolfSSL_SetAllocators(test_mem_native_malloc,
+            test_mem_native_free, test_mem_native_realloc), 0);
+    }
+    ExpectNotNull(p = OPENSSL_malloc(8));
+    OPENSSL_free(p);
+    ExpectIntEQ(test_mem_native_loop, 0);
+#endif
+    if (ret == 1) {
+        ret = CRYPTO_set_mem_functions(test_mem_prev_malloc,
+            test_mem_prev_realloc, test_mem_prev_free);
+    }
+    ExpectIntEQ(ret, 1);
+    ExpectIntGT(test_mem_allocs, 1);
+    ExpectIntEQ(test_mem_allocs, test_mem_frees);
+#else
+    ExpectIntEQ(ret, 0);
+#endif
+    CRYPTO_get_mem_functions(&m, &r, &f);
+    ExpectTrue(m == test_mem_prev_malloc);
+    ExpectTrue(r == test_mem_prev_realloc);
+    ExpectTrue(f == test_mem_prev_free);
 #endif
     return EXPECT_RESULT();
 }
@@ -32429,7 +32831,6 @@ static int test_sk_X509_CRL_decode(void)
         ExpectNull(wolfSSL_sk_X509_REVOKED_value(NULL, 0));
     }
 #ifndef NO_WOLFSSL_STUB
-    ExpectIntEQ(wolfSSL_X509_CRL_verify(NULL, NULL), 0);
     ExpectIntEQ(X509_OBJECT_set1_X509_CRL(NULL, NULL), 0);
     ExpectIntEQ(X509_OBJECT_set1_X509(NULL, NULL), 0);
 #endif
@@ -32475,7 +32876,16 @@ static int test_sk_X509_CRL_decode(void)
     ExpectIntEQ(sk_X509_CRL_num(s), 0);
     ExpectIntEQ(sk_X509_CRL_push(s, crl), 1);
 
+    /* Frees the stack only. */
     sk_X509_CRL_free(s);
+    s = NULL;
+    ExpectNotNull(X509_CRL_get_issuer(crl));
+    ExpectNotNull(s = sk_X509_CRL_new());
+    ExpectIntEQ(sk_X509_CRL_push(s, crl), 1);
+    if (EXPECT_FAIL()) {
+        X509_CRL_free(crl);
+    }
+    sk_X509_CRL_pop_free(s, X509_CRL_free);
 #endif
     return EXPECT_RESULT();
 }
@@ -32616,8 +33026,7 @@ static int test_wolfSSL_X509_CRL_get_REVOKED_after_update(void)
     ExpectIntEQ(wolfSSL_sk_X509_REVOKED_num(revokedSk), 1);
     ExpectNotNull(rev = wolfSSL_sk_X509_REVOKED_value(revokedSk, 0));
     ExpectNotNull(serial = wolfSSL_X509_REVOKED_get0_serial_number(rev));
-    ExpectIntEQ(serial->length, 1);
-    ExpectIntEQ(serial->data[0], 0x02);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(serial), 0x02);
 
     wolfSSL_CTX_free(ctx);
 
@@ -49491,6 +49900,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as callbacks use Assert. */
     TEST_DECL(test_error_queue_per_thread),
     TEST_DECL(test_wolfSSL_ERR_put_error),
+    TEST_DECL(test_wolfSSL_ERR_load_strings),
     TEST_DECL(test_wolfSSL_ERR_get_error_order),
     TEST_DECL(test_wolfSSL_ERR_set_mark),
     TEST_DECL(test_wolfSSL_ERR_set_mark_thread),
@@ -49556,6 +49966,7 @@ TEST_CASE testCases[] = {
 #endif
 
     TEST_DECL(test_wolfSSL_CRYPTO_memcmp),
+    TEST_DECL(test_wolfSSL_CRYPTO_get_mem_functions),
     TEST_DECL(test_wolfSSL_CRYPTO_get_ex_new_index),
     TEST_DECL(test_CRYPTO_set_dynlock_xxx),
     TEST_DECL(test_CRYPTO_THREADID_xxx),
@@ -49694,6 +50105,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_set_cipher_list_range_setters),
     TEST_DECL(test_wolfSSL_set_cipher_list_no_range),
     TEST_DECL(test_wolfSSL_set_cipher_list_exclusions),
+    TEST_DECL(test_wolfSSL_get_ciphers_after_set_cipher_list),
+    TEST_DECL(test_wolfSSL_set_cipher_list_remove_all),
+    TEST_DECL(test_wolfSSL_CTX_set_cipher_list_remove_all_new),
     TEST_DECL(test_tls13_null_cipher_default_list),
     TEST_DECL(test_tls13_null_cipher_explicit_keep),
     TEST_DECL(test_wolfSSL_SSL_set_ciphersuites),

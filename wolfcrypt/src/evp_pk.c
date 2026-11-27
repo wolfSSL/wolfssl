@@ -2645,116 +2645,90 @@ cleanup:
 #ifdef HAVE_ECC
 /* Encode EC key as public key DER.
  *
- * @param [in]  key  WOLFSSL_EVP_KEY object to encode.
  * @param [in]  ec   WOLFSSL_EC_KEY object to encode.
  * @param [out] der  Buffer with DER encoding of EC public key.
  * @return  Public key DER encoding size on success.
  * @return  WOLFSSL_FATAL_ERROR when dynamic memory allocation fails.
  * @return  WOLFSSL_FATAL_ERROR when encoding fails.
  */
-static int wolfssl_i_i2d_ecpublickey(const WOLFSSL_EVP_PKEY* key,
-    const WOLFSSL_EC_KEY *ec, unsigned char **der)
+static int wolfssl_i_i2d_ecpublickey(const WOLFSSL_EC_KEY *ec,
+    unsigned char **der)
 {
-    word32 pub_derSz = 0;
-    int ret;
-    unsigned char *local_der = NULL;
-    word32 local_derSz = 0;
-    unsigned char *pub_der = NULL;
-    ecc_key *eccKey = NULL;
-    word32 inOutIdx = 0;
+    int ret = 0;
+    int sz = 0;
+    ecc_key* eccKey = NULL;
+    ecc_key* pubKey = NULL;
 
-    /* We need to get the DER, then convert it to a public key. But what we get
-     * might be a buffered private key so we need to decode it and then encode
-     * the public part. */
-    ret = wolfssl_i_evp_pkey_get_der(key, &local_der);
-    if (ret <= 0) {
-        /* In this case, there was no buffered DER at all. This could be the
-         * case where the key that was passed in was generated. So now we
-         * have to create the local DER. */
-        local_derSz = (word32)wolfSSL_i2d_ECPrivateKey(ec, &local_der);
-        if (local_derSz == 0) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    } else {
-        local_derSz = (word32)ret;
-        ret = 0;
+    if ((ec == NULL) || (ec->internal == NULL)) {
+        ret = WOLFSSL_FATAL_ERROR;
     }
-
-    if (ret == 0) {
-        eccKey = (ecc_key *)XMALLOC(sizeof(*eccKey), NULL, DYNAMIC_TYPE_ECC);
-        if (eccKey == NULL) {
-            WOLFSSL_MSG("Failed to allocate key buffer.");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    /* Initialize a wolfCrypt ECC key. */
-    if (ret == 0) {
-        ret = wc_ecc_init(eccKey);
+    /* Sync the internal key with the EC key. */
+    if ((ret == 0) && (!ec->inSet) &&
+            (SetECKeyInternal((WOLFSSL_EC_KEY*)ec) != 1)) {
+        ret = WOLFSSL_FATAL_ERROR;
     }
     if (ret == 0) {
-        /* Decode the DER data with wolfCrypt ECC key. */
-        ret = wc_EccPublicKeyDecode(local_der, &inOutIdx, eccKey, local_derSz);
-        if (ret < 0) {
-            /* We now try again as x.963 [point type][x][opt y]. */
-            ret = wc_ecc_import_x963(local_der, local_derSz, eccKey);
+        eccKey = (ecc_key*)ec->internal;
+        if (eccKey->type == ECC_PRIVATEKEY_ONLY) {
+            /* Compute the public point into a separate key. */
+            pubKey = (ecc_key*)XMALLOC(sizeof(*pubKey), NULL,
+                DYNAMIC_TYPE_ECC);
+            if (pubKey == NULL) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else if (wc_ecc_init(pubKey) != 0) {
+                XFREE(pubKey, NULL, DYNAMIC_TYPE_ECC);
+                pubKey = NULL;
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else {
+                pubKey->idx = eccKey->idx;
+                pubKey->dp = eccKey->dp;
+                if (wc_ecc_make_pub(eccKey, &pubKey->pubkey) != 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+                pubKey->type = ECC_PUBLICKEY;
+                eccKey = pubKey;
+            }
         }
     }
 
     if (ret == 0) {
-        /* Get the size of the encoding of the public key DER. */
-        pub_derSz = (word32)wc_EccPublicKeyDerSize(eccKey, 1);
-        if ((int)pub_derSz <= 0) {
+        sz = wc_EccPublicKeyDerSize(eccKey, 1);
+        if (sz <= 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
-
-    if (ret == 0) {
-        /* Allocate memory for public key DER encoding. */
-        pub_der = (unsigned char*)XMALLOC(pub_derSz, NULL,
-            DYNAMIC_TYPE_PUBLIC_KEY);
-        if (pub_der == NULL) {
-            WOLFSSL_MSG("Failed to allocate output buffer.");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
-        /* Encode public key as DER. */
-        pub_derSz = (word32)wc_EccPublicKeyToDer(eccKey, pub_der, pub_derSz, 1);
-        if ((int)pub_derSz <= 0) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    /* This block is for actually returning the DER of the public key */
     if ((ret == 0) && (der != NULL)) {
         int bufferPassedIn = ((*der) != NULL);
+        unsigned char* buf = *der;
+
         if (!bufferPassedIn) {
-            *der = (unsigned char*)XMALLOC(pub_derSz, NULL,
+            buf = (unsigned char*)XMALLOC((size_t)sz, NULL,
                 DYNAMIC_TYPE_PUBLIC_KEY);
-            if (*der == NULL) {
-                WOLFSSL_MSG("Failed to allocate output buffer.");
+            if (buf == NULL) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
+        if ((ret == 0) &&
+                (wc_EccPublicKeyToDer(eccKey, buf, (word32)sz, 1) != sz)) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
         if (ret == 0) {
-            XMEMCPY(*der, pub_der, pub_derSz);
-            if (bufferPassedIn) {
-                *der += pub_derSz;
-            }
+            *der = bufferPassedIn ? buf + sz : buf;
+        }
+        else if (!bufferPassedIn) {
+            XFREE(buf, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         }
     }
 
-    /* Dispose of allocated objects. */
-    XFREE(pub_der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(local_der, NULL, DYNAMIC_TYPE_OPENSSL);
-    wc_ecc_free(eccKey);
-    XFREE(eccKey, NULL, DYNAMIC_TYPE_ECC);
+    if (pubKey != NULL) {
+        wc_ecc_free(pubKey);
+        XFREE(pubKey, NULL, DYNAMIC_TYPE_ECC);
+    }
 
-    /* Return error or the size of the DER encoded public key. */
     if (ret == 0) {
-        ret = (int)pub_derSz;
+        ret = sz;
     }
     return ret;
 }
@@ -2964,7 +2938,7 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     #endif
     #ifdef HAVE_ECC
         case WC_EVP_PKEY_EC:
-            return wolfssl_i_i2d_ecpublickey(key, key->ecc, der);
+            return wolfssl_i_i2d_ecpublickey(key->ecc, der);
     #endif
     #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
         /* Emit a SubjectPublicKeyInfo (withAlg=1) rather than the bare key:

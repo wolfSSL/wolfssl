@@ -1081,6 +1081,26 @@ const unsigned char* wolfSSL_ASN1_INTEGER_get0_data(const WOLFSSL_ASN1_INTEGER* 
     return ai->data;
 }
 
+/* Get the type of the INTEGER, as ASN1_STRING_type() on an ASN1_INTEGER in
+ * OpenSSL. The sign is in the type, as for the other INTEGER APIs.
+ *
+ * @param [in] ai  ASN.1 INTEGER object.
+ * @return  WOLFSSL_V_ASN1_NEG_INTEGER when negative.
+ * @return  WOLFSSL_V_ASN1_INTEGER when not negative.
+ * @return  0 when ai is NULL.
+ */
+int wolfSSL_ASN1_INTEGER_get_type(const WOLFSSL_ASN1_INTEGER* ai)
+{
+    int type = 0;
+
+    if (ai != NULL) {
+        type = (ai->type & WOLFSSL_V_ASN1_NEG) ? WOLFSSL_V_ASN1_NEG_INTEGER :
+            WOLFSSL_V_ASN1_INTEGER;
+    }
+
+    return type;
+}
+
 #if defined(OPENSSL_EXTRA)
 /* Reset the data of ASN.1 INTEGER object back to empty fixed array.
  *
@@ -1369,6 +1389,10 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
             else if (aLen > 0) {
                 /* Compare data given they are the same length. */
                 ret = XMEMCMP(aMag, bMag, (size_t)aLen);
+            }
+            else {
+                /* An empty INTEGER is less than 0, as in OpenSSL. */
+                ret = (a->length > 0) - (b->length > 0);
             }
             /* Reverse comparison result when both negative. */
             if (aNeg) {
@@ -6256,6 +6280,19 @@ int wc_OBJ_sn2nid(const char *sn)
         WOLFSSL_ENTER("wolfSSL_OBJ_cmp");
 
         if (a && b && a->obj && b->obj) {
+            /* An object made from a NID that has no OID encoding here, as for
+             * name attribute types, is only the tag and a zero length:
+             * compare NIDs. */
+            if (a->objSz <= 2 || b->objSz <= 2) {
+                int nidA = wolfSSL_OBJ_obj2nid(a);
+                int nidB = wolfSSL_OBJ_obj2nid(b);
+
+                if (nidA > 0 && nidB > 0) {
+                    if (nidA == nidB)
+                        return 0;
+                    return (nidA < nidB) ? -1 : 1;
+                }
+            }
             if (a->objSz == b->objSz) {
                 return XMEMCMP(a->obj, b->obj, a->objSz);
             }

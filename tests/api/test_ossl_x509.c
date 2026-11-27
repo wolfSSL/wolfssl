@@ -314,7 +314,12 @@ int test_wolfSSL_X509_subject_name_hash(void)
 
     ExpectNotNull(x509 = X509_new());
     ExpectIntEQ(X509_subject_name_hash(NULL), 0);
-    ExpectIntEQ(X509_subject_name_hash(x509), 0);
+    /* Empty name: hash of an empty encoding, as OpenSSL. */
+#ifndef NO_SHA
+    ExpectIntEQ(X509_subject_name_hash(x509), 0xeea339daUL);
+#else
+    ExpectIntEQ(X509_subject_name_hash(x509), 0x42c4b0e3UL);
+#endif
     X509_free(x509);
     x509 = NULL;
 
@@ -356,7 +361,12 @@ int test_wolfSSL_X509_issuer_name_hash(void)
 
     ExpectNotNull(x509 = X509_new());
     ExpectIntEQ(X509_issuer_name_hash(NULL), 0);
-    ExpectIntEQ(X509_issuer_name_hash(x509), 0);
+    /* Empty name: hash of an empty encoding, as OpenSSL. */
+#ifndef NO_SHA
+    ExpectIntEQ(X509_issuer_name_hash(x509), 0xeea339daUL);
+#else
+    ExpectIntEQ(X509_issuer_name_hash(x509), 0x42c4b0e3UL);
+#endif
     X509_free(x509);
     x509 = NULL;
 
@@ -422,6 +432,19 @@ int test_wolfSSL_X509_check_host(void)
     ExpectIntEQ(X509_check_host(x509, badAltName, XSTRLEN(badAltName),
             WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL),
             WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* The subject CN www.wolfssl.com is only used when asked for, since
+     * the certificate has DNS SANs. */
+    ExpectIntEQ(X509_check_host(x509, "www.wolfssl.com", 0, 0, NULL),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
+    ExpectIntEQ(X509_check_host(x509, "www.wolfssl.com", 0,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(X509_check_host(x509, badAltName, XSTRLEN(badAltName),
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(X509_check_host(x509, altName, XSTRLEN(altName),
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
 
     /* A SAN with no wildcard is unaffected by either wildcard restriction. */
     ExpectIntEQ(wolfSSL_X509_check_host(x509, altName, XSTRLEN(altName),

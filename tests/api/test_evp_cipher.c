@@ -251,6 +251,36 @@ int test_wolfSSL_EVP_CIPHER_CTX_set_iv(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_EVP_CIPHER_CTX_cleanup_wipe(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte key[DES3_KEY_SIZE];
+    byte iv[DES_BLOCK_SIZE];
+    const byte* p;
+    size_t i;
+    byte nonZero = 0;
+
+    XMEMSET(key, 0xa5, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_ede3_cbc(), key, iv, 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_cleanup(ctx), WOLFSSL_SUCCESS);
+    /* No key schedule left behind. */
+    if (ctx != NULL) {
+        p = (const byte*)&ctx->cipher;
+        for (i = 0; i < sizeof(ctx->cipher); i++) {
+            nonZero |= p[i];
+        }
+    }
+    ExpectIntEQ(nonZero, 0);
+    EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EVP_get_cipherbynid(void)
 {
     EXPECT_DECLS;

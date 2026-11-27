@@ -60,6 +60,7 @@ libjansson-dev
 libkrb5-dev
 libldb-dev
 libldb2
+libltdl-dev
 liblz4-dev
 liblzma-dev
 liblzo2-dev
@@ -84,6 +85,8 @@ libssl-dev
 libtool
 liburcu-dev
 libuv1-dev
+libxml2-dev
+libxslt1-dev
 linux-libc-dev
 make
 man2html

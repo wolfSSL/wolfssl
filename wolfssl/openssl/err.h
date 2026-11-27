@@ -24,6 +24,31 @@
 
 #include <wolfssl/wolfcrypt/logging.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ERR_STRING_DATA_DECLARED)
+#define WOLFSSL_ERR_STRING_DATA_DECLARED
+/* Error string of an error library registered by the application. Declared
+ * in ssl.h and openssl/err.h, whichever is included first. */
+typedef struct WOLFSSL_ERR_STRING_DATA {
+    unsigned long error;
+    const char*   string;
+} WOLFSSL_ERR_STRING_DATA;
+
+/* wolfSSL_ERR_put_error() does not queue errors of these libraries. */
+WOLFSSL_API int wolfSSL_ERR_get_next_error_library(void);
+WOLFSSL_API int wolfSSL_ERR_load_strings(int lib,
+                                         WOLFSSL_ERR_STRING_DATA* str);
+WOLFSSL_API int wolfSSL_ERR_unload_strings(int lib,
+                                           WOLFSSL_ERR_STRING_DATA* str);
+#endif
+
+#ifdef __cplusplus
+}  /* extern "C" */
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 #define wolfSSL_RSAerr(f,r)  wolfSSL_ERR_put_error(0,(f),(r),__FILE__,__LINE__)
@@ -59,6 +84,14 @@
 
 /* err.h for openssl */
 #define ERR_load_ERR_strings             wolfSSL_ERR_load_ERR_strings
+#define ERR_get_next_error_library       wolfSSL_ERR_get_next_error_library
+#define ERR_load_strings                 wolfSSL_ERR_load_strings
+#define ERR_unload_strings               wolfSSL_ERR_unload_strings
+#define ERR_STRING_DATA                  WOLFSSL_ERR_STRING_DATA
+#define ERR_PACK(l, f, r)                                                     \
+    ((((unsigned long)(l) & 0xFFUL) << 24) |                                  \
+     (((unsigned long)(f) & 0xFFFUL) << 12) |                                 \
+     ((unsigned long)(r) & 0xFFFUL))
 #define ERR_load_crypto_strings          wolfSSL_ERR_load_crypto_strings
 #define ERR_load_CRYPTO_strings          wolfSSL_ERR_load_crypto_strings
 #define ERR_peek_last_error              wolfSSL_ERR_peek_last_error

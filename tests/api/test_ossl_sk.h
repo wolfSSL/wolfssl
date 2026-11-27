@@ -30,7 +30,11 @@ int test_wolfSSL_sk_free(void);
 int test_wolfSSL_sk_push_pop(void);
 int test_wolfSSL_sk_insert(void);
 int test_wolfSSL_sk_delete(void);
+int test_wolfSSL_sk_delete_ptr(void);
+int test_wolfSSL_sk_X509_insert_delete_ptr(void);
+int test_wolfSSL_sk_sort(void);
 int test_wolfSSL_shallow_sk_dup(void);
+int test_wolfSSL_X509_chain_up_ref(void);
 int test_wolfSSL_sk_num(void);
 int test_wolfSSL_sk_value(void);
 int test_wolfssl_sk_GENERIC(void);
@@ -54,7 +58,12 @@ int test_wolfSSL_CIPHER_current(void);
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_push_pop),       \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_insert),         \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_delete),         \
+    TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_delete_ptr),     \
+    TEST_DECL_GROUP("ossl_sk",                                  \
+        test_wolfSSL_sk_X509_insert_delete_ptr),                \
+    TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_sort),           \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_shallow_sk_dup),    \
+    TEST_DECL_GROUP("ossl_sk", test_wolfSSL_X509_chain_up_ref), \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_num),            \
     TEST_DECL_GROUP("ossl_sk", test_wolfSSL_sk_value),          \
     TEST_DECL_GROUP("ossl_sk", test_wolfssl_sk_GENERIC),        \

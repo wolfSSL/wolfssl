@@ -154,3 +154,5 @@ EXTRA_DIST += \
          certs/test/alt-chain-forged-ca/realRoot-cert.pem \
          certs/test/alt-chain-forged-ca/leaf-key.pem \
          certs/test/alt-chain-forged-ca/server-chain.pem
+
+EXTRA_DIST += certs/test/akid-serial
