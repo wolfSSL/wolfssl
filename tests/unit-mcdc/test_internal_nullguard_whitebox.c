@@ -425,6 +425,83 @@ done:
 }
 #endif
 
+#if defined(HAVE_ECC) && \
+    (defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+static int wb_curve_key_cleanup(void)
+{
+    static const int keyTypes[] = {
+        DYNAMIC_TYPE_ECC,
+#ifdef HAVE_CURVE25519
+        DYNAMIC_TYPE_CURVE25519,
+#endif
+#ifdef HAVE_CURVE448
+        DYNAMIC_TYPE_CURVE448,
+#endif
+    };
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    size_t i;
+    int pass, withPeer;
+    int failed = 0;
+
+    if (ctx == NULL)
+        return 1;
+    for (pass = 0; pass < 2; pass++) {
+        for (i = 0; i < XELEM_CNT(keyTypes); i++) {
+            for (withPeer = 0; withPeer <= (i != 0); withPeer++) {
+                int type = keyTypes[i];
+                WOLFSSL* ssl = wolfSSL_new(ctx);
+                int ret;
+
+                if (ssl == NULL) {
+                    failed = 1;
+                    continue;
+                }
+                ret = AllocKey(ssl, type, (void**)&ssl->eccTempKey);
+                if (ret == 0)
+                    ssl->eccTempKeyPresent = (byte)type;
+#ifdef HAVE_CURVE25519
+                if (ret == 0 && withPeer && type == DYNAMIC_TYPE_CURVE25519) {
+                    ret = AllocKey(ssl, type, (void**)&ssl->peerX25519Key);
+                    ssl->peerX25519KeyPresent = (ret == 0);
+                }
+#endif
+#ifdef HAVE_CURVE448
+                if (ret == 0 && withPeer && type == DYNAMIC_TYPE_CURVE448) {
+                    ret = AllocKey(ssl, type, (void**)&ssl->peerX448Key);
+                    ssl->peerX448KeyPresent = (ret == 0);
+                }
+#endif
+                if (ret == 0 && withPeer) {
+                    /* A peer key also identifies the type of an owned
+                     * temporary key when only the peer flag remains. */
+                    ssl->eccTempKeyPresent = 0;
+                }
+                if (pass == 0)
+                    FreeSSL_EccPeerKeys(ssl);
+                else
+                    FreeHandshakeResources(ssl);
+                if (ret != 0 || ssl->eccTempKey != NULL ||
+                        ssl->eccTempKeyPresent)
+                    failed = 1;
+#ifdef HAVE_CURVE25519
+                if (ssl->peerX25519Key != NULL || ssl->peerX25519KeyPresent)
+                    failed = 1;
+#endif
+#ifdef HAVE_CURVE448
+                if (ssl->peerX448Key != NULL || ssl->peerX448KeyPresent)
+                    failed = 1;
+#endif
+                wolfSSL_free(ssl);
+            }
+        }
+    }
+    wolfSSL_CTX_free(ctx);
+    return failed;
+}
+#endif
+
 /* AllocateSuites can copy the CTX list or start with an empty local list. */
 static int wb_allocate_suites(WbFix* f)
 {
@@ -1078,6 +1155,15 @@ int main(void)
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_ecc_verify_digest_limits(&f)) {
         puts("internal null-guard white-box: ECC digest limit check failed");
+        failed = 1;
+    }
+#endif
+#if defined(HAVE_ECC) && \
+    (defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    if (wb_curve_key_cleanup()) {
+        puts("internal null-guard white-box: curve key cleanup failed");
         failed = 1;
     }
 #endif
