@@ -55,6 +55,11 @@
  * Inline assembly implementations of wc_SipHash() written for:
  *   - GCC for Intel x86_64
  *   - GCC for Aarch64.
+ * The assembly is split into several asm statements to keep each string
+ * under the C99 limit of 4095 chars (-Woverlength-strings).
+ * No jump may go from one asm statement into another. GCC does not support
+ * it.
+ * Fil-C does not allow pointers in inline assembly, so it uses the C code.
  */
 
 #ifdef WOLFSSL_SIPHASH
@@ -351,6 +356,7 @@ int wc_SipHashFinal(SipHash* sipHash, unsigned char* out, unsigned char outSz)
 }
 
 #if !defined(WOLFSSL_NO_ASM) && defined(__GNUC__) && defined(__x86_64__) && \
+    !defined(__FILC__) && \
     (WOLFSSL_SIPHASH_CROUNDS == 1 || WOLFSSL_SIPHASH_CROUNDS == 2) && \
     (WOLFSSL_SIPHASH_DROUNDS == 2 || WOLFSSL_SIPHASH_DROUNDS == 4)
 
@@ -441,6 +447,14 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         "subq   $8, %q[inSz]\n\t"
         "jge    L_siphash_input\n\t"
         "L_siphash_done_input_8:\n\t"
+
+        : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
+          [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
+        : [out] "r" (out) , [outSz] "r" (outSz)
+        : "memory", "cc"
+    );
+
+    __asm__ __volatile__ (
         "add    $8, %[inSz]\n\t"
 
         "shlq   $56, %[k1]\n\t"
@@ -463,13 +477,6 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         "orq    %[k0], %[k1]\n\t"
         "L_siphash_n6:\n\t"
 
-        : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
-          [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
-        : [out] "r" (out) , [outSz] "r" (outSz)
-        : "memory"
-    );
-
-    __asm__ __volatile__ (
         "cmp    $5, %[inSz]\n\t"
         "jl     L_siphash_n5\n\t"
         "movzbq 4(%[in]), %[k0]\n\t"
@@ -515,7 +522,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
           [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
         : [out] "r" (out) , [outSz] "r" (outSz)
-        : "memory"
+        : "memory", "cc"
     );
 
     __asm__ __volatile__ (
@@ -573,13 +580,14 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
           [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
         : [out] "r" (out) , [outSz] "r" (outSz)
-        : "memory"
+        : "memory", "cc"
     );
 
     return 0;
 }
 
 #elif defined(WOLFSSL_ARMASM) && defined(__GNUC__) && defined(__aarch64__) && \
+    !defined(__FILC__) && \
     (WOLFSSL_SIPHASH_CROUNDS == 1 || WOLFSSL_SIPHASH_CROUNDS == 2) && \
     (WOLFSSL_SIPHASH_DROUNDS == 2 || WOLFSSL_SIPHASH_DROUNDS == 4)
 
@@ -730,16 +738,15 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 #endif
         "eor    %[v0], %[v0], %[k1]\n\t"
 
-        "cmp    %w[outSz], #8\n\t"
-        "b.eq   L_siphash_8_end\n\t"
-
         : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
           [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
         : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
-        : "memory"
+        : "memory", "cc"
     );
 
     __asm__ __volatile__ (
+        "cmp    %w[outSz], #8\n\t"
+        "b.eq   L_siphash_8_end\n\t"
 
         "mov    %w[k1], #0xee\n\t"
         "eor    %[v2], %[v2], %[k1]\n\t"
@@ -793,7 +800,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         : [in] "+r" (in), [inSz] "+r" (inSz), [k0] "+r" (k0), [k1] "+r" (k1),
           [v0] "+r" (v0), [v1] "+r" (v1), [v2] "+r" (v2), [v3] "+r" (v3)
         : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
-        : "memory"
+        : "memory", "cc"
     );
 
     return 0;
