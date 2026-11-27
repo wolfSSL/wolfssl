@@ -955,7 +955,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     {
         ret = wc_CryptoCb_Curve25519(private_key, public_key, out, outlen,
             endian);
-        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
 #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             /* RFC 7748: reject an all-zero secret from the callback too */
             if (ret == 0) {
@@ -970,7 +970,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
             }
 #endif
             return ret;
-        /* fall-through when unavailable */
+        }
     }
 #endif
 
