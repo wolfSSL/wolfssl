@@ -3146,6 +3146,25 @@ int test_wolfSSL_cert_api_arg_guards(void)
     (void)wolfSSL_set_server_cert_type(ssl, certTypes,
                                        (int)sizeof(certTypes));
 
+    {
+        static const char rpk[] = { WOLFSSL_CERT_TYPE_RPK };
+        static const char unsupported[] = { 1 };
+        static const char duplicate[] = {
+            WOLFSSL_CERT_TYPE_X509, WOLFSSL_CERT_TYPE_X509
+        };
+
+        ExpectIntEQ(wolfSSL_CTX_set_client_cert_type(ctx, rpk, sizeof(rpk)),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set_client_cert_type(ctx, unsupported,
+            sizeof(unsupported)), BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, rpk, sizeof(rpk)),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, duplicate,
+            sizeof(duplicate)), BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, certTypes,
+            sizeof(certTypes)), WOLFSSL_SUCCESS);
+    }
+
     /* negotiated type read back before any handshake, and through NULL */
     (void)wolfSSL_get_negotiated_client_cert_type(NULL, &tp);
     (void)wolfSSL_get_negotiated_server_cert_type(NULL, &tp);
