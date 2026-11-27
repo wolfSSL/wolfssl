@@ -742,6 +742,31 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm, VerifyCallback vc)
 }
 #endif /* !NO_WOLFSSL_CM_VERIFY */
 
+#ifdef WOLFSSL_CERT_EVENTS
+/* Set the validation event callback into certificate manager.
+ *
+ * The callback observes events only; it cannot change the result.
+ *
+ * @param [in] cm   Certificate manager.
+ * @param [in] cb   Event callback. NULL turns events off.
+ * @param [in] ctx  Context passed to the callback.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when cm is NULL.
+ */
+int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
+    WOLFSSL_CERT_EVENT_CB cb, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCertEventCb");
+    if (cm == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    cm->certEventCb  = cb;
+    cm->certEventCtx = ctx;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_CERT_EVENTS */
+
 #ifdef WC_ASN_UNKNOWN_EXT_CB
 void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallback cb)
@@ -878,6 +903,40 @@ static int cm_verify_err_overridable(int err)
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
     defined(OPENSSL_EXTRA)
+#ifdef WOLFSSL_CERT_EVENTS
+/* Send the RESULT event that ends one verification.
+ *
+ * @param [in] cm     Certificate manager.
+ * @param [in] error  Final error, 0 when the certificate passed.
+ * @param [in] der    Encoded certificate.
+ * @param [in] derSz  Size of encoded certificate in bytes.
+ * @param [in] cert   Decoded certificate, or NULL when not available.
+ */
+static void CM_CertEventResult(WOLFSSL_CERT_MANAGER* cm, int error,
+    const unsigned char* der, word32 derSz, const DecodedCert* cert)
+{
+    WOLFSSL_CERT_EVENT ev;
+
+    if (cm->certEventCb == NULL) {
+        return;
+    }
+
+    XMEMSET(&ev, 0, sizeof(ev));
+    ev.kind     = WC_CEV_KIND_RESULT;
+    ev.category = WC_CEV_CAT_CERT;
+    ev.error    = error;
+    ev.condition = wc_CertEventRevocationCondition(error);
+    ev.role     = WC_CEV_ROLE_CANDIDATE;
+    ev.depth    = -1;
+    ev.der      = der;
+    ev.derSz    = derSz;
+    if (cert != NULL) {
+        wc_CertEventIdentity(cert, &ev);
+    }
+    wc_CertEventSend(cm->certEventCb, cm->certEventCtx, &ev);
+}
+#endif /* WOLFSSL_CERT_EVENTS */
+
 /* Verify the certificate.
  *
  * Uses the verification callback if available.
@@ -951,6 +1010,14 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
             wc_SetUnknownExtCallback32(cert, cm->unknownExtCallback32);
         if (cm->unknownExtCallback != NULL)
             wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
+#endif
+#ifdef WOLFSSL_CERT_EVENTS
+        /* A previous error means a failed load is being handed to the verify
+         * callback, which is not a verification of its own. */
+        if (prev_err == 0) {
+            wc_SetCertEventCallback(cert, cm->certEventCb, cm->certEventCtx);
+            wc_CertEventSetPosition(cert, WC_CEV_ROLE_CANDIDATE, -1);
+        }
 #endif
 
         /* Parse DER into decoded certificate fields and verify signature
@@ -1054,6 +1121,23 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     }
 #endif
     (void)crlRet;
+
+#ifdef WOLFSSL_CERT_EVENTS
+    /* The final outcome, after any verify callback override.
+     * The X509 store asks for the CRL error separately. ret is then 0 while
+     * *crlErr holds a revocation. Report the merged verdict. Leave the
+     * return value split, which is what that caller expects. */
+    if (prev_err == 0) {
+        int evErr = ret;
+#ifdef HAVE_CRL
+        if (crlErr != NULL) {
+            evErr = cm_crl_merge(ret, *crlErr);
+        }
+#endif
+        CM_CertEventResult(cm, evErr, buff, (word32)sz,
+            WC_VAR_OK(cert) ? cert : NULL);
+    }
+#endif
 
     /* Dispose of allocated memory. */
     FreeDecodedCert(cert);

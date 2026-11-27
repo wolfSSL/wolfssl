@@ -368,7 +368,8 @@ if(WOLFSSL_ALL)
     # implication and hard-errors without it, so name it explicitly.
     foreach(_o
         WOLFSSL_HPKE
-        WOLFSSL_ALPN WOLFSSL_CRL_MONITOR WOLFSSL_DTLS WOLFSSL_DTLS13
+        WOLFSSL_ALPN WOLFSSL_CERT_EVENTS WOLFSSL_CRL_MONITOR WOLFSSL_DTLS
+        WOLFSSL_DTLS13
         WOLFSSL_DTLS_CH_FRAG WOLFSSL_DTLS_MTU WOLFSSL_DTLS_CID WOLFSSL_EARLYDATA
         WOLFSSL_ECH WOLFSSL_HRR_COOKIE WOLFSSL_MCAST WOLFSSL_OCSP
         WOLFSSL_OCSPSTAPLING WOLFSSL_OCSPSTAPLING_V2 WOLFSSL_OPENSSLALL
@@ -1948,6 +1949,10 @@ add_option("WOLFSSL_CERTEXT"
 
 add_option("WOLFSSL_CERTGENCACHE"
     "Enable decoded cert caching (default: disabled)"
+    "no" "yes;no")
+
+add_option("WOLFSSL_CERT_EVENTS"
+    "Enable structured certificate validation event callback (default: disabled). Requires the ASN.1 template parser."
     "no" "yes;no")
 
 # Chain verify callback
@@ -3624,6 +3629,9 @@ if(WOLFSSL_CERTEXT)
 endif()
 if(WOLFSSL_CERTGENCACHE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN_CACHE")
+endif()
+if(WOLFSSL_CERT_EVENTS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_EVENTS")
 endif()
 
 if(WOLFSSL_CHAIN_VERIFY_CB)
