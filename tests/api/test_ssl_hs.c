@@ -1678,10 +1678,22 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
 #define TEST_DH_OOM
 
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_DH) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+#define TEST_NATIVE_DH_OOM
+#endif
+
+#if defined(TEST_DH_OOM) || defined(TEST_NATIVE_DH_OOM)
 /* Makes every allocation fail, so the DH copy is certain to run out of
  * memory whichever allocations a build makes. */
 static int dhOomFailAll = 0;
 static int dhOomFailed = 0;
+static int dhOomCountdown = 0;
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void* dhOomMalloc(size_t size, const char* func, unsigned int line)
@@ -1692,7 +1704,7 @@ static void* dhOomMalloc(size_t size, const char* func, unsigned int line)
 static void* dhOomMalloc(size_t size)
 {
 #endif
-    if (dhOomFailAll) {
+    if (dhOomFailAll || (dhOomCountdown > 0 && --dhOomCountdown == 0)) {
         dhOomFailed = 1;
         return NULL;
     }
@@ -1721,13 +1733,13 @@ static void* dhOomRealloc(void* ptr, size_t size, const char* func,
 static void* dhOomRealloc(void* ptr, size_t size)
 {
 #endif
-    if (dhOomFailAll) {
+    if (dhOomFailAll || (dhOomCountdown > 0 && --dhOomCountdown == 0)) {
         dhOomFailed = 1;
         return NULL;
     }
     return realloc(ptr, size);
 }
-#endif /* TEST_DH_OOM */
+#endif /* TEST_DH_OOM || TEST_NATIVE_DH_OOM */
 
 /* Running out of memory while copying the context's DH parameters.
  *
@@ -1789,6 +1801,64 @@ int test_wolfSSL_dh_ctx_params_oom(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_tmp_dh_allocations(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_NATIVE_DH_OOM
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    int nth;
+
+    if (MAX_DHKEY_SZ < 2048 / 8)
+        return EXPECT_RESULT();
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx_s, "./certs/dh2048.der",
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+
+    if (EXPECT_SUCCESS()) {
+        const byte* p = ctx_s->serverDH_P.buffer;
+        const byte* g = ctx_s->serverDH_G.buffer;
+        int pSz = (int)ctx_s->serverDH_P.length;
+        int gSz = (int)ctx_s->serverDH_G.length;
+
+        ExpectIntEQ(wolfSSL_SetAllocators(dhOomMalloc, dhOomFree,
+            dhOomRealloc), 0);
+        if (EXPECT_SUCCESS()) {
+            for (nth = 1; nth <= 2; nth++) {
+                dhOomCountdown = nth;
+                ExpectIntEQ(wolfSSL_SetTmpDH(ssl_s, p, pSz, g, gSz),
+                    MEMORY_E);
+                dhOomCountdown = nth;
+                ExpectIntEQ(wolfSSL_CTX_SetTmpDH(ctx_s, p, pSz, g, gSz),
+                    MEMORY_E);
+                ExpectTrue(ctx_s->serverDH_P.buffer == p);
+                ExpectTrue(ctx_s->serverDH_G.buffer == g);
+            }
+            dhOomCountdown = 0;
+            ExpectIntEQ(wolfSSL_SetTmpDH(ssl_s, p, pSz, g, gSz),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_SetTmpDH(ctx_s, p, pSz, g, gSz),
+                WOLFSSL_SUCCESS);
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+        }
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
 #endif
     return EXPECT_RESULT();
 }
