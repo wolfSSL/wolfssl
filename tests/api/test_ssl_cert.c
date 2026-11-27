@@ -386,7 +386,7 @@ int test_wolfSSL_alt_chain_same_dn_root(void)
  * signature: a root with a trusted CA's key, roots with an AKID by key id or
  * by issuer and serial, a CA that is not self-issued and a corrupted copy of a
  * trusted root. With WOLFSSL_AKID_NAME, the root with an AKID by issuer and
- * serial has no signer instead.
+ * serial has no signer instead (ASN_SELF_SIGNED_E with OPENSSL_ALL).
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -406,6 +406,9 @@ int test_wolfSSL_alt_chain_bad_sig(void)
      * root has no signer and the rest of the chain is valid. */
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     int akidNameErr = 0;
+#elif defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    /* A self-issued cert with no signer. */
+    int akidNameErr = WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E);
 #else
     int akidNameErr = WC_NO_ERR_TRACE(ASN_NO_SIGNER_E);
 #endif
