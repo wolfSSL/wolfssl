@@ -57,7 +57,28 @@
 
 #include <wolfssl/options.h>
 
+#include <wolfssl/wolfcrypt/wc_port.h>
+
+#if defined(WOLFSSL_PTHREADS) && !defined(WC_RWLOCK_OPS_INLINE) && \
+    !defined(SINGLE_THREADED) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_TLS) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CLIENT_CACHE) && \
+    !defined(NO_CERTS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #define WB_SESSION_LOCK_FAILURES
+    static int wb_cache_rd_lock(wolfSSL_RwLock* lock);
+    static int wb_cache_wr_lock(wolfSSL_RwLock* lock);
+    static int wb_client_lock(wolfSSL_Mutex* lock);
+    #define wc_LockRwLock_Rd(lock) wb_cache_rd_lock(lock)
+    #define wc_LockRwLock_Wr(lock) wb_cache_wr_lock(lock)
+    #define wc_LockMutex(lock) wb_client_lock(lock)
+#endif
 #include <src/ssl.c>
+#ifdef WB_SESSION_LOCK_FAILURES
+    #undef wc_LockRwLock_Rd
+    #undef wc_LockRwLock_Wr
+    #undef wc_LockMutex
+#endif
 #include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
@@ -68,6 +89,33 @@
     && !defined(NO_CERTS)
 
 static int g_checks;
+
+#ifdef WB_SESSION_LOCK_FAILURES
+static int wb_fail_read_lock;
+static int wb_fail_write_lock;
+static int wb_fail_client_lock;
+
+static int wb_cache_rd_lock(wolfSSL_RwLock* lock)
+{
+    if (wb_fail_read_lock)
+        return BAD_MUTEX_E;
+    return wc_LockRwLock_Rd(lock);
+}
+
+static int wb_cache_wr_lock(wolfSSL_RwLock* lock)
+{
+    if (wb_fail_write_lock)
+        return BAD_MUTEX_E;
+    return wc_LockRwLock_Wr(lock);
+}
+
+static int wb_client_lock(wolfSSL_Mutex* lock)
+{
+    if (wb_fail_client_lock && lock == &clisession_mutex)
+        return BAD_MUTEX_E;
+    return wc_LockMutex(lock);
+}
+#endif
 
 /* Exercise the copy helper directly: normal callers own both sessions and
  * never ask it to copy onto the source. */
@@ -341,6 +389,14 @@ static int wb_client_cache_insert(void)
             3) != NULL)
         failed = 1;
 #endif
+#ifdef WB_SESSION_LOCK_FAILURES
+    wb_fail_client_lock = 1;
+    entry = AddSessionToClientCache(WOLFSSL_CLIENT_END, 0, 0, name,
+        sizeof(name), id, 0, 3);
+    wb_fail_client_lock = 0;
+    if (entry != NULL)
+        failed = 1;
+#endif
     entry = AddSessionToClientCache(WOLFSSL_CLIENT_END, 0, 0, name,
         sizeof(name), id, 0, 3);
     if (entry == NULL || entry->serverRow != 0 || entry->serverIdx != 0 ||
@@ -421,6 +477,17 @@ static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
         goto done;
     TlsSessionCacheUnlockRow(row);
 
+#ifdef WB_SESSION_LOCK_FAILURES
+    {
+        int ret;
+        wb_fail_read_lock = 1;
+        ret = GetSessionFromCache(ssl, destination, 0);
+        wb_fail_read_lock = 0;
+        if (ret != WOLFSSL_FAILURE)
+            goto done;
+    }
+#endif
+
     cached = wolfSSL_GetSessionClient(ssl, serverId, sizeof(serverId));
     if (cached != locked ||
         wolfSSL_SESSION_up_ref(cached) != WOLFSSL_FAILURE ||
@@ -433,6 +500,21 @@ static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
         goto done;
     secondRef = source;
     wolfSSL_CTX_flush_sessions(ctx, source->bornOn);
+    {
+        Arrays* arrays = ssl->arrays;
+
+        ssl->arrays = NULL;
+        ssl->session->haveAltSessionID = 0;
+        XMEMCPY(ssl->session->sessionID, id, sizeof(id));
+        ssl->session->sessionIDSz = sizeof(id);
+        SetupSession(ssl);
+        if (GetSessionFromCache(ssl, destination, 0) != WOLFSSL_SUCCESS) {
+            ssl->arrays = arrays;
+            goto done;
+        }
+        ssl->arrays = arrays;
+        SetupSession(ssl);
+    }
     ssl->options.side = WOLFSSL_SERVER_END;
     if (wolfSSL_SetSession(ssl, cached) != WOLFSSL_FAILURE)
         goto done;
@@ -466,8 +548,19 @@ static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
     /* Expiring a genuine cached entry should evict it on the next lookup. */
     source->timeout = 0;
     if (AddSessionToCache(ctx, source, id, sizeof(id), NULL,
-            WOLFSSL_CLIENT_END, 0, &clientEntry) != 0 ||
-        GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_FAILURE)
+            WOLFSSL_CLIENT_END, 0, &clientEntry) != 0)
+        goto done;
+#ifdef WB_SESSION_LOCK_FAILURES
+    {
+        int ret;
+        wb_fail_write_lock = 1;
+        ret = GetSessionFromCache(ssl, ssl->session, 0);
+        wb_fail_write_lock = 0;
+        if (ret != WOLFSSL_FAILURE)
+            goto done;
+    }
+#endif
+    if (GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_FAILURE)
         goto done;
     locked = NULL;
     if (TlsSessionCacheGetAndRdLock(id, &locked, &row,
@@ -491,6 +584,113 @@ done:
     wolfSSL_SESSION_free(destination);
     wolfSSL_SESSION_free(secondRef);
     wolfSSL_SESSION_free(source);
+    wolfSSL_free(ssl);
+    return failed;
+}
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+static int wb_internal_cache_nonce(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_SESSION* source = wolfSSL_SESSION_new();
+    WOLFSSL_SESSION* output = wolfSSL_SESSION_new();
+    byte id[ID_LEN];
+    byte nonce[MAX_TICKET_NONCE_STATIC_SZ + 1];
+    int failed = 1;
+
+    if (ssl == NULL || source == NULL || output == NULL)
+        goto done;
+    XMEMSET(id, 0x3b, sizeof(id));
+    XMEMSET(nonce, 0x7e, sizeof(nonce));
+    XMEMCPY(source->sessionID, id, sizeof(id));
+    source->sessionIDSz = sizeof(id);
+    source->version = MakeTLSv1_3();
+    source->bornOn = LowResTimer();
+    source->timeout = 3600;
+    source->side = WOLFSSL_CLIENT_END;
+    source->isSetup = 1;
+    ssl->version = MakeTLSv1_3();
+    ssl->options.haveSessionId = 1;
+    XMEMCPY(ssl->session->sessionID, id, sizeof(id));
+    ssl->session->sessionIDSz = sizeof(id);
+
+    if (SessionTicketNoncePopulate(source, nonce, sizeof(nonce)) != 0 ||
+        AddSessionToCache(ctx, source, id, sizeof(id), NULL,
+            WOLFSSL_CLIENT_END, 0, NULL) != 0)
+        goto done;
+
+    /* Start with a fresh output, then repeat with its owned nonce buffer. */
+    if (GetSessionFromCache(ssl, output, 0) != WOLFSSL_SUCCESS ||
+        GetSessionFromCache(ssl, output, 0) != WOLFSSL_SUCCESS ||
+        output->ticketNonce.data == NULL ||
+        output->ticketNonce.data == source->ticketNonce.data ||
+        output->ticketNonce.len != sizeof(nonce) ||
+        XMEMCMP(output->ticketNonce.data, nonce, sizeof(nonce)) != 0)
+        goto done;
+
+    wolfSSL_CTX_flush_sessions(ctx, (long)source->bornOn + source->timeout + 1);
+    failed = 0;
+
+done:
+    wolfSSL_SESSION_free(output);
+    wolfSSL_SESSION_free(source);
+    wolfSSL_free(ssl);
+    return failed;
+}
+#endif
+
+#if defined(HAVE_EXTENDED_MASTER) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_session_ems_policy(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_SESSION* session = wolfSSL_SESSION_new();
+    int failed = 1;
+
+    if (ssl == NULL || session == NULL)
+        goto done;
+    session->isSetup = 1;
+    session->bornOn = LowResTimer();
+    session->timeout = 3600;
+    session->version = MakeTLSv1_2();
+    session->side = WOLFSSL_CLIENT_END;
+    session->haveEMS = 1;
+    ssl->version = MakeTLSv1_2();
+
+    if (wolfSSL_RequireExtendedMasterSecret(ssl) != WOLFSSL_SUCCESS ||
+        wolfSSL_SetSession(ssl, session) != WOLFSSL_SUCCESS ||
+        !ssl->options.haveEMS)
+        goto done;
+
+    /* A server retaining this policy uses the session's indicator. */
+    ssl->options.side = WOLFSSL_SERVER_END;
+    session->side = WOLFSSL_SERVER_END;
+    session->haveEMS = 0;
+    if (wolfSSL_SetSession(ssl, session) != WOLFSSL_SUCCESS ||
+        ssl->options.haveEMS)
+        goto done;
+
+    ssl->options.side = WOLFSSL_CLIENT_END;
+    session->side = WOLFSSL_CLIENT_END;
+    session->haveEMS = 1;
+    if (wolfSSL_DisableExtendedMasterSecret(ssl) != WOLFSSL_SUCCESS ||
+        wolfSSL_SetSession(ssl, session) != WOLFSSL_FAILURE ||
+        ssl->options.resuming)
+        goto done;
+
+    /* TLS 1.3 records the RFC 8446 EMS indicator but never negotiates the
+     * TLS 1.2 extension during resumption. */
+    session->version = MakeTLSv1_3();
+    if (wolfSSL_SetSession(ssl, session) != WOLFSSL_SUCCESS ||
+        !ssl->options.resuming)
+        goto done;
+    failed = 0;
+
+done:
+    wolfSSL_SESSION_free(session);
     wolfSSL_free(ssl);
     return failed;
 }
@@ -657,6 +857,23 @@ int main(void)
     }
     if (wb_client_cache_insert()) {
         puts("ssl_sess white-box: unexpected client cache insertion result");
+        failed = 1;
+    }
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    if (wb_internal_cache_nonce(ctx)) {
+        puts("ssl_sess white-box: unexpected cached ticket nonce");
+        failed = 1;
+    }
+#endif
+
+#if defined(HAVE_EXTENDED_MASTER) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_session_ems_policy(ctx)) {
+        puts("ssl_sess white-box: unexpected EMS policy result");
         failed = 1;
     }
 #endif
