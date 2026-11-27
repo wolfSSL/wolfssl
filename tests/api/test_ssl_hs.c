@@ -483,6 +483,48 @@ int test_wolfSSL_dtls13_scheduled_work_readiness(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_dtls_ech_policy(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECH) && defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* An idle DTLS listener works with ECH enabled and no configs. */
+    wolfSSL_SetEchEnable(ssl_s, 1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, "ech.example.com",
+        0, 0, 0), WOLFSSL_SUCCESS);
+    wolfSSL_SetEchEnable(ssl_s, 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* The same config is rejected when ECH is enabled on this object. */
+    wolfSSL_SetEchEnable(ssl_s, 1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR), BAD_STATE_E);
+    ExpectIntEQ(io.c_len, 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test wolfSSL_SSL_do_handshake().
  *
  * Drives a handshake through the OpenSSL-compatibility entry point, which
