@@ -11837,3 +11837,90 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterBadCertSet(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A certificates-only bundle without a certificate set does not report the
+ * previous message's signer. */
+int test_wc_PKCS7_VerifySignedData_DegenerateClearsVerifyCert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+#ifdef NO_PKCS7_STREAM
+    static const byte degen[] = {
+        0x30, 0x32,
+          0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02,
+          0xA0, 0x25,
+            0x30, 0x23,
+              0x02, 0x01, 0x01,
+              0x31, 0x0F,
+                0x30, 0x0D,
+                  0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02,
+                  0x01,
+                  0x05, 0x00,
+              0x30, 0x0B,
+                0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07,
+                0x01,
+              0x31, 0x00
+    };
+#endif
+    byte   data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    byte*  other = NULL;
+    int    msgSz = 0;
+    int    otherSz = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(other = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data,
+            sizeof(data), 0, &rng)), 0);
+        /* signed by the server key, without its certificate */
+        ExpectIntGT((otherSz = pkcs7_sign_data(other, msgMax, data,
+            sizeof(data), PKCS7_SIGN_NO_CERTS | PKCS7_SIGN_SERVER, &rng)), 0);
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNotNull(pkcs7->verifyCert);
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, other, (word32)otherSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNull(pkcs7->verifyCert);
+        ExpectIntEQ(pkcs7->verifyCertSz, 0);
+    }
+
+#ifdef NO_PKCS7_STREAM
+    if (pkcs7 != NULL) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNotNull(pkcs7->verifyCert);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, (byte*)degen,
+        sizeof(degen)), 0);
+    if (pkcs7 != NULL) {
+        ExpectNull(pkcs7->verifyCert);
+        ExpectIntEQ(pkcs7->verifyCertSz, 0);
+    }
+#endif
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(other, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

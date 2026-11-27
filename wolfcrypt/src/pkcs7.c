@@ -7788,6 +7788,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* per-message flag, clear any value left by a previous verify */
             pkcs7->contentIsPkcs7Type = 0;
             wc_PKCS7_DropVerifyContent(pkcs7, hashedFooter);
+            pkcs7->verifyCert   = NULL;
+            pkcs7->verifyCertSz = 0;
         #ifdef NO_PKCS7_STREAM
             callerContent   = pkcs7->content;
             callerContentSz = pkcs7->contentSz;
