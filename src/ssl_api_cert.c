@@ -208,7 +208,7 @@ static int isArrayUnique(const char* buf, size_t len)
  * @param [in] len     Length of certificate types.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when cfg is NULL.
- * @return  BAD_FUNC_ARG when len is too long.
+ * @return  BAD_FUNC_ARG when len is negative or exceeds the maximum.
  * @return  BAD_FUNC_ARG when buffer values are not unique.
  * @return  BAD_FUNC_ARG when buffer contains unrecognized certificate type.
  */
@@ -220,8 +220,9 @@ static int set_cert_type(RpkConfig* cfg, int client, const char* buf,
     byte* certTypes;
 
     /* Validate parameters. */
-    if ((cfg == NULL) || (len > (client ? MAX_CLIENT_CERT_TYPE_CNT :
-                                          MAX_SERVER_CERT_TYPE_CNT))) {
+    if ((cfg == NULL) || (len < 0) ||
+            (len > (client ? MAX_CLIENT_CERT_TYPE_CNT :
+                             MAX_SERVER_CERT_TYPE_CNT))) {
         return BAD_FUNC_ARG;
     }
 
@@ -266,7 +267,7 @@ static int set_cert_type(RpkConfig* cfg, int client, const char* buf,
  * @param [in] len  Length of certificate types.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ctx is NULL.
- * @return  BAD_FUNC_ARG when len is too long.
+ * @return  BAD_FUNC_ARG when len is negative or exceeds the maximum.
  * @return  BAD_FUNC_ARG when buffer values are not unique.
  * @return  BAD_FUNC_ARG when buffer contains unrecognized certificate type.
  */
@@ -291,7 +292,7 @@ int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len)
  * @param [in] len  Length of certificate types.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ctx is NULL.
- * @return  BAD_FUNC_ARG when len is too long.
+ * @return  BAD_FUNC_ARG when len is negative or exceeds the maximum.
  * @return  BAD_FUNC_ARG when buffer values are not unique.
  * @return  BAD_FUNC_ARG when buffer contains unrecognized certificate type.
  */
@@ -316,7 +317,7 @@ int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len)
  * @param [in] len  Length of certificate types.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
- * @return  BAD_FUNC_ARG when len is too long.
+ * @return  BAD_FUNC_ARG when len is negative or exceeds the maximum.
  * @return  BAD_FUNC_ARG when buffer values are not unique.
  * @return  BAD_FUNC_ARG when buffer contains unrecognized certificate type.
  */
@@ -341,7 +342,7 @@ int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len)
  * @param [in] len  Length of certificate types.
  * @return  1 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
- * @return  BAD_FUNC_ARG when len is too long.
+ * @return  BAD_FUNC_ARG when len is negative or exceeds the maximum.
  * @return  BAD_FUNC_ARG when buffer values are not unique.
  * @return  BAD_FUNC_ARG when buffer contains unrecognized certificate type.
  */

@@ -29,6 +29,11 @@ int test_tls_wire_sequence(void);
 
 int test_wolfSSL_state_string_long(void);
 int test_wolfSSL_state_string_long_states(void);
+int test_wolfSSL_tmp_dh_files(void);
+int test_wolfSSL_tmp_dh_allocations(void);
+int test_wolfSSL_dtls_peer_buffers(void);
+int test_wolfSSL_dtls13_scheduled_work_readiness(void);
+int test_wolfSSL_dtls_ech_policy(void);
 int test_wolfSSL_set_connect_accept_state(void);
 int test_wolfSSL_SSL_do_handshake(void);
 int test_wolfSSL_SSL_in_init_hs(void);
@@ -58,6 +63,12 @@ int test_wolfSSL_hs_info_cb(void);
 #define TEST_SSL_HS_DECLS                                                      \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_state_string_long),             \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_state_string_long_states),      \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_tmp_dh_allocations),           \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_tmp_dh_files),                 \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_dtls_ech_policy),              \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_dtls_peer_buffers),            \
+        TEST_DECL_GROUP("ssl_hs",                                              \
+            test_wolfSSL_dtls13_scheduled_work_readiness),                     \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_set_connect_accept_state),      \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_do_handshake),              \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_in_init_hs),                \

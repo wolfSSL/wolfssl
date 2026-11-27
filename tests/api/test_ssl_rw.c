@@ -702,6 +702,11 @@ int test_wolfSSL_write_ex_partial(void)
     ExpectIntEQ(wolfSSL_write_ex(ssl_c, msg, sizeof(msg), &wr), 1);
     ExpectIntEQ(wr, sizeof(msg));
 
+    /* The ordinary mode also accepts a zero-length write. */
+    wr = 1;
+    ExpectIntEQ(wolfSSL_write_ex(ssl_c, msg, 0, &wr), 1);
+    ExpectIntEQ(wr, 0);
+
     /* With partial writes enabled, writing nothing is reported as a failure
      * even though no error occurred. */
     if (ssl_c != NULL) {
@@ -788,6 +793,17 @@ int test_wolfSSL_inject_app_data_ready(void)
     if ((ssl_c != NULL) && (big != NULL)) {
         ExpectIntEQ(wolfSSL_inject(ssl_c, big, maxLength + 1),
             WOLFSSL_SUCCESS);
+        /* Discard the synthetic input and reuse the allocated storage. */
+        if (EXPECT_SUCCESS()) {
+            word32 capacity = ssl_c->buffers.inputBuffer.bufferSize;
+
+            ssl_c->buffers.inputBuffer.length = 0;
+            ssl_c->buffers.inputBuffer.idx = 0;
+            ExpectIntEQ(wolfSSL_inject(ssl_c, msg, sizeof(msg)),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(ssl_c->buffers.inputBuffer.bufferSize, capacity);
+            ExpectIntEQ(ssl_c->buffers.inputBuffer.length, sizeof(msg));
+        }
     }
 
     XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1680,6 +1696,105 @@ int test_wolfSSL_shutdown_bad_record(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_read_ex_optional_count(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    static const byte msg[] = {1, 2, 3};
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    byte out[sizeof(msg)];
+    size_t count = 42;
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* An empty nonblocking read leaves the count untouched. */
+    ExpectIntEQ(wolfSSL_read_ex(ssl_c, out, sizeof(out), &count), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(count, 42);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, sizeof(msg)), sizeof(msg));
+    ExpectIntEQ(wolfSSL_read_ex(ssl_c, out, sizeof(out), NULL), 1);
+    ExpectBufEQ(out, msg, sizeof(msg));
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, sizeof(msg)), sizeof(msg));
+    ExpectIntEQ(wolfSSL_read_ex(ssl_c, out, sizeof(out), &count), 1);
+    ExpectIntEQ(count, sizeof(msg));
+    ExpectBufEQ(out, msg, sizeof(msg));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+static int test_ssl_rw_fail_transport(WOLFSSL* ssl, char* buf, int size,
+    void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)size;
+    (void)ctx;
+    return WOLFSSL_CBIO_ERR_GENERAL;
+}
+#endif
+
+int test_wolfSSL_shutdown_transport_outcomes(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    int failSend;
+    for (failSend = 0; failSend < 2; failSend++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx io;
+
+        XMEMSET(&io, 0, sizeof(io));
+        ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        if (EXPECT_SUCCESS() && failSend) {
+            wolfSSL_SSLSetIOSend(ssl_c, test_ssl_rw_fail_transport);
+            ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(ssl_c->options.sentNotify, 0);
+            ExpectIntEQ(ssl_c->error, SOCKET_ERROR_E);
+        }
+        else if (EXPECT_SUCCESS()) {
+            /* WANT_WRITE marks the alert queued. Retrying the same shutdown
+             * flushes it before the connection waits for the reply. */
+            test_memio_simulate_want_write(&io, 1, 1);
+            ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+            ExpectIntEQ(ssl_c->options.sentNotify, 1);
+            test_memio_simulate_want_write(&io, 1, 0);
+            ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+
+            /* Once the alert is sent, a transport error ends the receive
+             * half of shutdown even when no peer alert is available. */
+            wolfSSL_SSLSetIORecv(ssl_c, test_ssl_rw_fail_transport);
+            ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+        }
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_s);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test the paths wolfSSL_SendUserCanceled() takes once the alert is sent.
  *
  * The NULL case is covered by test_wolfSSL_rw_bad_args(). This drives the
@@ -1752,6 +1867,68 @@ int test_wolfSSL_SendUserCanceled_paths(void)
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+struct test_ssl_rw_block_after_cancel {
+    struct test_memio_ctx* io;
+    int calls;
+};
+
+static int test_ssl_rw_send_after_cancel(WOLFSSL* ssl, char* data, int size,
+    void* ctx)
+{
+    struct test_ssl_rw_block_after_cancel* transport =
+        (struct test_ssl_rw_block_after_cancel*)ctx;
+
+    transport->calls++;
+    if (transport->calls == 2 || transport->calls == 3)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return test_memio_write_cb(ssl, data, size, transport->io);
+}
+#endif
+
+int test_wolfSSL_SendUserCanceled_retry_quiet(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    struct test_ssl_rw_block_after_cancel transport = { &io, 0 };
+    char reply[16];
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->options.quietShutdown = 1;
+        wolfSSL_SetIOWriteCtx(ssl_c, &transport);
+        wolfSSL_SSLSetIOSend(ssl_c, test_ssl_rw_send_after_cancel);
+
+        ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+        ExpectIntEQ(ssl_c->options.quietShutdown, 0);
+
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+        ExpectIntEQ(ssl_c->options.quietShutdown, 0);
+
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+        ExpectIntEQ(ssl_c->options.quietShutdown, 1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, sizeof(reply)), 0);
+        ExpectIntEQ(wolfSSL_get_shutdown(ssl_s), WOLFSSL_RECEIVED_SHUTDOWN);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

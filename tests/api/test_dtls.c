@@ -9099,7 +9099,7 @@ int test_dtls12_cookie_secret_secondary_cleared(void)
      * make the s1 cookie verify - then clear the secondary again. */
     ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, s2, sizeof(s2)), 0);
     ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s1, sizeof(s1)), 0);
-    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s1, 0), 0);
 
     /* Server processes CH2: the s1 cookie no longer verifies (only primary s2
      * remains), so the server stays stateless. */
@@ -9976,6 +9976,75 @@ int test_dtls_cookie_policy_neither_end(void)
  * the ClientHello. wolfSSL_send_hrr_cookie() reports that, and leaves the
  * installed secret alone, instead of replacing it with one this handshake
  * will never use. */
+#if defined(WOLFSSL_DTLS) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+static int test_dtls_stateless_read_error(WOLFSSL* ssl, char* buf, int sz,
+    void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+    return WOLFSSL_CBIO_ERR_GENERAL;
+}
+#endif
+
+int test_dtls_stateless_accept_io(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+
+    /* Polling an idle datagram socket remains retryable. */
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FAILURE), WOLFSSL_ERROR_NONE);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Block the server's cookie reply, then resume the same exchange. */
+    test_memio_simulate_want_write(&io, 0, 1);
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FAILURE), WOLFSSL_ERROR_NONE);
+    ExpectIntEQ(io.c_len, 0);
+    test_memio_simulate_want_write(&io, 0, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 12, NULL), 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    ctx_c = NULL;
+    ctx_s = NULL;
+    ssl_c = NULL;
+    ssl_s = NULL;
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* The DTLS cookie requirement does not apply to a stream object. */
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FAILURE), WOLFSSL_ERROR_NONE);
+    if (EXPECT_SUCCESS())
+        wolfSSL_SSLSetIORecv(ssl_s, test_dtls_stateless_read_error);
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR), SOCKET_ERROR_E);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls13_hrr_cookie_state_guard(void)
 {
     EXPECT_DECLS;
@@ -13619,6 +13688,17 @@ int test_wolfSSL_dtls_scheduled_work(void)
     ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 0);
 
+    /* ACK work and retransmission can each be scheduled on their own. */
+    if (EXPECT_SUCCESS()) {
+        ssl_s->dtls13Rtx.sendAcks = 1;
+        ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 1);
+        ssl_s->dtls13Rtx.sendAcks = 0;
+        ssl_s->dtls13Rtx.retransmit = 1;
+        ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 1);
+        ssl_s->dtls13Rtx.retransmit = 0;
+        ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 0);
+    }
+
     /* Pumping must be idempotent, and must not invent traffic when there is
      * nothing scheduled. Compare against what is already queued rather than
      * clearing it, which would drop records the peer still needs. */
@@ -13628,6 +13708,31 @@ int test_wolfSSL_dtls_scheduled_work(void)
 
     /* The connection still works in both directions after being pumped. */
     ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+
+    /* A blocked application write belongs to its caller. The scheduled
+     * work pump must leave it queued for the retry of wolfSSL_write(). */
+    {
+        static const byte data[] = {0x12, 0x34};
+        byte received[sizeof(data)];
+
+        prevLen = test_ctx.c_len;
+        test_memio_simulate_want_write(&test_ctx, 0, 1);
+        ExpectIntEQ(wolfSSL_write(ssl_s, data, sizeof(data)),
+            WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_WRITE);
+        if (EXPECT_SUCCESS())
+            ExpectIntGT(ssl_s->buffers.outputBuffer.length, 0);
+
+        test_memio_simulate_want_write(&test_ctx, 0, 0);
+        ExpectIntEQ(wolfSSL_dtls13_pending_work(ssl_s), 0);
+        ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_ctx.c_len, prevLen);
+        ExpectIntEQ(wolfSSL_write(ssl_s, data, sizeof(data)), sizeof(data));
+        ExpectIntEQ(wolfSSL_read(ssl_c, received, sizeof(received)),
+            sizeof(received));
+        ExpectBufEQ(received, data, sizeof(data));
+    }
 
     /* Positive path. Schedule a key update the way Dtls13CheckAEADFailLimit()
      * does when the AEAD failure limit is reached, then require the predicate
@@ -15246,8 +15351,43 @@ int test_wolfSSL_GetDtlsMacSecret(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_AEAD_ONLY)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx testCtx;
+#endif
+
     /* NULL ssl returns NULL. */
-    ExpectNull(wolfSSL_GetDtlsMacSecret(NULL, 0, 0));
+    ExpectNull(wolfSSL_GetDtlsMacSecret(NULL, 0, CUR_ORDER));
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+    XMEMSET(&testCtx, 0, sizeof(testCtx));
+    ExpectIntEQ(test_memio_setup(&testCtx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectTrue(wolfSSL_GetDtlsMacSecret(ssl_c, 0, CUR_ORDER) ==
+            ssl_c->keys.client_write_MAC_secret);
+        ExpectTrue(wolfSSL_GetDtlsMacSecret(ssl_c, 1, CUR_ORDER) ==
+            ssl_c->keys.server_write_MAC_secret);
+        ExpectTrue(wolfSSL_GetDtlsMacSecret(ssl_s, 0, CUR_ORDER) ==
+            ssl_s->keys.server_write_MAC_secret);
+        ExpectTrue(wolfSSL_GetDtlsMacSecret(ssl_s, 1, CUR_ORDER) ==
+            ssl_s->keys.client_write_MAC_secret);
+        /* The either-side constructor is optional. Model its pre-handshake
+         * role here while retaining the ordinary client setup and cleanup. */
+        ssl_c->options.side = WOLFSSL_NEITHER_END;
+        ExpectTrue(wolfSSL_GetDtlsMacSecret(ssl_c, 1, CUR_ORDER) ==
+            ssl_c->keys.server_write_MAC_secret);
+        ssl_c->options.side = WOLFSSL_CLIENT_END;
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
 #endif
     return EXPECT_RESULT();
 }

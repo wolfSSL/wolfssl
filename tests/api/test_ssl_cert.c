@@ -30,6 +30,9 @@
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #include <tests/utils.h>
 #include <tests/api/api.h>
@@ -43,6 +46,207 @@
 #endif
 
 /* Tests for the certificate APIs in src/ssl_api_cert.c (moved from ssl.c). */
+
+/* Supply the same DER credentials at context and connection scope. */
+int test_wolfSSL_certificate_buffer_options(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && \
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const byte* cert = client_cert_der_2048;
+    long certSz = sizeof_client_cert_der_2048;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(NULL, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, certSz, -1),
+        WOLFSSL_BAD_FILETYPE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, -1,
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_use_certificate_buffer(NULL, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_buffer(ssl, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
+        sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_certificate_chain_buffer_reload(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    static const char trailer[] = "end of certificate chain\n";
+    static const char path[] = "./certs/intermediate/server-chain.pem";
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte* file = NULL;
+    byte* chain = NULL;
+    size_t size = 0;
+
+    ExpectIntEQ(load_file(path, &file, &size), 0);
+    ExpectNotNull(chain = (byte*)XMALLOC(size + sizeof(trailer) - 1,
+        HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(chain, file, size);
+        XMEMCPY(chain + size, trailer, sizeof(trailer) - 1);
+    }
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, file, (long)size),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ctx->certChainCnt, 2);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(ssl, chain,
+        (long)(size + sizeof(trailer) - 1)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->buffers.certChainCnt, 2);
+    ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(ssl, file, (long)size),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->buffers.certChainCnt, 2);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx,
+        (const byte*)trailer, sizeof(trailer) - 1), ASN_NO_PEM_HEADER);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    XFREE(chain, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(file, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLF_CRYPTO_CB) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static const byte deviceCertId[] = { 1, 2 };
+static const char deviceCertLabel[] = "client";
+
+static int test_cert_device_cb(int devId, wc_CryptoInfo* info, void* context)
+{
+    byte* cert;
+
+    (void)devId;
+    (void)context;
+    if (info->algo_type != WC_ALGO_TYPE_CERT)
+        return CRYPTOCB_UNAVAILABLE;
+    if (info->cert.label != NULL) {
+        if (info->cert.labelLen != sizeof(deviceCertLabel) - 1 ||
+            XMEMCMP(info->cert.label, deviceCertLabel,
+                sizeof(deviceCertLabel) - 1) != 0)
+            return CRYPTOCB_UNAVAILABLE;
+    }
+    else if (info->cert.id == NULL ||
+        info->cert.idLen != sizeof(deviceCertId) ||
+        XMEMCMP(info->cert.id, deviceCertId, sizeof(deviceCertId)) != 0) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    cert = (byte*)XMALLOC(sizeof_client_cert_der_2048, info->cert.heap,
+        DYNAMIC_TYPE_CERT);
+    if (cert == NULL)
+        return MEMORY_E;
+    XMEMCPY(cert, client_cert_der_2048, sizeof_client_cert_der_2048);
+    *info->cert.certDataOut = cert;
+    *info->cert.certSz = sizeof_client_cert_der_2048;
+    *info->cert.certFormatOut = WOLFSSL_FILETYPE_ASN1;
+    return 0;
+}
+#endif
+
+int test_wolfSSL_load_device_credentials(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLF_CRYPTO_CB) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    const int device = 48127;
+    const int idSz = sizeof(deviceCertId);
+    WOLFSSL_CTX* ctx = NULL;
+    int registered = 0;
+#ifdef WOLF_PRIVATE_KEY_ID
+    WOLFSSL* ssl = NULL;
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    if (EXPECT_SUCCESS())
+        registered = wc_CryptoCb_RegisterDevice(device,
+            test_cert_device_cb, NULL) == 0;
+    ExpectIntEQ(registered, 1);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_id(NULL, deviceCertId, idSz,
+        device), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_id(ctx, NULL, idSz, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_id(ctx, deviceCertId, 0, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_label(NULL, deviceCertLabel,
+        device), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_label(ctx, NULL, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_label(ctx, "unknown", device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_label(ctx, deviceCertLabel,
+        device), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_id(ctx, deviceCertId, idSz,
+        device), WOLFSSL_SUCCESS);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Id(NULL, deviceCertId, idSz,
+        device), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Id(ctx, NULL, idSz, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Id(ctx, deviceCertId, -1, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Label(NULL, deviceCertLabel,
+        device), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Label(ctx, NULL, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Label(ctx, deviceCertLabel,
+        device), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_Id_ex(ctx, deviceCertId, idSz,
+        INVALID_DEVID, 256), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_use_PrivateKey_Id(NULL, deviceCertId, idSz, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_Id(ssl, NULL, idSz, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_Id(ssl, deviceCertId, -1, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_Label(NULL, deviceCertLabel, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_Label(ssl, NULL, device),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_Label(ssl, deviceCertLabel, device),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_Id_ex(ssl, deviceCertId, idSz,
+        INVALID_DEVID, 256), WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl);
+#endif
+
+    wolfSSL_CTX_free(ctx);
+    if (registered)
+        wc_CryptoCb_UnRegisterDevice(device);
+#endif
+    return EXPECT_RESULT();
+}
 
 /* Test reading back the verification mode from an object.
  *
@@ -278,6 +482,12 @@ int test_wolfSSL_get_peer_chain(void)
     ExpectIntGT(wolfSSL_get_chain_length(chain, 0), 0);
     ExpectNotNull(wolfSSL_get_chain_cert(chain, 0));
 
+    ExpectIntEQ(wolfSSL_get_chain_length(chain, -1), 0);
+    ExpectNull(wolfSSL_get_chain_cert(chain, -1));
+    ExpectIntEQ(wolfSSL_get_chain_length(chain, wolfSSL_get_chain_count(chain)),
+        0);
+    ExpectNull(wolfSSL_get_chain_cert(chain, wolfSSL_get_chain_count(chain)));
+
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     ExpectNull(wolfSSL_get_peer_alt_chain(NULL));
     ExpectNotNull(wolfSSL_get_peer_alt_chain(ssl_c));
@@ -504,6 +714,17 @@ int test_wolfSSL_get_chain_cert_pem(void)
         &pemSz), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, (int)sizeof(pem),
         NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* A chain may contain a slot with no retained DER certificate. */
+    if (EXPECT_SUCCESS()) {
+        int savedLength = chain->certs[0].length;
+
+        chain->certs[0].length = 0;
+        ExpectNull(wolfSSL_get_chain_cert(chain, 0));
+        ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, sizeof(pem),
+            &pemSz), BAD_FUNC_ARG);
+        chain->certs[0].length = savedLength;
+    }
 
     /* NULL buffer returns the size needed (length-only query). */
     needed = 0;
@@ -3085,6 +3306,32 @@ int test_wolfSSL_cert_api_arg_guards(void)
                                            (int)sizeof(certTypes));
     (void)wolfSSL_set_server_cert_type(ssl, certTypes,
                                        (int)sizeof(certTypes));
+
+    {
+        static const char rpk[] = { WOLFSSL_CERT_TYPE_RPK };
+        static const char unsupported[] = { 1 };
+        static const char duplicate[] = {
+            WOLFSSL_CERT_TYPE_X509, WOLFSSL_CERT_TYPE_X509
+        };
+
+        ExpectIntEQ(wolfSSL_CTX_set_client_cert_type(ctx, rpk, sizeof(rpk)),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set_client_cert_type(ctx, unsupported,
+            sizeof(unsupported)), BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, rpk, sizeof(rpk)),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, duplicate,
+            sizeof(duplicate)), BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, certTypes,
+            sizeof(certTypes)), WOLFSSL_SUCCESS);
+    }
+
+    /* A negative length is invalid even when no list is supplied. */
+    ExpectIntEQ(wolfSSL_CTX_set_client_cert_type(ctx, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_set_server_cert_type(ctx, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_set_client_cert_type(ssl, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, NULL, -1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_set_server_cert_type(ssl, NULL, 0), WOLFSSL_SUCCESS);
 
     /* negotiated type read back before any handshake, and through NULL */
     (void)wolfSSL_get_negotiated_client_cert_type(NULL, &tp);
@@ -6281,8 +6528,23 @@ int test_wolfSSL_x509_accessor_guards(void)
         iSz = (int)sizeof(buf);
         (void)wolfSSL_X509_get_serial_number(x509, buf, &iSz);
         (void)wolfSSL_X509_get_next_altname(x509);
-        (void)wolfSSL_X509_notBefore(x509);
-        (void)wolfSSL_X509_notAfter(x509);
+        {
+            int beforeLen = x509->notBefore.length;
+            int afterLen = x509->notAfter.length;
+
+            ExpectNotNull(wolfSSL_X509_notBefore(x509));
+            ExpectNotNull(wolfSSL_X509_notAfter(x509));
+            x509->notBefore.length = -1;
+            x509->notAfter.length = -1;
+            ExpectNull(wolfSSL_X509_notBefore(x509));
+            ExpectNull(wolfSSL_X509_notAfter(x509));
+            x509->notBefore.length = sizeof(x509->notBeforeData);
+            x509->notAfter.length = sizeof(x509->notAfterData);
+            ExpectNull(wolfSSL_X509_notBefore(x509));
+            ExpectNull(wolfSSL_X509_notAfter(x509));
+            x509->notBefore.length = beforeLen;
+            x509->notAfter.length = afterLen;
+        }
         (void)wolfSSL_X509_version(x509);
 
 #ifdef OPENSSL_EXTRA

@@ -919,6 +919,28 @@ int test_wolfSSL_UseTrustedCA_inval_ext(void)
     ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED, id, 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* X.509 names require a present, nonempty identifier. */
+    {
+        static const byte name[] = {0x30, 0x00};
+        ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_X509_NAME,
+            NULL, sizeof(name)), BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_X509_NAME,
+            name, 0), BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_X509_NAME,
+            name, sizeof(name)), WOLFSSL_SUCCESS);
+    }
+#ifndef NO_SHA
+    {
+        static const byte digest[WC_SHA_DIGEST_SIZE] = {0};
+        ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_KEY_SHA1,
+            NULL, sizeof(digest)), BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_KEY_SHA1,
+            digest, sizeof(digest)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_CERT_SHA1,
+            digest, sizeof(digest)), WOLFSSL_SUCCESS);
+    }
+#endif
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
@@ -1093,6 +1115,13 @@ int test_wolfSSL_SessionTicket_inval_ext(void)
     /* Store a short ticket (static-buffer path). */
     ExpectIntEQ(wolfSSL_set_SessionTicket(ssl, tick, (word32)sizeof(tick)),
         WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, NULL), BAD_FUNC_ARG);
+    outSz = 0;
+    ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, NULL, &outSz), LENGTH_ONLY_E);
+    ExpectIntEQ(outSz, sizeof(tick));
+    outSz = 0;
+    ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
     /* Retrieving into a buffer that is too small reports zero length. */
     outSz = 2;
     ExpectIntEQ(wolfSSL_get_SessionTicket(ssl, out, &outSz), WOLFSSL_SUCCESS);
@@ -3094,6 +3123,10 @@ int test_ssl_api_ext_guards_decision_coverage(void)
     wolfSSL_CTX_SNI_SetOptions(ctx, WOLFSSL_SNI_HOST_NAME, 0);
     wolfSSL_CTX_SNI_SetOptions(&ctx0, WOLFSSL_SNI_HOST_NAME, 0);
 
+    ExpectIntEQ(wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME,
+        "example.com", 11), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_SNI_SetOptions(ctx, WOLFSSL_SNI_HOST_NAME, 0);
+
     /* SNI_GetRequest: the extensions-NULL row on the object side. */
     (void)wolfSSL_SNI_GetRequest(ssl, WOLFSSL_SNI_HOST_NAME, NULL);
     (void)wolfSSL_SNI_GetRequest(&ssl0, WOLFSSL_SNI_HOST_NAME, NULL);
@@ -3127,6 +3160,29 @@ int test_ssl_api_ext_guards_decision_coverage(void)
     ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn,
         WOLFSSL_MAX_16BIT), BAD_FUNC_ARG);
     ExpectIntEQ(wolfSSL_CTX_UseCertificateAuthority(ctx, dn, 16), 0);
+
+    /* Use a two-entry fixture for the native peer CA lookup. */
+    {
+        CertificateAuthority first;
+        CertificateAuthority second;
+        CertificateAuthority* savedNames = ssl->ws_peer_ca_names;
+
+        XMEMSET(&first, 0, sizeof(first));
+        XMEMSET(&second, 0, sizeof(second));
+        first.next = &second;
+        first.dnSz = 2;
+        second.dnSz = 3;
+        ssl->ws_peer_ca_names = &first;
+        ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(NULL, 0, NULL, 0),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl, -1, NULL, 0),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl, 0, NULL, 0), 2);
+        ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl, 1, NULL, 0), 3);
+        ExpectIntEQ(wolfSSL_GetPeerCertificateAuthority(ssl, 2, NULL, 0),
+            BAD_FUNC_ARG);
+        ssl->ws_peer_ca_names = savedNames;
+    }
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);

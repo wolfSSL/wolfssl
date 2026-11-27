@@ -186,6 +186,7 @@ int test_dtls_no_cookie_ch_stall(void);
 int test_dtls_no_cookie_ch_reject(void);
 int test_dtls_cookie_flip_in_cb(void);
 int test_dtls_cookie_policy_set_side(void);
+int test_dtls_stateless_accept_io(void);
 int test_dtls_cookie_policy_neither_end(void);
 int test_dtls13_hrr_cookie_state_guard(void);
 int test_dtls12_cookie_secret_generate_fail(void);
@@ -414,6 +415,7 @@ int test_dtls_no_cookie_ch_pause(WOLFSSL* ssl, void* ctx);
         TEST_DECL_GROUP("dtls", test_dtls_no_cookie_ch_reject),                \
         TEST_DECL_GROUP("dtls", test_dtls_cookie_flip_in_cb),                  \
         TEST_DECL_GROUP("dtls", test_dtls_cookie_policy_set_side),             \
+        TEST_DECL_GROUP("dtls", test_dtls_stateless_accept_io),               \
         TEST_DECL_GROUP("dtls", test_dtls_cookie_policy_neither_end),          \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_state_guard),           \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_cookie_secret_secondary),      \

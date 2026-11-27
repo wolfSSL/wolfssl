@@ -337,6 +337,194 @@ int test_wolfSSL_set_connect_accept_state(void)
     return EXPECT_RESULT();
 }
 
+/* Check that file decoding and DH size policy behave the same on a context
+ * and a connection. */
+int test_wolfSSL_tmp_dh_files(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_DH) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    static const byte emptyDer[] = {0x30, 0x00};
+    static const char der[] = "./certs/dh2048.der";
+    WOLFSSL_CTX *ctx = NULL, *clientCtx = NULL;
+    WOLFSSL *ssl = NULL, *client = NULL;
+    struct test_memio_ctx testCtx;
+
+    XMEMSET(&testCtx, 0, sizeof(testCtx));
+    ExpectIntEQ(test_memio_setup(&testCtx, &clientCtx, &ctx, &client, &ssl,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_buffer(NULL, emptyDer, sizeof(emptyDer),
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetTmpDH_buffer(ssl, NULL, 0, WOLFSSL_FILETYPE_ASN1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_buffer(ctx, emptyDer, sizeof(emptyDer),
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_BAD_FILETYPE);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(NULL, der, WOLFSSL_FILETYPE_ASN1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, NULL, WOLFSSL_FILETYPE_ASN1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, -1), WOLFSSL_BAD_FILETYPE);
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, "./certs/no-such-dh-file.der",
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_BAD_FILE);
+
+    if (MAX_DHKEY_SZ >= 2048 / 8) {
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_PEM_TO_DER
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, "./certs/dh2048.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, "./certs/x942dh2048.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+#endif
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(client, der, WOLFSSL_FILETYPE_ASN1),
+            SIDE_ERROR);
+        ExpectIntEQ(wolfSSL_CTX_SetMaxDhKey_Sz(ctx, 2040), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, WOLFSSL_FILETYPE_ASN1),
+            DH_KEY_SIZE_E);
+        ExpectIntEQ(wolfSSL_CTX_SetMaxDhKey_Sz(ctx, 2048), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetMaxDhKey_Sz(ssl, 2040), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
+            DH_KEY_SIZE_E);
+        ExpectIntEQ(wolfSSL_SetMaxDhKey_Sz(ssl, 2048), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetMinDhKey_Sz(ssl, 2056), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
+            DH_KEY_SIZE_E);
+    }
+
+    wolfSSL_free(client);
+    wolfSSL_CTX_free(clientCtx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_peer_buffers(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
+    !defined(WOLFSSL_NO_SOCK) && defined(XINET_PTON) && \
+    defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    void* current = NULL;
+    void* other = NULL;
+    byte out[sizeof(SOCKADDR_IN)];
+    unsigned int size = sizeof(out);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(current = wolfSSL_dtls_create_peer(11111, (char*)"127.0.0.1"));
+    ExpectNotNull(other = wolfSSL_dtls_create_peer(22222, (char*)"127.0.0.1"));
+
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, &size), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, other, sizeof(out)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, current, sizeof(out)),
+        WOLFSSL_SUCCESS);
+
+    /* Hold each of the other get-peer operands true. */
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, NULL, &size), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, NULL), WOLFSSL_FAILURE);
+    size--;
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, &size), WOLFSSL_FAILURE);
+    size = sizeof(out);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, &size), WOLFSSL_SUCCESS);
+    ExpectIntEQ(size, sizeof(out));
+    ExpectBufEQ(out, current, sizeof(out));
+
+    /* An empty, differently sized address clears the staged peer. */
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, other, sizeof(out)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, current, sizeof(out)),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_dtls_free_peer(other);
+    wolfSSL_dtls_free_peer(current);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls13_scheduled_work_readiness(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* tlsCtx = NULL;
+    WOLFSSL_CTX* dtlsCtx = NULL;
+    WOLFSSL* tls = NULL;
+    WOLFSSL* dtls = NULL;
+
+    ExpectNotNull(tlsCtx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(dtlsCtx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
+    ExpectNotNull(tls = wolfSSL_new(tlsCtx));
+    ExpectNotNull(dtls = wolfSSL_new(dtlsCtx));
+
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(tls), 0);
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(tls), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(dtls), 0);
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(dtls), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(dtls);
+    wolfSSL_free(tls);
+    wolfSSL_CTX_free(dtlsCtx);
+    wolfSSL_CTX_free(tlsCtx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_ech_policy(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECH) && defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* An idle DTLS listener works with ECH enabled and no configs. */
+    wolfSSL_SetEchEnable(ssl_s, 1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, "ech.example.com",
+        0, 0, 0), WOLFSSL_SUCCESS);
+    wolfSSL_SetEchEnable(ssl_s, 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* The same config is rejected when ECH is enabled on this object. */
+    wolfSSL_SetEchEnable(ssl_s, 1);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR), BAD_STATE_E);
+    ExpectIntEQ(io.c_len, 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test wolfSSL_SSL_do_handshake().
  *
  * Drives a handshake through the OpenSSL-compatibility entry point, which
@@ -1532,10 +1720,22 @@ int test_wolfSSL_dh_ctx_params_reuse(void)
     !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
 #define TEST_DH_OOM
 
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_DH) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+#define TEST_NATIVE_DH_OOM
+#endif
+
+#if defined(TEST_DH_OOM) || defined(TEST_NATIVE_DH_OOM)
 /* Makes every allocation fail, so the DH copy is certain to run out of
  * memory whichever allocations a build makes. */
 static int dhOomFailAll = 0;
 static int dhOomFailed = 0;
+static int dhOomCountdown = 0;
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 static void* dhOomMalloc(size_t size, const char* func, unsigned int line)
@@ -1546,7 +1746,7 @@ static void* dhOomMalloc(size_t size, const char* func, unsigned int line)
 static void* dhOomMalloc(size_t size)
 {
 #endif
-    if (dhOomFailAll) {
+    if (dhOomFailAll || (dhOomCountdown > 0 && --dhOomCountdown == 0)) {
         dhOomFailed = 1;
         return NULL;
     }
@@ -1575,13 +1775,13 @@ static void* dhOomRealloc(void* ptr, size_t size, const char* func,
 static void* dhOomRealloc(void* ptr, size_t size)
 {
 #endif
-    if (dhOomFailAll) {
+    if (dhOomFailAll || (dhOomCountdown > 0 && --dhOomCountdown == 0)) {
         dhOomFailed = 1;
         return NULL;
     }
     return realloc(ptr, size);
 }
-#endif /* TEST_DH_OOM */
+#endif /* TEST_DH_OOM || TEST_NATIVE_DH_OOM */
 
 /* Running out of memory while copying the context's DH parameters.
  *
@@ -1643,6 +1843,64 @@ int test_wolfSSL_dh_ctx_params_oom(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_tmp_dh_allocations(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_NATIVE_DH_OOM) && defined(USE_WOLFSSL_MEMORY)
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    int nth;
+
+    if (MAX_DHKEY_SZ < 2048 / 8)
+        return EXPECT_RESULT();
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx_s, "./certs/dh2048.der",
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+
+    if (EXPECT_SUCCESS()) {
+        const byte* p = ctx_s->serverDH_P.buffer;
+        const byte* g = ctx_s->serverDH_G.buffer;
+        int pSz = (int)ctx_s->serverDH_P.length;
+        int gSz = (int)ctx_s->serverDH_G.length;
+
+        ExpectIntEQ(wolfSSL_SetAllocators(dhOomMalloc, dhOomFree,
+            dhOomRealloc), 0);
+        if (EXPECT_SUCCESS()) {
+            for (nth = 1; nth <= 2; nth++) {
+                dhOomCountdown = nth;
+                ExpectIntEQ(wolfSSL_SetTmpDH(ssl_s, p, pSz, g, gSz),
+                    MEMORY_E);
+                dhOomCountdown = nth;
+                ExpectIntEQ(wolfSSL_CTX_SetTmpDH(ctx_s, p, pSz, g, gSz),
+                    MEMORY_E);
+                ExpectTrue(ctx_s->serverDH_P.buffer == p);
+                ExpectTrue(ctx_s->serverDH_G.buffer == g);
+            }
+            dhOomCountdown = 0;
+            ExpectIntEQ(wolfSSL_SetTmpDH(ssl_s, p, pSz, g, gSz),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_SetTmpDH(ctx_s, p, pSz, g, gSz),
+                WOLFSSL_SUCCESS);
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+        }
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
 #endif
     return EXPECT_RESULT();
 }
@@ -1869,10 +2127,16 @@ int test_wolfSSL_accept_bad_args(void)
     test_ssl_hs_need_creds(ssl);
     if (ssl != NULL) {
         DerBuffer* savedCert = ssl->buffers.certificate;
+        DerBuffer emptyCert;
+
+        XMEMSET(&emptyCert, 0, sizeof(emptyCert));
 
         ssl->buffers.certificate = NULL;
         ExpectIntEQ(wolfSSL_accept(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
         ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(NO_PRIVATE_KEY));
+        ssl->buffers.certificate = &emptyCert;
+        ExpectIntEQ(wolfSSL_accept(ssl), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0), NO_PRIVATE_KEY);
         ssl->buffers.certificate = savedCert;
     }
     wolfSSL_free(ssl);
@@ -1893,13 +2157,18 @@ int test_wolfSSL_accept_bad_args(void)
     test_ssl_hs_need_creds(ssl);
     if (ssl != NULL) {
         DerBuffer* savedKey = ssl->buffers.key;
+        DerBuffer emptyKey;
         int savedDevId = ssl->devId;
 
+        XMEMSET(&emptyKey, 0, sizeof(emptyKey));
         ExpectNotNull(ssl->buffers.certificate);
         ssl->buffers.key = NULL;
         ssl->devId = INVALID_DEVID;
         ExpectIntEQ(wolfSSL_accept(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
         ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(NO_PRIVATE_KEY));
+        ssl->buffers.key = &emptyKey;
+        ExpectIntEQ(wolfSSL_accept(ssl), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0), NO_PRIVATE_KEY);
         /* Put both back so the object disposes of it as it would have. */
         ssl->buffers.key = savedKey;
         ssl->devId = savedDevId;

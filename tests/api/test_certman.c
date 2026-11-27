@@ -376,6 +376,63 @@ static int test_cm_load_ca_file_ex(const char* ca_cert_file, word32 flags)
 
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
+int test_wolfSSL_CertManager_CA_min_key_size(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SYS_CRYPTO_POLICY) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    static const struct {
+        const char* path;
+        int (*setMin)(WOLFSSL_CTX*, short);
+        short tooLarge;
+        short accepted;
+        int error;
+    } cases[] = {
+#ifndef NO_RSA
+        { "./certs/ca-cert.der", wolfSSL_CTX_SetMinRsaKey_Sz, 4096, 2048,
+            RSA_KEY_SIZE_E },
+#endif
+#ifdef HAVE_ECC
+        { "./certs/ca-ecc-cert.der", wolfSSL_CTX_SetMinEccKey_Sz, 1024, 256,
+            ECC_KEY_SIZE_E },
+#ifdef HAVE_ED25519
+        { "./certs/ed25519/ca-ed25519.der", wolfSSL_CTX_SetMinEccKey_Sz, 264,
+            256, ECC_KEY_SIZE_E },
+#endif
+#ifdef HAVE_ED448
+        { "./certs/ed448/root-ed448.der", wolfSSL_CTX_SetMinEccKey_Sz, 464,
+            456, ECC_KEY_SIZE_E },
+#endif
+#endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        WOLFSSL_CTX* ctx = NULL;
+        byte* cert = NULL;
+        size_t length = 0;
+
+        ExpectIntEQ(load_file(cases[i].path, &cert, &length), 0);
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        if (EXPECT_SUCCESS())
+            wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+        ExpectIntEQ(cases[i].setMin(ctx, cases[i].tooLarge), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, cert, (long)length,
+            WOLFSSL_FILETYPE_ASN1), cases[i].error);
+        ExpectIntEQ(cases[i].setMin(ctx, cases[i].accepted), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, cert, (long)length,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+        wolfSSL_CTX_free(ctx);
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CertManagerLoadCABuffer(void)
 {
     EXPECT_DECLS;
