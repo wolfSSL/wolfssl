@@ -384,6 +384,47 @@ done:
 }
 #endif
 
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    !defined(NO_ECC256) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_ecc_verify_digest_limits(WbFix* f)
+{
+    ecc_key key;
+    WC_RNG rng;
+    byte digest[WC_MAX_DIGEST_SIZE + 1];
+    byte sig[ECC_MAX_SIG_SIZE];
+    word32 sigSz = sizeof(sig);
+    int failed = 0;
+
+    wb_reset(f);
+    if (wc_ecc_init(&key) != 0)
+        return 1;
+    if (wc_InitRng(&rng) != 0) {
+        wc_ecc_free(&key);
+        return 1;
+    }
+    XMEMSET(digest, 0x24, sizeof(digest));
+    if (wc_ecc_make_key_ex(&rng, 32, &key, ECC_SECP256R1) != 0 ||
+            wc_ecc_sign_hash(digest, 32, sig, &sigSz, &rng, &key) != 0) {
+        failed = 1;
+        goto done;
+    }
+    if (EccVerify(f->ssl, sig, sigSz, digest, sizeof(digest), &key, NULL) !=
+            BAD_LENGTH_E)
+        failed = 1;
+    if (EccVerify(f->ssl, sig, sigSz, digest, 0, &key, NULL) != BAD_LENGTH_E)
+        failed = 1;
+    if (EccVerify(f->ssl, sig, sigSz, digest, 32, &key, NULL) != 0)
+        failed = 1;
+
+done:
+    wc_FreeRng(&rng);
+    wc_ecc_free(&key);
+    wb_reset(f);
+    return failed;
+}
+#endif
+
 /* AllocateSuites can copy the CTX list or start with an empty local list. */
 static int wb_allocate_suites(WbFix* f)
 {
@@ -1029,6 +1070,14 @@ int main(void)
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_dh_key_exchange(&f)) {
         puts("internal null-guard white-box: DH key exchange check failed");
+        failed = 1;
+    }
+#endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    !defined(NO_ECC256) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_ecc_verify_digest_limits(&f)) {
+        puts("internal null-guard white-box: ECC digest limit check failed");
         failed = 1;
     }
 #endif
