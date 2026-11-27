@@ -1406,6 +1406,7 @@ then
     test "$enable_srtp" = "" && enable_srtp=no
     test "$enable_ocsp" = "" && enable_ocsp=no
     test "$enable_tlsx" = "" && enable_tlsx=no
+    test "$enable_recordsizelimit" = "" && enable_recordsizelimit=no
     test "$enable_sni" = "" && enable_sni=no
     test "$enable_crl_monitor" = "" && enable_crl_monitor=no
     test "$enable_alpn" = "" && enable_alpn=no
@@ -1586,6 +1587,7 @@ then
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_rpk" = "" && enable_rpk=yes
 
+    test "$enable_recordsizelimit" = "" && enable_recordsizelimit=yes
     if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
         # Disable QUIC with JNI since incompatible with client-side
@@ -10256,6 +10258,10 @@ then
     ENABLED_ALPN=yes
     ENABLED_TRUSTED_CA=yes
     ENABLED_ENCRYPT_THEN_MAC=yes
+    dnl A seed rather than an ENABLED_ var: this block runs before that option
+    dnl is declared, and AC_ARG_ENABLE keys off ${enable_X+set}. It is a pure
+    dnl extension, which is what --enable-tlsx means.
+    test "$enable_recordsizelimit" = "" && enable_recordsizelimit=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" != "xno" || test "$ENABLED_CURVE25519" != "no" || test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
@@ -11690,6 +11696,27 @@ AC_ARG_WITH([libz],
         ENABLED_LIBZ="yes"
     ]
 )
+
+# Record Size Limit (RFC 8449)
+AC_ARG_ENABLE([recordsizelimit],
+    [AS_HELP_STRING([--enable-recordsizelimit],[Enable RFC 8449 record_size_limit, the byte-exact replacement for max_fragment_length. Applies to TLS 1.2 and TLS 1.3. A connection cannot both use it and compress its records, so wolfSSL_set_compression() and wolfSSL_UseRecordSizeLimit() refuse each other (default: disabled)])],
+    [ ENABLED_RECORD_SIZE_LIMIT=$enableval ],
+    [ ENABLED_RECORD_SIZE_LIMIT=no ]
+    )
+dnl RFC 8449 defines the extension for TLS 1.2 as well as TLS 1.3, where the
+dnl server answers in the ServerHello rather than EncryptedExtensions, so no
+dnl TLS 1.3 dependency is imposed here. It does need TLS: the no-TLS defaults
+dnl above only cover an unset option, so an explicit --enable-recordsizelimit
+dnl is overridden here in a crypto-only or no-TLS build, as CMake does.
+if test "$ENABLED_RECORD_SIZE_LIMIT" = "yes" && test "$ENABLED_TLS" = "no"
+then
+    AC_MSG_WARN([--enable-recordsizelimit needs TLS; disabled in this no-TLS build])
+    ENABLED_RECORD_SIZE_LIMIT=no
+fi
+if test "$ENABLED_RECORD_SIZE_LIMIT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_RECORD_SIZE_LIMIT"
+fi
 
 
 # PKCS#11
@@ -15534,6 +15561,7 @@ echo "   * Falcon:                     $ENABLED_FALCON"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+echo "   * Record Size Limit:          $ENABLED_RECORD_SIZE_LIMIT"
 echo "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"

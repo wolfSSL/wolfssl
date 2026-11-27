@@ -44,6 +44,15 @@
   keyCertSign on a certificate that is not a CA has its own condition. A
   required field that is absent uses reason missing. by @sameehj
 
+* Added the RFC 8449 record_size_limit TLS extension for TLS 1.2 and TLS 1.3
+  (`--enable-recordsizelimit`, CMake `WOLFSSL_RECORDSIZELIMIT`, macro
+  `HAVE_RECORD_SIZE_LIMIT`), the byte-exact replacement for
+  max_fragment_length. `wolfSSL_CTX_UseRecordSizeLimit()` and
+  `wolfSSL_UseRecordSizeLimit()` set the largest record this end accepts, and
+  the records sent are sized to the limit the peer advertised. Record layer
+  compression and a record size limit cannot share a connection, so each is
+  refused while the other is in use. by @SparkiDev (PR 12258)
+
 ## Behavioral Changes
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
@@ -141,6 +150,17 @@
   differences.  `length == 0` still returns 0.  The sentinel is positive
   because callers fold the result into constant-time masks that read a
   negative value as a match.
+
+* **Behavioral change (`--enable-all` and `--enable-tlsx` advertise a record
+  size limit)**: both options now enable record_size_limit, and a build with
+  it advertises the protocol maximum by default, adding 6 bytes to every
+  ClientHello. When both peers send it, RFC 8449 has record_size_limit
+  override max_fragment_length. Session export is refused for a connection
+  that negotiated a limit below the maximum, as the export format does not
+  carry it. Pass `WOLFSSL_RECORD_SIZE_LIMIT_OFF` to
+  `wolfSSL_UseRecordSizeLimit()` to stop advertising one, or build with
+  `--disable-recordsizelimit` (CMake `-DWOLFSSL_RECORDSIZELIMIT=no`).
+  by @SparkiDev (PR 12258)
 
 ## Post-Quantum Cryptography (PQC)
 

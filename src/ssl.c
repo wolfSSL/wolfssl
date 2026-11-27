@@ -1093,6 +1093,19 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     /* The negotiated limit applies to the records the writer sends. */
     dup->max_fragment = ssl->max_fragment;
 #endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* RFC 8449 Sect. 4: an endpoint "MUST NOT generate a protected record
+     * with plaintext that is larger than the RecordSizeLimit value it
+     * receives from its peer", and the writer is the end that generates them.
+     * Left at 0 the duplicate would send 16384-byte records to a peer that
+     * asked for less and be killed with record_overflow. recordSizeLimit
+     * comes too: it is what this end advertised, which the duplicate reports
+     * through the getters. */
+    dup->recordSizeLimit = ssl->recordSizeLimit;
+    dup->peerRecordSizeLimit = ssl->peerRecordSizeLimit;
+    dup->recordSizeLimitSent = ssl->recordSizeLimitSent;
+    dup->recordSizeLimitSet = ssl->recordSizeLimitSet;
+#endif
 
     /* dup side now owns encrypt/write ciphers */
     XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
@@ -4216,6 +4229,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_set_compression");
     (void)ssl;
 #ifdef HAVE_LIBZ
+    /* Argument and transport checks come before the record size limit check,
+     * so a NULL object or a DTLS connection is reported as that rather than
+     * as a conflict with the limit. */
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 #ifdef WOLFSSL_DTLS
@@ -4227,11 +4243,34 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     }
 #endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* One connection cannot do both. RFC 8449 Sect. 4 measures the limit
+     * against the plaintext, which deflate may expand past it, while the
+     * receive checks measure the record as it arrives. A limit the
+     * application asked for is a request this call cannot honour, so it is
+     * refused; the advertisement that is on by default simply stands aside,
+     * which leaves the extension unoffered and so nothing to enforce - the
+     * limit binds only when both ends send it. */
+    if (ssl->recordSizeLimitSet && (ssl->recordSizeLimit != 0)) {
+        WOLFSSL_MSG("Record size limit set, records cannot be compressed");
+        return BAD_FUNC_ARG;
+    }
+    /* Too late to stand aside once the default has been queued, sent or
+     * answered, as wolfSSL_UseRecordSizeLimit() also finds: zeroing it then
+     * would put a limit of 0 on the wire, which a peer must abort on. */
+    if ((TLSX_Find(ssl->extensions, TLSX_RECORD_SIZE_LIMIT) != NULL) ||
+            (ssl->peerRecordSizeLimit != 0) ||
+            (ssl->recordSizeLimitSent != 0)) {
+        WOLFSSL_MSG("Record size limit already advertised or negotiated");
+        return BAD_FUNC_ARG;
+    }
+    ssl->recordSizeLimit = 0;
+#endif
     ssl->options.usingCompression = 1;
     return WOLFSSL_SUCCESS;
 #else
     return NOT_COMPILED_IN;
-#endif
+#endif /* HAVE_LIBZ */
 }
 
 
@@ -6172,6 +6211,19 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
          * next one sends no certificate_authorities extension. */
         TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
         ssl->ws_peer_ca_names = NULL;
+    #endif
+    /* Everything below records what the peer did, so it must not survive
+     * into the next connection on a recycled object. The matching local
+     * configuration -- ssl->recordSizeLimit -- is deliberately
+     * kept, since that is what the caller set. */
+    #ifdef HAVE_RECORD_SIZE_LIMIT
+        ssl->peerRecordSizeLimit = 0;
+        /* What this end put on the wire last time, not what it was
+         * configured with: ssl->recordSizeLimit is the caller's and stays.
+         * Left behind, it also makes wolfSSL_UseRecordSizeLimit() refuse to
+         * change or disable the limit on the recycled object, since that
+         * guard reads it as an advertisement already sent. */
+        ssl->recordSizeLimitSent = 0;
     #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)

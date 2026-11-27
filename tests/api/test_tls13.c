@@ -6802,6 +6802,257 @@ int test_tls13_early_data_0rtt_replay(void)
 }
 #endif
 
+/* The context level setter, the inheritance it relies on, and what survives a
+ * wolfSSL_clear(). Configuration set on the context has to reach objects made
+ * from it, and a recycled object has to forget the peer's limit while keeping
+ * its own. */
+int test_tls13_record_size_limit_ctx(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* Argument checking on the context setter, including the 0 opt-out. */
+    ExpectIntEQ(wolfSSL_CTX_UseRecordSizeLimit(NULL, 512),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_UseRecordSizeLimit(ctx_c, 63),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_UseRecordSizeLimit(ctx_c,
+        WOLFSSL_RECORD_SIZE_LIMIT_MAX + 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_UseRecordSizeLimit(ctx_c,
+        WOLFSSL_RECORD_SIZE_LIMIT_OFF), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_UseRecordSizeLimit(ctx_c, 700), WOLFSSL_SUCCESS);
+    /* test_memio_setup() only configures a context it creates itself, so this
+     * pre-made one needs the CA and the memio transport wired up by hand. */
+    ExpectTrue(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0)
+        == WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Inherited by an object made after the context was configured. */
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->recordSizeLimit, 700);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, 700);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), 700);
+
+    /* Recycling the object drops what the peer said but keeps this end's own
+     * configuration, which is not part of the connection. */
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit, 0);
+        ExpectIntEQ(ssl_c->recordSizeLimit, 700);
+        /* What was advertised belongs to the connection as well: the receive
+         * path holds the peer to it, and wolfSSL_UseRecordSizeLimit() reads
+         * it as an offer already made. */
+        ExpectIntEQ(ssl_c->recordSizeLimitSent, 0);
+    }
+    /* So the recycled object can be reconfigured, which is the point of
+     * recycling it. */
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 900), WOLFSSL_SUCCESS);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->recordSizeLimit, 900);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c,
+        WOLFSSL_RECORD_SIZE_LIMIT_OFF), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A 0-RTT write larger than the server's record_size_limit must still get
+ * through. The client sends early data before it has seen
+ * EncryptedExtensions, so it cannot have sized those records to a limit it
+ * has not been told - RFC 8449 does not carry the value in the ticket - and a
+ * server that enforced its limit there would fail the handshake with
+ * record_overflow for something the peer had no way to bound. */
+int test_tls13_record_size_limit_early_data(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+    char early[1024];
+    char readBuf[sizeof(early)];
+    int written = 0;
+    int nread = 0;
+    int ret;
+    int i;
+
+    XMEMSET(early, 'E', sizeof(early));
+
+    /* First connection: get a ticket that allows 0-RTT. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 512), WOLFSSL_SUCCESS);
+    /* The return convention is build dependent - this returns 0 on success
+     * unless OPENSSL_EXTRA or WOLFSSL_ERROR_CODE_OPENSSL is defined, when it
+     * returns WOLFSSL_SUCCESS - so assert the effect instead. */
+    (void)wolfSSL_set_max_early_data(ssl_s, (unsigned int)sizeof(early) * 4);
+    ExpectIntEQ(wolfSSL_get_max_early_data(ssl_s), (int)sizeof(early) * 4);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+
+    /* Resume and write early data twice the server's 512-byte limit. The
+     * contexts are kept: a new server context has new ticket keys, so the
+     * ticket would not resume and the early data would be rejected and
+     * skipped - which is test_tls13_record_size_limit_early_data_rejected's
+     * case, not this one. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 512), WOLFSSL_SUCCESS);
+    /* The return convention is build dependent - this returns 0 on success
+     * unless OPENSSL_EXTRA or WOLFSSL_ERROR_CODE_OPENSSL is defined, when it
+     * returns WOLFSSL_SUCCESS - so assert the effect instead. */
+    (void)wolfSSL_set_max_early_data(ssl_s, (unsigned int)sizeof(early) * 4);
+    ExpectIntEQ(wolfSSL_get_max_early_data(ssl_s), (int)sizeof(early) * 4);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, early, (int)sizeof(early),
+        &written), (int)sizeof(early));
+
+    /* The point of the test. Before the 0-RTT carve-out the record-size
+     * check rejected the 1024-byte early-data record with LENGTH_ERROR,
+     * against the server's 512-byte limit - a limit the client could not
+     * have known. The first call only processes the ClientHello and answers
+     * it, so read until the early data itself is delivered, and check it
+     * arrives whole: accepted, not merely skipped as rejected 0-RTT. */
+    for (i = 0; (i < 4) && (nread == 0) && EXPECT_SUCCESS(); i++) {
+        ret = wolfSSL_read_early_data(ssl_s, readBuf, (int)sizeof(readBuf),
+            &nread);
+        if (ret < 0) {
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, ret),
+                WOLFSSL_ERROR_WANT_READ);
+        }
+    }
+    ExpectIntEQ(nread, (int)sizeof(early));
+    ExpectIntEQ(XMEMCMP(readBuf, early, sizeof(early)), 0);
+    ExpectIntEQ(wolfSSL_get_early_data_status(ssl_s),
+        WOLFSSL_EARLY_DATA_ACCEPTED);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A server that never calls wolfSSL_read_early_data() rejects 0-RTT, and the
+ * records the client already sent have to be discarded rather than measured
+ * against a limit the client could not have known. Such a server stays at
+ * early_data_ext, which RecordSizeLimitBinds() did not exempt, so the first
+ * oversize early-data record was refused with record_overflow before
+ * ProcessReply() could drop it: the handshake failed with LENGTH_ERROR. */
+int test_tls13_record_size_limit_early_data_rejected(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(WOLFSSL_EARLY_DATA) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    char buf[64];
+    char early[1024];
+    char msg[] = "hello wolfssl!";
+    int written = 0;
+
+    XMEMSET(early, 'E', sizeof(early));
+
+    /* First connection: a ticket whose max_early_data_size lets the client
+     * try 0-RTT on the next one. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* The return convention is build dependent, so assert the effect. */
+    (void)wolfSSL_set_max_early_data(ssl_s, (unsigned int)sizeof(early) * 4);
+    ExpectIntEQ(wolfSSL_get_max_early_data(ssl_s), (int)sizeof(early) * 4);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Resume, writing early data at twice the server's limit. The server
+     * allows 0-RTT in its tickets but this handshake never asks for the
+     * data, so it answers no early_data extension and the records it has
+     * already been handed are rejected 0-RTT to be skipped. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 512), WOLFSSL_SUCCESS);
+    (void)wolfSSL_set_max_early_data(ssl_s, (unsigned int)sizeof(early) * 4);
+    ExpectIntEQ(wolfSSL_get_max_early_data(ssl_s), (int)sizeof(early) * 4);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write_early_data(ssl_c, early, (int)sizeof(early),
+        &written), (int)sizeof(early));
+    /* No wolfSSL_read_early_data() on the server: that is the point. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_early_data_status(ssl_c),
+        WOLFSSL_EARLY_DATA_REJECTED);
+    /* A TLS 1.3 server returns from wolfSSL_accept() with its own Finished
+     * sent, so the early-data records are still unread at this point. This
+     * read is what walks the server over them: each one fails to decrypt,
+     * because the server installed no early-data keys, and is discarded
+     * (RFC 8446 Sect. 4.2.10) until the client's Finished and the
+     * application data behind it. */
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf) - 1),
+        (int)sizeof(msg) - 1);
+    /* The state this is about: the server was handed the early_data
+     * extension but never armed itself to read the data, so it stayed at
+     * early_data_ext for the whole handshake. */
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->earlyData, early_data_ext);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Verify that maxEarlyDataSz defaults to 0 (RFC 8446 E.5): a server that
  * has not called wolfSSL_set_max_early_data must not advertise 0-RTT in its
  * NewSessionTicket. Fails without the ctx->maxEarlyDataSz=0 default fix
@@ -12232,6 +12483,1004 @@ int test_tls13_client_cookie_too_big(void)
     ExpectNull(TLSX_Find(ssl->extensions, TLSX_COOKIE));
 
     XFREE(hrrExt, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Drive one connection, inject a record of a chosen wire length into the
+ * buffer the client reads from, and report the error the client ends with.
+ *
+ * No co-operating peer will ever send an oversized record, so it is written
+ * straight into the memio buffer. RFC 8449's check lives in
+ * GetRecordHeader(), before decryption, so a header claiming the length is
+ * enough and the body can be filler.
+ *
+ * Returns the client's raw error, or a negative setup failure.
+ */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+/* Inject one record of ourLimit + content type + the negotiated AEAD tag +
+ * overBy bytes, and report the error the client raised. Those are the whole
+ * of a TLS 1.3 record's expansion over the payload limit, so overBy == 0 is
+ * exactly the largest record the limit permits and overBy == 1 is the first
+ * one it does not. */
+static int RecordOfSize(word16 ourLimit, int overBy, int* alertSent)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char  out[128];
+    int   err = 0;
+    int   before;
+    word32 bodySz;
+    word32 recSz;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method) != 0) {
+        err = -1;
+        goto done;
+    }
+    if (wolfSSL_UseRecordSizeLimit(ssl_c, ourLimit) != WOLFSSL_SUCCESS ||
+            wolfSSL_UseRecordSizeLimit(ssl_s, 4096) != WOLFSSL_SUCCESS) {
+        err = -2;
+        goto done;
+    }
+    if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) != 0) {
+        err = -3;
+        goto done;
+    }
+
+    /* Only known once a cipher suite is negotiated. */
+    /* ourLimit is payload, so the largest permitted record is that plus the
+     * TLS 1.3 content type byte plus the AEAD tag. */
+    bodySz = (word32)((int)ourLimit + 1 + ssl_c->specs.aead_mac_size + overBy);
+    recSz = RECORD_HEADER_SZ + bodySz;
+
+    if ((test_ctx.c_len + (int)recSz) >= TEST_MEMIO_BUF_SZ ||
+            test_ctx.c_msg_count >= TEST_MEMIO_MAX_MSGS) {
+        err = -4;
+        goto done;
+    }
+
+    {
+        byte* p = test_ctx.c_buff + test_ctx.c_len;
+
+        p[0] = application_data;
+        p[1] = SSLv3_MAJOR;
+        p[2] = TLSv1_2_MINOR;   /* the wire version TLS 1.3 records carry */
+        c16toa((word16)bodySz, p + 3);
+        XMEMSET(p + RECORD_HEADER_SZ, 0, bodySz);
+
+        /* Register it the way test_memio_write_cb() would. */
+        test_ctx.c_msg_sizes[test_ctx.c_msg_count++] = (int)recSz;
+        test_ctx.c_len += (int)recSz;
+    }
+
+    before = test_ctx.s_len;
+    (void)wolfSSL_read(ssl_c, out, (int)sizeof(out));
+    /* The raw error: wolfSSL_get_error() remaps this one under OPENSSL_EXTRA,
+     * as the SHA-1 chain test notes. */
+    err = ssl_c->error;
+    if (alertSent != NULL)
+        *alertSent = (test_ctx.s_len > before);
+
+done:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return err;
+}
+#endif
+
+/* The TLS 1.2 counterpart of RecordOfSize(). The expansion a TLS 1.2 record
+ * adds over its plaintext depends on the negotiated suite rather than being
+ * one content type byte plus an AEAD tag, so the allowance is derived the same
+ * way GetRecordHeader() derives it: the suite's own expansion.
+ * overBy is measured from that boundary.
+ */
+#if defined(HAVE_RECORD_SIZE_LIMIT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+static int Tls12RecordOfSize(word16 ourLimit, int overBy,
+    method_provider client_meth, int typeByteOffered)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char   out[128];
+    int    err = 0;
+    word32 bodySz;
+    word32 recSz;
+    word32 extra;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            client_meth, wolfTLSv1_2_server_method) != 0) {
+        err = -1;
+        goto done;
+    }
+    if (wolfSSL_UseRecordSizeLimit(ssl_c, ourLimit) != WOLFSSL_SUCCESS ||
+            wolfSSL_UseRecordSizeLimit(ssl_s, 4096) != WOLFSSL_SUCCESS) {
+        err = -2;
+        goto done;
+    }
+    if (test_memio_do_handshake(ssl_c, ssl_s, 10, NULL) != 0) {
+        err = -3;
+        goto done;
+    }
+
+    /* Measured, not recomputed: wolfssl_local_GetRecordSize() reports what the
+     * implementation itself would emit for a payload, so the per-record
+     * expansion comes straight from the code under test rather than from a
+     * copy of its arithmetic here. cipherExtraData(), which GetRecordHeader()
+     * calls, is WOLFSSL_LOCAL and so not linkable from the tests. */
+    {
+        int probe = wolfssl_local_GetRecordSize(ssl_c, 64, 1);
+
+        if (probe < 0) {
+            err = -5;
+            goto done;
+        }
+        extra = (word32)probe - RECORD_HEADER_SZ - 64;
+    }
+#ifndef WOLFSSL_AEAD_ONLY
+    if (ssl_c->specs.cipher_type == block) {
+        /* GetRecordHeader() trades the padding the probe includes for the
+         * full MAX_PAD_SIZE a peer may use. That padding is not always a whole
+         * block - 64 bytes plus a 20-byte SHA-1 MAC pads with 12, where a
+         * SHA-256 MAC pads with 16 - so it is taken from the measurement:
+         * what the probe added beyond the explicit IV and the MAC. */
+        word32 fixed = (word32)ssl_c->specs.block_size +
+                       (word32)ssl_c->specs.hash_size;
+
+        if ((extra >= fixed) && (extra - fixed < MAX_PAD_SIZE))
+            extra += MAX_PAD_SIZE - (extra - fixed);
+    }
+#endif
+    /* Only when this client really did advertise with the TLS 1.3 content
+     * type byte folded in, which depends on the method it was built with and
+     * not on the build having TLS 1.3 compiled in: a client that offers TLS
+     * 1.3 sends the value before the version is settled, and after a
+     * downgrade that byte is payload the peer may use, so its boundary sits
+     * one byte higher. A client that only ever offered TLS 1.2 sent the value
+     * as it stood and must be held to exactly that. */
+    if (typeByteOffered)
+        extra += 1;
+
+    bodySz = (word32)((int)ourLimit + (int)extra + overBy);
+    recSz = RECORD_HEADER_SZ + bodySz;
+    if ((test_ctx.c_len + (int)recSz) >= TEST_MEMIO_BUF_SZ ||
+            test_ctx.c_msg_count >= TEST_MEMIO_MAX_MSGS) {
+        err = -4;
+        goto done;
+    }
+
+    {
+        byte* p = test_ctx.c_buff + test_ctx.c_len;
+
+        p[0] = application_data;
+        p[1] = SSLv3_MAJOR;
+        p[2] = TLSv1_2_MINOR;
+        c16toa((word16)bodySz, p + 3);
+        XMEMSET(p + RECORD_HEADER_SZ, 0, bodySz);
+        test_ctx.c_msg_sizes[test_ctx.c_msg_count++] = (int)recSz;
+        test_ctx.c_len += (int)recSz;
+    }
+
+    (void)wolfSSL_read(ssl_c, out, (int)sizeof(out));
+    err = ssl_c->error;
+
+done:
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return err;
+}
+#endif
+
+int test_tls12_record_size_limit_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RECORD_SIZE_LIMIT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    const word16 ourLimit = 512;
+
+    /* Receive enforcement was only ever driven at TLS 1.3, where the expansion
+     * is a content type byte and an AEAD tag. The TLS 1.2 arm computes its
+     * allowance from the negotiated suite - a CBC peer may add up to
+     * MAX_PAD_SIZE of padding that RFC 8449 does not count against the limit -
+     * so it needs its own boundary case. */
+    /* A TLS 1.2-only client advertised the value as it stood. One byte over
+     * is refused by the length check. */
+    ExpectIntEQ(Tls12RecordOfSize(ourLimit, 1, wolfTLSv1_2_client_method, 0),
+        WC_NO_ERR_TRACE(LENGTH_ERROR));
+    /* Exactly at the boundary is not. The body is filler so it fails to
+     * authenticate; what matters is that it fails for some other reason, the
+     * same way the TLS 1.3 case is asserted. */
+    ExpectIntNE(Tls12RecordOfSize(ourLimit, 0, wolfTLSv1_2_client_method, 0),
+        WC_NO_ERR_TRACE(LENGTH_ERROR));
+#ifdef WOLFSSL_TLS13
+    /* A client that offered TLS 1.3 and was downgraded did fold the content
+     * type byte into the value it sent, so its boundary is one byte higher.
+     * The pair matters: holding a downgraded client to the payload limit
+     * alone rejects a record its own advertisement allowed, and giving the
+     * byte to the client above accepts one it never offered. */
+    ExpectIntEQ(Tls12RecordOfSize(ourLimit, 1, wolfSSLv23_client_method, 1),
+        WC_NO_ERR_TRACE(LENGTH_ERROR));
+    ExpectIntNE(Tls12RecordOfSize(ourLimit, 0, wolfSSLv23_client_method, 1),
+        WC_NO_ERR_TRACE(LENGTH_ERROR));
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8449 Sect. 4 measures the limit against the plaintext, but a record is
+ * first met as ciphertext, and what a CBC suite adds to it is not fixed: a
+ * peer may pad up to MAX_PAD_SIZE to hide the plaintext length, and padding
+ * does not count against the limit. The ciphertext check therefore has to
+ * allow that slack, and a record that pads minimally walks through it with a
+ * plaintext well over the limit. Only a check on the opened record catches
+ * that one. */
+#if defined(HAVE_RECORD_SIZE_LIMIT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_SHA256) && \
+    defined(HAVE_AES_CBC) && defined(HAVE_ECC) && !defined(NO_AES_128)
+/* One TLS 1.2 plaintext-limit case over a CBC suite, whose padding is what
+ * leaves the ciphertext check in GetRecordHeader() unable to decide this on
+ * its own.
+ *
+ * The client advertises ourLimit, the server is made to emit a single record
+ * of payloadSz bytes of content, and the client either hands that content to
+ * the caller or kills the connection with record_overflow. typeByteOffered
+ * says whether this client's advertisement was expected to include the
+ * TLS 1.3 content type byte, which decides how much content the limit
+ * actually covers once TLS 1.2 is negotiated.
+ */
+static int Tls12PlaintextOfSize(method_provider client_meth, word16 ourLimit,
+    int payloadSz, int typeByteOffered, int expectAccept)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte  payload[1024];
+    char  out[2048];
+
+    XMEMSET(payload, 'A', sizeof(payload));
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_meth, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_c,
+        "ECDHE-RSA-AES128-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s,
+        "ECDHE-RSA-AES128-SHA256"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, ourLimit), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 4096), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->specs.cipher_type, block);
+        /* TLS 1.2 in force however the client got here. */
+        ExpectIntEQ(ssl_c->version.minor, TLSv1_2_MINOR);
+        /* What the client actually put on the wire, which is what it may
+         * hold the server to. */
+        ExpectIntEQ(ssl_c->recordSizeLimitSent,
+            (word16)(ourLimit + (typeByteOffered ? 1 : 0)));
+    }
+
+    /* The server honours the client's limit, so lift that cap to make it emit
+     * the record a non-conforming or hostile peer would send. */
+    if (ssl_s != NULL)
+        ssl_s->peerRecordSizeLimit = 4096;
+    ExpectIntEQ(wolfSSL_write(ssl_s, payload, payloadSz), payloadSz);
+
+    if (expectAccept) {
+        ExpectIntEQ(wolfSSL_read(ssl_c, out, (int)sizeof(out)), payloadSz);
+    }
+    else {
+        /* Refused, with the alert RFC 8449 requires. */
+        ExpectIntLT(wolfSSL_read(ssl_c, out, (int)sizeof(out)), 0);
+        if (ssl_c != NULL)
+            ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(LENGTH_ERROR));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_tls12_record_size_limit_plaintext(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RECORD_SIZE_LIMIT) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_AEAD_ONLY) && !defined(NO_SHA256) && \
+    defined(HAVE_AES_CBC) && defined(HAVE_ECC) && !defined(NO_AES_128)
+    const word16 ourLimit = 512;
+
+    /* A TLS 1.2 only client advertises 512 and means 512 bytes of content.
+     * 576 is over it, yet inside the padding allowance the ciphertext check
+     * has to make: 576 + 16 explicit IV + 32 MAC + one block of padding is
+     * comfortably under the limit plus the MAX_PAD_SIZE that check permits,
+     * so only the check on the decrypted plaintext can catch it. */
+    ExpectIntEQ(Tls12PlaintextOfSize(wolfTLSv1_2_client_method, ourLimit,
+        576, 0, 0), TEST_SUCCESS);
+    /* The limit itself is content this client may be sent. */
+    ExpectIntEQ(Tls12PlaintextOfSize(wolfTLSv1_2_client_method, ourLimit,
+        512, 0, 1), TEST_SUCCESS);
+    /* One past it is not, and no content type byte was offered that could
+     * make room for it. */
+    ExpectIntEQ(Tls12PlaintextOfSize(wolfTLSv1_2_client_method, ourLimit,
+        513, 0, 0), TEST_SUCCESS);
+
+#ifdef WOLFSSL_TLS13
+    /* A TLS 1.3 capable client offering the same 512 advertises 513, since
+     * the value it sends counts the TLSInnerPlaintext content type byte. The
+     * server here speaks only TLS 1.2, where there is no such byte, so all
+     * 513 are content the server is entitled to send and this end must take
+     * them: holding it to 512 would be enforcing a limit it never offered. */
+    ExpectIntEQ(Tls12PlaintextOfSize(wolfSSLv23_client_method, ourLimit,
+        513, 1, 1), TEST_SUCCESS);
+    /* 514 is over what was advertised either way. */
+    ExpectIntEQ(Tls12PlaintextOfSize(wolfSSLv23_client_method, ourLimit,
+        514, 1, 0), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A peer gets to choose both its record_size_limit (RFC 8449 Sect. 4 allows
+ * 64) and the certificate_request_context of a post-handshake
+ * CertificateRequest (RFC 8446 Sect. 4.3.2 allows 255 bytes, which this end
+ * echoes in its answer). Together they can leave the first fragment of the
+ * Certificate message too small for that message's fixed header, which the
+ * send loop cannot fragment. It has to refuse: running the arithmetic anyway
+ * takes the remaining-room counter below zero and copies the certificate far
+ * past the output buffer.
+ *
+ * Everything here comes from the real path except the two values a peer
+ * would have chosen: wolfSSL's own server always sends a one byte context
+ * and would not ask for 64 byte records. */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+#define TEST_CERT_REQ_CTX_RSL
+/* Answer a post-handshake CertificateRequest whose context is reqCtxLen bytes
+ * while the peer's record_size_limit is 64. When refuse is set the answer must
+ * fail with BUFFER_E; otherwise it must go out and the server accept it. */
+static int test_tls13_cert_req_ctx_rsl_one(byte reqCtxLen, int refuse)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    CertReqCtx* reqCtx = NULL;
+    char  msg[] = "hello wolfssl!";
+    char  buf[64];
+    /* The RFC 8449 minimum of 64, as TLSX_RecordSizeLimit_Parse() stores it
+     * at TLS 1.3: payload only, the content type byte already off. That
+     * leaves 63 - 4 = 59 bytes of the first fragment for a fixed header of
+     * 1 + reqCtxLen + 3 + 3. */
+    const word16 peerLimit = 63;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* The client needs a certificate of its own, so the answer carries one
+     * and takes the branch that copies it. */
+    ExpectIntEQ(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_allow_post_handshake_auth(ssl_c), 0);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER |
+        WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_request_certificate(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg) - 1),
+        (int)sizeof(msg) - 1);
+
+    /* Take the CertificateRequest without answering it, so the context it
+     * queued can be replaced by the one a different peer would have sent. */
+    if (EXPECT_SUCCESS())
+        ssl_c->options.handShakeState = CLIENT_FINISHED_COMPLETE;
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf) - 1),
+        (int)sizeof(msg) - 1);
+    ExpectIntEQ(ssl_c->options.sendVerify, SEND_CERT);
+    ExpectNotNull(ssl_c->certReqCtx);
+
+    /* DoTls13CertificateRequest() allocates and queues exactly this way for
+     * a context longer than one byte. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(reqCtx = (CertReqCtx*)XMALLOC(
+            sizeof(CertReqCtx) + reqCtxLen - 1, ssl_c->heap,
+            DYNAMIC_TYPE_TMP_BUFFER));
+    }
+    if (EXPECT_SUCCESS() && (reqCtx != NULL)) {
+        reqCtx->next = ssl_c->certReqCtx;
+        reqCtx->len = reqCtxLen;
+        XMEMSET(&reqCtx->ctx, 0xA5, reqCtxLen);
+        ssl_c->certReqCtx = reqCtx;
+        ssl_c->peerRecordSizeLimit = peerLimit;
+
+        /* What DoTls13CertificateRequest() does to answer a post-handshake
+         * request. */
+        ssl_c->options.clientState = CLIENT_HELLO_COMPLETE;
+        ssl_c->options.connectState = FIRST_REPLY_DONE;
+        ssl_c->options.handShakeState = CLIENT_HELLO_COMPLETE;
+        ssl_c->options.processReply = 0;
+        if (refuse) {
+            ExpectIntNE(wolfSSL_connect_TLSv13(ssl_c), WOLFSSL_SUCCESS);
+            ExpectIntEQ(ssl_c->error, WC_NO_ERR_TRACE(BUFFER_E));
+        }
+        else {
+            ExpectIntEQ(wolfSSL_connect_TLSv13(ssl_c), WOLFSSL_SUCCESS);
+        }
+    }
+    if (!refuse) {
+        /* The server reassembles the fragmented Certificate and parses it as
+         * far as the context, which it never sent: only the substitution
+         * above is refused, not the framing. */
+        ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf) - 1), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+            WC_NO_ERR_TRACE(INVALID_CERT_CTX_E));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_tls13_cert_req_ctx_record_size_limit(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CERT_REQ_CTX_RSL
+    /* Fixed header of 67 bytes: does not fit. */
+    ExpectIntEQ(test_tls13_cert_req_ctx_rsl_one(60, 1), TEST_SUCCESS);
+    /* Fixed header of exactly 59 bytes: fits, but leaves no room for any
+     * certificate data, so the fragment loop could never advance. */
+    ExpectIntEQ(test_tls13_cert_req_ctx_rsl_one(52, 1), TEST_SUCCESS);
+    /* One byte of room is enough to make progress. */
+    ExpectIntEQ(test_tls13_cert_req_ctx_rsl_one(51, 0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that a record larger than the limit this end advertised is refused.
+ *
+ * RFC 8449 Sect. 4: "A TLS endpoint that receives a record larger than its
+ * advertised limit MUST generate a fatal record_overflow alert." Both sides
+ * of the boundary are pinned, so a change that rejected legitimate records
+ * would fail here just as loudly as one that let oversized records through.
+ */
+int test_tls13_record_size_limit_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    const word16 ourLimit = 512;
+    int alertSent = 0;
+    int err;
+
+    /* One byte past what the negotiated cipher can expand the limit to:
+     * refused at the record header, with an alert back to the peer. */
+    err = RecordOfSize(ourLimit, 1, &alertSent);
+    ExpectIntEQ(err, WC_NO_ERR_TRACE(LENGTH_ERROR));
+    ExpectIntEQ(alertSent, 1);
+
+    /* Exactly at the allowance: the header check must let this through, so
+     * it fails later as undecryptable filler instead. Without this the test
+     * would still pass if the limit were applied far too strictly. */
+    err = RecordOfSize(ourLimit, 0, NULL);
+    ExpectIntNE(err, WC_NO_ERR_TRACE(LENGTH_ERROR));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8449 Sect. 5: a client that receives both max_fragment_length and
+ * record_size_limit must abort - whichever order the server put them in. The
+ * order is the point: a check made while parsing one extension cannot see the
+ * other, so this fails in one direction only if it is done too early.
+ *
+ * A handshake runs first because the client only pushes record_size_limit
+ * into its extension list while building the ClientHello, and both have to be
+ * on that list or the unsolicited-response check rejects the message before
+ * the two ever meet. The synthetic EncryptedExtensions is then fed to the
+ * client object directly; no wolfSSL server would send one.
+ */
+int test_tls13_record_size_limit_both_exts(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    /* record_size_limit(28) = 512, then max_fragment_length(1) = 2^9. */
+    static const byte rslFirst[] = {
+        0x00, 0x1c, 0x00, 0x02, 0x02, 0x00,
+        0x00, 0x01, 0x00, 0x01, 0x01
+    };
+    /* The same two the other way round. */
+    static const byte mflFirst[] = {
+        0x00, 0x01, 0x00, 0x01, 0x01,
+        0x00, 0x1c, 0x00, 0x02, 0x02, 0x00
+    };
+    const byte* order[2];
+    word16 orderSz[2];
+    int i;
+
+    order[0] = rslFirst;   orderSz[0] = (word16)sizeof(rslFirst);
+    order[1] = mflFirst;   orderSz[1] = (word16)sizeof(mflFirst);
+
+    for (i = 0; i < 2; i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 512), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 512), WOLFSSL_SUCCESS);
+
+        /* A client may offer both; RFC 8449 Sect. 5 has the server answer
+         * with record_size_limit and ignore the max_fragment_length, so this
+         * handshake completes. */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        ExpectIntEQ(TLSX_Parse(ssl_c, order[i], orderSz[i],
+            encrypted_extensions, NULL),
+            WC_NO_ERR_TRACE(INVALID_PARAMETER));
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Which of the two record-size extensions governs when both are in play.
+ * The default limit must stand aside for an application that explicitly asked
+ * for max_fragment_length, because RFC 8449 Sect. 5 has the server ignore
+ * max_fragment_length whenever both appear - so advertising the default
+ * alongside would quietly disable the extension the application chose. An
+ * explicit record_size_limit still wins. */
+int test_tls13_record_size_limit_vs_mfl(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* Only max_fragment_length asked for: the default stays quiet and
+     * max_fragment_length negotiates as it always did. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->max_fragment, 512);
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit, 0);
+    }
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Both asked for explicitly: RFC 8449 Sect. 5 gives it to
+     * record_size_limit and the server drops the max_fragment_length. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 700), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, 700);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->max_fragment, MAX_RECORD_SIZE);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A small negotiated record_size_limit forces EncryptedExtensions and
+ * NewSessionTicket across several records. Self-checking: the client enforces
+ * the limit it advertised on receipt, so an unfragmented message from the
+ * server fails the handshake or the ticket read right here. */
+int test_tls13_record_size_limit_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    /* 64 is the RFC 8449 Sect. 4 floor - every server flight has to be split
+     * at that size. 300 lands between the two: large enough for a handshake
+     * message to fit, small enough for a session ticket not to. */
+    static const word16 limits[] = { 64, 300 };
+    size_t i;
+
+    for (i = 0; i < sizeof(limits) / sizeof(limits[0]); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        char readBuf[64];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        /* Both ends: RFC 8449 Sect. 4 only negotiates the extension when
+         * both send it, and a server with no limit of its own stays silent. */
+        ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, limits[i]),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, limits[i]),
+            WOLFSSL_SUCCESS);
+        /* Asking for a client certificate puts a CertificateRequest in the
+         * server's flight, which is the only message fragmented with
+         * hashOutput set - EncryptedExtensions is too, but NewSessionTicket
+         * is not, so without this the transcript-hashing side of
+         * SendTls13FragmentedMsg() goes unexercised. */
+        ExpectTrue(wolfSSL_CTX_load_verify_locations(ctx_s, cliCertFile, 0)
+            == WOLFSSL_SUCCESS);
+        if (ssl_s != NULL)
+            wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+        ExpectTrue(wolfSSL_use_certificate_file(ssl_c, cliCertFile,
+            CERT_FILETYPE) == WOLFSSL_SUCCESS);
+        ExpectTrue(wolfSSL_use_PrivateKey_file(ssl_c, cliKeyFile,
+            CERT_FILETYPE) == WOLFSSL_SUCCESS);
+
+        /* Generous round count: at 64 bytes a certificate chain alone is
+         * dozens of records. */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 128, NULL), 0);
+        /* Proves the limit is actually in force on the server's send side
+         * rather than silently ignored. The limit is payload, so it is the
+         * output size directly. */
+        ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), limits[i]);
+
+        /* Drives the post-handshake read so NewSessionTicket is parsed under
+         * the same enforcement. */
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, (int)sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the record_size_limit extension (RFC 8449).
+ *
+ * The client states the largest record it will accept, the server echoes its
+ * own in EncryptedExtensions, and from then on each end caps what it sends to
+ * the other's limit. The count covers the whole TLS 1.3 TLSInnerPlaintext, so
+ * a record's payload is one byte short of the limit. */
+int test_tls13_record_size_limit(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_RECORD_SIZE_LIMIT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    /* An unsolicited response is an unsupported_extension abort: no
+     * ClientHello was built on this object, so nothing was offered yet.
+     * WOLFSSL_OLD_UNSUPPORTED_EXTENSION does not change that here: its
+     * leniency is for TLS 1.2 and earlier, and this is a TLS 1.3 client. */
+    if (EXPECT_SUCCESS()) {
+        WOLFSSL_CTX* uctx = NULL;
+        WOLFSSL* ussl = NULL;
+        static const byte resp[] = { 0x00, 0x1c, 0x00, 0x02, 0x04, 0x00 };
+
+        ExpectNotNull(uctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+        ExpectNotNull(ussl = wolfSSL_new(uctx));
+        ExpectIntEQ(TLSX_Parse(ussl, resp, (word16)sizeof(resp),
+            encrypted_extensions, NULL),
+            WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+        wolfSSL_free(ussl);
+        wolfSSL_CTX_free(uctx);
+    }
+
+    /* Malformed on the wire, on objects of their own: TLSX_Parse() records
+     * state on the object it is handed, so these must not share one with the
+     * handshakes below. A value under 64 is a fatal illegal_parameter
+     * (RFC 8449 Sect. 4) and a wrong length is a decode error. */
+    if (EXPECT_SUCCESS()) {
+        WOLFSSL_CTX* pctx = NULL;
+        WOLFSSL* pssl = NULL;
+        static const byte tooSmall[] = { 0x00, 0x1c, 0x00, 0x02, 0x00, 0x3f };
+        static const byte badLen[]   = { 0x00, 0x1c, 0x00, 0x01, 0x02 };
+        static const byte badLen3[]  = { 0x00, 0x1c, 0x00, 0x03, 0x02, 0x00,
+                                         0x00 };
+
+        ExpectNotNull(pctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+        ExpectTrue(wolfSSL_CTX_use_certificate_file(pctx, svrCertFile,
+            CERT_FILETYPE));
+        ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(pctx, svrKeyFile,
+            CERT_FILETYPE));
+        ExpectNotNull(pssl = wolfSSL_new(pctx));
+        ExpectIntEQ(TLSX_Parse(pssl, tooSmall, (word16)sizeof(tooSmall),
+            client_hello, (Suites*)WOLFSSL_SUITES(pssl)),
+            WC_NO_ERR_TRACE(INVALID_PARAMETER));
+        ExpectIntEQ(TLSX_Parse(pssl, badLen, (word16)sizeof(badLen),
+            client_hello, (Suites*)WOLFSSL_SUITES(pssl)),
+            WC_NO_ERR_TRACE(BUFFER_ERROR));
+        ExpectIntEQ(TLSX_Parse(pssl, badLen3, (word16)sizeof(badLen3),
+            client_hello, (Suites*)WOLFSSL_SUITES(pssl)),
+            WC_NO_ERR_TRACE(BUFFER_ERROR));
+        wolfSSL_free(pssl);
+        wolfSSL_CTX_free(pctx);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Out of range values are refused: below the RFC minimum of 64, and above
+     * the largest payload, 2^14 (the wire value adds the content type byte at
+     * TLS 1.3). */
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(NULL, 512),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 63),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* 0 is not "too small", it is the way to stop advertising. */
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c,
+        WOLFSSL_RECORD_SIZE_LIMIT_MAX + 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c,
+        WOLFSSL_RECORD_SIZE_LIMIT_MAX), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 1024), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Too late to change: the value was advertised and is being enforced, so
+     * tightening it now would reject records the peer is entitled to send. */
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 256),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 256),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Each end learned the other's limit. */
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit, 1024);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, 512);
+
+    /* And caps what it sends to it. Both ends name the same number because
+     * the limit is a payload size at this level; the content type byte lives
+     * only in the extension's encoding. */
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), 512);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), 1024);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* The RFC minimum of 64 works end to end. It fragments the flight hard,
+     * so the exchange needs many more round trips than a normal handshake,
+     * which is the point of pinning it. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c,
+        WOLFSSL_RECORD_SIZE_LIMIT_MIN), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s,
+        WOLFSSL_RECORD_SIZE_LIMIT_MIN), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 200, NULL), 0);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c),
+        WOLFSSL_RECORD_SIZE_LIMIT_MIN);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s),
+        WOLFSSL_RECORD_SIZE_LIMIT_MIN);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Only this end advertises. The peer answers nothing, so the limits are
+     * not negotiated and must not be enforced: enforcing on advertisement
+     * alone terminated every handshake with a peer lacking RFC 8449, which is
+     * how OpenSSL and BoringSSL behave today. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 512), WOLFSSL_SUCCESS);
+    /* A limit is advertised by default now, so the server is silenced
+     * explicitly with 0 rather than by leaving it unset. */
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL) {
+        ExpectIntEQ(ssl_c->recordSizeLimit, 512);
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit, 0);
+    }
+    /* Nothing learned, so nothing capped. */
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), MAX_RECORD_SIZE);
+    /* And the other direction, which is the half that looks like a bug and
+     * is not: the server saw the client's 512 but answered nothing, so
+     * RFC 8449 Sect. 4 leaves it unbound - "When the record_size_limit
+     * extension is negotiated, an endpoint MUST NOT generate a protected
+     * record with plaintext that is larger than the RecordSizeLimit value it
+     * receives from its peer", and "If this extension is not negotiated,
+     * endpoints can send records of any size permitted by the protocol". The
+     * duty follows negotiation, not receipt, so a server that declined to
+     * advertise keeps sending full records and does not retain the value.
+     * Retaining it would let any client shrink a server that never opted in
+     * down to 64-byte records. */
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit, 0);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_s), MAX_RECORD_SIZE);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Turned off on both ends: nothing is advertised and nothing is capped. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_s, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit, 0);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), MAX_RECORD_SIZE);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* Left alone, both ends advertise the default and negotiate it, which is
+     * what makes the extension useful without the application asking. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_c != NULL)
+        ExpectIntEQ(ssl_c->peerRecordSizeLimit,
+            WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->peerRecordSizeLimit,
+            WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT);
+    /* The default is a full record's worth of payload, and payload is the
+     * unit, so it survives the round trip unchanged. A default that cost a
+     * byte would fail here. */
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c),
+        WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT);
+    ExpectIntEQ(wolfSSL_GetMaxOutputSize(ssl_c), MAX_RECORD_SIZE);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that each extension added recently is refused in messages it is not
+ * listed for.
+ *
+ * Twice in developing these an extension leaked into EncryptedExtensions and
+ * only an interop run caught it, because a peer that ignores an unexpected
+ * extension will still complete the handshake. Checking the receive gate is
+ * the cheap half of that; a wolfSSL peer rejecting the message is what turns
+ * a send-side leak into a visible failure. */
+int test_tls13_new_ext_placement(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+#ifdef HAVE_SNI
+    /* server_name: CH, EE, CR. */
+    static const byte sni[] = {
+        0x00, 0x00, 0x00, 0x10, 0x00, 0x0e, 0x00, 0x00, 0x0b,
+        'w', 'o', 'l', 'f', 's', 's', 'l', '.', 'c', 'o', 'm'
+    };
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* record_size_limit: CH, EE. */
+    static const byte rsl[] = { 0x00, 0x1c, 0x00, 0x02, 0x02, 0x00 };
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    /* The certificate exists only so wolfSSL_new() succeeds for a server
+     * object - nothing below sends one - so use whichever algorithm the
+     * build has. svrCertFile is RSA, which a build without RSA cannot
+     * load. */
+#ifndef NO_RSA
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE));
+#else
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+        CERT_FILETYPE));
+#endif
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    /* Every use below sits behind one of the extension macros, so a build with
+     * none of them leaves this set and never read. */
+    (void)suites;
+
+#ifdef HAVE_SNI
+    ExpectIntEQ(TLSX_Parse(ssl, sni, (word16)sizeof(sni), client_hello,
+        suites), 0);
+    ExpectIntEQ(TLSX_Parse(ssl, sni, (word16)sizeof(sni), session_ticket,
+        NULL), WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    ExpectIntEQ(TLSX_Parse(ssl, rsl, (word16)sizeof(rsl), client_hello,
+        suites), 0);
+    /* Listed for CH and EE, so a CertificateRequest is refused. */
+    ExpectIntEQ(TLSX_Parse(ssl, rsl, (word16)sizeof(rsl), certificate_request,
+        suites), WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+    ExpectIntEQ(TLSX_Parse(ssl, rsl, (word16)sizeof(rsl), session_ticket,
+        NULL), WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+#endif
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
@@ -18076,6 +19325,56 @@ int test_tls13_export_server_ticket_after_import(void)
     EXPECT_DECLS;
 #if defined(TEST_TLS13_EXPORT) && defined(HAVE_SESSION_TICKET)
     ExpectIntEQ(test_tls13_export_ticket_after_import(0), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The export format does not carry the RFC 8449 limits, so a session whose
+ * limits restrict anything is refused rather than exported to be imported as
+ * a copy that ignores them. The defaults are the protocol maximum, which an
+ * imported copy enforces anyway, so they do not stop an export. */
+int test_tls13_record_size_limit_export(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_TLS13_EXPORT) && defined(HAVE_RECORD_SIZE_LIMIT)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    unsigned char* session = NULL;
+    unsigned int sessionSz = 0;
+
+    /* Default limits on both ends: exported as before. */
+    ExpectIntEQ(test_tls13_export_connect(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+                &ssl_s), TEST_SUCCESS);
+    if (ssl_s != NULL)
+        ExpectIntNE(ssl_s->peerRecordSizeLimit, 0);
+    ExpectIntEQ(test_tls13_export_alloc(ssl_s, &session, &sessionSz),
+                TEST_SUCCESS);
+    XFREE(session, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    session = NULL;
+    wolfSSL_free(ssl_c); ssl_c = NULL;
+    wolfSSL_free(ssl_s); ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* The client asks for 512 byte records: that binds the server's sends
+     * and the client's receives, so neither end can be exported. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_UseRecordSizeLimit(ssl_c, 512), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    sessionSz = 0;
+    ExpectIntEQ(wolfSSL_tls_export(ssl_s, NULL, &sessionSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+    sessionSz = 0;
+    ExpectIntEQ(wolfSSL_tls_export(ssl_c, NULL, &sessionSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
 #endif
     return EXPECT_RESULT();
 }

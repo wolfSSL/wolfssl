@@ -2809,8 +2809,16 @@ static void AddTls13Headers(byte* output, word32 length, byte type,
     AddTls13HandShakeHeader(output + outputAdj, length, 0, length, type, ssl);
 }
 
-#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) \
-    && !defined(NO_CERTS)
+/* HAVE_RECORD_SIZE_LIMIT is in the condition because SendTls13FragmentedMsg()
+ * needs this for EncryptedExtensions and NewSessionTicket, which a PSK-only
+ * TLS 1.3 server sends with NO_CERTS defined and no Certificate in sight. */
+/* The record_size_limit arm needs a server as well as the option: its only
+ * caller is SendTls13FragmentedMsg(), which is inside the server-only region,
+ * so without that the function compiles with no caller at all and
+ * -Werror=unused-function fails the build. */
+#if ((!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) \
+    && !defined(NO_CERTS)) || \
+    (defined(HAVE_RECORD_SIZE_LIMIT) && !defined(NO_WOLFSSL_SERVER))
 /* Add both record layer and fragment handshake header to message.
  *
  * output      The buffer to write the headers into.
@@ -2840,7 +2848,8 @@ static void AddTls13FragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     AddTls13HandShakeHeader(output + outputAdj, length, fragOffset, fragSz,
                             type, ssl);
 }
-#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !NO_CERTS */
+#endif /* ((!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !NO_CERTS) ||
+        * HAVE_RECORD_SIZE_LIMIT */
 
 /* Write the sequence number into the buffer.
  * No DTLS v1.3 support.
@@ -9253,7 +9262,148 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     return ret;
 }
 
-/* handle generation of TLS 1.3 encrypted_extensions (8) */
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* Re-emit an already-built handshake message as a series of records.
+ *
+ * EncryptedExtensions and CertificateRequest are each laid down as one record,
+ * which a record_size_limit smaller than the message - RFC 8449 Sect. 4
+ * permits one as low as 64 - would make a record_overflow for the peer. Both
+ * are small and fully assembled by the time this is called, so the body is
+ * copied aside and laid back down across as many records as the limit needs.
+ * NewSessionTicket does not come here: SendTls13NewSessionTicket() fragments
+ * to wolfssl_local_GetMaxPlaintextSize(), which already applies the limit.
+ *
+ * None is flushed here: a WANT_WRITE part way through would strand the
+ * scratch copy and force the caller to rebuild, and re-hash, a message
+ * already in the transcript. The caller's SendBuffered() flushes them
+ * together.
+ *
+ * ssl         The SSL/TLS object.
+ * output      Start of the built record: record header, handshake header,
+ *             then the body.
+ * msgSz       Bytes written to output, headers included.
+ * type        Handshake message type.
+ * hashOutput  Whether the message belongs in the handshake transcript.
+ * returns 0 on success, otherwise failure.
+ */
+static int SendTls13FragmentedMsg(WOLFSSL* ssl, byte* output, word32 msgSz,
+                                  byte type, int hashOutput)
+{
+    byte*  body;
+    word32 bodySz;
+    word32 offset = 0;
+    word32 maxFragment;
+    int    maxPlain;
+    int    ret = 0;
+
+    if (msgSz < RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)
+        return BUFFER_E;
+    bodySz = msgSz - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ;
+
+    /* Tested as a signed int before the cast: the helper returns a negative
+     * error code, which as a word32 would sail past the check below. A
+     * fragment also has to carry at least one body byte or this never ends,
+     * and the first one carries the handshake header too. */
+    maxPlain = wolfssl_local_GetMaxPlaintextSize(ssl);
+    if (maxPlain <= (int)HANDSHAKE_HEADER_SZ)
+        return BUFFER_E;
+    maxFragment = (word32)maxPlain;
+
+    body = (byte*)XMALLOC(bodySz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (body == NULL)
+        return MEMORY_E;
+    XMEMCPY(body, output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ, bodySz);
+
+    /* Reserve room for every record up front. GrowOutputBuffer() allocates
+     * only what is asked for, so growing record by record would reallocate
+     * and copy the records already queued each time - quadratic in the
+     * message for a small limit, which the peer chooses. */
+    {
+        word32 first = min(bodySz, maxFragment - HANDSHAKE_HEADER_SZ);
+        word32 frags = 1 + (bodySz - first + maxFragment - 1) / maxFragment;
+        word32 total = HANDSHAKE_HEADER_SZ + bodySz + frags * MAX_MSG_EXTRA;
+
+        ret = CheckAvailableSize(ssl, (int)total);
+    }
+
+    while ((ret == 0) && (offset < bodySz)) {
+        word32 fragSz;
+        word32 i;
+        int    sendSz;
+
+        if (offset == 0)
+            fragSz = min(bodySz, maxFragment - HANDSHAKE_HEADER_SZ);
+        else
+            fragSz = min(bodySz - offset, maxFragment);
+
+        sendSz = (int)(fragSz + MAX_MSG_EXTRA);
+        if (offset == 0)
+            sendSz += HANDSHAKE_HEADER_SZ;
+
+        ret = CheckAvailableSize(ssl, sendSz);
+        if (ret != 0)
+            break;
+        /* CheckAvailableSize() may have moved the buffer. */
+        output = GetOutputBuffer(ssl);
+
+        if (offset == 0) {
+            /* Only the first record carries the handshake header, and it
+             * states the length of the whole message, not of the fragment. */
+            AddTls13FragHeaders(output, fragSz, 0, bodySz, type, ssl);
+            i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+        }
+        else {
+            AddTls13RecordHeader(output, fragSz, handshake, ssl);
+            i = RECORD_HEADER_SZ;
+        }
+        XMEMCPY(output + i, body + offset, fragSz);
+        i += fragSz;
+
+        /* These messages are always encrypted. */
+        sendSz = BuildTls13Message(ssl, output, sendSz,
+                                   output + RECORD_HEADER_SZ,
+                                   (int)(i - RECORD_HEADER_SZ), handshake,
+                                   hashOutput, 0, 0);
+        if (sendSz < 0) {
+            ret = sendSz;
+            break;
+        }
+
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
+        offset += fragSz;
+    }
+
+    XFREE(body, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* Would this message overflow the record_size_limit the peer negotiated?
+ * Deliberately keyed on the peer's limit rather than on the maximum plaintext
+ * size in general: max_fragment_length has never fragmented these three
+ * messages either, and changing that is not this change's business.
+ *
+ * ssl    The SSL/TLS object.
+ * msgSz  Bytes written to the output buffer, headers included.
+ * returns 1 when the message has to be split, otherwise 0.
+ */
+static int Tls13MsgNeedsFragmenting(WOLFSSL* ssl, word32 msgSz)
+{
+    int maxPlain;
+
+    if (ssl->peerRecordSizeLimit == 0)
+        return 0;
+    maxPlain = wolfssl_local_GetMaxPlaintextSize(ssl);
+    /* Returned negative on a bad argument or a DTLS MTU too small to carry a
+     * record. Compared directly, such a value reads as "needs splitting" and
+     * the real code is lost - the caller then failed in the fragmenting path
+     * with BUFFER_E instead. */
+    if (maxPlain < 0)
+        return maxPlain;
+    return (int)(msgSz - RECORD_HEADER_SZ) > maxPlain;
+}
+#endif /* HAVE_RECORD_SIZE_LIMIT */
+
 /* Send the rest of the extensions encrypted under the handshake key.
  * This message is always encrypted in TLS v1.3.
  * Only a server will send this message.
@@ -9441,6 +9591,28 @@ tls13_send_ee_build:
     }
 #endif /* WOLFSSL_DTLS13 */
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    ret = Tls13MsgNeedsFragmenting(ssl, idx);
+    if (ret < 0)
+        return ret;
+    if (ret != 0) {
+        ret = SendTls13FragmentedMsg(ssl, output, idx, encrypted_extensions,
+                                     1);
+        if (ret != 0)
+            return ret;
+
+        ssl->options.buildingMsg = 0;
+        ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
+        if (!ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendTls13EncryptedExtensions", ret);
+        WOLFSSL_END(WC_FUNC_ENCRYPTED_EXTENSIONS_SEND);
+
+        return ret;
+    }
+#endif
+
     /* This handshake message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
                                (int)(idx - RECORD_HEADER_SZ),
@@ -9549,6 +9721,39 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 
     }
 #endif /* WOLFSSL_DTLS13 */
+
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    ret = Tls13MsgNeedsFragmenting(ssl, i);
+    if (ret < 0)
+        return ret;
+    if (ret != 0) {
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+        /* Traced before the split, while output still holds the whole
+         * message: the fragments are the same bytes in several records, and
+         * SendTls13FragmentedMsg() may move the buffer. */
+        if (ssl->hsInfoOn)
+            AddPacketName(ssl, "CertificateRequest");
+        if (ssl->toInfoOn) {
+            ret = AddPacketInfo(ssl, "CertificateRequest", handshake, output,
+                          (int)i, WRITE_PROTO, 0, ssl->heap);
+            if (ret != 0)
+                return ret;
+        }
+    #endif
+        ret = SendTls13FragmentedMsg(ssl, output, i, certificate_request, 1);
+        if (ret != 0)
+            return ret;
+
+        ssl->options.buildingMsg = 0;
+        if (!ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendTls13CertificateRequest", ret);
+        WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_SEND);
+
+        return ret;
+    }
+#endif
 
     /* Always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
@@ -10849,6 +11054,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     word16 extSz[MAX_CERT_EXTENSIONS];
     word16 extIdx = 0;
     word32 maxFragment;
+    int    maxPlain;
     word32 totalextSz = 0;
     word32 len = 0;
     word32 idx = 0;
@@ -11026,7 +11232,40 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     if (ssl->fragOffset != 0)
         length -= (ssl->fragOffset + headerSz);
 
-    maxFragment = (word32)wolfssl_local_GetMaxPlaintextSize(ssl);
+    /* Checked before the cast: a DTLS MTU too small for any plaintext is
+     * reported as a negative value, which as a word32 would be larger than
+     * any record and would slip past every bound below. */
+    maxPlain = wolfssl_local_GetMaxPlaintextSize(ssl);
+    if (maxPlain < 0)
+        return maxPlain;
+    maxFragment = (word32)maxPlain;
+
+    /* The fixed part of the message -- the request context and the length
+     * fields counted in headerSz -- is written into the first fragment whole,
+     * and each piece is then subtracted from that fragment's remaining room.
+     * A fragment too small to hold it would take those word32 subtractions
+     * below zero, and the certificate would be copied far past the output
+     * buffer sized from fragSz. The two ends of that collision are both the
+     * peer's to choose: RFC 8449 Sect. 4 allows a record_size_limit as low as
+     * 64, and RFC 8446 Sect. 4.3.2 allows a post-handshake
+     * certificate_request_context of up to 255 bytes, which this end echoes.
+     * There is no way to answer within the limit, so refuse rather than
+     * fragment the fixed part, which the loop below cannot do.
+     * A first fragment that holds the fixed part exactly is refused too unless
+     * that is the whole message (an empty certificate_list): it leaves no room
+     * for certificate data, so ssl->fragOffset never advances and every pass
+     * of the loop would write the fixed part again.
+     * DTLS 1.3 is not affected: it leaves fragSz whole here and fragments in
+     * dtls13HandshakeSend(). */
+    if ((ssl->fragOffset == 0) && !ssl->options.dtls &&
+            ((maxFragment < headerSz + HANDSHAKE_HEADER_SZ) ||
+             ((maxFragment == headerSz + HANDSHAKE_HEADER_SZ) &&
+              (payloadSz > headerSz)))) {
+        WOLFSSL_MSG_EX("Certificate header of %u does not fit the peer's "
+                       "record size limit", (unsigned int)headerSz);
+        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+        return BUFFER_E;
+    }
 
     extIdx = 0;
 

@@ -3393,6 +3393,25 @@ typedef struct Keys {
 typedef struct Options Options;
 
 
+#ifdef HAVE_RECORD_SIZE_LIMIT
+/* The bound on the value as it appears on the wire, the one unit not exposed
+ * in ssl.h because no caller needs it: RFC 8449 Sect. 4 lets a TLS 1.3
+ * endpoint state at most 2^14+1, the full TLSInnerPlaintext including its
+ * content type byte. Everything above the wire counts payload instead, and
+ * TLSX_RecordSizeLimit_Write() and _Parse() are the only places the two units
+ * meet. The payload-side range and the default live beside the setters in
+ * wolfssl/ssl.h, where an application can reach them. */
+#define WOLFSSL_RECORD_SIZE_LIMIT_MAX_13  (MAX_RECORD_SIZE + 1)
+#endif
+
+/* The extension lives in the TLSX machinery, so a user_settings.h build
+ * that defines it without HAVE_TLS_EXTENSIONS gets a pile of undefined
+ * references rather than a statement of what is missing. configure and CMake
+ * add it for you; this catches the hand-written case. */
+#if defined(HAVE_RECORD_SIZE_LIMIT) && !defined(HAVE_TLS_EXTENSIONS)
+#error "HAVE_RECORD_SIZE_LIMIT requires HAVE_TLS_EXTENSIONS"
+#endif
+
 /** TLS Extensions - RFC 6066 */
 #ifdef HAVE_TLS_EXTENSIONS
 
@@ -3411,6 +3430,7 @@ typedef struct Options Options;
 #define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
 #define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
 #define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
+#define TLSXT_RECORD_SIZE_LIMIT          0x001c /* RFC 8449 */
 #define TLSXT_CERT_WITH_EXTERN_PSK       0x0021 /* RFC 9973 */
 #define TLSXT_SESSION_TICKET             0x0023
 #define TLSXT_PRE_SHARED_KEY             0x0029
@@ -3458,6 +3478,9 @@ typedef enum {
     TLSX_ENCRYPT_THEN_MAC           = TLSXT_ENCRYPT_THEN_MAC,
 #endif
     TLSX_EXTENDED_MASTER_SECRET     = TLSXT_EXTENDED_MASTER_SECRET,
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    TLSX_RECORD_SIZE_LIMIT          = TLSXT_RECORD_SIZE_LIMIT,
+#endif
     TLSX_SESSION_TICKET             = TLSXT_SESSION_TICKET,
 #ifdef WOLFSSL_TLS13
     #ifdef WOLFSSL_EARLY_DATA
@@ -4608,6 +4631,17 @@ struct WOLFSSL_CTX {
     WOLFSSL_EVP_PKEY* volatile privateKeyPKey;
 #endif
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
+#endif
+/* Outside the NO_CERTS section above on purpose: the extension needs no
+ * certificate, at either version. A PSK-only TLS 1.3 server still sends
+ * EncryptedExtensions and NewSessionTicket, and record_size_limit governs
+ * both; a TLS 1.2 build negotiates the extension in the ServerHello with no
+ * certificate involved either. */
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    word16      recordSizeLimit;     /* largest record we will accept, 0 to
+                                      * not advertise a limit */
+    byte        recordSizeLimitSet;  /* application chose it, not the
+                                      * default */
 #endif
 #ifdef KEEP_OUR_CERT
     WOLFSSL_X509*    ourCert;     /* keep alive a X509 struct of cert */
@@ -7243,6 +7277,21 @@ struct WOLFSSL {
 #ifdef WOLFSSL_TLS13
     word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
     byte*           certHashSigAlgo;    /* peer's cert sig/algo list */
+#endif
+#ifdef HAVE_RECORD_SIZE_LIMIT
+    /* RFC 8449. recordSizeLimit is what this end advertised and so enforces on
+     * arrival; peerRecordSizeLimit is what the peer advertised and so caps
+     * what this end sends. Both 0 when the extension was not exchanged. */
+    word16          recordSizeLimit;
+    word16          peerRecordSizeLimit;
+    /* The value last written into this end's record_size_limit extension,
+     * including the TLS 1.3 content type byte when that was folded in. A
+     * client advertises before the version is settled, so this is the only
+     * record of what the peer was actually told; 0 until it is sent. */
+    word16          recordSizeLimitSent;
+    /* Whether recordSizeLimit came from the application or is the built-in
+     * default, which decides who yields to max_fragment_length. */
+    byte            recordSizeLimitSet;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     int             eccVerifyRes;

@@ -8770,10 +8770,22 @@ int wolfSSL_negotiate(WOLFSSL* ssl);
     transport is known when the WOLFSSL object is created, this is reported
     rather than dropped.
 
+    A connection cannot both compress its records and use the RFC 8449
+    record_size_limit extension: the limit bounds the plaintext, which deflate
+    may expand past it. A limit the application set with
+    wolfSSL_UseRecordSizeLimit() or wolfSSL_CTX_UseRecordSizeLimit() is its
+    request, so this call is refused; the advertisement that is on by default
+    gives way instead, and such a connection offers no limit. It can give way
+    only before it is sent or answered, so call this before the handshake
+    starts: from a server's SNI callback, for one, it is refused whenever the
+    client offered record_size_limit.
+
     \return SSL_SUCCESS upon success.
     \return NOT_COMPILED_IN will be returned if compression support wasn’t
     built into the library.
-    \return BAD_FUNC_ARG will be returned if ssl is NULL or is a DTLS session.
+    \return BAD_FUNC_ARG will be returned if ssl is NULL, is a DTLS session,
+    was given a record size limit, or has already advertised, sent or
+    received one.
 
     \param ssl pointer to the SSL session, created with wolfSSL_new().
 
@@ -11171,12 +11183,13 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz);
 
 /*!
     \brief Returns the maximum record layer size for plaintext data.  This
-    will correspond to either the maximum SSL/TLS record size as specified
-    by the protocol standard, the maximum TLS fragment size as set by the
-    TLS Max Fragment Length extension. This function is helpful when the
-    application has called wolfSSL_GetOutputSize() and received a INPUT_SIZE_E
-    error. This function must be called after the SSL/TLS handshake has been
-    completed.
+    will correspond to the smallest of the maximum SSL/TLS record size as
+    specified by the protocol standard, the maximum TLS fragment size as set
+    by the TLS Max Fragment Length extension, and the limit the peer
+    advertised with the RFC 8449 record_size_limit extension. This function is
+    helpful when the application has called wolfSSL_GetOutputSize() and
+    received a INPUT_SIZE_E error. This function must be called after the
+    SSL/TLS handshake has been completed.
 
     \return size Upon success, the maximum output size will be returned
     \return BAD_FUNC_ARG will be returned upon invalid function argument,
@@ -11190,6 +11203,8 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz);
     \endcode
 
     \sa wolfSSL_GetOutputSize
+    \sa wolfSSL_UseRecordSizeLimit
+    \sa wolfSSL_UseMaxFragment
 */
 int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl);
 
@@ -14218,8 +14233,104 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
 
     \sa wolfSSL_new
     \sa wolfSSL_CTX_UseMaxFragment
+    \sa wolfSSL_UseRecordSizeLimit
 */
 int wolfSSL_UseMaxFragment(WOLFSSL* ssl, unsigned char mfl);
+
+/*!
+    \brief Sets the largest record payload this end will accept, advertised as
+    the RFC 8449 record_size_limit extension. A client sends it in the
+    ClientHello; a server that received one answers in EncryptedExtensions
+    under TLS 1.3 or in the ServerHello under TLS 1.2. The extension only
+    takes effect when both ends send it, so the peer's records are capped only
+    once it has answered. It supersedes max_fragment_length, which offers four
+    fixed sizes rather than an exact byte count; where a peer sends both, RFC
+    8449 Sect. 5 says record_size_limit governs.
+
+    The count is payload. RFC 8449's field on the wire covers the whole TLS
+    1.3 TLSInnerPlaintext, so a request for n goes out as n+1 under TLS 1.3
+    and as n under TLS 1.2; the conversion is internal.
+
+    A limit is advertised by default. Pass WOLFSSL_RECORD_SIZE_LIMIT_OFF to
+    stop advertising one. Must be called before the handshake starts, since
+    the value is both advertised to the peer and enforced on arrival: on the
+    context, or on the object before wolfSSL_connect() or wolfSSL_accept().
+    A server callback is too late. A certificate setup callback and an SNI
+    callback both run after the ClientHello's extensions have been parsed, so
+    either is refused whenever the client sent record_size_limit - and a
+    client that sent the extension is the only case in which a server's limit
+    would be answered at all.
+
+    Record layer compression is refused on a connection that was given a
+    limit, and a limit is refused on one that compresses: RFC 8449 Sect. 4
+    measures the limit against the plaintext, which deflate may expand past
+    it. A limit set here is the application's request and wins, so
+    wolfSSL_set_compression() then fails; the advertisement that is on by
+    default gives way instead, and such a connection offers no limit.
+
+    The default limit stands aside for an application that asked for
+    max_fragment_length with wolfSSL_UseMaxFragment(), so a client that set
+    one keeps offering it alone. Calling this function explicitly overrides
+    that: the application has then asked for both, and RFC 8449 Sect. 5 says
+    record_size_limit governs.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return BAD_FUNC_ARG for any of four distinct causes: ssl is NULL, limit
+    is outside WOLFSSL_RECORD_SIZE_LIMIT_MIN..WOLFSSL_RECORD_SIZE_LIMIT_MAX
+    (and not WOLFSSL_RECORD_SIZE_LIMIT_OFF), the handshake has already begun,
+    or wolfSSL_set_compression() was called on this object. The last two are
+    state errors rather than bad arguments; they share the code so that
+    existing callers testing for failure are unaffected.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param limit largest record payload accepted, from
+    WOLFSSL_RECORD_SIZE_LIMIT_MIN (64) to WOLFSSL_RECORD_SIZE_LIMIT_MAX
+    (16384), or WOLFSSL_RECORD_SIZE_LIMIT_OFF (0) to advertise nothing.
+    Defaults to WOLFSSL_RECORD_SIZE_LIMIT_DEFAULT.
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        // ssl creation failed
+    }
+    ret = wolfSSL_UseRecordSizeLimit(ssl, 1024);
+    if (ret != WOLFSSL_SUCCESS) {
+        // limit rejected
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_UseRecordSizeLimit
+    \sa wolfSSL_UseMaxFragment
+    \sa wolfSSL_GetMaxOutputSize
+*/
+int wolfSSL_UseRecordSizeLimit(WOLFSSL* ssl, unsigned short limit);
+
+/*!
+    \brief Sets the record_size_limit inherited by every WOLFSSL object
+    created from this context afterwards. See wolfSSL_UseRecordSizeLimit() for
+    what the value means and how the extension is negotiated.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return BAD_FUNC_ARG when ctx is NULL or limit is out of range.
+
+    \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
+    \param limit largest record payload accepted, from
+    WOLFSSL_RECORD_SIZE_LIMIT_MIN (64) to WOLFSSL_RECORD_SIZE_LIMIT_MAX
+    (16384), or WOLFSSL_RECORD_SIZE_LIMIT_OFF (0) to advertise nothing.
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_UseRecordSizeLimit(ctx, 512);
+    if (ret != WOLFSSL_SUCCESS) {
+        // limit rejected
+    }
+    \endcode
+
+    \sa wolfSSL_UseRecordSizeLimit
+*/
+int wolfSSL_CTX_UseRecordSizeLimit(WOLFSSL_CTX* ctx, unsigned short limit);
 
 /*!
     \brief This function is called on the client side to enable the use
