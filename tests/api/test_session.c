@@ -3703,6 +3703,90 @@ int test_wolfSSL_session_cache_restore(void)
         * !SESSION_CACHE_DYNAMIC_MEM && !TITAN_SESSION_CACHE &&
         * !HUGE_SESSION_CACHE */
 
+/* Builds with HAVE_EX_DATA but without HAVE_EX_DATA_CRYPTO have no index
+ * API and no callback list, so any slot below MAX_EX_DATA can be used. Compat
+ * builds are covered by test_tls13_session_ex_data_dup, and their session
+ * index budget is fully used. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_EX_DATA) && \
+    !defined(HAVE_EX_DATA_CRYPTO) && !defined(NO_SESSION_CACHE) && \
+    (!defined(WOLFSSL_NO_TLS12) || \
+     (defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+      defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID)))
+/* At least one of the cases below can run. */
+#define TEST_SESSION_EXDATA_DUP
+#endif
+
+#ifdef TEST_SESSION_EXDATA_DUP
+#define TEST_SESSION_EXDATA_DUP_SLOT 0
+
+static int test_session_ex_data_dup_case(method_provider client_method,
+        method_provider server_method)
+{
+    EXPECT_DECLS;
+    static int marker;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL_SESSION *dup = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        client_method, server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The server session is cached by now, so the set goes to the cache
+     * entry and the handle keeps no copy. */
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
+        TEST_SESSION_EXDATA_DUP_SLOT, &marker), WOLFSSL_SUCCESS);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->session->ownExData, 0);
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(wolfSSL_get_session(ssl_s),
+        TEST_SESSION_EXDATA_DUP_SLOT), &marker);
+
+    /* Nothing frees this slot (no callback API, no cleanup routine), so the
+     * duplicate shares the cache entry's pointer rather than getting the
+     * handle's empty array. */
+    ExpectNotNull(dup = wolfSSL_SESSION_dup(wolfSSL_get_session(ssl_s)));
+    ExpectPtrEq(wolfSSL_SESSION_get_ex_data(dup,
+        TEST_SESSION_EXDATA_DUP_SLOT), &marker);
+    wolfSSL_SESSION_free(dup);
+
+    /* The cache entry outlives this test: do not leave the marker in it. */
+    ExpectIntEQ(wolfSSL_SESSION_set_ex_data(wolfSSL_get_session(ssl_s),
+        TEST_SESSION_EXDATA_DUP_SLOT, NULL), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A server session handle that does not own its ex_data (the cache entry
+ * does) must hand the cached ex_data to wolfSSL_SESSION_dup() in builds
+ * without the ex_data callback API. Builds with it are covered by
+ * test_tls13_session_ex_data_dup. */
+int test_wolfSSL_SESSION_dup_ex_data_no_owner(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_SESSION_EXDATA_DUP
+#ifndef WOLFSSL_NO_TLS12
+    /* TLS 1.2 caches the session by ID at the end of the handshake. */
+    ExpectIntEQ(test_session_ex_data_dup_case(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID)
+    /* TLS 1.3 only caches the session when the server sends a ticket (it
+     * needs a ticket encryption callback) and tickets carry an ID. */
+    ExpectIntEQ(test_session_ex_data_dup_case(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Decision-coverage drivers for the ssl_sess.c argument guards left
  * unpaired by the functional tests. Each block names the
  * source line:condition it closes. */
