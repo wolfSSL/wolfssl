@@ -850,6 +850,74 @@ int test_wolfSSL_X509_STORE_CTX_get0_untrusted(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+static int test_untrusted_cb_calls;
+static int test_untrusted_cb_bad;
+
+/* Certs of server-chain.pem, in the order the server sends them. */
+static const char* const test_untrusted_files[] = {
+    "./certs/intermediate/server-int-cert.pem",
+    "./certs/intermediate/ca-int2-cert.pem",
+    "./certs/intermediate/ca-int-cert.pem"
+};
+
+static int test_untrusted_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
+{
+    STACK_OF(X509)* sk = X509_STORE_CTX_get0_untrusted(ctx);
+    X509* x509;
+    int i;
+
+    (void)preverify_ok;
+    test_untrusted_cb_calls++;
+    if (sk == NULL || sk != X509_STORE_CTX_get0_untrusted(ctx) ||
+            sk_X509_num(sk) != 3) {
+        test_untrusted_cb_bad = 1;
+        return 1;
+    }
+    for (i = 0; i < 3; i++) {
+        x509 = X509_load_certificate_file(test_untrusted_files[i],
+            SSL_FILETYPE_PEM);
+        if (x509 == NULL || X509_cmp(sk_X509_value(sk, i), x509) != 0)
+            test_untrusted_cb_bad = 1;
+        X509_free(x509);
+    }
+    /* Override the missing CA error. */
+    return 1;
+}
+
+static int test_untrusted_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, test_untrusted_verify_cb);
+    return TEST_SUCCESS;
+}
+#endif
+
+/* In a handshake verify callback the untrusted certs are the peer's. */
+int test_wolfSSL_X509_STORE_CTX_get0_untrusted_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    /* Not the server's CA, so the verify callback is called. */
+    client_cbs.caPemFile = "./certs/client-cert.pem";
+    client_cbs.ctx_ready = test_untrusted_ctx_ready;
+    server_cbs.certPemFile = "./certs/intermediate/server-chain.pem";
+    test_untrusted_cb_calls = 0;
+    test_untrusted_cb_bad = 0;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+    ExpectIntGT(test_untrusted_cb_calls, 0);
+    ExpectIntEQ(test_untrusted_cb_bad, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
 static int verify_cb(int ok, X509_STORE_CTX *ctx)
