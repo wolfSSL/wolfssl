@@ -37610,6 +37610,72 @@ static int IsTls13CipherSuite(byte first, byte second)
 
 #ifndef WOLFSSL_NO_TLS12
 
+    /* RFC 5246 7.4.1.2: a ClientHello resuming a session MUST offer the
+     * session's cipher suite. Returns 1 when the session can be offered with
+     * suites and 0 when the client must do a full handshake instead. */
+    static int ResumeSuiteOffered(const WOLFSSL* ssl, const Suites* suites)
+    {
+#ifndef NO_RESUME_SUITE_CHECK
+        const WOLFSSL_SESSION* sess = ssl->session;
+
+        /* No suite retained (both zero = TLS_NULL_WITH_NULL_NULL, e.g. an
+         * EAP-FAST PAC whose keys come from the session secret callback). A
+         * retained suite is enforced even with that callback set: the server
+         * must pick an offered suite, and CheckResumptionConsistency() rejects
+         * one that differs from the session's. */
+        if (sess->cipherSuite0 == 0 && sess->cipherSuite == 0)
+            return 1;
+    #ifdef WOLFSSL_TLS13
+        /* TLS 1.3 suites are left out of a ClientHello below TLS 1.3. */
+        if (IsTls13CipherSuite(sess->cipherSuite0, sess->cipherSuite))
+            return 0;
+    #endif
+        return FindSuite(suites, sess->cipherSuite0, sess->cipherSuite) >= 0;
+#else
+        (void)ssl;
+        (void)suites;
+        return 1;
+#endif
+    }
+
+    /* Decline the session set with wolfSSL_SetSession() when a ClientHello
+     * below TLS 1.3 could not offer its cipher suite (see ResumeSuiteOffered).
+     * The client then does a full handshake over the version range it was
+     * configured with: wolfSSL_SetSession() pinned ssl->version to the
+     * session's version, and a TLS 1.3 capable client that sent a TLS 1.2
+     * only ClientHello without resuming would fail the downgrade check on the
+     * ServerHello (RFC 8446 4.1.3). Call before the ClientHello version is
+     * chosen. Returns 0 on success, otherwise a negative error. */
+    static int DeclineUnofferedResumption(WOLFSSL* ssl)
+    {
+        if (!ssl->options.resuming || IsAtLeastTLSv1_3(ssl->version) ||
+                ResumeSuiteOffered(ssl, WOLFSSL_SUITES(ssl))) {
+            return 0;
+        }
+
+        WOLFSSL_MSG("Session cipher suite not offered; full handshake");
+        ssl->options.resuming = 0;
+
+        /* The version before wolfSSL_SetSession(): the method's, or the
+         * maximum set with wolfSSL_SetVersion() (see TLSv1_3_Capable()). */
+        ssl->version = ssl->ctx->method->version;
+        if (ssl->options.versionSet)
+            ssl->version.minor = ssl->options.maxVersionMinor;
+
+    #ifdef HAVE_SESSION_TICKET
+        /* Like the expired ticket fallback in SendClientHello(): send an
+         * empty SessionTicket extension so the full handshake still requests
+         * a new ticket. */
+        if (ssl->session->ticketLen > 0 && !IsAtLeastTLSv1_3(ssl->version)) {
+            int ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
+            if (ret != WOLFSSL_SUCCESS)
+                return ret;
+        }
+    #endif
+
+        return 0;
+    }
+
     /* handle generation of client_hello (1) */
     int SendClientHello(WOLFSSL* ssl)
     {
@@ -37640,15 +37706,19 @@ static int IsTls13CipherSuite(byte first, byte second)
         }
 #endif
 
-#ifdef WOLFSSL_TLS13
-        if (IsAtLeastTLSv1_3(ssl->version))
-            return SendTls13ClientHello(ssl);
-#endif
-
 #ifdef HAVE_SECURE_RENEGOTIATION
         /* We don't want to resume in SCR */
         if (IsSCR(ssl))
             ssl->options.resuming = 0;
+#endif
+
+        ret = DeclineUnofferedResumption(ssl);
+        if (ret != 0)
+            return ret;
+
+#ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version))
+            return SendTls13ClientHello(ssl);
 #endif
 
         idSz = ssl->options.resuming ? ssl->session->sessionIDSz : 0;

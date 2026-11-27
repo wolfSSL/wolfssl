@@ -3459,10 +3459,13 @@ int test_tls12_etm_failed_resumption(void)
  * cannot rely on the suite being bound inside it and must compare the
  * ServerHello suite against the suite retained in the cached session (F-5811
  * does this for session-ID resumption; it must hold for tickets too). This
- * test establishes a ticket-based session, rewrites the cached session's suite
- * to emulate a server that resumes the ticket under a different suite, and
- * asserts the client aborts the resumption with MATCH_SUITE_ERROR. The same
- * server CTX is reused for the second handshake so its ticket key persists. */
+ * test establishes a ticket-based session on suite A, rewrites the cached
+ * session's suite to B to emulate a server that resumes the ticket under a
+ * different suite, and asserts the client aborts the resumption with
+ * MATCH_SUITE_ERROR. The client offers both A and B, so it still resumes (a
+ * client that does not offer the session's suite does a full handshake,
+ * RFC 5246 7.4.1.2). The same server CTX is reused for the second handshake
+ * so its ticket key persists. */
 int test_tls12_resume_ticket_wrong_suite(void)
 {
     EXPECT_DECLS;
@@ -3479,9 +3482,13 @@ int test_tls12_resume_ticket_wrong_suite(void)
     WOLFSSL *ssl_c3 = NULL, *ssl_s3 = NULL;
     WOLFSSL_SESSION *sess = NULL;
     struct test_memio_ctx test_ctx;
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    const char* suiteAB =
+        "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384";
     struct test_memio_ctx test_ctx2;
-    struct test_memio_ctx test_ctx3;
     int ret;
+#endif
+    struct test_memio_ctx test_ctx3;
 
     /* First handshake: establish a ticket-based TLS 1.2 session. */
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -3496,25 +3503,29 @@ int test_tls12_resume_ticket_wrong_suite(void)
     /* Must be a ticket session to exercise the ticket path. */
     ExpectIntGT(sess->ticketLen, 0);
 
-    /* Case 1 - downgrading server: change the cached suite so it no longer
-     * matches the suite the server reuses from the ticket, but keep it
-     * non-zero so it still counts as a retained suite. The value only feeds
-     * the comparison (the real keys come from the ServerHello suite), so
-     * flipping it is sufficient and safe. The client must reject the
-     * resumption against the same server CTX (ticket key persists). */
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    /* Case 1 - downgrading server: change the cached suite from A to B so it
+     * no longer matches the suite the server reuses from the ticket (A). B is
+     * in the client's list, so the client still offers the ticket. The value
+     * only feeds the comparison (the real keys come from the ServerHello
+     * suite), so rewriting it is sufficient and safe. The client must reject
+     * the resumption against the same server CTX (ticket key persists). */
+    ExpectIntEQ(sess != NULL ? sess->cipherSuite : 0,
+                TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
     if (sess != NULL)
-        sess->cipherSuite = (byte)(sess->cipherSuite ^ 0xFF);
+        sess->cipherSuite = TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
 
     XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
     ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c2, suite), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c2, suiteAB), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s2, suite), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c2), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
     ret = test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL);
     ExpectIntNE(ret, 0);
     ExpectIntEQ(ssl_c2->error, WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+#endif /* BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 */
 
     /* Case 2 - session that retained no suite (cipherSuite0/cipherSuite both
      * zero), as for an EAP-FAST PAC whose keys come from the session-secret
@@ -5377,6 +5388,372 @@ int test_tls12_resume_ticket_decline_fallback(void)
     defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
     ExpectIntEQ(test_tls12_resume_ticket_decline_fallback_ex(0), TEST_SUCCESS);
     ExpectIntEQ(test_tls12_resume_ticket_decline_fallback_ex(1), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_RESUME_SUITE_CHECK) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+/* One case of test_tls12_resume_suite_not_offered. The first connection
+ * establishes a session on suite B. The second sets that session and a suite
+ * list, in the order given by sessionFirst, that offers only A, or A and B when
+ * offerSessionSuite is set. */
+static int test_tls12_resume_suite_not_offered_ex(int useTicket,
+    int sessionFirst, int offerSessionSuite)
+{
+    EXPECT_DECLS;
+    const char* suiteA  = "ECDHE-RSA-AES128-GCM-SHA256";
+    const char* suiteB  = "ECDHE-RSA-AES256-GCM-SHA384";
+    const char* suiteAB =
+        "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384";
+    const char* list2 = offerSessionSuite ? suiteAB : suiteA;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    WOLFSSL_SESSION *sess2 = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+    /* legacy session_id length byte: record and handshake headers, version,
+     * random */
+    const int idLenOff = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + VERSION_SZ +
+                         RAN_LEN;
+
+    /* First connection: a session on suite B. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, suiteB), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, suiteAB), WOLFSSL_SUCCESS);
+#ifdef HAVE_SESSION_TICKET
+    if (useTicket)
+        ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+#endif
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntEQ(sess != NULL ? sess->cipherSuite : 0,
+                TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384);
+#ifdef HAVE_SESSION_TICKET
+    if (useTicket)
+        ExpectIntGT(sess != NULL ? sess->ticketLen : 0, 0);
+#endif
+
+    /* Second connection, against the same server CTX (cache and ticket key
+     * persist). */
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s2, suiteAB), WOLFSSL_SUCCESS);
+    /* No wolfSSL_UseSessionTicket(ssl_c2): the session's ticket alone makes
+     * the client offer it, or request a new one when it is declined. */
+    if (sessionFirst) {
+        ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c2, list2), WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c2, list2), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    }
+
+    /* The ClientHello offers the session ID only when it offers the suite. A
+     * ticket resumption sends no session ID either way. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(test_ctx2.s_len, idLenOff);
+    ExpectIntEQ(test_ctx2.s_buff[idLenOff],
+                (offerSessionSuite && !useTicket) ? ID_LEN : 0);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2), offerSessionSuite ? 1 : 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), offerSessionSuite ? 1 : 0);
+    ExpectIntEQ(ssl_c2 != NULL ? ssl_c2->options.cipherSuite : 0,
+                offerSessionSuite ? TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
+                                    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
+#ifdef HAVE_SESSION_TICKET
+    /* The full handshake still requests, and gets, a new ticket, though this
+     * connection never opted in to tickets. */
+    if (useTicket && !offerSessionSuite) {
+        ExpectNotNull(sess2 = wolfSSL_get1_session(ssl_c2));
+        ExpectIntGT(sess2 != NULL ? sess2->ticketLen : 0, 0);
+        ExpectIntEQ(sess2 != NULL ? sess2->cipherSuite : 0,
+                    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
+        /* Not the old ticket that wolfSSL_set_session() copied in. */
+        ExpectTrue(sess != NULL && sess2 != NULL &&
+                   (sess2->ticketLen != sess->ticketLen ||
+                    XMEMCMP(sess2->ticket, sess->ticket,
+                            sess->ticketLen) != 0));
+    }
+#endif
+
+    wolfSSL_SESSION_free(sess2);
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_RESUME_SUITE_CHECK) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) && \
+    defined(WOLFSSL_TLS13) && defined(BUILD_TLS_AES_128_GCM_SHA256)
+/* A downgrade-capable client holding a TLS 1.2 session on suite B connects to
+ * a TLS 1.3 capable server, which holds the session (sameServer) or misses
+ * it. wolfSSL_set_session() pins the ClientHello to TLS 1.2. When the client
+ * declines the session because it offers only A, it must also offer its full
+ * version range: a TLS 1.2 only ClientHello without resumption gets a
+ * ServerHello with the TLS 1.3 downgrade sentinel (RFC 8446 4.1.3), which the
+ * client rejects. */
+static int test_tls12_resume_suite_not_offered_downgrade_ex(int sameServer,
+    int offerSessionSuite)
+{
+    EXPECT_DECLS;
+    const char* list2 = offerSessionSuite ?
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+        "ECDHE-RSA-AES256-GCM-SHA384" :
+        "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256";
+    WOLFSSL_CTX *ctx_c12 = NULL, *ctx_c = NULL, *ctx_s = NULL, *ctx_s2 = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+
+    /* First connection: a TLS 1.2 session on suite B. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c12, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "ECDHE-RSA-AES256-GCM-SHA384"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+
+    /* Second connection: a downgrade-capable client. The session cache is
+     * global, so turn it off on the server to make it miss the session. */
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c,
+                    sameServer ? &ctx_s : &ctx_s2, &ssl_c2, &ssl_s2,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    if (!sameServer && ssl_s2 != NULL)
+        ssl_s2->options.sessionCacheOff = 1;
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c2, list2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2),
+                (offerSessionSuite && sameServer) ? 1 : 0);
+    /* Declined: a full handshake at the client's highest version. Offered:
+     * the TLS 1.2 ClientHello wolfSSL_set_session() asked for. */
+    ExpectIntEQ(ssl_c2 != NULL ? ssl_c2->version.minor : 0,
+                offerSessionSuite ? TLSv1_2_MINOR : TLSv1_3_MINOR);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c12);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_s2);
+    return EXPECT_RESULT();
+}
+
+/* A ClientHello below TLS 1.3 leaves TLS 1.3 suites out, so it cannot offer a
+ * session whose suite is one, even when the suite list has it. A real TLS 1.2
+ * session never has a TLS 1.3 suite, so the session's suite is rewritten, as
+ * for a session imported with inconsistent fields. The client must decline it
+ * and do a full handshake over its whole version range. */
+static int test_tls12_resume_suite_not_offered_tls13_suite(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c12 = NULL, *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c12, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "ECDHE-RSA-AES256-GCM-SHA384"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    if (sess != NULL) {
+        sess->cipherSuite0 = TLS13_BYTE;
+        sess->cipherSuite  = TLS_AES_128_GCM_SHA256;
+    }
+
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfSSLv23_client_method, wolfSSLv23_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c2,
+                    "TLS13-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    /* The ClientHello sent does not resume and offers TLS 1.3 again. */
+    ExpectIntGT(test_ctx2.s_len, 0);
+    ExpectIntEQ(ssl_c2 != NULL ? ssl_c2->options.resuming : 1, 0);
+    ExpectIntEQ(ssl_c2 != NULL ? ssl_c2->version.minor : 0, TLSv1_3_MINOR);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2), 0);
+    ExpectIntEQ(ssl_c2 != NULL ? ssl_c2->version.minor : 0, TLSv1_3_MINOR);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c12);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_RESUME_SUITE_CHECK) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) && \
+    defined(HAVE_SECRET_CALLBACK) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+/* Supplies the session's master secret, as an EAP-FAST peer would. */
+static int test_tls12_resume_suite_secret_cb(WOLFSSL* ssl, void* secret,
+    int* secretSz, void* ctx)
+{
+    (void)ssl;
+    if (*secretSz < SECRET_LEN)
+        return -1;
+    XMEMCPY(secret, ((WOLFSSL_SESSION*)ctx)->masterSecret, SECRET_LEN);
+    *secretSz = SECRET_LEN;
+    return 0;
+}
+
+/* A session secret callback (EAP-FAST) does not exempt a session that retained
+ * its suite: the server must pick an offered suite and the client rejects a
+ * resumption under another one, so a client whose list does not have the
+ * session's suite does a full handshake. */
+static int test_tls12_resume_suite_not_offered_secret_cb(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    WOLFSSL *ssl_c2 = NULL, *ssl_s2 = NULL;
+    WOLFSSL_SESSION *sess = NULL;
+    struct test_memio_ctx test_ctx;
+    struct test_memio_ctx test_ctx2;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "ECDHE-RSA-AES256-GCM-SHA384"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(sess = wolfSSL_get1_session(ssl_c));
+    ExpectIntGT(sess != NULL ? sess->ticketLen : 0, 0);
+
+    XMEMSET(&test_ctx2, 0, sizeof(test_ctx2));
+    ExpectIntEQ(test_memio_setup(&test_ctx2, &ctx_c, &ctx_s, &ssl_c2, &ssl_s2,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c2, "ECDHE-RSA-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSessionTicket(ssl_c2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session_secret_cb(ssl_c2,
+                    test_tls12_resume_suite_secret_cb, sess), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(ssl_c2, sess), WOLFSSL_SUCCESS);
+
+    /* The first flight already gave up the session. */
+    ExpectIntEQ(wolfSSL_connect(ssl_c2), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c2, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(ssl_c2 != NULL ? ssl_c2->options.resuming : 1, 0);
+
+    /* The full handshake completes on the offered suite. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c2, ssl_s2, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_c2), 0);
+    ExpectIntEQ(wolfSSL_session_reused(ssl_s2), 0);
+    ExpectStrEQ(wolfSSL_get_cipher_name(ssl_c2),
+                "ECDHE-RSA-AES128-GCM-SHA256");
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c2);
+    wolfSSL_free(ssl_s2);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* RFC 5246 7.4.1.2: a ClientHello that resumes a session MUST offer the
+ * session's cipher suite. A client whose suite list no longer has it, set
+ * before or after wolfSSL_set_session(), must do a full handshake instead of
+ * sending a ClientHello the server rejects (GitHub issue #12203). With the
+ * suite still offered, the session resumes. */
+int test_tls12_resume_suite_not_offered(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SESSION_CACHE) && \
+    !defined(NO_RESUME_SUITE_CHECK) && !defined(NO_RSA) && defined(HAVE_ECC) && \
+    !defined(NO_AES) && defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+    int useTicket;
+    int sessionFirst;
+    int offer;
+    int maxTicket = 0;
+#if defined(WOLFSSL_TLS13) && defined(BUILD_TLS_AES_128_GCM_SHA256)
+    int sameServer;
+#endif
+
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    maxTicket = 1;
+#endif
+    for (useTicket = 0; useTicket <= maxTicket; useTicket++) {
+        for (sessionFirst = 0; sessionFirst <= 1; sessionFirst++) {
+            for (offer = 0; offer <= 1; offer++) {
+                ExpectIntEQ(test_tls12_resume_suite_not_offered_ex(useTicket,
+                                sessionFirst, offer), TEST_SUCCESS);
+            }
+        }
+    }
+#if defined(WOLFSSL_TLS13) && defined(BUILD_TLS_AES_128_GCM_SHA256)
+    for (sameServer = 0; sameServer <= 1; sameServer++) {
+        for (offer = 0; offer <= 1; offer++) {
+            ExpectIntEQ(test_tls12_resume_suite_not_offered_downgrade_ex(
+                            sameServer, offer), TEST_SUCCESS);
+        }
+    }
+    ExpectIntEQ(test_tls12_resume_suite_not_offered_tls13_suite(),
+                TEST_SUCCESS);
+#endif
+#if defined(HAVE_SECRET_CALLBACK) && defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    ExpectIntEQ(test_tls12_resume_suite_not_offered_secret_cb(), TEST_SUCCESS);
+#endif
 #endif
     return EXPECT_RESULT();
 }
