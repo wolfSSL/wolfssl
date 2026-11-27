@@ -44,6 +44,49 @@
 
 /* Tests for the certificate APIs in src/ssl_api_cert.c (moved from ssl.c). */
 
+/* Supply the same DER credentials at context and connection scope. */
+int test_wolfSSL_certificate_buffer_options(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && \
+    !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    const byte* cert = client_cert_der_2048;
+    long certSz = sizeof_client_cert_der_2048;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(NULL, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, certSz, -1),
+        WOLFSSL_BAD_FILETYPE);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, -1,
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_use_certificate_buffer(NULL, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+    ExpectIntEQ(wolfSSL_use_certificate_buffer(ssl, cert, certSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
+        sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test reading back the verification mode from an object.
  *
  * @return  TEST_SUCCESS on success.
