@@ -11676,3 +11676,89 @@ int test_wc_PKCS7_VerifySignedData_StreamOutWithCerts(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && \
+    !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+static int pkcs7_stream_out_count_cb(PKCS7* pkcs7, const byte* output,
+    word32 outputSz, void* ctx)
+{
+    int ret = pkcs7_stream_out_cb(pkcs7, output, outputSz, ctx);
+
+    return (ret == 0) ? (int)outputSz : ret;
+}
+#endif
+
+/* A negative stream-out callback return fails the verify, and a byte count
+ * goes on to the signature check. */
+int test_wc_PKCS7_VerifySignedData_StreamOutCallbackReturn(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && \
+    !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    byte   data[100];
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    byte*  bad = NULL;
+    int    msgSz = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    pkcs7StreamOutCtx out;
+
+    XMEMSET(data, 'A', sizeof(data));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(bad = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data, sizeof(data),
+            0, &rng)), 0);
+    }
+
+    /* a full callback buffer makes the callback return BUFFER_E */
+    XMEMSET(&out, 0, sizeof(out));
+    out.sz = sizeof(out.buf);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, pkcs7_stream_out_cb,
+        &out), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* a callback returning the byte count verifies the message and fails a
+     * tampered signature with SIG_VERIFY_E */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(bad, msg, (word32)msgSz);
+        bad[msgSz - 1] ^= 0x01;
+    }
+    XMEMSET(&out, 0, sizeof(out));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+        pkcs7_stream_out_count_cb, &out), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    ExpectIntEQ(out.sz, sizeof(data));
+    ExpectBufEQ(out.buf, data, sizeof(data));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    XMEMSET(&out, 0, sizeof(out));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+        pkcs7_stream_out_count_cb, &out), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bad, (word32)msgSz),
+        WC_NO_ERR_TRACE(SIG_VERIFY_E));
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(bad, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

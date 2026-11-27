@@ -367,8 +367,9 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate, or if a certificates-only (degenerate)
-    message holds more than MAX_PKCS7_CERTS certificates
+    hold the encoded certificate, if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates, or if the
+    stream-out callback returns a negative value
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -457,8 +458,9 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate, or if a certificates-only (degenerate)
-    message holds more than MAX_PKCS7_CERTS certificates
+    hold the encoded certificate, if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates, or if the
+    stream-out callback returns a negative value
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -2167,7 +2169,9 @@ int wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx);
     \param pkcs7 PKCS7 structure
     \param flag Stream mode flag
     \param getContentCb Get content callback
-    \param streamOutCb Stream output callback
+    \param streamOutCb Stream output callback. A verify fails with BUFFER_E
+    when it returns a negative value and continues on zero or a byte count;
+    a decode fails with BUFFER_E on any non-zero return.
     \param ctx Context pointer
 
     _Example_

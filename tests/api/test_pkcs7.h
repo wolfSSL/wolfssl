@@ -120,6 +120,7 @@ int test_wc_PKCS7_VerifySignedData_CertSetAttrCert(void);
 int test_wc_PKCS7_VerifySignedData_ConstructedContent(void);
 int test_wc_PKCS7_VerifySignedData_StreamOutDetached(void);
 int test_wc_PKCS7_VerifySignedData_StreamOutWithCerts(void);
+int test_wc_PKCS7_VerifySignedData_StreamOutCallbackReturn(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -205,7 +206,9 @@ int test_wc_PKCS7_VerifySignedData_StreamOutWithCerts(void);
     TEST_DECL_GROUP("pkcs7_sd",                                             \
         test_wc_PKCS7_VerifySignedData_StreamOutDetached),                  \
     TEST_DECL_GROUP("pkcs7_sd",                                             \
-        test_wc_PKCS7_VerifySignedData_StreamOutWithCerts)
+        test_wc_PKCS7_VerifySignedData_StreamOutWithCerts),                 \
+    TEST_DECL_GROUP("pkcs7_sd",                                             \
+        test_wc_PKCS7_VerifySignedData_StreamOutCallbackReturn)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \

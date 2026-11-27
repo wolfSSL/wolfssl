@@ -7538,8 +7538,13 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                         msg + *idx, pkcs7->stream->expected);
                     if (ret != 0)
                         break;
-                    pkcs7->streamOutCb(pkcs7, msg + *idx,
+                    ret = pkcs7->streamOutCb(pkcs7, msg + *idx,
                         pkcs7->stream->expected, pkcs7->streamCtx);
+                    if (ret < 0) {
+                        ret = BUFFER_E;
+                        break;
+                    }
+                    ret = 0;
                 }
                 else
             #endif /* ASN_BER_TO_DER */
