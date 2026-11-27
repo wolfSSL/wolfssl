@@ -11762,3 +11762,78 @@ int test_wc_PKCS7_VerifySignedData_StreamOutCallbackReturn(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* A certificate set rejected in the certificates stage does not leave the
+ * previous message's certificate pointers behind. */
+int test_wc_PKCS7_VerifySignedData_ReuseAfterBadCertSet(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_PKCS7_STREAM)
+    byte   data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  good = NULL;
+    byte*  bad = NULL;
+    byte*  noCerts = NULL;
+    int    goodSz = 0;
+    int    noCertsSz = 0;
+    int    c = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(good = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(bad = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(noCerts = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((goodSz = pkcs7_sign_data(good, msgMax, data,
+            sizeof(data), 0, &rng)), 0);
+        ExpectIntGT((noCertsSz = pkcs7_sign_data(noCerts, msgMax, data,
+            sizeof(data), PKCS7_SIGN_NO_CERTS, &rng)), 0);
+    }
+
+    /* make the first certificate claim more than the set holds */
+    ExpectIntGT((c = test_PKCS7_findBytes(good, goodSz, client_cert_der_2048,
+        sizeof_client_cert_der_2048)), 0);
+    ExpectIntEQ(good[c + 1], ASN_LONG_LENGTH | 2);
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(bad, good, (word32)goodSz);
+        bad[c + 2] = (byte)(bad[c + 2] + 1);
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, good, (word32)goodSz), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, bad, (word32)goodSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNull(pkcs7->singleCert);
+        ExpectNull(pkcs7->cert[0]);
+        ExpectNull(pkcs7->verifyCert);
+    }
+    /* no signer certificate left to verify with */
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, noCerts, (word32)noCertsSz),
+        0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* rejected sets keep the certificate the caller loaded */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, bad, (word32)goodSz), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, bad, (word32)goodSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, noCerts, (word32)noCertsSz),
+        0);
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(noCerts, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bad, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(good, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

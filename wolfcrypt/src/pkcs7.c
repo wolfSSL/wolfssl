@@ -157,6 +157,7 @@ struct PKCS7SignerInfo {
 #define MAX_PKCS7_STREAM_BUFFER 256
 struct PKCS7State {
     byte* tmpCert;
+    word32 tmpCertSz;
     byte* bufferPt;
     byte* key;
     byte* nonce;    /* stored nonce */
@@ -336,6 +337,7 @@ static void wc_PKCS7_FreeStream(wc_PKCS7* pkcs7)
         XFREE(pkcs7->stream->tmpCert, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream->content = NULL;
         pkcs7->stream->tmpCert = NULL;
+        pkcs7->stream->tmpCertSz = 0;
         XFREE(pkcs7->stream, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream = NULL;
     }
@@ -1108,6 +1110,44 @@ static void wc_PKCS7_FreeCertSet(wc_PKCS7* pkcs7)
 
     return;
 }
+
+#ifndef NO_PKCS7_STREAM
+/* return 1 when p points into buf of bufSz bytes */
+static int wc_PKCS7_InBuf(const byte* p, const byte* buf, word32 bufSz)
+{
+    return p != NULL && buf != NULL &&
+        (wc_ptr_t)p - (wc_ptr_t)buf < (wc_ptr_t)bufSz;
+}
+
+/* clear the certificate references a verify pointed into stream->tmpCert */
+static void wc_PKCS7_DropCertRefs(wc_PKCS7* pkcs7)
+{
+    XMEMSET(pkcs7->cert, 0, sizeof(pkcs7->cert));
+    XMEMSET(pkcs7->certSz, 0, sizeof(pkcs7->certSz));
+    pkcs7->singleCert   = NULL;
+    pkcs7->singleCertSz = 0;
+    pkcs7->issuer       = NULL;
+    pkcs7->issuerSz     = 0;
+    pkcs7->verifyCert   = NULL;
+    pkcs7->verifyCertSz = 0;
+    wc_PKCS7_FreeCertSet(pkcs7);
+}
+
+/* return 1 when a certificate reference points into buf of bufSz bytes */
+static int wc_PKCS7_CertRefsInBuf(const wc_PKCS7* pkcs7, const byte* buf,
+    word32 bufSz)
+{
+    int i;
+
+    if (wc_PKCS7_InBuf(pkcs7->singleCert, buf, bufSz))
+        return 1;
+    for (i = 0; i < MAX_PKCS7_CERTS; i++) {
+        if (wc_PKCS7_InBuf(pkcs7->cert[i], buf, bufSz))
+            return 1;
+    }
+    return 0;
+}
+#endif
 
 
 /* Get total size of all recipients in recipient list.
@@ -8664,13 +8704,18 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             /* store certificate if needed */
             if (length > 0 && !hasFooter) {
                 /* free tmpCert if not NULL */
+                if (wc_PKCS7_CertRefsInBuf(pkcs7, pkcs7->stream->tmpCert,
+                        pkcs7->stream->tmpCertSz))
+                    wc_PKCS7_DropCertRefs(pkcs7);
                 XFREE(pkcs7->stream->tmpCert, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                pkcs7->stream->tmpCertSz = 0;
                 pkcs7->stream->tmpCert = (byte*)XMALLOC((word32)length,
                         pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if ((pkiMsg2 == NULL) || (pkcs7->stream->tmpCert == NULL)) {
                     ret = MEMORY_E;
                     break;
                 }
+                pkcs7->stream->tmpCertSz = (word32)length;
                 XMEMCPY(pkcs7->stream->tmpCert, pkiMsg2 + idx, (word32)length);
                 pkiMsg2 = pkcs7->stream->tmpCert;
                 pkiMsg2Sz = (word32)length;
