@@ -24235,6 +24235,9 @@ int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
 #ifdef WOLFSSL_CERT_EVENTS
 /* Set the validation event callback on a decoded certificate.
  *
+ * Use this when parsing without a certificate manager. The certificate
+ * manager sets it for certificates it verifies.
+ *
  * @param [in, out] cert  Decoded certificate.
  * @param [in]      cb    Event callback. NULL turns events off.
  * @param [in]      ctx   Context passed to the callback.
@@ -40866,6 +40869,10 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* sigParams,
 
     if (ret == 0) {
         WOLFSSL_MSG("Found CRL issuer CA");
+#ifdef WOLFSSL_CERT_EVENTS
+        /* A later ASN_CRL_NO_SIGNER_E means the issuer may not sign CRLs. */
+        dcrl->crlSignerFound = 1;
+#endif
         /* Verify CRL signature with CA. */
         ret = VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
@@ -41285,10 +41292,12 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     if ((ret == 0) && (nextDateSz < MIN_DATE_SIZE)) {
         ret = ASN_PARSE_E;
     }
-    /* 'signatureAlgorithm' OID must be the same as 'signature' OID. */
+    /* The inner signature algorithm and the outer one must match. A
+     * certificate reports the same failure as ASN_SIG_OID_E. */
     if ((ret == 0) && (dataASN[CRLASN_IDX_SIGALGO_OID].data.oid.sum !=
             dataASN[CRLASN_IDX_TBS_SIGALGO_OID].data.oid.sum)) {
-        ret = ASN_PARSE_E;
+        ret = ASN_SIG_OID_E;
+        WOLFSSL_ERROR_VERBOSE(ret);
     }
     if (ret == 0) {
         /* Store version */

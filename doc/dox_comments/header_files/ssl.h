@@ -12574,7 +12574,8 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
     - der and derSz: the encoded certificate.
     - subject, issuer, serial and serialSz: which certificate it is, as far
       as it was decoded. The names are one-line strings. NULL when not known,
-      such as on a certificate that could not be decoded.
+      such as on a certificate that could not be decoded, and on the RESULT
+      of X509_verify_cert().
     - ssl: the WOLFSSL object whose handshake raised the event, so that the
       application can tell which peer it was. NULL outside a handshake.
 
@@ -12613,6 +12614,8 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
     \endcode
 
     \sa wolfSSL_CTX_SetCertEventCb
+    \sa wolfSSL_X509_STORE_SetCertEventCb
+    \sa wc_SetCertEventCallback
     \sa wolfSSL_CertManagerSetVerify
 */
 int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
@@ -12643,6 +12646,46 @@ int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
 */
 int wolfSSL_CTX_SetCertEventCb(WOLFSSL_CTX* ctx, WOLFSSL_CERT_EVENT_CB cb,
         void* cbCtx);
+
+/*!
+    \ingroup CertManager
+    \brief Sets the certificate validation event callback in the Certificate
+    Manager of an X509 store, so that X509_verify_cert() raises events.
+    Requires WOLFSSL_CERT_EVENTS and OPENSSL_EXTRA. See
+    wolfSSL_CertManagerSetCertEventCb() for what the callback receives.
+
+    X509_verify_cert() sends a RESULT for each certificate it tries while
+    building the chain, so one verification can send several. A check after
+    that, such as the host name, the chain length, or pathLenConstraint,
+    sends another RESULT when it fails. These RESULT events have no subject,
+    issuer or serial: use the X509 store context. A date DEFECT from
+    X509_STORE_CTX_set_time() also has no subject, issuer or serial.
+    When a TLS verify callback calls X509_verify_cert(), the events give the
+    depth in the peer's chain, the same depth X509_STORE_CTX_get_error_depth()
+    gives. ssl names that connection only when HAVE_EX_DATA is on
+    (OPENSSL_ALL, or a compatibility build that sets it). With
+    --enable-opensslextra alone, ssl is NULL.
+    wolfSSL_CTX_SetCertEventCb() and this function share the certificate
+    manager. The call made second replaces the callback.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG when store is NULL or has no Certificate Manager.
+
+    \param store a pointer to a WOLFSSL_X509_STORE structure.
+    \param cb the event callback. NULL turns events off.
+    \param ctx a pointer passed to the callback with each event.
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE* store = wolfSSL_X509_STORE_new();
+    ...
+    wolfSSL_X509_STORE_SetCertEventCb(store, myCertEvent, myLogger);
+    \endcode
+
+    \sa wolfSSL_CertManagerSetCertEventCb
+*/
+int wolfSSL_X509_STORE_SetCertEventCb(WOLFSSL_X509_STORE* store,
+        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
 
 /*!
     \brief Check CRL if the option is enabled and compares the cert to the

@@ -2627,8 +2627,8 @@ WOLFSSL_API int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
 #endif
 
 #ifdef WOLFSSL_CERT_EVENTS
-WOLFSSL_LOCAL int wc_SetCertEventCallback(DecodedCert* cert,
-                                          WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+WOLFSSL_API int wc_SetCertEventCallback(DecodedCert* cert,
+                                        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
 WOLFSSL_LOCAL void wc_CertEventSetConnection(DecodedCert* cert, void* ssl,
                                              const byte* notCaHash);
 WOLFSSL_LOCAL void wc_CertEventIdentity(const DecodedCert* cert,
@@ -3406,6 +3406,11 @@ struct DecodedCRL {
     WC_BITFIELD extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
 #endif
     WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */
+#ifdef WOLFSSL_CERT_EVENTS
+    /* An issuer was found. A later ASN_CRL_NO_SIGNER_E means that issuer
+     * may not sign CRLs. */
+    WC_BITFIELD crlSignerFound:1;
+#endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback     unknownExtCallback;
     wc_UnknownExtCallback32   unknownExtCallback32;

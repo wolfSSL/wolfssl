@@ -2612,6 +2612,12 @@ WOLFSSL_API WOLFSSL_X509_STORE_CTX *wolfSSL_X509_STORE_CTX_get0_parent_ctx(
                                                    WOLFSSL_X509_STORE_CTX *ctx);
 WOLFSSL_API int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store,
                                                             unsigned long flag);
+#if defined(WOLFSSL_CERT_EVENTS) && defined(OPENSSL_EXTRA)
+/* Register a validation event callback on the store, for X509_verify_cert().
+ * The definition is built only with OPENSSL_EXTRA. */
+WOLFSSL_API int wolfSSL_X509_STORE_SetCertEventCb(WOLFSSL_X509_STORE* store,
+                                   WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+#endif
 WOLFSSL_API int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx,
                     int idx, WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_CTX_get0_param(
@@ -4686,7 +4692,9 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
 #ifdef WOLFSSL_CERT_EVENTS
     /* Register a callback that observes certificate validation events: one
      * DEFECT event per failed check, and one RESULT event when a verification
-     * finishes. Events never change the verification result. */
+     * finishes. A CRL that fails to load is a DEFECT in the CRL category.
+     * A CRL error callback that accepts a failure still sends the DEFECT.
+     * Events never change the verification result. */
     WOLFSSL_API int wolfSSL_CertManagerSetCertEventCb(WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_CERT_EVENT_CB cb, void* ctx);
     WOLFSSL_API int wolfSSL_CTX_SetCertEventCb(WOLFSSL_CTX* ctx,

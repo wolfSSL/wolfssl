@@ -2842,6 +2842,11 @@ struct CRL_Entry {
     byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
 #endif
     byte    crlNumberSet:1;     /* CRL number set indicator */
+#ifdef WOLFSSL_CERT_EVENTS
+    /* An issuer was found. A cached ASN_CRL_NO_SIGNER_E is then a missing
+     * cRLSign bit. Not written on a caller-owned CRL. */
+    byte    crlSignerFound:1;
+#endif
 };
 
 
@@ -3013,6 +3018,16 @@ WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm);
 WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                      Signer* extraCa, long sz, int format,
                                      int prev_err, int* crlErr);
+#ifdef WOLFSSL_CERT_EVENTS
+WOLFSSL_LOCAL int CM_VerifyBufferDepth(WOLFSSL_CERT_MANAGER* cm,
+                                       const byte* buff, Signer* extraCa,
+                                       long sz, int format, int depth,
+                                       int* crlErr, void* ssl);
+WOLFSSL_LOCAL void CM_CertEventResult(WOLFSSL_CERT_MANAGER* cm, int error,
+                                      int depth, const byte* der,
+                                      word32 derSz, const DecodedCert* cert,
+                                      void* ssl);
+#endif
 
 
 #ifndef NO_CERTS

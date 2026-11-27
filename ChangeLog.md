@@ -30,21 +30,46 @@
   `WOLFSSL_CERT_EVENTS`; off by default, on with `--enable-all` when the
   ASN.1 template parser is in use). `--enable-asn=original` is not
   supported. A callback set with
-  `wolfSSL_CertManagerSetCertEventCb()` or `wolfSSL_CTX_SetCertEventCb()`
+  `wolfSSL_CertManagerSetCertEventCb()`, `wolfSSL_CTX_SetCertEventCb()`,
+  `wolfSSL_X509_STORE_SetCertEventCb()` or `wc_SetCertEventCallback()`
   observes each certificate check: a DEFECT event for each failed check,
   with the certificate's role and chain depth, the RFC 5280 field and the
   reason; a RESULT event when a verification finishes; the certificate's
   subject, issuer and serial number and the TLS connection; and a stable
   condition value for each failure, named after the IEC 62351-9 and
   IEC 62351-3 audit events, for security logging such as the EU Cyber
-  Resilience Act calls for. Events come from the TLS peer chain and
-  `wolfSSL_CertManagerVerify*()`. The callback cannot change a result; the
-  verify callback still decides. A RESULT is sent when the chain is judged.
-  A TLS 1.2 certificate-status check that fails sends a second RESULT.
-  keyCertSign on a certificate that is not a CA has its own condition. A
-  required field that is absent uses reason missing. by @sameehj
+  Resilience Act calls for. Events come from the TLS peer chain,
+  `wolfSSL_CertManagerVerify*()`, `X509_verify_cert()`, trust anchors loaded
+  with verification, and parsing without a certificate manager. The callback
+  cannot change a result; the verify callback still decides. A RESULT is
+  sent when the chain is judged. A TLS 1.2 certificate-status check that
+  fails sends a second RESULT. keyCertSign on a certificate that is not a
+  CA has its own condition. A required field that is absent uses reason
+  missing. A check that runs after X509_verify_cert() has logged a pass,
+  such as the host name, the chain length, or pathLenConstraint, sends
+  another RESULT with that error. Loading a CRL reports a DEFECT when
+  the CRL is rejected: its encoding, signature, signer, the signer's
+  cRLSign bit, an unknown critical extension, or nextUpdate. Checking a
+  certificate against a CRL reports the same on that certificate. A CRL
+  whose signature did not verify, and that is checked on first use, is
+  still returned as CRL_MISSING. The event carries the verify error. When
+  that issuer is trusted but has no cRLSign bit, the condition is
+  WC_CEV_COND_CRL_SIGNER_KU. A CRL error callback that accepts the failure
+  still sends the DEFECT, and the check returns success.
+  wolfSSL_CertManagerCheckCRL() and the CRLs set on an X509 store context
+  send these events. A CRL for another issuer in that stack is not reported
+  as missing. A CRL
+  whose inner and outer signature algorithms differ returns ASN_SIG_OID_E,
+  the same error a certificate uses, and condition
+  WC_CEV_COND_CERT_SIG_ALG_MISMATCH. by @sameehj
 
 ## Behavioral Changes
+* **Behavioral change (a CRL with two signature algorithms returns
+  ASN_SIG_OID_E)**: the template `ParseCRL()` used to return `ASN_PARSE_E`
+  when the signature algorithm inside the TBS and the one outside it
+  differed. It now returns `ASN_SIG_OID_E`, the error a certificate already
+  uses for that check. Callers that compared the old code for this CRL
+  failure need to accept `ASN_SIG_OID_E`.
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
   paths always read 20 bytes, so neither followed FIPS 186-4 4.2.  Both now use
