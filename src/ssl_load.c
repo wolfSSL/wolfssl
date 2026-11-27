@@ -250,6 +250,7 @@ static int ProcessUserChainRetain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ret = AllocCopyDer(&ssl->buffers.certChain, chainBuffer, len, type,
             heap);
         ssl->buffers.weOwnCertChain = (ret == 0);
+        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_CHAIN;
         /* Update count of certificates in chain. */
         ssl->buffers.certChainCnt = cnt;
     }
@@ -1440,6 +1441,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             wc_MemZero_Add("SSL Buffers key", (*der)->buffer, (*der)->length);
         #endif
             ssl->buffers.weOwnAltKey = 1;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_ALT;
         }
         else if (ctx != NULL) {
             /* Dispose of previous key. */
@@ -1473,6 +1475,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         wc_MemZero_Add("SSL Buffers key", (*der)->buffer, (*der)->length);
     #endif
         ssl->buffers.weOwnKey = 1;
+        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_KEY;
     }
     else if (ctx != NULL) {
         /* Dispose of previous key. */
@@ -2526,6 +2529,7 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         #endif
             /* We have to free the certificate buffer. */
             ssl->buffers.weOwnCert = 1;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_CERT;
             /* ourCert is created on demand. */
         }
         else if (ctx != NULL) {
@@ -5010,6 +5014,7 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
     if (ret == 1) {
         /* Buffer now ours. */
         ssl->buffers.weOwnKey = 1;
+        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_KEY;
         /* Private key is an id. */
         ssl->buffers.keyId = 1;
         ssl->buffers.keyLabel = 0;
@@ -5086,6 +5091,7 @@ int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
     if (ret == 1) {
         /* Buffer now ours. */
         ssl->buffers.weOwnKey = 1;
+        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_KEY;
         /* Private key is a label. */
         ssl->buffers.keyId = 0;
         ssl->buffers.keyLabel = 1;
@@ -5132,6 +5138,7 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
     if (ret == 1) {
         XMEMCPY(ssl->buffers.altKey->buffer, id, (word32)sz);
         ssl->buffers.weOwnAltKey = 1;
+        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_ALT;
         ssl->buffers.altKeyId = 1;
         if (devId != INVALID_DEVID) {
             ssl->buffers.altKeyDevId = devId;
@@ -5180,6 +5187,7 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
     if (ret == 1) {
         XMEMCPY(ssl->buffers.altKey->buffer, label, sz);
         ssl->buffers.weOwnAltKey = 1;
+        ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_ALT;
         ssl->buffers.altKeyLabel = 1;
         if (devId != INVALID_DEVID) {
             ssl->buffers.altKeyDevId = devId;
@@ -5589,6 +5597,7 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
             /* Store cert to free it later. */
             ssl->ourCert = x509;
             ssl->buffers.weOwnCert = 1;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_CERT;
         }
     }
     else if (ret == 1) {
@@ -5599,6 +5608,7 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
         if (ret == 1) {
             /* We now own cert chain. */
             ssl->buffers.weOwnCertChain = 1;
+            ssl->buffers.retainCtxCreds &= (byte)~WOLFSSL_RETAIN_CTX_CHAIN;
             /* Account for the certificate just added to the chain. */
             ssl->buffers.certChainCnt++;
             /* Create a stack to put certificate into. */

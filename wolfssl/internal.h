@@ -4888,6 +4888,7 @@ struct WOLFSSL_CTX {
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* certOcspRequest;
+            DerBuffer* certOcspRequestCert; /* Certificate identifying request. */
         #endif
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* chainOcspRequest[MAX_CHAIN_DEPTH];
@@ -5708,6 +5709,10 @@ typedef struct ThreadCrypt {
 #endif
 
 /* buffers for struct WOLFSSL */
+#define WOLFSSL_RETAIN_CTX_CERT  0x01
+#define WOLFSSL_RETAIN_CTX_CHAIN 0x02
+#define WOLFSSL_RETAIN_CTX_KEY   0x04
+#define WOLFSSL_RETAIN_CTX_ALT   0x08
 typedef struct Buffers {
     bufferStatic    inputBuffer;
     bufferStatic    outputBuffer;
@@ -5726,6 +5731,7 @@ typedef struct Buffers {
     byte            weOwnCert;             /* SSL own cert flag */
     byte            weOwnCertChain;        /* SSL own cert chain flag */
     byte            weOwnKey;              /* SSL own key flag */
+    byte            retainCtxCreds;        /* CTX credentials kept across reuse */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     byte            weOwnAltKey;           /* SSL own alt key flag */
 #endif
