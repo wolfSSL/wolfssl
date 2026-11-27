@@ -3155,3 +3155,1043 @@ int test_wc_Pkcs11_AesCtrStream(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS11) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_HAVE_LMS) && !defined(NO_PKCS11_LMS) && \
+    !defined(WOLFSSL_LMS_VERIFY_ONLY) && \
+    !defined(WOLFSSL_NO_LMS_SHA256_256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_LMS) && defined(WOLF_PRIVATE_KEY_ID) && \
+    (!defined(WOLFSSL_LMS_MAX_HEIGHT) || (WOLFSSL_LMS_MAX_HEIGHT >= 5))
+#define TEST_PKCS11_LMS
+
+#include <wolfssl/wolfcrypt/wc_lms.h>
+
+#define TEST_CKR_LMS_FAILED        ((CK_RV)0x00000006UL)
+#define TEST_CKR_LMS_DEVICE_ERROR  ((CK_RV)0x00000030UL)
+#define TEST_PKCS11_LMS_DEVID  0x7033
+#define TEST_PKCS11_LMS_PUB    1
+#define TEST_PKCS11_LMS_PRIV   2
+#define TEST_PKCS11_LMS_SESS   3
+
+/* The token signs and verifies with software LMS keys. */
+static LmsKey   test_pkcs11_lms_signer;
+static LmsKey   test_pkcs11_lms_verifier;
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+    #define TEST_PKCS11_LMS_STATE_LEN  (64 * 1024 + HSS_MAX_PRIVATE_KEY_LEN)
+#else
+    #define TEST_PKCS11_LMS_STATE_LEN  HSS_MAX_PRIVATE_KEY_LEN
+#endif
+/* State of the token's key, and of a software key with the context set. */
+static byte     test_pkcs11_lms_state[TEST_PKCS11_LMS_STATE_LEN];
+static byte     test_pkcs11_lms_sw_state[TEST_PKCS11_LMS_STATE_LEN];
+static byte     test_pkcs11_lms_pub[HSS_MAX_PUBLIC_KEY_LEN];
+static word32   test_pkcs11_lms_pub_len = 0;
+static word32   test_pkcs11_lms_pub_ret_len = 0;
+static int      test_pkcs11_lms_pub_short = 0;
+static CK_RV    test_pkcs11_lms_pub_rv = CKR_OK;
+static int      test_pkcs11_lms_keygens = 0;
+static int      test_pkcs11_lms_signs = 0;
+static int      test_pkcs11_lms_verifies = 0;
+static int      test_pkcs11_lms_creates = 0;
+static int      test_pkcs11_lms_destroyed[4];
+static CK_RV    test_pkcs11_lms_sign_rv = CKR_OK;
+static CK_RV    test_pkcs11_lms_sign_init_rv = CKR_OK;
+static CK_RV    test_pkcs11_lms_keygen_rv = CKR_OK;
+static CK_RV    test_pkcs11_lms_create_rv = CKR_OK;
+static int      test_pkcs11_lms_sig_short = 0;
+static CK_RV    test_pkcs11_lms_remaining_rv = CKR_OK;
+static CK_RV    test_pkcs11_lms_verify_init_rv = CKR_OK;
+static CK_RV    test_pkcs11_lms_verify_rv = CKR_OK;
+static CK_FLAGS test_pkcs11_lms_hss_flags = CKF_SIGN | CKF_VERIFY;
+static CK_FLAGS test_pkcs11_lms_kpg_flags = CKF_GENERATE_KEY_PAIR;
+static CK_RV    test_pkcs11_lms_params_rv = CKR_OK;
+static CK_ULONG test_pkcs11_lms_types_short = 0;
+static CK_RV    test_pkcs11_lms_find_rv = CKR_OK;
+/* Parameters of the token's key pair. */
+static CK_ULONG test_pkcs11_lms_levels = 0;
+static CK_ULONG test_pkcs11_lms_type = 0;
+static CK_ULONG test_pkcs11_lms_ots_type = 0;
+/* 1: the key pair exists, 2: only an HSS session object has the name. */
+static int      test_pkcs11_lms_exists = 0;
+static int      test_pkcs11_lms_find_dup = 0;
+static CK_ULONG test_pkcs11_lms_remaining = 32;
+static CK_OBJECT_CLASS  test_pkcs11_lms_find_class = 0;
+static int      test_pkcs11_lms_find_all = 0;
+static CK_OBJECT_HANDLE test_pkcs11_lms_verify_key = 0;
+/* Attributes seen in the last C_GenerateKeyPair. */
+static CK_BBOOL test_pkcs11_lms_priv_token = CK_FALSE;
+static CK_BBOOL test_pkcs11_lms_priv_extractable = CK_TRUE;
+static CK_BBOOL test_pkcs11_lms_priv_copyable = CK_TRUE;
+static CK_BBOOL test_pkcs11_lms_pub_token = CK_FALSE;
+static CK_BBOOL test_pkcs11_lms_pub_private = CK_TRUE;
+static int      test_pkcs11_lms_priv_id = 0;
+static int      test_pkcs11_lms_priv_named = 0;
+static int      test_pkcs11_lms_pub_id = 0;
+
+static int      test_pkcs11_lms_opens = 0;
+
+static const byte test_pkcs11_lms_id[] = { 0x4c, 0x4d, 0x53 };
+static const char test_pkcs11_lms_label[] = "lms-label";
+
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_XMSS) && defined(WC_XMSS_SHA256) && \
+    (WOLFSSL_WC_XMSS_MIN_HASH_SIZE <= 256) && \
+    (WOLFSSL_WC_XMSS_MAX_HASH_SIZE >= 256) && \
+    (WOLFSSL_XMSS_MIN_HEIGHT <= 10) && (WOLFSSL_XMSS_MAX_HEIGHT >= 10)
+#define TEST_PKCS11_LMS_XMSS
+
+#include <wolfssl/wolfcrypt/wc_xmss.h>
+
+static enum wc_XmssRc test_pkcs11_xmss_write(const byte* priv, word32 privSz,
+    void* ctx)
+{
+    XMEMCPY(ctx, priv, privSz);
+    return WC_XMSS_RC_SAVED_TO_NV_MEMORY;
+}
+
+static enum wc_XmssRc test_pkcs11_xmss_read(byte* priv, word32 privSz,
+    void* ctx)
+{
+    XMEMCPY(priv, ctx, privSz);
+    return WC_XMSS_RC_READ_TO_MEMORY;
+}
+#endif
+
+static CK_RV test_pkcs11_lms_open_fail(CK_SLOT_ID slotId, CK_FLAGS flags,
+    CK_VOID_PTR app, CK_NOTIFY notify, CK_SESSION_HANDLE_PTR session)
+{
+    (void)slotId;
+    (void)flags;
+    (void)app;
+    (void)notify;
+    (void)session;
+
+    test_pkcs11_lms_opens++;
+    return TEST_CKR_LMS_DEVICE_ERROR;
+}
+
+static int test_pkcs11_lms_write(const byte* priv, word32 privSz, void* ctx)
+{
+    byte* state = (ctx != NULL) ? (byte*)ctx : test_pkcs11_lms_state;
+
+    if (privSz > TEST_PKCS11_LMS_STATE_LEN)
+        return WC_LMS_RC_WRITE_FAIL;
+    XMEMCPY(state, priv, privSz);
+    return WC_LMS_RC_SAVED_TO_NV_MEMORY;
+}
+
+static int test_pkcs11_lms_read(byte* priv, word32 privSz, void* ctx)
+{
+    byte* state = (ctx != NULL) ? (byte*)ctx : test_pkcs11_lms_state;
+
+    if (privSz > TEST_PKCS11_LMS_STATE_LEN)
+        return WC_LMS_RC_READ_FAIL;
+    XMEMCPY(priv, state, privSz);
+    return WC_LMS_RC_READ_TO_MEMORY;
+}
+
+static CK_ATTRIBUTE_PTR test_pkcs11_lms_attr(CK_ATTRIBUTE_PTR tmpl,
+    CK_ULONG cnt, CK_ATTRIBUTE_TYPE type)
+{
+    CK_ULONG i;
+
+    for (i = 0; i < cnt; i++) {
+        if (tmpl[i].type == type)
+            return &tmpl[i];
+    }
+    return NULL;
+}
+
+static CK_BBOOL test_pkcs11_lms_bool(CK_ATTRIBUTE_PTR tmpl, CK_ULONG cnt,
+    CK_ATTRIBUTE_TYPE type, CK_BBOOL def)
+{
+    CK_ATTRIBUTE_PTR attr = test_pkcs11_lms_attr(tmpl, cnt, type);
+
+    if (attr == NULL || attr->ulValueLen != sizeof(CK_BBOOL))
+        return def;
+    return *(CK_BBOOL*)attr->pValue;
+}
+
+static int test_pkcs11_lms_has_id(CK_ATTRIBUTE_PTR tmpl, CK_ULONG cnt)
+{
+    CK_ATTRIBUTE_PTR attr = test_pkcs11_lms_attr(tmpl, cnt, CKA_ID);
+
+    return attr != NULL && attr->ulValueLen == sizeof(test_pkcs11_lms_id) &&
+        XMEMCMP(attr->pValue, test_pkcs11_lms_id,
+                sizeof(test_pkcs11_lms_id)) == 0;
+}
+
+static int test_pkcs11_lms_named(CK_ATTRIBUTE_PTR tmpl, CK_ULONG cnt)
+{
+    CK_ATTRIBUTE_PTR attr = test_pkcs11_lms_attr(tmpl, cnt, CKA_LABEL);
+
+    if (attr != NULL && attr->ulValueLen == XSTRLEN(test_pkcs11_lms_label) &&
+            XMEMCMP(attr->pValue, test_pkcs11_lms_label,
+                    attr->ulValueLen) == 0)
+        return 1;
+    return test_pkcs11_lms_has_id(tmpl, cnt);
+}
+
+static CK_RV test_pkcs11_lms_mech_info(CK_SLOT_ID slotId,
+    CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR info)
+{
+    (void)slotId;
+
+    XMEMSET(info, 0, sizeof(*info));
+    if (type == CKM_HSS_KEY_PAIR_GEN)
+        info->flags = test_pkcs11_lms_kpg_flags;
+    else if (type == CKM_HSS)
+        info->flags = test_pkcs11_lms_hss_flags;
+    else
+        return CKR_MECHANISM_INVALID;
+    return CKR_OK;
+}
+
+/* Generates a software key from the HSS attributes of the private template. */
+static CK_RV test_pkcs11_lms_keygen(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mech, CK_ATTRIBUTE_PTR pubTmpl, CK_ULONG pubCnt,
+    CK_ATTRIBUTE_PTR privTmpl, CK_ULONG privCnt, CK_OBJECT_HANDLE_PTR pub,
+    CK_OBJECT_HANDLE_PTR priv)
+{
+    CK_ATTRIBUTE_PTR levels;
+    CK_ATTRIBUTE_PTR lmsType;
+    CK_ATTRIBUTE_PTR lmotsType;
+    CK_ULONG lms;
+    CK_ULONG lmots;
+    CK_ULONG lv;
+    CK_ULONG i;
+    WC_RNG rng;
+    word32 len = sizeof(test_pkcs11_lms_pub);
+    CK_RV rv = CKR_OK;
+
+    (void)session;
+
+    test_pkcs11_lms_keygens++;
+    if (mech->mechanism != CKM_HSS_KEY_PAIR_GEN)
+        return CKR_MECHANISM_INVALID;
+    if (test_pkcs11_lms_keygen_rv != CKR_OK)
+        return test_pkcs11_lms_keygen_rv;
+    test_pkcs11_lms_priv_token = test_pkcs11_lms_bool(privTmpl, privCnt,
+        CKA_TOKEN, CK_FALSE);
+    test_pkcs11_lms_priv_extractable = test_pkcs11_lms_bool(privTmpl, privCnt,
+        CKA_EXTRACTABLE, CK_TRUE);
+    test_pkcs11_lms_priv_copyable = test_pkcs11_lms_bool(privTmpl, privCnt,
+        CKA_COPYABLE, CK_TRUE);
+    test_pkcs11_lms_pub_token = test_pkcs11_lms_bool(pubTmpl, pubCnt,
+        CKA_TOKEN, CK_FALSE);
+    test_pkcs11_lms_pub_private = test_pkcs11_lms_bool(pubTmpl, pubCnt,
+        CKA_PRIVATE, CK_TRUE);
+    test_pkcs11_lms_priv_id = test_pkcs11_lms_has_id(privTmpl, privCnt);
+    test_pkcs11_lms_priv_named = test_pkcs11_lms_named(privTmpl, privCnt);
+    test_pkcs11_lms_pub_id = test_pkcs11_lms_has_id(pubTmpl, pubCnt);
+
+    /* PKCS#11 3.2 6.65.4: per-level lists on the private template only. */
+    if (test_pkcs11_lms_attr(pubTmpl, pubCnt, CKA_HSS_LEVELS) != NULL ||
+            test_pkcs11_lms_attr(pubTmpl, pubCnt, CKA_HSS_LMS_TYPE) != NULL ||
+            test_pkcs11_lms_attr(privTmpl, privCnt, CKA_HSS_LMS_TYPE) != NULL ||
+            test_pkcs11_lms_attr(privTmpl, privCnt,
+                CKA_HSS_LMOTS_TYPE) != NULL) {
+        return TEST_CKR_LMS_FAILED;
+    }
+    levels = test_pkcs11_lms_attr(privTmpl, privCnt, CKA_HSS_LEVELS);
+    lmsType = test_pkcs11_lms_attr(privTmpl, privCnt, CKA_HSS_LMS_TYPES);
+    lmotsType = test_pkcs11_lms_attr(privTmpl, privCnt, CKA_HSS_LMOTS_TYPES);
+    if (levels == NULL || lmsType == NULL || lmotsType == NULL)
+        return TEST_CKR_LMS_FAILED;
+    lv = *(CK_ULONG*)levels->pValue;
+    if (lv < 1 || lv > LMS_MAX_LEVELS ||
+            lmsType->ulValueLen != lv * sizeof(CK_ULONG) ||
+            lmotsType->ulValueLen != lv * sizeof(CK_ULONG))
+        return TEST_CKR_LMS_FAILED;
+    lms = ((CK_ULONG*)lmsType->pValue)[0];
+    lmots = ((CK_ULONG*)lmotsType->pValue)[0];
+    for (i = 1; i < lv; i++) {
+        if (((CK_ULONG*)lmsType->pValue)[i] != lms ||
+                ((CK_ULONG*)lmotsType->pValue)[i] != lmots)
+            return TEST_CKR_LMS_FAILED;
+    }
+    /* RFC 8554 SHA-256/M32 typecodes only. */
+    if (lms < LMS_SHA256_M32_H5 || lms > LMS_SHA256_M32_H25 ||
+            lmots < LMOTS_SHA256_N32_W1 || lmots > LMOTS_SHA256_N32_W8)
+        return TEST_CKR_LMS_FAILED;
+
+    wc_LmsKey_Free(&test_pkcs11_lms_signer);
+    wc_LmsKey_Free(&test_pkcs11_lms_verifier);
+    if (wc_InitRng(&rng) != 0)
+        return TEST_CKR_LMS_FAILED;
+    if (wc_LmsKey_Init(&test_pkcs11_lms_signer, NULL, INVALID_DEVID) != 0 ||
+        wc_LmsKey_SetParameters(&test_pkcs11_lms_signer, (int)lv,
+            5 * (int)(lms - 4),
+            1 << (lmots - 1)) != 0 ||
+        wc_LmsKey_SetWriteCb(&test_pkcs11_lms_signer,
+            test_pkcs11_lms_write) != 0 ||
+        wc_LmsKey_SetReadCb(&test_pkcs11_lms_signer,
+            test_pkcs11_lms_read) != 0 ||
+        wc_LmsKey_SetContext(&test_pkcs11_lms_signer, NULL) != 0 ||
+        wc_LmsKey_MakeKey(&test_pkcs11_lms_signer, &rng) != 0 ||
+        wc_LmsKey_ExportPubRaw(&test_pkcs11_lms_signer, test_pkcs11_lms_pub,
+            &len) != 0 ||
+        wc_LmsKey_Init(&test_pkcs11_lms_verifier, NULL, INVALID_DEVID) != 0 ||
+        wc_LmsKey_ImportPubRaw(&test_pkcs11_lms_verifier, test_pkcs11_lms_pub,
+            len) != 0) {
+        rv = TEST_CKR_LMS_FAILED;
+    }
+    wc_FreeRng(&rng);
+    test_pkcs11_lms_levels = lv;
+    test_pkcs11_lms_type = lms;
+    test_pkcs11_lms_ots_type = lmots;
+    test_pkcs11_lms_pub_len = len;
+    test_pkcs11_lms_pub_ret_len = len - (word32)test_pkcs11_lms_pub_short;
+    test_pkcs11_lms_exists = 1;
+    *pub = TEST_PKCS11_LMS_PUB;
+    *priv = TEST_PKCS11_LMS_PRIV;
+    return rv;
+}
+
+static CK_RV test_pkcs11_lms_get_attr(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR tmpl, CK_ULONG cnt)
+{
+    CK_ULONG i;
+    CK_RV rv = CKR_OK;
+
+    (void)session;
+
+    for (i = 0; i < cnt; i++) {
+        if (obj == TEST_PKCS11_LMS_PUB && tmpl[i].type == CKA_VALUE) {
+            if (test_pkcs11_lms_pub_rv != CKR_OK)
+                return test_pkcs11_lms_pub_rv;
+            if (tmpl[i].ulValueLen < test_pkcs11_lms_pub_ret_len)
+                return TEST_CKR_LMS_FAILED;
+            XMEMCPY(tmpl[i].pValue, test_pkcs11_lms_pub,
+                    test_pkcs11_lms_pub_ret_len);
+            tmpl[i].ulValueLen = test_pkcs11_lms_pub_ret_len;
+        }
+        else if (obj == TEST_PKCS11_LMS_PRIV &&
+                 tmpl[i].type == CKA_KEYS_REMAINING) {
+            if (test_pkcs11_lms_remaining_rv != CKR_OK)
+                return test_pkcs11_lms_remaining_rv;
+            *(CK_ULONG*)tmpl[i].pValue = test_pkcs11_lms_remaining;
+            tmpl[i].ulValueLen = sizeof(CK_ULONG);
+        }
+        else if (obj == TEST_PKCS11_LMS_PRIV &&
+                 tmpl[i].type == CKA_HSS_LEVELS) {
+            if (test_pkcs11_lms_params_rv != CKR_OK)
+                return test_pkcs11_lms_params_rv;
+            *(CK_ULONG*)tmpl[i].pValue = test_pkcs11_lms_levels;
+            tmpl[i].ulValueLen = sizeof(CK_ULONG);
+        }
+        else if (obj == TEST_PKCS11_LMS_PRIV &&
+                 (tmpl[i].type == CKA_HSS_LMS_TYPES ||
+                  tmpl[i].type == CKA_HSS_LMOTS_TYPES)) {
+            CK_ULONG j;
+
+            if (tmpl[i].ulValueLen <
+                    test_pkcs11_lms_levels * sizeof(CK_ULONG)) {
+                tmpl[i].ulValueLen = CK_UNAVAILABLE_INFORMATION;
+                rv = CKR_BUFFER_TOO_SMALL;
+                continue;
+            }
+            for (j = 0; j < test_pkcs11_lms_levels; j++) {
+                ((CK_ULONG*)tmpl[i].pValue)[j] =
+                    (tmpl[i].type == CKA_HSS_LMS_TYPES) ?
+                    test_pkcs11_lms_type : test_pkcs11_lms_ots_type;
+            }
+            tmpl[i].ulValueLen = test_pkcs11_lms_levels * sizeof(CK_ULONG);
+            if (tmpl[i].type == CKA_HSS_LMS_TYPES)
+                tmpl[i].ulValueLen -= test_pkcs11_lms_types_short *
+                                      sizeof(CK_ULONG);
+        }
+        else if (tmpl[i].type == CKA_CLASS) {
+            *(CK_OBJECT_CLASS*)tmpl[i].pValue = (obj == TEST_PKCS11_LMS_PRIV) ?
+                CKO_PRIVATE_KEY : CKO_PUBLIC_KEY;
+            tmpl[i].ulValueLen = sizeof(CK_OBJECT_CLASS);
+        }
+        else if (tmpl[i].type == CKA_TOKEN) {
+            *(CK_BBOOL*)tmpl[i].pValue =
+                (obj == TEST_PKCS11_LMS_SESS) ? CK_FALSE : CK_TRUE;
+            tmpl[i].ulValueLen = sizeof(CK_BBOOL);
+        }
+        else {
+            return TEST_CKR_LMS_FAILED;
+        }
+    }
+    return rv;
+}
+
+static CK_RV test_pkcs11_lms_create(CK_SESSION_HANDLE session,
+    CK_ATTRIBUTE_PTR tmpl, CK_ULONG cnt, CK_OBJECT_HANDLE_PTR obj)
+{
+    CK_ATTRIBUTE_PTR value = test_pkcs11_lms_attr(tmpl, cnt, CKA_VALUE);
+
+    (void)session;
+
+    test_pkcs11_lms_creates++;
+    if (test_pkcs11_lms_create_rv != CKR_OK)
+        return test_pkcs11_lms_create_rv;
+    if (value == NULL || value->ulValueLen != test_pkcs11_lms_pub_len ||
+            XMEMCMP(value->pValue, test_pkcs11_lms_pub,
+                    test_pkcs11_lms_pub_len) != 0)
+        return TEST_CKR_LMS_FAILED;
+    *obj = TEST_PKCS11_LMS_SESS;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_lms_destroy(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE obj)
+{
+    (void)session;
+
+    if (obj < sizeof(test_pkcs11_lms_destroyed) /
+              sizeof(*test_pkcs11_lms_destroyed))
+        test_pkcs11_lms_destroyed[obj]++;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_lms_find_init(CK_SESSION_HANDLE session,
+    CK_ATTRIBUTE_PTR tmpl, CK_ULONG cnt)
+{
+    CK_ATTRIBUTE_PTR cls = test_pkcs11_lms_attr(tmpl, cnt, CKA_CLASS);
+    CK_ATTRIBUTE_PTR type = test_pkcs11_lms_attr(tmpl, cnt, CKA_KEY_TYPE);
+
+    (void)session;
+
+    test_pkcs11_lms_find_class = 0;
+    test_pkcs11_lms_find_all = 0;
+    test_pkcs11_lms_find_dup = 0;
+    if (!test_pkcs11_lms_named(tmpl, cnt))
+        return CKR_OK;
+    if (test_pkcs11_lms_find_rv != CKR_OK)
+        return test_pkcs11_lms_find_rv;
+    if (cls == NULL && type == NULL)
+        test_pkcs11_lms_find_all = test_pkcs11_lms_exists ? 1 : 3;
+    else if (cls == NULL && *(CK_KEY_TYPE*)type->pValue == CKK_HSS) {
+        test_pkcs11_lms_find_dup = 1;
+        if (test_pkcs11_lms_exists == 2 &&
+                test_pkcs11_lms_bool(tmpl, cnt, CKA_TOKEN, CK_FALSE) == CK_TRUE)
+            test_pkcs11_lms_find_dup = 0;
+    }
+    else if (cls != NULL && type != NULL &&
+            *(CK_KEY_TYPE*)type->pValue == CKK_HSS)
+        test_pkcs11_lms_find_class = *(CK_OBJECT_CLASS*)cls->pValue;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_lms_find(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE_PTR obj, CK_ULONG max, CK_ULONG_PTR cnt)
+{
+    (void)session;
+    (void)max;
+
+    *cnt = 1;
+    /* An id-only search returns both objects of the key pair. */
+    if (test_pkcs11_lms_find_all > 0 && test_pkcs11_lms_find_all <= 2)
+        *obj = (test_pkcs11_lms_find_all++ == 1) ? TEST_PKCS11_LMS_PUB :
+            TEST_PKCS11_LMS_PRIV;
+    else if (test_pkcs11_lms_find_all > 2)
+        *cnt = 0;
+    else if (test_pkcs11_lms_find_dup)
+        *cnt = (test_pkcs11_lms_exists != 0) ? 1 : 0;
+    else if (test_pkcs11_lms_find_class == CKO_PUBLIC_KEY)
+        *obj = TEST_PKCS11_LMS_PUB;
+    else if (test_pkcs11_lms_find_class == CKO_PRIVATE_KEY)
+        *obj = TEST_PKCS11_LMS_PRIV;
+    else
+        *cnt = 0;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_lms_find_final(CK_SESSION_HANDLE session)
+{
+    (void)session;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_lms_sign_init(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mech, CK_OBJECT_HANDLE key)
+{
+    (void)session;
+
+    if (mech->mechanism != CKM_HSS || key != TEST_PKCS11_LMS_PRIV)
+        return TEST_CKR_LMS_FAILED;
+    return test_pkcs11_lms_sign_init_rv;
+}
+
+static CK_RV test_pkcs11_lms_sign(CK_SESSION_HANDLE session, CK_BYTE_PTR data,
+    CK_ULONG dataLen, CK_BYTE_PTR sig, CK_ULONG_PTR sigLen)
+{
+    word32 len = (word32)*sigLen;
+
+    (void)session;
+
+    test_pkcs11_lms_signs++;
+    if (test_pkcs11_lms_sign_rv != CKR_OK)
+        return test_pkcs11_lms_sign_rv;
+    if (wc_LmsKey_Sign(&test_pkcs11_lms_signer, sig, &len, data,
+            (int)dataLen) != 0)
+        return TEST_CKR_LMS_FAILED;
+    *sigLen = len - (word32)test_pkcs11_lms_sig_short;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_lms_verify_init(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mech, CK_OBJECT_HANDLE key)
+{
+    (void)session;
+
+    if (mech->mechanism != CKM_HSS)
+        return CKR_MECHANISM_INVALID;
+    test_pkcs11_lms_verify_key = key;
+    return test_pkcs11_lms_verify_init_rv;
+}
+
+static CK_RV test_pkcs11_lms_verify(CK_SESSION_HANDLE session,
+    CK_BYTE_PTR data, CK_ULONG dataLen, CK_BYTE_PTR sig, CK_ULONG sigLen)
+{
+    int ret;
+
+    (void)session;
+
+    test_pkcs11_lms_verifies++;
+    if (test_pkcs11_lms_verify_rv != CKR_OK)
+        return test_pkcs11_lms_verify_rv;
+    ret = wc_LmsKey_Verify(&test_pkcs11_lms_verifier, sig, (word32)sigLen,
+        data, (int)dataLen);
+    if (ret == WC_NO_ERR_TRACE(SIG_VERIFY_E))
+        return CKR_SIGNATURE_INVALID;
+    return (ret == 0) ? CKR_OK : TEST_CKR_LMS_FAILED;
+}
+#endif
+
+int test_wc_Pkcs11_Lms(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_LMS
+    Pkcs11Token token;
+    CK_FUNCTION_LIST_3_2 func;
+    WC_RNG rng;
+    LmsKey key;
+    LmsKey swKey;
+    LmsKey pubKey;
+    static byte sig[4096];
+    word32 sigSz = 0;
+    word32 sigLen = 0;
+    byte pub[HSS_MAX_PUBLIC_KEY_LEN];
+    word32 pubSz = sizeof(pub);
+    byte swPub[HSS_MAX_PUBLIC_KEY_LEN];
+    word32 swPubSz = sizeof(swPub);
+    int signs = 0;
+    int verifies = 0;
+    static const byte msg[] = "PKCS#11 LMS";
+#ifdef TEST_PKCS11_LMS_XMSS
+    XmssKey xmssKey;
+    byte* xmssPriv = NULL;
+    word32 xmssPrivSz = 0;
+    word32 xmssSigSz = 0;
+#endif
+
+    XMEMSET(&token, 0, sizeof(token));
+    XMEMSET(&func, 0, sizeof(func));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&swKey, 0, sizeof(swKey));
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    ExpectIntEQ(wc_LmsKey_Init(&test_pkcs11_lms_signer, NULL, INVALID_DEVID),
+        0);
+    ExpectIntEQ(wc_LmsKey_Init(&test_pkcs11_lms_verifier, NULL,
+        INVALID_DEVID), 0);
+    XMEMSET(test_pkcs11_lms_destroyed, 0, sizeof(test_pkcs11_lms_destroyed));
+    test_pkcs11_lms_keygens = 0;
+    test_pkcs11_lms_signs = 0;
+    test_pkcs11_lms_verifies = 0;
+    test_pkcs11_lms_creates = 0;
+    test_pkcs11_lms_sign_rv = CKR_OK;
+    test_pkcs11_lms_sign_init_rv = CKR_OK;
+    test_pkcs11_lms_keygen_rv = CKR_OK;
+    test_pkcs11_lms_create_rv = CKR_OK;
+    test_pkcs11_lms_sig_short = 0;
+    test_pkcs11_lms_remaining_rv = CKR_OK;
+    test_pkcs11_lms_verify_init_rv = CKR_OK;
+    test_pkcs11_lms_verify_rv = CKR_OK;
+    test_pkcs11_lms_hss_flags = CKF_SIGN | CKF_VERIFY;
+    test_pkcs11_lms_kpg_flags = CKF_GENERATE_KEY_PAIR;
+    test_pkcs11_lms_params_rv = CKR_OK;
+    test_pkcs11_lms_types_short = 0;
+    test_pkcs11_lms_pub_rv = CKR_OK;
+    test_pkcs11_lms_find_rv = CKR_OK;
+    test_pkcs11_lms_exists = 0;
+    test_pkcs11_lms_remaining = 32;
+
+    func.C_GetMechanismInfo = test_pkcs11_lms_mech_info;
+    func.C_GenerateKeyPair = test_pkcs11_lms_keygen;
+    func.C_GetAttributeValue = test_pkcs11_lms_get_attr;
+    func.C_CreateObject = test_pkcs11_lms_create;
+    func.C_DestroyObject = test_pkcs11_lms_destroy;
+    func.C_FindObjectsInit = test_pkcs11_lms_find_init;
+    func.C_FindObjects = test_pkcs11_lms_find;
+    func.C_FindObjectsFinal = test_pkcs11_lms_find_final;
+    func.C_SignInit = test_pkcs11_lms_sign_init;
+    func.C_Sign = test_pkcs11_lms_sign;
+    func.C_VerifyInit = test_pkcs11_lms_verify_init;
+    func.C_Verify = test_pkcs11_lms_verify;
+    token.func = (CK_FUNCTION_LIST*)&func;
+    token.slotId = 1;
+    token.handle = 1;
+    token.version = WC_PCKS11VERSION_2_40;
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_LMS_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+    /* A key without an id or label stays a software key, with no session. */
+    token.handle = NULL_PTR;
+    func.C_OpenSession = test_pkcs11_lms_open_fail;
+    test_pkcs11_lms_opens = 0;
+    ExpectIntEQ(wc_LmsKey_Init(&swKey, NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&swKey, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_SetWriteCb(&swKey, test_pkcs11_lms_write), 0);
+    ExpectIntEQ(wc_LmsKey_SetReadCb(&swKey, test_pkcs11_lms_read), 0);
+    ExpectIntEQ(wc_LmsKey_SetContext(&swKey, test_pkcs11_lms_sw_state), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&swKey, &rng), 0);
+    ExpectIntEQ(wc_LmsKey_ExportPubRaw(&swKey, swPub, &swPubSz), 0);
+    ExpectIntEQ(wc_LmsKey_GetSigLen(&swKey, &sigLen), 0);
+    ExpectIntLE(sigLen, sizeof(sig));
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&swKey, sig, &sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_LmsKey_SigsLeft(&swKey), 1);
+    ExpectIntEQ(test_pkcs11_lms_keygens, 0);
+    ExpectIntEQ(test_pkcs11_lms_signs, 0);
+    ExpectIntEQ(test_pkcs11_lms_opens, 0);
+    wc_LmsKey_Free(&swKey);
+    /* A public key falls back to software when no session opens. */
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    ExpectIntEQ(wc_LmsKey_Init(&pubKey, NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_ImportPubRaw(&pubKey, swPub, swPubSz), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(test_pkcs11_lms_opens, 1);
+    wc_LmsKey_Free(&pubKey);
+#ifdef TEST_PKCS11_LMS_XMSS
+    /* XMSS keys are not sent to the token. */
+    XMEMSET(&xmssKey, 0, sizeof(xmssKey));
+    ExpectIntEQ(wc_XmssKey_Init(&xmssKey, NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_XmssKey_SetParamStr(&xmssKey, "XMSS-SHA2_10_256"), 0);
+    ExpectIntEQ(wc_XmssKey_GetPrivLen(&xmssKey, &xmssPrivSz), 0);
+    ExpectNotNull(xmssPriv = (byte*)XMALLOC(xmssPrivSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_XmssKey_SetWriteCb(&xmssKey, test_pkcs11_xmss_write), 0);
+    ExpectIntEQ(wc_XmssKey_SetReadCb(&xmssKey, test_pkcs11_xmss_read), 0);
+    ExpectIntEQ(wc_XmssKey_SetContext(&xmssKey, xmssPriv), 0);
+    ExpectIntEQ(wc_XmssKey_MakeKey(&xmssKey, &rng), 0);
+    ExpectIntEQ(wc_XmssKey_GetSigLen(&xmssKey, &xmssSigSz), 0);
+    ExpectIntLE(xmssSigSz, sizeof(sig));
+    ExpectIntEQ(wc_XmssKey_Sign(&xmssKey, sig, &xmssSigSz, msg, sizeof(msg)),
+        0);
+    ExpectIntEQ(wc_XmssKey_SigsLeft(&xmssKey), 1);
+    ExpectIntEQ(wc_XmssKey_Verify(&xmssKey, sig, xmssSigSz, msg, sizeof(msg)),
+        0);
+    ExpectIntEQ(test_pkcs11_lms_opens, 1);
+    wc_XmssKey_Free(&xmssKey);
+    XFREE(xmssPriv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    func.C_OpenSession = NULL;
+    token.handle = 1;
+
+    /* Key generation makes a named token key pair. */
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(test_pkcs11_lms_keygens, 1);
+    ExpectIntEQ(test_pkcs11_lms_priv_token, CK_TRUE);
+    ExpectIntEQ(test_pkcs11_lms_priv_extractable, CK_FALSE);
+    ExpectIntEQ(test_pkcs11_lms_priv_copyable, CK_FALSE);
+    ExpectIntEQ(test_pkcs11_lms_pub_token, CK_TRUE);
+    ExpectIntEQ(test_pkcs11_lms_pub_private, CK_FALSE);
+    ExpectIntEQ(test_pkcs11_lms_priv_id, 1);
+    ExpectIntEQ(test_pkcs11_lms_pub_id, 1);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PUB], 0);
+    ExpectIntEQ(wc_LmsKey_ExportPubRaw(&key, pub, &pubSz), 0);
+    ExpectIntEQ(pubSz, test_pkcs11_lms_pub_len);
+    ExpectBufEQ(pub, test_pkcs11_lms_pub, pubSz);
+
+    /* A second key pair may not take the same id. */
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    ExpectIntEQ(wc_LmsKey_InitId(&pubKey, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&pubKey, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&pubKey, &rng),
+        WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(test_pkcs11_lms_keygens, 1);
+    wc_LmsKey_Free(&pubKey);
+
+    ExpectIntEQ(wc_LmsKey_SigsLeft(&key), 1);
+    test_pkcs11_lms_remaining = 0;
+    ExpectIntEQ(wc_LmsKey_SigsLeft(&key), 0);
+    if (sizeof(CK_ULONG) > sizeof(word32)) {
+        test_pkcs11_lms_remaining = (CK_ULONG)WOLFSSL_MAX_32BIT + 1;
+        ExpectIntEQ(wc_LmsKey_SigsLeft(&key), 1);
+    }
+    test_pkcs11_lms_remaining = 31;
+    test_pkcs11_lms_remaining_rv = TEST_CKR_LMS_FAILED;
+    ExpectIntEQ(wc_LmsKey_SigsLeft(&key), 0);
+    test_pkcs11_lms_remaining_rv = CKR_OK;
+
+    /* Signing finds the key by id whatever devCtx holds. */
+    key.devCtx = (void*)(wc_ptr_t)99;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(sigSz, sigLen);
+    ExpectIntEQ(test_pkcs11_lms_signs, 1);
+    ExpectIntEQ(wc_LmsKey_Init(&pubKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_ImportPubRaw(&pubKey, pub, pubSz), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    wc_LmsKey_Free(&pubKey);
+    /* A key holding its public key verifies through a session object. */
+    ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(test_pkcs11_lms_verifies, 1);
+    ExpectIntEQ(test_pkcs11_lms_creates, 1);
+    ExpectIntEQ(test_pkcs11_lms_verify_key, TEST_PKCS11_LMS_SESS);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_SESS], 1);
+    if (sigSz > 0)
+        sig[sigSz - 1] ^= 0x01;
+    ExpectIntEQ(wc_LmsKey_Verify(&key, sig, sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    if (sigSz > 0)
+        sig[sigSz - 1] ^= 0x01;
+
+    /* A key named by id or label without a public key uses the token's. */
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    ExpectIntEQ(wc_LmsKey_InitId(&pubKey, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&pubKey, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(test_pkcs11_lms_verify_key, TEST_PKCS11_LMS_PUB);
+    test_pkcs11_lms_verify_init_rv = TEST_CKR_LMS_FAILED;
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_lms_verify_init_rv = CKR_OK;
+    test_pkcs11_lms_verify_rv = CKR_SIGNATURE_LEN_RANGE;
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    test_pkcs11_lms_verify_rv = TEST_CKR_LMS_DEVICE_ERROR;
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_lms_verify_rv = CKR_OK;
+    wc_LmsKey_Free(&pubKey);
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    test_pkcs11_lms_verify_key = 0;
+    ExpectIntEQ(wc_LmsKey_InitLabel(&pubKey, test_pkcs11_lms_label, NULL,
+        TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&pubKey, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(test_pkcs11_lms_verify_key, TEST_PKCS11_LMS_PUB);
+    wc_LmsKey_Free(&pubKey);
+
+    /* A public key without a name is verified through a session object. */
+    ExpectIntEQ(wc_LmsKey_Init(&pubKey, NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_ImportPubRaw(&pubKey, pub, pubSz), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(test_pkcs11_lms_creates, 3);
+    ExpectIntEQ(test_pkcs11_lms_verify_key, TEST_PKCS11_LMS_SESS);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_SESS], 3);
+    ExpectIntEQ(test_pkcs11_lms_verifies, 7);
+
+    /* A public key the token does not take, fails with or has no mechanism
+     * for is verified in software. */
+    verifies = test_pkcs11_lms_verifies;
+    test_pkcs11_lms_verify_init_rv = TEST_CKR_LMS_FAILED;
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    test_pkcs11_lms_verify_init_rv = CKR_OK;
+    test_pkcs11_lms_hss_flags = CKF_SIGN;
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    test_pkcs11_lms_hss_flags = CKF_SIGN | CKF_VERIFY;
+    ExpectIntEQ(test_pkcs11_lms_verifies, verifies);
+    test_pkcs11_lms_verify_rv = TEST_CKR_LMS_DEVICE_ERROR;
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    test_pkcs11_lms_verify_rv = CKR_OK;
+    ExpectIntEQ(test_pkcs11_lms_verifies, verifies + 1);
+    test_pkcs11_lms_create_rv = TEST_CKR_LMS_FAILED;
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz - 1, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    test_pkcs11_lms_create_rv = CKR_OK;
+    ExpectIntEQ(test_pkcs11_lms_verifies, 8);
+    wc_LmsKey_Free(&pubKey);
+
+    /* Freeing the key keeps the token objects. */
+    wc_LmsKey_Free(&key);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PRIV], 0);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PUB], 0);
+
+    /* A key reloaded by id signs on the token until it is exhausted. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(test_pkcs11_lms_signs, 2);
+    test_pkcs11_lms_sign_rv = CKR_KEY_EXHAUSTED;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(KEY_EXHAUSTED_E));
+    ExpectIntEQ(key.state, WC_LMS_STATE_NOSIGS);
+    test_pkcs11_lms_sign_rv = CKR_OK;
+    wc_LmsKey_Free(&key);
+
+    /* A key named by label signs; exhaustion at C_SignInit is reported. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitLabel(&key, test_pkcs11_lms_label, NULL,
+        TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(test_pkcs11_lms_signs, 4);
+    test_pkcs11_lms_sign_init_rv = CKR_KEY_EXHAUSTED;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(KEY_EXHAUSTED_E));
+    ExpectIntEQ(key.state, WC_LMS_STATE_NOSIGS);
+    ExpectIntEQ(test_pkcs11_lms_signs, 4);
+    test_pkcs11_lms_sign_init_rv = CKR_OK;
+    wc_LmsKey_Free(&key);
+
+    /* Any other signing failure leaves the key unusable. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    test_pkcs11_lms_sign_rv = TEST_CKR_LMS_DEVICE_ERROR;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(key.state, WC_LMS_STATE_BAD);
+    wc_LmsKey_Free(&key);
+    test_pkcs11_lms_sign_rv = CKR_OK;
+
+    /* A signature that does not fit the key's parameters is refused. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    test_pkcs11_lms_sig_short = 1;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_lms_sig_short = 0;
+    ExpectIntEQ(key.state, WC_LMS_STATE_BAD);
+    wc_LmsKey_Free(&key);
+
+    /* A token key with other parameters is refused before it signs. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 4), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    signs = test_pkcs11_lms_signs;
+    ExpectIntEQ(wc_LmsKey_GetSigLen(&key, &sigSz), 0);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_KEY_MISMATCH_E));
+    ExpectIntEQ(test_pkcs11_lms_signs, signs);
+    wc_LmsKey_Free(&key);
+
+    /* A named key with a read callback reloads as the token key under the
+     * keygen id check, and otherwise signs with the read callback's state. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_SetWriteCb(&key, test_pkcs11_lms_write), 0);
+    ExpectIntEQ(wc_LmsKey_SetReadCb(&key, test_pkcs11_lms_read), 0);
+    ExpectIntEQ(wc_LmsKey_SetContext(&key, test_pkcs11_lms_sw_state), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    signs = test_pkcs11_lms_signs;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    ExpectIntEQ(test_pkcs11_lms_signs, signs + 1);
+#else
+    ExpectIntEQ(test_pkcs11_lms_signs, signs);
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    ExpectIntEQ(wc_LmsKey_Init(&pubKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_ImportPubRaw(&pubKey, swPub, swPubSz), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    wc_LmsKey_Free(&pubKey);
+#endif
+    wc_LmsKey_Free(&key);
+
+    /* A failed key generation leaves no key; a label alone names a key. */
+    XMEMSET(&key, 0, sizeof(key));
+    test_pkcs11_lms_exists = 0;
+    ExpectIntEQ(wc_LmsKey_InitLabel(&key, test_pkcs11_lms_label, NULL,
+        TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    test_pkcs11_lms_keygen_rv = TEST_CKR_LMS_FAILED;
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_lms_keygen_rv = CKR_OK;
+    ExpectNull(key.devCtx);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PUB], 0);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PRIV], 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(test_pkcs11_lms_priv_named, 1);
+    ExpectIntEQ(test_pkcs11_lms_priv_id, 0);
+    wc_LmsKey_Free(&key);
+
+    /* A public key that does not match the parameters or cannot be read
+     * fails key generation and removes both new objects. */
+    XMEMSET(&key, 0, sizeof(key));
+    test_pkcs11_lms_keygens = 0;
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    test_pkcs11_lms_exists = 0;
+    test_pkcs11_lms_pub_short = 1;
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(BUFFER_E));
+    test_pkcs11_lms_pub_short = 0;
+    ExpectIntEQ(test_pkcs11_lms_keygens, 1);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PUB], 1);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PRIV], 1);
+    wc_LmsKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    test_pkcs11_lms_exists = 0;
+    test_pkcs11_lms_pub_rv = TEST_CKR_LMS_DEVICE_ERROR;
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_lms_pub_rv = CKR_OK;
+    ExpectIntEQ(test_pkcs11_lms_keygens, 2);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PUB], 2);
+    ExpectIntEQ(test_pkcs11_lms_destroyed[TEST_PKCS11_LMS_PRIV], 2);
+    ExpectNull(key.devCtx);
+    wc_LmsKey_Free(&key);
+
+    /* A token without HSS key generation, or failing the name search,
+     * generates no key; a label already in use is refused. */
+    XMEMSET(&key, 0, sizeof(key));
+    test_pkcs11_lms_keygens = 0;
+    test_pkcs11_lms_exists = 0;
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    test_pkcs11_lms_kpg_flags = 0;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+#else
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    test_pkcs11_lms_kpg_flags = CKF_GENERATE_KEY_PAIR;
+    test_pkcs11_lms_find_rv = TEST_CKR_LMS_DEVICE_ERROR;
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_lms_find_rv = CKR_OK;
+    wc_LmsKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    test_pkcs11_lms_exists = 1;
+    ExpectIntEQ(wc_LmsKey_InitLabel(&key, test_pkcs11_lms_label, NULL,
+        TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(BAD_STATE_E));
+    test_pkcs11_lms_exists = 2;
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), WC_NO_ERR_TRACE(BAD_STATE_E));
+    test_pkcs11_lms_exists = 1;
+    ExpectIntEQ(test_pkcs11_lms_keygens, 0);
+    wc_LmsKey_Free(&key);
+
+    /* A token that does not sign HSS, cannot read the key's parameters, or
+     * holds a key with too many levels or a short type list uses no leaf. */
+    signs = test_pkcs11_lms_signs;
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    test_pkcs11_lms_hss_flags = CKF_VERIFY;
+    sigSz = sigLen;
+    ExpectIntNE(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+    test_pkcs11_lms_hss_flags = CKF_SIGN | CKF_VERIFY;
+    wc_LmsKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    test_pkcs11_lms_params_rv = TEST_CKR_LMS_DEVICE_ERROR;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    test_pkcs11_lms_params_rv = CKR_OK;
+    wc_LmsKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    test_pkcs11_lms_levels = LMS_MAX_LEVELS + 1;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_KEY_MISMATCH_E));
+    test_pkcs11_lms_levels = 1;
+    wc_LmsKey_Free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    test_pkcs11_lms_types_short = 1;
+    ExpectIntEQ(wc_LmsKey_SigsLeft(&key), 0);
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_KEY_MISMATCH_E));
+    test_pkcs11_lms_types_short = 0;
+    ExpectIntEQ(test_pkcs11_lms_signs, signs);
+    wc_LmsKey_Free(&key);
+
+#if LMS_MAX_LEVELS >= 2
+    /* Each level of a two-level key pair gets the key's parameters. */
+    XMEMSET(&key, 0, sizeof(key));
+    test_pkcs11_lms_exists = 0;
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 2, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_MakeKey(&key, &rng), 0);
+    ExpectIntEQ(test_pkcs11_lms_levels, 2);
+    pubSz = sizeof(pub);
+    ExpectIntEQ(wc_LmsKey_ExportPubRaw(&key, pub, &pubSz), 0);
+    ExpectIntEQ(wc_LmsKey_GetSigLen(&key, &sigLen), 0);
+    ExpectIntLE(sigLen, sizeof(sig));
+    signs = test_pkcs11_lms_signs;
+    sigSz = sigLen;
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)), 0);
+    ExpectIntEQ(sigSz, sigLen);
+    ExpectIntEQ(test_pkcs11_lms_signs, signs + 1);
+    wc_LmsKey_Free(&key);
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+    ExpectIntEQ(wc_LmsKey_Init(&pubKey, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_ImportPubRaw(&pubKey, pub, pubSz), 0);
+    ExpectIntEQ(wc_LmsKey_Verify(&pubKey, sig, sigSz, msg, sizeof(msg)), 0);
+    wc_LmsKey_Free(&pubKey);
+
+    /* A one-level key does not match the two-level token key. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_LmsKey_InitId(&key, test_pkcs11_lms_id,
+        sizeof(test_pkcs11_lms_id), NULL, TEST_PKCS11_LMS_DEVID), 0);
+    ExpectIntEQ(wc_LmsKey_SetParameters(&key, 1, 5, 8), 0);
+    ExpectIntEQ(wc_LmsKey_Reload(&key), 0);
+    signs = test_pkcs11_lms_signs;
+    ExpectIntEQ(wc_LmsKey_GetSigLen(&key, &sigSz), 0);
+    ExpectIntEQ(wc_LmsKey_Sign(&key, sig, &sigSz, msg, sizeof(msg)),
+        WC_NO_ERR_TRACE(WC_KEY_MISMATCH_E));
+    ExpectIntEQ(test_pkcs11_lms_signs, signs);
+    wc_LmsKey_Free(&key);
+#endif
+
+    wc_LmsKey_Free(&test_pkcs11_lms_signer);
+    wc_LmsKey_Free(&test_pkcs11_lms_verifier);
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_LMS_DEVID);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

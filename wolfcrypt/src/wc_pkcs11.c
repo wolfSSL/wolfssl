@@ -84,17 +84,23 @@
 #if defined(NO_PKCS11_MLKEM) && defined(WOLFSSL_HAVE_MLKEM)
     #undef WOLFSSL_HAVE_MLKEM
 #endif
+#if defined(NO_PKCS11_LMS) && defined(WOLFSSL_HAVE_LMS)
+    #undef WOLFSSL_HAVE_LMS
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+    #define PKCS11_LMS_SIGN
+#endif
 
 
 #if (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) || defined(PKCS11_LMS_SIGN)
 /* Pointer to false required for templates. */
 static CK_BBOOL ckFalse = CK_FALSE;
 #endif
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
            !defined(NO_HMAC) || defined(WOLFSSL_HAVE_MLDSA) || \
-           defined(WOLFSSL_HAVE_MLKEM)
+           defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_LMS)
 /* Pointer to true required for templates. */
 static CK_BBOOL ckTrue  = CK_TRUE;
 #endif
@@ -117,13 +123,18 @@ static CK_KEY_TYPE mlkemKeyType = CKK_ML_KEM;
 /* Pointer to ML-DSA key type required for templates. */
 static CK_KEY_TYPE mldsaKeyType = CKK_ML_DSA;
 #endif
+#if defined(WOLFSSL_HAVE_LMS)
+/* Pointer to HSS key type required for templates. */
+static CK_KEY_TYPE hssKeyType   = CKK_HSS;
+#endif
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(WOLFSSL_HAVE_MLDSA) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_LMS)
 /* Pointer to public key class required for templates. */
 static CK_OBJECT_CLASS pubKeyClass     = CKO_PUBLIC_KEY;
 #endif
 #if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)) || defined(HAVE_ECC) || \
-    defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM) || \
+    defined(PKCS11_LMS_SIGN)
 /* Pointer to private key class required for templates. */
 static CK_OBJECT_CLASS privKeyClass    = CKO_PRIVATE_KEY;
 #endif
@@ -202,11 +213,18 @@ static struct PKCS11_TYPE_STR {
     { CKA_VALUE_LEN,        "CKA_VALUE_LEN",          PKCS11_FMT_NUMBER     },
     { CKA_COEFFICIENT,      "CKA_COEFFICIENT",        PKCS11_FMT_DATA       },
     { CKA_EXTRACTABLE,      "CKA_EXTRACTABLE",        PKCS11_FMT_BOOLEAN    },
+    { CKA_COPYABLE,         "CKA_COPYABLE",           PKCS11_FMT_BOOLEAN    },
     { CKA_EC_PARAMS,        "CKA_EC_PARAMS",          PKCS11_FMT_DATA       },
     { CKA_EC_POINT,         "CKA_EC_POINT",           PKCS11_FMT_DATA       },
     { CKA_ENCAPSULATE,      "CKA_ENCAPSULATE",        PKCS11_FMT_BOOLEAN    },
     { CKA_DECAPSULATE,      "CKA_DECAPSULATE",        PKCS11_FMT_BOOLEAN    },
     { CKA_PARAMETER_SET,    "CKA_PARAMETER_SET",      PKCS11_FMT_NUMBER     },
+    { CKA_HSS_LEVELS,       "CKA_HSS_LEVELS",         PKCS11_FMT_NUMBER     },
+    { CKA_HSS_LMS_TYPE,     "CKA_HSS_LMS_TYPE",       PKCS11_FMT_NUMBER     },
+    { CKA_HSS_LMOTS_TYPE,   "CKA_HSS_LMOTS_TYPE",     PKCS11_FMT_NUMBER     },
+    { CKA_HSS_LMS_TYPES,    "CKA_HSS_LMS_TYPES",      PKCS11_FMT_DATA       },
+    { CKA_HSS_LMOTS_TYPES,  "CKA_HSS_LMOTS_TYPES",    PKCS11_FMT_DATA       },
+    { CKA_KEYS_REMAINING,   "CKA_KEYS_REMAINING",     PKCS11_FMT_NUMBER     },
 };
 /* Count of known attribute types for logging. */
 #define PKCS11_TYPE_STR_CNT  ((int)(sizeof(typeStr) / sizeof(*typeStr)))
@@ -252,7 +270,7 @@ static void pkcs11_dump_template(const char* name, CK_ATTRIBUTE* templ,
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
            !defined(NO_HMAC) || defined(WOLFSSL_HAVE_MLDSA) || \
-           defined(WOLFSSL_HAVE_MLKEM)
+           defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_LMS)
             if (templ[i].pValue == &ckTrue) {
                 XSNPRINTF(line, sizeof(line), "%25s: TRUE", type);
                 WOLFSSL_MSG(line);
@@ -260,7 +278,7 @@ static void pkcs11_dump_template(const char* name, CK_ATTRIBUTE* templ,
             else
 #endif
 #if (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) || defined(PKCS11_LMS_SIGN)
             if (templ[i].pValue == &ckFalse) {
                 XSNPRINTF(line, sizeof(line), "%25s: FALSE", type);
                 WOLFSSL_MSG(line);
@@ -309,6 +327,9 @@ static void pkcs11_dump_template(const char* name, CK_ATTRIBUTE* templ,
                 break;
             case CKK_EC:
                 XSNPRINTF(line, sizeof(line), "%25s: EC", type);
+                break;
+            case CKK_HSS:
+                XSNPRINTF(line, sizeof(line), "%25s: HSS", type);
                 break;
             case CKK_GENERIC_SECRET:
                 XSNPRINTF(line, sizeof(line), "%25s: GENERIC_SECRET", type);
@@ -2127,7 +2148,7 @@ static int Pkcs11CreateMldsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
            !defined(NO_HMAC) || defined(WOLFSSL_HAVE_MLDSA) || \
-           defined(WOLFSSL_HAVE_MLKEM)
+           defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_LMS)
 /**
  * Check if mechanism is available in session on token.
  *
@@ -2150,7 +2171,7 @@ static int Pkcs11MechAvail(Pkcs11Session* session, CK_MECHANISM_TYPE mech,
     if (rv != CKR_OK) {
         ret = NOT_COMPILED_IN;
     }
-    if (mechInfoPtr != NULL) {
+    else if (mechInfoPtr != NULL) {
         *mechInfoPtr = mechInfo;
     }
 
@@ -2503,7 +2524,8 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
            !defined(NO_HMAC) || !defined(NO_CERTS) || \
-           defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM)
+           defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_MLKEM) || \
+           defined(WOLFSSL_HAVE_LMS)
 
 /**
  * Find the PKCS#11 object containing key data using template.
@@ -2555,7 +2577,7 @@ static int Pkcs11FindKeyByTemplate(CK_OBJECT_HANDLE* key,
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
            !defined(NO_HMAC) || defined(WOLFSSL_HAVE_MLDSA) || \
-           defined(WOLFSSL_HAVE_MLKEM)
+           defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_LMS)
 
 /**
  * Find the PKCS#11 object containing the private key data by label.
@@ -2566,7 +2588,7 @@ static int Pkcs11FindKeyByTemplate(CK_OBJECT_HANDLE* key,
  * @param  [in]   session   Session object.
  * @param  [in]   id        Identifier set against a key.
  * @param  [in]   idLen     Length of identifier.
- * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  WC_HW_E when a PKCS#11 library call fails or no key is found.
  * @return  0 on success.
  */
 static int Pkcs11FindKeyByLabel(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
@@ -2601,8 +2623,8 @@ static int Pkcs11FindKeyByLabel(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
  * @param  [in]   session     Session object.
  * @param  [in]   keyTemplate PKCS #11 template to use in search.
  * @param  [in]   keyTmplCnt  Count of entries in PKCS #11 template.
- * @return  WC_HW_E when a PKCS#11 library call fails or no key is found.
- * @return  0 on success.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success, with key set to NULL_PTR when no key is found.
  */
 static int Pkcs11FindKeyOfClass(CK_OBJECT_HANDLE* key,
                                 CK_OBJECT_CLASS keyClass,
@@ -2651,8 +2673,6 @@ static int Pkcs11FindKeyOfClass(CK_OBJECT_HANDLE* key,
             ret = WC_HW_E;
         }
     }
-    if (ret == 0 && *key == NULL_PTR)
-        ret = WC_HW_E;
 
     return ret;
 }
@@ -2667,7 +2687,7 @@ static int Pkcs11FindKeyOfClass(CK_OBJECT_HANDLE* key,
  * @param  [in]   session   Session object.
  * @param  [in]   id        Identifier set against a key.
  * @param  [in]   idLen     Length of identifier.
- * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  WC_HW_E when a PKCS#11 library call fails or no key is found.
  * @return  0 on success.
  */
 static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
@@ -2701,6 +2721,8 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
 #else
     ret = Pkcs11FindKeyOfClass(key, keyClass, session, keyTemplate,
                                keyTmplCnt);
+    if (ret == 0 && *key == NULL_PTR)
+        ret = WC_HW_E;
 #endif
 
     return ret;
@@ -6028,6 +6050,660 @@ static int Pkcs11PqcSigCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 #endif /* WOLFSSL_HAVE_MLDSA */
 
+#if defined(WOLFSSL_HAVE_LMS)
+/**
+ * Find the HSS key object of an LMS key by label or id.
+ *
+ * @param  [out]  handle    Handle to key object.
+ * @param  [in]   keyClass  Public or private key class.
+ * @param  [in]   session   Session object.
+ * @param  [in]   key       LMS key.
+ * @return  CRYPTOCB_UNAVAILABLE when the key names no token object.
+ * @return  WC_HW_E when a PKCS#11 library call fails or no key is found.
+ * @return  0 on success.
+ */
+static int Pkcs11FindLmsKey(CK_OBJECT_HANDLE* handle, CK_OBJECT_CLASS keyClass,
+                            Pkcs11Session* session, LmsKey* key)
+{
+    int ret;
+
+    if (key->labelLen > 0) {
+        ret = Pkcs11FindKeyByLabel(handle, keyClass, CKK_HSS, session,
+                                   key->label, key->labelLen);
+    }
+    else if (key->idLen > 0) {
+        ret = Pkcs11FindKeyById(handle, keyClass, CKK_HSS, session, key->id,
+                                key->idLen);
+    }
+    else {
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+
+    return ret;
+}
+
+/**
+ * Create a session object holding the HSS public key of an LMS key.
+ *
+ * @param  [out]  handle   Handle to public key object.
+ * @param  [in]   session  Session object.
+ * @param  [in]   key      LMS key.
+ * @return  CRYPTOCB_UNAVAILABLE when the token does not take the key, which
+ *          can still be verified in software.
+ * @return  0 on success.
+ */
+static int Pkcs11CreateLmsPublicKey(CK_OBJECT_HANDLE* handle,
+                                    Pkcs11Session* session, LmsKey* key)
+{
+    int          ret = 0;
+    CK_RV        rv;
+    CK_ATTRIBUTE keyTemplate[] = {
+        { CKA_CLASS,    &pubKeyClass, sizeof(pubKeyClass) },
+        { CKA_KEY_TYPE, &hssKeyType,  sizeof(hssKeyType)  },
+        { CKA_VERIFY,   &ckTrue,      sizeof(ckTrue)      },
+        { CKA_VALUE,    NULL,         0                   },
+    };
+    CK_ULONG     keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
+
+    keyTemplate[3].pValue     = key->pub;
+    keyTemplate[3].ulValueLen = HSS_PUBLIC_KEY_LEN(key->params->hash_len);
+
+    PKCS11_DUMP_TEMPLATE("HSS Public Key", keyTemplate, keyTmplCnt);
+    rv = session->func->C_CreateObject(session->handle, keyTemplate,
+                                       keyTmplCnt, handle);
+    PKCS11_RV("C_CreateObject", rv);
+    if (rv != CKR_OK) {
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+
+    return ret;
+}
+
+/**
+ * Perform an LMS/HSS verification operation.
+ * A public key held by the LMS key is used before one named on the token.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  BAD_FUNC_ARG when the result pointer is NULL.
+ * @return  CRYPTOCB_UNAVAILABLE when the token fails with its public key.
+ * @return  SIG_VERIFY_E when the signature is not valid.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  NOT_COMPILED_IN when the token does not verify HSS signatures.
+ * @return  0 on success.
+ */
+static int Pkcs11LmsVerify(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int               ret = 0;
+    int               sessionKey = 0;
+    CK_RV             rv;
+    CK_MECHANISM      mech;
+    CK_MECHANISM_INFO mechInfo;
+    CK_OBJECT_HANDLE  publicKey = NULL_PTR;
+    LmsKey*           key = (LmsKey*)info->pk.pqc_stateful_sig_verify.key;
+
+    if (info->pk.pqc_stateful_sig_verify.res == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0)
+        ret = Pkcs11MechAvail(session, CKM_HSS, &mechInfo);
+    if (ret == 0 && (mechInfo.flags & CKF_VERIFY) == 0)
+        ret = NOT_COMPILED_IN;
+
+    if (ret == 0) {
+        WOLFSSL_MSG("PKCS#11: HSS Verification Operation");
+
+        if (key->pubSet) {
+            ret = Pkcs11CreateLmsPublicKey(&publicKey, session, key);
+            sessionKey = (ret == 0);
+        }
+        else {
+            ret = Pkcs11FindLmsKey(&publicKey, CKO_PUBLIC_KEY, session, key);
+        }
+    }
+    if (ret == 0) {
+        mech.mechanism      = CKM_HSS;
+        mech.ulParameterLen = 0;
+        mech.pParameter     = NULL;
+
+        rv = session->func->C_VerifyInit(session->handle, &mech, publicKey);
+        PKCS11_RV("C_VerifyInit", rv);
+        if (rv != CKR_OK) {
+            ret = sessionKey ? CRYPTOCB_UNAVAILABLE : WC_HW_E;
+        }
+    }
+    if (ret == 0) {
+        *info->pk.pqc_stateful_sig_verify.res = 0;
+        rv = session->func->C_Verify(session->handle,
+                (CK_BYTE_PTR)info->pk.pqc_stateful_sig_verify.msg,
+                info->pk.pqc_stateful_sig_verify.msgSz,
+                (CK_BYTE_PTR)info->pk.pqc_stateful_sig_verify.sig,
+                info->pk.pqc_stateful_sig_verify.sigSz);
+        PKCS11_RV("C_Verify", rv);
+        if (rv == CKR_SIGNATURE_INVALID || rv == CKR_SIGNATURE_LEN_RANGE)
+            ret = SIG_VERIFY_E;
+        else if (rv != CKR_OK)
+            ret = sessionKey ? CRYPTOCB_UNAVAILABLE : WC_HW_E;
+        else
+            *info->pk.pqc_stateful_sig_verify.res = 1;
+    }
+
+    if (sessionKey) {
+        rv = session->func->C_DestroyObject(session->handle, publicKey);
+        PKCS11_RV("C_DestroyObject", rv);
+    }
+
+    return ret;
+}
+
+#ifdef PKCS11_LMS_SIGN
+/**
+ * Read the HSS public key of a key object into the LMS key.
+ *
+ * @param  [in]  key        LMS key with parameters set.
+ * @param  [in]  session    Session object.
+ * @param  [in]  keyHandle  Handle of HSS public key object.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  BAD_FUNC_ARG when the public key does not match the parameters.
+ * @return  BUFFER_E when the public key length is wrong.
+ * @return  0 on success.
+ */
+static int Pkcs11GetLmsPublicKey(LmsKey* key, Pkcs11Session* session,
+                                 CK_OBJECT_HANDLE keyHandle)
+{
+    int          ret = 0;
+    CK_RV        rv;
+    byte         pubKey[HSS_MAX_PUBLIC_KEY_LEN];
+    CK_ATTRIBUTE tmpl[] = {
+        { CKA_VALUE, NULL, 0 }
+    };
+    CK_ULONG     tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+
+    tmpl[0].pValue     = pubKey;
+    tmpl[0].ulValueLen = sizeof(pubKey);
+
+    rv = session->func->C_GetAttributeValue(session->handle, keyHandle, tmpl,
+                                            tmplCnt);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if (rv != CKR_OK || tmpl[0].ulValueLen > sizeof(pubKey)) {
+        ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        PKCS11_DUMP_TEMPLATE("HSS Public Key", tmpl, tmplCnt);
+        ret = wc_LmsKey_ImportPubRaw(key, pubKey, (word32)tmpl[0].ulValueLen);
+    }
+
+    return ret;
+}
+
+/**
+ * Check that no HSS object has the id or label of a new key.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  key      LMS key.
+ * @return  BAD_STATE_E when an HSS object has the id or label.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11CheckNewLmsKey(Pkcs11Session* session, LmsKey* key)
+{
+    int              ret = 0;
+    CK_ULONG         count = 0;
+    CK_OBJECT_HANDLE handle;
+    CK_ATTRIBUTE     tmpl[] = {
+        { CKA_KEY_TYPE, &hssKeyType, sizeof(hssKeyType) },
+        { CKA_ID,       NULL,        0                  }
+    };
+    CK_ULONG         tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+
+    if (key->idLen > 0) {
+        tmpl[1].pValue     = key->id;
+        tmpl[1].ulValueLen = (CK_ULONG)key->idLen;
+    #ifdef WC_PKCS11_FIND_WITH_ID_ONLY
+        /* Lookups by id match any key type. */
+        ret = Pkcs11FindKeyOfClass(&handle, CKO_PRIVATE_KEY, session,
+                                   tmpl + 1, 1);
+        if (ret == 0 && handle == NULL_PTR) {
+            ret = Pkcs11FindKeyOfClass(&handle, CKO_PUBLIC_KEY, session,
+                                       tmpl + 1, 1);
+        }
+        if (ret == 0 && handle != NULL_PTR)
+            count = 1;
+    #else
+        ret = Pkcs11FindKeyByTemplate(&handle, session, tmpl, tmplCnt, &count);
+    #endif
+    }
+    if (ret == 0 && count == 0 && key->labelLen > 0) {
+        tmpl[1].type       = CKA_LABEL;
+        tmpl[1].pValue     = key->label;
+        tmpl[1].ulValueLen = (CK_ULONG)key->labelLen;
+        ret = Pkcs11FindKeyByTemplate(&handle, session, tmpl, tmplCnt, &count);
+    }
+    if (ret == 0 && count != 0)
+        ret = BAD_STATE_E;
+
+    return ret;
+}
+
+/**
+ * Perform an LMS/HSS key generation operation.
+ * The private key is a token object, as the token keeps its signing state.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  BAD_STATE_E when the key has no parameters, or an HSS object
+ *          already has its id or label.
+ * @return  NOT_COMPILED_IN when the token does not generate HSS keys.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  BUFFER_E or BAD_FUNC_ARG when the generated public key does not
+ *          match the key's parameters.
+ * @return  0 on success.
+ */
+static int Pkcs11LmsKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int               ret = 0;
+    CK_RV             rv;
+    CK_OBJECT_HANDLE  pubKey = NULL_PTR, privKey = NULL_PTR;
+    CK_MECHANISM      mech;
+    CK_MECHANISM_INFO mechInfo;
+    CK_ULONG          levels = 0;
+    CK_LMS_TYPE       lmsTypes[LMS_MAX_LEVELS];
+    CK_LMOTS_TYPE     lmotsTypes[LMS_MAX_LEVELS];
+    CK_ULONG          i;
+    LmsKey*           key = (LmsKey*)info->pk.pqc_stateful_sig_kg.key;
+    /* Empty entries for optional label/ID. */
+    CK_ATTRIBUTE      pubKeyTmpl[] = {
+        { CKA_CLASS,       &pubKeyClass,  sizeof(pubKeyClass)  },
+        { CKA_KEY_TYPE,    &hssKeyType,   sizeof(hssKeyType)   },
+        { CKA_VERIFY,      &ckTrue,       sizeof(ckTrue)       },
+        { CKA_TOKEN,       &ckTrue,       sizeof(ckTrue)       },
+        { CKA_PRIVATE,     &ckFalse,      sizeof(ckFalse)      },
+        { 0,               NULL,          0                    },
+        { 0,               NULL,          0                    }
+    };
+    /* Mandatory entries + 2 optional. */
+    CK_ULONG pubTmplCnt = sizeof(pubKeyTmpl) / sizeof(*pubKeyTmpl) - 2;
+    /* Empty entries for optional label/ID. */
+    CK_ATTRIBUTE      privKeyTmpl[] = {
+        { CKA_CLASS,           &privKeyClass, sizeof(privKeyClass) },
+        { CKA_KEY_TYPE,        &hssKeyType,   sizeof(hssKeyType)   },
+        { CKA_SIGN,            &ckTrue,       sizeof(ckTrue)       },
+        { CKA_TOKEN,           &ckTrue,       sizeof(ckTrue)       },
+        { CKA_PRIVATE,         &ckTrue,       sizeof(ckTrue)       },
+        { CKA_SENSITIVE,       &ckTrue,       sizeof(ckTrue)       },
+        { CKA_EXTRACTABLE,     &ckFalse,      sizeof(ckFalse)      },
+        { CKA_COPYABLE,        &ckFalse,      sizeof(ckFalse)      },
+        { CKA_HSS_LEVELS,      &levels,       sizeof(levels)       },
+        { CKA_HSS_LMS_TYPES,   lmsTypes,      0                    },
+        { CKA_HSS_LMOTS_TYPES, lmotsTypes,    0                    },
+        { 0,                   NULL,          0                    },
+        { 0,                   NULL,          0                    }
+    };
+    /* Mandatory entries + 2 optional. */
+    CK_ULONG privTmplCnt = sizeof(privKeyTmpl) / sizeof(*privKeyTmpl) - 2;
+
+    if (key->params == NULL)
+        ret = BAD_STATE_E;
+    if (ret == 0)
+        ret = Pkcs11MechAvail(session, CKM_HSS_KEY_PAIR_GEN, &mechInfo);
+    if (ret == 0 && (mechInfo.flags & CKF_GENERATE_KEY_PAIR) == 0)
+        ret = NOT_COMPILED_IN;
+    if (ret == 0)
+        ret = Pkcs11CheckNewLmsKey(session, key);
+
+    if (ret == 0) {
+        WOLFSSL_MSG("PKCS#11: HSS Key Generation Operation");
+
+        levels = key->params->levels;
+        for (i = 0; i < levels; i++) {
+            lmsTypes[i]   = key->params->lmsType & LMS_H_W_MASK;
+            lmotsTypes[i] = key->params->lmOtsType & LMS_H_W_MASK;
+        }
+        for (i = 0; i < privTmplCnt; i++) {
+            if (privKeyTmpl[i].type == CKA_HSS_LMS_TYPES ||
+                    privKeyTmpl[i].type == CKA_HSS_LMOTS_TYPES) {
+                privKeyTmpl[i].ulValueLen = levels * sizeof(CK_ULONG);
+            }
+        }
+
+        if (key->labelLen != 0) {
+            privKeyTmpl[privTmplCnt].type       = CKA_LABEL;
+            privKeyTmpl[privTmplCnt].pValue     = key->label;
+            privKeyTmpl[privTmplCnt].ulValueLen = key->labelLen;
+            privTmplCnt++;
+
+            pubKeyTmpl[pubTmplCnt].type       = CKA_LABEL;
+            pubKeyTmpl[pubTmplCnt].pValue     = key->label;
+            pubKeyTmpl[pubTmplCnt].ulValueLen = key->labelLen;
+            pubTmplCnt++;
+        }
+        if (key->idLen != 0) {
+            privKeyTmpl[privTmplCnt].type       = CKA_ID;
+            privKeyTmpl[privTmplCnt].pValue     = key->id;
+            privKeyTmpl[privTmplCnt].ulValueLen = key->idLen;
+            privTmplCnt++;
+
+            pubKeyTmpl[pubTmplCnt].type       = CKA_ID;
+            pubKeyTmpl[pubTmplCnt].pValue     = key->id;
+            pubKeyTmpl[pubTmplCnt].ulValueLen = key->idLen;
+            pubTmplCnt++;
+        }
+
+        mech.mechanism      = CKM_HSS_KEY_PAIR_GEN;
+        mech.ulParameterLen = 0;
+        mech.pParameter     = NULL;
+
+        PKCS11_DUMP_TEMPLATE("Private Key", privKeyTmpl, privTmplCnt);
+        PKCS11_DUMP_TEMPLATE("Public Key", pubKeyTmpl, pubTmplCnt);
+
+        rv = session->func->C_GenerateKeyPair(session->handle, &mech,
+                                              pubKeyTmpl, pubTmplCnt,
+                                              privKeyTmpl, privTmplCnt,
+                                              &pubKey, &privKey);
+        PKCS11_RV("C_GenerateKeyPair", rv);
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0)
+        ret = Pkcs11GetLmsPublicKey(key, session, pubKey);
+
+    if (ret != 0 && pubKey != NULL_PTR) {
+        rv = session->func->C_DestroyObject(session->handle, pubKey);
+        PKCS11_RV("C_DestroyObject", rv);
+    }
+    if (ret != 0 && privKey != NULL_PTR) {
+        rv = session->func->C_DestroyObject(session->handle, privKey);
+        PKCS11_RV("C_DestroyObject", rv);
+    }
+
+    return ret;
+}
+
+/**
+ * Check that a token HSS private key has the parameters of the LMS key.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  key      LMS key.
+ * @param  [in]  handle   Handle of HSS private key object.
+ * @return  WC_KEY_MISMATCH_E when the parameters differ.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11CheckLmsParams(Pkcs11Session* session, LmsKey* key,
+                                CK_OBJECT_HANDLE handle)
+{
+    int           ret = 0;
+    CK_RV         rv;
+    CK_ULONG      levels = 0;
+    CK_LMS_TYPE   lmsTypes[LMS_MAX_LEVELS];
+    CK_LMOTS_TYPE lmotsTypes[LMS_MAX_LEVELS];
+    CK_ULONG      i;
+    CK_ATTRIBUTE  tmpl[] = {
+        { CKA_HSS_LEVELS,      NULL, 0 },
+        { CKA_HSS_LMS_TYPES,   NULL, 0 },
+        { CKA_HSS_LMOTS_TYPES, NULL, 0 }
+    };
+    CK_ULONG      tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+
+    tmpl[0].pValue     = &levels;
+    tmpl[0].ulValueLen = sizeof(levels);
+    tmpl[1].pValue     = lmsTypes;
+    tmpl[1].ulValueLen = sizeof(lmsTypes);
+    tmpl[2].pValue     = lmotsTypes;
+    tmpl[2].ulValueLen = sizeof(lmotsTypes);
+    rv = session->func->C_GetAttributeValue(session->handle, handle, tmpl,
+                                            tmplCnt);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if ((rv == CKR_OK || rv == CKR_BUFFER_TOO_SMALL) &&
+            tmpl[0].ulValueLen == sizeof(levels) &&
+            levels != key->params->levels) {
+        ret = WC_KEY_MISMATCH_E;
+    }
+    else if (rv != CKR_OK || tmpl[0].ulValueLen != sizeof(levels)) {
+        ret = WC_HW_E;
+    }
+    else if (tmpl[1].ulValueLen != levels * sizeof(CK_ULONG) ||
+             tmpl[2].ulValueLen != levels * sizeof(CK_ULONG)) {
+        ret = WC_KEY_MISMATCH_E;
+    }
+    for (i = 0; ret == 0 && i < levels; i++) {
+        if (lmsTypes[i] != (key->params->lmsType & LMS_H_W_MASK) ||
+                lmotsTypes[i] != (key->params->lmOtsType & LMS_H_W_MASK)) {
+            ret = WC_KEY_MISMATCH_E;
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Perform an LMS/HSS signing operation with a key held by the token.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  BAD_FUNC_ARG when the output buffer or its length is NULL.
+ * @return  NOT_COMPILED_IN when the token does not sign HSS signatures.
+ * @return  WC_KEY_MISMATCH_E when the token key has other parameters.
+ * @return  KEY_EXHAUSTED_E when the key has no signatures left.
+ * @return  WC_HW_E when a PKCS#11 library call fails or the signature length
+ *          does not match the key's parameters.
+ * @return  0 on success.
+ */
+static int Pkcs11LmsSign(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int               ret = 0;
+    CK_RV             rv;
+    CK_ULONG          outLen;
+    CK_MECHANISM      mech;
+    CK_MECHANISM_INFO mechInfo;
+    CK_OBJECT_HANDLE  privateKey = NULL_PTR;
+    LmsKey*           key = (LmsKey*)info->pk.pqc_stateful_sig_sign.key;
+
+    if (info->pk.pqc_stateful_sig_sign.out == NULL ||
+            info->pk.pqc_stateful_sig_sign.outSz == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0)
+        ret = Pkcs11FindLmsKey(&privateKey, CKO_PRIVATE_KEY, session, key);
+    if (ret == 0)
+        ret = Pkcs11MechAvail(session, CKM_HSS, &mechInfo);
+    if (ret == 0 && (mechInfo.flags & CKF_SIGN) == 0)
+        ret = NOT_COMPILED_IN;
+    if (ret == 0)
+        ret = Pkcs11CheckLmsParams(session, key, privateKey);
+
+    if (ret == 0) {
+        WOLFSSL_MSG("PKCS#11: HSS Signing Operation");
+
+        mech.mechanism      = CKM_HSS;
+        mech.ulParameterLen = 0;
+        mech.pParameter     = NULL;
+
+        rv = session->func->C_SignInit(session->handle, &mech, privateKey);
+        PKCS11_RV("C_SignInit", rv);
+        if (rv == CKR_KEY_EXHAUSTED)
+            ret = KEY_EXHAUSTED_E;
+        else if (rv != CKR_OK)
+            ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        outLen = *info->pk.pqc_stateful_sig_sign.outSz;
+        rv = session->func->C_Sign(session->handle,
+                (CK_BYTE_PTR)info->pk.pqc_stateful_sig_sign.msg,
+                info->pk.pqc_stateful_sig_sign.msgSz,
+                info->pk.pqc_stateful_sig_sign.out, &outLen);
+        PKCS11_RV("C_Sign", rv);
+        if (rv == CKR_KEY_EXHAUSTED)
+            ret = KEY_EXHAUSTED_E;
+        else if (rv != CKR_OK || outLen != key->params->sig_len)
+            ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        *info->pk.pqc_stateful_sig_sign.outSz = (word32)outLen;
+    }
+
+    return ret;
+}
+
+/**
+ * Get the number of signatures left from an LMS/HSS key held by the token.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  WC_KEY_MISMATCH_E when the token key has other parameters.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11LmsSigsLeft(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int              ret = 0;
+    CK_RV            rv;
+    CK_ULONG         remaining = 0;
+    CK_OBJECT_HANDLE privateKey = NULL_PTR;
+    LmsKey*          key = (LmsKey*)info->pk.pqc_stateful_sig_sigs_left.key;
+    CK_ATTRIBUTE     tmpl[] = {
+        { CKA_KEYS_REMAINING, NULL, 0 }
+    };
+    CK_ULONG         tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+
+    if (info->pk.pqc_stateful_sig_sigs_left.sigsLeft == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0)
+        ret = Pkcs11FindLmsKey(&privateKey, CKO_PRIVATE_KEY, session, key);
+    if (ret == 0)
+        ret = Pkcs11CheckLmsParams(session, key, privateKey);
+    if (ret == 0) {
+        tmpl[0].pValue     = &remaining;
+        tmpl[0].ulValueLen = sizeof(remaining);
+        rv = session->func->C_GetAttributeValue(session->handle, privateKey,
+                                                tmpl, tmplCnt);
+        PKCS11_RV("C_GetAttributeValue", rv);
+        if (rv != CKR_OK || tmpl[0].ulValueLen != sizeof(remaining)) {
+            ret = WC_HW_E;
+        }
+        PKCS11_DUMP_TEMPLATE("HSS Keys Remaining", tmpl, tmplCnt);
+    }
+    if (ret == 0) {
+        if (((word64)remaining >> 32) != 0)
+            remaining = (CK_ULONG)WOLFSSL_MAX_32BIT;
+        *info->pk.pqc_stateful_sig_sigs_left.sigsLeft = (word32)remaining;
+    }
+
+    return ret;
+}
+#endif /* PKCS11_LMS_SIGN */
+
+/**
+ * Check whether an LMS/HSS operation is performed by the token.
+ *
+ * @param  [in]  info  Cryptographic operation data.
+ * @return  CRYPTOCB_UNAVAILABLE when software performs the operation.
+ * @return  0 when the token performs the operation.
+ */
+static int Pkcs11LmsUseToken(wc_CryptoInfo* info)
+{
+    int     ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int     soft = 0;
+    LmsKey* key = NULL;
+
+    switch (info->pk.type) {
+    #ifdef PKCS11_LMS_SIGN
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
+            if (info->pk.pqc_stateful_sig_kg.type ==
+                    WC_PQC_STATEFUL_SIG_TYPE_LMS) {
+                key = (LmsKey*)info->pk.pqc_stateful_sig_kg.key;
+            }
+            break;
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN:
+            if (info->pk.pqc_stateful_sig_sign.type ==
+                    WC_PQC_STATEFUL_SIG_TYPE_LMS) {
+                key = (LmsKey*)info->pk.pqc_stateful_sig_sign.key;
+                soft = key->privSet;
+            }
+            break;
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT:
+            if (info->pk.pqc_stateful_sig_sigs_left.type ==
+                    WC_PQC_STATEFUL_SIG_TYPE_LMS) {
+                key = (LmsKey*)info->pk.pqc_stateful_sig_sigs_left.key;
+                soft = key->privSet;
+            }
+            break;
+    #endif
+        case WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY:
+            if (info->pk.pqc_stateful_sig_verify.type ==
+                    WC_PQC_STATEFUL_SIG_TYPE_LMS) {
+                key = (LmsKey*)info->pk.pqc_stateful_sig_verify.key;
+            #ifdef PKCS11_LMS_SIGN
+                soft = key->privSet;
+            #endif
+                if (key->pubSet)
+                    ret = 0;
+            }
+            break;
+        default:
+            break;
+    }
+    if (key != NULL && !soft && (key->idLen > 0 || key->labelLen > 0))
+        ret = 0;
+
+    return ret;
+}
+
+/**
+ * Perform an LMS/HSS operation in a session on the token.
+ *
+ * @param  [in]  token      Token object.
+ * @param  [in]  info       Cryptographic operation data.
+ * @param  [in]  readWrite  Boolean indicating to open session for Read/Write.
+ * @return  CRYPTOCB_UNAVAILABLE when software performs the operation.
+ * @return  WC_HW_E when opening the session fails.
+ * @return  NOT_COMPILED_IN when the operation is not supported.
+ * @return  0 on success.
+ */
+static int Pkcs11PqcStatefulSig(Pkcs11Token* token, wc_CryptoInfo* info,
+                                int readWrite)
+{
+    int           ret;
+    Pkcs11Session session;
+
+    ret = Pkcs11LmsUseToken(info);
+    if (ret == 0) {
+        /* Token objects need a read/write session. */
+        if (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN)
+            readWrite = 1;
+        ret = Pkcs11OpenSession(token, &session, readWrite);
+        if (ret != 0 && info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY &&
+                ((LmsKey*)info->pk.pqc_stateful_sig_verify.key)->pubSet) {
+            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        }
+    }
+    if (ret == 0) {
+        switch (info->pk.type) {
+        #ifdef PKCS11_LMS_SIGN
+            case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
+                ret = Pkcs11LmsKeyGen(&session, info);
+                break;
+            case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN:
+                ret = Pkcs11LmsSign(&session, info);
+                break;
+            case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT:
+                ret = Pkcs11LmsSigsLeft(&session, info);
+                break;
+        #endif
+            case WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY:
+                ret = Pkcs11LmsVerify(&session, info);
+                break;
+            default:
+                ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                break;
+        }
+        Pkcs11CloseSession(token, &session);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_LMS */
+
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
 /**
  * Performs the AES-GCM encryption operation.
@@ -6973,7 +7649,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     if (ret == 0) {
         if (info->algo_type == WC_ALGO_TYPE_PK) {
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(WOLFSSL_HAVE_MLDSA) || \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_LMS)
             switch (info->pk.type) {
     #ifndef NO_RSA
                 case WC_PK_TYPE_RSA:
@@ -7110,13 +7786,23 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                     }
                     break;
     #endif
+    #if defined(WOLFSSL_HAVE_LMS)
+        #ifdef PKCS11_LMS_SIGN
+                case WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN:
+                case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGN:
+                case WC_PK_TYPE_PQC_STATEFUL_SIG_SIGS_LEFT:
+        #endif
+                case WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY:
+                    ret = Pkcs11PqcStatefulSig(token, info, readWrite);
+                    break;
+    #endif
                 default:
                     ret = NOT_COMPILED_IN;
                     break;
             }
 #else
             ret = NOT_COMPILED_IN;
-#endif /* !NO_RSA || HAVE_ECC || WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_MLKEM */
+#endif /* !NO_RSA || HAVE_ECC || MLDSA || MLKEM || LMS */
         }
         else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
     #ifndef NO_AES

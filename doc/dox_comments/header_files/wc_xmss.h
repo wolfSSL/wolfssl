@@ -274,9 +274,12 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
     The same parameter set selected at key-generation time must be
     reapplied with wc_XmssKey_SetParamStr() before calling Reload.
 
-    With WOLF_CRYPTO_CB, a key on a devId with no read callback is
-    taken to be device-backed and Reload is a no-op. With a read
-    callback the software reload runs as usual, which needs the write
+    With WOLF_CRYPTO_CB, a key on a devId is taken to be device-backed
+    and Reload is a no-op when it has no read callback or has a device
+    context. A key with an id or label is a no-op too, always with
+    WOLF_CRYPTO_CB_ONLY_XMSS, and otherwise when a device is registered for
+    its devId and WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is not defined.
+    Otherwise the software reload runs as usual, which needs the write
     callback set too.
 
     WOLF_CRYPTO_CB_ONLY_XMSS removes the software reload, so the read
