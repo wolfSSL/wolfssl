@@ -75,6 +75,15 @@
     defined(TEST_PKCS11_RD_MLKEM_DEC) || defined(TEST_PKCS11_RD_CERT)
     #define TEST_PKCS11_VALUE_READ
 #endif
+#if !defined(NO_AES) && !defined(NO_PKCS11_AES) && \
+    defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #define TEST_PKCS11_AES_CTR
+#endif
+
+#define TEST_PKCS11_DEVID       0x7031
+#define TEST_CKR_GENERAL_ERROR  ((CK_RV)0x00000005UL)
+#define TEST_CKR_DATA_LEN_RANGE ((CK_RV)0x00000021UL)
 
 #ifdef TEST_PKCS11_ECDSA
 static int         test_pkcs11_verify_init_calls = 0;
@@ -97,7 +106,8 @@ static CK_RV test_pkcs11_get_mechanism_info(CK_SLOT_ID slotId,
 }
 #endif
 
-#if defined(TEST_PKCS11_ECDSA) || defined(TEST_PKCS11_VALUE_READ)
+#if defined(TEST_PKCS11_ECDSA) || defined(TEST_PKCS11_VALUE_READ) || \
+    defined(TEST_PKCS11_AES_CTR)
 static CK_RV test_pkcs11_create_object(CK_SESSION_HANDLE session,
     CK_ATTRIBUTE_PTR template, CK_ULONG count, CK_OBJECT_HANDLE_PTR object)
 {
@@ -1218,7 +1228,6 @@ int test_wc_Pkcs11_EcdsaSigDecode(void)
 
 #define TEST_PKCS11_MAX_OBJS    8
 #define TEST_PKCS11_MAX_ID_LEN  32
-#define TEST_CKR_GENERAL_ERROR  ((CK_RV)0x00000005UL)
 
 typedef struct TestPkcs11Obj {
     int             used;
@@ -1812,8 +1821,6 @@ int test_wc_Pkcs11_RsaIdNoLeak(void)
 #endif
     return EXPECT_RESULT();
 }
-
-#define TEST_PKCS11_DEVID 0x7031
 
 #ifndef NO_PKCS11_ECDH
     #define TEST_PKCS11_DFLT_DERIVE CK_TRUE
@@ -2895,3 +2902,256 @@ int test_wc_Pkcs11_TokenOpenDropsPin(void)
 }
 
 #endif /* TEST_PKCS11_ECDSA */
+
+#ifdef TEST_PKCS11_AES_CTR
+/* Same layout as CK_AES_CTR_PARAMS in wc_pkcs11.c. */
+typedef struct TestPkcs11CtrParams {
+    CK_ULONG ulCounterBits;
+    CK_BYTE  cb[WC_AES_BLOCK_SIZE];
+} TestPkcs11CtrParams;
+
+static const byte test_pkcs11_ctr_key[16] = {
+    0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+    0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+};
+static byte test_pkcs11_ctr_cb[WC_AES_BLOCK_SIZE];
+static int  test_pkcs11_ctr_inits = 0;
+static int  test_pkcs11_ctr_encrypts = 0;
+static int  test_pkcs11_ctr_fail_at = 0;
+static int  test_pkcs11_ctr_no_mech = 0;
+
+static CK_RV test_pkcs11_ctr_mech_info(CK_SLOT_ID slotId,
+    CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR info)
+{
+    (void)slotId;
+
+    if (type != CKM_AES_CTR || info == NULL || test_pkcs11_ctr_no_mech)
+        return CKR_MECHANISM_INVALID;
+
+    XMEMSET(info, 0, sizeof(*info));
+    info->flags = CKF_ENCRYPT;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_ctr_encrypt_init(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mech, CK_OBJECT_HANDLE key)
+{
+    TestPkcs11CtrParams* params;
+
+    (void)session;
+    (void)key;
+
+    if (mech == NULL || mech->mechanism != CKM_AES_CTR ||
+            mech->pParameter == NULL ||
+            mech->ulParameterLen != sizeof(TestPkcs11CtrParams))
+        return CKR_MECHANISM_INVALID;
+
+    params = (TestPkcs11CtrParams*)mech->pParameter;
+    if (params->ulCounterBits != WC_AES_BLOCK_SIZE * 8)
+        return CKR_MECHANISM_INVALID;
+
+    XMEMCPY(test_pkcs11_ctr_cb, params->cb, WC_AES_BLOCK_SIZE);
+    test_pkcs11_ctr_inits++;
+    return CKR_OK;
+}
+
+/* Single-part AES-CTR from the counter given to the last C_EncryptInit.
+ * Like wolfPKCS11, a 128-bit counter is not allowed to wrap. */
+static CK_RV test_pkcs11_ctr_encrypt(CK_SESSION_HANDLE session,
+    CK_BYTE_PTR in, CK_ULONG inLen, CK_BYTE_PTR out, CK_ULONG_PTR outLen)
+{
+    static const byte zeros[WC_AES_BLOCK_SIZE] = { 0 };
+    CK_RV rv = CKR_OK;
+    Aes   aes;
+
+    (void)session;
+
+    test_pkcs11_ctr_encrypts++;
+    if (test_pkcs11_ctr_encrypts == test_pkcs11_ctr_fail_at)
+        return TEST_CKR_GENERAL_ERROR;
+    if (in == NULL || out == NULL || outLen == NULL || *outLen < inLen)
+        return TEST_CKR_GENERAL_ERROR;
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0)
+        return TEST_CKR_GENERAL_ERROR;
+    if (wc_AesSetKey(&aes, test_pkcs11_ctr_key, sizeof(test_pkcs11_ctr_key),
+            test_pkcs11_ctr_cb, AES_ENCRYPTION) != 0) {
+        rv = TEST_CKR_GENERAL_ERROR;
+    }
+    if (rv == CKR_OK &&
+            wc_AesCtrEncrypt(&aes, out, in, (word32)inLen) != 0) {
+        rv = TEST_CKR_GENERAL_ERROR;
+    }
+    /* The next counter is below the start, and not zero, only after a wrap. */
+    if (rv == CKR_OK &&
+            XMEMCMP(aes.reg, test_pkcs11_ctr_cb, WC_AES_BLOCK_SIZE) < 0 &&
+            XMEMCMP(aes.reg, zeros, WC_AES_BLOCK_SIZE) != 0) {
+        rv = TEST_CKR_DATA_LEN_RANGE;
+    }
+    wc_AesFree(&aes);
+
+    if (rv == CKR_OK)
+        *outLen = inLen;
+    return rv;
+}
+
+/* Encrypt in from the start of iv, in calls of the given sizes. */
+static int test_pkcs11_ctr_split(Aes* aes, const byte* iv, const byte* in,
+    byte* out, const word32* parts, int cnt)
+{
+    int    ret;
+    int    i;
+    word32 off = 0;
+
+    ret = wc_AesSetIV(aes, iv);
+    for (i = 0; ret == 0 && i < cnt; i++) {
+        ret = wc_AesCtrEncrypt(aes, out + off, in + off, parts[i]);
+        off += parts[i];
+    }
+    return ret;
+}
+#endif /* TEST_PKCS11_AES_CTR */
+
+int test_wc_Pkcs11_AesCtrStream(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_AES_CTR
+    static const word32 split1[] = { 64 };
+    static const word32 split2[] = { 32, 32 };
+    static const word32 split3[] = { 16, 16, 16, 16 };
+    static const word32 split4[] = { 10, 22, 32 };
+    static const word32 split5[] = { 10, 10, 3, 41 };
+    static const word32 split6[] = { 3, 13, 48 };
+    static const word32* splits[] = {
+        split1, split2, split3, split4, split5, split6
+    };
+    static const int splitCnt[] = { 1, 2, 4, 3, 4, 3 };
+    byte iv[WC_AES_BLOCK_SIZE];
+    byte wrapIv[WC_AES_BLOCK_SIZE];
+    byte reg[WC_AES_BLOCK_SIZE];
+    byte tmp[WC_AES_BLOCK_SIZE];
+    byte plain[64];
+    byte ref[64];
+    byte out[64];
+    byte zeros[64];
+    word32 left = 0;
+    int inits = 0;
+    int i;
+    int j;
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    Aes sw;
+    Aes dev;
+
+    for (i = 0; i < (int)sizeof(plain); i++)
+        plain[i] = (byte)i;
+    for (i = 0; i < WC_AES_BLOCK_SIZE; i++)
+        iv[i] = (byte)(0xf0 + i);
+    XMEMSET(zeros, 0, sizeof(zeros));
+
+    XMEMSET(&sw, 0, sizeof(sw));
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(&token, 0, sizeof(token));
+    XMEMSET(&func, 0, sizeof(func));
+    func.C_GetMechanismInfo = test_pkcs11_ctr_mech_info;
+    func.C_CreateObject = test_pkcs11_create_object;
+    func.C_DestroyObject = test_pkcs11_destroy_object;
+    func.C_EncryptInit = test_pkcs11_ctr_encrypt_init;
+    func.C_Encrypt = test_pkcs11_ctr_encrypt;
+    token.func = &func;
+    token.slotId = 1;
+    token.handle = 1;
+    token.version = WC_PCKS11VERSION_2_40;
+    test_pkcs11_ctr_inits = 0;
+    test_pkcs11_ctr_encrypts = 0;
+    test_pkcs11_ctr_fail_at = 0;
+    test_pkcs11_ctr_no_mech = 0;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+    ExpectIntEQ(wc_AesInit(&sw, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&sw, test_pkcs11_ctr_key,
+        sizeof(test_pkcs11_ctr_key), iv, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&sw, ref, plain, sizeof(plain)), 0);
+
+    ExpectIntEQ(wc_AesInit(&dev, NULL, TEST_PKCS11_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&dev, test_pkcs11_ctr_key,
+        sizeof(test_pkcs11_ctr_key), iv, AES_ENCRYPTION), 0);
+
+    /* Any split of the stream gives the software one-shot output. */
+    for (i = 0; i < (int)(sizeof(splitCnt) / sizeof(splitCnt[0])); i++) {
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(test_pkcs11_ctr_split(&dev, iv, plain, out, splits[i],
+            splitCnt[i]), 0);
+        ExpectBufEQ(out, ref, sizeof(ref));
+    }
+
+    /* Setting the IV drops the unused keystream of the last call. */
+    ExpectIntEQ(wc_AesCtrEncrypt(&dev, out, plain, 10), 0);
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(test_pkcs11_ctr_split(&dev, iv, plain, out, split1, 1), 0);
+    ExpectBufEQ(out, ref, sizeof(ref));
+
+    /* A call served from the unused keystream does not use the token. */
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesSetIV(&dev, iv), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&dev, out, plain, 10), 0);
+    inits = test_pkcs11_ctr_inits;
+    ExpectIntEQ(wc_AesCtrEncrypt(&dev, out + 10, plain + 10, 3), 0);
+    ExpectIntEQ(test_pkcs11_ctr_inits, inits);
+    ExpectIntEQ(wc_AesCtrEncrypt(&dev, out + 13, plain + 13, 51), 0);
+    ExpectBufEQ(out, ref, sizeof(ref));
+
+    /* A failed call after leftover keystream wipes the output and keeps the
+     * state. i = 1: the whole-block call fails, i = 2: the tail call fails. */
+    for (i = 1; i <= 2; i++) {
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(wc_AesSetIV(&dev, iv), 0);
+        ExpectIntEQ(wc_AesCtrEncrypt(&dev, out, plain, 10), 0);
+        XMEMCPY(reg, dev.reg, sizeof(reg));
+        XMEMCPY(tmp, dev.tmp, sizeof(tmp));
+        left = dev.left;
+        XMEMSET(out + 10, 0xa5, 26);
+        test_pkcs11_ctr_fail_at = test_pkcs11_ctr_encrypts + i;
+        ExpectIntEQ(wc_AesCtrEncrypt(&dev, out + 10, plain + 10, 26),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        test_pkcs11_ctr_fail_at = 0;
+        ExpectBufEQ(dev.reg, reg, sizeof(reg));
+        ExpectBufEQ(dev.tmp, tmp, sizeof(tmp));
+        ExpectIntEQ(dev.left, left);
+        ExpectBufEQ(out + 10, zeros, 26);
+        ExpectIntEQ(wc_AesCtrEncrypt(&dev, out + 10, plain + 10, 54), 0);
+        ExpectBufEQ(out, ref, sizeof(ref));
+    }
+
+    /* Software fallback in place continues the stream from the token. */
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_AesSetIV(&dev, iv), 0);
+    ExpectIntEQ(wc_AesCtrEncrypt(&dev, out, plain, 10), 0);
+    XMEMCPY(out + 10, plain + 10, sizeof(out) - 10);
+    test_pkcs11_ctr_no_mech = 1;
+    ExpectIntEQ(wc_AesCtrEncrypt(&dev, out + 10, out + 10, 54), 0);
+    test_pkcs11_ctr_no_mech = 0;
+    ExpectBufEQ(out, ref, sizeof(ref));
+
+    /* The counter wraps from all ones to zero as in software, also when the
+     * wrap falls inside one call. */
+    for (j = 0; j < 2; j++) {
+        XMEMSET(wrapIv, 0xff, sizeof(wrapIv));
+        wrapIv[WC_AES_BLOCK_SIZE - 1] = (byte)(0xfe + j);
+        ExpectIntEQ(wc_AesSetIV(&sw, wrapIv), 0);
+        ExpectIntEQ(wc_AesCtrEncrypt(&sw, ref, plain, sizeof(plain)), 0);
+        for (i = 0; i < (int)(sizeof(splitCnt) / sizeof(splitCnt[0])); i++) {
+            XMEMSET(out, 0, sizeof(out));
+            ExpectIntEQ(test_pkcs11_ctr_split(&dev, wrapIv, plain, out,
+                splits[i], splitCnt[i]), 0);
+            ExpectBufEQ(out, ref, sizeof(ref));
+        }
+    }
+
+    wc_AesFree(&dev);
+    wc_AesFree(&sw);
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_DEVID);
+#endif
+    return EXPECT_RESULT();
+}

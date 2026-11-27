@@ -6382,7 +6382,101 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 
 #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
 /**
+ * Adds a number of blocks to a big-endian AES-CTR counter block.
+ * The whole block is the counter, so it wraps at 2^128.
+ *
+ * @param  [in, out]  ctr     Counter block.
+ * @param  [in]       blocks  Number of blocks to add.
+ */
+static WC_INLINE void Pkcs11AesCtrAdd(byte* ctr, word32 blocks)
+{
+    int    i;
+    word32 carry = blocks;
+
+    for (i = WC_AES_BLOCK_SIZE - 1; i >= 0 && carry != 0; i--) {
+        carry += ctr[i];
+        ctr[i] = WC_OCTET(carry);
+        carry >>= 8;
+    }
+}
+
+/**
+ * Limits a number of blocks to prevent the counter wrapping.
+ *
+ * @param  [in]  ctr     Counter block.
+ * @param  [in]  blocks  Number of blocks to encrypt.
+ * @return  Number of blocks that can be encrypted before the counter wraps.
+ */
+static WC_INLINE word32 Pkcs11AesCtrBlocksToWrap(const byte* ctr,
+                                                 word32 blocks)
+{
+    int    i;
+    word32 low;
+
+    for (i = 0; i < WC_AES_BLOCK_SIZE - 4; i++) {
+        if (ctr[i] != 0xff)
+            return blocks;
+    }
+    low = ((word32)ctr[12] << 24) | ((word32)ctr[13] << 16) |
+          ((word32)ctr[14] << 8) | (word32)ctr[15];
+    /* 0 - low counter values are left, including the all ones one. */
+    if (low != 0 && blocks > (word32)0 - low) {
+        blocks = (word32)0 - low;
+    }
+    return blocks;
+}
+
+/**
+ * Performs one single-part AES-CTR encryption starting at a counter block.
+ *
+ * @param  [in]   session  Session object.
+ * @param  [in]   key      Handle of the AES key object.
+ * @param  [in]   ctr      Counter block to start from.
+ * @param  [in]   in       Data to encrypt.
+ * @param  [out]  out      Buffer to hold encrypted data.
+ * @param  [in]   sz       Length of data in bytes.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11AesCtrOp(Pkcs11Session* session, CK_OBJECT_HANDLE key,
+                          const byte* ctr, const byte* in, byte* out,
+                          word32 sz)
+{
+    int                ret = 0;
+    CK_RV              rv;
+    CK_AES_CTR_PARAMS  params;
+    CK_MECHANISM       mech;
+    CK_ULONG           outLen = sz;
+
+    XMEMSET(&params, 0, sizeof(params));
+    params.ulCounterBits = WC_AES_BLOCK_SIZE * 8;
+    XMEMCPY(params.cb, ctr, WC_AES_BLOCK_SIZE);
+
+    mech.mechanism      = CKM_AES_CTR;
+    mech.ulParameterLen = sizeof(params);
+    mech.pParameter     = &params;
+
+    rv = session->func->C_EncryptInit(session->handle, &mech, key);
+    PKCS11_RV("C_EncryptInit", rv);
+    if (rv != CKR_OK) {
+        ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        rv = session->func->C_Encrypt(session->handle, (CK_BYTE_PTR)in, sz,
+                                      out, &outLen);
+        PKCS11_RV("C_Encrypt", rv);
+        if (rv != CKR_OK || outLen != sz) {
+            ret = WC_HW_E;
+        }
+    }
+
+    return ret;
+}
+
+/**
  * Performs the AES-CTR encryption operation.
+ * The counter and the unused keystream of a partial block are kept in the
+ * Aes object between calls.
  *
  * @param  [in]  session  Session object.
  * @param  [in]  info     Cryptographic operation data.
@@ -6393,20 +6487,36 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 static int Pkcs11AesCtrEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 {
     int                ret = 0;
-    CK_RV              rv;
     Aes*               aes = info->cipher.aesctr.aes;
+    const byte*        in = info->cipher.aesctr.in;
+    byte*              out = info->cipher.aesctr.out;
+    word32             sz = info->cipher.aesctr.sz;
+    word32             fromLeft;
+    word32             blocks;
+    word32             done;
+    word32             run;
+    word32             rem;
     CK_MECHANISM_INFO  mechInfo;
-    CK_AES_CTR_PARAMS  params;
     CK_OBJECT_HANDLE   key = NULL_PTR;
-    CK_MECHANISM       mech;
-    CK_ULONG           outLen;
+    byte               ctr[WC_AES_BLOCK_SIZE];
+    byte               zeros[WC_AES_BLOCK_SIZE];
+    byte               ks[WC_AES_BLOCK_SIZE];
+
+    fromLeft = min(aes->left, sz);
+    blocks = (sz - fromLeft) / WC_AES_BLOCK_SIZE;
+    rem = (sz - fromLeft) % WC_AES_BLOCK_SIZE;
+    XMEMCPY(ctr, aes->reg, WC_AES_BLOCK_SIZE);
+    XMEMSET(zeros, 0, sizeof(zeros));
+    XMEMSET(ks, 0, sizeof(ks));
 
     /* Check operation is supported. */
-    ret = Pkcs11MechAvail(session, CKM_AES_CTR, &mechInfo);
-    if (ret == 0 && (mechInfo.flags & CKF_ENCRYPT) == 0) {
-        ret = NOT_COMPILED_IN;
+    if (sz > fromLeft) {
+        ret = Pkcs11MechAvail(session, CKM_AES_CTR, &mechInfo);
+        if (ret == 0 && (mechInfo.flags & CKF_ENCRYPT) == 0) {
+            ret = NOT_COMPILED_IN;
+        }
     }
-    if (ret == 0) {
+    if (ret == 0 && sz > fromLeft) {
         WOLFSSL_MSG("PKCS#11: AES-CTR Encryption Operation");
 
         /* Create a private key object or find by id. */
@@ -6427,35 +6537,48 @@ static int Pkcs11AesCtrEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     }
 
     if (ret == 0) {
-        XMEMSET(&params, 0, sizeof(params));
-        params.ulCounterBits = WC_AES_BLOCK_SIZE * 8;
-        XMEMCPY(params.cb, info->cipher.aesctr.aes->reg, WC_AES_BLOCK_SIZE);
-
-        mech.mechanism      = CKM_AES_CTR;
-        mech.ulParameterLen = sizeof(params);
-        mech.pParameter     = &params;
-
-        rv = session->func->C_EncryptInit(session->handle, &mech, key);
-        PKCS11_RV("C_EncryptInit", rv);
-        if (rv != CKR_OK) {
-            ret = WC_HW_E;
+        xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left,
+                  fromLeft);
+        done = 0;
+        while (ret == 0 && done < blocks) {
+            run = Pkcs11AesCtrBlocksToWrap(ctr, blocks - done);
+            ret = Pkcs11AesCtrOp(session, key, ctr,
+                                 in + fromLeft + done * WC_AES_BLOCK_SIZE,
+                                 out + fromLeft + done * WC_AES_BLOCK_SIZE,
+                                 run * WC_AES_BLOCK_SIZE);
+            if (ret == 0) {
+                Pkcs11AesCtrAdd(ctr, run);
+                done += run;
+            }
         }
-    }
-    if (ret == 0) {
-        outLen = info->cipher.aesctr.sz;
-        rv = session->func->C_Encrypt(session->handle,
-                                      (CK_BYTE_PTR)info->cipher.aesctr.in,
-                                      info->cipher.aesctr.sz,
-                                      info->cipher.aesctr.out,
-                                      &outLen);
-        PKCS11_RV("C_Encrypt", rv);
-        if (rv != CKR_OK) {
-            ret = WC_HW_E;
+        /* Encrypting zeros gives the keystream block for the partial tail. */
+        if (ret == 0 && rem > 0) {
+            ret = Pkcs11AesCtrOp(session, key, ctr, zeros, ks,
+                                 WC_AES_BLOCK_SIZE);
+            if (ret == 0) {
+                xorbufout(out + sz - rem, in + sz - rem, ks, rem);
+                Pkcs11AesCtrAdd(ctr, 1);
+            }
+        }
+
+        if (ret == 0) {
+            XMEMCPY(aes->reg, ctr, WC_AES_BLOCK_SIZE);
+            if (rem > 0) {
+                XMEMCPY(aes->tmp, ks, WC_AES_BLOCK_SIZE);
+                aes->left = WC_AES_BLOCK_SIZE - rem;
+            }
+            else {
+                aes->left -= fromLeft;
+            }
+        }
+        else {
+            ForceZero(out, sz);
         }
     }
 
     if (aes->idLen == 0 && aes->labelLen == 0 && key != NULL_PTR)
         session->func->C_DestroyObject(session->handle, key);
+    ForceZero(ks, sizeof(ks));
 
     return ret;
 }
