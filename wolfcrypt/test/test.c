@@ -12488,6 +12488,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
             /* Now use the ex and allow short keys with FIPS option */
             ret = wc_HmacSetKey_ex(&hmac, WC_SHA, (byte*) keys[i],
                                (word32)XSTRLEN(keys[i]), allowShortKeyWithFips);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+            /* A sub-112-bit key admitted by allowFlag: computed, but the
+             * module must deliver the WC_FIPS_NOT_APPROVED indicator
+             * (SP 800-131Ar2 Table 9); the test fails if it is missing. */
+            if (ret != WC_FIPS_NOT_APPROVED)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = 0;
+#endif
         }
 #endif
         if (ret != 0)
@@ -50669,9 +50678,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void)
     wc_test_ret_t ret;
     WOLFSSL_ENTER("pbkdf1_test");
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PBKDF1_ex(derived, kLen, NULL, 0, (byte*)passwd,
              (int)XSTRLEN(passwd), salt, (int)sizeof(salt), iterations, WC_SHA,
              HEAP_HINT);
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* PBKDF1 is not an approved KDF (SP 800-132 approves PBKDF2 only); the
+     * module computes it and delivers the WC_FIPS_NOT_APPROVED indicator. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return ret;
 
@@ -50938,7 +50957,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     byte info1[10] ={ 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
                       0xf8, 0xf9 };
 #endif
-#ifndef NO_SHA
+/* SHA-1 HKDF is refused by the v7 module when the approved-mode gates are
+ * active (HkdfDigestAllowed() in fips.c) -- but only through the wrappers,
+ * so unwrapped builds (FIPS_NO_WRAPPERS, e.g. dev-no-post) still run it
+ * and still need res1. */
+#if !defined(NO_SHA) && !(defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS))
     byte res1[42] = { 0x0a, 0xc1, 0xaf, 0x70, 0x02, 0xb3, 0xd7, 0x61,
                       0xd1, 0xe5, 0x52, 0x98, 0xda, 0x9d, 0x05, 0x06,
                       0xb9, 0xae, 0x52, 0x05, 0x72, 0x20, 0xa3, 0x06,
@@ -50975,7 +51000,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     XMEMSET(okm1, 0, sizeof(okm1));
     L = (int)sizeof(okm1);
 
-#ifndef NO_SHA
+#if !defined(NO_SHA) && !(defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS))
     PRIVATE_KEY_UNLOCK();
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     ret = wc_HKDF_ex(WC_SHA, ikm1, (word32)sizeof(ikm1), NULL, 0, NULL, 0,
@@ -51485,6 +51512,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
             (const byte*)label, (word32)XSTRLEN(label), seed, seedSz,
             1, sha256_mac, NULL, devId);
     PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* An RFC 5246 "master secret" derivation: computed, but the module
+     * must deliver the WC_FIPS_NOT_APPROVED indicator per FIPS 140-3
+     * IG D.Q (TLS 1.2 approves the extended master secret, RFC 7627,
+     * only); the test fails if the indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0) {
         if (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
@@ -52307,8 +52344,19 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
     WOLFSSL_ENTER("x963kdf_test");
 
 #ifndef NO_SHA
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA, Z, sizeof(Z), NULL, 0,
                       kek, sizeof(verify));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* The module cannot verify the X9.63 KDF's use context, so it computes
+     * the result and delivers the WC_FIPS_NOT_APPROVED indicator per
+     * FIPS 140-3 IG 2.4.C; the test fails if the indicator is missing. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -52317,8 +52365,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifndef NO_SHA256
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA256, Z2, sizeof(Z2), NULL, 0,
                       kek, sizeof(verify2));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -52327,16 +52383,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 #endif
 
 #ifdef WOLFSSL_SHA512
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z3, sizeof(Z3), NULL, 0,
                       kek, sizeof(verify3));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
     if (XMEMCMP(verify3, kek, sizeof(verify3)) != 0)
         return WC_TEST_RET_ENC_NC;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_X963_KDF(WC_HASH_TYPE_SHA512, Z4, sizeof(Z4), info4,
                       sizeof(info4), kek, sizeof(verify4));
+    PRIVATE_KEY_LOCK();
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    if (ret != WC_FIPS_NOT_APPROVED)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = 0;
+#endif
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
@@ -67933,8 +68005,9 @@ static wc_test_ret_t mlkem512_kat(void)
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
     ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
         sizeof(kyber512enc_rand));
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = 0;
 
     if (XMEMCMP(ct, kyber512_ct, sizeof(kyber512_ct)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -68001,7 +68074,7 @@ static wc_test_ret_t mlkem512_kat(void)
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
     ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
         sizeof(kyber512enc_rand));
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ct, ml_kem_512_ct, sizeof(ml_kem_512_ct)) != 0)
@@ -69407,8 +69480,9 @@ static wc_test_ret_t mlkem768_kat(void)
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
     ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
         sizeof(kyber768enc_rand));
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = 0;
 
     if (XMEMCMP(ct, kyber768_ct, sizeof(kyber768_ct)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -69475,7 +69549,7 @@ static wc_test_ret_t mlkem768_kat(void)
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
     ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
         sizeof(kyber768enc_rand));
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ct, ml_kem_768_ct, sizeof(ml_kem_768_ct)) != 0)
@@ -71284,8 +71358,9 @@ static wc_test_ret_t mlkem1024_kat(void)
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
     ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
         sizeof(kyber1024enc_rand));
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = 0;
 
     if (XMEMCMP(ct, kyber1024_ct, sizeof(kyber1024_ct)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
@@ -71352,7 +71427,7 @@ static wc_test_ret_t mlkem1024_kat(void)
 #ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
     ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
         sizeof(kyber1024enc_rand));
-    if (ret != 0)
+    if (ret != SEED_OK)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ct, ml_kem_1024_ct, sizeof(ml_kem_1024_ct)) != 0)
@@ -72771,6 +72846,23 @@ out:
         else if ((ret == 0) && (yields < 1))                               \
             ret = WC_TEST_RET_ENC_NC;                                      \
     } while (0)
+/* Variants of the above for caller-seeded calls, which return SEED_OK. */
+#define NB_STEP_SEEDED(call)                                               \
+    do {                                                                   \
+        if (ret == 0) {                                                    \
+            rc = (call);                                                   \
+            if (rc != SEED_OK)                                             \
+                ret = WC_TEST_RET_ENC_EC(rc);                              \
+        }                                                                  \
+    } while (0)
+#define NB_RUN_SEEDED(call)                                                \
+    do {                                                                   \
+        NB_DRIVE(call);                                                    \
+        if ((ret == 0) && (rc != SEED_OK))                                 \
+            ret = WC_TEST_RET_ENC_EC(rc);                                  \
+        else if ((ret == 0) && (yields < 1))                               \
+            ret = WC_TEST_RET_ENC_NC;                                      \
+    } while (0)
 /* Start an operation and leave it in flight: the call must yield. */
 #define NB_START(call)                                                     \
     do {                                                                   \
@@ -72860,14 +72952,14 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
 
     /* The same seeds give the same key, ciphertext and secret as blocking. */
-    NB_STEP(wc_MlKemKey_MakeKeyWithRandom(&ref, seed, (int)sizeof(seed)));
+    NB_STEP_SEEDED(wc_MlKemKey_MakeKeyWithRandom(&ref, seed, (int)sizeof(seed)));
     NB_STEP(wc_MlKemKey_EncodePublicKey(&ref, pubRef, pubSz));
-    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed, (int)sizeof(seed)));
+    NB_RUN_SEEDED(wc_MlKemKey_MakeKeyWithRandom(&key, seed, (int)sizeof(seed)));
     NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
     NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
-    NB_STEP(wc_MlKemKey_EncapsulateWithRandom(&ref, ct2, ssDec, m,
+    NB_STEP_SEEDED(wc_MlKemKey_EncapsulateWithRandom(&ref, ct2, ssDec, m,
         (int)sizeof(m)));
-    NB_RUN(wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss, m, (int)sizeof(m)));
+    NB_RUN_SEEDED(wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss, m, (int)sizeof(m)));
     NB_EXPECT(XMEMCMP(ct, ct2, ctSz) == 0);
     NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
     NB_STEP(wc_MlKemKey_Decapsulate(&ref, ssDec, ct, ctSz));
@@ -72891,26 +72983,26 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     /* Without re-attaching: a decapsulation or encapsulation left in flight
      * must not leak its state into a key generation, nor one key generation
      * into the next. */
-    NB_STEP(wc_MlKemKey_MakeKeyWithRandom(&ref, seed2, (int)sizeof(seed2)));
+    NB_STEP_SEEDED(wc_MlKemKey_MakeKeyWithRandom(&ref, seed2, (int)sizeof(seed2)));
     NB_STEP(wc_MlKemKey_EncodePublicKey(&ref, pubRef, pubSz));
     NB_START(wc_MlKemKey_Decapsulate(&key, ssDec, ct, ctSz));
-    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_RUN_SEEDED(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
     NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
     NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
     NB_START(wc_MlKemKey_EncapsulateWithRandom(&key, ct2, ssDec, m,
         (int)sizeof(m)));
-    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_RUN_SEEDED(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
     NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
     NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
     NB_START(wc_MlKemKey_MakeKeyWithRandom(&key, seed, (int)sizeof(seed)));
-    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_RUN_SEEDED(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
     NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
     NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
 
     /* An encapsulation of a caller's m left in flight, then one from the RNG
      * into the same buffer: it must not resume on that m. Likewise a key
      * generation from a caller's seeds, then one from the RNG. */
-    NB_STEP(wc_MlKemKey_EncapsulateWithRandom(&ref, ct2, ssDec, m,
+    NB_STEP_SEEDED(wc_MlKemKey_EncapsulateWithRandom(&ref, ct2, ssDec, m,
         (int)sizeof(m)));
     NB_START(wc_MlKemKey_EncapsulateWithRandom(&key, ct, ss, m,
         (int)sizeof(m)));
@@ -72922,10 +73014,10 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     NB_RUN(wc_MlKemKey_MakeKey(&key, rng));
     NB_STEP(wc_MlKemKey_EncodePublicKey(&key, pub, pubSz));
     NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) != 0);
-    NB_RUN(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
+    NB_RUN_SEEDED(wc_MlKemKey_MakeKeyWithRandom(&key, seed2, (int)sizeof(seed2)));
 
     /* A decapsulation left in flight, then one of a ciphertext elsewhere. */
-    NB_STEP(wc_MlKemKey_EncapsulateWithRandom(&ref, ct, ss, m,
+    NB_STEP_SEEDED(wc_MlKemKey_EncapsulateWithRandom(&ref, ct, ss, m,
         (int)sizeof(m)));
     if (ret == 0) {
         XMEMCPY(ct2, ct, ctSz);
@@ -73190,6 +73282,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
     #else
         ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss, encap_rand,
                                                 sizeof(encap_rand));
+        if (ret == SEED_OK)
+            ret = 0;
     #endif
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
@@ -78919,8 +79013,8 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     NB_EXPECT((rc == 0) && (res == 0));
 
     /* The same seeds give the same key and signature as blocking. */
-    NB_STEP(wc_MlDsaKey_MakeKeyFromSeed(&ref, seed));
-    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
+    NB_STEP_SEEDED(wc_MlDsaKey_MakeKeyFromSeed(&ref, seed));
+    NB_RUN_SEEDED(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
     len = (word32)pubSz;
     NB_STEP(wc_MlDsaKey_ExportPubRaw(&ref, pubRef, &len));
@@ -78929,18 +79023,18 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     NB_EXPECT(XMEMCMP(pub, pubRef, (size_t)pubSz) == 0);
 #endif
     sigLen2 = (word32)sigSz;
-    NB_STEP(wc_MlDsaKey_SignCtxWithSeed(&ref, ctx, (byte)sizeof(ctx), sig2,
+    NB_STEP_SEEDED(wc_MlDsaKey_SignCtxWithSeed(&ref, ctx, (byte)sizeof(ctx), sig2,
         &sigLen2, msg, (word32)sizeof(msg), rnd));
     sigLen = (word32)sigSz;
-    NB_RUN(wc_MlDsaKey_SignCtxWithSeed(&key, ctx, (byte)sizeof(ctx), sig,
+    NB_RUN_SEEDED(wc_MlDsaKey_SignCtxWithSeed(&key, ctx, (byte)sizeof(ctx), sig,
         &sigLen, msg, (word32)sizeof(msg), rnd));
     NB_EXPECT((sigLen == sigLen2) && (XMEMCMP(sig, sig2, sigLen) == 0));
 #ifdef WOLFSSL_SHA512
     sigLen2 = (word32)sigSz;
-    NB_STEP(wc_MlDsaKey_SignCtxHashWithSeed(&ref, ctx, (byte)sizeof(ctx), sig2,
+    NB_STEP_SEEDED(wc_MlDsaKey_SignCtxHashWithSeed(&ref, ctx, (byte)sizeof(ctx), sig2,
         &sigLen2, hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA512, rnd));
     sigLen = (word32)sigSz;
-    NB_RUN(wc_MlDsaKey_SignCtxHashWithSeed(&key, ctx, (byte)sizeof(ctx), sig,
+    NB_RUN_SEEDED(wc_MlDsaKey_SignCtxHashWithSeed(&key, ctx, (byte)sizeof(ctx), sig,
         &sigLen, hash, (word32)sizeof(hash), WC_HASH_TYPE_SHA512, rnd));
     NB_EXPECT((sigLen == sigLen2) && (XMEMCMP(sig, sig2, sigLen) == 0));
     /* A hedged pre-hash signature with a context verifies both ways. */
@@ -79061,7 +79155,7 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
      * Likewise a key generation from a caller's seed, then one from the
      * RNG. */
     sigLen = (word32)sigSz;
-    NB_STEP(wc_MlDsaKey_SignCtxWithSeed(&ref, NULL, 0, sig, &sigLen, msg,
+    NB_STEP_SEEDED(wc_MlDsaKey_SignCtxWithSeed(&ref, NULL, 0, sig, &sigLen, msg,
         (word32)sizeof(msg), rnd));
     sigLen2 = (word32)sigSz;
     NB_START(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig2, &sigLen2, msg,
@@ -79079,7 +79173,7 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     len = (word32)pubSz;
     NB_STEP(wc_MlDsaKey_ExportPubRaw(&key, pub, &len));
     NB_EXPECT(XMEMCMP(pub, pubRef, (size_t)pubSz) != 0);
-    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
+    NB_RUN_SEEDED(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
 #endif
     /* A resumed call that fails before it picks up the working allocation
      * still releases it. */
@@ -79095,7 +79189,7 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     NB_EXPECT((rc == WC_NO_ERR_TRACE(BUFFER_E)) && (nb.work == NULL));
     /* A key generation left in flight, then one from another seed. */
     NB_START(wc_MlDsaKey_MakeKeyFromSeed(&key, seed2));
-    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
+    NB_RUN_SEEDED(wc_MlDsaKey_MakeKeyFromSeed(&key, seed));
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
     len = (word32)pubSz;
     NB_STEP(wc_MlDsaKey_ExportPubRaw(&key, pub, &len));
@@ -79184,8 +79278,8 @@ static wc_test_ret_t mldsa_nonblock_match_test_level(int level)
     nbInited = (ret == 0);
     NB_STEP(wc_MlDsaKey_SetParams(nbKey, (byte)level));
     NB_STEP(wc_MlDsaKey_set_nonblock(nbKey, &nb));
-    NB_STEP(wc_MlDsaKey_MakeKeyFromSeed(key, seed));
-    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(nbKey, seed));
+    NB_STEP_SEEDED(wc_MlDsaKey_MakeKeyFromSeed(key, seed));
+    NB_RUN_SEEDED(wc_MlDsaKey_MakeKeyFromSeed(nbKey, seed));
     NB_STEP(wc_MlDsaKey_GetSigLen(key, &sigSz));
     if (ret == 0) {
         sig = (byte*)XMALLOC((size_t)sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -79198,11 +79292,11 @@ static wc_test_ret_t mldsa_nonblock_match_test_level(int level)
         msg[0] = (byte)i;
         sigLen = (word32)sigSz;
         nbSigLen = (word32)sigSz;
-        NB_STEP(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg,
+        NB_STEP_SEEDED(wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen, msg,
             (word32)sizeof(msg), seed));
         NB_DRIVE(wc_MlDsaKey_SignCtxWithSeed(nbKey, NULL, 0, nbSig, &nbSigLen,
             msg, (word32)sizeof(msg), seed));
-        if ((ret == 0) && (rc != 0))
+        if ((ret == 0) && (rc != SEED_OK))
             ret = WC_TEST_RET_ENC_EC(rc);
         if (ret == 0) {
             if ((minYields < 0) || (yields < minYields))
@@ -80060,6 +80154,14 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
         XMEMCPY(old_sig, sig, sigSz);
 
         ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg, msgSz);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+        /* XMSS verification is a non-approved service (FIPS 140-3 IG C.N
+         * Additional Comment 5): a valid signature must arrive with the
+         * WC_FIPS_NOT_APPROVED indicator. */
+        if (ret != WC_FIPS_NOT_APPROVED) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
+        ret = 0;
+#endif
         if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(i), out); }
 
 #ifndef WOLFSSL_NO_MALLOC
@@ -80099,6 +80201,13 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, NULL, 0);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* Non-approved-service indicator; see above. */
+    if (ret != WC_FIPS_NOT_APPROVED)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = 0;
+#endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -80158,6 +80267,14 @@ static wc_test_ret_t xmss_test_param(const char* param, word32 exp_pkSz,
                 if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(j), out); }
                 ret = wc_XmssKey_Verify(&verifyKey, sig, sigSz, (byte *) msg,
                                         msgSz);
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+                /* Non-approved-service indicator; see above. */
+                if (ret != WC_FIPS_NOT_APPROVED) {
+                    ERROR_OUT(WC_TEST_RET_ENC_I(j), out);
+                }
+                ret = 0;
+#endif
                 if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_I(j), out); }
             }
         }
@@ -80709,6 +80826,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
 
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* XMSS verification is a non-approved service (FIPS 140-3 IG C.N
+     * Additional Comment 5): a valid signature must arrive with the
+     * WC_FIPS_NOT_APPROVED indicator. */
+    if (ret != WC_FIPS_NOT_APPROVED) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               WC_FIPS_NOT_APPROVED);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = 0;
+#endif
     if (ret != 0) {
         printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
         return WC_TEST_RET_ENC_EC(ret);
@@ -80748,6 +80877,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     xmss_msg[sizeof(xmss_msg) / 2] ^= 1;
     ret = wc_XmssKey_Verify(&verifyKey, xmss_sig, sizeof(xmss_sig),
                             (byte *) xmss_msg, sizeof(xmss_msg));
+#if FIPS_VERSION3_GE(7,0,0) && defined(WC_HAVE_FIPS_INDICATOR) && \
+    !defined(FIPS_NO_WRAPPERS)
+    /* XMSS verification is a non-approved service (FIPS 140-3 IG C.N
+     * Additional Comment 5): a valid signature must arrive with the
+     * WC_FIPS_NOT_APPROVED indicator. */
+    if (ret != WC_FIPS_NOT_APPROVED) {
+        printf("error: wc_XmssKey_Verify returned %d, expected %d\n", ret,
+               WC_FIPS_NOT_APPROVED);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+    ret = 0;
+#endif
     if (ret != 0) {
         printf("error: wc_XmssKey_Verify returned %d, expected 0\n", ret);
         return WC_TEST_RET_ENC_EC(ret);
@@ -81451,9 +81592,10 @@ static wc_test_ret_t slhdsa_keygen_kat(enum SlhDsaParam param,
 
     ret = wc_SlhDsaKey_MakeKeyWithRandom(key,
         sk_seed, sk_seed_sz, sk_prf, sk_prf_sz, pk_seed, pk_seed_sz);
-    if (ret != 0) {
+    if (ret != SEED_OK) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+    ret = 0;
 
     outLen = WC_SLHDSA_MAX_PRIV_LEN;
     PRIVATE_KEY_UNLOCK();
@@ -83352,9 +83494,10 @@ wc_test_ret_t slhdsa_test(void)
         sk_seed_shake128s, (word32)sizeof(sk_seed_shake128s),
         sk_prf_shake128s, (word32)sizeof(sk_prf_shake128s),
         pk_seed_shake128s, (word32)sizeof(pk_seed_shake128s));
-    if (ret != 0) {
+    if (ret != SEED_OK) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+    ret = 0;
 
     outLen = WC_SLHDSA_MAX_PRIV_LEN;
     PRIVATE_KEY_UNLOCK();
@@ -83408,9 +83551,10 @@ wc_test_ret_t slhdsa_test(void)
     ret = wc_SlhDsaKey_SignWithRandom(key, ctx, 0, msg, (word32)sizeof(msg),
         sig, &outLen, pk_seed_shake128s);
     PRIVATE_KEY_LOCK();
-    if (ret != 0) {
+    if (ret != SEED_OK) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+    ret = 0;
     if (outLen != (word32)sizeof(sig_shake128s)) {
         ERROR_OUT(WC_TEST_RET_ENC_I(outLen), out);
     }
@@ -104637,6 +104781,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     word32 n = info->pk.pqc_sig_kg.seedSz / 3;
                     ret = wc_SlhDsaKey_MakeKeyWithRandom(sk, seed, n,
                         seed + n, n, seed + 2 * n, n);
+                    /* The callback contract has no indicator ride. */
+                    if (ret == SEED_OK)
+                        ret = 0;
                 }
                 else {
                     ret = wc_SlhDsaKey_MakeKey(sk, info->pk.pqc_sig_kg.rng);
@@ -104664,6 +104811,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                             info->pk.pqc_sign.out,
                             info->pk.pqc_sign.outlen,
                             addRnd);
+                        if (ret == SEED_OK)
+                            ret = 0;
                     }
                     else {
                         ret = wc_SlhDsaKey_Sign(sk,
@@ -104687,6 +104836,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                             info->pk.pqc_sign.out,
                             info->pk.pqc_sign.outlen,
                             addRnd);
+                        if (ret == SEED_OK)
+                            ret = 0;
                     }
                     else {
                         ret = wc_SlhDsaKey_SignHash(sk,
@@ -104716,6 +104867,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->pk.pqc_sign.out,
                     info->pk.pqc_sign.outlen,
                     info->pk.pqc_sign.addRnd);
+                if (ret == SEED_OK)
+                    ret = 0;
                 sk->devId = devIdArg;
                 myCtx->exampleVar++;
             }
@@ -108243,9 +108396,13 @@ static wc_test_ret_t cryptocb_pqc_mlkem_encap(MlKemKey* sw, MlKemKey* hw,
     XMEMSET(rand, 0x6b, sizeof(rand));
     ret = wc_MlKemKey_EncapsulateWithRandom(sw, ctSw, ssSw, rand,
         (int)sizeof(rand));
+    if (ret == SEED_OK)
+        ret = 0;
     if (ret == 0) {
         ret = wc_MlKemKey_EncapsulateWithRandom(hw, ctHw, ssHw, rand,
             (int)sizeof(rand));
+        if (ret == SEED_OK)
+            ret = 0;
     }
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
@@ -108446,15 +108603,23 @@ static wc_test_ret_t cryptocb_pqc_mldsa_test(PqcHashDev* dev)
             ret = wc_MlDsaKey_SetParams(hw, (byte)level);
         if (ret == 0)
             ret = wc_MlDsaKey_MakeKeyFromSeed(sw, seed);
+        if (ret == SEED_OK)
+            ret = 0;
         if (ret == 0)
             ret = wc_MlDsaKey_MakeKeyFromSeed(hw, seed);
+        if (ret == SEED_OK)
+            ret = 0;
         if (ret == 0) {
             ret = wc_MlDsaKey_SignCtxWithSeed(sw, NULL, 0, sigSw, &sigSzSw,
                 msg, sizeof(msg), rnd);
+            if (ret == SEED_OK)
+                ret = 0;
         }
         if (ret == 0) {
             ret = wc_MlDsaKey_SignCtxWithSeed(hw, NULL, 0, sigHw, &sigSzHw,
                 msg, sizeof(msg), rnd);
+            if (ret == SEED_OK)
+                ret = 0;
         }
         if (ret == 0) {
             ret = wc_MlDsaKey_VerifyCtx(hw, sigSw, sigSzSw, NULL, 0, msg,

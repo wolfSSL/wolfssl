@@ -542,6 +542,18 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
     ret = wc_PRF_TLS(key_dig, key_dig_len, ms, msLen, key_label, KEY_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
     PRIVATE_KEY_LOCK();
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_HAVE_FIPS_INDICATOR) && !defined(FIPS_NO_WRAPPERS)
+    /* An RFC 5246 "master secret" derivation is a non-approved service
+     * (FIPS 140-3 IG D.Q: TLS 1.2 approves the extended master secret,
+     * RFC 7627, only), so the module computes it and delivers the
+     * WC_FIPS_NOT_APPROVED indicator.  The handshake proceeds -- the
+     * TLS stack is the consumer here, and a non-EMS peer is a protocol
+     * reality -- with the non-approved standing implicit in the
+     * negotiated parameters (no EMS extension). */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
 #else
     /* Pseudo random function must be enabled in the configuration. */
     ret = PRF_MISSING;
@@ -654,6 +666,18 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
     ret = wc_PRF_TLS(ms, msLen, pms, pmsLen, master_label, MASTER_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
     PRIVATE_KEY_LOCK();
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    defined(WC_HAVE_FIPS_INDICATOR) && !defined(FIPS_NO_WRAPPERS)
+    /* An RFC 5246 "master secret" derivation is a non-approved service
+     * (FIPS 140-3 IG D.Q: TLS 1.2 approves the extended master secret,
+     * RFC 7627, only), so the module computes it and delivers the
+     * WC_FIPS_NOT_APPROVED indicator.  The handshake proceeds -- the
+     * TLS stack is the consumer here, and a non-EMS peer is a protocol
+     * reality -- with the non-approved standing implicit in the
+     * negotiated parameters (no EMS extension). */
+    if (ret == WC_FIPS_NOT_APPROVED)
+        ret = 0;
+#endif
 #else
     /* Pseudo random function must be enabled in the configuration. */
     ret = PRF_MISSING;

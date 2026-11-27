@@ -113,7 +113,11 @@ enum FipsModeId {
     FIPS_MODE_INIT              = 0,
     FIPS_MODE_NORMAL            = 1,
     FIPS_MODE_DEGRADED          = 2,
-    FIPS_MODE_FAILED            = 3
+    FIPS_MODE_FAILED            = 3,
+    /* v7.0.0+ only: */
+    FIPS_MODE_DEGRADED_PENDING  = 4,
+    FIPS_MODE_UNENTERED         = 5,
+    FIPS_MODE_IN_ENTRY_SETUP    = 6
 };
 
 /* FIPS failure callback */

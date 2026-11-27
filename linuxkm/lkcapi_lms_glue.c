@@ -260,7 +260,7 @@ static int km_lms_set_pub(struct lms_tfm_type *tfm, const void *key,
         pr_err("%s: wc_LmsKey_ImportPubRaw failed: %d\n",
                WOLFKM_LMS_DRIVER, err);
         #endif
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     ctx->pub_set = 1;
@@ -372,7 +372,7 @@ static int km_lms_verify_common(struct km_lms_ctx *ctx,
         pr_err("error: %s: lms verify returned: %d\n",
                WOLFKM_LMS_DRIVER, err);
         #endif
-        return -EBADMSG;
+        return lkcapi_wc_errno(err, -EBADMSG);
     }
     return 0;
 }

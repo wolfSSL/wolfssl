@@ -360,6 +360,28 @@ wc_static_assert(DRBG_SUCCESS == 0);
 #define DRBG_FAILED       WC_DRBG_FAILED
 #define DRBG_CONT_FAILED  WC_DRBG_CONT_FAILED
 
+/* v7 module-state escalation hooks (IG D.U GenRBG.5):
+ * (a) a condemned instance -- a DRBG health-test (continuity/KAT)
+ *     failure -- latches the module error state through the
+ *     boundary's SetConTestFailure(), matching the wrapper paths'
+ *     semantics on the direct paths the kernel glue uses;
+ * (b) entropy-source health-test verdicts on module-gathered
+ *     material raise and clear the boundary's recoverable
+ *     entropy-source hold (90C 3.1 item 4 termination/recovery).
+ * Pre-v7 and non-FIPS builds compile these away. */
+#if defined(WC_FIPS_HAVE_RNG_ESCALATION) && \
+    !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    #include <wolfssl/wolfcrypt/fips.h>
+    #define WC_RNG_ESCALATE_CONT_FAILURE() (void)SetConTestFailure()
+    #define WC_RNG_ENTROPY_DOWN(cause) \
+        (void)wc_EntropySourceDown_fips(cause)
+    #define WC_RNG_ENTROPY_UP()        wc_EntropySourceUp_fips()
+#else
+    #define WC_RNG_ESCALATE_CONT_FAILURE() WC_DO_NOTHING
+    #define WC_RNG_ENTROPY_DOWN(cause)     WC_DO_NOTHING
+    #define WC_RNG_ENTROPY_UP()            WC_DO_NOTHING
+#endif
+
 #ifdef WC_RNG_HAVE_ENTROPY_EPOCH
     static struct wc_RNG_entropy_epoch_atomic global_entropy_epoch =
         WC_RNG_ENTROPY_EPOCH_ATOMIC_INITIALIZER;
@@ -4140,6 +4162,18 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
              (flags & WC_RNG_INIT_FLAG_TEST_USER_SEED)))
         {
             ret = wc_RNG_TestSeed(seed, seedSz);
+            /* Module-gathered material only: a user-supplied seed,
+             * even when tested at the user's request, neither raises
+             * nor clears the module's entropy-source hold. */
+            if (userSeedSz == 0) {
+                if (ret == 0) {
+                    WC_RNG_ENTROPY_UP();
+                }
+                else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
+                         (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E))) {
+                    WC_RNG_ENTROPY_DOWN(ret);
+                }
+            }
             #if defined(DEBUG_WOLFSSL)
             if (ret != 0) {
                 WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
@@ -4217,6 +4251,7 @@ static WARN_UNUSED_RESULT int _InitRng(WC_RNG* rng,
     }
     else if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         rng->status = DRBG_CONT_FAILED;
+        WC_RNG_ESCALATE_CONT_FAILURE();
         ret = DRBG_CONT_FIPS_E;
     }
     else if (ret == WC_NO_ERR_TRACE(DRBG_FAILURE)) {
@@ -4593,6 +4628,7 @@ static WC_MAYBE_UNUSED int RngGenerateFailure(WC_RNG* rng, int ret)
      * state. */
     if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
         rng->status = DRBG_CONT_FAILED;
+        WC_RNG_ESCALATE_CONT_FAILURE();
         return DRBG_CONT_FIPS_E;
     }
 
@@ -4629,6 +4665,7 @@ static WC_MAYBE_UNUSED int RngGenerateFailure(WC_RNG* rng, int ret)
     if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
         (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
     {
+        WC_RNG_ENTROPY_DOWN(ret);
         return ret;
     }
 
@@ -7061,12 +7098,14 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedGenerate_local(
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_nextseedsbanked;
             #endif
+            WC_RNG_ENTROPY_UP();
             return 0;
         }
         else if ((ret == WC_NO_ERR_TRACE(ENTROPY_RT_E)) ||
                  (ret == WC_NO_ERR_TRACE(ENTROPY_APT_E)))
         {
             /* Use-once: a failed test consumes the material. */
+            WC_RNG_ENTROPY_DOWN(ret);
             #ifdef WC_RNG_DEBUG_STATS
             ++rng->_stats_seed_failures;
             #endif
@@ -7321,6 +7360,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
     if (ret != 0) {
         if (ret == WC_NO_ERR_TRACE(DRBG_CONT_FAILURE)) {
             rng->status = DRBG_CONT_FAILED;
+            WC_RNG_ESCALATE_CONT_FAILURE();
             return DRBG_CONT_FIPS_E;
         }
         if (ret > 0) /* protocol-domain catch-all: translate at the API */
@@ -7480,6 +7520,7 @@ static WARN_UNUSED_RESULT int wc_RNG_DRBG_NextSeedNow_AddIn_local(
                 /* The instance is out of generate runway -- condemn now, matching
                  * wc_RNG_GenerateBlock()'s behavior for mandatory reseeds. */
                 rng->status = DRBG_CONT_FAILED;
+                WC_RNG_ESCALATE_CONT_FAILURE();
             }
             ret = DRBG_CONT_FIPS_E;
         }

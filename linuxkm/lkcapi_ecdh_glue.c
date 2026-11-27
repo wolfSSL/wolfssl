@@ -94,9 +94,9 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
                                          const byte * shared_secret,
                                          word32 shared_s_len);
 
-#if defined(LINUXKM_ECC192)
+#if defined(LINUXKM_ECDH_ECC192)
 static int ecdh_nist_p192_loaded = 0;
-#endif /* LINUXKM_ECC192 */
+#endif /* LINUXKM_ECDH_ECC192 */
 static int ecdh_nist_p256_loaded = 0;
 static int ecdh_nist_p384_loaded = 0;
 #if defined(LINUXKM_ECC521)
@@ -146,16 +146,16 @@ static unsigned int km_ecdh_max_size(struct crypto_kpp *tfm);
 static void         km_ecdh_exit(struct crypto_kpp *tfm);
 
 /* ecdh_nist_pN callbacks */
-#if defined(LINUXKM_ECC192)
+#if defined(LINUXKM_ECDH_ECC192)
 static int          km_ecdh_nist_p192_init(struct crypto_kpp *tfm);
-#endif /* LINUXKM_ECC192 */
+#endif /* LINUXKM_ECDH_ECC192 */
 static int          km_ecdh_nist_p256_init(struct crypto_kpp *tfm);
 static int          km_ecdh_nist_p384_init(struct crypto_kpp *tfm);
 #if defined(LINUXKM_ECC521)
 static int          km_ecdh_nist_p521_init(struct crypto_kpp *tfm);
 #endif /* LINUXKM_ECC521 */
 
-#if defined(LINUXKM_ECC192)
+#if defined(LINUXKM_ECDH_ECC192)
 static struct kpp_alg ecdh_nist_p192 = {
     .base.cra_name         = WOLFKM_ECDH_P192_NAME,
     .base.cra_driver_name  = WOLFKM_ECDH_P192_DRIVER,
@@ -169,7 +169,7 @@ static struct kpp_alg ecdh_nist_p192 = {
     .init                  = km_ecdh_nist_p192_init,
     .exit                  = km_ecdh_exit,
 };
-#endif /* LINUXKM_ECC192 */
+#endif /* LINUXKM_ECDH_ECC192 */
 
 static struct kpp_alg ecdh_nist_p256 = {
     .base.cra_name         = WOLFKM_ECDH_P256_NAME,
@@ -330,7 +330,7 @@ static int km_ecdh_op_new(int need_rng, struct km_ecdh_op_state **op_out)
             if (err == WC_NO_ERR_TRACE(MEMORY_E))
                 return -ENOMEM;
             else
-                return -EINVAL;
+                return lkcapi_wc_errno(err, -EINVAL);
         }
     }
 
@@ -366,7 +366,7 @@ static int km_ecdh_op_init(const struct km_ecdh_ctx *ctx, int need_rng,
                WOLFKM_ECDH_DRIVER, err);
         #endif /* WOLFKM_DEBUG_ECDH */
         km_ecdh_op_free(op);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     *op_out = op;
@@ -394,7 +394,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
     XMEMSET(&params, 0, sizeof(params));
 
     switch (ctx->curve_len) {
-    #if defined(LINUXKM_ECC192)
+    #if defined(LINUXKM_ECDH_ECC192)
     case 24: /* p192 */
     #endif
     case 32: /* p256 */
@@ -442,7 +442,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                    WOLFKM_ECDH_DRIVER, err);
             #endif
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         /* We should get back ecc private key type. */
@@ -466,7 +466,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
             /* scrub any partial export. */
             ForceZero(ctx->priv, sizeof(ctx->priv));
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
     }
     else {
@@ -497,7 +497,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                    WOLFKM_ECDH_DRIVER, err);
             #endif
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         /* We should get back ecc priv only key type. */
@@ -517,7 +517,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                    WOLFKM_ECDH_DRIVER, err);
             #endif
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         XMEMCPY(ctx->priv, params.key, ctx->curve_len);
@@ -541,7 +541,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
             #endif
             ForceZero(ctx->priv, sizeof(ctx->priv));
             km_ecdh_op_free(op);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
     }
 
@@ -612,12 +612,12 @@ static int km_ecdh_init(struct crypto_kpp *tfm, int curve_id)
     return 0;
 }
 
-#if defined(LINUXKM_ECC192)
+#if defined(LINUXKM_ECDH_ECC192)
 static int km_ecdh_nist_p192_init(struct crypto_kpp *tfm)
 {
     return km_ecdh_init(tfm, ECC_SECP192R1);
 }
-#endif /* LINUXKM_ECC192 */
+#endif /* LINUXKM_ECDH_ECC192 */
 
 static int km_ecdh_nist_p256_init(struct crypto_kpp *tfm)
 {
@@ -657,7 +657,7 @@ static int km_ecdh_gen_pub(struct kpp_request *req)
     ctx = kpp_tfm_ctx(tfm);
 
     switch (ctx->curve_len) {
-    #if defined(LINUXKM_ECC192)
+    #if defined(LINUXKM_ECDH_ECC192)
     case 24: /* p192 */
     #endif
     case 32: /* p256 */
@@ -726,7 +726,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
     ctx = kpp_tfm_ctx(tfm);
 
     switch (ctx->curve_len) {
-    #if defined(LINUXKM_ECC192)
+    #if defined(LINUXKM_ECDH_ECC192)
     case 24: /* p192 */
     #endif
     case 32: /* p256 */
@@ -777,7 +777,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
         #ifdef WOLFKM_DEBUG_ECDH
         pr_err("error: wc_ecc_import_unsigned failed: %d\n", err);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ecdh_shared_secret_end;
     }
 
@@ -805,7 +805,7 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
         pr_err("error: wc_ecc_shared_secret returned: %d, %d\n", err,
                shared_secret_len);
         #endif
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto ecdh_shared_secret_end;
     }
 
@@ -840,7 +840,7 @@ ecdh_shared_secret_end:
     return err;
 }
 
-#if defined(LINUXKM_ECC192)
+#if defined(LINUXKM_ECDH_ECC192)
 static int linuxkm_test_ecdh_nist_p192(void)
 {
     int rc = 0;
@@ -893,7 +893,7 @@ static int linuxkm_test_ecdh_nist_p192(void)
                                        shared_secret, sizeof(shared_secret));
     return rc;
 }
-#endif /* LINUXKM_ECC192 */
+#endif /* LINUXKM_ECDH_ECC192 */
 
 static int linuxkm_test_ecdh_nist_p256(void)
 {

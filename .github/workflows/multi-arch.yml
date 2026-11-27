@@ -31,8 +31,9 @@ jobs:
     name: Multi-arch test
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-22.04
-    # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 35
+    # Note this is known to time out at 35 minutes on PRs that change common headers
+    # like settings.h and/or types.h (cold ccache).  Warm reruns will finish faster.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL

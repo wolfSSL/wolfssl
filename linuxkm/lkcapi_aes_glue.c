@@ -396,7 +396,7 @@ static int km_AesInitCommon(
         pr_err("%s: wc_AesInit failed: %d\n", name, err);
         free(ctx->aes_encrypt);
         ctx->aes_encrypt = NULL;
-        err = -EINVAL;
+        err = lkcapi_wc_errno_ex(err, -EBUSY, -EINVAL);
         goto out;
     }
 
@@ -419,7 +419,7 @@ static int km_AesInitCommon(
             pr_err("%s: wc_AesInit failed: %d\n", name, err);
             free(ctx->aes_decrypt);
             ctx->aes_decrypt = NULL;
-            err = -EINVAL;
+            err = lkcapi_wc_errno_ex(err, -EBUSY, -EINVAL);
             goto out;
         }
     }
@@ -441,7 +441,7 @@ static int km_AesInitCommon(
         pr_err("%s: wc_AesInit failed: %d\n", name, err);
         free(ctx->aes_encrypt_C);
         ctx->aes_encrypt_C = NULL;
-        err = -EINVAL;
+        err = lkcapi_wc_errno_ex(err, -EBUSY, -EINVAL);
         goto out;
     }
 
@@ -464,7 +464,7 @@ static int km_AesInitCommon(
             pr_err("%s: wc_AesInit failed: %d\n", name, err);
             free(ctx->aes_decrypt_C);
             ctx->aes_decrypt_C = NULL;
-            err = -EINVAL;
+            err = lkcapi_wc_errno_ex(err, -EBUSY, -EINVAL);
             goto out;
         }
     }
@@ -592,7 +592,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
     if (unlikely(err)) {
         if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
             pr_err("%s: wc_AesSetKey for encryption key (len %u) failed: %d\n", name, key_len, err);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     if (ctx->aes_decrypt) {
@@ -603,7 +603,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
             if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
                 pr_err("%s: wc_AesSetKey for decryption key (len %u) failed: %d\n",
                        name, key_len, err);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
     }
 
@@ -617,7 +617,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
         if (unlikely(err)) {
             if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
                 pr_err("%s: wc_AesSetKey for encryption key failed: %d\n", name, err);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         if (ctx->aes_encrypt_C->use_aesni)
@@ -635,7 +635,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
             if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
                 pr_err("%s: wc_AesSetKey for decryption key failed: %d\n",
                        name, err);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         if (ctx->aes_decrypt_C->use_aesni)
@@ -702,7 +702,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -713,7 +713,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCbcEncrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -768,7 +768,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -779,7 +779,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCbcDecrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -869,7 +869,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -880,7 +880,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -941,7 +941,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -952,7 +952,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -1032,7 +1032,7 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
         if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
             pr_err("%s: wc_AesGcmSetKey failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
@@ -1045,7 +1045,7 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
             if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
                 pr_err("%s: wc_AesGcmSetKey failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         if (ctx->aes_encrypt_C->use_aesni)
@@ -1080,7 +1080,7 @@ static int km_AesGcmSetKey_Rfc4106(struct crypto_aead *tfm, const u8 *in_key,
         if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
             pr_err("%s: wc_AesGcmSetKey failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
@@ -1093,7 +1093,7 @@ static int km_AesGcmSetKey_Rfc4106(struct crypto_aead *tfm, const u8 *in_key,
             if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
                 pr_err("%s: wc_AesGcmSetKey failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         if (ctx->aes_encrypt_C->use_aesni)
@@ -1169,14 +1169,18 @@ static int km_AesGcmSetAuthsize_Rfc4106(struct crypto_aead *tfm, unsigned int au
 
 #ifdef WOLFSSL_AESGCM_STREAM
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
+/* Don't incur the FIPS check overhead inside the loop (intermediate
+ * computation) on old FIPS -- the Final() call captures and propagates the
+ * error if the module entered degraded state during the loop.  (On FIPS >=v7,
+ * inlining and tail calls eliminate wrapper cost.)
  */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS) && \
+    FIPS_VERSION3_LT(7,0,0) && !defined(LINUXKM_LKCAPI_KEEP_FIPS_WRAPPERS)
     #undef wc_AesGcmDecryptUpdate
     #undef wc_AesGcmEncryptUpdate
     typeof(wc_AesGcmDecryptUpdate_fips) wc_AesGcmDecryptUpdate;
     typeof(wc_AesGcmEncryptUpdate_fips) wc_AesGcmEncryptUpdate;
+    #define WC_LKCAPI_FIPS_AES_GCM_UPDATE_UNWRAPPED
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_LINUXKM_SVR_NO_BATCHING)
@@ -1274,7 +1278,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -1332,7 +1336,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                decrypt_p ? "wc_AesGcmDecryptUpdate" : "wc_AesGcmEncryptUpdate",
                err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -1368,7 +1372,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    decrypt_p ? "wc_AesGcmDecryptUpdate" : "wc_AesGcmEncryptUpdate",
                    err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -1401,7 +1405,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                 goto out;
             }
             else {
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
                 goto out;
             }
         }
@@ -1411,7 +1415,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncryptFinal failed with return code %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
         /* Now copy the auth tag into request scatterlist. */
@@ -1441,9 +1445,10 @@ out:
     return err;
 }
 
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#ifdef WC_LKCAPI_FIPS_AES_GCM_UPDATE_UNWRAPPED
     #define wc_AesGcmDecryptUpdate wc_AesGcmDecryptUpdate_fips
     #define wc_AesGcmEncryptUpdate wc_AesGcmEncryptUpdate_fips
+    #undef WC_LKCAPI_FIPS_AES_GCM_UPDATE_UNWRAPPED
 #endif
 
 #else /* !WOLFSSL_AESGCM_STREAM */
@@ -1589,7 +1594,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
                 goto out;
             }
             else {
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
                 goto out;
             }
         }
@@ -1603,7 +1608,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmSetExtIV() failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -1617,7 +1622,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
     }
@@ -1765,7 +1770,7 @@ static int km_AesCcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
         if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
             pr_err("%s: wc_AesCcmSetKey failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
@@ -1778,7 +1783,7 @@ static int km_AesCcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
             if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
                 pr_err("%s: wc_AesCcmSetKey failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         if (ctx->aes_encrypt_C->use_aesni)
@@ -1813,7 +1818,7 @@ static int km_AesCcmSetKey_Rfc4309(struct crypto_aead *tfm, const u8 *in_key,
         if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
             pr_err("%s: wc_AesCcmSetKey failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
@@ -1826,7 +1831,7 @@ static int km_AesCcmSetKey_Rfc4309(struct crypto_aead *tfm, const u8 *in_key,
             if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
                 pr_err("%s: wc_AesCcmSetKey failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return -EINVAL;
+            return lkcapi_wc_errno(err, -EINVAL);
         }
 
         if (ctx->aes_encrypt_C->use_aesni)
@@ -2098,7 +2103,7 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
                 goto out;
             }
             else {
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
                 goto out;
             }
         }
@@ -2112,7 +2117,7 @@ static int AesCcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4309_p)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCcmEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
     }
@@ -2267,7 +2272,7 @@ static int km_AesXtsInitCommon(struct km_AesXtsCtx * ctx, const char * name)
         pr_err("%s: km_AesXtsInitCommon failed: %d\n", name, err);
         free(ctx->aesXts);
         ctx->aesXts = NULL;
-        return -EINVAL;
+        return lkcapi_wc_errno_ex(err, -EBUSY, -EINVAL);
     }
 
     return 0;
@@ -2309,7 +2314,7 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
         if ((! disable_setkey_warnings) && ((key_len == 16) || (key_len == 24) || (key_len == 32)))
             pr_err("%s: wc_AesXtsSetKeyNoInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        return -EINVAL;
+        return lkcapi_wc_errno(err, -EINVAL);
     }
 
     #ifdef WOLFKM_DEBUG_AES
@@ -2321,14 +2326,18 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
 
 /* see /usr/src/linux/drivers/md/dm-crypt.c */
 
-/* Don't incur the FIPS check overhead inside the loop -- the Final() call will
- * check and error if the module entered degraded state during the loop.
+/* Don't incur the FIPS check overhead inside the loop (intermediate
+ * computation) on old FIPS -- the Final() call captures and propagates the
+ * error if the module entered degraded state during the loop.  (On FIPS >=v7,
+ * inlining and tail calls eliminate wrapper cost.)
  */
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS) && \
+    FIPS_VERSION3_LT(7,0,0) && !defined(LINUXKM_LKCAPI_KEEP_FIPS_WRAPPERS)
     #undef wc_AesXtsDecryptUpdate
     #undef wc_AesXtsEncryptUpdate
     typeof(wc_AesXtsDecryptUpdate_fips) wc_AesXtsDecryptUpdate;
     typeof(wc_AesXtsEncryptUpdate_fips) wc_AesXtsEncryptUpdate;
+    #define WC_LKCAPI_FIPS_AES_XTS_UPDATE_UNWRAPPED
 #endif
 
 #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
@@ -2392,7 +2401,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -2435,7 +2444,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -2467,7 +2476,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
                 goto out;
             }
 
@@ -2510,7 +2519,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
                 goto out;
             }
 
@@ -2520,7 +2529,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
             }
         }
     }
@@ -2586,7 +2595,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -2629,7 +2638,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -2660,7 +2669,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
                 goto out;
             }
 
@@ -2703,7 +2712,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
                 goto out;
             }
 
@@ -2713,7 +2722,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                err = -EINVAL;
+                err = lkcapi_wc_errno(err, -EINVAL);
             }
         }
     }
@@ -2736,9 +2745,10 @@ out:
     return err;
 }
 
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#ifdef WC_LKCAPI_FIPS_AES_XTS_UPDATE_UNWRAPPED
     #define wc_AesXtsDecryptUpdate wc_AesXtsDecryptUpdate_fips
     #define wc_AesXtsEncryptUpdate wc_AesXtsEncryptUpdate_fips
+    #undef WC_LKCAPI_FIPS_AES_XTS_UPDATE_UNWRAPPED
 #endif
 
 static struct skcipher_alg xtsAesAlg = {
@@ -2807,7 +2817,7 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -2818,7 +2828,7 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCtrEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -2880,7 +2890,7 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -2892,7 +2902,7 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesCtrDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -2987,7 +2997,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -2998,7 +3008,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesOfbEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -3060,7 +3070,7 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        err = -EINVAL;
+        err = lkcapi_wc_errno(err, -EINVAL);
         goto out;
     }
 
@@ -3071,7 +3081,7 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesOfbDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -3167,7 +3177,7 @@ static int km_AesEcbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesEcbEncrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -3218,7 +3228,7 @@ static int km_AesEcbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesEcbDecrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            err = -EINVAL;
+            err = lkcapi_wc_errno(err, -EINVAL);
             goto out;
         }
 
@@ -5310,7 +5320,7 @@ static int km_AesCmacSetKey(struct crypto_shash *tfm, const u8 *key,
          */
         if (t_ctx->pristine)
             km_AesCmacDispose(&t_ctx->pristine);
-        return -EINVAL;
+        return lkcapi_wc_errno(ret, -EINVAL);
     }
 
     if (t_ctx->pristine)
@@ -5424,7 +5434,11 @@ static int km_AesCmacUpdate(struct shash_desc *desc, const u8 *data,
 
     km_AesCmacDispose(&cmac);
 
-    return (ret == 0) ? 0 : -EINVAL;
+    /* -EIO, not -EAGAIN: the glue-layer state is only overwritten on
+     * success, but algif_hash's hash_sendmsg() clears ctx->more on any
+     * error, so a retried send starts a new request and the earlier
+     * chunks silently drop out of the MAC. */
+    return (ret == 0) ? 0 : lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);
 }
 
 static int km_AesCmacFinal(struct shash_desc *desc, u8 *out)
@@ -5443,16 +5457,23 @@ static int km_AesCmacFinal(struct shash_desc *desc, u8 *out)
         ret = wc_CmacFinal(cmac, out, &outSz);
     }
 
-    /* wc_CmacFinal() zeroizes and releases the Cmac unconditionally, on all
-     * supported FIPS and non-FIPS code paths -- only the container allocation
-     * remains to be freed.
-     */
-    free(cmac);
+    if (ret == WC_NO_ERR_TRACE(NOT_READY_E)) {
+        /* FIPS v7's wc_CmacFinal_fips() leaves the context standing on
+         * NOT_READY_E -- a bare free() here would put the live key
+         * schedule on the heap unscrubbed. */
+        km_AesCmacDispose(&cmac);
+    }
+    else {
+        /* on all other paths, FIPS and non-FIPS, wc_CmacFinal()
+         * zeroizes and releases the Cmac -- only the container
+         * allocation remains to be freed. */
+        free(cmac);
+    }
 
     /* scrub the spent streaming state. */
     ForceZero(&d_ctx->st, sizeof(d_ctx->st));
 
-    return (ret == 0) ? 0 : -EINVAL;
+    return (ret == 0) ? 0 : lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);
 }
 
 static int km_AesCmacFinup(struct shash_desc *desc, const u8 *data,
@@ -5472,18 +5493,25 @@ static int km_AesCmacFinup(struct shash_desc *desc, const u8 *data,
 
     if (ret != 0) {
         km_AesCmacDispose(&cmac);
-        return -EINVAL;
+        /* -EIO: see km_AesCmacUpdate(). */
+        return lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);
     }
 
     {
         word32 outSz = WC_AES_BLOCK_SIZE;
         ret = wc_CmacFinal(cmac, out, &outSz);
     }
-    free(cmac);
+    if (ret == WC_NO_ERR_TRACE(NOT_READY_E)) {
+        /* as in km_AesCmacFinal(): v7 leaves the context standing. */
+        km_AesCmacDispose(&cmac);
+    }
+    else {
+        free(cmac);
+    }
 
     ForceZero(&d_ctx->st, sizeof(d_ctx->st));
 
-    return (ret == 0) ? 0 : -EINVAL;
+    return (ret == 0) ? 0 : lkcapi_wc_errno_ex(ret, -EIO, -EINVAL);
 }
 
 static int km_AesCmacDigest(struct shash_desc *desc, const u8 *data,

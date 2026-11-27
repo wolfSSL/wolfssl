@@ -161,7 +161,7 @@
 
 #endif /* WOLFSSL_DEBUG_TRACE_ERROR_CODES */
 
-#ifdef CONFIG_HAVE_KPROBES
+#ifdef CONFIG_KPROBES
     static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name);
     #define WC_LINUXKM_HAVE_MY_KALLSYMS_LOOKUP_NAME
 #endif
@@ -541,12 +541,29 @@ MODULE_PARM_DESC(rodata_dump_path,
 
 #endif /* WC_LINUXKM_SUPPORT_DUMP_TO_FILE */
 
-#ifdef HAVE_FIPS
+/* No self-test machinery exists in dev-no-post builds, so the trigger
+ * nodes must not either. */
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
+    /* Within-boot-session trigger of the pre-operational self-tests:
+     * gated out of default builds.  The on-demand mechanism of record
+     * for the pre-operational tests is module unload+reload -- the
+     * architecture settled by the issued kernel-module certificates.
+     */
     static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
     static struct module_attribute FIPS_rerun_self_test_attr = __ATTR(FIPS_rerun_self_test, 0220, NULL, FIPS_rerun_self_test_handler);
     static int installed_sysfs_FIPS_files = 0;
-#endif
+#endif /* WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK */
+    /* RunAllCast triggers wc_RunAllCast_fips() -- the operator CAST
+     * service, complete in itself: verdicts latch through the
+     * standard DoCAST() machinery.  Ungated: a supported service
+     * interface in current and historical submissions. */
+    static ssize_t RunAllCast_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
+                                       const char *buf, size_t count);
+    static struct module_attribute RunAllCast_attr = __ATTR(RunAllCast, 0220, NULL, RunAllCast_handler);
+    static int installed_sysfs_RunAllCast_files = 0;
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef LINUXKM_LKCAPI_REGISTER
     #include "linuxkm/lkcapi_glue.c"
@@ -952,12 +969,25 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     #ifndef HAVE_FIPS
         #error FIPS_OPTEST requires HAVE_FIPS.
     #endif
+    #ifdef WOLFSSL_FIPS_DEV_NO_POST
+        #error FIPS_OPTEST is incompatible with WOLFSSL_FIPS_DEV_NO_POST (no POST machinery to exercise).
+    #endif
     extern int linuxkm_op_test_1(int argc, const char* argv[]);
     extern int linuxkm_op_test_wrapper(void);
+
+#ifdef FIPS_OPTEST_COLD_RESET_KLUDGE
+  #ifndef CONFIG_KPROBES
+    #error FIPS_OPTEST_COLD_RESET_KLUDGE requires CONFIG_KPROBES.
+  #endif
     static wolfSSL_Atomic_Int *conTestFailure_ptr = NULL;
+  #if FIPS_VERSION3_GE(7,0,0)
+    static wolfSSL_Atomic_Int *fipsMode_ptr = NULL;
+  #endif
     #ifdef HAVE_WC_FIPS_OPTEST_CONTESTFAILURE_EXPORT
         WOLFSSL_API extern wolfSSL_Atomic_Int wc_fips_optest_conTestFailure;
     #endif
+#endif /* FIPS_OPTEST_COLD_RESET_KLUDGE */
+
     static ssize_t FIPS_optest_trig_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                        const char *buf, size_t count);
     static struct module_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
@@ -1091,15 +1121,15 @@ static int wolfssl_init(void)
 #if FIPS_VERSION3_GE(6,0,0) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
         verifyCore_len = strlen(verifyCore);
 #else
-#ifdef CONFIG_HAVE_KPROBES
+#ifdef CONFIG_KPROBES
         char *verifyCore_ptr = my_kallsyms_lookup_name("verifyCore");
         if (verifyCore_ptr)
             verifyCore_len = strlen(verifyCore_ptr);
         else
-#endif /* CONFIG_HAVE_KPROBES */
+#endif /* CONFIG_KPROBES */
         {
             /* can't check -- have to assume. */
-#if defined(CONFIG_HAVE_KPROBES) && (defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG))
+#if defined(CONFIG_KPROBES) && (defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG))
             pr_err("INFO: couldn't get verifyCore_ptr -- skipping verifyCore length check.\n");
 #endif
             verifyCore_len = FIPS_IN_CORE_DIGEST_SIZE*2;
@@ -1124,7 +1154,7 @@ static int wolfssl_init(void)
     }
 #endif
 
-#if defined(WC_LINUXKM_USE_HEAP_WRAPPERS) && defined(CONFIG_HAVE_KPROBES)
+#if defined(WC_LINUXKM_USE_HEAP_WRAPPERS) && defined(CONFIG_KPROBES)
     /* cache the function pointer to find_vm_area(). */
     (void)wc_linuxkm_malloc_usable_size(NULL);
 #endif
@@ -1365,7 +1395,11 @@ static int wolfssl_init(void)
         svr_disallowed_snapshot = wc_svr_disallowed_count_current();
     #endif
 
+#if FIPS_VERSION3_GE(7,0,0)
+        ret = wolfCrypt_IntegrityRetest_fips();
+#else
         ret = wolfCrypt_IntegrityTest_fips();
+#endif
 
         REENABLE_VECTOR_REGISTERS();
 
@@ -1479,7 +1513,11 @@ static int wolfssl_init(void)
 #endif
 
     if (ret != 0) {
-        pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
+        if (ret < 0)
+            pr_err("ERROR: wc_RunAllCast_fips() refused: %s\n",
+                   wc_GetErrorString(ret));
+        else
+            pr_err("ERROR: wc_RunAllCast_fips(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
@@ -1531,7 +1569,10 @@ static int wolfssl_init(void)
         }
 
         if (ret != 0) {
-            pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            if (ret < 0)
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d: %s.\n", ret, wc_GetErrorString(ret));
+            else
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
             (void)libwolfssl_cleanup();
             return -ECANCELED;
         }
@@ -1575,6 +1616,7 @@ static int wolfssl_init(void)
 #endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef FIPS_OPTEST
+  #ifdef FIPS_OPTEST_COLD_RESET_KLUDGE
     #ifdef HAVE_WC_FIPS_OPTEST_CONTESTFAILURE_EXPORT
     conTestFailure_ptr = &wc_fips_optest_conTestFailure;
     #else
@@ -1585,6 +1627,16 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
     #endif
+
+    #if FIPS_VERSION3_GE(7,0,0)
+    fipsMode_ptr = (wolfSSL_Atomic_Int *)my_kallsyms_lookup_name("fipsMode");
+    if (fipsMode_ptr == NULL) {
+        pr_err("ERROR: couldn't obtain fipsMode_ptr.\n");
+        (void)libwolfssl_cleanup();
+        return -ECANCELED;
+    }
+    #endif
+  #endif /* FIPS_OPTEST_COLD_RESET_KLUDGE */
 
     ret = linuxkm_sysfs_install_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
     if (ret != 0) {
@@ -1630,25 +1682,45 @@ static int wolfssl_init(void)
     }
     #endif
 
+  #ifdef FIPS_OPTEST_COLD_RESET_KLUDGE
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
     {
         int i;
         for (i = 0; i < FIPS_CAST_COUNT; ++i)
             fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
     }
-    /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
-     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
-     * anymore.
-     */
+    #if FIPS_VERSION3_GE(7,0,0)
+    /* As in FIPS_optest_trig_common(): fipsEntry()'s entry exchange
+     * refuses any mode but UNENTERED, so the power-cycle equivalent must
+     * reset the mode from outside the boundary first. */
+    WOLFSSL_ATOMIC_STORE(*fipsMode_ptr, FIPS_MODE_UNENTERED);
+    #endif /* FIPS_VERSION3_GE(7,0,0) */
+    /* fipsEntry(), not wolfCrypt_IntegrityTest_fips() -- see the
+     * corresponding comment in FIPS_optest_trig_common(). */
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
         fipsEntry();
         (void)WC_SIG_IGNORE_END();
     }
     else
         pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+  #else
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        ret = wolfCrypt_IntegrityTest_fips();
+        (void)WC_SIG_IGNORE_END();
+        if (ret != 0) {
+            pr_info("post-optest restart needed: "
+                    "wolfCrypt_IntegrityTest_fips() in %s returned %d: %s\n",
+                    __FUNCTION__, ret, wc_GetErrorString(ret));
+        }
+    }
+    else
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+  #endif
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
-        pr_err("ERROR: wolfCrypt_GetStatus_fips() after reset failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+        pr_err("ERROR: wolfCrypt_GetStatus_fips() after post-optest "
+               "recovery failed with code %d: %s\n",
+               ret, wc_GetErrorString(ret));
         (void)libwolfssl_cleanup();
         return -ECANCELED;
     }
@@ -1722,9 +1794,12 @@ static int wolfssl_init(void)
 #endif /* !LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND */
 #endif /* LINUXKM_LKCAPI_REGISTER */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
     (void)linuxkm_sysfs_install_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
 #endif
+    (void)linuxkm_sysfs_install_attr(&RunAllCast_attr.attr, &installed_sysfs_RunAllCast_files);
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
     #ifdef WC_LINUXKM_HAVE_STACK_DEBUG
@@ -1772,8 +1847,11 @@ static int wolfssl_init(void)
 module_init(wolfssl_init);
 
 static void wc_linuxkm_deinstall(void) {
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_rerun_self_test_attr.attr, &installed_sysfs_FIPS_files);
+#endif
+    (void)linuxkm_sysfs_deinstall_attr(&RunAllCast_attr.attr, &installed_sysfs_RunAllCast_files);
 #ifdef FIPS_OPTEST
     (void)linuxkm_sysfs_deinstall_attr(&FIPS_optest_trig_attr.attr, &installed_sysfs_FIPS_optest_trig_files);
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
@@ -1802,9 +1880,10 @@ static void wolfssl_exit(void)
 #if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
     {
         int ret = wc_RunAllCast_fips();
-        if (ret != 0) {
-            pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d\n", ret);
-        }
+        if (ret < 0)
+            pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown with return value %d: %s\n", ret, wc_GetErrorString(ret));
+        else if (ret > 0)
+            pr_err("ERROR: wc_RunAllCast_fips() failed at shutdown: %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
         else
             pr_info("wolfCrypt FIPS re-self-test succeeded at unload: all algorithms re-verified.\n");
     }
@@ -2003,7 +2082,7 @@ void *wc_linuxkm_realloc(void *ptr, size_t newsize)
 size_t wc_linuxkm_malloc_usable_size(void *ptr)
 {
     if ((ptr == NULL) || is_vmalloc_addr(ptr)) {
-#ifdef CONFIG_HAVE_KPROBES
+#ifdef CONFIG_KPROBES
         static typeof(find_vm_area) *find_vm_area_ptr = NULL;
         if (find_vm_area_ptr == NULL) {
             find_vm_area_ptr = my_kallsyms_lookup_name("find_vm_area");
@@ -2671,7 +2750,7 @@ static int updateFipsHash(void)
 
 #endif /* HAVE_FIPS && WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE && !WOLFSSL_FIPS_DEV_NO_POST */
 
-#ifdef CONFIG_HAVE_KPROBES
+#ifdef CONFIG_KPROBES
 
 static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
     static typeof(kallsyms_lookup_name) *kallsyms_lookup_name_ptr = NULL;
@@ -2707,11 +2786,13 @@ static WC_MAYBE_UNUSED void *my_kallsyms_lookup_name(const char *name) {
     return (void *)a;
 }
 
-#endif /* CONFIG_HAVE_KPROBES */
+#endif /* CONFIG_KPROBES */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
 
 static wolfSSL_Atomic_Int in_fips_test = WOLFSSL_ATOMIC_INITIALIZER(-1);
+
+#ifdef WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK
 
 static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
                                    const char *buf, size_t count)
@@ -2743,17 +2824,70 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     pr_info("wolfCrypt: rerunning FIPS self-test on command.\n");
 
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
+#if FIPS_VERSION3_GE(7,0,0)
+        int cur_fipsMode = wolfCrypt_GetMode_fips();
+        switch ((enum FipsModeId)cur_fipsMode) {
+        case FIPS_MODE_INIT:
+        case FIPS_MODE_DEGRADED:
+        case FIPS_MODE_DEGRADED_PENDING:
+            ret = wolfCrypt_IntegrityTest_fips();
+            break;
+        case FIPS_MODE_NORMAL:
+            ret = wolfCrypt_IntegrityRetest_fips();
+            break;
+        case FIPS_MODE_FAILED:
+            pr_crit("ERROR: fipsMode is _FAILED -- restart required.\n");
+            ret = FIPS_NOT_ALLOWED_E;
+            break;
+        case FIPS_MODE_UNENTERED:
+        case FIPS_MODE_IN_ENTRY_SETUP:
+            pr_warn("warning: FIPS self-test triggered before initial setup completed.\n");
+            ret = NOT_READY_E;
+            break;
+        default:
+            pr_err("ERROR: fipsMode has unexpected value %d.\n", cur_fipsMode);
+            ret = BAD_STATE_E;
+            break;
+        }
+#else
         ret = wolfCrypt_IntegrityTest_fips();
+#endif
         (void)WC_SIG_IGNORE_END();
     }
     else {
         pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
-        ret = -1;
+        ret = WC_FAILURE;
     }
     if (ret != 0) {
-        pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d\n", ret);
+        pr_err("ERROR: FIPS self-test: error %d: %s\n", ret, wc_GetErrorString(ret));
         WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-        return -EINVAL;
+        if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+            return -EAGAIN;
+#if FIPS_VERSION3_GE(7,0,0)
+        else if (wolfCrypt_GetMode_fips() == FIPS_MODE_FAILED) {
+            /* The module is latched FAILED, so key the errno on the
+             * write-once cause cell, not this run's verdict code (on
+             * v7 any verdict latches FAILED, so a code check here
+             * would shadow the integrity case): IN_CORE_FIPS_E reads
+             * -ELIBBAD, matching the wolfCrypt_GetStatus_fips() leg
+             * below; anything else is reload-only -- the module is
+             * gone as a service, which in kernel idiom is -ENODEV,
+             * matching the wc_RunAllCast_fips() leg below.  This also
+             * answers the same way on a repeat invocation against an
+             * already-failed module. */
+            if (wolfCrypt_GetStatus_fips() ==
+                WC_NO_ERR_TRACE(IN_CORE_FIPS_E))
+                return -ELIBBAD;
+            else
+                return -ENODEV;
+        }
+#endif
+        else if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E))
+            /* pre-v7: matching the wolfCrypt_GetStatus_fips() leg
+             * below. */
+            return -ELIBBAD;
+        else
+            return -EINVAL;
     }
 
     ret = wolfCrypt_GetStatus_fips();
@@ -2769,8 +2903,22 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     ret = wc_RunAllCast_fips();
     if (ret != 0) {
         WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-        pr_err("ERROR: wc_RunAllCast_fips() failed with return value %d\n", ret);
-        return -EINVAL;
+        if (ret < 0) {
+            pr_err("ERROR: wc_RunAllCast_fips() refused: %s\n", wc_GetErrorString(ret));
+            if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+                return -EAGAIN;
+            else if (ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+                /* FAILED is reload-only: until a power cycle the
+                 * module is gone as a service, which in kernel idiom
+                 * is -ENODEV, not an argument problem. */
+                return -ENODEV;
+            else
+                return -EINVAL;
+        }
+        else {
+            pr_err("ERROR: wc_RunAllCast_fips(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
+            return -EINVAL;
+        }
     }
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
@@ -2794,7 +2942,10 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
 
         if (ret != 0) {
             WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
-            pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() returned %d.\n", ret);
+            if (ret < 0)
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS() refused: %s\n", wc_GetErrorString(ret));
+            else
+                pr_err("ERROR: wc_RunAllCast_fips() with DISABLE_VECTOR_REGISTERS(): %d CAST%s failed\n", ret, ret == 1 ? "" : "s");
             return -EINVAL;
         }
     }
@@ -2803,6 +2954,76 @@ static ssize_t FIPS_rerun_self_test_handler(WC_MODULE_ATTR_CONST struct module_a
     WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
 
     pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.\n");
+
+    return count;
+}
+
+#endif /* WC_FIPS_ALLOW_PARALLEL_INTEGRITY_RECHECK */
+
+static ssize_t RunAllCast_handler(WC_MODULE_ATTR_CONST struct module_attribute *mattr, struct module_kobject *mk,
+                                  const char *buf, size_t count)
+{
+    int ret;
+
+    (void)mattr;
+    (void)mk;
+
+    /* only recognize "1" and "1\n". */
+    if ((count < 1) || (count > 2) ||
+        (buf[0] != '1') ||
+        ((count == 2) && (buf[1] != '\n')))
+    {
+        return -EINVAL;
+    }
+
+    {
+        WC_ATOMIC_INT_ARG expected_in_fips_test = -1;
+        if (! wolfSSL_Atomic_Int_CompareExchange(
+                &in_fips_test, &expected_in_fips_test, task_pid_nr(current)))
+        {
+            pr_err("ERROR: %s called by pid %d while pid %d is running a FIPS test in another thread.\n",
+                   __func__, task_pid_nr(current), expected_in_fips_test);
+            return -EBUSY;
+        }
+    }
+
+    pr_info("wolfCrypt: running all CASTs on command.\n");
+
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        ret = wc_RunAllCast_fips();
+        (void)WC_SIG_IGNORE_END();
+    }
+    else {
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        ret = WC_FAILURE;
+    }
+
+    WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
+
+    if (ret != 0) {
+        if (ret < 0) {
+            pr_err("ERROR: wc_RunAllCast_fips() refused: %s\n", wc_GetErrorString(ret));
+            if (ret == WC_NO_ERR_TRACE(NOT_READY_E))
+                return -EAGAIN;
+            else if (ret == WC_NO_ERR_TRACE(FIPS_NOT_ALLOWED_E))
+                /* FAILED is reload-only: until a power cycle the
+                 * module is gone as a service, which in kernel idiom
+                 * is -ENODEV, not an argument problem. */
+                return -ENODEV;
+            else
+                return -EINVAL;
+        }
+        else {
+            /* Per-algorithm FAILURE records and degraded-mode entry
+             * are already latched by the DoCAST() machinery; the
+             * errno only reports them. */
+            pr_err("ERROR: wc_RunAllCast_fips(): %d CAST%s failed\n",
+                   ret, ret == 1 ? "" : "s");
+            return -EIO;
+        }
+    }
+
+    pr_info("wolfCrypt: all CASTs passed.\n");
 
     return count;
 }
@@ -2827,7 +3048,6 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
     const char *argv[3];
     char code_buf[6];
     size_t corrected_count;
-    int i;
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
     long long unsigned int svr_disallowed_before_optest = 0, svr_disallowed_after_optest;
     ssize_t ret_count = 0;
@@ -2859,18 +3079,20 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
 
 #ifdef LINUXKM_LKCAPI_REGISTER
     {
-        int current_linuxkm_lkcapi_registering_now = 0;
+        int current_linuxkm_lkcapi_registering_pid =
+            LINUXKM_LKCAPI_REGISTERING_NO_PID;
 
         if (! wolfSSL_Atomic_Int_CompareExchange(
-                &linuxkm_lkcapi_registering_now,
-                &current_linuxkm_lkcapi_registering_now,
-                1)) {
+                &linuxkm_lkcapi_registering_pid,
+                &current_linuxkm_lkcapi_registering_pid,
+                task_pid_nr(current))) {
             pr_err("ERROR: FIPS_optest_trig_handler() with linuxkm_lkcapi_registered: before running optest, echo 1 > /sys/module/libwolfssl/deinstall_algs.\n");
             return -EBUSY;
         }
 
         if (linuxkm_lkcapi_registered) {
-            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                                 LINUXKM_LKCAPI_REGISTERING_NO_PID);
             pr_err("ERROR: FIPS_optest_trig_handler() with linuxkm_lkcapi_registered: before running optest, echo 1 > /sys/module/libwolfssl/deinstall_algs.\n");
             return -EBUSY;
         }
@@ -2883,7 +3105,8 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
                 &in_fips_test, &expected_in_fips_test, task_pid_nr(current)))
         {
 #ifdef LINUXKM_LKCAPI_REGISTER
-            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+            WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                                 LINUXKM_LKCAPI_REGISTERING_NO_PID);
 #endif
             pr_err("ERROR: %s called by pid %d while pid %d is running a FIPS test in another thread.\n",
                    __func__, task_pid_nr(current), expected_in_fips_test);
@@ -2905,7 +3128,8 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
     if (svr_dynamic_auditing) {
         /* The audits treat wc_svr_disallowed_count as ours alone: in_fips_test
          * excludes the other trigger nodes, and getting
-         * linuxkm_lkcapi_registering_now then checking linuxkm_lkcapi_registered
+         * linuxkm_lkcapi_registering_pid then checking
+         * linuxkm_lkcapi_registered
          * excludes registered-algorithm consumers.  Optests entail transient
          * degradation states, necessitating the registered-algorithm exclusion
          * bidirectionally.
@@ -2963,31 +3187,63 @@ static ssize_t FIPS_optest_trig_common(enum FIPS_optest_audit_mode audit_mode,
 out:
 #endif
 
+  #ifdef FIPS_OPTEST_COLD_RESET_KLUDGE
     /* reload the library in memory and re-init state */
     printf("Reloading the module in memory (equivalent to power "
            "cycle)\n");
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
-    for (i = 0; i < FIPS_CAST_COUNT; ++i)
-        fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
-    /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
-     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
-     * anymore.
-     */
+    {
+        int i;
+        for (i = 0; i < FIPS_CAST_COUNT; ++i)
+            fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+    }
+    #if FIPS_VERSION3_GE(7,0,0)
+    /* The reload-only doctrine: fipsEntry()'s entry exchange refuses a
+     * module latched FIPS_MODE_FAILED, so the power-cycle equivalent
+     * must itself reset the mode -- from outside the boundary, like
+     * conTestFailure.  fipsEntry() then restores the cause cells
+     * (fipsTerminalCause, posTransient) as on a fresh insmod. */
+    WOLFSSL_ATOMIC_STORE(*fipsMode_ptr, FIPS_MODE_UNENTERED);
+    #endif /* FIPS_VERSION3_GE(7,0,0) */
+    /* fipsEntry(), not wolfCrypt_IntegrityTest_fips(): the power-cycle
+     * equivalent must re-enter from scratch, whereas the integrity
+     * service is an operator retest with its own semantics -- the
+     * no-kludge arm below uses it precisely because it is the
+     * in-boundary, compliant substitute. */
     if (WC_SIG_IGNORE_BEGIN() >= 0) {
         fipsEntry();
         (void)WC_SIG_IGNORE_END();
     }
     else
         pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+  #else
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        ret = wolfCrypt_IntegrityTest_fips();
+        (void)WC_SIG_IGNORE_END();
+        if (ret != 0) {
+            pr_info("post-optest restart needed: "
+                    "wolfCrypt_IntegrityTest_fips() in %s returned %d: %s\n",
+                    __FUNCTION__, ret, wc_GetErrorString(ret));
+        }
+    }
+    else
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+  #endif
     ret = wolfCrypt_GetStatus_fips();
-    printf("Status indicator of library reload/powercycle: %d\n",
+  #ifdef FIPS_OPTEST_COLD_RESET_KLUDGE
+    printf("Status indicator after library reload/powercycle: %d\n",
            ret);
+  #else
+    printf("Status indicator after optest and wolfCrypt_IntegrityTest_fips(): %d\n",
+           ret);
+  #endif
     printf("Module status is: %d\n", wolfCrypt_GetStatus_fips());
     printf("Module mode is: %d\n", wolfCrypt_GetMode_fips());
 
     WOLFSSL_ATOMIC_STORE(in_fips_test, -1);
 #ifdef LINUXKM_LKCAPI_REGISTER
-    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_pid,
+                         LINUXKM_LKCAPI_REGISTERING_NO_PID);
 #endif
 
 #ifdef WC_LINUXKM_SVR_DYNAMIC_AUDITING
@@ -3031,4 +3287,4 @@ static ssize_t FIPS_optest_trig_audit_c_handler(WC_MODULE_ATTR_CONST struct modu
 
 #endif /* FIPS_OPTEST */
 
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && !WOLFSSL_FIPS_DEV_NO_POST */

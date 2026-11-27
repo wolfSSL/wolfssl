@@ -775,7 +775,7 @@
     #endif
     #include <linux/random.h>
 
-    #if !defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_HAVE_KPROBES)
+    #if !defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_KPROBES)
         #include <linux/kprobes.h>
     #endif
 
