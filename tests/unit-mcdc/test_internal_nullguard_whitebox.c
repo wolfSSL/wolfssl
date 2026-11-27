@@ -152,6 +152,90 @@ static int wb_fatal_alert_errors(WbFix* f)
     return failed;
 }
 
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_rsa_pss_constraints(WbFix* f)
+{
+    static const struct {
+        byte hash;
+        byte mgf;
+        word16 saltLen;
+        int result;
+    } cases[] = {
+        {0, 0, 0, 0},
+        {WC_HASH_TYPE_SHA256, WC_MGF1SHA256, WC_SHA256_DIGEST_SIZE, 0},
+        {WC_HASH_TYPE_SHA384, WC_MGF1SHA256, 0, INVALID_PARAMETER},
+        {WC_HASH_TYPE_SHA256, WC_MGF1SHA384, 0, INVALID_PARAMETER},
+        {WC_HASH_TYPE_SHA256, WC_MGF1SHA256, WC_SHA256_DIGEST_SIZE + 1,
+            INVALID_PARAMETER},
+    };
+    size_t i;
+    int failed = 0;
+
+    wb_reset(f);
+    f->ssl->peerRsaPss = 1;
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        f->ssl->peerRsaPssHash = cases[i].hash;
+        f->ssl->peerRsaPssMgf = cases[i].mgf;
+        f->ssl->peerRsaPssSaltLen = cases[i].saltLen;
+        if (CheckPeerRsaSigAlgo(f->ssl, rsa_pss_pss_algo, sha256_mac) !=
+                cases[i].result)
+            failed = 1;
+    }
+    wb_reset(f);
+    return failed;
+}
+#endif
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_handshake_hash_copy(WbFix* f)
+{
+    HS_Hashes* copy = NULL;
+    int failed = 0;
+
+    wb_reset(f);
+    if (InitHandshakeHashes(f->ssl) != 0)
+        return 1;
+    if (InitHandshakeHashesAndCopy(NULL, f->ssl->hsHashes, &copy) !=
+            BAD_FUNC_ARG)
+        failed = 1;
+    if (InitHandshakeHashesAndCopy(f->ssl, NULL, &copy) != BAD_FUNC_ARG)
+        failed = 1;
+    if (InitHandshakeHashesAndCopy(f->ssl, f->ssl->hsHashes, NULL) !=
+            BAD_FUNC_ARG)
+        failed = 1;
+    if (InitHandshakeHashesAndCopy(f->ssl, f->ssl->hsHashes, &copy) != 0 ||
+            copy == NULL || copy == f->ssl->hsHashes)
+        failed = 1;
+    if (copy != f->ssl->hsHashes)
+        Free_HS_Hashes(copy, f->ssl->heap);
+    Free_HS_Hashes(f->ssl->hsHashes, f->ssl->heap);
+    wb_reset(f);
+    return failed;
+}
+#endif
+
+#ifdef WOLFSSL_DTLS
+static int wb_dtls_prev_sequence_limit(WbFix* f)
+{
+    int failed = 0;
+
+    wb_reset(f);
+    f->ssl->keys.dtls_prev_sequence_number_hi = 0xfffe;
+    f->ssl->keys.dtls_prev_sequence_number_lo = 0xffffffffU;
+    if (DtlsSEQAtMax(f->ssl, PREV_ORDER))
+        failed = 1;
+    f->ssl->keys.dtls_prev_sequence_number_hi = 0xffff;
+    if (!DtlsSEQAtMax(f->ssl, PREV_ORDER))
+        failed = 1;
+    f->ssl->keys.dtls_prev_sequence_number_lo = 0xfffffffeU;
+    if (DtlsSEQAtMax(f->ssl, PREV_ORDER))
+        failed = 1;
+    wb_reset(f);
+    return failed;
+}
+#endif
+
 /* AllocateSuites can copy the CTX list or start with an empty local list. */
 static int wb_allocate_suites(WbFix* f)
 {
@@ -773,6 +857,25 @@ int main(void)
         puts("internal null-guard white-box: fatal alert error check failed");
         failed = 1;
     }
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_rsa_pss_constraints(&f)) {
+        puts("internal null-guard white-box: RSA-PSS constraint check failed");
+        failed = 1;
+    }
+#endif
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_handshake_hash_copy(&f)) {
+        puts("internal null-guard white-box: handshake hash copy failed");
+        failed = 1;
+    }
+#endif
+#ifdef WOLFSSL_DTLS
+    if (wb_dtls_prev_sequence_limit(&f)) {
+        puts("internal null-guard white-box: DTLS sequence limit check failed");
+        failed = 1;
+    }
+#endif
     if (wb_allocate_suites(&f)) {
         puts("internal null-guard white-box: suite allocation failed");
         failed = 1;
