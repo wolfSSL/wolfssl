@@ -26301,13 +26301,18 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
-            sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_256_ecc_mulmod_stripe_4(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -26721,13 +26726,18 @@ static int sp_256_ecc_mulmod_4(sp_point_256* r, const sp_point_256* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
-            sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_256_gen_stripe_table_4(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_256_ecc_mulmod_win_add_sub_4(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_256_ecc_mulmod_stripe_4(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -61603,13 +61613,18 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
-            sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_384_ecc_mulmod_stripe_6(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -62020,13 +62035,18 @@ static int sp_384_ecc_mulmod_6(sp_point_384* r, const sp_point_384* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
-            sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_384_gen_stripe_table_6(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_384_ecc_mulmod_win_add_sub_6(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_384_ecc_mulmod_stripe_6(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -89923,13 +89943,18 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
-            sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -90358,13 +90383,18 @@ static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
-            sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -133722,13 +133752,18 @@ static int sp_1024_ecc_mulmod_16(sp_point_1024* r, const sp_point_1024* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_1024(g, &cache);
-        if (cache->cnt == 2)
-            sp_1024_gen_stripe_table_16(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_1024_gen_stripe_table_16(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_1024_ecc_mulmod_win_add_sub_16(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_1024_ecc_mulmod_stripe_16(r, g, cache->table, k,
                     map, ct, heap);
         }

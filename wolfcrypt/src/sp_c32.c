@@ -5493,11 +5493,15 @@ SP_NOINLINE static void sp_2048_lshift_72(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[72] = a[71] >> (29 - n);
-    for (i=71; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<72; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[72] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
@@ -9854,11 +9858,15 @@ SP_NOINLINE static void sp_3072_lshift_106(sp_digit* r, const sp_digit* a,
         byte n)
 {
     int i;
+    sp_uint64 t;
 
-    r[106] = a[105] >> (29 - n);
-    for (i=105; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<106; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[106] = (sp_digit)t;
     r[0] = (sp_digit)(((sp_uint32)a[0] << n) & 0x1fffffff);
 }
 
@@ -18911,11 +18919,15 @@ SP_NOINLINE static void sp_4096_lshift_142(sp_digit* r, const sp_digit* a,
         byte n)
 {
     int i;
+    sp_uint64 t;
 
-    r[142] = a[141] >> (29 - n);
-    for (i=141; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<142; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[142] = (sp_digit)t;
     r[0] = (sp_digit)(((sp_uint32)a[0] << n) & 0x1fffffff);
 }
 
@@ -26803,13 +26815,18 @@ static int sp_256_ecc_mulmod_9(sp_point_256* r, const sp_point_256* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
-            sp_256_gen_stripe_table_9(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_256_gen_stripe_table_9(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_256_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_256_ecc_mulmod_stripe_9(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -29240,11 +29257,15 @@ SP_NOINLINE static void sp_256_lshift_18(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[18] = a[17] >> (29 - n);
-    for (i=17; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
+    t = ((sp_uint64)a[0] << n) >> 29;
+    for (i=1; i<18; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
     }
+    r[18] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
@@ -29329,11 +29350,15 @@ static int sp_256_div_9(const sp_digit* a, const sp_digit* d,
             sp_256_mul_d_9(t2, sd, r1);
             (void)sp_256_sub_9(&t1[i], &t1[i], t2);
             t1[9 + i] -= t2[9];
-            sp_256_norm_9(&t1[i + 1]);
+            sp_256_norm_9(&t1[i]);
+            t1[9 + i] += t1[9 + i - 1] >> 29;
+            t1[9 + i - 1] &= 0x1fffffff;
 
             mask = ~((t1[9 + i] - 1) >> 31);
             sp_256_cond_sub_9(t1 + i, t1 + i, sd, mask);
-            sp_256_norm_9(&t1[i + 1]);
+            sp_256_norm_9(&t1[i]);
+            t1[9 + i] += t1[9 + i - 1] >> 29;
+            t1[9 + i - 1] &= 0x1fffffff;
         }
         sp_256_norm_9(t1);
         sp_256_cond_add_9(t1, t1, sd, t1[8] >> 31);
@@ -34100,13 +34125,18 @@ static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
-            sp_384_gen_stripe_table_15(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_384_gen_stripe_table_15(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_384_ecc_mulmod_win_add_sub_15(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_384_ecc_mulmod_stripe_15(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -37067,11 +37097,15 @@ SP_NOINLINE static void sp_384_lshift_30(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[30] = a[29] >> (26 - n);
-    for (i=29; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (26 - n))) & 0x3ffffff);
+    t = ((sp_uint64)a[0] << n) >> 26;
+    for (i=1; i<30; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x3ffffff);
+        t >>= 26;
     }
+    r[30] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
@@ -37180,11 +37214,15 @@ static int sp_384_div_15(const sp_digit* a, const sp_digit* d,
             sp_384_mul_d_15(t2, sd, r1);
             (void)sp_384_sub_15(&t1[i], &t1[i], t2);
             t1[15 + i] -= t2[15];
-            sp_384_norm_15(&t1[i + 1]);
+            sp_384_norm_15(&t1[i]);
+            t1[15 + i] += t1[15 + i - 1] >> 26;
+            t1[15 + i - 1] &= 0x3ffffff;
 
             mask = ~((t1[15 + i] - 1) >> 31);
             sp_384_cond_sub_15(t1 + i, t1 + i, sd, mask);
-            sp_384_norm_15(&t1[i + 1]);
+            sp_384_norm_15(&t1[i]);
+            t1[15 + i] += t1[15 + i - 1] >> 26;
+            t1[15 + i - 1] &= 0x3ffffff;
         }
         sp_384_norm_15(t1);
         sp_384_cond_add_15(t1, t1, sd, t1[14] >> 31);
@@ -41497,13 +41535,18 @@ static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
-            sp_521_gen_stripe_table_21(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_521_gen_stripe_table_21(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_521_ecc_mulmod_win_add_sub_21(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_521_ecc_mulmod_stripe_21(r, g, cache->table, k,
                     map, ct, heap);
         }
@@ -44971,11 +45014,15 @@ SP_NOINLINE static void sp_521_lshift_42(sp_digit* r, const sp_digit* a,
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
+    sp_uint64 t;
 
-    r[42] = a[41] >> (25 - n);
-    for (i=41; i>0; i--) {
-        r[i] = (sp_digit)((((sp_uint32)a[i] << n) | (a[i-1] >> (25 - n))) & 0x1ffffff);
+    t = ((sp_uint64)a[0] << n) >> 25;
+    for (i=1; i<42; i++) {
+        t += (sp_uint64)a[i] << n;
+        r[i] = (sp_digit)(t & 0x1ffffff);
+        t >>= 25;
     }
+    r[42] = (sp_digit)t;
 #else
     sp_int_digit s;
     sp_int_digit t;
@@ -45108,11 +45155,15 @@ static int sp_521_div_21(const sp_digit* a, const sp_digit* d,
             sp_521_mul_d_21(t2, sd, r1);
             (void)sp_521_sub_21(&t1[i], &t1[i], t2);
             t1[21 + i] -= t2[21];
-            sp_521_norm_21(&t1[i + 1]);
+            sp_521_norm_21(&t1[i]);
+            t1[21 + i] += t1[21 + i - 1] >> 25;
+            t1[21 + i - 1] &= 0x1ffffff;
 
             mask = ~((t1[21 + i] - 1) >> 31);
             sp_521_cond_sub_21(t1 + i, t1 + i, sd, mask);
-            sp_521_norm_21(&t1[i + 1]);
+            sp_521_norm_21(&t1[i]);
+            t1[21 + i] += t1[21 + i - 1] >> 25;
+            t1[21 + i - 1] &= 0x1ffffff;
         }
         sp_521_norm_21(t1);
         sp_521_cond_add_21(t1, t1, sd, t1[20] >> 31);
@@ -49891,13 +49942,18 @@ static int sp_1024_ecc_mulmod_42(sp_point_1024* r, const sp_point_1024* g,
 
     if (err == MP_OKAY) {
         sp_ecc_get_cache_1024(g, &cache);
-        if (cache->cnt == 2)
-            sp_1024_gen_stripe_table_42(g, cache->table, tmp, heap);
+        if (cache->cnt == 2) {
+            err = sp_1024_gen_stripe_table_42(g, cache->table, tmp, heap);
+            if (err != MP_OKAY) {
+                /* No table for this point: generate on next use. */
+                cache->cnt = 1;
+            }
+        }
 
-        if (cache->cnt < 2) {
+        if ((err == MP_OKAY) && (cache->cnt < 2)) {
             err = sp_1024_ecc_mulmod_win_add_sub_42(r, g, k, map, ct, heap);
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_1024_ecc_mulmod_stripe_42(r, g, cache->table, k,
                     map, ct, heap);
         }
