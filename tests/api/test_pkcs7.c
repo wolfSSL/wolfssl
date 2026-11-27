@@ -11301,3 +11301,219 @@ int test_wc_PKCS7_VerifySignedData_CertSetAttrCert(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+#define PKCS7_SIGN_NO_CERTS 0x01
+#define PKCS7_SIGN_DETACHED 0x02
+#define PKCS7_SIGN_SERVER   0x04
+
+static const byte pkcs7DataOid[] = {
+    0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01
+};
+
+/* Sign data with the 2048-bit client key, or the server key with
+ * PKCS7_SIGN_SERVER, and return the encoded size. */
+static int pkcs7_sign_data(byte* out, word32 outSz, byte* data, word32 dataSz,
+    int flags, WC_RNG* rng)
+{
+    const byte* cert = client_cert_der_2048;
+    const byte* key = client_key_der_2048;
+    word32 certSz = sizeof_client_cert_der_2048;
+    word32 keySz = sizeof_client_key_der_2048;
+    PKCS7* pkcs7;
+    int    ret;
+
+    if (flags & PKCS7_SIGN_SERVER) {
+        cert   = server_cert_der_2048;
+        certSz = sizeof_server_cert_der_2048;
+        key    = server_key_der_2048;
+        keySz  = sizeof_server_key_der_2048;
+    }
+    XMEMSET(out, 0, outSz);
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return MEMORY_E;
+    ret = wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, certSz);
+    if (ret == 0 && (flags & PKCS7_SIGN_NO_CERTS))
+        ret = wc_PKCS7_SetNoCerts(pkcs7, 1);
+    if (ret == 0 && (flags & PKCS7_SIGN_DETACHED))
+        ret = wc_PKCS7_SetDetached(pkcs7, 1);
+    if (ret == 0) {
+        pkcs7->content      = data;
+        pkcs7->contentSz    = dataSz;
+        pkcs7->contentOID   = DATA;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->privateKey   = (byte*)key;
+        pkcs7->privateKeySz = keySz;
+        pkcs7->rng          = rng;
+        ret = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    }
+    wc_PKCS7_Free(pkcs7);
+    return ret;
+}
+
+/* Add delta to the length of the DER element at msg[hdrIdx] in place,
+ * keeping the size of its length field. */
+static int pkcs7_grow_der_len(byte* msg, word32 hdrIdx, int delta)
+{
+    word32 len = 0;
+    word32 n = 0;
+    word32 i;
+
+    if (msg[hdrIdx + 1] < ASN_LONG_LENGTH) {
+        len = msg[hdrIdx + 1];
+    }
+    else {
+        n = msg[hdrIdx + 1] & 0x7F;
+        if (n == 0 || n > 2)
+            return -1;
+        for (i = 0; i < n; i++)
+            len = (len << 8) | msg[hdrIdx + 2 + i];
+    }
+    if (delta < 0 && len < (word32)-delta)
+        return -1;
+    len = (word32)((int)len + delta);
+    if (n == 0) {
+        if (len >= ASN_LONG_LENGTH)
+            return -1;
+        msg[hdrIdx + 1] = (byte)len;
+        return 0;
+    }
+    if (len >> (8 * n) != 0 || (n == 2 && len < 0x100))
+        return -1;
+    for (i = n; i > 0; i--) {
+        msg[hdrIdx + 1 + i] = (byte)len;
+        len >>= 8;
+    }
+    return 0;
+}
+
+/* Add delta to the ContentInfo, [0] and SignedData lengths of msg, which
+ * must all use a two-byte length. */
+static int pkcs7_grow_outer(byte* msg, int delta)
+{
+    static const word32 hdr[] = { 0, 15, 19 };
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        if (msg[hdr[i] + 1] != (ASN_LONG_LENGTH | 2) ||
+                pkcs7_grow_der_len(msg, hdr[i], delta) != 0)
+            return -1;
+    }
+    return 0;
+}
+
+/* Rewrite the eContent OCTET STRING of msg, contentSz bytes with a two-byte
+ * length, as a constructed OCTET STRING of one or two parts. */
+static int pkcs7_split_content(byte* out, const byte* msg, int msgSz,
+    word32 contentSz, int parts)
+{
+    word32 partSz[2];
+    word32 grow = 4 * (word32)parts;
+    word32 done = 0;
+    word32 oct;
+    word32 o;
+    int    idx;
+    int    i;
+
+    if (parts != 1 && parts != 2)
+        return -1;
+    partSz[0] = (parts == 1) ? contentSz : contentSz / 2;
+    partSz[1] = contentSz - partSz[0];
+    idx = test_PKCS7_findBytes(msg, msgSz, pkcs7DataOid,
+        (int)sizeof(pkcs7DataOid));
+    if (idx < 4)
+        return -1;
+    oct = (word32)idx + (word32)sizeof(pkcs7DataOid) + 4;
+    if (partSz[parts - 1] < 0x100 || contentSz + grow > 0xFFFF ||
+            oct + 4 + contentSz > (word32)msgSz ||
+            msg[idx - 3] != (ASN_LONG_LENGTH | 2) ||
+            msg[oct - 4] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0) ||
+            msg[oct - 3] != (ASN_LONG_LENGTH | 2) ||
+            msg[oct] != ASN_OCTET_STRING ||
+            msg[oct + 1] != (ASN_LONG_LENGTH | 2) ||
+            (((word32)msg[oct + 2] << 8) | msg[oct + 3]) != contentSz)
+        return -1;
+
+    XMEMCPY(out, msg, oct);
+    if (pkcs7_grow_outer(out, (int)grow) != 0 ||
+            pkcs7_grow_der_len(out, (word32)idx - 4, (int)grow) != 0 ||
+            pkcs7_grow_der_len(out, oct - 4, (int)grow) != 0)
+        return -1;
+    o = oct;
+    o += test_pkcs7_hdr82(out + o, ASN_OCTET_STRING | ASN_CONSTRUCTED,
+        contentSz + grow);
+    for (i = 0; i < parts; i++) {
+        o += test_pkcs7_hdr82(out + o, ASN_OCTET_STRING, partSz[i]);
+        XMEMCPY(out + o, msg + oct + 4 + done, partSz[i]);
+        o += partSz[i];
+        done += partSz[i];
+    }
+    XMEMCPY(out + o, msg + oct + 4 + contentSz,
+        (word32)msgSz - oct - 4 - contentSz);
+    o += (word32)msgSz - oct - 4 - contentSz;
+    return (int)o;
+}
+#endif
+
+/* eContent may be a definite-length constructed OCTET STRING. */
+int test_wc_PKCS7_VerifySignedData_ConstructedContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    byte   data[600];
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    byte*  split = NULL;
+    int    msgSz = 0;
+    int    splitSz = 0;
+    int    parts;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    word32 i;
+
+    for (i = 0; i < (word32)sizeof(data); i++)
+        data[i] = (byte)i;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(split = (byte*)XMALLOC(msgMax + 8, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data, sizeof(data),
+            0, &rng)), 0);
+    }
+
+    for (parts = 1; EXPECT_SUCCESS() && parts <= 2; parts++) {
+        ExpectIntGT((splitSz = pkcs7_split_content(split, msg, msgSz,
+            sizeof(data), parts)), 0);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, split, (word32)splitSz),
+            0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectBufEQ(pkcs7->content, data, sizeof(data));
+            }
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    #ifndef NO_PKCS7_STREAM
+        EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(split,
+            (word32)splitSz, 1, 0, sizeof(data)));
+    #endif
+    }
+
+    XFREE(split, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

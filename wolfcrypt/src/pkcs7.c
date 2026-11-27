@@ -8149,6 +8149,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         if (localIdx - start + (word32)length ==
                                                            (word32)contentLen) {
                             multiPart = 0;
+                            localIdx = start + ASN_TAG_SZ;
                         } else {
                         #ifndef NO_PKCS7_STREAM
                             pkcs7->stream->multi         = (multiPart != 0);
@@ -8159,8 +8160,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                             /* reset length to outer OCTET_STRING for bundle
                              * size check below */
                             length = contentLen;
+                            localIdx = start;
                         }
-                        localIdx = start;
                     }
 
                     if (ret != 0) {
@@ -8419,6 +8420,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 }
                 localIdx = start; /* reset for sanity check, increment later */
                 length = i;
+                if (ret == 0 && keepContent)
+                    idx += (word32)contentLen;
             }
 
             /* Save the inner data as the content. */
@@ -8449,7 +8452,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         content = pkcs7->contentDynamic;
                     }
 
-                    if (ret == 0) {
+                    if (ret == 0 && !multiPart) {
                         idx += length;
                     }
 
