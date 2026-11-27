@@ -45,6 +45,7 @@ int test_wolfSSL_shutdown_repeat_after_done(void);
 int test_wolfSSL_shutdown_flush_no_notify(void);
 int test_wolfSSL_shutdown_quic_alert_refused(void);
 int test_wolfSSL_read_ex_optional_count(void);
+int test_wolfSSL_shutdown_transport_outcomes(void);
 int test_wolfSSL_SendUserCanceled_paths(void);
 int test_wolfSSL_write_dup_err(void);
 int test_wolfSSL_set_max_send_fragment(void);
@@ -80,6 +81,7 @@ int test_wolfSSL_get_error_bad_record(void);
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_shutdown_flush_no_notify),      \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_shutdown_quic_alert_refused),   \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_read_ex_optional_count),       \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_shutdown_transport_outcomes), \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_SendUserCanceled_paths),        \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_dup_err),                 \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_set_max_send_fragment),         \
