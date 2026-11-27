@@ -2627,8 +2627,8 @@ WOLFSSL_API int wc_SetUnknownExtCallback32Ex(DecodedCert* cert,
 #endif
 
 #ifdef WOLFSSL_CERT_EVENTS
-WOLFSSL_LOCAL int wc_SetCertEventCallback(DecodedCert* cert,
-                                          WOLFSSL_CERT_EVENT_CB cb, void* ctx);
+WOLFSSL_API int wc_SetCertEventCallback(DecodedCert* cert,
+                                        WOLFSSL_CERT_EVENT_CB cb, void* ctx);
 WOLFSSL_LOCAL void wc_CertEventSetConnection(DecodedCert* cert, void* ssl,
                                              const byte* notCaHash);
 WOLFSSL_LOCAL void wc_CertEventIdentity(const DecodedCert* cert,
