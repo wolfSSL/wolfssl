@@ -17414,6 +17414,15 @@ void SslWaivedCAsFree(WOLFSSL* ssl)
         ssl->waivedCAs = waived->next;
         FreeSigner(waived, SSL_CM(ssl)->heap);
     }
+#ifndef IGNORE_KEY_EXTENSIONS
+    while (ssl->ekuWaived != NULL) {
+        struct EkuWaivedCa* waived = ssl->ekuWaived;
+
+        ssl->ekuWaived = waived->next;
+        XFREE(waived, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    ssl->ekuIssuerRet = 0;
+#endif
 }
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
@@ -19121,6 +19130,214 @@ static int CheckChainCAExtKeyUsage(const WOLFSSL* ssl, const DecodedCert* cert)
     if ((cert->extExtKeyUsage & (EXTKEYUSE_ANY | purpose)) == 0) {
         WOLFSSL_MSG("Chain CA ExtKeyUse doesn't allow TLS peer authentication");
         return EXTKEYUSE_AUTH_E;
+    }
+
+    return 0;
+}
+
+/* Record the CA whose Extended Key Usage error the verify callback accepted.
+ * The later issuer walk matches the subject name, the subject key id and the
+ * public key. A different certificate that reuses the key, including one
+ * with a different subject, is not waived. Returns 0, or MEMORY_E. */
+static int RememberWaivedCaEku(WOLFSSL* ssl, const DecodedCert* cert)
+{
+    struct EkuWaivedCa* entry;
+    int ret;
+
+    if (cert == NULL || cert->publicKey == NULL)
+        return 0;
+
+    entry = (struct EkuWaivedCa*)XMALLOC(sizeof(struct EkuWaivedCa), ssl->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (entry == NULL)
+        return MEMORY_E;
+    XMEMSET(entry, 0, sizeof(*entry));
+#ifndef NO_SKID
+    XMEMCPY(entry->hash, cert->extSubjKeyId, SIGNER_DIGEST_SIZE);
+#else
+    XMEMCPY(entry->hash, cert->subjectHash, SIGNER_DIGEST_SIZE);
+#endif
+    XMEMCPY(entry->nameHash, cert->subjectHash, SIGNER_DIGEST_SIZE);
+    ret = CalcHashId(cert->publicKey, cert->pubKeySize, entry->keyHash);
+    if (ret != 0) {
+        XFREE(entry, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    /* The decoded source is the certificate DER. A signer that kept that
+     * encoding can be matched on it, which separates two certificates that
+     * share a subject and a key. */
+    if (cert->source != NULL && cert->maxIdx > 0) {
+        ret = CalcHashId(cert->source, cert->maxIdx, entry->certHash);
+        if (ret != 0) {
+            XFREE(entry, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+        entry->haveCertHash = 1;
+    }
+#endif
+    entry->next = ssl->ekuWaived;
+    ssl->ekuWaived = entry;
+    return 0;
+}
+
+/* 1 when this handshake already accepted ca's purpose error. */
+static int EkuCaWasWaived(const WOLFSSL* ssl, const Signer* ca)
+{
+    const struct EkuWaivedCa* entry;
+    byte keyHash[KEYID_SIZE];
+
+    if (ca == NULL || ca->publicKey == NULL)
+        return 0;
+    if (CalcHashId(ca->publicKey, ca->pubKeySize, keyHash) != 0)
+        return 0;
+    for (entry = ssl->ekuWaived; entry != NULL; entry = entry->next) {
+        if (XMEMCMP(entry->keyHash, keyHash, KEYID_SIZE) != 0)
+            continue;
+        if (XMEMCMP(entry->nameHash, ca->subjectNameHash,
+                    SIGNER_DIGEST_SIZE) != 0)
+            continue;
+#ifndef NO_SKID
+        if (XMEMCMP(entry->hash, ca->subjectKeyIdHash,
+                    SIGNER_DIGEST_SIZE) != 0)
+            continue;
+#else
+        if (XMEMCMP(entry->hash, ca->subjectNameHash,
+                    SIGNER_DIGEST_SIZE) != 0)
+            continue;
+#endif
+#ifdef WOLFSSL_SIGNER_DER_CERT
+        if (entry->haveCertHash && ca->derCert != NULL &&
+                ca->derCert->buffer != NULL && ca->derCert->length > 0) {
+            byte certHash[KEYID_SIZE];
+
+            if (CalcHashId(ca->derCert->buffer, ca->derCert->length,
+                    certHash) != 0)
+                continue;
+            if (XMEMCMP(entry->certHash, certHash, KEYID_SIZE) != 0)
+                continue;
+        }
+#endif
+        return 1;
+    }
+    return 0;
+}
+
+/* A self-signed CA the application loaded is the trust anchor. RFC 5280 6.1
+ * keeps that certificate outside the certification path. */
+static int SignerIsTrustAnchor(const Signer* ca)
+{
+    return ca != NULL && ca->type == WOLFSSL_USER_CA && ca->selfSigned;
+}
+
+/* EXTKEYUSE_AUTH_E when ca's Extended Key Usage excludes the TLS purpose.
+ * A waived CA and a trust anchor are allowed. */
+static int SignerPurposeRejects(const WOLFSSL* ssl, const Signer* ca,
+    int waived)
+{
+    byte purpose;
+
+    if (SignerIsTrustAnchor(ca) || waived || !ca->extExtKeyUsageSet)
+        return 0;
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        purpose = EXTKEYUSE_SERVER_AUTH;
+    else
+        purpose = EXTKEYUSE_CLIENT_AUTH;
+    if ((ca->extKeyUsage & (EXTKEYUSE_ANY | purpose)) == 0) {
+        WOLFSSL_MSG("Issuer CA ExtKeyUse doesn't allow TLS peer auth");
+        return EXTKEYUSE_AUTH_E;
+    }
+    return 0;
+}
+
+/* ca is a peer-sent self-signed certificate, so it is not the trust anchor
+ * by itself. Another CertManager signer with the same public key may be.
+ * Returns 1 when that signer is a trust anchor, EXTKEYUSE_AUTH_E when it is
+ * a restricted CA, 0 when there is no such signer, and BAD_MUTEX_E when the
+ * CA lock cannot be taken. */
+static int SameKeySignerPurpose(const WOLFSSL* ssl, const Signer* ca)
+{
+    WOLFSSL_CERT_MANAGER* cm = SSL_CM(ssl);
+    int row;
+    int reject = 0;
+    int anchor = 0;
+
+    if (ca->publicKey == NULL)
+        return 0;
+    if (wc_LockMutex(&cm->caLock) != 0)
+        return BAD_MUTEX_E;
+    for (row = 0; row < CA_TABLE_SIZE && !anchor; row++) {
+        Signer* s;
+
+        for (s = cm->caTable[row]; s != NULL; s = s->next) {
+            if (s == ca || s->publicKey == NULL ||
+                    s->pubKeySize != ca->pubKeySize ||
+                    XMEMCMP(s->publicKey, ca->publicKey, ca->pubKeySize) != 0)
+                continue;
+            if (SignerIsTrustAnchor(s)) {
+                anchor = 1;
+                reject = 0;
+                break;
+            }
+            if (reject == 0)
+                reject = SignerPurposeRejects(ssl, s, EkuCaWasWaived(ssl, s));
+        }
+    }
+    wc_UnLockMutex(&cm->caLock);
+    if (anchor)
+        return 1;
+    return reject;
+}
+
+/* Check the Extended Key Usage of each CA from ca up to the trust anchor
+ * against the TLS purpose. A CA whose purpose error this handshake already
+ * accepted is skipped, and the walk continues. A peer-sent self-signed
+ * certificate is not treated as the trust anchor: the CertManager CA that
+ * holds the same key is checked instead. With IGNORE_NAME_CONSTRAINTS there
+ * is no issuer lookup, so only ca is checked. pending holds Certificate
+ * Status Request v2 signers and callback-accepted CAs that are not in the
+ * certificate manager yet.
+ * Returns 0, EXTKEYUSE_AUTH_E, BAD_MUTEX_E or MAX_CHAIN_ERROR. */
+static int CheckSignerExtKeyUsage(const WOLFSSL* ssl, Signer* ca,
+    Signer* pending)
+{
+    Signer* prev = NULL;
+    Signer* parent;
+    int depth = 0;
+
+    while (ca != NULL) {
+        int rejected;
+
+        if (SignerIsTrustAnchor(ca))
+            break;
+        if (ca->selfSigned) {
+            int same = SameKeySignerPurpose(ssl, ca);
+
+            if (same == 1)
+                break;
+            if (same != 0)
+                return same;
+            rejected = SignerPurposeRejects(ssl, ca, EkuCaWasWaived(ssl, ca));
+            if (rejected != 0)
+                return rejected;
+            break;
+        }
+        rejected = SignerPurposeRejects(ssl, ca, EkuCaWasWaived(ssl, ca));
+        if (rejected != 0)
+            return rejected;
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        parent = wolfssl_local_FindSignerByAkidOrName(SSL_CM(ssl), pending, ca);
+    #else
+        (void)pending;
+        parent = NULL;
+    #endif
+        /* Stop on missing parent, self-loop, or A->B->A cycle. */
+        if (parent == NULL || parent == ca || parent == prev)
+            break;
+        if (++depth >= WOLFSSL_MAX_CHAIN_DEPTH)
+            return MAX_CHAIN_ERROR;
+        prev = ca;
+        ca = parent;
     }
 
     return 0;
@@ -20891,6 +21108,21 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == 0 && args->dCert->ca != NULL &&
                             ProcessPeerCertIsWaivedCA(ssl, args->dCert->ca))
                         caIsTemp = 1;
+                #ifndef IGNORE_KEY_EXTENSIONS
+                    /* The later issuer walk repeats this CA. Remember an
+                     * accepted purpose error so that walk does not reject
+                     * it again. Ancestors are still checked. The decoded
+                     * certificate is allocated before this loop. */
+                    if (ret == 0 &&
+                            preCbRet == WC_NO_ERR_TRACE(EXTKEYUSE_AUTH_E) &&
+                            args->dCert->isCA) {
+                        ret = RememberWaivedCaEku(ssl, args->dCert);
+                        if (ret != 0) {
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                            args->fatal = 1;
+                        }
+                    }
+                #endif
                     if (CrlErrWaived(ssl, ret))
                         ret = ssl->error = 0;
                 #if defined(HAVE_OCSP) && defined(HAVE_CRL) && \
@@ -21476,6 +21708,54 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     }
                 }
+
+                /* CAs the peer did not send were not covered by
+                 * CheckChainCAExtKeyUsage(). Chain CAs whose purpose error
+                 * this handshake already accepted are skipped. A leaf error
+                 * that is still pending does not skip this walk: the callback
+                 * is asked about each error on its own. */
+                if (!args->fatal && !ssl->options.verifyNone &&
+                    #ifdef WOLFSSL_TRUST_PEER_CERT
+                        !args->haveTrustPeer &&
+                    #endif
+                        !UsingChainVerifyCb(ssl)) {
+                    Signer* ekuPending = NULL;
+                    Signer* ekuTail = NULL;
+                    int ekuRet;
+
+                #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+                    !defined(NO_TLS)
+                    if (TLSX_CSR2_IsMulti(ssl->extensions)) {
+                        ekuPending = TLSX_CSR2_GetPendingSigners(
+                            ssl->extensions);
+                    }
+                #endif
+                    ekuPending = SslWaivedCAsJoin(ssl, ekuPending, &ekuTail);
+                    ekuRet = CheckSignerExtKeyUsage(ssl, args->dCert->ca,
+                        ekuPending);
+                    SslWaivedCAsSplit(ekuTail);
+                    if (ekuRet != 0) {
+                        WOLFSSL_ERROR_VERBOSE(ekuRet);
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        /* Return first cert error here */
+                        if (ssl->peerVerifyRet == 0) {
+                            ssl->peerVerifyRet =
+                                (ekuRet == WC_NO_ERR_TRACE(MAX_CHAIN_ERROR)) ?
+                                WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG :
+                                WOLFSSL_X509_V_ERR_INVALID_PURPOSE;
+                        }
+                    #endif
+                        /* Leave ret for the checks that still have to run
+                         * when it is 0: the minimum key size, and the
+                         * hostname and IP checks that replace ret. The
+                         * deferred callback reports this error after those,
+                         * and after any leaf error the application accepts.
+                         * Writing it into ret here would skip the key-size
+                         * check and let a later mismatch discard it. */
+                        ssl->ekuIssuerRet = ekuRet;
+                    }
+                }
             #endif /* IGNORE_KEY_EXTENSIONS */
 
                 if (args->fatal) {
@@ -21692,6 +21972,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
             #endif
             }
+
+#ifndef IGNORE_KEY_EXTENSIONS
+            /* The leaf already had an error. Accepting that error must not
+             * hide a restricted issuer the walk found. */
+            if (ret == 0 && ssl->ekuIssuerRet != 0) {
+                int ekuRet = ssl->ekuIssuerRet;
+
+                ssl->ekuIssuerRet = 0;
+                ret = DoVerifyCallback(SSL_CM(ssl), ssl, ekuRet, args);
+            }
+#endif
 
             if (CrlErrWaived(ssl, ret))
                 ret = ssl->error = 0;

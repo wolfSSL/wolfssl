@@ -26184,8 +26184,8 @@ Signer* findSignerByName(Signer *list, byte *hash)
 /* Find a signer for cert in cm and extraCAList. Prefers AKID->SKID
  * with name-hash validation. Fall back to name-only when AKID is
  * absent. */
-static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
-                                      Signer* extraCAList, Signer* cert)
+Signer* wolfssl_local_FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
+                                             Signer* extraCAList, Signer* cert)
 {
     Signer* signer = NULL;
 #ifndef NO_SKID
@@ -26196,6 +26196,10 @@ static Signer* FindSignerByAkidOrName(WOLFSSL_CERT_MANAGER* cm,
     if (cert->authKeyIdSet) {
         signer = GetCA(cm, cert->authKeyIdHash);
     #ifndef WOLFSSL_ALLOW_AKID_SKID_MATCH
+        /* A different issuer name drops the subject-key-id hit. With
+         * WOLFSSL_ALLOW_AKID_SKID_MATCH, ParseCertRelative keeps this CA,
+         * and the Extended Key Usage walk must keep it too. Otherwise the
+         * walk stops before a restricted parent. */
         if (signer != NULL &&
                 XMEMCMP(signer->subjectNameHash, cert->issuerNameHash,
                         SIGNER_DIGEST_SIZE) != 0) {
@@ -27258,7 +27262,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             /* Stop at trust anchor. */
             if (SignerIsTrustAnchor(ncSigner))
                 break;
-            ncParent = FindSignerByAkidOrName(cm, extraCAList, ncSigner);
+            ncParent = wolfssl_local_FindSignerByAkidOrName(cm, extraCAList,
+                ncSigner);
             /* Stop on missing parent, self-loop, or A->B->A cycle. */
             if (ncParent == NULL || ncParent == ncSigner ||
                     ncParent == ncPrev) {
@@ -27351,6 +27356,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
         }
         signer->maxPathLen     = cert->maxPathLen;
         signer->selfSigned     = cert->selfSigned;
+        signer->extExtKeyUsageSet = cert->extExtKeyUsageSet;
     #ifndef IGNORE_NAME_CONSTRAINTS
         signer->permittedNames = cert->permittedNames;
         signer->excludedNames  = cert->excludedNames;
