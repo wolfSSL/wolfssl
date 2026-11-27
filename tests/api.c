@@ -38046,9 +38046,6 @@ static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
     /* test for unsupported class index */
     ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509_STORE,
         0,NULL, NULL, NULL, NULL ), -1);
-    ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(
-        WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX,
-        0,NULL, NULL, NULL, NULL ), -1);
     ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_DH,
         0,NULL, NULL, NULL, NULL ), -1);
     ExpectIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_DSA,

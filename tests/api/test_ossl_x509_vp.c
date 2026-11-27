@@ -244,6 +244,54 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_VERIFY_PARAM_get_hostflags(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    X509_VERIFY_PARAM* param = NULL;
+    X509_VERIFY_PARAM* copy = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    unsigned int flags = X509_CHECK_FLAG_NO_WILDCARDS |
+                         X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS;
+
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(NULL), 0);
+
+    ExpectNotNull(param = X509_VERIFY_PARAM_new());
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(param), 0);
+
+    X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_WILDCARDS);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(param),
+        X509_CHECK_FLAG_NO_WILDCARDS);
+    /* Setting replaces the flags. */
+    X509_VERIFY_PARAM_set_hostflags(param, flags);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(param), flags);
+
+    ExpectNotNull(copy = X509_VERIFY_PARAM_new());
+    ExpectIntEQ(X509_VERIFY_PARAM_set1(copy, param), 1);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(copy), flags);
+
+    X509_VERIFY_PARAM_set_hostflags(param, 0);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(param), 0);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(copy), flags);
+
+    /* A store context reports the flags of the store it was set up from. */
+    ExpectNotNull(store = X509_STORE_new());
+    X509_VERIFY_PARAM_set_hostflags(X509_STORE_get0_param(store),
+        X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, NULL, NULL), 1);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_hostflags(
+        X509_STORE_CTX_get0_param(ctx)), X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    X509_VERIFY_PARAM_free(copy);
+    X509_VERIFY_PARAM_free(param);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
 {
     EXPECT_DECLS;

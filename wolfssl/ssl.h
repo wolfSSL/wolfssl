@@ -730,6 +730,8 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLF_STACK_OF(WOLFSSL_X509)* owned;  /* Certs owned by this CTX */
     WOLF_STACK_OF(WOLFSSL_X509)* ctxIntermediates; /* Intermediates specified
                                                     * on store ctx init */
+    WOLF_STACK_OF(WOLFSSL_X509)* peerUntrusted; /* Peer certs for a verify
+                                                 * callback. Owned. */
     WOLF_STACK_OF(WOLFSSL_X509)* setTrustedSk;/* A trusted stack override
                                                * set with
                                                * X509_STORE_CTX_trusted_stack */
@@ -1740,6 +1742,10 @@ WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
     WOLFSSL_CRYPTO_EX_new* new_func,
     WOLFSSL_CRYPTO_EX_dup* dup_func,
     WOLFSSL_CRYPTO_EX_free* free_func);
+WOLFSSL_API int wolfSSL_X509_STORE_CTX_get_ex_new_index(long idx, void *arg,
+    WOLFSSL_CRYPTO_EX_new* new_func,
+    WOLFSSL_CRYPTO_EX_dup* dup_func,
+    WOLFSSL_CRYPTO_EX_free* free_func);
 #endif
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -2621,6 +2627,8 @@ WOLFSSL_API int  wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx,
         WOLF_STACK_OF(WOLFSSL_X509) *sk);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_CTX_get0_untrusted(
+        const WOLFSSL_X509_STORE_CTX* ctx);
 #ifdef HAVE_CRL
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_set0_crls(WOLFSSL_X509_STORE_CTX *ctx,
         WOLF_STACK_OF(WOLFSSL_X509_CRL) *sk);
@@ -2698,6 +2706,8 @@ WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM 
         unsigned long flags);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_hostflags(
                 WOLFSSL_X509_VERIFY_PARAM* param, unsigned int flags);
+WOLFSSL_API unsigned int wolfSSL_X509_VERIFY_PARAM_get_hostflags(
+                const WOLFSSL_X509_VERIFY_PARAM* param);
 WOLFSSL_API int wolfSSL_set1_host(WOLFSSL* ssl, const char * name);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                                     const char* name,
@@ -6462,6 +6472,10 @@ WOLFSSL_API int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk,
     size_t chklen, unsigned int flags, char **peername);
 WOLFSSL_API int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
         unsigned int flags);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_X509_check_ip(WOLFSSL_X509 *x,
+        const unsigned char *chk, size_t chklen, unsigned int flags);
+#endif
 #endif
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
 WOLFSSL_API int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk,

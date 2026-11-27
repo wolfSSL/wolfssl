@@ -29,6 +29,9 @@ int test_wolfSSL_X509_STORE_check_time(void);
 int test_wolfSSL_X509_verify_cert_crl_date_override(void);
 int test_wolfSSL_X509_verify_cert_crl_date_callback(void);
 int test_wolfSSL_X509_STORE_CTX_get0_store(void);
+int test_wolfSSL_X509_STORE_CTX_get_ex_new_index(void);
+int test_wolfSSL_X509_STORE_CTX_get0_untrusted(void);
+int test_wolfSSL_X509_STORE_CTX_get0_untrusted_handshake(void);
 int test_wolfSSL_X509_STORE_CTX(void);
 int test_wolfSSL_X509_STORE_CTX_ex(void);
 int test_wolfSSL_X509_verify_cert_pathlen(void);
@@ -82,6 +85,12 @@ int test_wolfSSL_CTX_set_cert_store(void);
                             test_wolfSSL_X509_verify_cert_crl_date_callback),  \
     TEST_DECL_GROUP("ossl_x509_store",                                         \
                                       test_wolfSSL_X509_STORE_CTX_get0_store), \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                              test_wolfSSL_X509_STORE_CTX_get_ex_new_index),   \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                                 test_wolfSSL_X509_STORE_CTX_get0_untrusted),  \
+    TEST_DECL_GROUP("ossl_x509_store",                                         \
+                       test_wolfSSL_X509_STORE_CTX_get0_untrusted_handshake),  \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX),           \
     TEST_DECL_GROUP("ossl_x509_store", test_wolfSSL_X509_STORE_CTX_ex),        \
     TEST_DECL_GROUP("ossl_x509_store",                                         \

@@ -732,6 +732,192 @@ int test_wolfSSL_X509_STORE_CTX_get0_store(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_X509_STORE_CTX_get_ex_new_index(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EX_DATA_CRYPTO)
+    X509_STORE_CTX* ctx = NULL;
+    int sslIdx = SSL_get_ex_data_X509_STORE_CTX_idx();
+    int idx1;
+    int idx2;
+    int data1 = 1;
+    int data2 = 2;
+    int sslData = 3;
+
+    /* New indexes are positive and never the index of the SSL object. */
+    idx1 = X509_STORE_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+    ExpectIntGT(idx1, 0);
+    ExpectIntNE(idx1, sslIdx);
+    /* Same index space as CRYPTO_get_ex_new_index() for the class. */
+    idx2 = CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509_STORE_CTX, 0, NULL,
+        NULL, NULL, NULL);
+    ExpectIntGT(idx2, 0);
+    ExpectIntNE(idx2, sslIdx);
+    ExpectIntNE(idx1, idx2);
+
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNull(X509_STORE_CTX_get_ex_data(ctx, idx1));
+    ExpectIntEQ(X509_STORE_CTX_set_ex_data(ctx, sslIdx, &sslData), 1);
+    ExpectIntEQ(X509_STORE_CTX_set_ex_data(ctx, idx1, &data1), 1);
+    ExpectIntEQ(X509_STORE_CTX_set_ex_data(ctx, idx2, &data2), 1);
+    ExpectPtrEq(X509_STORE_CTX_get_ex_data(ctx, idx1), &data1);
+    ExpectPtrEq(X509_STORE_CTX_get_ex_data(ctx, idx2), &data2);
+    ExpectPtrEq(X509_STORE_CTX_get_ex_data(ctx, sslIdx), &sslData);
+
+    ExpectNull(X509_STORE_CTX_get_ex_data(NULL, idx1));
+    ExpectIntEQ(X509_STORE_CTX_set_ex_data(NULL, idx1, &data1), 0);
+
+    X509_STORE_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_X509_STORE_CTX_get0_untrusted(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    X509* ca = NULL;
+    X509* inter = NULL;
+    X509* inter2 = NULL;
+    X509* leaf = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    STACK_OF(X509)* chain = NULL;
+
+    ExpectNotNull(ca = X509_load_certificate_file("./certs/ca-cert.pem",
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(inter = X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(inter2 = X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(leaf = X509_load_certificate_file(
+        "./certs/intermediate/server-chain.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(untrusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(untrusted, inter2), 0);
+    ExpectIntGT(sk_X509_push(untrusted, inter), 0);
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectIntGT(sk_X509_push(trusted, ca), 0);
+
+    ExpectNull(X509_STORE_CTX_get0_untrusted(NULL));
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, ca), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNull(X509_STORE_CTX_get0_untrusted(ctx));
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, NULL), 1);
+    ExpectNull(X509_STORE_CTX_get0_untrusted(ctx));
+
+    /* The stack given to init, not a copy. */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    ExpectPtrEq(X509_STORE_CTX_get0_untrusted(ctx), untrusted);
+    /* The trusted stack is kept separately. */
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectPtrEq(X509_STORE_CTX_get0_untrusted(ctx), untrusted);
+    X509_STORE_CTX_trusted_stack(ctx, NULL);
+
+    /* Verification builds its own chain and leaves the stack as it was. */
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), 4);
+    ExpectPtrNE(chain, untrusted);
+    ExpectPtrEq(X509_STORE_CTX_get0_untrusted(ctx), untrusted);
+    ExpectIntEQ(sk_X509_num(untrusted), 2);
+    ExpectPtrEq(sk_X509_value(untrusted, 0), inter2);
+    ExpectPtrEq(sk_X509_value(untrusted, 1), inter);
+
+    X509_STORE_CTX_cleanup(ctx);
+    ExpectNull(X509_STORE_CTX_get0_untrusted(ctx));
+
+    /* Freeing the context leaves the caller's stack and certificates. */
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, leaf, untrusted), 1);
+    X509_STORE_CTX_free(ctx);
+    ctx = NULL;
+    ExpectIntEQ(sk_X509_num(untrusted), 2);
+    ExpectPtrEq(sk_X509_value(untrusted, 0), inter2);
+    ExpectIntEQ(X509_cmp(sk_X509_value(untrusted, 1), inter), 0);
+
+    X509_STORE_free(store);
+    sk_X509_free(trusted);
+    sk_X509_free(untrusted);
+    X509_free(leaf);
+    X509_free(inter2);
+    X509_free(inter);
+    X509_free(ca);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+static int test_untrusted_cb_calls;
+static int test_untrusted_cb_bad;
+
+/* Certs of server-chain.pem, in the order the server sends them. */
+static const char* const test_untrusted_files[] = {
+    "./certs/intermediate/server-int-cert.pem",
+    "./certs/intermediate/ca-int2-cert.pem",
+    "./certs/intermediate/ca-int-cert.pem"
+};
+
+static int test_untrusted_verify_cb(int preverify_ok, X509_STORE_CTX* ctx)
+{
+    STACK_OF(X509)* sk = X509_STORE_CTX_get0_untrusted(ctx);
+    X509* x509;
+    int i;
+
+    (void)preverify_ok;
+    test_untrusted_cb_calls++;
+    if (sk == NULL || sk != X509_STORE_CTX_get0_untrusted(ctx) ||
+            sk_X509_num(sk) != 3) {
+        test_untrusted_cb_bad = 1;
+        return 1;
+    }
+    for (i = 0; i < 3; i++) {
+        x509 = X509_load_certificate_file(test_untrusted_files[i],
+            SSL_FILETYPE_PEM);
+        if (x509 == NULL || X509_cmp(sk_X509_value(sk, i), x509) != 0)
+            test_untrusted_cb_bad = 1;
+        X509_free(x509);
+    }
+    /* Override the missing CA error. */
+    return 1;
+}
+
+static int test_untrusted_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, test_untrusted_verify_cb);
+    return TEST_SUCCESS;
+}
+#endif
+
+/* In a handshake verify callback the untrusted certs are the peer's. */
+int test_wolfSSL_X509_STORE_CTX_get0_untrusted_handshake(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    test_ssl_cbf client_cbs;
+    test_ssl_cbf server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    /* Not the server's CA, so the verify callback is called. */
+    client_cbs.caPemFile = "./certs/client-cert.pem";
+    client_cbs.ctx_ready = test_untrusted_ctx_ready;
+    server_cbs.certPemFile = "./certs/intermediate/server-chain.pem";
+    test_untrusted_cb_calls = 0;
+    test_untrusted_cb_bad = 0;
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
+        &server_cbs, NULL), TEST_SUCCESS);
+    ExpectIntGT(test_untrusted_cb_calls, 0);
+    ExpectIntEQ(test_untrusted_cb_bad, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
 static int verify_cb(int ok, X509_STORE_CTX *ctx)

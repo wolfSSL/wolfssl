@@ -95,6 +95,7 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
         if (ctx->owned != NULL) {
             wolfSSL_sk_X509_pop_free(ctx->owned, NULL);
         }
+        wolfSSL_sk_X509_pop_free(ctx->peerUntrusted, NULL);
 
         if (ctx->current_issuer != NULL) {
             wolfSSL_X509_free(ctx->current_issuer);
@@ -252,6 +253,8 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 
         ctx->ctxIntermediates = sk;
         ctx->setTrustedSk = NULL;
+        wolfSSL_sk_X509_pop_free(ctx->peerUntrusted, NULL);
+        ctx->peerUntrusted = NULL;
 #ifdef HAVE_CRL
         ctx->crls = NULL;
 #endif
@@ -348,6 +351,45 @@ void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx,
     if (ctx != NULL) {
         ctx->setTrustedSk = sk;
     }
+}
+
+/* Get the untrusted certificates passed to wolfSSL_X509_STORE_CTX_init(). The
+ * stack is still owned by the caller of init and must not be freed.
+ * In a verify callback of a handshake, get the certificates the peer sent,
+ * leaf first. That stack is owned by ctx. */
+WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_CTX_get0_untrusted(
+    const WOLFSSL_X509_STORE_CTX* ctx)
+{
+    WOLFSSL_X509_STORE_CTX* mctx = (WOLFSSL_X509_STORE_CTX*)ctx;
+    WOLF_STACK_OF(WOLFSSL_X509)* sk = NULL;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get0_untrusted");
+
+    if (ctx == NULL) {
+        return NULL;
+    }
+    if (ctx->ctxIntermediates != NULL) {
+        return ctx->ctxIntermediates;
+    }
+    if (ctx->peerUntrusted != NULL || ctx->certs == NULL ||
+            ctx->totalCerts <= 0) {
+        return ctx->peerUntrusted;
+    }
+
+    sk = wolfSSL_sk_X509_new_null();
+    for (i = 0; sk != NULL && i < ctx->totalCerts; i++) {
+        WOLFSSL_X509* x509 = wolfSSL_X509_d2i_ex(NULL, ctx->certs[i].buffer,
+            (int)ctx->certs[i].length, ctx->heap);
+        if (x509 == NULL || wolfSSL_sk_X509_push(sk, x509) <= 0) {
+            WOLFSSL_MSG("Unable to add peer cert to untrusted stack");
+            wolfSSL_X509_free(x509);
+            wolfSSL_sk_X509_pop_free(sk, NULL);
+            sk = NULL;
+        }
+    }
+    mctx->peerUntrusted = sk;
+    return sk;
 }
 
 
@@ -1513,6 +1555,21 @@ void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 #endif
     return NULL;
 }
+
+#ifdef HAVE_EX_DATA_CRYPTO
+/* Get a new X509_STORE_CTX ex_data index. Never 0, which holds the WOLFSSL
+ * object. Returns -1 on failure. */
+int wolfSSL_X509_STORE_CTX_get_ex_new_index(long idx, void* arg,
+                                            WOLFSSL_CRYPTO_EX_new* new_func,
+                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
+                                            WOLFSSL_CRYPTO_EX_free* free_func)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_ex_new_index");
+
+    return wolfssl_local_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX,
+        idx, arg, new_func, dup_func, free_func);
+}
+#endif /* HAVE_EX_DATA_CRYPTO */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 
