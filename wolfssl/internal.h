@@ -8686,6 +8686,9 @@ WOLFSSL_LOCAL int wolfssl_local_get_ex_new_index(int class_index, long ctx_l,
 
 WOLFSSL_LOCAL WC_RNG* wolfssl_get_global_rng(void);
 WOLFSSL_LOCAL WC_RNG* wolfssl_make_global_rng(void);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_TEST_VIS void wolfssl_rand_cleanup(void);
+#endif
 
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)

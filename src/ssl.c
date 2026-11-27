@@ -293,7 +293,7 @@ static struct SystemCryptoPolicy crypto_policy;
 
 #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
 static WC_RNG globalRNG;
-static volatile int initGlobalRNG = 0;
+static wolfSSL_Atomic_Int initGlobalRNG = WOLFSSL_ATOMIC_INITIALIZER(0);
 
 #if defined(OPENSSL_EXTRA) || !defined(WOLFSSL_MUTEX_INITIALIZER)
 static WC_MAYBE_UNUSED wolfSSL_Mutex globalRNGMutex
@@ -303,6 +303,149 @@ static WC_MAYBE_UNUSED wolfSSL_Mutex globalRNGMutex
 static int globalRNGMutex_valid = 0;
 #endif
 
+#ifdef OPENSSL_EXTRA
+/* Serialise use of globalRNG. The mutex is not needed when the RNG locks
+ * itself. A crypto callback found by WOLF_CRYPTO_CB_FIND runs outside the RNG
+ * lock, so keep the mutex then. globalRNGMutex still guards init and free.
+ * Only for the helpers below. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && \
+    !defined(WC_RNG_AUTO_LOCK_DEFAULT_OFF) && \
+    !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_NO_ATOMICS)
+static int wolfssl_global_rng_lock(void)
+{
+    return 0;
+}
+
+static void wolfssl_global_rng_unlock(void)
+{
+}
+#else
+static int wolfssl_global_rng_lock(void)
+{
+    return (wc_LockMutex(&globalRNGMutex) == 0) ? 0 : BAD_MUTEX_E;
+}
+
+static void wolfssl_global_rng_unlock(void)
+{
+    wc_UnLockMutex(&globalRNGMutex);
+}
+#endif
+
+/* Init the global RNG if needed. Call without the lock held:
+ * wolfSSL_RAND_Init() takes globalRNGMutex. Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_init(void)
+{
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) != 0)
+        return 0;
+    return (wolfSSL_RAND_Init() == WOLFSSL_SUCCESS) ? 0 : BAD_STATE_E;
+}
+
+/* Fill out with sz bytes from the global RNG. Inits it if needed.
+ * Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_generate(byte* out, word32 sz)
+{
+    int ret = wolfssl_global_rng_init();
+
+    if (ret == 0)
+        ret = wolfssl_global_rng_lock();
+    if (ret != 0)
+        return ret;
+    /* Pairs with the store in wolfSSL_RAND_Init(). */
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0) {
+        wolfssl_global_rng_unlock();
+        return BAD_STATE_E;
+    }
+    while ((ret == 0) && (sz > 0)) {
+        word32 len = min(sz, (word32)RNG_MAX_BLOCK_LEN);
+
+        ret = wc_RNG_GenerateBlock(&globalRNG, out, len);
+        out += len;
+        sz -= len;
+    }
+    wolfssl_global_rng_unlock();
+
+    return ret;
+}
+
+#ifdef HAVE_HASHDRBG
+/* Mix caller material into the global RNG. It gets no entropy credit.
+ * Inits the RNG if needed. Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_mix(const byte* in, word32 sz)
+{
+    int ret = wolfssl_global_rng_init();
+
+    if (ret == 0)
+        ret = wolfssl_global_rng_lock();
+    if (ret != 0)
+        return ret;
+    /* Pairs with the store in wolfSSL_RAND_Init(). */
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0) {
+        wolfssl_global_rng_unlock();
+        return BAD_STATE_E;
+    }
+#ifdef WC_RNG_HAVE_STIR
+    /* An uncredited stir: credited user-class reseeds of conformant
+     * instances are refused with WC_RNG_RBGC_STRATUM_IMMUTABLE. A standing
+     * reseed or recovery obligation (NEEDS_RECOVERY_E: credited reseed due,
+     * invalidation latched, or epoch stale; NOT_READY_E: the reseed interval
+     * tripped within the call) outranks advisory material and is not a
+     * failure: the next generate performs the credited reseed. */
+    ret = wc_RNG_DRBG_Stir(&globalRNG, in, sz);
+    if ((ret == WC_NO_ERR_TRACE(NOT_READY_E)) ||
+            (ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))) {
+        ret = 0;
+    }
+#else
+    ret = wc_RNG_DRBG_Reseed(&globalRNG, in, sz);
+#endif
+    wolfssl_global_rng_unlock();
+
+    return ret;
+}
+
+/* Reseed the global RNG from the system. Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_reseed(void)
+{
+    /* The lock also covers wc_GenerateSeed(), which writes globalRNG.seed. */
+    int ret = wolfssl_global_rng_lock();
+
+    if (ret != 0)
+        return ret;
+    /* Pairs with the store in wolfSSL_RAND_Init(). */
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0) {
+        wolfssl_global_rng_unlock();
+        return BAD_STATE_E;
+    }
+#ifdef WC_RNG_HAVE_RESEED_NOW
+    ret = wc_RNG_DRBG_Reseed_Now(&globalRNG, NULL, 0);
+    if (ret != 0) {
+        WOLFSSL_MSG("Bad wc_RNG_DRBG_Reseed_Now");
+    }
+#else /* random.h predates wc_RNG_DRBG_Reseed_Now() */
+    {
+        byte   entropy[16];
+        word32 entropy_sz = 16;
+
+        ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
+        if (ret != 0) {
+            WOLFSSL_MSG("Bad wc_GenerateSeed");
+        }
+        else {
+            ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
+            if (ret != 0) {
+                WOLFSSL_MSG("Error reseeding DRBG");
+            }
+        }
+        ForceZero(entropy, sizeof(entropy));
+    }
+#endif /* WC_RNG_HAVE_RESEED_NOW */
+    wolfssl_global_rng_unlock();
+
+    return ret;
+}
+#endif /* HAVE_HASHDRBG */
+#endif /* OPENSSL_EXTRA */
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
 static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
 #endif
@@ -311,7 +454,7 @@ WC_RNG* wolfssl_get_global_rng(void)
 {
     WC_RNG* ret = NULL;
 
-    if (initGlobalRNG == 0)
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0)
         WOLFSSL_MSG("Global RNG no Init");
     else
         ret = &globalRNG;
@@ -3834,7 +3977,7 @@ int wolfSSL_Cleanup(void)
 #endif
 
 #ifdef OPENSSL_EXTRA
-    wolfSSL_RAND_Cleanup();
+    wolfssl_rand_cleanup();
 #endif
 
     if (wolfCrypt_Cleanup() != 0) {

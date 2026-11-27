@@ -36,8 +36,10 @@
 #endif
 
 #include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/rand.h>
+    #include <wolfssl/openssl/bn.h>
 #endif
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_rand.h>
@@ -127,7 +129,7 @@ int test_wolfSSL_RAND_set_rand_method(void)
 
     ExpectIntNE(wolfSSL_RAND_status(), 5432);
     ExpectIntEQ(*was_cleanup_called, 0);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
     ExpectIntEQ(*was_cleanup_called, 0);
 
 
@@ -151,7 +153,11 @@ int test_wolfSSL_RAND_set_rand_method(void)
     ExpectIntEQ(*was_add_called, 1);
     was_add_called = 0;
     ExpectIntEQ(*was_cleanup_called, 0);
+    /* RAND_cleanup() does nothing: the method is still in place. */
     RAND_cleanup();
+    ExpectIntEQ(*was_cleanup_called, 0);
+    ExpectIntEQ(RAND_status(), 5432);
+    wolfssl_rand_cleanup();
     ExpectIntEQ(*was_cleanup_called, 1);
     *was_cleanup_called = 0;
 
@@ -160,7 +166,7 @@ int test_wolfSSL_RAND_set_rand_method(void)
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
     ExpectIntNE(RAND_status(), 5432);
     ExpectIntEQ(*was_cleanup_called, 0);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
     ExpectIntEQ(*was_cleanup_called, 0);
 
     RAND_set_rand_method(NULL);
@@ -213,7 +219,7 @@ int test_wolfSSL_RAND_bytes(void)
 #if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID) && !defined(__MINGW64__) && \
     !defined(__MINGW32__)
     XMEMSET(seed, 0, sizeof(seed));
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     /* No global methods set. */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
@@ -234,7 +240,7 @@ int test_wolfSSL_RAND_bytes(void)
         /* Free the child's copy of the global RNG, inherited from the
          * pre-fork RAND_seed() -- _exit() cleans up nothing, and valgrind
          * tracks the child. */
-        wolfSSL_RAND_Cleanup();
+        wolfssl_rand_cleanup();
     #ifndef NO_SESSION_CACHE
         /* Likewise the child's copy of the session cache: entries left by
          * earlier tests can hold dynamically allocated tickets. */
@@ -271,7 +277,7 @@ int test_wolfSSL_RAND_bytes(void)
         close(pipefds[0]);
         close(pipefds[1]);
     }
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 #endif
 #endif
     return EXPECT_RESULT();
@@ -301,7 +307,7 @@ int test_wolfSSL_RAND_load_file(void)
     ExpectIntEQ(RAND_load_file("/dev/urandom", 0), 0);
 #endif
 
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 #endif
     return EXPECT_RESULT();
 }
@@ -317,7 +323,7 @@ int test_wolfSSL_RAND(void)
     /* No global methods set. */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_poll(), 1);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     ExpectIntEQ(RAND_egd(NULL), -1);
 #ifndef NO_FILESYSTEM
@@ -332,6 +338,85 @@ int test_wolfSSL_RAND(void)
     return EXPECT_RESULT();
 }
 
+
+#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_NO_BN) && \
+    !defined(SINGLE_THREADED)
+#define RAND_THREADS        4
+#define RAND_THREAD_ROUNDS  64
+#define RAND_THREAD_SZ      32
+
+typedef struct RandThreadData {
+    byte (*out)[RAND_THREAD_SZ];
+    int ok;
+} RandThreadData;
+
+static THREAD_RETURN WOLFSSL_THREAD test_RAND_thread(void* arg)
+{
+    RandThreadData* data = (RandThreadData*)arg;
+    BIGNUM* bn = BN_new();
+    int ok = (bn != NULL);
+    int i;
+
+    for (i = 0; ok && (i < RAND_THREAD_ROUNDS); i++) {
+        ok = (RAND_bytes(data->out[i], RAND_THREAD_SZ) == 1) &&
+             (BN_rand(bn, 256, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY) == 1) &&
+             (RAND_status() == 1);
+        if (ok && ((i % 16) == 0)) {
+            ok = (RAND_poll() == 1);
+        }
+    }
+    BN_free(bn);
+    data->ok = ok;
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+#endif
+
+/* Threads sharing the global RNG all succeed and never get the same bytes. */
+int test_wolfSSL_RAND_threads(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_NO_BN) && \
+    !defined(SINGLE_THREADED)
+    static byte out[RAND_THREADS * RAND_THREAD_ROUNDS][RAND_THREAD_SZ];
+    RandThreadData data[RAND_THREADS];
+    THREAD_TYPE threads[RAND_THREADS];
+    byte seed[16];
+    int total = RAND_THREADS * RAND_THREAD_ROUNDS;
+    int started = 0;
+    int i;
+    int j;
+
+    XMEMSET(seed, 0, sizeof(seed));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(data, 0, sizeof(data));
+
+    /* Create the global RNG before any thread uses it. */
+    ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+
+    while ((started < RAND_THREADS) && EXPECT_SUCCESS()) {
+        data[started].out = &out[started * RAND_THREAD_ROUNDS];
+        ExpectIntEQ(wolfSSL_NewThread(&threads[started], test_RAND_thread,
+            &data[started]), 0);
+        if (EXPECT_SUCCESS()) {
+            started++;
+        }
+    }
+    for (i = 0; i < started; i++) {
+        ExpectIntEQ(wolfSSL_JoinThread(threads[i]), 0);
+    }
+    for (i = 0; i < started; i++) {
+        ExpectIntEQ(data[i].ok, 1);
+    }
+    for (i = 0; EXPECT_SUCCESS() && (i < total); i++) {
+        for (j = i + 1; j < total; j++) {
+            ExpectBufNE(out[i], out[j], RAND_THREAD_SZ);
+        }
+    }
+
+    wolfssl_rand_cleanup();
+#endif
+    return EXPECT_RESULT();
+}
 
 #if defined(WC_RNG_SEED_CB) && defined(OPENSSL_EXTRA)
 static int wc_DummyGenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -362,7 +447,7 @@ int test_wolfSSL_RAND_poll(void)
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_poll(), 1);
     ExpectIntEQ(RAND_bytes(rand1, 16), 1);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
 #ifdef WC_RNG_SEED_CB
     /* Test with custom seed and poll */
@@ -370,13 +455,13 @@ int test_wolfSSL_RAND_poll(void)
 
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_bytes(rand1, 16), 1);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     /* test that the same value is generated twice with dummy seed function */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
     ExpectIntEQ(RAND_bytes(rand2, 16), 1);
     ExpectIntEQ(XMEMCMP(rand1, rand2, 16), 0);
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     /* test that doing a poll is reseeding RNG */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
@@ -387,7 +472,7 @@ int test_wolfSSL_RAND_poll(void)
     /* reset the seed function used */
     wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
-    RAND_cleanup();
+    wolfssl_rand_cleanup();
 
     ExpectIntEQ(RAND_egd(NULL), -1);
 #endif
