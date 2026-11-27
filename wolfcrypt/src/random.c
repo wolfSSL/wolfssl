@@ -10355,9 +10355,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      *    a clock error is waited out within the poll budget; one that
      *    outlasts it fails straight away, as a restart cannot cure it.
      * A byte still not ready after STM32_BARE_RNG_BYTE_TIMEOUT polls, or a
-     * seed error, restarts the RNG; the first word after a restart is
-     * discarded. After STM32_BARE_RNG_MAX_RETRIES restarts for one byte the
-     * function gives up. */
+     * seed error, restarts the RNG. The first word after the RNG is enabled
+     * or restarted is discarded. After STM32_BARE_RNG_MAX_RETRIES restarts
+     * for one byte the function gives up. */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
@@ -10381,15 +10381,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         /* enable RNG peripheral */
         RNG_Cmd(ENABLE);
 
-        /* verify no errors with RNG_CLK or Seed */
-        if (RNG_GetFlagStatus(RNG_FLAG_SECS | RNG_FLAG_CECS) != RESET) {
-            wolfSSL_CryptHwMutexUnLock();
-            return RNG_FAILURE_E;
-        }
-
+        /* An error already showing here is handled by the loop below like
+         * one raised later, so it is not checked separately. */
         for (i = 0; i < sz; i++) {
             retries = 0;
-            discard = 0;
+            /* the first word after RNG_Cmd(ENABLE) above is not used */
+            discard = (i == 0);
             t = 0;
             for (;;) {
                 if (RNG_GetFlagStatus(RNG_FLAG_SECS) == RESET) {
@@ -10397,7 +10394,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                         if (!discard) {
                             break;
                         }
-                        /* first word after a restart */
+                        /* first word after enabling or restarting the RNG */
                         (void)RNG_GetRandomNumber();
                         discard = 0;
                         t = 0;
