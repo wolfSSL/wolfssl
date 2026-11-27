@@ -350,8 +350,12 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     is valid only until the next verify on this structure or wc_PKCS7_Free();
     when the message is verified from a single input buffer it may point into
     that buffer, so it is also invalid once the input buffer is freed or reused.
+    Depending on the build that content can lie in memory this structure owns,
+    so copy it first or use another structure to verify it as a nested
+    message; an input inside such memory is rejected with BAD_FUNC_ARG.
     A verify that fails with an error other than PKCS7_SIGNEEDS_CHECK leaves
-    pkcs7->content as the caller set it.
+    pkcs7->content as the caller set it, or NULL if it pointed into that
+    memory.
 
     \return 0 Returned on successfully extracting the information
     from the message
@@ -367,8 +371,9 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate, or if a certificates-only (degenerate)
-    message holds more than MAX_PKCS7_CERTS certificates
+    hold the encoded certificate, if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates, or if the
+    stream-out callback returns a negative value
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -433,12 +438,8 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     hash/header/footer, then extracts the certificate list and certificate
     revocation list, and then verifies the signature. It stores the extracted
     content in the given PKCS7 structure, in the same form as
-    wc_PKCS7_VerifySignedData() reports it.
-    Content that a verify leaves in pkcs7->content can point into the
-    input buffer, so it stays valid only while that buffer does and until
-    the next verify or wc_PKCS7_Free() on the same structure. A verify that
-    fails with an error other than PKCS7_SIGNEEDS_CHECK leaves pkcs7->content
-    as the caller set it.
+    wc_PKCS7_VerifySignedData() reports it, under the same content lifetime
+    and failure rules, and the header and footer follow its input rule.
     Set pkcs7->contentSz to the content length before each header/footer
     verify, since a value left by an earlier verify on the same structure is
     kept.
@@ -457,8 +458,9 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate, or if a certificates-only (degenerate)
-    message holds more than MAX_PKCS7_CERTS certificates
+    hold the encoded certificate, if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates, or if the
+    stream-out callback returns a negative value
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -484,7 +486,7 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \param pkcs7 pointer to the PKCS7 structure in which to store the parsed
     certificates
     \param hashBuf pointer to computed hash for the content data
-    \param hashSz size of the digest
+    \param hashSz size of the digest, at most WC_MAX_DIGEST_SIZE
     \param pkiMsgHead pointer to the buffer containing the signed message header
     to verify and decode
     \param pkiMsgHeadSz size of the signed message header
@@ -2167,7 +2169,9 @@ int wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx);
     \param pkcs7 PKCS7 structure
     \param flag Stream mode flag
     \param getContentCb Get content callback
-    \param streamOutCb Stream output callback
+    \param streamOutCb Stream output callback. A verify fails with BUFFER_E
+    when it returns a negative value and continues on zero or a byte count;
+    a decode fails with BUFFER_E on any non-zero return.
     \param ctx Context pointer
 
     _Example_
