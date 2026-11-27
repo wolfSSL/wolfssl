@@ -13153,6 +13153,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                           DYNAMIC_TYPE_WOLF_BIGINT);
             if (encryptedKey == NULL)
                 return MEMORY_E;
+            XMEMSET(encryptedKey, 0, (word32)encryptedKeySz);
 
             if (*recipFound == 1)
                 XMEMCPY(encryptedKey, &pkiMsg[*idx], (word32)encryptedKeySz);
@@ -13329,43 +13330,53 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     wc_MemZero_Add("wc_PKCS7_DecryptKtri realPad", realPad,
                                    sizeof(realPad));
                 #endif
-                    /* Constant-time copy: avoid data-dependent branches
-                     * that could leak whether RSA padding was valid.
-                     * When outKey is NULL (inline RSA failure), use
-                     * encryptedKey as a safe readable source; the mask
-                     * will zero out all bytes anyway.  Both encryptedKey
-                     * and outKey (when non-NULL) are at least
-                     * sizeof(realPad) bytes for any RSA key size.
-                     *
-                     * Use constant-time pointer selection to avoid
-                     * branching on outKey nullity, which would leak
-                     * whether RSA PKCS#1 v1.5 padding was valid. */
+                    /* Load the real (padded) CEK into realPad with a
+                     * constant-time gather over the whole RSA output buffer,
+                     * so the memory accessed does not depend on RSA padding
+                     * validity. The location of the key inside the buffer
+                     * depends on who did the RSA operation: the software
+                     * inline un-pad leaves it right-aligned at the end of
+                     * encryptedKey, while hardware / crypto callback paths
+                     * (SE050, WOLF_CRYPTO_CB_RSA_PAD) and OAEP place it at
+                     * offset 0. Take the offset from outKey rather than
+                     * assuming a layout. */
                     {
-                        byte haveSrc = ctMaskGTE(realLen, 1);
-                        const byte* srcTbl[2];
-                        const byte* src;
-                        word32 j = 0;
-                        word32 safeJ = 0;
+                        byte        haveSrc  = ctMaskGTE(realLen, 1);
+                        const byte* src      = encryptedKey;
+                        word32      srcSz    = (word32)encryptedKeySz;
+                        word32      startOff = 0;
+                        word32      j, k;
 
-                        /* Select source without integer pointer synthesis.
-                         * Some safety-oriented compilers (e.g. Fil-C) treat
-                         * int-to-pointer reconstruction as a null-object
-                         * pointer on dereference. */
-                        srcTbl[0] = encryptedKey;
-                        srcTbl[1] = outKey;
-                        src = srcTbl[haveSrc & 1];
+                    #ifndef WC_NO_RSA_OAEP
+                        if (encOID == RSAESOAEPk) {
+                            /* OAEP decrypts into a dedicated buffer with the
+                             * key at offset 0. */
+                            src   = outKey;
+                            srcSz = outKeySz;
+                        }
+                        else
+                    #endif
+                        {
+                            /* Inline PKCS#1 v1.5: outKey points into
+                             * encryptedKey on success. On failure it may be
+                             * NULL or stale, mask the offset to 0 without
+                             * branching on padding validity. */
+                            startOff = (word32)((wc_ptr_t)outKey -
+                                                (wc_ptr_t)encryptedKey);
+                            startOff &= (word32)0 - (word32)(haveSrc & 1);
+                        }
 
-                        /* safeJ is clamped to max(0, realLen-1): it
-                         * only advances while the next index would
-                         * still be inside realLen, so src[safeJ] is
-                         * always in bounds.  Bytes at j >= realLen are
-                         * masked to zero by inBounds anyway. */
-                        for (j = 0; j < (word32)sizeof(realPad); j++) {
-                            byte inBounds = ctMaskLT((int)j, realLen);
-                            byte advance = ctMaskLT((int)(safeJ + 1),
-                                                    realLen);
-                            realPad[j] = src[safeJ] & haveSrc & inBounds;
-                            safeJ += (word32)(advance & 1);
+                        /* realPad[k] = src[startOff + k]. Indices outside
+                         * of the buffer never match and are left as zero. */
+                        for (k = 0; k < (word32)sizeof(realPad); k++) {
+                            byte   acc      = 0;
+                            byte   inBounds = ctMaskLT((int)k, realLen);
+                            word32 want     = startOff + k;
+
+                            for (j = 0; j < srcSz; j++) {
+                                acc |= src[j] & ctMaskEq((int)j, (int)want);
+                            }
+                            realPad[k] = acc & haveSrc & inBounds;
                         }
                     }
                     useFake = ctMaskLT(realLen, 1); /* 0xFF if realLen<=0 */
