@@ -2860,7 +2860,7 @@ static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
     defined(HAVE_HKDF) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
-    int len;
+    int len = 0;
 #if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     int ecdhRet;
     WC_RNG* ecdhRng = NULL;
