@@ -417,6 +417,7 @@ int wolfSSL_connect(WOLFSSL* ssl)
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
+    StartConnection(ssl);
 
     #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     if ((ssl->ConnectFilter != NULL) &&
@@ -907,6 +908,7 @@ int wolfSSL_accept(WOLFSSL* ssl)
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
+    StartConnection(ssl);
 
     #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     if ((ssl->AcceptFilter != NULL) &&

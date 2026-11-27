@@ -1184,7 +1184,7 @@ static int wolfssl_shutdown_internal(WOLFSSL* ssl, int allowInInit)
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     /* reset WOLFSSL structure state for possible reuse */
     if (ret == WOLFSSL_SUCCESS) {
-        if (wolfSSL_clear(ssl) != WOLFSSL_SUCCESS) {
+        if (ClearSSL(ssl, 1) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("could not clear WOLFSSL");
             ret = WOLFSSL_FATAL_ERROR;
         }

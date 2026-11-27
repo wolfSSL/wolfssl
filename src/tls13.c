@@ -6498,6 +6498,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->options.resuming = 0;
             ssl->arrays->psk_keySz = 0;
             XMEMSET(ssl->arrays->psk_key, 0, MAX_PSK_KEY_LEN);
+            if ((ret = ResetSessionForFullHandshake(ssl)) != 0)
+                return ret;
         }
         else {
 #if defined(HAVE_ECH)
@@ -6524,10 +6526,16 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if ((ret = SetupPskKey(ssl, psk, 0)) != 0)
                 return ret;
             ssl->options.pskNegotiated = 1;
+            if (!psk->resumption &&
+                    ((ret = ResetSessionForFullHandshake(ssl)) != 0)) {
+                return ret;
+            }
         }
 #else
         /* no resumption possible */
         ssl->options.resuming = 0;
+        if ((ret = ResetSessionForFullHandshake(ssl)) != 0)
+            return ret;
 #endif
 
         /* sanity check on PSK / KSE */
@@ -8517,6 +8525,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ssl->clSuites->suiteSz > WOLFSSL_MAX_SUITE_SZ)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
     XMEMCPY(ssl->clSuites->suites, input + args->idx, ssl->clSuites->suiteSz);
+#ifdef OPENSSL_EXTRA
+    /* Built from the previous hello's list. */
+    wolfSSL_sk_SSL_CIPHER_free(ssl->clSuitesStack);
+    ssl->clSuitesStack = NULL;
+#endif
     args->idx += ssl->clSuites->suiteSz;
     ssl->clSuites->hashSigAlgoSz = 0;
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
@@ -17013,6 +17026,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
+    StartConnection(ssl);
 
 #ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR) {
@@ -18304,6 +18318,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
+    StartConnection(ssl);
 
 #ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR) {

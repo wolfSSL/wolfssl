@@ -5946,7 +5946,21 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     defined(HAVE_CURL)
 #endif
 
-    int wolfSSL_clear(WOLFSSL* ssl)
+    /* A complete session with an ID or ticket to offer. */
+    static int SessionResumable(const WOLFSSL_SESSION* s)
+    {
+        if (!s->isSetup)
+            return 0;
+    #ifdef HAVE_SESSION_TICKET
+        if (s->ticketLen > 0)
+            return 1;
+    #endif
+        return s->sessionIDSz > 0;
+    }
+
+    /* keepResults: wolfSSL_shutdown() leaves what the application can still
+     * query about the ended connection. */
+    int ClearSSL(WOLFSSL* ssl, byte keepResults)
     {
         WOLFSSL_ENTER("wolfSSL_clear");
 
@@ -5954,12 +5968,21 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
         }
 
-        /* A client keeps the session it may resume. A server's is per
-         * connection: take a new one when the application holds a reference,
-         * else reset ours, as wolfSSL_get_session() hands out a pointer
-         * without taking one. */
-        if (!ssl->options.handShakeDone ||
-                ((ssl->options.side == WOLFSSL_SERVER_END) &&
+    #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+        /* The getter only builds it for a connection in use. */
+        if (keepResults && ((ssl->peerCertChain == NULL) ||
+                (wolfSSL_sk_X509_num(ssl->peerCertChain) == 0))) {
+            (void)wolfSSL_set_peer_cert_chain(ssl);
+        }
+    #endif
+
+        /* A client keeps a session it may resume, as OpenSSL does after a
+         * clean close. A server's is per connection: take a new one when the
+         * application holds a reference, else reset ours, as
+         * wolfSSL_get_session() hands out a pointer without taking one. */
+        if ((ssl->options.side == WOLFSSL_CLIENT_END) ?
+                !SessionResumable(ssl->session) :
+                (!ssl->options.handShakeDone ||
                  (wolfSSL_RefCur(ssl->session->ref) > 1))) {
             wolfSSL_FreeSession(ssl->ctx, ssl->session);
             ssl->session = wolfSSL_NewSession(ssl->heap);
@@ -5984,6 +6007,33 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         SslWaivedCAsFree(ssl);
 #endif
 
+        if (!keepResults) {
+            /* The peer's version is not the limit for the next connection. */
+            if (ssl->options.cfgVersionSaved) {
+                ssl->version.minor = ssl->options.cfgVersionMinor;
+                ssl->options.cfgVersionMinor = 0;
+                ssl->options.cfgVersionSaved = 0;
+            }
+
+            ResetAlertHistory(ssl);
+            /* A kept session is offered only once the application sets it. */
+            ssl->options.resuming = 0;
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+            defined(OPENSSL_ALL)
+            ssl->peerVerifyRet = 0;
+        #endif
+        #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+            wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+            ssl->peer_ca_names = NULL;
+        #endif
+        #ifdef OPENSSL_EXTRA
+            wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
+            ssl->peerCertChain = NULL;
+            wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+            ssl->verifiedChain = NULL;
+        #endif
+        }
+
         /* reset error */
         ssl->error = 0;
 
@@ -6003,13 +6053,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.acceptState  = ACCEPT_BEGIN;
         ssl->options.handShakeState  = NULL_STATE;
         ssl->options.handShakeDone = 0;
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_CERT_YIELD)
-        /* A per-certificate yield (WOLFSSL_ASYNC_CERT_YIELD) sets this and it is
-         * normally cleared on the next ProcessPeerCerts re-entry. Clear it here
-         * so reusing this object after abandoning a yielded handshake cannot
-         * skip the ProcessPeerCerts state reset on the next fresh entry. */
-        ssl->options.certYieldPending = 0;
-#endif
         ssl->recordSzOverhead = 0;
 #ifdef WOLFSSL_TLS13_STREAM_CERT_VERIFY
         /* Drop any half-sent streamed CertificateVerify. Left in place, the
@@ -6090,13 +6133,62 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef HAVE_CURVE448
         ssl->peerX448KeyPresent = 0;
     #endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* An abandoned handshake can leave a queued event, whose key is freed
+         * below, and a handler's resume state. */
+        if (AsyncDetachEvent(ssl) != 0)
+            return WOLFSSL_FAILURE;
+        /* Set up for an operation that was never queued. */
+        XMEMSET(&ssl->kdfAsyncDev.event, 0, sizeof(ssl->kdfAsyncDev.event));
+        #ifdef WOLFSSL_TLS13
+        ssl->options.buildArgs13Set = 0;
+        ssl->options.chHashInput = 0;
+        ssl->options.asyncReplayMsg = 0;
+        #endif
+        #ifdef WOLFSSL_ASYNC_CERT_YIELD
+        ssl->options.certYieldPending = 0;
+        #endif
+    #endif
+    #ifdef WOLFSSL_ASYNC_IO
+        FreeAsyncCtx(ssl, 1);
+    #endif
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
         /* Drop the peer certificate public key left by an abandoned handshake. */
         FreePeerCertKeys(ssl);
+    #ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->buffers.peerEccDsaKey.buffer = NULL;
+        ssl->buffers.peerEccDsaKey.length = 0;
+    #endif
+    #ifndef NO_RSA
+        XFREE(ssl->buffers.peerRsaKey.buffer, ssl->heap, DYNAMIC_TYPE_RSA);
+        ssl->buffers.peerRsaKey.buffer = NULL;
+        ssl->buffers.peerRsaKey.length = 0;
+    #endif
+    #ifdef HAVE_ED25519
+        XFREE(ssl->buffers.peerEd25519Key.buffer, ssl->heap,
+            DYNAMIC_TYPE_ED25519);
+        ssl->buffers.peerEd25519Key.buffer = NULL;
+        ssl->buffers.peerEd25519Key.length = 0;
+    #endif
+    #ifdef HAVE_ED448
+        XFREE(ssl->buffers.peerEd448Key.buffer, ssl->heap, DYNAMIC_TYPE_ED448);
+        ssl->buffers.peerEd448Key.buffer = NULL;
+        ssl->buffers.peerEd448Key.length = 0;
+    #endif
+    #endif /* HAVE_PK_CALLBACKS */
+        FreeEphemeralKeys(ssl);
+
+        ssl->pssAlgo = 0;
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
         #ifndef NO_ASN_TIME
         ssl->dtls_timer_len = 0;
         #endif
+    #endif
+    #if defined(WOLFSSL_DTLS_CID) && defined(WOLFSSL_DTLS13)
+        ssl->options.haveSupportedVersions = 0;
     #endif
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -6115,22 +6207,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->kdfMsgType = 0;
         #if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
         Tls13FreeHsHmac(ssl);
-        #endif
-        #ifdef WOLFSSL_ASYNC_CRYPT
-        ssl->options.buildArgs13Set = 0;
-        /* An abandoned handshake can leave a mid-flight handler resume
-         * state and a queued key-schedule event behind; a reused object
-         * must start fresh. */
-        ssl->options.asyncState = TLS_ASYNC_BEGIN;
-        if (ssl->asyncDev == &ssl->kdfAsyncDev) {
-            if (ssl->kdfAsyncDev.event.state == WOLF_EVENT_STATE_PENDING &&
-                    ssl->ctx != NULL) {
-                (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
-                                            &ssl->kdfAsyncDev.event);
-            }
-            XMEMSET(&ssl->kdfAsyncDev.event, 0, sizeof(WOLF_EVENT));
-            ssl->asyncDev = NULL;
-        }
         #endif
     #endif
     #ifdef HAVE_SESSION_TICKET
@@ -6173,6 +6249,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
         ssl->ws_peer_ca_names = NULL;
     #endif
+    #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ALPN)
+        XFREE(ssl->alpn_peer_requested, ssl->heap, DYNAMIC_TYPE_ALPN);
+        ssl->alpn_peer_requested = NULL;
+        ssl->alpn_peer_requested_length = 0;
+    #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
         TLSX_FreeAll(ssl->extensions, ssl->heap);
@@ -6198,8 +6279,24 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
         ssl->buffers.clearOutputBuffer.buffer = NULL;
         ssl->buffers.clearOutputBuffer.length = 0;
+    #ifndef NO_TLS
+        if (ssl->buffers.inputBuffer.dynamicFlag)
+            ShrinkInputBuffer(ssl, FORCED_FREE);
+    #endif
         ssl->buffers.inputBuffer.idx = 0;
         ssl->buffers.inputBuffer.length = 0;
+    #ifndef NO_TLS
+        /* Output the last connection could not send is not the next peer's. */
+        ShrinkOutputBuffer(ssl);
+    #endif
+        ForceZero(ssl->buffers.inputBuffer.staticBuffer,
+            sizeof(ssl->buffers.inputBuffer.staticBuffer));
+        ForceZero(ssl->buffers.outputBuffer.staticBuffer,
+            sizeof(ssl->buffers.outputBuffer.staticBuffer));
+        ssl->buffers.prevSent = 0;
+        ssl->buffers.plainSz = 0;
+        ssl->pendingAlert.code = 0;
+        ssl->pendingAlert.level = alert_none;
         /* Recycling the object for a new connection must not carry the
          * previous connection's key material along with it. A freshly
          * created object has all of this zeroed. */
@@ -6296,6 +6393,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         FreeCiphers(ssl);
         InitCiphers(ssl);
+        SetDefaultHmac(ssl);
+        ssl->encrypt.state = CIPHER_STATE_BEGIN;
+        ssl->decrypt.state = CIPHER_STATE_BEGIN;
         InitCipherSpecs(&ssl->specs);
 
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
@@ -6317,6 +6417,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #endif
 #endif
         return WOLFSSL_SUCCESS;
+    }
+
+    int wolfSSL_clear(WOLFSSL* ssl)
+    {
+        return ClearSSL(ssl, 0);
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)

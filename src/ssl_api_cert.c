@@ -3158,9 +3158,12 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
 
     if (ssl != NULL) {
-        /* Try to populate when not present or empty. */
-        if ((ssl->peerCertChain == NULL) ||
-                (wolfSSL_sk_X509_num(ssl->peerCertChain) == 0)) {
+        /* Try to populate when not present or empty, from a session this
+         * connection uses. */
+        if (((ssl->peerCertChain == NULL) ||
+                (wolfSSL_sk_X509_num(ssl->peerCertChain) == 0)) &&
+                (ssl->options.handShakeDone || ssl->options.resuming ||
+                 ssl->msgsReceived.got_certificate)) {
             wolfSSL_set_peer_cert_chain((WOLFSSL*)ssl);
         }
         ret = ssl->peerCertChain;

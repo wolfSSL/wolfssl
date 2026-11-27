@@ -1079,6 +1079,8 @@ static int wolfssl_rehandshake_prepare(WOLFSSL* ssl)
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+        /* Freed at handshake end only when resources are not retained. */
+        FreeEphemeralKeys(ssl);
 
         #if !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
