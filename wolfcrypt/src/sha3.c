@@ -927,6 +927,11 @@ static int InitSha3(wc_Sha3* sha3)
 #ifdef WOLFSSL_HASH_FLAGS
     sha3->flags = 0;
 #endif
+#ifdef WC_HASH_CHECK_VARIANT
+    sha3->count = 0;
+    sha3->absorbed = 0;
+    sha3->pad = 0;
+#endif
 #ifdef WOLF_CRYPTO_CB
     /* Cached hash variant is tied to sponge state; clear it whenever the
      * state is reset so reuse for a different SHA3 variant dispatches
@@ -1013,6 +1018,41 @@ void BlockSha3(word64* s)
 }
 #endif
 
+#ifdef WC_HASH_CHECK_VARIANT
+/* Keep one block count from Init to Final: FIPS 202 6.1, 6.2 fix the rate.
+ * No input once Absorb has padded it: FIPS 202 Algorithm 8. */
+static int Sha3CheckState(wc_Sha3* sha3, word32 p)
+{
+    if (sha3->absorbed || ((sha3->count != 0) && (sha3->count != p))) {
+        return BAD_STATE_E;
+    }
+    sha3->count = p;
+    return 0;
+}
+
+/* SHA3-256 and SHAKE256 share a rate, so keep one domain too: FIPS 202 6.1,
+ * 6.2. */
+static int Sha3CheckDomain(wc_Sha3* sha3, byte pad)
+{
+    if ((sha3->pad != 0) && (sha3->pad != pad)) {
+        return BAD_STATE_E;
+    }
+    sha3->pad = pad;
+    return 0;
+}
+
+#if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+/* Squeeze only from input padded by Absorb at the same rate. */
+static int Sha3CheckSqueeze(const wc_Sha3* sha3, word32 p)
+{
+    if (!sha3->absorbed || (sha3->count != p)) {
+        return BAD_STATE_E;
+    }
+    return 0;
+}
+#endif
+#endif
+
 /* Update the SHA-3 hash state with message data.
  *
  * sha3  wc_Sha3 object holding state.
@@ -1041,6 +1081,11 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 
     if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
         return BAD_STATE_E;
+#ifdef WC_HASH_CHECK_VARIANT
+    ret = Sha3CheckState(sha3, p);
+    if (ret != 0)
+        return ret;
+#endif
 
     blockSz = p * 8U;
 
@@ -1220,6 +1265,10 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
         return BAD_STATE_E;
     if (sha3->i >= rate)
         return BAD_STATE_E;
+#ifdef WC_HASH_CHECK_VARIANT
+    if ((Sha3CheckState(sha3, p) != 0) || (Sha3CheckDomain(sha3, padChar) != 0))
+        return BAD_STATE_E;
+#endif
 
 #if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
@@ -1578,6 +1627,10 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WC_HASH_CHECK_VARIANT
+    if (Sha3CheckDomain(sha3, 0x06) != 0)
+        return BAD_STATE_E;
+#endif
     ret = Sha3Update(sha3, data, len, p);
 
     return ret;
@@ -1661,6 +1714,11 @@ static void wc_Sha3Wipe(wc_Sha3* sha3)
     ForceZero(&sha3->stmCtx, sizeof(sha3->stmCtx));
 #endif
     sha3->i = 0;
+#ifdef WC_HASH_CHECK_VARIANT
+    sha3->count = 0;
+    sha3->absorbed = 0;
+    sha3->pad = 0;
+#endif
 #endif
 }
 
@@ -2334,6 +2392,10 @@ int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
     }
 #endif
 
+#ifdef WC_HASH_CHECK_VARIANT
+    if (Sha3CheckDomain(shake, 0x1f) != 0)
+        return BAD_STATE_E;
+#endif
     return Sha3Update(shake, data, len, WC_SHA3_128_COUNT);
 }
 
@@ -2409,13 +2471,23 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
     }
 #endif
 
+#ifdef WC_HASH_CHECK_VARIANT
+    if (Sha3CheckDomain(shake, 0x1f) != 0)
+        return BAD_STATE_E;
+#endif
     ret = Sha3Update(shake, data, len, WC_SHA3_128_COUNT);
     if (ret == 0) {
         byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_128_COUNT, 0);
     }
-    /* No partial data. */
-    shake->i = 0;
+    /* A refused call leaves buffered input in place. */
+    if (ret == 0) {
+    #ifdef WC_HASH_CHECK_VARIANT
+        shake->absorbed = 1;
+    #endif
+        /* No partial data. */
+        shake->i = 0;
+    }
 
     return ret;
 }
@@ -2457,6 +2529,11 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return cbRet;
         /* fall-through when unavailable */
+    }
+#endif
+#ifdef WC_HASH_CHECK_VARIANT
+    if (Sha3CheckSqueeze(shake, WC_SHA3_128_COUNT) != 0) {
+        return BAD_STATE_E;
     }
 #endif
 
@@ -2682,6 +2759,10 @@ int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
     }
 #endif
 
+#ifdef WC_HASH_CHECK_VARIANT
+    if (Sha3CheckDomain(shake, 0x1f) != 0)
+        return BAD_STATE_E;
+#endif
     return Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
 }
 
@@ -2757,13 +2838,23 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
     }
 #endif
 
+#ifdef WC_HASH_CHECK_VARIANT
+    if (Sha3CheckDomain(shake, 0x1f) != 0)
+        return BAD_STATE_E;
+#endif
     ret = Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
     if (ret == 0) {
         byte hash[1];
         ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, 0);
     }
-    /* No partial data. */
-    shake->i = 0;
+    /* A refused call leaves buffered input in place. */
+    if (ret == 0) {
+    #ifdef WC_HASH_CHECK_VARIANT
+        shake->absorbed = 1;
+    #endif
+        /* No partial data. */
+        shake->i = 0;
+    }
 
     return ret;
 }
@@ -2798,6 +2889,11 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return cbRet;
         /* fall-through when unavailable */
+    }
+#endif
+#ifdef WC_HASH_CHECK_VARIANT
+    if (Sha3CheckSqueeze(shake, WC_SHA3_256_COUNT) != 0) {
+        return BAD_STATE_E;
     }
 #endif
 

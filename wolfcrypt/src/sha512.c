@@ -1000,6 +1000,9 @@ static int InitSha512(wc_Sha512* sha512)
     XMEMSET(sha512->buffer, 0, sizeof(sha512->buffer));
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
+#ifdef WC_HASH_CHECK_VARIANT
+    sha512->digestSz = WC_SHA512_DIGEST_SIZE;
+#endif
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
@@ -1088,6 +1091,9 @@ static int InitSha512_224(wc_Sha512* sha512)
     XMEMSET(sha512->buffer, 0, sizeof(sha512->buffer));
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
+#ifdef WC_HASH_CHECK_VARIANT
+    sha512->digestSz = WC_SHA512_224_DIGEST_SIZE;
+#endif
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
@@ -1163,6 +1169,9 @@ static int InitSha512_256(wc_Sha512* sha512)
     XMEMSET(sha512->buffer, 0, sizeof(sha512->buffer));
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
+#ifdef WC_HASH_CHECK_VARIANT
+    sha512->digestSz = WC_SHA512_256_DIGEST_SIZE;
+#endif
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
@@ -2718,6 +2727,11 @@ static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, word32 digestSz)
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_HASH_CHECK_VARIANT
+    if (sha512->digestSz != digestSz) {
+        return BAD_STATE_E;
+    }
+#endif
 
 #if defined(WOLFSSL_WIDE_BYTE)
     BytesFromWordsBE64(hash, sha512->digest, digestSz);
@@ -2758,6 +2772,11 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_HASH_CHECK_VARIANT
+    if (sha512->digestSz != digestSz) {
+        return BAD_STATE_E;
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -3121,6 +3140,9 @@ static int InitSha384(wc_Sha384* sha384)
     XMEMSET(sha384->buffer, 0, sizeof(sha384->buffer));
     sha384->loLen   = 0;
     sha384->hiLen   = 0;
+#ifdef WC_HASH_CHECK_VARIANT
+    sha384->digestSz = WC_SHA384_DIGEST_SIZE;
+#endif
 
 #if (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
      (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))) || \
@@ -3225,6 +3247,11 @@ int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
     if (sha384 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_HASH_CHECK_VARIANT
+    if (sha384->digestSz != WC_SHA384_DIGEST_SIZE) {
+        return BAD_STATE_E;
+    }
+#endif
 
 #if defined(WOLFSSL_WIDE_BYTE)
     BytesFromWordsBE64(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
@@ -3244,6 +3271,11 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
     if (sha384 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_HASH_CHECK_VARIANT
+    if (sha384->digestSz != WC_SHA384_DIGEST_SIZE) {
+        return BAD_STATE_E;
+    }
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND

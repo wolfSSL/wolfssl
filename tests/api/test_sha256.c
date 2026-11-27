@@ -448,3 +448,28 @@ int test_wc_Sha224_Flags(void)
     return EXPECT_RESULT();
 }
 
+/* Final of a different variant than Init is refused. */
+int test_wc_Sha224_Sha256_MixedFinal(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SHA224) && !defined(NO_SHA256) && \
+    defined(WC_HASH_CHECK_VARIANT)
+    wc_Sha256 sha;
+    byte hash[WC_SHA256_DIGEST_SIZE];
+
+    ExpectIntEQ(wc_InitSha224(&sha), 0);
+    ExpectIntEQ(wc_Sha224Update(&sha, (const byte*)"abc", 3), 0);
+    ExpectIntEQ(wc_Sha256Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+#ifndef WOLFSSL_NO_HASH_RAW
+    ExpectIntEQ(wc_Sha256FinalRaw(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+#endif
+    ExpectIntEQ(wc_Sha224Final(&sha, hash), 0);
+    wc_Sha224Free(&sha);
+
+    ExpectIntEQ(wc_InitSha256(&sha), 0);
+    ExpectIntEQ(wc_Sha224Final(&sha, hash), WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntEQ(wc_Sha256Final(&sha, hash), 0);
+    wc_Sha256Free(&sha);
+#endif
+    return EXPECT_RESULT();
+}

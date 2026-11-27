@@ -4190,6 +4190,12 @@
     #define WOLFSSL_FIPS_EXPORT_LOCAL_APIS
 #endif
 
+/* FIPS v7: a hash state remembers its variant and refuses another one. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0)
+    #undef  WC_HASH_CHECK_VARIANT
+    #define WC_HASH_CHECK_VARIANT
+#endif
+
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12
