@@ -195,6 +195,18 @@ static int wb_cb(int devId, wc_CryptoInfo* info, void* ctx)
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
 
+#if defined(WOLFSSL_HAVE_MLDSA)
+/* As wb_cb, but counts its calls in the int ctx points to. */
+static int wb_count_cb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devId;
+    (void)info;
+    if (ctx != NULL)
+        (*(int*)ctx)++;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
 /* Second devId/callback pair used only to reach the extra arg-validation and
  * post-dev->cb "ret == 0" processing guards that sit inside a handful of
  * dispatch bodies (SHA-384/SHA-512's narrow-variant-then-generic-core
@@ -1029,6 +1041,18 @@ int main(void)
         WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignatureCheckPrivKey(&mldsa,
             WC_PQC_SIG_TYPE_MLDSA, NULL, 0));
 
+        outLen = sizeof(out);
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignatureMakePub(&mldsa,
+            WC_PQC_SIG_TYPE_MLDSA, out, &outLen));
+        /* each argument of the NULL guard on its own */
+        mldsa.devId = WB_DEVID;
+        (void)wc_CryptoCb_PqcSignatureMakePub(NULL, WC_PQC_SIG_TYPE_MLDSA,
+            out, &outLen);
+        (void)wc_CryptoCb_PqcSignatureMakePub(&mldsa, WC_PQC_SIG_TYPE_MLDSA,
+            NULL, &outLen);
+        (void)wc_CryptoCb_PqcSignatureMakePub(&mldsa, WC_PQC_SIG_TYPE_MLDSA,
+            out, NULL);
+
         /* seeded key generation and caller-supplied signing randomness */
         WB_DRIVE3(mldsa.devId, wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
             WC_PQC_SIG_TYPE_MLDSA, 65, in, 48, &mldsa));
@@ -1087,7 +1111,8 @@ int main(void)
         (void)wc_CryptoCb_MakePqcSignatureKey(NULL, -1, 65, &mldsa);
 
         WB_NOTE("PQC ML-DSA: MakePqcSignatureKey{,Ex}/PqcSign{,Ex}/"
-                "PqcSignMsg/PqcVerify{,Msg}/PqcSignatureCheckPrivKey "
+                "PqcSignMsg/PqcVerify{,Msg}/PqcSignatureCheckPrivKey/"
+                "PqcSignatureMakePub "
                 "dev&&dev->cb driven, plus GetDevId's unknown-type path");
     }
 #else
@@ -1518,6 +1543,35 @@ int main(void)
             wb_bad = 1;
         WB_NOTE("GetFreeDevice: devId==INVALID_DEVID&&cb==NULL [:409] "
                 "(T,F) half filled slot skipped, full-table BUFFER_E");
+
+    #if defined(WOLFSSL_HAVE_MLDSA)
+        /* (T,T,F) of a dispatcher's dev&&dev->cb&&devId!=INVALID_DEVID: a
+         * key naming no device finds the half filled slot, which must not
+         * be called. MakePqcSignatureKeyEx only gets that far with
+         * WOLF_CRYPTO_CB_FIND. */
+        {
+            wc_MlDsaKey mldsa;
+            int calls = 0;
+
+            wc_CryptoCb_Init();
+            gCryptoDev[0].cb = wb_count_cb;
+            gCryptoDev[0].ctx = &calls;
+            XMEMSET(&mldsa, 0, sizeof(mldsa));
+            mldsa.devId = INVALID_DEVID;
+            outLen = sizeof(out);
+            if (wc_CryptoCb_PqcSignatureMakePub(&mldsa, WC_PQC_SIG_TYPE_MLDSA,
+                    out, &outLen) != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                wb_bad = 1;
+            if (wc_CryptoCb_MakePqcSignatureKeyEx(NULL, WC_PQC_SIG_TYPE_MLDSA,
+                    65, in, 48, &mldsa) !=
+                    WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                wb_bad = 1;
+            if (calls != 0)
+                wb_bad = 1;
+            WB_NOTE("PQC ML-DSA: PqcSignatureMakePub/MakePqcSignatureKeyEx "
+                    "devId!=INVALID_DEVID (T,T,F) half filled slot not called");
+        }
+    #endif
 
         /* Leave the table the way the rest of this file expects it. */
         wc_CryptoCb_Init();

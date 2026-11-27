@@ -107,7 +107,9 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
     The key is given the highest parameter set compiled in
     (WC_ML_DSA_87 unless it was disabled at build time), as the
     parameter set of the key held on the device is not known here. Call
-    wc_MlDsaKey_SetParams() to select a different one.
+    wc_MlDsaKey_SetParams() to select a different one. Until it is called,
+    wc_MlDsaKey_MakePublicKey() takes the parameter set of the device's key;
+    calling it fixes the parameter set, even to the same one.
 
     \return 0 on success.
     \return BAD_FUNC_ARG if key is NULL, or if id is NULL and len is
@@ -274,30 +276,52 @@ int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
 /*!
     \ingroup ML_DSA
 
-    \brief Derives public key for a wc_MlDsaKey with private key set.
+    \brief Derives public key for a wc_MlDsaKey with private key set, or
+    gets it from the device that holds the private key.
     If the public key is already set, it is only checked against the
     private key's tr (H(pk)); use wc_MlDsaKey_CheckKey() for a full key pair
-    check. The private key is still required: a public-only key returns
-    BAD_FUNC_ARG.
+    check. Without a device, the private key is required: a public-only key
+    returns BAD_FUNC_ARG.
     Available when WC_MLDSA_HAVE_MAKE_PUBLIC_KEY is defined: that is, when
     WOLFSSL_MLDSA_ASSIGN_KEY, WOLFSSL_MLDSA_NO_MAKE_KEY and
     WOLFSSL_MLDSA_VERIFY_ONLY are not defined.
 
-    Derivation is always done in software from the local private key bytes,
-    including for a key initialized with a devId: a key whose private key was
-    imported with wc_MlDsaKey_ImportPrivRaw() (or generated in software)
-    derives normally. A key that only references a private key held on a
-    device (wc_MlDsaKey_InitId() / wc_MlDsaKey_InitLabel()) has no local
-    private bytes, so it returns BAD_FUNC_ARG.
+    With WOLF_CRYPTO_CB, a key with a devId and no private or public key held
+    locally (or, with WOLF_CRYPTO_CB_FIND, any such key) queries the device
+    for its public key with WC_PK_TYPE_PQC_SIG_MAKE_PUB. The device writes
+    the public key into the key and must report the size it wrote. A key
+    from wc_MlDsaKey_InitId() / wc_MlDsaKey_InitLabel() with no
+    wc_MlDsaKey_SetParams() call adopts the parameter set of the device's
+    key. A public-only key is not sent to the device and returns
+    BAD_FUNC_ARG. Keys with local private material are always derived in
+    software and never sent to a device. No in-tree device (such as PKCS#11)
+    handles WC_PK_TYPE_PQC_SIG_MAKE_PUB yet: the application's device
+    callback must.
     On PUBLIC_KEY_E an already set public key is left in place; set the
     matching public key, or re-initialize the key, before deriving.
 
-    \return 0 on success or already set.
-    \return BAD_FUNC_ARG if invalid args or the private key is not set.
-    \return MEMORY_E on allocation failure.
+    \return 0 on success, or when the set public key matches the local
+    private key's tr.
+    \return BAD_FUNC_ARG if invalid args or the private key is not set and
+    no device gave the public key. A key whose public key came from a device
+    has no local private key, so a repeat call returns BAD_FUNC_ARG: to get
+    the public key again, use wc_MlDsaKey_ExportPubRaw().
+    \return BUFFER_E if the device's public key is not the size of the key's
+    parameter set or, for a key from wc_MlDsaKey_InitId() /
+    wc_MlDsaKey_InitLabel() with an open level, of any compiled in
+    parameter set, including when the device wrote a smaller parameter
+    set's key without reporting its size.
+    \return BAD_STATE_E if the device changed the key's parameter set or,
+    with WOLFSSL_MLDSA_DYNAMIC_KEYS, replaced or freed its public key buffer.
+    Re-initialize the key before using it again.
+    \return MEMORY_E on allocation failure. The key keeps its level. For a
+    key with no key set that is sent to a device (one with a devId or, with
+    WOLF_CRYPTO_CB_FIND, any such key) this can also be returned before any
+    device is found.
     \return PUBLIC_KEY_E if the public key does not match the private key's
-    tr or, when derived, its t0.
-    \return NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_MLDSA.
+    tr or, when derived, its t0, or the device did not write a public key.
+    \return NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_MLDSA when the private key
+    is held locally.
     \return Other negative on error.
 
     \param [in,out] key Pointer to wc_MlDsaKey.
