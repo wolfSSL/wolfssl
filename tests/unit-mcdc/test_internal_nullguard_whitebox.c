@@ -320,6 +320,70 @@ static int wb_dtls_prev_sequence_limit(WbFix* f)
 }
 #endif
 
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048) && \
+    (!defined(NO_CERTS) || !defined(NO_PSK)) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_dh_key_exchange(WbFix* f)
+{
+    DhKey key;
+    WC_RNG rng;
+    byte prime[256], priv[256], pub[256], secret[256];
+    word32 privSz = sizeof(priv), pubSz = sizeof(pub);
+    word32 secretSz = sizeof(secret);
+    int failed = 0;
+
+    wb_reset(f);
+    if (wc_InitDhKey(&key) != 0)
+        return 1;
+    if (wc_InitRng(&rng) != 0) {
+        wc_FreeDhKey(&key);
+        return 1;
+    }
+    f->ssl->rng = &rng;
+    if (wc_DhSetNamedKey(&key, WC_FFDHE_2048) != 0 ||
+            mp_unsigned_bin_size(&key.p) != sizeof(prime) ||
+            mp_to_unsigned_bin(&key.p, prime) != MP_OKAY) {
+        failed = 1;
+        goto done;
+    }
+
+    if (DhGenKeyPair(NULL, &key, priv, &privSz, pub, &pubSz) != BAD_FUNC_ARG)
+        failed = 1;
+    if (DhGenKeyPair(f->ssl, NULL, priv, &privSz, pub, &pubSz) != BAD_FUNC_ARG)
+        failed = 1;
+    if (DhGenKeyPair(f->ssl, &key, priv, &privSz, pub, &pubSz) != 0) {
+        failed = 1;
+        goto done;
+    }
+
+    if (DhAgree(f->ssl, &key, priv, privSz, pub, pubSz, secret, &secretSz,
+            prime, sizeof(prime)) != 0 || secretSz == 0)
+        failed = 1;
+    secretSz = sizeof(secret);
+    if (DhAgree(f->ssl, &key, priv, privSz, pub, pubSz, secret, &secretSz,
+            prime, 0) != 0 || secretSz == 0)
+        failed = 1;
+    if (DhAgree(f->ssl, NULL, priv, privSz, pub, pubSz, secret, &secretSz,
+            prime, sizeof(prime)) != BAD_FUNC_ARG)
+        failed = 1;
+    if (DhAgree(f->ssl, &key, priv, privSz, pub, pubSz, secret, NULL,
+            prime, sizeof(prime)) != BAD_FUNC_ARG)
+        failed = 1;
+    secretSz = 1;
+    if (DhAgree(f->ssl, &key, priv, privSz, pub, pubSz, secret, &secretSz,
+            prime, sizeof(prime)) != BUFFER_E)
+        failed = 1;
+
+done:
+    ForceZero(priv, sizeof(priv));
+    ForceZero(secret, sizeof(secret));
+    wc_FreeRng(&rng);
+    wc_FreeDhKey(&key);
+    wb_reset(f);
+    return failed;
+}
+#endif
+
 /* AllocateSuites can copy the CTX list or start with an empty local list. */
 static int wb_allocate_suites(WbFix* f)
 {
@@ -957,6 +1021,14 @@ int main(void)
 #ifdef WOLFSSL_DTLS
     if (wb_dtls_message_list() || wb_dtls_prev_sequence_limit(&f)) {
         puts("internal null-guard white-box: DTLS message bookkeeping failed");
+        failed = 1;
+    }
+#endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048) && \
+    (!defined(NO_CERTS) || !defined(NO_PSK)) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_dh_key_exchange(&f)) {
+        puts("internal null-guard white-box: DH key exchange check failed");
         failed = 1;
     }
 #endif
