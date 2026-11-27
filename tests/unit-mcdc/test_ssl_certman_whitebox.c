@@ -51,12 +51,12 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  */
 
 #include <wolfssl/options.h>
 
 #include <src/ssl.c>
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -65,8 +65,66 @@
 
 static int g_checks;
 
+#if defined(HAVE_CRL) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_crl_enable_failures(WOLFSSL_CERT_MANAGER* cm)
+{
+    static const byte der[] = {0x30, 0};
+    int ret, failed = 0;
+
+    /* Fail before any of the loaders opens a file or decodes a CRL. */
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    ret = wolfSSL_CertManagerLoadCRLBuffer(cm, der, sizeof(der),
+        WOLFSSL_FILETYPE_ASN1);
+    mcdc_fa_restore();
+    if (ret != WOLFSSL_FATAL_ERROR || cm->crl != NULL)
+        failed = 1;
+
+    /* With allocation restored the loader reaches decoding. An empty DER
+     * sequence is rejected there, and the initialized CRL store remains. */
+    ret = wolfSSL_CertManagerLoadCRLBuffer(cm, der, sizeof(der),
+        WOLFSSL_FILETYPE_ASN1);
+    if (ret >= 0 || cm->crl == NULL)
+        failed = 1;
+    if (wolfSSL_CertManagerFreeCRL(cm) != WOLFSSL_SUCCESS)
+        failed = 1;
+#ifndef NO_FILESYSTEM
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    ret = wolfSSL_CertManagerLoadCRL(cm, "./certs/crl",
+        WOLFSSL_FILETYPE_PEM, 0);
+    mcdc_fa_restore();
+    if (ret != WOLFSSL_FATAL_ERROR || cm->crl != NULL)
+        failed = 1;
+    (void)wolfSSL_CertManagerLoadCRL(cm, "./certs/crl",
+        WOLFSSL_FILETYPE_PEM, 0);
+    if (cm->crl == NULL)
+        failed = 1;
+    if (wolfSSL_CertManagerFreeCRL(cm) != WOLFSSL_SUCCESS)
+        failed = 1;
+
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    ret = wolfSSL_CertManagerLoadCRLFile(cm, "./certs/crl/crl.pem",
+        WOLFSSL_FILETYPE_PEM);
+    mcdc_fa_restore();
+    if (ret != WOLFSSL_FATAL_ERROR || cm->crl != NULL)
+        failed = 1;
+    ret = wolfSSL_CertManagerLoadCRLFile(cm, "./certs/no-such-crl.pem",
+        WOLFSSL_FILETYPE_PEM);
+    if (ret >= 0 || cm->crl == NULL)
+        failed = 1;
+    if (wolfSSL_CertManagerFreeCRL(cm) != WOLFSSL_SUCCESS)
+        failed = 1;
+#endif
+    return failed;
+}
+#endif
+
 int main(void)
 {
+    int failed = 0;
     WOLFSSL_CERT_MANAGER* cm = NULL;
     Signer head;
     Signer tail;
@@ -126,13 +184,20 @@ int main(void)
     /* Detach before teardown: both Signers are on this stack frame. */
     cm->caTable[0] = NULL;
 
+#if defined(HAVE_CRL) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    failed = wb_crl_enable_failures(cm);
+    if (failed)
+        puts("ssl_certman white-box: unexpected CRL allocation result");
+#endif
+
     printf("ssl_certman white-box: %d vectors driven\n", g_checks);
 
 done:
     if (cm != NULL)
         wolfSSL_CertManagerFree(cm);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else
