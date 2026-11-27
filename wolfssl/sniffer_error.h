@@ -145,6 +145,7 @@
 
 #define KEYLOG_FILE_INVALID 99
 #define ETM_NOT_SUPPORTED_STR 100
+#define EMS_REQUIRED_STR 101
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

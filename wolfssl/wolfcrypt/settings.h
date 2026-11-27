@@ -5732,6 +5732,15 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     defined(WOLFSSL_EXTRA_PQC_HYBRIDS)
     #error "WOLFSSL_EXTRA_PQC_HYBRIDS is not available in FIPS v7 builds"
 #endif
+/* FIPS v7 refuses TLS 1.2 without the extended master secret: FIPS 140-3
+ * IG D.Q, RFC 7627 sec 5.2. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+    #ifndef HAVE_EXTENDED_MASTER
+        #error "FIPS v7 TLS 1.2 needs HAVE_EXTENDED_MASTER"
+    #endif
+    #define WOLFSSL_EMS_ALWAYS_REQUIRED
+#endif
 
 /* SRTP requires DTLS */
 #if defined(WOLFSSL_SRTP) && !defined(WOLFSSL_DTLS)

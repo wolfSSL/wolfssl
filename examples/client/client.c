@@ -1424,7 +1424,7 @@ static const char* client_usage_msg[][81] = {
 #ifdef HAVE_TRUNCATED_HMAC
         "-T          Use Truncated HMAC\n",                             /* 37 */
 #endif
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
         "-n          Disable Extended Master Secret\n",                 /* 38 */
 #endif
 #ifdef HAVE_OCSP
@@ -1689,7 +1689,7 @@ static const char* client_usage_msg[][81] = {
 #ifdef HAVE_TRUNCATED_HMAC
         "-T          Truncated HMACを使用する\n",                       /* 37 */
 #endif
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
         "-n          マスターシークレット拡張を無効にする\n",           /* 38 */
 #endif
 #ifdef HAVE_OCSP
@@ -2219,7 +2219,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     byte statusRequest = 0;
     byte mustStaple = 0;
 #endif
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
     byte disableExtMasterSecret = 0;
 #endif
     int helloRetry = 0;
@@ -2744,11 +2744,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
+        #ifndef WOLFSSL_EMS_ALWAYS_REQUIRED
             case 'n' :
                 #ifdef HAVE_EXTENDED_MASTER
                     disableExtMasterSecret = 1;
                 #endif
                 break;
+        #endif
 
             case 'W' :
                 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
@@ -3783,7 +3785,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("UseSessionTicket failed");
     }
 #endif
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_EMS_ALWAYS_REQUIRED)
     if (disableExtMasterSecret)
         if (wolfSSL_CTX_DisableExtendedMasterSecret(ctx) != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
