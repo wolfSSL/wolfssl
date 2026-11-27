@@ -125,6 +125,7 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterBadCertSet(void);
 int test_wc_PKCS7_VerifySignedData_DegenerateClearsVerifyCert(void);
 int test_wc_PKCS7_VerifySignedData_ReuseAfterBer(void);
 int test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf(void);
+int test_wc_PKCS7_VerifySignedData_NestedSameObject(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -218,7 +219,9 @@ int test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf(void);
     TEST_DECL_GROUP("pkcs7_sd",                                             \
         test_wc_PKCS7_VerifySignedData_DegenerateClearsVerifyCert),         \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ReuseAfterBer), \
-    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf)
+    TEST_DECL_GROUP("pkcs7_sd",                                             \
+        test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf),                   \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NestedSameObject)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \

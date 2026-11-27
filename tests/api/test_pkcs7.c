@@ -12283,3 +12283,107 @@ int test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* An input inside a buffer the object owns is refused, and a content pointer
+ * left inside one is dropped. */
+int test_wc_PKCS7_VerifySignedData_NestedSameObject(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    byte   data[] = { 0x01, 0x02, 0x03, 0x04 };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  inner = NULL;
+    byte*  outer = NULL;
+    byte*  split = NULL;
+    byte*  in = NULL;
+    int    innerSz = 0;
+    int    outerSz = 0;
+    int    splitSz = 0;
+    word32 inSz = 0;
+    word32 msgMax = 2 * sizeof_client_cert_der_2048 + FOURK_BUF;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(inner = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(outer = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(split = (byte*)XMALLOC(msgMax + 8, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((innerSz = pkcs7_sign_data(inner, msgMax, data,
+            sizeof(data), 0, &rng)), 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((outerSz = pkcs7_sign_data(outer, msgMax, inner,
+            (word32)innerSz, 0, &rng)), 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((splitSz = pkcs7_split_content(split, outer, outerSz,
+            (word32)innerSz, 2)), 0);
+    }
+
+    /* a nested verify of the content returns 0 from the caller's buffer
+     * without streaming and BAD_FUNC_ARG from the stream copy */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, outer, (word32)outerSz), 0);
+    if (pkcs7 != NULL) {
+        in = pkcs7->content;
+        inSz = pkcs7->contentSz;
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntEQ(inSz, (word32)innerSz);
+#ifdef NO_PKCS7_STREAM
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, in, inSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+    }
+#else
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, in + 1, inSz - 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (pkcs7 != NULL) {
+        pkcs7->content   = in + 1;
+        pkcs7->contentSz = 1;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, outer, (word32)outerSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, (word32)innerSz);
+    }
+#endif
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* a nested verify of content joined from two parts fails BAD_FUNC_ARG */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, split, (word32)splitSz), 0);
+    if (pkcs7 != NULL) {
+        in = pkcs7->content;
+        inSz = pkcs7->contentSz;
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntEQ(inSz, (word32)innerSz);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, in + 1, inSz - 1),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (pkcs7 != NULL) {
+        pkcs7->content   = in + 1;
+        pkcs7->contentSz = 1;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, split, (word32)splitSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, (word32)innerSz);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(split, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(outer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(inner, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

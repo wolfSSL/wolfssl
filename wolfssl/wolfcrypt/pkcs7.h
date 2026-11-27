@@ -429,6 +429,7 @@ struct wc_PKCS7 {
     wc_UnknownExtCallback32 unknownExtCallback32;
 #endif
     byte* verifyContent; /* pkcs7->content set by the last verify */
+    word32 contentDynamicSz; /* allocated size of contentDynamic */
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };

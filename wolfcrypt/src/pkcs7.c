@@ -193,6 +193,7 @@ struct PKCS7State {
     word32 contentCap;  /* allocated size of reassembled content */
     word32 contentSz;
     word32 callerContentSz;
+    word32 contentBufSz; /* allocated size of content */
     byte   hashCopy[WC_MAX_DIGEST_SIZE]; /* caller hash for this verify */
     word32 hashCopySz;
     word32 currContIdx;   /* index of current content */
@@ -1113,7 +1114,6 @@ static void wc_PKCS7_FreeCertSet(wc_PKCS7* pkcs7)
     return;
 }
 
-#if !defined(NO_PKCS7_STREAM) || defined(ASN_BER_TO_DER)
 /* return 1 when p points into buf of bufSz bytes */
 static int wc_PKCS7_InBuf(const byte* p, const byte* buf, word32 bufSz)
 {
@@ -1121,6 +1121,7 @@ static int wc_PKCS7_InBuf(const byte* p, const byte* buf, word32 bufSz)
         (wc_ptr_t)p - (wc_ptr_t)buf < (wc_ptr_t)bufSz;
 }
 
+#if !defined(NO_PKCS7_STREAM) || defined(ASN_BER_TO_DER)
 /* clear the certificate references a verify pointed into its message copy */
 static void wc_PKCS7_DropCertRefs(wc_PKCS7* pkcs7)
 {
@@ -1168,6 +1169,31 @@ static void wc_PKCS7_FreeDer(wc_PKCS7* pkcs7, int keepSz)
     pkcs7->derSz = 0;
 }
 #endif
+
+/* return 1 when p points into the content buffers a verify owns and frees */
+static int wc_PKCS7_InContentBuf(const wc_PKCS7* pkcs7, const byte* p)
+{
+    if (wc_PKCS7_InBuf(p, pkcs7->contentDynamic, pkcs7->contentDynamicSz))
+        return 1;
+#ifndef NO_PKCS7_STREAM
+    if (pkcs7->stream != NULL && wc_PKCS7_InBuf(p, pkcs7->stream->content,
+            pkcs7->stream->contentBufSz))
+        return 1;
+#endif
+    return 0;
+}
+
+/* return 1 when p points into a buffer pkcs7 owns and a verify frees */
+static int wc_PKCS7_InOwnedBuf(const wc_PKCS7* pkcs7, const byte* p)
+{
+    if (wc_PKCS7_InContentBuf(pkcs7, p))
+        return 1;
+#ifdef ASN_BER_TO_DER
+    if (wc_PKCS7_InBuf(p, pkcs7->der, pkcs7->derSz))
+        return 1;
+#endif
+    return 0;
+}
 
 
 /* Get total size of all recipients in recipient list.
@@ -1817,6 +1843,7 @@ void wc_PKCS7_Free(wc_PKCS7* pkcs7)
 #endif
     XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     pkcs7->contentDynamic = NULL;
+    pkcs7->contentDynamicSz = 0;
 
     if (pkcs7->cek != NULL) {
         ForceZero(pkcs7->cek, pkcs7->cekSz);
@@ -7447,6 +7474,7 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         if (pkcs7->content && pkcs7->contentSz > 0) {
             XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             pkcs7->stream->content = NULL;
+            pkcs7->stream->contentBufSz = 0;
 
             pkcs7->stream->content = (byte*)XMALLOC(pkcs7->contentSz,
                                             pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -7454,6 +7482,7 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 WOLFSSL_MSG("Failed to grow content buffer.");
                 return MEMORY_E;
             }
+            pkcs7->stream->contentBufSz = pkcs7->contentSz;
             XMEMCPY(pkcs7->stream->content, pkcs7->content, pkcs7->contentSz);
             pkcs7->stream->contentSz = pkcs7->contentSz;
         }
@@ -7613,6 +7642,7 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     /* store current content buffer temporarily */
                     tempBuf = pkcs7->stream->content;
                     pkcs7->stream->content = NULL;
+                    pkcs7->stream->contentBufSz = 0;
 
                     /* grow content buffer */
                     contBufSz = pkcs7->stream->accumContSz;
@@ -7642,6 +7672,8 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                         break;
                     }
                     else {
+                        pkcs7->stream->contentBufSz =
+                            pkcs7->stream->accumContSz;
                         /* accumulate content */
                         if (tempBuf != NULL && contBufSz != 0) {
                             XMEMCPY(pkcs7->stream->content, tempBuf, contBufSz);
@@ -7698,12 +7730,7 @@ static void wc_PKCS7_DropVerifyContent(wc_PKCS7* pkcs7, int keepSz)
 
     if (pkcs7->content != NULL) {
         drop = (pkcs7->content == pkcs7->verifyContent ||
-                pkcs7->content == pkcs7->contentDynamic);
-    #ifndef NO_PKCS7_STREAM
-        /* a verify paused after stage 5 leaves content on the stream buffer */
-        if (pkcs7->stream != NULL && pkcs7->content == pkcs7->stream->content)
-            drop = 1;
-    #endif
+                wc_PKCS7_InContentBuf(pkcs7, pkcs7->content));
     }
     if (drop) {
         pkcs7->content = NULL;
@@ -7713,6 +7740,7 @@ static void wc_PKCS7_DropVerifyContent(wc_PKCS7* pkcs7, int keepSz)
     pkcs7->verifyContent = NULL;
     XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     pkcs7->contentDynamic = NULL;
+    pkcs7->contentDynamicSz = 0;
 }
 
 /* Finds the certificates in the message and saves it. By default allows
@@ -7794,17 +7822,15 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     hashedFooter = (hasFooter && hashBuf != NULL && hashSz > 0);
     idx = 0;
 
+    if (wc_PKCS7_InOwnedBuf(pkcs7, in) || wc_PKCS7_InOwnedBuf(pkcs7, in2))
+        return BAD_FUNC_ARG;
+
     if (hashSz > WC_MAX_DIGEST_SIZE)
         return BAD_FUNC_ARG;
 
 #ifdef ASN_BER_TO_DER
-    if (pkcs7->state == WC_PKCS7_START && pkcs7->der != NULL) {
-        if (wc_PKCS7_InBuf(in, pkcs7->der, pkcs7->derSz) ||
-                wc_PKCS7_InBuf(in2, pkcs7->der, pkcs7->derSz))
-            return BAD_FUNC_ARG;
-        wc_PKCS7_FreeDer(pkcs7, pkiMsg2 && pkiMsg2Sz > 0 && hashBuf &&
-            hashSz > 0);
-    }
+    if (pkcs7->state == WC_PKCS7_START && pkcs7->der != NULL)
+        wc_PKCS7_FreeDer(pkcs7, hashedFooter);
 #endif
 
 #ifndef NO_PKCS7_STREAM
@@ -8410,6 +8436,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         /* free pkcs7->stream->content buffer */
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream->content = NULL;
+        pkcs7->stream->contentBufSz = 0;
         #endif /* !NO_PKCS7_STREAM */
 
             FALL_THROUGH;
@@ -8439,6 +8466,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                     ret = MEMORY_E;
                     break;
                 }
+                pkcs7->contentDynamicSz = pkcs7->stream->contentSz;
                 XMEMCPY(pkcs7->contentDynamic, pkcs7->stream->content,
                                                pkcs7->stream->contentSz);
 
@@ -8496,6 +8524,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                                             pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                     if (pkcs7->contentDynamic == NULL)
                         ret = MEMORY_E;
+                    else
+                        pkcs7->contentDynamicSz = (word32)contentLen;
                 }
 
                 start = localIdx;
@@ -8868,6 +8898,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                          * freed by application with wc_PKCS7_Free() */
                         if (contentDynamic != NULL) {
                             pkcs7->contentDynamic = contentDynamic;
+                            pkcs7->contentDynamicSz = (word32)contentSz;
                             contentDynamic = NULL;
                         }
                         if (contentInDynamic)
