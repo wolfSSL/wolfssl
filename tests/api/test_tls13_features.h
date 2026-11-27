@@ -41,6 +41,7 @@ int test_tls13_feat_hrr_cookie_forces_retry(void);
 int test_tls13_feat_cert_with_extern_psk_psk_ke_server(void);
 int test_tls13_feat_ech_full_handshake(void);
 int test_tls13_feat_ech_disabled_client(void);
+int test_tls13_feat_ech_config_rotation(void);
 int test_tls13_feat_ech_disabled_server(void);
 int test_tls13_feat_ech_rejected_with_psk(void);
 int test_tls13_feat_ech_psk_disabled_client(void);
@@ -63,6 +64,7 @@ int test_tls13_feat_ech_psk_disabled_client(void);
     TEST_DECL_GROUP("tls13", test_tls13_feat_cert_with_extern_psk_psk_ke_server), \
     TEST_DECL_GROUP("tls13", test_tls13_feat_ech_full_handshake),              \
     TEST_DECL_GROUP("tls13", test_tls13_feat_ech_disabled_client),             \
+    TEST_DECL_GROUP("tls13", test_tls13_feat_ech_config_rotation),            \
     TEST_DECL_GROUP("tls13", test_tls13_feat_ech_disabled_server),             \
     TEST_DECL_GROUP("tls13", test_tls13_feat_ech_psk_disabled_client),         \
     TEST_DECL_GROUP("tls13", test_tls13_feat_ech_rejected_with_psk)

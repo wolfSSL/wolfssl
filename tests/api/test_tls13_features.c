@@ -545,6 +545,61 @@ int test_tls13_feat_no_ticket_enc_cb(void)
 }
 
 
+int test_tls13_feat_ech_config_rotation(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECH) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_RSA) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    static const char publicName[] = "example.com";
+    static const char privateName[] = "private.example.com";
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *previous = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    byte oldConfig[512], newConfig[512], retry[512];
+    word32 oldLen = sizeof(oldConfig), newLen = sizeof(newConfig);
+    word32 retryLen = sizeof(retry);
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+
+    /* Simulate receiver key rotation with two independently generated
+     * configs. The server now advertises only the current config. */
+    ExpectNotNull(previous = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(previous, publicName, 0, 0, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(previous, oldConfig, &oldLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GenerateEchConfig(ctx_s, publicName, 0, 0, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_GetEchConfigs(ctx_s, newConfig, &newLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetEchConfigs(ssl_c, oldConfig, oldLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, privateName,
+        sizeof(privateName) - 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_check_domain_name(ssl_c, publicName), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_GetEchRetryConfigs(ssl_c, retry, &retryLen),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR), ECH_REQUIRED_E);
+    retryLen = sizeof(retry);
+    ExpectIntEQ(wolfSSL_GetEchRetryConfigs(ssl_c, retry, &retryLen),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(retryLen, newLen);
+    ExpectBufEQ(retry, newConfig, newLen);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(previous);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* -------------------------------------------------------------------------
  * A PSK ClientHello that offers psk_dhe_ke but carries no key_share entry.
  * ---------------------------------------------------------------------- */
