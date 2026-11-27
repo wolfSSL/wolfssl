@@ -35,6 +35,8 @@ int test_wolfSSL_dtls_api_more_guards(void);
 int test_wolfSSL_alloc_failure_sweep(void);
 
 int test_wolfSSL_certificate_buffer_options(void);
+int test_wolfSSL_certificate_chain_buffer_reload(void);
+int test_wolfSSL_load_device_credentials(void);
 int test_wolfSSL_get_verify_mode(void);
 int test_wolfSSL_CTX_get_verify_mode(void);
 int test_wolfSSL_get_verify_callback(void);
@@ -91,6 +93,9 @@ int test_wolfSSL_SESSION_get0_peer_full_chain(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_certificate_buffer_options), \
+        TEST_DECL_GROUP("ssl_cert",                                          \
+            test_wolfSSL_certificate_chain_buffer_reload),                    \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_device_credentials),   \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_mode),             \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_get_verify_mode),         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_callback),         \
