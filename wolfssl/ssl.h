@@ -1710,15 +1710,15 @@ WOLFSSL_API int wolfSSL_CTX_get_ex_new_index(
     long idx, void* arg,
     WOLFSSL_CRYPTO_EX_new* new_func,
     WOLFSSL_CRYPTO_EX_dup* dup_func,
-    WOLFSSL_CRYPTO_EX_free* free_func);
+    WOLFSSL_CRYPTO_EX_free* free_cb);
 WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(
     int class_index, long argl, void *argp,
     WOLFSSL_CRYPTO_EX_new* new_func,
     WOLFSSL_CRYPTO_EX_dup* dup_func,
-    WOLFSSL_CRYPTO_EX_free* free_func);
+    WOLFSSL_CRYPTO_EX_free* free_cb);
 WOLFSSL_API int wolfSSL_SESSION_get_ex_new_index(long ctx_l,void* ctx_ptr,
         WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
-        WOLFSSL_CRYPTO_EX_free* free_func);
+        WOLFSSL_CRYPTO_EX_free* free_cb);
 #endif /* HAVE_EX_DATA_CRYPTO */
 #endif /* HAVE_EX_DATA */
 
@@ -1739,7 +1739,7 @@ WOLFSSL_API int wolfSSL_X509_set_ex_data_with_cleanup(
 WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
     WOLFSSL_CRYPTO_EX_new* new_func,
     WOLFSSL_CRYPTO_EX_dup* dup_func,
-    WOLFSSL_CRYPTO_EX_free* free_func);
+    WOLFSSL_CRYPTO_EX_free* free_cb);
 #endif
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 

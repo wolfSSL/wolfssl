@@ -13485,14 +13485,14 @@ unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
     \param [in] argp 互換性のために渡されるオプションのポインタ型引数。wolfSSLでは無視されます。
     \param [in] new_func 外部データコンストラクタコールバックへのポインタ。wolfSSLでは無視されます。
     \param [in] dup_func 外部データ複製コールバックへのポインタ。wolfSSLでは無視されます。
-    \param [in] free_func 外部データデストラクタコールバックへのポインタ。wolfSSLでは無視されます。
+    \param [in] free_cb 外部データデストラクタコールバックへのポインタ。wolfSSLでは無視されます。
 
     \return このオブジェクトクラスの外部データAPIで使用される新しいインデックス値。
  */
 int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                     WOLFSSL_CRYPTO_EX_new* new_func,
                                     WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                    WOLFSSL_CRYPTO_EX_free* free_func);
+                                    WOLFSSL_CRYPTO_EX_free* free_cb);
 
 /*!
  \ingroup Setup
