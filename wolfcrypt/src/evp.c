@@ -2811,6 +2811,7 @@ static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
     size_t keylen, int *outLen, WC_RNG* rng)
 {
     int len;
+    int ret;
 
     if (!(len = wc_ecc_size((ecc_key*)ctx->pkey->ecc->internal))) {
         return WOLFSSL_FAILURE;
@@ -2833,9 +2834,11 @@ static int evp_pkey_derive_ecdh(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key,
 #endif
             return WOLFSSL_FAILURE;
         }
-        if (wc_ecc_shared_secret((ecc_key*)ctx->pkey->ecc->internal,
-                (ecc_key*)ctx->peerKey->ecc->internal, key, &len32)
-                != MP_OKAY) {
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_shared_secret((ecc_key*)ctx->pkey->ecc->internal,
+                (ecc_key*)ctx->peerKey->ecc->internal, key, &len32);
+        PRIVATE_KEY_LOCK();
+        if (ret != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_shared_secret failed");
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
     && (!defined(HAVE_FIPS) || \
@@ -10208,7 +10211,12 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
-                    if (wc_EccKeyToDer(ecc, derBuf, (word32)derSz) >= 0) {
+                    int encSz;
+
+                    PRIVATE_KEY_UNLOCK();
+                    encSz = wc_EccKeyToDer(ecc, derBuf, (word32)derSz);
+                    PRIVATE_KEY_LOCK();
+                    if (encSz >= 0) {
                         if (pkey->pkey.ptr) {
                             /* As above, the outgoing buffer can hold a
                              * private key encoding. */
