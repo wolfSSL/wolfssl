@@ -9976,6 +9976,75 @@ int test_dtls_cookie_policy_neither_end(void)
  * the ClientHello. wolfSSL_send_hrr_cookie() reports that, and leaves the
  * installed secret alone, instead of replacing it with one this handshake
  * will never use. */
+#if defined(WOLFSSL_DTLS) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+static int test_dtls_stateless_read_error(WOLFSSL* ssl, char* buf, int sz,
+    void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+    return WOLFSSL_CBIO_ERR_GENERAL;
+}
+#endif
+
+int test_dtls_stateless_accept_io(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+
+    /* Polling an idle datagram socket remains retryable. */
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FAILURE), WOLFSSL_ERROR_NONE);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+
+    /* Block the server's cookie reply, then resume the same exchange. */
+    test_memio_simulate_want_write(&io, 0, 1);
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FAILURE), WOLFSSL_ERROR_NONE);
+    ExpectIntEQ(io.c_len, 0);
+    test_memio_simulate_want_write(&io, 0, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 12, NULL), 0);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    ctx_c = NULL;
+    ctx_s = NULL;
+    ssl_c = NULL;
+    ssl_s = NULL;
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* The DTLS cookie requirement does not apply to a stream object. */
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FAILURE), WOLFSSL_ERROR_NONE);
+    if (EXPECT_SUCCESS())
+        wolfSSL_SSLSetIORecv(ssl_s, test_dtls_stateless_read_error);
+    ExpectIntEQ(wolfDTLS_accept_stateless(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR), SOCKET_ERROR_E);
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls13_hrr_cookie_state_guard(void)
 {
     EXPECT_DECLS;
