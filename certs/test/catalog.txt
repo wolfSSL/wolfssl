@@ -35,4 +35,5 @@ cert-events/*.der, cert-events/*.pem:
   tests/api/test_certman.c. Valid until 2049. The crl-*.der files are
   CRLs, each with one fault except crl-good.der. crl-revokes-good.der
   revokes good.der. ca-no-crlsign.der is a CA that may not sign CRLs.
+  leaf-issued-by-no-crlsign.der is a certificate that CA signed.
   Regenerate with certs/test/gen-cert-events.py.

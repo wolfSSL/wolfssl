@@ -903,6 +903,17 @@ static int certEventLoadCrl(WOLFSSL_CERT_MANAGER* cm, const char* name)
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+
+/* Waive a missing CRL. The check then returns success. */
+static int certEventCrlWaiveCb(int ret, WOLFSSL_CRL* crl,
+    WOLFSSL_CERT_MANAGER* cm, void* ctx)
+{
+    (void)ret;
+    (void)crl;
+    (void)cm;
+    (void)ctx;
+    return 1;
+}
 #endif /* HAVE_CRL */
 #endif
 
@@ -2419,7 +2430,8 @@ int test_wolfSSL_CertEvents_storeInHandshake(void)
 int test_wolfSSL_CertEvents_crlCheck(void)
 {
     EXPECT_DECLS;
-#if defined(TEST_CERT_EVENTS) && !defined(NO_FILESYSTEM) && defined(HAVE_CRL)
+#if defined(TEST_CERT_EVENTS) && !defined(NO_FILESYSTEM) && defined(HAVE_CRL) \
+    && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     static const struct {
         const char* crl;    /* NULL loads no CRL */
         int         error;
@@ -2492,7 +2504,8 @@ int test_wolfSSL_CertEvents_crlCheckUnverified(void)
 {
     EXPECT_DECLS;
 #if defined(TEST_CERT_EVENTS) && !defined(NO_FILESYSTEM) && \
-    defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
+    defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
     WOLFSSL_X509_STORE* store = NULL;
     WOLFSSL_CERT_MANAGER* cm = NULL;
     WOLFSSL_X509_CRL* crl = NULL;
@@ -2533,6 +2546,105 @@ int test_wolfSSL_CertEvents_crlCheckUnverified(void)
     ExpectIntEQ(log.defect.field, WC_CEV_FIELD_SIGNATURE);
     ExpectIntEQ(log.defect.reason, WC_CEV_REASON_SIGNATURE);
     ExpectIntEQ(log.defect.condition, WC_CEV_COND_CRL_SIG_INVALID);
+
+    wolfSSL_X509_STORE_free(store);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+/* A CRL error callback that waives a missing CRL returns success. The
+ * DEFECT for that failure is still sent. */
+int test_wolfSSL_CertEvents_crlWaived(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CERT_EVENTS) && !defined(NO_FILESYSTEM) && defined(HAVE_CRL) \
+    && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    CertEventLog log;
+
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(cm = certEventCrlCm(&log));
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_ErrorCb(cm, certEventCrlWaiveCb,
+        NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm,
+        "./certs/test/cert-events/good.der", WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(log.results, 1);
+    ExpectIntEQ(log.result.error, 0);
+    ExpectIntEQ(log.defects, 1);
+    ExpectIntEQ(log.defect.category, WC_CEV_CAT_CERT);
+    ExpectIntEQ(log.defect.role, WC_CEV_ROLE_CANDIDATE);
+    ExpectIntEQ(log.defect.error, WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(log.defect.field, WC_CEV_FIELD_CHAIN);
+    ExpectIntEQ(log.defect.reason, WC_CEV_REASON_MISSING);
+    ExpectIntEQ(log.defect.condition, WC_CEV_COND_CRL_MISSING);
+    wolfSSL_CertManagerFree(cm);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+/* A CRL stored before it was verified is verified when first used. When the
+ * issuer is trusted but may not sign CRLs, the check still returns
+ * CRL_MISSING. The event names the missing cRLSign bit. A second check uses
+ * the cached result and reports the same condition. */
+int test_wolfSSL_CertEvents_crlSignerKu(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CERT_EVENTS) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_CRL) && defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(WOLFSSL_X509_TINY) && !defined(IGNORE_KEY_EXTENSIONS)
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_X509_CRL* crl = NULL;
+    CertEventLog log;
+    byte* der = NULL;
+    size_t derSz = 0;
+
+    XMEMSET(&log, 0, sizeof(log));
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    if (store != NULL) {
+        cm = store->cm;
+    }
+    ExpectIntEQ(load_file("./certs/test/cert-events/ca-no-crlsign.der",
+        &der, &derSz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, (long)derSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = NULL;
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerSetCertEventCb(cm, certEventLogCb, &log),
+        WOLFSSL_SUCCESS);
+
+    /* d2i has no certificate manager, so it does not verify the signature. */
+    ExpectIntEQ(load_file(
+        "./certs/test/cert-events/crl-signer-no-crlsign.der", &der, &derSz),
+        0);
+    ExpectNotNull(crl = wolfSSL_d2i_X509_CRL(NULL, der, (int)derSz));
+    ExpectIntEQ(wolfSSL_X509_STORE_add_crl(store, crl), WOLFSSL_SUCCESS);
+    wolfSSL_X509_CRL_free(crl);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectIntEQ(log.defects, 0);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm,
+        "./certs/test/cert-events/leaf-issued-by-no-crlsign.der",
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(log.defects, 1);
+    ExpectIntEQ(log.defect.category, WC_CEV_CAT_CERT);
+    ExpectIntEQ(log.defect.error, WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E));
+    ExpectIntEQ(log.defect.field, WC_CEV_FIELD_CHAIN);
+    ExpectIntEQ(log.defect.reason, WC_CEV_REASON_CONSTRAINT);
+    ExpectIntEQ(log.defect.condition, WC_CEV_COND_CRL_SIGNER_KU);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm,
+        "./certs/test/cert-events/leaf-issued-by-no-crlsign.der",
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(log.defects, 2);
+    ExpectIntEQ(log.defect.condition, WC_CEV_COND_CRL_SIGNER_KU);
+    ExpectIntEQ(log.defect.reason, WC_CEV_REASON_CONSTRAINT);
 
     wolfSSL_X509_STORE_free(store);
 #endif

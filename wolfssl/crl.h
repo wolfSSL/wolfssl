@@ -49,8 +49,11 @@ WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert,
 WOLFSSL_LOCAL int  CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
         int extCrlInfoSz, void* issuerName, Signer* extraCa);
+/* reportMissing is 0 when a CRL that is not this certificate's issuer
+ * should not be reported as a missing CRL. */
 WOLFSSL_LOCAL int  CheckCertCRLFromCm(WOLFSSL_CERT_MANAGER* cm,
-        WOLFSSL_CRL* crl, DecodedCert* cert, Signer* extraCa);
+        WOLFSSL_CRL* crl, DecodedCert* cert, Signer* extraCa,
+        int reportMissing);
 #ifdef HAVE_CRL_UPDATE_CB
 WOLFSSL_LOCAL int  GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
         long sz, int type);

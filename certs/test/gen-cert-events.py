@@ -24,6 +24,7 @@
     The crl-*.der files are CRLs. Each has one fault, except crl-good.der.
     crl-revokes-good.der revokes good.der. ca-no-crlsign.der is a CA that
     may not sign CRLs, and crl-signer-no-crlsign.der is the CRL it signed.
+    leaf-issued-by-no-crlsign.der is a certificate that CA signed.
 
     Requires: Python 3 and an openssl command line tool (no Python packages).
     Usage:    python3 ./certs/test/gen-cert-events.py
@@ -496,6 +497,11 @@ def build_crls(parts, serial: int):
     out['crl-signer-no-crlsign'] = (
         'signed by ca-no-crlsign.der',
         build_crl(name(cn), skid_of(int_spki), INT_KEY, []))
+    out['leaf-issued-by-no-crlsign'] = (
+        'a certificate signed by ca-no-crlsign.der',
+        chain_cert(serial + 1, name('Cert Events Leaf'),
+                   public_key(SERVER_KEY), name(cn), skid_of(int_spki),
+                   INT_KEY))
     return out
 
 

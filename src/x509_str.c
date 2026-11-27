@@ -529,6 +529,9 @@ static int X509StoreVerifyCertDate(WOLFSSL_X509_STORE_CTX* ctx, int ret)
 #endif /* NO_ASN_TIME */
 
 #ifdef HAVE_CRL
+#ifdef WOLFSSL_CERT_EVENTS
+static void* X509StoreCertEventSsl(WOLFSSL_X509_STORE_CTX* ctx);
+#endif
 /* Check ctx->current_cert against the CRLs set with
  * X509_STORE_CTX_set0_crls.
  * Returns WOLFSSL_SUCCESS if a CRL for the cert's issuer is in the stack and
@@ -556,6 +559,19 @@ static int X509StoreCheckCtxCrls(WOLFSSL_X509_STORE_CTX* ctx)
      * serial info is needed here. */
     if (ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, ctx->store->cm, NULL)
             == 0) {
+#ifdef WOLFSSL_CERT_EVENTS
+        /* Set the callback after parsing. A CRL for another issuer is not
+         * reported as missing. A failed signature, a stale CRL, and a
+         * revocation are still reported. */
+        if (ctx->store->cm != NULL) {
+            int depth = ctx->peerCertDepth +
+                ((ctx->chain != NULL) ? (int)ctx->chain->num : 0);
+            wc_SetCertEventCallback(cert, ctx->store->cm->certEventCb,
+                ctx->store->cm->certEventCtx);
+            wc_CertEventSetPosition(cert, WC_CEV_ROLE_CANDIDATE, depth);
+            wc_CertEventSetConnection(cert, X509StoreCertEventSsl(ctx), NULL);
+        }
+#endif
         /* Check all CRLs in the stack. A revocation in any of them wins over
          * a CRL that does not list the cert, like in the CertManager. */
         for (i = 0; i < numCrls; i++) {
@@ -563,9 +579,10 @@ static int X509StoreCheckCtxCrls(WOLFSSL_X509_STORE_CTX* ctx)
             if (crl == NULL)
                 continue;
             /* Use the store's cm to verify the CRL. The caller-owned crl is
-             * not modified. */
+             * not modified. reportMissing is 0: a non-matching CRL is not a
+             * missing-CRL failure. */
             ret = CheckCertCRLFromCm(ctx->store->cm, crl, cert,
-                    ctx->extraCa);
+                    ctx->extraCa, 0);
             if (ret == 0)
                 found = 1;
             else if (ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR))

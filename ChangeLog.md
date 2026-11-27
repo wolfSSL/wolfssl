@@ -52,7 +52,13 @@
   cRLSign bit, an unknown critical extension, or nextUpdate. Checking a
   certificate against a CRL reports the same on that certificate. A CRL
   whose signature did not verify, and that is checked on first use, is
-  still returned as CRL_MISSING. The event carries the verify error. A CRL
+  still returned as CRL_MISSING. The event carries the verify error. When
+  that issuer is trusted but has no cRLSign bit, the condition is
+  WC_CEV_COND_CRL_SIGNER_KU. A CRL error callback that accepts the failure
+  still sends the DEFECT, and the check returns success.
+  wolfSSL_CertManagerCheckCRL() and the CRLs set on an X509 store context
+  send these events. A CRL for another issuer in that stack is not reported
+  as missing. A CRL
   whose inner and outer signature algorithms differ returns ASN_SIG_OID_E,
   the same error a certificate uses, and condition
   WC_CEV_COND_CERT_SIG_ALG_MISMATCH. by @sameehj

@@ -2842,6 +2842,11 @@ struct CRL_Entry {
     byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
 #endif
     byte    crlNumberSet:1;     /* CRL number set indicator */
+#ifdef WOLFSSL_CERT_EVENTS
+    /* An issuer was found. A cached ASN_CRL_NO_SIGNER_E is then a missing
+     * cRLSign bit. Not written on a caller-owned CRL. */
+    byte    crlSignerFound:1;
+#endif
 };
 
 

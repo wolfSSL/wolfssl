@@ -1045,7 +1045,7 @@ static int CM_VerifyBuffer_int(WOLFSSL_CERT_MANAGER* cm,
     if (cm->crlEnabled && ((ret == 0) ||
             (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
             (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
-        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert, extraCa);
+        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert, extraCa, 1);
         if (crlRet != 0) {
             WOLFSSL_MSG("CheckCertCRL failed");
         }
@@ -2300,8 +2300,14 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
             else {
                 /* A date error is returned only after the parse completed,
                  * so still answer the revocation question that was asked. */
+#ifdef WOLFSSL_CERT_EVENTS
+                /* This certificate is only used for the CRL check. */
+                wc_SetCertEventCallback(cert, cm->certEventCb,
+                    cm->certEventCtx);
+                wc_CertEventSetPosition(cert, WC_CEV_ROLE_CANDIDATE, -1);
+#endif
                 ret = cm_crl_merge(ret,
-                    CheckCertCRLFromCm(cm, cm->crl, cert, NULL));
+                    CheckCertCRLFromCm(cm, cm->crl, cert, NULL, 1));
             }
 
             /* Dispose of dynamically allocated memory. */
