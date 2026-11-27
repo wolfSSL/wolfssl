@@ -1513,6 +1513,50 @@ int test_wolfSSL_EC_KEY_private_key(void)
     return EXPECT_RESULT();
 }
 
+/* A private scalar wider than the curve, which EC_KEY_set_private_key() does
+ * not range check, must fail to export rather than lose its high bytes.
+ * FIPS and selftest builds use a frozen ecc.c without this check. */
+int test_wolfSSL_EC_KEY_private_key_oversized(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_ECC_BLIND_K) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    WOLFSSL_EC_KEY* key = NULL;
+    WOLFSSL_BIGNUM* priv = NULL;
+    /* 2^256 + 1: truncated to 32 bytes it would be the scalar 1. */
+    byte            big[33];
+    byte            out[32];
+    word32          outLen = (word32)sizeof(out);
+    byte            der[256];
+    unsigned char*  p = der;
+
+    XMEMSET(big, 0, sizeof(big));
+    big[0] = 0x01;
+    big[32] = 0x01;
+
+    ExpectNotNull(key = wolfSSL_EC_KEY_new_by_curve_name(
+        NID_X9_62_prime256v1));
+    ExpectNotNull(priv = wolfSSL_BN_bin2bn(big, (int)sizeof(big), NULL));
+    ExpectIntEQ(wolfSSL_EC_KEY_set_private_key(key, priv), 1);
+
+    /* The raw export reports the scalar does not fit. */
+    if (key != NULL) {
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ecc_export_private_only((ecc_key*)key->internal, out,
+            &outLen), WC_NO_ERR_TRACE(BUFFER_E));
+        PRIVATE_KEY_LOCK();
+    }
+    /* So DER encoding fails, leaving the caller's pointer where it was. */
+    ExpectIntEQ(wolfSSL_i2d_ECPrivateKey(key, &p), 0);
+    ExpectPtrEq(p, der);
+
+    wolfSSL_BN_free(priv);
+    wolfSSL_EC_KEY_free(key);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EC_KEY_public_key(void)
 {
     EXPECT_DECLS;
