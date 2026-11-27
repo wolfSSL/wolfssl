@@ -342,16 +342,25 @@ int test_wolfSSL_set_connect_accept_state(void)
 int test_wolfSSL_tmp_dh_files(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_DH) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_DH) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
+    static const byte emptyDer[] = {0x30, 0x00};
     static const char der[] = "./certs/dh2048.der";
-    WOLFSSL_CTX* ctx = NULL;
-    WOLFSSL* ssl = NULL;
+    WOLFSSL_CTX *ctx = NULL, *clientCtx = NULL;
+    WOLFSSL *ssl = NULL, *client = NULL;
+    struct test_memio_ctx testCtx;
 
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
-    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    XMEMSET(&testCtx, 0, sizeof(testCtx));
+    ExpectIntEQ(test_memio_setup(&testCtx, &clientCtx, &ctx, &client, &ssl,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_buffer(NULL, emptyDer, sizeof(emptyDer),
+        WOLFSSL_FILETYPE_ASN1), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetTmpDH_buffer(ssl, NULL, 0, WOLFSSL_FILETYPE_ASN1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_buffer(ctx, emptyDer, sizeof(emptyDer),
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_BAD_FILETYPE);
     ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(NULL, der, WOLFSSL_FILETYPE_ASN1),
         BAD_FUNC_ARG);
     ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, NULL, WOLFSSL_FILETYPE_ASN1),
@@ -371,11 +380,19 @@ int test_wolfSSL_tmp_dh_files(void)
         ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, "./certs/x942dh2048.pem",
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 #endif
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(client, der, WOLFSSL_FILETYPE_ASN1),
+            SIDE_ERROR);
+        ExpectIntEQ(wolfSSL_SetMaxDhKey_Sz(ssl, 2040), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
+            DH_KEY_SIZE_E);
+        ExpectIntEQ(wolfSSL_SetMaxDhKey_Sz(ssl, 2048), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_SetMinDhKey_Sz(ssl, 2056), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
             DH_KEY_SIZE_E);
     }
 
+    wolfSSL_free(client);
+    wolfSSL_CTX_free(clientCtx);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
