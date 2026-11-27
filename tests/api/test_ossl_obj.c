@@ -297,6 +297,31 @@ int test_wolfSSL_OBJ_txt2nid(void)
         ExpectIntEQ(OBJ_txt2nid(testVals[i].ln), testVals[i].nid);
         ExpectIntEQ(OBJ_txt2nid(testVals[i].oid), testVals[i].nid);
     }
+
+#ifdef WOLFSSL_CERT_EXT
+    /* 2.5.29.19.1.1.1.1.1.1.1.1 has the same OID sum as 2.5.29.19 (basic
+     * constraints) and must not be identified by sum alone */
+    ExpectIntEQ(OBJ_txt2nid("2.5.29.19"), NID_basic_constraints);
+    ExpectIntEQ(OBJ_txt2nid("2.5.29.19.1.1.1.1.1.1.1.1"), NID_undef);
+    /* Same-length collision must also be rejected by comparing the bytes. */
+    ExpectIntEQ(OBJ_txt2nid("1.3.6.1.5.5.7.1.1"), NID_info_access);
+    ExpectIntEQ(OBJ_txt2nid("1.3.6.1.4.5.7.1.0"), NID_undef);
+#endif
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_CERT_GEN)
+    {
+        ASN1_OBJECT* obj = NULL;
+
+        ExpectNotNull(obj = OBJ_txt2obj("2.5.29.19", 1));
+        ExpectIntEQ(OBJ_obj2nid(obj), NID_basic_constraints);
+        ASN1_OBJECT_free(obj);
+        obj = NULL;
+
+        ExpectNotNull(obj = OBJ_txt2obj("2.5.29.19.1.1.1.1.1.1.1.1", 1));
+        ExpectIntNE(OBJ_obj2nid(obj), NID_basic_constraints);
+        ASN1_OBJECT_free(obj);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 }
