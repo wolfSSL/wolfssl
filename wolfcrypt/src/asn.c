@@ -18217,6 +18217,10 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
     }
 #endif /* !NO_ASN_CRYPT */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* asyncDev points into the freed key. */
+    sigCtx->asyncDev = NULL;
+#endif
     /* reset state, we are done */
     sigCtx->state = SIG_STATE_BEGIN;
 }
