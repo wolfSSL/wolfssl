@@ -1680,6 +1680,45 @@ int test_wolfSSL_shutdown_bad_record(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_read_ex_optional_count(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12)
+    static const byte msg[] = {1, 2, 3};
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    byte out[sizeof(msg)];
+    size_t count = 42;
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* An empty nonblocking read leaves the count untouched. */
+    ExpectIntEQ(wolfSSL_read_ex(ssl_c, out, sizeof(out), &count), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(count, 42);
+
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, sizeof(msg)), sizeof(msg));
+    ExpectIntEQ(wolfSSL_read_ex(ssl_c, out, sizeof(out), NULL), 1);
+    ExpectBufEQ(out, msg, sizeof(msg));
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, sizeof(msg)), sizeof(msg));
+    ExpectIntEQ(wolfSSL_read_ex(ssl_c, out, sizeof(out), &count), 1);
+    ExpectIntEQ(count, sizeof(msg));
+    ExpectBufEQ(out, msg, sizeof(msg));
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test the paths wolfSSL_SendUserCanceled() takes once the alert is sent.
  *
  * The NULL case is covered by test_wolfSSL_rw_bad_args(). This drives the

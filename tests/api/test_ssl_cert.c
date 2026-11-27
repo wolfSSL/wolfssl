@@ -554,6 +554,17 @@ int test_wolfSSL_get_chain_cert_pem(void)
     ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, (int)sizeof(pem),
         NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* A chain may contain a slot with no retained DER certificate. */
+    if (EXPECT_SUCCESS()) {
+        int savedLength = chain->certs[0].length;
+
+        chain->certs[0].length = 0;
+        ExpectNull(wolfSSL_get_chain_cert(chain, 0));
+        ExpectIntEQ(wolfSSL_get_chain_cert_pem(chain, 0, pem, sizeof(pem),
+            &pemSz), BAD_FUNC_ARG);
+        chain->certs[0].length = savedLength;
+    }
+
     /* NULL buffer returns the size needed (length-only query). */
     needed = 0;
     /* A negative buffer length is rejected. */
