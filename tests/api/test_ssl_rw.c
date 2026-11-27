@@ -1871,6 +1871,68 @@ int test_wolfSSL_SendUserCanceled_paths(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+struct test_ssl_rw_block_after_cancel {
+    struct test_memio_ctx* io;
+    int calls;
+};
+
+static int test_ssl_rw_send_after_cancel(WOLFSSL* ssl, char* data, int size,
+    void* ctx)
+{
+    struct test_ssl_rw_block_after_cancel* transport =
+        (struct test_ssl_rw_block_after_cancel*)ctx;
+
+    transport->calls++;
+    if (transport->calls == 2 || transport->calls == 3)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return test_memio_write_cb(ssl, data, size, transport->io);
+}
+#endif
+
+int test_wolfSSL_SendUserCanceled_retry_quiet(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx io;
+    struct test_ssl_rw_block_after_cancel transport = { &io, 0 };
+    char reply[16];
+
+    XMEMSET(&io, 0, sizeof(io));
+    ExpectIntEQ(test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (EXPECT_SUCCESS()) {
+        ssl_c->options.quietShutdown = 1;
+        wolfSSL_SetIOWriteCtx(ssl_c, &transport);
+        wolfSSL_SSLSetIOSend(ssl_c, test_ssl_rw_send_after_cancel);
+
+        ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+        ExpectIntEQ(ssl_c->options.quietShutdown, 0);
+
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+        ExpectIntEQ(ssl_c->options.quietShutdown, 0);
+
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+        ExpectIntEQ(ssl_c->options.quietShutdown, 1);
+        ExpectIntEQ(wolfSSL_read(ssl_s, reply, sizeof(reply)), 0);
+        ExpectIntEQ(wolfSSL_get_shutdown(ssl_s), WOLFSSL_RECEIVED_SHUTDOWN);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test that an error the read side recorded is the one the write reports.
  *
  * With a write duplicate in use the read side hands errors over through

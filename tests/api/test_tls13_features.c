@@ -581,10 +581,13 @@ int test_tls13_feat_ech_config_rotation(void)
         sizeof(privateName) - 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_check_domain_name(ssl_c, publicName), WOLFSSL_SUCCESS);
 
+    ExpectIntEQ(wolfSSL_GetEchStatus(ssl_s), WOLFSSL_ECH_STATUS_NOT_OFFERED);
     ExpectIntEQ(wolfSSL_GetEchRetryConfigs(ssl_c, retry, &retryLen),
         WOLFSSL_FATAL_ERROR);
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR), ECH_REQUIRED_E);
+    ExpectIntEQ(wolfSSL_GetEchStatus(ssl_c), WOLFSSL_ECH_STATUS_REJECTED);
+    ExpectIntEQ(wolfSSL_GetEchStatus(ssl_s), WOLFSSL_ECH_STATUS_REJECTED);
     retryLen = sizeof(retry);
     ExpectIntEQ(wolfSSL_GetEchRetryConfigs(ssl_c, retry, &retryLen),
         WOLFSSL_SUCCESS);
