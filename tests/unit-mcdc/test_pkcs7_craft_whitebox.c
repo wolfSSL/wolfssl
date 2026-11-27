@@ -3041,6 +3041,92 @@ static void wb_pss_signed_verify(void)
 }
 #endif
 
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_cbc_fragment_carry(void)
+{
+    static const struct {
+        word32 blockSz;
+        word32 offset;
+        word32 length;
+        int last;
+        int result;
+        word32 carry;
+        word32 decrypted;
+    } cases[] = {
+        { 0,                     0,  1, 0, BAD_FUNC_ARG, 0,  0 },
+        { MAX_CONTENT_BLOCK_LEN + 1, 0, 1, 0, BAD_FUNC_ARG, 0, 0 },
+        { WC_AES_BLOCK_SIZE,     0,  5, 0, 0,            5,  0 },
+        { WC_AES_BLOCK_SIZE,     5,  0, 1, BUFFER_E,     5,  0 },
+        { WC_AES_BLOCK_SIZE,     5, 12, 1, BUFFER_E,     5,  0 },
+        { WC_AES_BLOCK_SIZE,     5, 19, 0, 0,            8, 16 },
+        { WC_AES_BLOCK_SIZE,    24,  8, 0, 0,            0, 32 },
+        { WC_AES_BLOCK_SIZE,    32, 16, 0, 0,            0, 48 },
+        { WC_AES_BLOCK_SIZE,    48, 16, 1, 0,            0, 64 }
+    };
+    wc_PKCS7 pkcs7;
+    byte key[16] = {0};
+    byte iv[WC_AES_BLOCK_SIZE] = {0};
+    byte plain[4 * WC_AES_BLOCK_SIZE];
+    byte cipher[sizeof(plain)];
+    byte carry[MAX_CONTENT_BLOCK_LEN];
+    const word32 blockSz = WC_AES_BLOCK_SIZE;
+    word32 carrySz = 0;
+    word32 cap = 0;
+    unsigned int i;
+    int ret;
+
+    XMEMSET(&pkcs7, 0, sizeof(pkcs7));
+    XMEMSET(plain, 0x5a, sizeof(plain));
+    ret = wc_PKCS7_Init(&pkcs7, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return 0;
+    ret = wc_PKCS7_EncryptContent(&pkcs7, AES128CBCb, key, sizeof(key), iv,
+        sizeof(iv), NULL, 0, NULL, 0, plain, sizeof(plain), cipher);
+    if (ret == 0) {
+        ret = wc_PKCS7_DecryptContentInit(&pkcs7, AES128CBCb, key,
+            sizeof(key), iv, sizeof(iv), INVALID_DEVID, NULL);
+    }
+    if (ret == 0) {
+        word32 fullCarry = blockSz;
+        int fullCarryRet = wc_PKCS7_DecryptContentFragment(&pkcs7, AES128CBCb,
+            blockSz, cipher, 1, 0, carry, &fullCarry, &cap);
+
+        ret = (fullCarryRet == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) ? 0 : -1;
+        for (i = 0; ret == 0 && i < XELEM_CNT(cases); i++) {
+            int fragRet = wc_PKCS7_DecryptContentFragment(&pkcs7, AES128CBCb,
+                cases[i].blockSz, cipher + cases[i].offset, cases[i].length,
+                cases[i].last, carry, &carrySz, &cap);
+            if (fragRet != cases[i].result || carrySz != cases[i].carry ||
+                    pkcs7.cachedEncryptedContentSz != cases[i].decrypted) {
+                printf("  [wb] CBC fragment case %u failed\n", i);
+                ret = -1;
+            }
+        }
+        if (ret == 0 &&
+                XMEMCMP(pkcs7.cachedEncryptedContent, plain, sizeof(plain)) != 0)
+            ret = -1;
+
+        /* An error while completing a carried block stops the rest of the
+         * fragment, even when it contains another block and a partial tail. */
+        if (ret == 0) {
+            ret = wc_PKCS7_DecryptContentFragment(&pkcs7, AES128CBCb, blockSz,
+                cipher, 5, 0, carry, &carrySz, &cap);
+        }
+        if (ret == 0) {
+            ret = wc_PKCS7_DecryptContentFragment(&pkcs7, 0, blockSz,
+                cipher + 5, 36, 0, carry, &carrySz, &cap);
+            ret = (ret == WC_NO_ERR_TRACE(ALGO_ID_E) &&
+                pkcs7.cachedEncryptedContentSz <= sizeof(plain) + blockSz &&
+                carrySz == 0) ? 0 : -1;
+        }
+        wc_PKCS7_DecryptContentFree(&pkcs7, AES128CBCb, NULL);
+    }
+    wc_PKCS7_Free(&pkcs7);
+    return ret == 0;
+}
+#endif
+
 int main(void)
 {
     printf("=== pkcs7 crafted-bundle white-box (Part 5) ===\n");
@@ -3050,6 +3136,14 @@ int main(void)
         return 0;
     }
 
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (!wb_cbc_fragment_carry()) {
+        WB_NOTE("AES-CBC fragment carry test failed");
+        wolfCrypt_Cleanup();
+        return 1;
+    }
+#endif
     wb_aes_cbc_keysize_matrix();
     wb_ori_oid_cap();
     wb_kekri_optional_fields();
