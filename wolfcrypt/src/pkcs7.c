@@ -193,6 +193,8 @@ struct PKCS7State {
     word32 contentCap;  /* allocated size of reassembled content */
     word32 contentSz;
     word32 callerContentSz;
+    byte   hashCopy[WC_MAX_DIGEST_SIZE]; /* caller hash for this verify */
+    word32 hashCopySz;
     word32 currContIdx;   /* index of current content */
     word32 currContSz;    /* size of current content */
     word32 currContRmnSz; /* remaining size of current content */
@@ -7752,6 +7754,9 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     int multiPart = 0, keepContent;
     int hasFooter, hashedFooter;
     int contentLen = 0;
+#ifdef NO_PKCS7_STREAM
+    byte hashCopy[WC_MAX_DIGEST_SIZE];
+#endif
 
     byte* pkiMsg    = in;
     word32 pkiMsgSz = inSz;
@@ -7789,6 +7794,9 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     hashedFooter = (hasFooter && hashBuf != NULL && hashSz > 0);
     idx = 0;
 
+    if (hashSz > WC_MAX_DIGEST_SIZE)
+        return BAD_FUNC_ARG;
+
 #ifdef ASN_BER_TO_DER
     if (pkcs7->state == WC_PKCS7_START && pkcs7->der != NULL) {
         if (wc_PKCS7_InBuf(in, pkcs7->der, pkcs7->derSz) ||
@@ -7804,6 +7812,26 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
         if ((ret = wc_PKCS7_CreateStream(pkcs7)) != 0) {
             return ret;
         }
+    }
+#endif
+
+    /* the stage 5 reload frees buffers a caller hash may point into */
+#ifndef NO_PKCS7_STREAM
+    if (pkcs7->state == WC_PKCS7_START) {
+        pkcs7->stream->hashCopySz = 0;
+        if (hashSz > 0) {
+            XMEMCPY(pkcs7->stream->hashCopy, hashBuf, hashSz);
+            pkcs7->stream->hashCopySz = hashSz;
+        }
+    }
+    if (hashSz > 0 && pkcs7->stream->hashCopySz > 0) {
+        hashBuf = pkcs7->stream->hashCopy;
+        hashSz  = pkcs7->stream->hashCopySz;
+    }
+#else
+    if (hashSz > 0) {
+        XMEMCPY(hashCopy, hashBuf, hashSz);
+        hashBuf = hashCopy;
     }
 #endif
 

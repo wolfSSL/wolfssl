@@ -124,6 +124,7 @@ int test_wc_PKCS7_VerifySignedData_StreamOutCallbackReturn(void);
 int test_wc_PKCS7_VerifySignedData_ReuseAfterBadCertSet(void);
 int test_wc_PKCS7_VerifySignedData_DegenerateClearsVerifyCert(void);
 int test_wc_PKCS7_VerifySignedData_ReuseAfterBer(void);
+int test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf(void);
 
 
 #define TEST_PKCS7_DECLS                                        \
@@ -216,7 +217,8 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterBer(void);
         test_wc_PKCS7_VerifySignedData_ReuseAfterBadCertSet),               \
     TEST_DECL_GROUP("pkcs7_sd",                                             \
         test_wc_PKCS7_VerifySignedData_DegenerateClearsVerifyCert),         \
-    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ReuseAfterBer)
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ReuseAfterBer), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf)
 
 #define TEST_PKCS7_ENCRYPTED_DATA_DECLS                                     \
     TEST_DECL_GROUP("pkcs7_ed", test_wc_PKCS7_DecodeEnvelopedData_stream),  \

@@ -12149,3 +12149,137 @@ int test_wc_PKCS7_VerifySignedData_ReuseAfterBer(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+/* return the SHA-256 messageDigest attribute value of the last verify */
+static const byte* pkcs7_message_digest(const PKCS7* pkcs7)
+{
+    PKCS7DecodedAttrib* attrib;
+
+    for (attrib = pkcs7->decodedAttrib; attrib != NULL; attrib = attrib->next) {
+        if (attrib->valueSz == 2 + WC_SHA256_DIGEST_SIZE &&
+                attrib->value[0] == ASN_OCTET_STRING &&
+                attrib->value[1] == WC_SHA256_DIGEST_SIZE) {
+            return attrib->value + 2;
+        }
+    }
+    return NULL;
+}
+#endif
+
+/* A caller hash inside memory that the signer cert reload frees is used as
+ * it was when the verify started. */
+int test_wc_PKCS7_VerifySignedData_HashFromOwnedBuf(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    byte   data[] = { 0x01, 0x02, 0x03, 0x04 };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  inner = NULL;
+    byte*  outer = NULL;
+    const byte* md = NULL;
+    word32 mdSz = 0;
+    int    mdRet = 0;
+    int    i;
+#ifndef NO_PKCS7_STREAM
+    int    ret = 0;
+    word32 chunkSz;
+    word32 off;
+#endif
+    int    innerSz = 0;
+    int    outerSz = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(inner = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(outer = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* hash from the messageDigest attribute of a no-certs verify verifies;
+     * from its plainDigest, signature or content it fails SIG_VERIFY_E */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((innerSz = pkcs7_sign_data(inner, msgMax, data,
+            sizeof(data), PKCS7_SIGN_NO_CERTS, &rng)), 0);
+        ExpectIntGT((outerSz = pkcs7_sign_data(outer, msgMax, data,
+            sizeof(data), 0, &rng)), 0);
+    }
+    for (i = 0; i < 4; i++) {
+        md = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, inner, (word32)innerSz),
+            WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+        if (pkcs7 != NULL && i == 0) {
+            md = pkcs7_message_digest(pkcs7);
+            mdSz = WC_SHA256_DIGEST_SIZE;
+            mdRet = 0;
+        }
+        else if (pkcs7 != NULL && i == 1) {
+            md = pkcs7->plainDigest;
+            mdSz = pkcs7->plainDigestSz;
+            mdRet = WC_NO_ERR_TRACE(SIG_VERIFY_E);
+        }
+        else if (pkcs7 != NULL && i == 2) {
+            md = pkcs7->signature;
+            mdSz = WC_SHA256_DIGEST_SIZE;
+            mdRet = WC_NO_ERR_TRACE(SIG_VERIFY_E);
+        }
+        else if (pkcs7 != NULL) {
+            md = pkcs7->content;
+            mdSz = pkcs7->contentSz;
+            mdRet = WC_NO_ERR_TRACE(SIG_VERIFY_E);
+        }
+        ExpectNotNull(md);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, md, mdSz, outer,
+                (word32)outerSz, NULL, 0), mdRet);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+#ifndef NO_PKCS7_STREAM
+    /* a chunked verify with the reload and the digest check in separate
+     * calls returns 0 */
+    for (chunkSz = 1; chunkSz <= 64; chunkSz += 63) {
+        md = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, inner, (word32)innerSz),
+            WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+        if (pkcs7 != NULL) {
+            md = pkcs7_message_digest(pkcs7);
+        }
+        ExpectNotNull(md);
+        ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        for (off = 0; EXPECT_SUCCESS() && off < (word32)outerSz &&
+                ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E); off += chunkSz) {
+            ret = wc_PKCS7_VerifySignedData_ex(pkcs7, md,
+                WC_SHA256_DIGEST_SIZE, outer + off,
+                min(chunkSz, (word32)outerSz - off), NULL, 0);
+        }
+        ExpectIntEQ(ret, 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif
+
+    /* a hash longer than any digest fails BAD_FUNC_ARG */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, inner,
+        WC_MAX_DIGEST_SIZE + 1, outer, (word32)outerSz, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(outer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(inner, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

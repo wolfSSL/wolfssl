@@ -486,7 +486,7 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \param pkcs7 pointer to the PKCS7 structure in which to store the parsed
     certificates
     \param hashBuf pointer to computed hash for the content data
-    \param hashSz size of the digest
+    \param hashSz size of the digest, at most WC_MAX_DIGEST_SIZE
     \param pkiMsgHead pointer to the buffer containing the signed message header
     to verify and decode
     \param pkiMsgHeadSz size of the signed message header
