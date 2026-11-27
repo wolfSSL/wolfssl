@@ -6621,6 +6621,88 @@ blinding by defining WC_BLINDING_NO_RNG_ACKNOWLEDGE_WEAKNESS."
     #define HAVE_DH
 #endif
 
+/* AES-GCM GHASH implementation. Decided here, not in aes.h, because the PPC,
+ * RISC-V and Arm assembly include only settings.h and select their GHASH code
+ * on these macros too.
+ * The Arm assembly GHASH is built on the 4-bit table. */
+#if defined(WOLFSSL_ARMASM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
+    !defined(GCM_TABLE_4BIT)
+    #define GCM_TABLE_4BIT
+#endif
+
+/* Cache-attack resistant C GHASH: no branches on, and no table indices
+ * derived from, H or the running GHASH state. Opt out with
+ * WC_NO_CACHE_RESISTANT (e.g. --disable-harden) or
+ * AES_GCM_GMULT_NO_CACHE_RESIST. */
+#if !defined(WC_NO_CACHE_RESISTANT) && \
+    !defined(AES_GCM_GMULT_NO_CACHE_RESIST)
+    #define WC_AES_GCM_GMULT_CACHE_RESIST
+#endif
+
+/* WC_GCM_MUL_VAR_TIME: the CPU's integer multiply may take data-dependent
+ * time, so GCM_INT_MUL is not cache-attack resistant there:
+ *  - Armv4/Armv5, e.g. ARM7TDMI and ARM9TDMI: MUL/UMULL terminate early on
+ *    the top bits of an operand.
+ *  - MIPS, e.g. MIPS32 4K and M4K: the multiplier finishes early on 16-bit
+ *    operands.
+ *  - 32-bit PowerPC, e.g. 750 and 7400: mullw finishes early on small
+ *    operands.
+ *  - RISC-V without Zkt: data-independent latency is not guaranteed.
+ *  - 16-bit CPUs and CPUs without a 32-bit multiplier, e.g. AVR and MSP430:
+ *    32x32 multiplies are a variable-time library loop (__mulsi3).
+ * Compiler macros are matched, so this is a best effort. */
+#if (defined(__ARM_ARCH) && __ARM_ARCH < 6) || \
+    defined(__ARM_ARCH_4__) || defined(__ARM_ARCH_4T__) || \
+    defined(__ARM_ARCH_5__) || defined(__ARM_ARCH_5T__) || \
+    defined(__ARM_ARCH_5E__) || defined(__ARM_ARCH_5TE__) || \
+    defined(__ARM_ARCH_5TEJ__) || \
+    (defined(__TARGET_ARCH_ARM) && __TARGET_ARCH_ARM > 0 && \
+     __TARGET_ARCH_ARM < 6) || \
+    defined(__mips__) || defined(__mips) || \
+    ((defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || \
+      defined(_ARCH_PPC)) && !defined(__powerpc64__) && \
+     !defined(__ppc64__) && !defined(__PPC64__) && !defined(_ARCH_PPC64)) || \
+    (defined(__riscv) && !defined(__riscv_zkt)) || \
+    defined(WC_16BIT_CPU) || defined(__AVR__) || defined(__MSP430__)
+    #define WC_GCM_MUL_VAR_TIME
+#endif
+
+/* WC_GCM_IM_32_ONLY_CPU: M-profile Arm without the DSP extension (e.g.
+ * Cortex-M0/M0+/M3/M23), whose UMULL is not constant time on all cores but
+ * MUL is: GCM_INT_MUL uses only 32x32->32 multiplies there. GCC, Clang and
+ * IAR give the ACLE macros, armcc the __TARGET_ARCH_* ones. */
+#if defined(__ARM_ARCH_6M__) || defined(__ARM_ARCH_7M__) || \
+    defined(__ARM_ARCH_8M_BASE__) || \
+    (defined(__ARM_ARCH_PROFILE) && (__ARM_ARCH_PROFILE == 'M') && \
+     !defined(__ARM_FEATURE_DSP)) || \
+    defined(__TARGET_ARCH_6_M) || defined(__TARGET_ARCH_6S_M) || \
+    defined(__TARGET_ARCH_7_M)
+    #define WC_GCM_IM_32_ONLY_CPU
+#endif
+
+/* Default GHASH implementation when none is chosen: the table-free
+ * GCM_INT_MUL when cache resistant, otherwise the faster 4-bit table. The
+ * PPC and RISC-V assembly GHASH is built on the 4-bit table.
+ * GCM_INT_MUL is only as constant time as the CPU multiply, so it is not the
+ * default where WC_GCM_MUL_VAR_TIME is set: the masked GCM_SMALL, which uses
+ * no multiplies or tables, is. Choosing GCM_INT_MUL explicitly asserts the
+ * CPU's multiply is constant time.
+ * configure and CMake record the choice in options.h, as the Gcm layout
+ * depends on it and the CPU macros depend on compiler flags like -march. */
+#if defined(HAVE_AESGCM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
+    !defined(GCM_TABLE_4BIT) && !defined(GCM_WORD32) && \
+    !defined(GCM_WORD64) && !defined(GCM_INT_MUL)
+    #if !defined(WC_AES_GCM_GMULT_CACHE_RESIST) || \
+        defined(WOLFSSL_PPC64_ASM) || defined(WOLFSSL_PPC32_ASM) || \
+        defined(WOLFSSL_RISCV_ASM)
+        #define GCM_TABLE_4BIT
+    #elif defined(WC_GCM_MUL_VAR_TIME)
+        #define GCM_SMALL
+    #else
+        #define GCM_INT_MUL
+    #endif
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

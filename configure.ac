@@ -4544,7 +4544,11 @@ then
     ENABLED_AESGCM=no
 fi
 
-if test "$ENABLED_AESGCM" = "yes"
+# Default GHASH implementation: settings.h's choice is recorded in options.h
+# near the end (see "Default GHASH implementation: when none is chosen"). FIPS
+# modules before v7 don't have GCM_INT_MUL and keep the 4-bit table.
+if test "$ENABLED_AESGCM" = "yes" && test "$ENABLED_FIPS" != "no" &&
+   test "$HAVE_FIPS_VERSION_MAJOR" -lt 7
 then
     ENABLED_AESGCM="4bit"
 fi
@@ -14025,6 +14029,8 @@ if test "$ENABLED_AESGCM" != "no"
 then
     if test "$ENABLED_AESGCM" = "word"
     then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_WORD64"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_WORD64"
         ENABLED_AESGCM=yes
     fi
 
@@ -14056,13 +14062,17 @@ then
         ENABLED_AESGCM=yes
     fi
 
-    # The GCM table layout macro must reach assembled (.S) sources too: the
-    # PPC asm GCM_gmult_len is a single file with both layouts guarded by
-    # GCM_TABLE / GCM_TABLE_4BIT.  Default (no explicit table choice) is 4bit.
-    case " $AM_CCASFLAGS " in
-        *" -DGCM_TABLE "*|*" -DGCM_TABLE_4BIT "*|*" -DGCM_SMALL "*|*" -DGCM_WORD32 "*) ;;
-        *) AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_TABLE_4BIT" ;;
-    esac
+    if test "$ENABLED_AESGCM" = "intmul"
+    then
+        # The Arm assembly GHASH is built on the 4-bit table.
+        if test "$ENABLED_ARMASM" != "no"
+        then
+            AC_MSG_ERROR([--enable-aesgcm=intmul can't be used with --enable-armasm: the Arm assembly GHASH uses the 4-bit table (--enable-aesgcm=4bit).])
+        fi
+        AM_CFLAGS="$AM_CFLAGS -DGCM_INT_MUL"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DGCM_INT_MUL"
+        ENABLED_AESGCM=yes
+    fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"
@@ -14989,6 +14999,89 @@ if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
              test "$ENABLED_LOWRESOURCE" = "no"))
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_INTROSPECTION"
+fi
+
+# Default GHASH implementation: when none is chosen, settings.h picks it from
+# the cache-resistance options and the CPU, whose compiler macros (__ARM_ARCH,
+# __riscv_zkt, ...) depend on flags like -march, and aes.h picks the
+# GCM_INT_MUL multiply variant the same way. Record both in options.h: the Gcm
+# layout depends on them, so an application built with other CPU flags still
+# agrees with the library.
+if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_USERSETTINGS" != "yes"
+then
+    GCM_ALL_FLAGS=" $AM_CPPFLAGS $EXTRA_CPPFLAGS $CPPFLAGS $AM_CFLAGS $EXTRA_CFLAGS $CFLAGS "
+    case "$GCM_ALL_FLAGS" in
+        *" -DGCM_INT_MUL "*)
+            GCM_GHASH_SET="GCM_INT_MUL" ;;
+        *" -DGCM_SMALL "*|*" -DGCM_TABLE "*|*" -DGCM_TABLE_4BIT "*|*" -DGCM_WORD32 "*|*" -DGCM_WORD64 "*)
+            GCM_GHASH_SET="other" ;;
+        *)
+            GCM_GHASH_SET= ;;
+    esac
+    GCM_SAVED_CFLAGS="$CFLAGS"
+    GCM_SAVED_CPPFLAGS="$CPPFLAGS"
+    GCM_NO_ERROR=
+    if test "$GCC" = "yes"
+    then
+        GCM_NO_ERROR="-Wno-error"
+    fi
+    CFLAGS="$AM_CFLAGS $EXTRA_CFLAGS $CFLAGS $GCM_NO_ERROR"
+    CPPFLAGS="-I. -I$srcdir $AM_CPPFLAGS $EXTRA_CPPFLAGS $CPPFLAGS"
+    GCM_GHASH=
+    if test -z "$GCM_GHASH_SET"
+    then
+        AC_MSG_CHECKING([for the default AES-GCM GHASH implementation])
+        for gcm_ghash in GCM_INT_MUL GCM_SMALL GCM_TABLE_4BIT
+        do
+            AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <wolfssl/wolfcrypt/settings.h>
+#ifndef $gcm_ghash
+#error not the default GHASH
+#endif
+]], [[]])], [GCM_GHASH="$gcm_ghash"; break])
+        done
+        if test -n "$GCM_GHASH"
+        then
+            AC_MSG_RESULT([$GCM_GHASH])
+        else
+            AC_MSG_RESULT([not determined, settings.h chooses at build time])
+        fi
+    fi
+    # The GCM_INT_MUL multiply variant sizes Gcm too, whether GCM_INT_MUL was
+    # chosen or is the default.
+    GCM_IM=
+    if test "$GCM_GHASH_SET" = "GCM_INT_MUL" || test "$GCM_GHASH" = "GCM_INT_MUL"
+    then
+        case "$GCM_ALL_FLAGS" in
+            *" -DGCM_IM_64 "*|*" -DGCM_IM_32W "*|*" -DGCM_IM_32 "*) ;;
+            *)
+                AC_MSG_CHECKING([for the GCM_INT_MUL multiply variant])
+                for gcm_im in GCM_IM_64 GCM_IM_32W GCM_IM_32
+                do
+                    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#ifndef $gcm_im
+#error not the GCM_INT_MUL multiply variant
+#endif
+]], [[]])], [GCM_IM="$gcm_im"; break])
+                done
+                if test -n "$GCM_IM"
+                then
+                    AC_MSG_RESULT([$GCM_IM])
+                else
+                    AC_MSG_RESULT([not determined, aes.h chooses at build time])
+                fi
+                ;;
+        esac
+    fi
+    CFLAGS="$GCM_SAVED_CFLAGS"
+    CPPFLAGS="$GCM_SAVED_CPPFLAGS"
+    for gcm_ghash in $GCM_GHASH $GCM_IM
+    do
+        AM_CFLAGS="$AM_CFLAGS -D$gcm_ghash"
+        AM_CCASFLAGS="$AM_CCASFLAGS -D$gcm_ghash"
+    done
 fi
 
 BUILD_PARAMS_INCLUDE=
