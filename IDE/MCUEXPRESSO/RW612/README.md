@@ -1,6 +1,6 @@
-# wolfSSL on NXP RW612 with EdgeLock (ELS)
+# wolfSSL on NXP RW612 with EdgeLock (ELS + PKC)
 
-This directory configures wolfSSL for the NXP RW612 with the EdgeLock crypto callback port, `wolfcrypt/src/port/nxp/els_pkc_port.c`, built from an MCUXpresso SDK project. It offloads SHA-256, AES, AES-GCM, CMAC and the DRBG to the ELS peripheral.
+This directory configures wolfSSL for the NXP RW612 with the EdgeLock crypto callback port, `wolfcrypt/src/port/nxp/els_pkc_port.c`, built from an MCUXpresso SDK project. It offloads SHA-256, AES, AES-GCM, CMAC and the DRBG to the ELS peripheral, and RSA, X25519 and ECDSA to the PKC coprocessor.
 
 Zephyr users do not need any of this: the wolfSSL Zephyr module supplies the same port through `CONFIG_WOLFSSL_ELS_PKC=y`, and the `els_pkc` Zephyr module supplies the vendor headers. This is the path for a project that uses the MCUXpresso SDK directly.
 
@@ -57,7 +57,7 @@ The same result from a source tarball or checkout. Note that no CI job builds th
 ./autogen.sh
 ./configure --host=arm-none-eabi --disable-shared --enable-static \
     --enable-cryptonly --enable-cryptocb \
-    --enable-aesgcm --enable-cmac \
+    --enable-ecc --enable-aesgcm --enable-cmac --enable-curve25519 --enable-rsa \
     --with-els-pkc=/path/to/els_pkc \
     --with-mcux-sdk=/path/to/mcux-sdk-ng \
     --disable-filesystem --enable-singlethreaded \
@@ -102,4 +102,4 @@ A hardware *failure* is treated differently on purpose: the port reports the err
 
 `wolfCrypt_Cleanup()` unregisters the callback and closes the port, keeping its mutex; `wc_ElsPkc_Init()` re-registers it if you need the port back afterwards. Finish or free every hash, CMAC and AES context the port has taken over before the last `wolfCrypt_Cleanup()`: with the device gone, wolfCrypt continues it in software from the engine's state, and a hash returns a wrong digest.
 
-Keys resident in the ELS key store are referenced rather than exported: attach a reference to a key with `wc_ElsPkc_AesUseSlot()` or `wc_ElsPkc_CmacUseSlot()`. Those are the entry point - `wc_ElsPkc_MakeKeyRef()` is the primitive underneath them. See the port header for the reference format.
+Keys resident in the ELS key store are referenced rather than exported: attach a reference to a key with `wc_ElsPkc_EccUseSlot()`, `wc_ElsPkc_AesUseSlot()` or `wc_ElsPkc_CmacUseSlot()`. Those are the entry point - `wc_ElsPkc_MakeKeyRef()` is the primitive underneath them, and the ECC helper also pins the curve to P-256. See the port header for the key store operations and the reference format.
