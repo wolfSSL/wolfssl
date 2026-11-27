@@ -142,8 +142,17 @@ static int wb_certman_alloc_errors(WOLFSSL_CERT_MANAGER* cm)
 {
     const byte* cert = ca_cert_der_2048;
     long length = sizeof_ca_cert_der_2048;
+    WOLFSSL_CERT_MANAGER* failedCm;
     int ret;
     int failed = 0;
+
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    failedCm = wolfSSL_CertManagerNew();
+    mcdc_fa_restore();
+    if (failedCm != NULL)
+        failed = 1;
+    wolfSSL_CertManagerFree(failedCm);
 
     mcdc_fa_install();
     mcdc_fa_arm_only(1);
@@ -169,6 +178,10 @@ static int wb_crl_enable_failures(WOLFSSL_CERT_MANAGER* cm)
     static const byte der[] = {0x30, 0};
     int ret, failed = 0;
 
+    if (wolfSSL_CertManagerLoadCRLBuffer(cm, NULL, sizeof(der),
+            WOLFSSL_FILETYPE_ASN1) != BAD_FUNC_ARG)
+        failed = 1;
+
     /* Fail before any of the loaders opens a file or decodes a CRL. */
     mcdc_fa_install();
     mcdc_fa_arm_only(1);
@@ -184,9 +197,18 @@ static int wb_crl_enable_failures(WOLFSSL_CERT_MANAGER* cm)
         WOLFSSL_FILETYPE_ASN1);
     if (ret >= 0 || cm->crl == NULL)
         failed = 1;
+    if (wolfSSL_CertManagerLoadCRLBuffer(cm, der, sizeof(der),
+            WOLFSSL_FILETYPE_ASN1) >= 0)
+        failed = 1;
     if (wolfSSL_CertManagerFreeCRL(cm) != WOLFSSL_SUCCESS)
         failed = 1;
 #ifndef NO_FILESYSTEM
+    if (wolfSSL_CertManagerLoadCRL(cm, NULL, WOLFSSL_FILETYPE_PEM, 0) !=
+            BAD_FUNC_ARG ||
+        wolfSSL_CertManagerLoadCRLFile(cm, NULL, WOLFSSL_FILETYPE_PEM) !=
+            BAD_FUNC_ARG)
+        failed = 1;
+
     mcdc_fa_install();
     mcdc_fa_arm_only(1);
     ret = wolfSSL_CertManagerLoadCRL(cm, "./certs/crl",
@@ -198,6 +220,10 @@ static int wb_crl_enable_failures(WOLFSSL_CERT_MANAGER* cm)
         WOLFSSL_FILETYPE_PEM, 0);
     if (cm->crl == NULL)
         failed = 1;
+    else {
+        (void)wolfSSL_CertManagerLoadCRL(cm, "./certs/no-such-directory",
+            WOLFSSL_FILETYPE_PEM, 0);
+    }
     if (wolfSSL_CertManagerFreeCRL(cm) != WOLFSSL_SUCCESS)
         failed = 1;
 
@@ -211,6 +237,9 @@ static int wb_crl_enable_failures(WOLFSSL_CERT_MANAGER* cm)
     ret = wolfSSL_CertManagerLoadCRLFile(cm, "./certs/no-such-crl.pem",
         WOLFSSL_FILETYPE_PEM);
     if (ret >= 0 || cm->crl == NULL)
+        failed = 1;
+    if (wolfSSL_CertManagerLoadCRLFile(cm, "./certs/no-such-crl.pem",
+            WOLFSSL_FILETYPE_PEM) != WOLFSSL_BAD_FILE)
         failed = 1;
     if (wolfSSL_CertManagerFreeCRL(cm) != WOLFSSL_SUCCESS)
         failed = 1;
@@ -316,14 +345,23 @@ int main(void)
            got == NULL ? "NULL" : "UNEXPECTED");
     g_checks++;
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (GetCAByNameSkip(cm, hashHead, &head) != NULL ||
+        GetCAByNameSkip(cm, hashHead, &tail) != &head) {
+        puts("ssl_certman white-box: unexpected skipped signer result");
+        failed = 1;
+    }
+#endif
+
     /* Detach before teardown: both Signers are on this stack frame. */
     cm->caTable[0] = NULL;
 
 #if defined(HAVE_CRL) && !defined(MCDC_FA_UNAVAILABLE) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    failed = wb_crl_enable_failures(cm);
-    if (failed)
+    if (wb_crl_enable_failures(cm)) {
         puts("ssl_certman white-box: unexpected CRL allocation result");
+        failed = 1;
+    }
 #endif
 
 #if defined(HAVE_OCSP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
