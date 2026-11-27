@@ -5475,6 +5475,32 @@ int test_wc_mlkem_decapsulate_id_key(void)
     ExpectIntEQ(wc_MlKemKey_Decapsulate(key, ss, ct, ctLen), 0);
     ExpectIntEQ(seen.calls, 3);
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        WC_RNG rng;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        if (keyInit) {
+            wc_MlKemKey_Free(key);
+            keyInit = 0;
+        }
+        ExpectIntEQ(wc_MlKemKey_Init_Id(key, TEST_MLKEM_CB_PENDING_TYPE, id,
+            (int)sizeof(id), NULL, TEST_MLKEM_CB_PENDING_DEVID), 0);
+        if (EXPECT_SUCCESS()) {
+            keyInit = 1;
+        }
+        seen.ret = 0;
+        ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng), 0);
+        ExpectIntEQ(seen.calls, 4);
+        seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        ExpectIntEQ(wc_MlKemKey_Encapsulate(key, ct, ss, &rng),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(seen.calls, 5);
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
+#endif
+
     if (keyInit) {
         wc_MlKemKey_Free(key);
     }

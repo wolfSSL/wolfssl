@@ -889,6 +889,11 @@ int test_wc_slhdsa_verify(void)
 
     ExpectIntEQ(wc_SlhDsaKey_Init(&key, TEST_SLHDSA_DEFAULT_PARAM, NULL,
         INVALID_DEVID), 0);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_Sign(&key, ctx, sizeof(ctx), msg, sizeof(msg),
+        sig, &sigLen, &rng), WC_NO_ERR_TRACE(MISSING_KEY));
+#endif
     ExpectIntEQ(wc_SlhDsaKey_MakeKey(&key, &rng), 0);
 
     /* Generate a signature. */
@@ -932,6 +937,17 @@ int test_wc_slhdsa_verify(void)
         sig, &sigLen, &rng), 0);
     ExpectIntEQ(wc_SlhDsaKey_Verify(&key, NULL, 0, msg, sizeof(msg),
         sig, sigLen), 0);
+
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    /* A NULL message represents an empty message only when its size is 0. */
+    sigLen = WC_SLHDSA_MAX_SIG_LEN;
+    ExpectIntEQ(wc_SlhDsaKey_Sign(&key, ctx, sizeof(ctx), NULL, 1, sig,
+        &sigLen, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_SlhDsaKey_Sign(&key, ctx, sizeof(ctx), NULL, 0, sig,
+        &sigLen, &rng), 0);
+    ExpectIntEQ(wc_SlhDsaKey_Verify(&key, ctx, sizeof(ctx), NULL, 0, sig,
+        sigLen), 0);
+#endif
 
     wc_SlhDsaKey_Free(&key);
 

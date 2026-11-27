@@ -32956,6 +32956,23 @@ int test_wc_MldsaDecisionCoverage2(void)
     }
 #endif
 
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        byte out[1];
+        word32 outLen = (word32)sizeof(out);
+
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(NULL, out, &outLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&key, NULL, &outLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&key, out, NULL),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_ExportPrivRaw(&key, out, &outLen),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+
     /* wc_MlDsaKey_SignCtxHash / SignCtxWithSeed / SignCtxHashWithSeed /
      * SignMuWithSeed: independence of each four/five-way NULL OR and the
      * ctxLen>0/muLen!=MU_SZ guards. Hold all other operands valid and
@@ -33019,6 +33036,17 @@ int test_wc_MldsaDecisionCoverage2(void)
             msg, (word32)sizeof(msg), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 1, sig, &sigLen,
             msg, (word32)sizeof(msg), seed), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        /* The length checks run before hashing or dispatch. Keep the key
+         * without private material so no signature can be attempted. */
+        ExpectIntEQ(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig, &sigLen, msg,
+            (word32)(WOLFSSL_MAX_32BIT / 2) + 1, &rng),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(wc_MlDsaKey_SignCtxWithSeed(&key, NULL, 0, sig, &sigLen,
+            msg, (word32)(WOLFSSL_MAX_32BIT / 2) + 1, seed),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
 #ifdef WOLFSSL_MLDSA_NO_CTX
         /* wc_MlDsaKey_SignWithSeed: five-way NULL OR (incl. seed). */

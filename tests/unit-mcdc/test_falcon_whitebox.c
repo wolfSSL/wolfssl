@@ -51,7 +51,47 @@
  * always returns 0 so the harness keeps the variant.
  */
 
+#include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(HAVE_FALCON) && !defined(WOLFSSL_FALCON_VERIFY_ONLY) && \
+    !defined(WOLFSSL_NO_FALCON_LEVEL5) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/sha3.h>
+
+#define WB_FALCON_LOGN 10
+#define WB_FALCON_N (1U << WB_FALCON_LOGN)
+#define WB_FALCON_DRAW_SZ 16 /* Two 64-bit words per coefficient at logn 10. */
+static byte wb_falcon_draws[2 * WB_FALCON_N * WB_FALCON_DRAW_SZ];
+static size_t wb_falcon_draw_offset;
+static int wb_falcon_draw_active;
+
+static int wb_falcon_squeeze(wc_Shake* shake, byte* out, word32 blocks)
+{
+    size_t len = (size_t)blocks * WC_SHA3_256_BLOCK_SIZE;
+    size_t available = sizeof(wb_falcon_draws) - wb_falcon_draw_offset;
+
+    if (!wb_falcon_draw_active) {
+        return wc_Shake256_SqueezeBlocks(shake, out, blocks);
+    }
+    if (available == 0) {
+        return WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    }
+    XMEMSET(out, 0, len);
+    if (len > available) {
+        len = available;
+    }
+    XMEMCPY(out, wb_falcon_draws + wb_falcon_draw_offset, len);
+    wb_falcon_draw_offset += len;
+    return 0;
+}
+#define WB_FALCON_DRAW_TEST
+#define wc_Shake256_SqueezeBlocks wb_falcon_squeeze
+#endif
 #include <wolfcrypt/src/falcon.c>
+#ifdef WB_FALCON_DRAW_TEST
+#undef wc_Shake256_SqueezeBlocks
+#endif
 #include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
@@ -65,6 +105,129 @@ static int wb_fail = 0;
 #define WB_OK(msg)   do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if defined(HAVE_FALCON)
+
+#ifdef WB_FALCON_DRAW_TEST
+static void wb_put_gaussian_draw(unsigned int coefficient, unsigned int mag,
+    int negative)
+{
+    byte* p = wb_falcon_draws + coefficient * WB_FALCON_DRAW_SZ;
+    word64 signDraw = gauss_1024_12289[0] | ((word64)negative << 63);
+    word64 magDraw = gauss_1024_12289[mag];
+    unsigned int i;
+
+    if (mag == 0) {
+        XMEMSET(p, 0, WB_FALCON_DRAW_SZ);
+        return;
+    }
+    for (i = 0; i < 8; i++) {
+        p[i] = (byte)(signDraw >> (8 * i));
+        p[8 + i] = (byte)(magDraw >> (8 * i));
+    }
+}
+
+/* Screen candidates through the checks before keygen writes its public
+ * output. This leaves the trim guard as the only reason not to write h. */
+static int wb_falcon_reaches_public(const sword8* f, const sword8* g, fpr* work)
+{
+    fpr* a = work;
+    fpr* b = a + WB_FALCON_N;
+    fpr* inv = b + WB_FALCON_N;
+    fpr norm = fpr_zero;
+    unsigned int i;
+
+    if (poly_small_sqnorm(f, WB_FALCON_LOGN) +
+            poly_small_sqnorm(g, WB_FALCON_LOGN) >= 16823)
+        return 0;
+    poly_small_to_fp(a, f, WB_FALCON_LOGN);
+    poly_small_to_fp(b, g, WB_FALCON_LOGN);
+    falcon_FFT(a, WB_FALCON_LOGN);
+    falcon_FFT(b, WB_FALCON_LOGN);
+    falcon_poly_invnorm2_fft(inv, a, b, WB_FALCON_LOGN);
+    falcon_poly_adj_fft(a, WB_FALCON_LOGN);
+    falcon_poly_adj_fft(b, WB_FALCON_LOGN);
+    falcon_poly_mulconst(a, fpr_q, WB_FALCON_LOGN);
+    falcon_poly_mulconst(b, fpr_q, WB_FALCON_LOGN);
+    falcon_poly_mul_autoadj_fft(a, inv, WB_FALCON_LOGN);
+    falcon_poly_mul_autoadj_fft(b, inv, WB_FALCON_LOGN);
+    falcon_iFFT(a, WB_FALCON_LOGN);
+    falcon_iFFT(b, WB_FALCON_LOGN);
+    for (i = 0; i < WB_FALCON_N; i++) {
+        norm = fpr_add(norm, fpr_sqr(a[i]));
+        norm = fpr_add(norm, fpr_sqr(b[i]));
+    }
+    if (!fpr_lt(norm, fpr_bnorm_max))
+        return 0;
+    return falcon_compute_public((word16*)work, f, g, WB_FALCON_LOGN,
+        (word16*)work + WB_FALCON_N);
+}
+
+static int wb_keygen_draw_limits(WC_RNG* rng)
+{
+    sword8 seedF[WB_FALCON_N], seedG[WB_FALCON_N];
+    sword8 f[WB_FALCON_N], g[WB_FALCON_N], bigF[WB_FALCON_N];
+    word16 h[WB_FALCON_N];
+    fpr* work = (fpr*)XMALLOC(3 * WB_FALCON_N * sizeof(fpr), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    unsigned int poly, i, attempt;
+    int negative;
+    int ok = 0;
+
+    if (work == NULL)
+        return 0;
+    for (poly = 0; poly < 2; poly++) {
+        for (negative = 0; negative < 2; negative++) {
+            int found = 0;
+            int ret;
+
+            for (attempt = 0; attempt < 8 && !found; attempt++) {
+                sword8* target = poly == 0 ? seedF : seedG;
+                sword8 limit = (sword8)(negative ? -16 : 16);
+
+                if (falcon_keygen(rng, seedF, seedG, bigF, NULL, NULL,
+                        WB_FALCON_LOGN) != 0)
+                    goto out;
+                for (i = 0; i < WB_FALCON_N && !found; i++) {
+                    sword8 old = target[i];
+
+                    /* Keep the sampler's required odd polynomial parity. */
+                    if (old % 2 != 0)
+                        continue;
+                    target[i] = limit;
+                    found = wb_falcon_reaches_public(seedF, seedG, work);
+                    if (!found)
+                        target[i] = old;
+                }
+            }
+            if (!found)
+                goto out;
+
+            for (i = 0; i < WB_FALCON_N; i++) {
+                int x = seedF[i], y = seedG[i];
+                wb_put_gaussian_draw(i, (unsigned int)(x < 0 ? -x : x),
+                    x < 0);
+                wb_put_gaussian_draw(i + WB_FALCON_N,
+                    (unsigned int)(y < 0 ? -y : y), y < 0);
+                h[i] = 0xffff;
+            }
+            wb_falcon_draw_offset = 0;
+            wb_falcon_draw_active = 1;
+            ret = falcon_keygen(rng, f, g, bigF, NULL, h, WB_FALCON_LOGN);
+            wb_falcon_draw_active = 0;
+            if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
+                    wb_falcon_draw_offset != sizeof(wb_falcon_draws))
+                goto out;
+            for (i = 0; i < WB_FALCON_N; i++) {
+                if (h[i] != 0xffff)
+                    goto out;
+            }
+        }
+    }
+    ok = 1;
+out:
+    XFREE(work, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ok;
+}
+#endif
 
 /* ------------------------------------------------------------------ *
  * fpr_ursh / fpr_irsh / fpr_ulsh: compared against plain 64-bit shifts
@@ -2223,13 +2386,6 @@ static void wb_residuals(void)
             "needs both depth-1 field norms to nearly vanish at one FFT slot; "
             "x^n+1 is irreducible over Q so they never vanish exactly, but no "
             "usable lower bound exists either -- see the exclusion record");
-    WB_NOTE("residual: keygen f[u]/g[u] vs lim halves: lim is 1 << "
-            "(falcon_max_fg_bits[logn] - 1), i.e. 32 at logn 9 and 16 at "
-            "logn 10, while poly_small_mkgauss sums 1 << (10 - logn) draws of "
-            "sigma 1.17*sqrt(q/2048) -- 4.05 total at logn 9. |f[u]| >= lim is "
-            "a 7.9 sigma deviate (~6e-14 per coefficient, ~6e-11 per keygen), "
-            "and f is generated inside falcon_keygen from its own falcon_rng, "
-            "so no supplied input reaches it");
 #if defined(WOLFSSL_FALCON_VERIFY_ONLY) || defined(WOLFSSL_NO_FALCON_LEVEL1)
     WB_NOTE("residual: check_key ft[i]==0 half: the vector is a decoded "
             "Falcon-512 key with a nowhere-invertible f, which this build "
@@ -2296,6 +2452,11 @@ int main(void)
         if (haveRng) {
             wb_berexp_loop(&rng);
             wb_mkgauss_range(&rng);
+#ifdef WB_FALCON_DRAW_TEST
+            if (!wb_keygen_draw_limits(&rng)) {
+                WB_FAIL("keygen did not resample Gaussian trim-limit draws");
+            }
+#endif
         }
 #ifndef WOLFSSL_NO_FALCON_LEVEL1
         wb_check_key_ntt_slots();

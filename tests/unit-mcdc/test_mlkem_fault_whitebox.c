@@ -74,7 +74,43 @@
  * default action is the full sweep.)
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <wolfssl/wolfcrypt/wc_mlkem.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
+#if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+/* Fail only the first streamed row, with all setup and cleanup left intact. */
+static int wb_fail_row;
+#define mlkem_keygen_seeds_row(s, t, prf, e, a, k, rho, sigma, i) \
+    (wb_fail_row ? WC_HW_E : \
+        mlkem_keygen_seeds_row(s, t, prf, e, a, k, rho, sigma, i))
+#define mlkem_encapsulate_seeds_row(prf, c, cmp, f, bp, tp, sp, k, s, r, a, b, i) \
+    (wb_fail_row ? WC_HW_E : \
+        mlkem_encapsulate_seeds_row(prf, c, cmp, f, bp, tp, sp, k, s, r, a, b, i))
+#define WB_MLKEM_STREAMED_ROWS
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(WOLFSSL_MLKEM_CACHE_A) && \
+    !defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+static int wb_fail_matrix;
+#define mlkem_gen_matrix(prf, a, k, seed, transpose) \
+    (wb_fail_matrix ? WC_HW_E : mlkem_gen_matrix(prf, a, k, seed, transpose))
+#define WB_MLKEM_CACHE_ROWS
+#endif
 #include <wolfcrypt/src/wc_mlkem.c>
+#ifdef WB_MLKEM_STREAMED_ROWS
+#undef mlkem_keygen_seeds_row
+#undef mlkem_encapsulate_seeds_row
+#endif
+#ifdef WB_MLKEM_CACHE_ROWS
+#undef mlkem_gen_matrix
+#endif
 
 #include "mcdc_fault_alloc.h"
 
@@ -83,6 +119,7 @@
 #include <string.h>
 
 static int wb_fail = 0;
+static int wb_failed_check;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if !defined(WOLFSSL_HAVE_MLKEM) || \
@@ -162,9 +199,132 @@ int main(int argc, char** argv)
     }
     (void)wc_MlKemKey_Encapsulate(&key, ct, ss, &rng);
     (void)wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz);
+#ifdef WB_MLKEM_CACHE_ROWS
+    {
+        byte msg[WC_ML_KEM_ENC_RAND_SZ] = {0};
+        /* Noise generation writes a counter after the seed. */
+        byte coins[WC_ML_KEM_SYM_SZ + 1] = {0};
+        int allocError = WC_NO_ERR_TRACE(MEMORY_E);
+        int matrixError;
+        int filled;
+        int cached;
+
+        /* A key with a public vector can encapsulate before A is cached. */
+        key.flags &= ~(int)MLKEM_FLAG_A_SET;
+#if !defined(MCDC_FA_UNAVAILABLE) && !defined(WOLFSSL_NO_MALLOC)
+        mcdc_fa_arm(1);
+        allocError = mlkemkey_encapsulate(&key, msg, coins, ct, NULL, NULL);
+        mcdc_fa_disarm();
+#endif
+        wb_fail_matrix = 1;
+        matrixError = mlkemkey_encapsulate(&key, msg, coins, ct, NULL, NULL);
+        wb_fail_matrix = 0;
+        filled = (key.flags & MLKEM_FLAG_A_SET) != 0;
+        ret = mlkemkey_encapsulate(&key, msg, coins, ct, NULL, NULL);
+        cached = (key.flags & MLKEM_FLAG_A_SET) != 0;
+        if (allocError != WC_NO_ERR_TRACE(MEMORY_E) ||
+                matrixError != WC_NO_ERR_TRACE(WC_HW_E) || filled ||
+                ret != 0 || !cached) {
+            puts("  [wb][FAIL] matrix caching");
+            wb_failed_check = 1;
+        }
+    }
+#endif
+#ifdef WB_MLKEM_STREAMED_ROWS
+    {
+        byte seed[WC_ML_KEM_MAKEKEY_RAND_SZ] = {0};
+        MlKemKey other;
+        int encapError;
+        int keygenError;
+
+        ret = wc_MlKemKey_Init(&other, MLKEM_WB_TYPE, NULL, INVALID_DEVID);
+        if (ret != 0) {
+            puts("  [wb] streamed row setup failed; skipped");
+            wb_fail = 1;
+        }
+        else {
+            wb_fail_row = 1;
+            encapError = wc_MlKemKey_Encapsulate(&key, ct, ss, &rng);
+            keygenError = wc_MlKemKey_MakeKeyWithRandom(&other, seed,
+                sizeof(seed));
+            wb_fail_row = 0;
+            wc_MlKemKey_Free(&other);
+            if (encapError != WC_NO_ERR_TRACE(WC_HW_E) ||
+                    keygenError != WC_NO_ERR_TRACE(WC_HW_E)) {
+                puts("  [wb][FAIL] streamed row errors");
+                wb_failed_check = 1;
+            }
+        }
+    }
+#endif
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        int flags = key.flags;
+        int withoutPub;
+        int shortCt;
+
+        key.flags &= ~(int)MLKEM_FLAG_PUB_SET;
+        withoutPub = wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz);
+        shortCt = wc_MlKemKey_Decapsulate(&key, ss2, ct, ctSz - 1);
+        key.flags = flags;
+        if (withoutPub != WC_NO_ERR_TRACE(BAD_STATE_E) ||
+                shortCt != WC_NO_ERR_TRACE(BUFFER_E)) {
+            puts("  [wb][FAIL] decapsulation arguments");
+            wb_failed_check = 1;
+        }
+    }
+#endif
+#if !defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        byte msg[WC_ML_KEM_ENC_RAND_SZ] = {0};
+        byte coins[WC_ML_KEM_SYM_SZ + 1] = {0};
+        int fail = 0;
+        int type = key.type;
+        int withCompare;
+        int unknownType;
+
+        withCompare = mlkemkey_encapsulate(&key, msg, coins, ct, ct, &fail);
+        key.type = -1;
+        unknownType = mlkemkey_encapsulate(&key, msg, coins, ct, ct, &fail);
+        key.type = type;
+        if (withCompare != WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
+                unknownType != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+            puts("  [wb][FAIL] encapsulation arguments");
+            wb_failed_check = 1;
+        }
+    }
+#endif
     /* check_h with the flag cleared so the encode-and-hash body runs. */
     key.flags &= ~(int)MLKEM_FLAG_H_SET;
     (void)wc_mlkemkey_check_h(&key);
+
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    !defined(WOLFSSL_MLKEM_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    {
+        byte der[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE + MLKEM_ASN1_PRV_OVERHEAD];
+        int type = key.type;
+        int pubLen;
+        int privLen;
+        int pubError;
+        int privError;
+
+        pubLen = wc_MlKemKey_PublicKeyToDer(&key, der, sizeof(der), 1);
+        privLen = wc_MlKemKey_PrivateKeyToDer(&key, der, sizeof(der));
+        /* Key types without an ML-KEM OID cannot be exported as DER. */
+        key.type = -1;
+        pubError = wc_MlKemKey_PublicKeyToDer(&key, der, sizeof(der), 1);
+        privError = wc_MlKemKey_PrivateKeyToDer(&key, der, sizeof(der));
+        key.type = type;
+        ForceZero(der, sizeof(der));
+        if (pubLen <= 0 || privLen <= 0 ||
+                pubError != WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
+                privError != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            puts("  [wb][FAIL] DER export");
+            wb_failed_check = 1;
+        }
+    }
+#endif
 
 #ifndef MCDC_FA_UNAVAILABLE
     if (argc > 1 && strcmp(argv[1], "probe") == 0) {
@@ -256,12 +416,34 @@ int main(int argc, char** argv)
                 "check_h done");
     }
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        byte seed[WC_ML_KEM_MAKEKEY_RAND_SZ] = {0};
+        int type = key.type;
+        int empty;
+        int unknownType;
+        int replace;
+
+        empty = wc_MlKemKey_MakeKeyWithRandom(NULL, seed, sizeof(seed));
+        replace = wc_MlKemKey_MakeKeyWithRandom(&key, seed, sizeof(seed));
+        key.type = -1;
+        unknownType = wc_MlKemKey_MakeKeyWithRandom(&key, seed, sizeof(seed));
+        key.type = type;
+        if (empty != WC_NO_ERR_TRACE(BAD_FUNC_ARG) || replace != 0 ||
+                unknownType != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+            puts("  [wb][FAIL] key generation arguments");
+            wb_failed_check = 1;
+        }
+    }
+#endif
+
     mcdc_fa_disarm();
     mcdc_fa_restore();
     wc_MlKemKey_Free(&key);
     wc_FreeRng(&rng);
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_failed_check ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
     (void)wb_fail;
     return 0;
 }
