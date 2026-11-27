@@ -175,6 +175,8 @@ int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
     parameter set.
     \return NOT_COMPILED_IN if level names a parameter set that was
     disabled at build time.
+    \return BAD_STATE_E if a non-blocking operation is in flight on the
+    key (WC_MLDSA_NONBLOCK). The key is left unchanged.
 
     \param [in,out] key Pointer to an initialized wc_MlDsaKey.
     \param [in] level Parameter set: WC_ML_DSA_44, WC_ML_DSA_65 or

@@ -12183,6 +12183,10 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         /* Step 3: Expand public seed into a matrix of polynomials. */
         ret = mldsa_expand_a(&key->shake, pub_seed, params->k, params->l,
             a, key->heap);
+#ifdef WC_MLDSA_CACHE_MATRIX_A
+        XMEMCPY(key->aRho, pub_seed, MLDSA_PUB_SEED_SZ);
+        key->aSet = (ret == 0);
+#endif
     }
     if (ret == 0) {
         byte* priv_seed = key->k + MLDSA_PUB_SEED_SZ;
@@ -12245,10 +12249,6 @@ static int mldsa_make_key_from_seed(wc_MlDsaKey* key, const byte* seed)
         /* Public key and private key are available. */
         key->prvKeySet = 1;
         key->pubKeySet = 1;
-#ifdef WC_MLDSA_CACHE_MATRIX_A
-        /* Matrix A is available. */
-        key->aSet = 1;
-#endif
 #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
         /* Private vectors are not available as they were overwritten. */
         key->privVecsSet = 0;
@@ -12954,8 +12954,9 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
         }
 
 #ifdef WC_MLDSA_CACHE_MATRIX_A
-        /* Check that we haven't already cached the matrix A. */
-        if ((ret == 0) && (!key->aSet))
+        /* Use the cached matrix A only if it is the private key's. */
+        if ((ret == 0) && ((!key->aSet) ||
+                (XMEMCMP(key->aRho, pub_seed, MLDSA_PUB_SEED_SZ) != 0)))
 #else
         if (ret == 0)
 #endif
@@ -12964,6 +12965,7 @@ static int mldsa_sign_with_seed_mu(wc_MlDsaKey* key,
             ret = mldsa_expand_a(&key->shake, pub_seed, params->k,
                 params->l, a, key->heap);
 #ifdef WC_MLDSA_CACHE_MATRIX_A
+            XMEMCPY(key->aRho, pub_seed, MLDSA_PUB_SEED_SZ);
             key->aSet = (ret == 0);
 #endif
         }
@@ -15214,8 +15216,9 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #endif
         {
 #ifdef WC_MLDSA_CACHE_MATRIX_A
-            /* Check that we haven't already cached the matrix A. */
-            if ((ret == 0) && (!key->aSet))
+            /* Use the cached matrix A only if it is the public key's. */
+            if ((ret == 0) && ((!key->aSet) ||
+                    (XMEMCMP(key->aRho, pub_seed, MLDSA_PUB_SEED_SZ) != 0)))
 #else
             if (ret == 0)
 #endif
@@ -15226,6 +15229,7 @@ static int mldsa_verify_with_mu(wc_MlDsaKey* key, const byte* mu,
 #ifdef WC_MLDSA_CACHE_MATRIX_A
                 /* Whether we have cached A is dependent on success of
                  * operation. */
+                XMEMCPY(key->aRho, pub_seed, MLDSA_PUB_SEED_SZ);
                 key->aSet = (ret == 0);
 #endif
             }
@@ -16573,9 +16577,10 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
                 params->k);
         }
 
-        /* Expand matrix A, unless already cached. */
+        /* Expand matrix A, unless already cached for the private key. */
     #ifdef WC_MLDSA_CACHE_MATRIX_A
-        if ((ret == 0) && (!key->aSet))
+        if ((ret == 0) && ((!key->aSet) ||
+                (XMEMCMP(key->aRho, rho, MLDSA_PUB_SEED_SZ) != 0)))
     #else
         if (ret == 0)
     #endif
@@ -16583,6 +16588,7 @@ static int mldsa_make_pub_key(wc_MlDsaKey* key)
             ret = mldsa_expand_a(&key->shake, rho, params->k, params->l,
                 a, key->heap);
         #ifdef WC_MLDSA_CACHE_MATRIX_A
+            XMEMCPY(key->aRho, rho, MLDSA_PUB_SEED_SZ);
             key->aSet = (ret == 0);
         #endif
         }
@@ -17672,8 +17678,9 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
  * set, MakeKey/Sign/Verify run one chunk per call and return MP_WOULDBLOCK
  * until the operation completes. The context is owned by the caller and must
  * outlive the operation. Attaching, clearing or freeing the key abandons any
- * operation still in flight on the current context, as does starting another
- * operation. Decoding a private key always runs to completion. */
+ * operation still in flight on the current context, as do starting another
+ * operation and importing or decoding a key into the key. Decoding a private
+ * key always runs to completion. */
 int wc_MlDsaKey_set_nonblock(wc_MlDsaKey* key, wc_MlDsaNonBlock* nb)
 {
     int ret = 0;
@@ -17823,6 +17830,11 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
     else {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_MLDSA_NONBLOCK
+    if ((ret == 0) && (key->nb != NULL) && (key->nb->op != 0)) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     if (ret == 0) {
 #if !defined(WC_MLDSA_FIXED_ARRAY) && defined(WC_MLDSA_CACHE_PRIV_VECTORS)
@@ -18361,16 +18373,18 @@ int wc_MlDsaKey_CheckKey(wc_MlDsaKey* key)
 #endif
 
     if (ret == 0) {
+        const byte* pub_seed = key->p;
+
 #ifdef WC_MLDSA_CACHE_MATRIX_A
-        /* Check that we haven't already cached the matrix A. */
-        if (!key->aSet)
+        /* Use the cached matrix A only if it is the public key's. */
+        if ((!key->aSet) ||
+                (XMEMCMP(key->aRho, pub_seed, MLDSA_PUB_SEED_SZ) != 0))
 #endif
         {
-            const byte* pub_seed = key->p;
-
             ret = mldsa_expand_a(&key->shake, pub_seed, params->k,
                 params->l, a, key->heap);
 #ifdef WC_MLDSA_CACHE_MATRIX_A
+            XMEMCPY(key->aRho, pub_seed, MLDSA_PUB_SEED_SZ);
             key->aSet = (ret == 0);
 #endif
         }
@@ -18580,7 +18594,11 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         }
     }
 
-
+#ifdef WC_MLDSA_NONBLOCK
+    if (ret == 0) {
+        mldsa_nb_release(key);
+    }
+#endif
 #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
     if (ret == 0) {
         ret = mldsa_alloc_pub_buf(key);
@@ -18643,6 +18661,7 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         ret = mldsa_expand_a(&key->shake, key->p, key->params->k,
             key->params->l, key->a, key->heap);
         if (ret == 0) {
+            XMEMCPY(key->aRho, key->p, MLDSA_PUB_SEED_SZ);
             key->aSet = 1;
         }
     }
@@ -18759,6 +18778,9 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     }
 
     if (ret == 0) {
+#ifdef WC_MLDSA_NONBLOCK
+        mldsa_nb_release(key);
+#endif
         /* A failed rebuild below must not leave the old key usable. */
         key->prvKeySet = 0;
     #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
@@ -18809,6 +18831,7 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
         ret = mldsa_expand_a(&key->shake, key->k, params->k, params->l,
             key->a, key->heap);
         if (ret == 0) {
+            XMEMCPY(key->aRho, key->k, MLDSA_PUB_SEED_SZ);
             key->aSet = 1;
         }
     }

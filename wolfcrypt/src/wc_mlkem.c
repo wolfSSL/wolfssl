@@ -787,9 +787,9 @@ static int mlkemkey_nb_begin(MlKemKey* key, byte op, const byte* bind,
  * set, MakeKey/Encapsulate/Decapsulate run one chunk per call and return
  * MP_WOULDBLOCK until the operation completes. The context is owned by the
  * caller and must outlive the operation. Attaching, clearing or freeing the
- * key abandons any operation still in flight on the current context, as does
- * starting another operation. Decoding a private key always runs to
- * completion. */
+ * key abandons any operation still in flight on the current context, as do
+ * starting another operation and decoding a key into the key. Decoding a
+ * private key always runs to completion. */
 int wc_MlKemKey_set_nonblock(MlKemKey* key, wc_MlKemNonBlock* nb)
 {
     int ret = 0;
@@ -3113,6 +3113,9 @@ int wc_MlKemKey_DecodePrivateKey(MlKemKey* key, const unsigned char* in,
         ret = BUFFER_E;
     }
     if (ret == 0) {
+#ifdef WC_MLKEM_NONBLOCK
+        mlkemkey_nb_release(key);
+#endif
         /* Forget the old key before its buffers are replaced, so a failure
          * from here on leaves the key unusable. */
         if (key->flags & MLKEM_FLAG_PRIV_SET) {
@@ -3268,6 +3271,11 @@ int wc_MlKemKey_DecodePublicKey(MlKemKey* key, const unsigned char* in,
     if ((ret == 0) && (len != pubLen)) {
         ret = BUFFER_E;
     }
+#ifdef WC_MLKEM_NONBLOCK
+    if (ret == 0) {
+        mlkemkey_nb_release(key);
+    }
+#endif
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_PRIV_SET) != 0)) {
         /* Make sure key->h is H(ek) of the private key's own public key. */
         ret = wc_mlkemkey_check_h(key);
