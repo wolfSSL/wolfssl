@@ -545,6 +545,14 @@ static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
 #endif
 
 
+    /* A client-cache reference can outlive a replaced server ID. */
+    source->serverID[0] = 'C';
+    if (AddSessionToCache(ctx, source, id, sizeof(id), NULL,
+            WOLFSSL_CLIENT_END, 0, NULL) != 0 ||
+        wolfSSL_GetSessionClient(ssl, serverId, sizeof(serverId)) != NULL)
+        goto done;
+    source->serverID[0] = serverId[0];
+
     /* Expiring a genuine cached entry should evict it on the next lookup. */
     source->timeout = 0;
     if (AddSessionToCache(ctx, source, id, sizeof(id), NULL,
@@ -575,8 +583,17 @@ static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
             WOLFSSL_CLIENT_END, 0, NULL) != 0)
         goto done;
     wolfSSL_CTX_flush_sessions(ctx, (long)source->bornOn + 1);
-    if (GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_FAILURE)
+    if (GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_FAILURE ||
+        wolfSSL_GetSessionClient(ssl, serverId, sizeof(serverId)) != NULL)
         goto done;
+
+    /* Add again after flushing so dynamic caches also visit an empty slot
+     * before inserting the next entry. */
+    source->timeout = 3600;
+    if (AddSessionToCache(ctx, source, id, sizeof(id), NULL,
+            WOLFSSL_CLIENT_END, 0, NULL) != 0)
+        goto done;
+    wolfSSL_CTX_flush_sessions(ctx, (long)source->bornOn + source->timeout + 1);
 
     failed = 0;
 
