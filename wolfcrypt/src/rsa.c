@@ -3556,7 +3556,12 @@ int wc_RsaDirect(const byte* in, word32 inLen, byte* out, word32* outSz,
             key->dataLen = *outSz;
 
             ret = wc_RsaFunction(in, inLen, out, &key->dataLen, type, key, rng);
-            if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            if (ret >= 0
+#if defined(WOLFSSL_ASYNC_CRYPT) && (defined(WOLFSSL_ASYNC_CRYPT_SW) || \
+    defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+                || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
+#endif
+                ) {
                 key->state = (type == RSA_PRIVATE_ENCRYPT ||
                     type == RSA_PUBLIC_ENCRYPT) ? RSA_STATE_ENCRYPT_RES:
                                                   RSA_STATE_DECRYPT_RES;
@@ -3704,23 +3709,18 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #elif defined(WOLF_CRYPTO_CB_ONLY_RSA)
     return NO_VALID_DEVID;
 #else /* !WOLF_CRYPTO_CB_ONLY_RSA */
+    ret = 0;
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
     !defined(NO_RSA_BOUNDS_CHECK)
     if (type == RSA_PRIVATE_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
-        if (ret != 0) {
-            return ret;
-        }
     }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY && !TEST_UNPAD_CONSTANT_TIME && \
         * !NO_RSA_BOUNDS_CHECK */
 #if !defined(NO_RSA_BOUNDS_CHECK)
     if (type == RSA_PUBLIC_DECRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, checkSmallCt);
-        if (ret != 0) {
-            return ret;
-        }
     }
 #endif
 
@@ -3730,14 +3730,11 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
      * caller's checkSmallCt: the standard gives no opt-out on this path. */
     if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PRIVATE_ENCRYPT) {
         ret = RsaFunctionCheckIn(in, inLen, key, 1);
-        if (ret != 0) {
-            return ret;
-        }
     }
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
-    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
+    if (ret == 0 && key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                         key->n.raw.len > 0) {
         /* wc_RsaFunctionAsync dispatches to the SP nonblock state machine
          * in its compute path when key->nb is attached - wolfAsync_DoSw
@@ -3749,7 +3746,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     else
 #endif
 #ifdef WC_RSA_NONBLOCK
-    if (key->nb) {
+    if (ret == 0 && key->nb) {
         /* Direct (non-async) nonblock dispatch - the caller (e.g. wolfcrypt
          * test) drives the loop on MP_WOULDBLOCK directly. Reached when no
          * async marker is set on the key. */
@@ -3757,7 +3754,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     }
     else
 #endif
-    {
+    if (ret == 0) {
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     }
 
@@ -3994,7 +3991,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         ret = wc_RsaFunction(out, (word32)sz, out, &key->dataLen, rsa_type, key,
                              rng);
 
-        if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        if (ret >= 0
+#if defined(WOLFSSL_ASYNC_CRYPT) && (defined(WOLFSSL_ASYNC_CRYPT_SW) || \
+    defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+            || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
+#endif
+            ) {
             key->state = RSA_STATE_ENCRYPT_RES;
         }
         if (ret < 0) {
@@ -4240,7 +4242,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                                               rng, pad_type != WC_RSA_OAEP_PAD);
 #endif
 
-        if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        if (ret >= 0
+#if defined(WOLFSSL_ASYNC_CRYPT) && (defined(WOLFSSL_ASYNC_CRYPT_SW) || \
+    defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+            || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
+#endif
+            ) {
             key->state = RSA_STATE_DECRYPT_UNPAD;
         }
         if (ret < 0) {

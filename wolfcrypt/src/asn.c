@@ -18211,6 +18211,10 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
     }
 #endif /* !NO_ASN_CRYPT */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* asyncDev points into the freed key. */
+    sigCtx->asyncDev = NULL;
+#endif
     /* reset state, we are done */
     sigCtx->state = SIG_STATE_BEGIN;
 }
@@ -19229,6 +19233,20 @@ int ConfirmSignature(SignatureCtx* sigCtx,
 
         case SIG_STATE_DO:
         {
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM)
+            /* A crypto callback is called again after each pend, and each
+             * pend needs the event set up again. */
+            if (sigCtx->devId != INVALID_DEVID && sigCtx->asyncDev != NULL &&
+                    sigCtx->asyncCtx != NULL) {
+                ret = wolfAsync_EventInit(&sigCtx->asyncDev->event,
+                    WOLF_EVENT_TYPE_ASYNC_WOLFSSL, sigCtx->asyncCtx,
+                    WC_ASYNC_FLAG_CALL_AGAIN);
+                if (ret != 0) {
+                    goto exit_cs;
+                }
+            }
+#endif
             switch (keyOID) {
             #ifndef NO_RSA
                 case RSAk:

@@ -16514,6 +16514,7 @@ int test_tls13_is_init_finished_want_write(void)
     defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_REINVOKE) && \
     defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 
 #define TEST_TLS13_CB_PEND_DEVID_C 1
@@ -16527,14 +16528,16 @@ enum TestTls13PendTarget {
     TEST_TLS13_PEND_ECDSA_SIGN,
     TEST_TLS13_PEND_ECDSA_VERIFY,
     TEST_TLS13_PEND_KDF,
-    TEST_TLS13_PEND_HMAC
+    TEST_TLS13_PEND_HMAC,
+    TEST_TLS13_PEND_RSA
 };
 
 typedef struct TestTls13PendCtx {
-    /* Job table keyed by request: first sight queues and pends, the
-     * identical re-invocation completes (falls through to software). */
+    /* Pended requests, keyed by a hash of the request. */
     unsigned long jobs[TEST_TLS13_CB_PEND_JOBS];
+    int tries[TEST_TLS13_CB_PEND_JOBS]; /* WC_PENDING_E results per job */
     int jobCount;
+    int depth;    /* WC_PENDING_E results before a job completes (min 1) */
     int target;   /* enum TestTls13PendTarget */
     int pended;   /* WC_PENDING_E results issued; asserted non-zero */
     int seen;     /* matching requests observed; asserted non-zero */
@@ -16571,6 +16574,10 @@ static int TestTls13PendMatches(int target, wc_CryptoInfo* info)
             break;
         case TEST_TLS13_PEND_HMAC:
             match = (info->algo_type == WC_ALGO_TYPE_HMAC);
+            break;
+        case TEST_TLS13_PEND_RSA:
+            match = (info->algo_type == WC_ALGO_TYPE_PK) &&
+                    (info->pk.type == WC_PK_TYPE_RSA);
             break;
         default:
             break;
@@ -16641,13 +16648,22 @@ static int TestTls13PendCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     h = TestTls13PendHash(info);
     for (i = 0; i < c->jobCount; i++) {
         if (c->jobs[i] == h) {
-            /* Re-invocation of a pended request: complete it. */
-            c->jobs[i] = c->jobs[--c->jobCount];
+            /* Re-invocation of a pended request: pend again until depth. */
+            if (c->tries[i] < c->depth) {
+                c->tries[i]++;
+                c->pended++;
+                return WC_NO_ERR_TRACE(WC_PENDING_E);
+            }
+            c->jobCount--;
+            c->jobs[i] = c->jobs[c->jobCount];
+            c->tries[i] = c->tries[c->jobCount];
             return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
         }
     }
     if (c->jobCount < TEST_TLS13_CB_PEND_JOBS) {
-        c->jobs[c->jobCount++] = h;
+        c->jobs[c->jobCount] = h;
+        c->tries[c->jobCount] = 1;
+        c->jobCount++;
         c->pended++;
         return WC_PENDING_E;
     }
@@ -16710,7 +16726,7 @@ static int TestTls13PendRead(WOLFSSL* ssl, char* buf, int sz)
  * then application data both ways so records queued after the handshake are
  * parsed by the peer as well.
  * Also check that if the AEAD limit would be hit the KeyUpdate is deferred */
-static int test_tls13_cryptocb_pend_one(int target, int mutual)
+static int test_tls13_cryptocb_pend_one(int target, int mutual, int depth)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX* ctx_c = NULL;
@@ -16734,6 +16750,8 @@ static int test_tls13_cryptocb_pend_one(int target, int mutual)
     XMEMSET(&memio, 0, sizeof(memio));
     cliCtx.target = target;
     srvCtx.target = target;
+    cliCtx.depth = depth;
+    srvCtx.depth = depth;
 
     ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_TLS13_CB_PEND_DEVID_C,
         TestTls13PendCb, &cliCtx), 0);
@@ -16747,8 +16765,10 @@ static int test_tls13_cryptocb_pend_one(int target, int mutual)
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
     ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_c, TEST_TLS13_CB_PEND_DEVID_C),
         WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_s, TEST_TLS13_CB_PEND_DEVID_S),
-        WOLFSSL_SUCCESS);
+    if (target != TEST_TLS13_PEND_RSA) {
+        ExpectIntEQ(wolfSSL_CTX_SetDevId(ctx_s, TEST_TLS13_CB_PEND_DEVID_S),
+            WOLFSSL_SUCCESS);
+    }
 #ifdef HAVE_AESGCM
     if (target == TEST_TLS13_PEND_AESGCM) {
         /* Pin the AEAD so the pend assertion cannot depend on suite
@@ -16759,12 +16779,24 @@ static int test_tls13_cryptocb_pend_one(int target, int mutual)
             "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
     }
 #endif
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
-        "./certs/ca-ecc-cert.pem", 0), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
-        "./certs/server-ecc.pem"), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, "./certs/ecc-key.pem",
-        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    if (target == TEST_TLS13_PEND_RSA) {
+        /* RSA chain verified on the client only; the server keeps its RSA
+         * key in software. */
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+            "./certs/ca-cert.pem", 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+            "./certs/server-cert.pem"), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s,
+            "./certs/server-key.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c,
+            "./certs/ca-ecc-cert.pem", 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+            "./certs/server-ecc.pem"), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s,
+            "./certs/ecc-key.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    }
     if (mutual) {
         /* Mutual auth: pending verifies of the client's chain and CV
          * cover the received-marker restores. */
@@ -16812,8 +16844,15 @@ static int test_tls13_cryptocb_pend_one(int target, int mutual)
 
     /* Assert per-side pends so the test cannot pass without exercising a
      * resume path; the client signs nothing unless mutual. */
-    ExpectIntGT(srvCtx.seen, 0);
-    ExpectIntGT(srvCtx.pended, 0);
+    if (target != TEST_TLS13_PEND_RSA) {
+        ExpectIntGT(srvCtx.seen, 0);
+        ExpectIntGT(srvCtx.pended, 0);
+    }
+    /* A job pended more than once must still be collected, not restarted. */
+    if (depth > 1) {
+        ExpectIntEQ(cliCtx.jobCount, 0);
+        ExpectIntEQ(srvCtx.jobCount, 0);
+    }
     if (mutual || target != TEST_TLS13_PEND_ECDSA_SIGN) {
         ExpectIntGT(cliCtx.seen, 0);
         ExpectIntGT(cliCtx.pended, 0);
@@ -16873,33 +16912,45 @@ int test_tls13_cryptocb_async(void)
     defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_ASYNC_REINVOKE) && \
     defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #if defined(HAVE_AESGCM) && !defined(WOLF_CRYPTO_CB_ASYNC_POLL)
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_AESGCM, 0),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_AESGCM, 0, 1),
         TEST_SUCCESS);
 #endif
 #ifdef HAVE_ECC
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_ECC_KEYGEN, 0),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_ECC_KEYGEN, 0, 1),
         TEST_SUCCESS);
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_ECDSA_SIGN, 0),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_ECDSA_SIGN, 0, 1),
         TEST_SUCCESS);
     /* Mutual auth with pending verifies: regression for the msgsReceived
      * marker restores (a pended Certificate/CertificateVerify replay used
      * to leave its marker clear and fail Finished with OUT_OF_ORDER_E). */
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_ECDSA_VERIFY, 1),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_ECDSA_VERIFY,
+        1, 1), TEST_SUCCESS);
+    /* Verifies that pend twice must resume the same device job. */
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_ECDSA_VERIFY,
+        1, 2), TEST_SUCCESS);
+#endif
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    /* Pending RSA verifies of the server's chain and CertificateVerify. */
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_RSA, 0, 1),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_RSA, 0, 2),
         TEST_SUCCESS);
 #endif
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_KDF, 0),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_KDF, 0, 1),
         TEST_SUCCESS);
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_KDF, 1),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_KDF, 1, 1),
         TEST_SUCCESS);
 #if !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
     /* Transcript HMACs (Finished verify_data) pending on both sides. */
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_HMAC, 0),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_HMAC, 0, 1),
         TEST_SUCCESS);
-    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_HMAC, 1),
+    ExpectIntEQ(test_tls13_cryptocb_pend_one(TEST_TLS13_PEND_HMAC, 1, 1),
         TEST_SUCCESS);
 #endif
 #endif
