@@ -38,13 +38,13 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  *   - Bail paths print, so "covered nothing" differs from "nothing to say".
  */
 
 #include <wolfssl/options.h>
 
 #include <src/keys.c>
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -243,6 +243,57 @@ static void wb_set_auth_keys(void)
 #endif
 }
 
+#if defined(HAVE_CHACHA) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+/* Drive the static key setup helpers with each allocation failing in turn. */
+static int wb_key_allocation_failures(void)
+{
+    Ciphers enc, dec;
+    Keys keys;
+    CipherSpecs specs;
+    int ret, failed = 0;
+    unsigned int nth;
+
+    XMEMSET(&keys, 0, sizeof(keys));
+    XMEMSET(&specs, 0, sizeof(specs));
+    specs.bulk_cipher_algorithm = wolfssl_chacha;
+    specs.key_size = CHACHA20_256_KEY_SIZE;
+    specs.iv_size = CHACHA20_IV_SIZE;
+
+    for (nth = 1; nth <= 2; nth++) {
+        XMEMSET(&enc, 0, sizeof(enc));
+        XMEMSET(&dec, 0, sizeof(dec));
+        mcdc_fa_install();
+        mcdc_fa_arm_only(nth);
+        ret = SetKeys(&enc, &dec, &keys, &specs, WOLFSSL_CLIENT_END,
+                      NULL, INVALID_DEVID, NULL, 0);
+        mcdc_fa_restore();
+        if (ret != MEMORY_E || dec.chacha != NULL ||
+                (enc.chacha != NULL) != (nth == 2)) {
+            failed = 1;
+        }
+        XFREE(enc.chacha, NULL, DYNAMIC_TYPE_CIPHER);
+        XFREE(dec.chacha, NULL, DYNAMIC_TYPE_CIPHER);
+    }
+
+#if defined(HAVE_ONE_TIME_AUTH) && defined(HAVE_POLY1305)
+    {
+        OneTimeAuth auth;
+        XMEMSET(&auth, 0, sizeof(auth));
+        mcdc_fa_install();
+        mcdc_fa_arm_only(1);
+        ret = SetAuthKeys(&auth, &keys, &specs, NULL, INVALID_DEVID);
+        mcdc_fa_restore();
+        if (ret != MEMORY_E || auth.poly1305 != NULL || auth.setup)
+            failed = 1;
+        XFREE(auth.poly1305, NULL, DYNAMIC_TYPE_CIPHER);
+    }
+#endif
+
+    return failed;
+}
+#endif
+
 /* -------------------------------------------------------------- SetKeysSide
 
  * `ret == 0 && ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)` and
@@ -295,6 +346,7 @@ static void wb_set_keys_side(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 int main(void)
 {
+    int failed = 0;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -317,6 +369,12 @@ int main(void)
     wb_set_cipher_specs(ssl, ctx);
     wb_set_keys();
     wb_set_auth_keys();
+#if defined(HAVE_CHACHA) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    failed = wb_key_allocation_failures();
+    if (failed)
+        puts("keys white-box: unexpected allocation failure behavior");
+#endif
     wb_set_keys_side(ssl, ctx);
 
     printf("keys white-box: %d vectors driven\n", g_checks);
@@ -326,7 +384,7 @@ done:
     if (ctx != NULL)
         wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else
