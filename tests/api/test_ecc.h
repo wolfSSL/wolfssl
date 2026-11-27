@@ -40,6 +40,7 @@ int test_wc_ecc_params(void);
 int test_wc_ecc_signVerify_hash(void);
 int test_wc_ecc_deterministic_hash_type(void);
 int test_wc_ecc_shared_secret(void);
+int test_wc_ecc_shared_secret_custom_curve_match(void);
 int test_wc_ecc_order_wider_than_field(void);
 int test_wc_ecc_shared_secret_at_infinity(void);
 int test_wc_ecc_shared_secret_ex_peer_point(void);
@@ -116,6 +117,7 @@ int test_wc_ecc_fp_cache_curve_binding(void);
     TEST_DECL_GROUP("ecc", test_wc_ecc_signVerify_hash),                \
     TEST_DECL_GROUP("ecc", test_wc_ecc_deterministic_hash_type),        \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret),                  \
+    TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_custom_curve_match), \
     TEST_DECL_GROUP("ecc", test_wc_ecc_order_wider_than_field),         \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_at_infinity),      \
     TEST_DECL_GROUP("ecc", test_wc_ecc_shared_secret_ex_peer_point),    \

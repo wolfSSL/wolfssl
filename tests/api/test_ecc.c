@@ -894,6 +894,103 @@ int test_wc_ecc_shared_secret(void)
     return EXPECT_RESULT();
 } /* END tests_wc_ecc_shared_secret */
 
+/* Custom curves have a common id, so ECDH must also compare their domain
+ * parameters before using the peer point. */
+int test_wc_ecc_shared_secret_custom_curve_match(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
+    defined(WOLFSSL_CUSTOM_CURVES) && defined(HAVE_ECC_KEY_IMPORT) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    static const ecc_set_type curve = {
+        1, ECC_CURVE_CUSTOM, "toy-E17", "11", "02", "02", "13", "05",
+        "01",
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        NULL, 0,
+    #else
+        {0}, 0,
+    #endif
+        0, 1
+    };
+    static const ecc_set_type sameCurve = {
+        1, ECC_CURVE_CUSTOM, "toy-E17-copy", "11", "02", "02", "13", "05",
+        "01",
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        NULL, 0,
+    #else
+        {0}, 0,
+    #endif
+        0, 1
+    };
+    static const ecc_set_type otherCurve = {
+        1, ECC_CURVE_CUSTOM, "toy-E17-alt", "11", "02", "00", "05", "08",
+        "01",
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        NULL, 0,
+    #else
+        {0}, 0,
+    #endif
+        0, 4
+    };
+    static const byte d[] = {13};
+    static const byte privatePub[] = {0x04, 16, 4};
+    static const byte sameCurvePub[] = {0x04, 5, 1};
+    static const byte otherCurvePub[] = {0x04, 8, 1};
+    ecc_key privateKey;
+    ecc_key sameCurveKey;
+    ecc_key offCurveKey;
+    ecc_key otherCurveKey;
+    WC_RNG rng;
+    byte out[1];
+    word32 outLen;
+
+    XMEMSET(&privateKey, 0, sizeof(privateKey));
+    XMEMSET(&sameCurveKey, 0, sizeof(sameCurveKey));
+    XMEMSET(&offCurveKey, 0, sizeof(offCurveKey));
+    XMEMSET(&otherCurveKey, 0, sizeof(otherCurveKey));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&privateKey), 0);
+    ExpectIntEQ(wc_ecc_init(&sameCurveKey), 0);
+    ExpectIntEQ(wc_ecc_init(&offCurveKey), 0);
+    ExpectIntEQ(wc_ecc_init(&otherCurveKey), 0);
+    ExpectIntEQ(wc_ecc_set_custom_curve(&privateKey, &curve), 0);
+    ExpectIntEQ(wc_ecc_set_rng(&privateKey, &rng), 0);
+    ExpectIntEQ(wc_ecc_import_private_key_ex(d, sizeof(d), privatePub,
+        sizeof(privatePub), &privateKey, ECC_CURVE_CUSTOM), 0);
+
+    /* Use a separate object so every stored parameter is compared. */
+    ExpectIntEQ(wc_ecc_set_custom_curve(&sameCurveKey, &sameCurve), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(sameCurvePub, sizeof(sameCurvePub),
+        &sameCurveKey, ECC_CURVE_CUSTOM), 0);
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_ecc_shared_secret(&privateKey, &sameCurveKey, out,
+        &outLen), 0);
+
+    /* (8, 1) is not on y^2 = x^3 + 2x + 2 over F_17. */
+    ExpectIntEQ(wc_ecc_set_custom_curve(&offCurveKey, &curve), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(otherCurvePub, sizeof(otherCurvePub),
+        &offCurveKey, ECC_CURVE_CUSTOM), WC_NO_ERR_TRACE(IS_POINT_E));
+
+    ExpectIntEQ(wc_ecc_set_custom_curve(&otherCurveKey, &otherCurve), 0);
+    ExpectIntEQ(wc_ecc_import_x963_ex(otherCurvePub, sizeof(otherCurvePub),
+        &otherCurveKey, ECC_CURVE_CUSTOM), 0);
+    outLen = sizeof(out);
+    ExpectIntEQ(wc_ecc_shared_secret(&privateKey, &otherCurveKey, out,
+        &outLen), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+
+    wc_ecc_free(&otherCurveKey);
+    wc_ecc_free(&offCurveKey);
+    wc_ecc_free(&sameCurveKey);
+    wc_ecc_free(&privateKey);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    PRIVATE_KEY_LOCK();
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
@@ -6578,9 +6675,10 @@ static word32 EccSpecifiedSpki(byte* buf, word32 primeSz)
     word32 end = ECC_SPEC_BUF_SZ;
     word32 domEnd;
 
-    /* Subject public key: BIT STRING of 0x04 <x> <y>. */
-    EccSpecFill(buf, &idx, 0x42, ECC_SPEC_COORD_SZ);
-    EccSpecFill(buf, &idx, 0x41, ECC_SPEC_COORD_SZ);
+    /* Subject public key: (0, 1) on y^2 = x^3 + 1. */
+    EccSpecFill(buf, &idx, 0x00, ECC_SPEC_COORD_SZ);
+    buf[idx + ECC_SPEC_COORD_SZ - 1] = 0x01;
+    EccSpecFill(buf, &idx, 0x00, ECC_SPEC_COORD_SZ);
     buf[--idx] = 0x04;
     buf[--idx] = 0x00;
     EccSpecHdr(buf, &idx, ASN_BIT_STRING, end - idx);
@@ -6590,13 +6688,16 @@ static word32 EccSpecifiedSpki(byte* buf, word32 primeSz)
     EccSpecFill(buf, &idx, 0x7f, primeSz);
     EccSpecHdr(buf, &idx, ASN_INTEGER, primeSz);
     end = idx;
-    EccSpecFill(buf, &idx, 0x03, primeSz * 2);
+    EccSpecFill(buf, &idx, 0x00, primeSz);
+    buf[idx + primeSz - 1] = 0x01;
+    EccSpecFill(buf, &idx, 0x00, primeSz);
     buf[--idx] = 0x04;
     EccSpecHdr(buf, &idx, ASN_OCTET_STRING, end - idx);
     end = idx;
-    EccSpecFill(buf, &idx, 0x02, primeSz);
+    EccSpecFill(buf, &idx, 0x00, primeSz);
+    buf[idx + primeSz - 1] = 0x01;
     EccSpecHdr(buf, &idx, ASN_OCTET_STRING, primeSz);
-    EccSpecFill(buf, &idx, 0x01, primeSz);
+    EccSpecFill(buf, &idx, 0x00, primeSz);
     EccSpecHdr(buf, &idx, ASN_OCTET_STRING, primeSz);
     EccSpecHdr(buf, &idx, ASN_SEQUENCE | ASN_CONSTRUCTED, end - idx);
     end = idx;
@@ -6644,9 +6745,7 @@ int test_wc_EccPublicKeyDecode_explicit_curve_size(void)
         DYNAMIC_TYPE_TMP_BUFFER));
 
 #ifndef WOLFSSL_VALIDATE_ECC_IMPORT
-    /* A prime the ECC code is dimensioned for still decodes and exports. The
-     * fabricated point is not on the fabricated curve, so import validation
-     * would reject it. */
+    /* A prime the ECC code is dimensioned for still decodes and exports. */
     if (EXPECT_SUCCESS()) {
         XMEMSET(&key, 0, sizeof(key));
         derSz = EccSpecifiedSpki(der, MAX_ECC_BYTES);
@@ -7049,9 +7148,9 @@ int test_wc_ecc_make_key_id_dev(void)
 #endif
     return EXPECT_RESULT();
 }
-/* SubjectPublicKeyInfo with explicit SpecifiedECDomain parameters: the prime
- * and A of one curve, with brainpoolP256r1's generator as both base point and
- * public key. The prime and A windows are patched per case. */
+/* SubjectPublicKeyInfo with explicit SpecifiedECDomain parameters and
+ * brainpoolP256r1's generator as both base point and public key. The prime,
+ * A and B windows are patched per case so the point remains on each curve. */
 #if defined(HAVE_ECC) && defined(FP_ECC) && defined(ECC_SHAMIR) && \
     defined(WOLFSSL_CUSTOM_CURVES) && defined(HAVE_ECC_BRAINPOOL) && \
     defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
@@ -7063,6 +7162,7 @@ int test_wc_ecc_make_key_id_dev(void)
 
 #define ECC_FP_SPKI_PRIME_OFF   36
 #define ECC_FP_SPKI_A_OFF       72
+#define ECC_FP_SPKI_B_OFF       106
 #define ECC_FP_SPKI_FIELD_SZ    32
 
 static const byte eccFpSpki[] = {
@@ -7104,6 +7204,17 @@ static const byte eccFpBpA[] = {
     0x7d, 0x5a, 0x09, 0x75, 0xfc, 0x2c, 0x30, 0x57, 0xee, 0xf6, 0x75, 0x30,
     0x41, 0x7a, 0xff, 0xe7, 0xfb, 0x80, 0x55, 0xc1, 0x26, 0xdc, 0x5c, 0x6c,
     0xe9, 0x4a, 0x4b, 0x44, 0xf3, 0x30, 0xb5, 0xd9
+};
+static const byte eccFpBpB[] = {
+    0x26, 0xdc, 0x5c, 0x6c, 0xe9, 0x4a, 0x4b, 0x44, 0xf3, 0x30, 0xb5, 0xd9,
+    0xbb, 0xd7, 0x7c, 0xbf, 0x95, 0x84, 0x16, 0x29, 0x5c, 0xf7, 0xe1, 0xce,
+    0x6b, 0xcc, 0xdc, 0x18, 0xff, 0x8c, 0x07, 0xb6
+};
+/* B chosen so brainpoolP256r1's generator is also on the foreign curve. */
+static const byte eccFpForeignB[] = {
+    0x75, 0xa2, 0xde, 0x07, 0x46, 0xef, 0x71, 0x97, 0x5d, 0x44, 0x49, 0x64,
+    0x4c, 0xe5, 0x2a, 0xd3, 0x97, 0xa3, 0xf4, 0x1f, 0xd4, 0xb7, 0x23, 0x26,
+    0x88, 0x7d, 0xef, 0xb3, 0x88, 0xe8, 0xaa, 0xc5
 };
 
 /* Verify a known-good signature three times, asserting each one succeeds.
@@ -7165,13 +7276,14 @@ int test_wc_ecc_fp_cache_curve_binding(void)
     ExpectIntEQ(wc_ecc_sign_hash(hash, (word32)sizeof(hash), sig, &sigSz, &rng,
         &victim), 0);
 
-    /* Control: the same key, declaring brainpoolP256r1's own prime and A. */
+    /* Control: the same key, declaring brainpoolP256r1's own curve. */
     if (EXPECT_SUCCESS()) {
         XMEMSET(&att, 0, sizeof(att));
         XMEMCPY(der, eccFpSpki, sizeof(der));
         XMEMCPY(der + ECC_FP_SPKI_PRIME_OFF, eccFpBpPrime,
             ECC_FP_SPKI_FIELD_SZ);
         XMEMCPY(der + ECC_FP_SPKI_A_OFF, eccFpBpA, ECC_FP_SPKI_FIELD_SZ);
+        XMEMCPY(der + ECC_FP_SPKI_B_OFF, eccFpBpB, ECC_FP_SPKI_FIELD_SZ);
 
         wc_ecc_fp_free();
         idx = 0;
@@ -7197,6 +7309,8 @@ int test_wc_ecc_fp_cache_curve_binding(void)
     if (EXPECT_SUCCESS()) {
         XMEMSET(&att, 0, sizeof(att));
         XMEMCPY(der, eccFpSpki, sizeof(der));
+        XMEMCPY(der + ECC_FP_SPKI_B_OFF, eccFpForeignB,
+            ECC_FP_SPKI_FIELD_SZ);
 
         wc_ecc_fp_free();
         idx = 0;
