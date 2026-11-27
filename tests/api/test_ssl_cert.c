@@ -6876,7 +6876,8 @@ int test_wolfSSL_alloc_failure_sweep(void)
 
 #if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
 static int fi_handshake_attempt(method_provider client, method_provider server,
@@ -6930,7 +6931,8 @@ int test_wolfSSL_handshake_alloc_failure_sweep(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
     !defined(WOLFSSL_DEBUG_MEMORY) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
     wolfSSL_Malloc_cb previousMalloc = NULL;

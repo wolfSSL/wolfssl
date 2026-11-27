@@ -56,7 +56,6 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  *   - Each target carries the SAME preprocessor guard that encloses it in
  *     internal.c.
  */
@@ -64,6 +63,7 @@
 #include <wolfssl/options.h>
 
 #include <src/internal.c>
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -513,10 +513,130 @@ static void wb_process_csr(WbFix* f)
 }
 #endif /* !NO_CERTS && HAVE_CERTIFICATE_STATUS_REQUEST && !WOLFSSL_NO_TLS12 */
 
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+static int wb_unexpected_chain_callback(WOLFSSL* ssl,
+    const WOLFSSL_BUFFER_INFO* certs, int count, void* context)
+{
+    (void)ssl;
+    (void)certs;
+    (void)count;
+    (void)context;
+    return BAD_STATE_E;
+}
+#endif
+
+static int wb_decode_peer_key(const char* path, int sizeError)
+{
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL* ssl = ctx != NULL ? wolfSSL_new(ctx) : NULL;
+    ProcPeerCertArgs args;
+    DecodedCert* cert = NULL;
+    byte der[2048];
+    FILE* file;
+    size_t length;
+    word32 pubKeySize;
+    int ret;
+    int failed = 1;
+
+    if (ssl == NULL)
+        goto done;
+    file = fopen(path, "rb");
+    if (file == NULL)
+        goto done;
+    length = fread(der, 1, sizeof(der), file);
+    fclose(file);
+    if (length == 0 || length == sizeof(der))
+        goto done;
+    cert = (DecodedCert*)XMALLOC(sizeof(*cert), ssl->heap, DYNAMIC_TYPE_DCERT);
+    if (cert == NULL)
+        goto done;
+    InitDecodedCert(cert, der, (word32)length, ssl->heap);
+    if (DecodeToKey(cert, 0) < 0)
+        goto done;
+    XMEMSET(&args, 0, sizeof(args));
+    args.dCert = cert;
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER, NULL);
+
+#ifndef MCDC_FA_UNAVAILABLE
+    ret = 0;
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    if (ProcessPeerCertDecodeKey(ssl, &args, &ret) != 0)
+        ret = BAD_STATE_E;
+    mcdc_fa_restore();
+    if (ret != PEER_KEY_ERROR)
+        goto done;
+#endif
+
+    /* Leave the real fixture intact and simulate an absent key payload. */
+    pubKeySize = cert->pubKeySize;
+    cert->pubKeySize = 0;
+    ret = 0;
+    if (ProcessPeerCertDecodeKey(ssl, &args, &ret) != 0)
+        ret = BAD_STATE_E;
+    cert->pubKeySize = pubKeySize;
+    if (ret != PEER_KEY_ERROR)
+        goto done;
+
+    ret = 0;
+    if (ProcessPeerCertDecodeKey(ssl, &args, &ret) != 0 || ret != 0)
+        goto done;
+
+    ssl->options.minRsaKeySz = 512;
+    ssl->options.minEccKeySz = 128;
+    if (ProcessPeerCertDecodeKey(ssl, &args, &ret) != 0 || ret != sizeError)
+        goto done;
+    ret = ASN_NO_SIGNER_E;
+    if (ProcessPeerCertDecodeKey(ssl, &args, &ret) != 0 ||
+        ret != ASN_NO_SIGNER_E)
+        goto done;
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+    ret = 0;
+    if (ProcessPeerCertDecodeKey(ssl, &args, &ret) != 0 || ret != 0)
+        goto done;
+#ifdef WOLFSSL_CHAIN_VERIFY_CB
+    /* Delegating chain checks keeps the library's peer key policy active. */
+    ssl->chainVerifyCb = wb_unexpected_chain_callback;
+    if (ProcessPeerCertDecodeKey(ssl, &args, &ret) != 0 || ret != sizeError)
+        goto done;
+#endif
+    failed = 0;
+
+done:
+    if (cert != NULL) {
+        FreeDecodedCert(cert);
+        XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    return failed;
+}
+
+static int wb_peer_key_policy(void)
+{
+    int failed = wb_decode_peer_key("./certs/server-cert.der", RSA_KEY_SIZE_E);
+#ifdef HAVE_ECC
+    failed |= wb_decode_peer_key("./certs/server-ecc.der", ECC_KEY_SIZE_E);
+#endif
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+    failed |= wb_decode_peer_key("./certs/ed25519/server-ed25519.der",
+        ECC_KEY_SIZE_E);
+#endif
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    failed |= wb_decode_peer_key("./certs/ed448/server-ed448.der", ECC_KEY_SIZE_E);
+#endif
+    return failed;
+}
+#endif
+
 /* ---------------------------------------------------------------------- main */
 
 int main(void)
 {
+    int failed = 0;
     WbFix f;
 
     XMEMSET(&f, 0, sizeof(f));
@@ -571,6 +691,15 @@ int main(void)
     wb_process_csr(&f);
 #endif
 
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_RSA) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_peer_key_policy()) {
+        puts("internal peer-key white-box: unexpected peer key policy result");
+        failed = 1;
+    }
+#endif
+
     printf("internal peer-key white-box: %d static-guard calls\n", g_calls);
 
     if (f.rngOk)
@@ -581,7 +710,7 @@ done:
     XFREE(f.ctx, NULL, DYNAMIC_TYPE_CTX);
     XFREE(f.ssl, NULL, DYNAMIC_TYPE_SSL);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else
