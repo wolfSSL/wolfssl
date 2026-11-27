@@ -70,7 +70,7 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
+ *   - The RSA round trips check the signature and verification results.
  */
 
 #include <wolfssl/options.h>
@@ -114,6 +114,9 @@
 #endif
 
 #include <src/internal.c>
+#if defined(MCDC_CRYPTOCB_WB) && !defined(NO_RSA)
+    #undef wc_RsaSSL_VerifyInline
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -301,7 +304,8 @@ static byte* g_rsaOut;
 static int mcdc_rsa_verify_inline(byte* in, word32 inLen, byte** out,
                                   RsaKey* key)
 {
-    (void)in; (void)inLen; (void)key;
+    if (key != NULL)
+        return wc_RsaSSL_VerifyInline(in, inLen, out, key);
 
     if (out != NULL)
         *out = g_rsaOut;
@@ -380,8 +384,72 @@ static void wb_rsa_null_args(WOLFSSL* ssl)
 }
 #endif
 
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+#ifndef USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_2048
+#endif
+#include <wolfssl/certs_test.h>
+#endif
+
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+static int wb_rsa_pss(WOLFSSL_CTX* ctx)
+{
+    static const int algorithms[] = {
+        rsa_sa_algo, rsa_pss_sa_algo, rsa_pss_pss_algo
+    };
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    RsaKey key;
+    byte digest[WC_SHA256_DIGEST_SIZE];
+    byte signature[256];
+    byte verify[sizeof(signature)];
+    word32 idx = 0;
+    size_t i;
+    int initialized = 0;
+    int failed = 1;
+
+    if (ssl == NULL || wc_InitRsaKey(&key, NULL) != 0)
+        goto done;
+    initialized = 1;
+    if (wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
+            sizeof_client_key_der_2048) != 0)
+        goto done;
+    XMEMSET(digest, 0x31, sizeof(digest));
+    for (i = 0; i < sizeof(algorithms) / sizeof(algorithms[0]); i++) {
+        int algo = algorithms[i];
+        word32 sigLen = sizeof(signature);
+        byte* recovered = NULL;
+
+        if (RsaSign(ssl, digest, sizeof(digest), signature, &sigLen, algo,
+                sha256_mac, &key, NULL) != 0 || sigLen != sizeof(signature))
+            goto done;
+        XMEMCPY(verify, signature, sigLen);
+        if (VerifyRsaSign(ssl, verify, sigLen, digest, sizeof(digest), algo,
+                sha256_mac, &key, NULL) != 0)
+            goto done;
+        XMEMCPY(verify, signature, sigLen);
+        if (RsaVerify(ssl, verify, sigLen, &recovered, algo, sha256_mac,
+                &key, NULL) <= 0 || recovered == NULL)
+            goto done;
+    }
+    failed = 0;
+
+done:
+    if (initialized)
+        wc_FreeRsaKey(&key);
+    wolfSSL_free(ssl);
+    return failed;
+}
+#endif
+
 int main(void)
 {
+    int failed = 0;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
 #ifdef HAVE_ECC
@@ -433,6 +501,16 @@ int main(void)
     wb_rsa_recovered_plain(ssl);
 #endif
 
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_SHA256) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    if (wb_rsa_pss(ctx)) {
+        puts("internal cryptocb white-box: RSA-PSS round trip failed");
+        failed = 1;
+    }
+#endif
+
     printf("internal cryptocb white-box: %d vectors driven\n", g_checks);
 
 done:
@@ -445,7 +523,7 @@ done:
     if (ctx != NULL)
         wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else
