@@ -8719,6 +8719,12 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         byte isDynamic = (byte)pkcs7->isDynamic;
                         byte contentInDynamic = (content != NULL &&
                                 content == pkcs7->contentDynamic);
+                    #ifdef ASN_BER_TO_DER
+                        CallbackGetContent getContentCb = pkcs7->getContentCb;
+                        CallbackStreamOut streamOutCb = pkcs7->streamOutCb;
+                        void* streamCtx = pkcs7->streamCtx;
+                        byte encodeStream = (byte)pkcs7->encodeStream;
+                    #endif
                     #ifndef NO_PKCS7_STREAM
                         PKCS7State* stream = pkcs7->stream;
                         pkcs7->stream = NULL;
@@ -8763,6 +8769,12 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                          * against the signerInfos set in later stages */
                         pkcs7->noDegenerate = (noDegenerate != 0);
 
+                    #ifdef ASN_BER_TO_DER
+                        pkcs7->getContentCb = getContentCb;
+                        pkcs7->streamOutCb = streamOutCb;
+                        pkcs7->streamCtx = streamCtx;
+                        pkcs7->encodeStream = (encodeStream != 0);
+                    #endif
                     #ifndef NO_PKCS7_STREAM
                         pkcs7->stream = stream;
                     #endif

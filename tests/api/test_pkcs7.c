@@ -11630,3 +11630,49 @@ int test_wc_PKCS7_VerifySignedData_StreamOutDetached(void)
 #endif
     return EXPECT_RESULT();
 }
+
+/* Stream-out verify of a SignedData that carries its signer certificate. */
+int test_wc_PKCS7_VerifySignedData_StreamOutWithCerts(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && \
+    !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    byte   data[100];
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    int    msgSz = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    pkcs7StreamOutCtx out;
+
+    XMEMSET(data, 'A', sizeof(data));
+    XMEMSET(&out, 0, sizeof(out));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data, sizeof(data),
+            0, &rng)), 0);
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, pkcs7_stream_out_cb,
+        &out), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    ExpectIntEQ(out.sz, sizeof(data));
+    ExpectBufEQ(out.buf, data, sizeof(data));
+    if (pkcs7 != NULL) {
+        ExpectTrue(pkcs7->streamOutCb == pkcs7_stream_out_cb);
+        ExpectPtrEq(pkcs7->streamCtx, &out);
+        ExpectIntEQ(wc_PKCS7_GetStreamMode(pkcs7), 1);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
