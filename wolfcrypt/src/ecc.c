@@ -3204,24 +3204,27 @@ int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SP_SM2)
         if ((mp_count_bits(modulus) == 256) &&
             (!mp_is_bit_set(modulus, 224))) {
-            err = sp_ecc_map_sm2_256(P->x, P->y, P->z);
+            return sp_ecc_map_sm2_256(P->x, P->y, P->z);
         }
-        #elif !defined(WOLFSSL_SP_NO_256)
+        #endif
+        #ifndef WOLFSSL_SP_NO_256
         if (mp_count_bits(modulus) == 256) {
-            err = sp_ecc_map_256(P->x, P->y, P->z);
+            return sp_ecc_map_256(P->x, P->y, P->z);
         }
-        #elif defined(WOLFSSL_SP_384)
+        #endif
+        #ifdef WOLFSSL_SP_384
         if (mp_count_bits(modulus) == 384) {
-            err = sp_ecc_map_384(P->x, P->y, P->z);
+            return sp_ecc_map_384(P->x, P->y, P->z);
         }
-        #elif defined(WOLFSSL_SP_521)
+        #endif
+        #ifdef WOLFSSL_SP_521
         if (mp_count_bits(modulus) == 521) {
-            err = sp_ecc_map_521(P->x, P->y, P->z);
+            return sp_ecc_map_521(P->x, P->y, P->z);
         }
-        #else
-        err = ECC_BAD_ARG_E;
         #endif
 
+        /* No SP map routine for this modulus. */
+        err = ECC_BAD_ARG_E;
         WOLFSSL_LEAVE("ecc_map_ex (SP Math)", err);
     return err;
 #endif /* WOLFSSL_SP_MATH */
@@ -11034,9 +11037,8 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
                     (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                         ECC_CURVE_FIELD_BF));
 
-        #if defined(WOLFSSL_CUSTOM_CURVES) && \
-            defined(WOLFSSL_VALIDATE_ECC_IMPORT)
-            /* validate prime is prime for custom curves */
+        #ifdef WOLFSSL_CUSTOM_CURVES
+            /* SP 800-186 E.3 square root needs an odd prime modulus */
             if (err == MP_OKAY && curve_idx == ECC_CUSTOM_IDX) {
                 int isPrime = MP_NO;
                 err = mp_prime_is_prime(curve->prime, 8, &isPrime);
@@ -12362,9 +12364,8 @@ static int _ecc_import_x963_ex2(const byte* in, word32 inLen, ecc_key* key,
                 (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                  ECC_CURVE_FIELD_BF));
 
-    #if defined(WOLFSSL_CUSTOM_CURVES) && \
-        defined(WOLFSSL_VALIDATE_ECC_IMPORT)
-        /* validate prime is prime for custom curves */
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        /* SP 800-186 E.3 square root needs an odd prime modulus */
         if (err == MP_OKAY && key->idx == ECC_CUSTOM_IDX) {
             int isPrime = MP_NO;
             err = mp_prime_is_prime(curve->prime, 8, &isPrime);
@@ -17893,6 +17894,7 @@ done:
     #define SQRTMOD_MOD_EXP_TMP_CNT 3
 #endif
 #endif
+/* prime must be an odd prime: the import callers check custom moduli. */
 static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
 #if defined(SQRTMOD_USE_MOD_EXP)
@@ -18141,15 +18143,6 @@ out:
       res = mp_jacobi(Z, prime, &legendre);
       if (res == MP_OKAY && legendre == -1)
         break;
-
-#if defined(WOLFSSL_CUSTOM_CURVES)
-      /* P224R1 succeeds with a value of 11. */
-      if (mp_cmp_d(Z, 22) == MP_EQ) {
-        /* This is to clamp the loop in case 'prime' is not really prime */
-        res = MP_VAL;
-        break;
-      }
-#endif
 
       /* Z = Z + 1 */
       if (res == MP_OKAY)

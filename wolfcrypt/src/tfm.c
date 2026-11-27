@@ -5745,7 +5745,9 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 
 
 #if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || \
-    defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_KEY_GEN) || \
+    (defined(HAVE_ECC) && defined(WOLFSSL_CUSTOM_CURVES) && \
+     defined(HAVE_COMP_KEY))
 
 static int  fp_isprime_ex(fp_int *a, int t, int* result);
 
@@ -6127,7 +6129,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     *result = ret;
     return FP_OKAY;
 }
-#endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN */
+#endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN || custom curves */
 
 
 int mp_cond_swap_ct_ex(mp_int* a, mp_int* b, int c, int m, mp_int* t)

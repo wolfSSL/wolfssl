@@ -6778,7 +6778,7 @@ if test "x$ENABLED_SAKKE" = "xsmall"
 then
     ENABLED_SAKKE="yes"
     ENABLED_SAKKE_SMALL="yes"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_SAKKE_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SAKKE_SMALL"
 fi
 if test "x$ENABLED_SAKKE" = "xyes"
 then
