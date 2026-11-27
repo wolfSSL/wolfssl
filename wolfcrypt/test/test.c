@@ -69577,6 +69577,27 @@ static wc_test_ret_t mlkem1024_kat(void)
         0xc8, 0x0e, 0xfe, 0x79, 0xa3, 0xa9, 0xa8, 0x74,
         0xcc, 0x09, 0xfe, 0x76, 0xf6, 0x99, 0x76, 0x15
     };
+#if !defined(WOLFSSL_NO_ML_KEM) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    WOLFSSL_SMALL_STACK_STATIC const byte ml_kem_1024_overflow_rand[] = {
+        0xa1, 0x8b, 0x50, 0xca, 0xe4, 0xf4, 0xce, 0x2c,
+        0xc1, 0x78, 0x11, 0x36, 0x38, 0xc2, 0x91, 0xbf,
+        0x47, 0x45, 0x2d, 0xdf, 0xb3, 0x10, 0xc2, 0x2d,
+        0x7d, 0x40, 0xbe, 0x56, 0x35, 0xfb, 0x78, 0x22,
+        0x84, 0xeb, 0x4c, 0xfc, 0x9d, 0xab, 0xbf, 0x87,
+        0x6c, 0xa2, 0x3b, 0xeb, 0xb0, 0x29, 0x10, 0xd0,
+        0x65, 0x16, 0xd6, 0x33, 0x15, 0xf6, 0x64, 0xa0,
+        0x06, 0x8f, 0xe3, 0x61, 0x5b, 0x7e, 0xcb, 0xbe
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ml_kem_1024_overflow_enc_rand[] = {
+        0x81, 0xac, 0x07, 0x9d, 0x2a, 0xb3, 0x5b, 0x1a,
+        0xbb, 0x13, 0xf8, 0x59, 0xf8, 0x35, 0x5e, 0x68,
+        0x20, 0xa6, 0xf8, 0x5b, 0x03, 0xf1, 0x82, 0x10,
+        0xcb, 0x2f, 0x71, 0x64, 0x9f, 0x05, 0x17, 0xb9
+    };
+#endif
 #ifdef WOLFSSL_MLKEM_KYBER
     WOLFSSL_SMALL_STACK_STATIC const byte kyber1024_pk[] = {
         0xD2, 0x23, 0x02, 0xCB, 0xD3, 0x39, 0x9F, 0xAC,
@@ -71356,6 +71377,38 @@ static wc_test_ret_t mlkem1024_kat(void)
 #else
     (void)ml_kem_1024_ct;
     (void)ml_kem_1024_ss;
+#endif
+
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    wc_MlKemKey_Free(key);
+    key_inited = 0;
+    ret = wc_MlKemKey_Init(key, WC_ML_KEM_1024, HEAP_HINT, katDevId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    key_inited = 1;
+
+    ret = wc_MlKemKey_MakeKeyWithRandom(key, ml_kem_1024_overflow_rand,
+        sizeof(ml_kem_1024_overflow_rand));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlKemKey_EncapsulateWithRandom(key, ct, ss,
+        ml_kem_1024_overflow_enc_rand,
+        sizeof(ml_kem_1024_overflow_enc_rand));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_MlKemKey_Decapsulate(key, ss_dec, ct,
+        WC_ML_KEM_1024_CIPHER_TEXT_SIZE);
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(ss, ss_dec, WC_ML_KEM_SS_SZ) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #endif
 

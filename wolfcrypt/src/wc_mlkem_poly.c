@@ -752,7 +752,7 @@ static void mlkem_invntt(sword16* r)
             sword16 rj = r[start + j];
             sword16 rjl = r[start + j + 4];
             sword16 t = rj + rjl;
-            r[start + j] = t;
+            r[start + j] = MLKEM_BARRETT_RED(t);
             rjl = rj - rjl;
             p = (sword32)zeta * rjl;
             r[start + j + 4] = MLKEM_MONT_RED(p);
@@ -885,8 +885,8 @@ static void mlkem_invntt(sword16* r)
         t2 = MLKEM_MONT_RED(p);
         p = (sword32)zeta4 * (sword16)(r3 - r7);
         t3 = MLKEM_MONT_RED(p);
-        r0 = (sword16)(r0 + r4);
-        r1 = (sword16)(r1 + r5);
+        r0 = MLKEM_BARRETT_RED(r0 + r4);
+        r1 = MLKEM_BARRETT_RED(r1 + r5);
         r2 = (sword16)(r2 + r6);
         r3 = (sword16)(r3 + r7);
         r4 = t0;

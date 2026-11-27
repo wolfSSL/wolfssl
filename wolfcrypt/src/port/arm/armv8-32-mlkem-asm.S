@@ -4059,6 +4059,170 @@ L_mlkem_invntt_loop_765:
 	bfi	r9, r12, #0, #16
 #endif
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r11, #0xc0
+	orr	r11, r11, #0xaf00
+#else
+	mov	r11, #0xafc0
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0x130000
+#else
+	movt	r11, #0x13
+#endif
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	mov	r11, #0xbf
+	orr	r11, r11, #0x4e00
+#else
+	mov	r11, #0x4ebf
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+	smulwb	r12, r11, r2
+	smulwt	lr, r11, r2
+	smulbt	r12, r10, r12
+	smulbt	lr, r10, lr
+	pkhbt	r12, r12, lr, LSL #16
+	ssub16	r2, r2, r12
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r12, r2, #16
+	asr	r12, r12, #16
+#else
+	sbfx	r12, r2, #0, #16
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	asr	lr, r2, #16
+#else
+	sbfx	lr, r2, #16, #16
+#endif
+	mul	r12, r11, r12
+	mul	lr, r11, lr
+	asr	r12, r12, #26
+	asr	lr, lr, #26
+	mul	r12, r10, r12
+	mul	lr, r10, lr
+	sub	lr, r2, lr, lsl #16
+	sub	r2, r2, r12
+	lsr	lr, lr, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	bic	r2, r2, #0xff0000
+	bic	r2, r2, #0xff000000
+	orr	r2, r2, lr, lsl #16
+#else
+	bfi	r2, lr, #16, #16
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+	smulwb	r12, r11, r3
+	smulwt	lr, r11, r3
+	smulbt	r12, r10, r12
+	smulbt	lr, r10, lr
+	pkhbt	r12, r12, lr, LSL #16
+	ssub16	r3, r3, r12
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r12, r3, #16
+	asr	r12, r12, #16
+#else
+	sbfx	r12, r3, #0, #16
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	asr	lr, r3, #16
+#else
+	sbfx	lr, r3, #16, #16
+#endif
+	mul	r12, r11, r12
+	mul	lr, r11, lr
+	asr	r12, r12, #26
+	asr	lr, lr, #26
+	mul	r12, r10, r12
+	mul	lr, r10, lr
+	sub	lr, r3, lr, lsl #16
+	sub	r3, r3, r12
+	lsr	lr, lr, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	bic	r3, r3, #0xff0000
+	bic	r3, r3, #0xff000000
+	orr	r3, r3, lr, lsl #16
+#else
+	bfi	r3, lr, #16, #16
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+	smulwb	r12, r11, r6
+	smulwt	lr, r11, r6
+	smulbt	r12, r10, r12
+	smulbt	lr, r10, lr
+	pkhbt	r12, r12, lr, LSL #16
+	ssub16	r6, r6, r12
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r12, r6, #16
+	asr	r12, r12, #16
+#else
+	sbfx	r12, r6, #0, #16
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	asr	lr, r6, #16
+#else
+	sbfx	lr, r6, #16, #16
+#endif
+	mul	r12, r11, r12
+	mul	lr, r11, lr
+	asr	r12, r12, #26
+	asr	lr, lr, #26
+	mul	r12, r10, r12
+	mul	lr, r10, lr
+	sub	lr, r6, lr, lsl #16
+	sub	r6, r6, r12
+	lsr	lr, lr, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	bic	r6, r6, #0xff0000
+	bic	r6, r6, #0xff000000
+	orr	r6, r6, lr, lsl #16
+#else
+	bfi	r6, lr, #16, #16
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
+	smulwb	r12, r11, r7
+	smulwt	lr, r11, r7
+	smulbt	r12, r10, r12
+	smulbt	lr, r10, lr
+	pkhbt	r12, r12, lr, LSL #16
+	ssub16	r7, r7, r12
+#else
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	lsl	r12, r7, #16
+	asr	r12, r12, #16
+#else
+	sbfx	r12, r7, #0, #16
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	asr	lr, r7, #16
+#else
+	sbfx	lr, r7, #16, #16
+#endif
+	mul	r12, r11, r12
+	mul	lr, r11, lr
+	asr	r12, r12, #26
+	asr	lr, lr, #26
+	mul	r12, r10, r12
+	mul	lr, r10, lr
+	sub	lr, r7, lr, lsl #16
+	sub	r7, r7, r12
+	lsr	lr, lr, #16
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	bic	r7, r7, #0xff0000
+	bic	r7, r7, #0xff000000
+	orr	r7, r7, lr, lsl #16
+#else
+	bfi	r7, lr, #16, #16
+#endif
+#endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	ldr	r11, [sp, #4]
 	add	r11, r1, r11, lsr #3
 	ldr	r11, [r11, #192]
