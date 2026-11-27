@@ -278,6 +278,12 @@ int test_wolfSSL_get_peer_chain(void)
     ExpectIntGT(wolfSSL_get_chain_length(chain, 0), 0);
     ExpectNotNull(wolfSSL_get_chain_cert(chain, 0));
 
+    ExpectIntEQ(wolfSSL_get_chain_length(chain, -1), 0);
+    ExpectNull(wolfSSL_get_chain_cert(chain, -1));
+    ExpectIntEQ(wolfSSL_get_chain_length(chain, wolfSSL_get_chain_count(chain)),
+        0);
+    ExpectNull(wolfSSL_get_chain_cert(chain, wolfSSL_get_chain_count(chain)));
+
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     ExpectNull(wolfSSL_get_peer_alt_chain(NULL));
     ExpectNotNull(wolfSSL_get_peer_alt_chain(ssl_c));

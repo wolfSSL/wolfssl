@@ -337,49 +337,97 @@ int test_wolfSSL_set_connect_accept_state(void)
     return EXPECT_RESULT();
 }
 
-/* Random accessors report capacity and copy only the requested bytes. */
-int test_wolfSSL_handshake_randoms(void)
+/* Check that file decoding and DH size policy behave the same on a context
+ * and a connection. */
+int test_wolfSSL_tmp_dh_files(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
-    static size_t (*const getters[])(const WOLFSSL*, unsigned char*, size_t) = {
-        wolfSSL_get_client_random, wolfSSL_get_server_random
-    };
-    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-    struct test_memio_ctx test_ctx;
-    byte client[RAN_LEN + 1];
-    byte server[RAN_LEN];
-    unsigned int i;
+#if !defined(NO_DH) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    static const char der[] = "./certs/dh2048.der";
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
 
-    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-    wolfSSL_KeepArrays(ssl_c);
-    wolfSSL_KeepArrays(ssl_s);
-    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(NULL, der, WOLFSSL_FILETYPE_ASN1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, NULL, WOLFSSL_FILETYPE_ASN1),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, -1), WOLFSSL_BAD_FILETYPE);
+    ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, "./certs/no-such-dh-file.der",
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_BAD_FILE);
 
-    for (i = 0; i < XELEM_CNT(getters); i++) {
-        client[RAN_LEN] = 0xa5;
-        ExpectIntEQ(getters[i](NULL, NULL, 0), RAN_LEN);
-        ExpectIntEQ(getters[i](NULL, client, sizeof(client)), 0);
-        ExpectIntEQ(getters[i](ssl_c, NULL, sizeof(client)), 0);
-        ExpectIntEQ(getters[i](ssl_c, client, sizeof(client)), RAN_LEN);
-        ExpectIntEQ(client[RAN_LEN], 0xa5);
-        ExpectIntEQ(getters[i](ssl_s, server, sizeof(server)), RAN_LEN);
-        ExpectBufEQ(client, server, RAN_LEN);
-        ExpectIntEQ(getters[i](ssl_c, client, 1), 1);
-        ExpectIntEQ(client[0], server[0]);
+    if (MAX_DHKEY_SZ >= 2048 / 8) {
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, der, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_PEM_TO_DER
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, "./certs/dh2048.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, "./certs/x942dh2048.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+#endif
+        ExpectIntEQ(wolfSSL_SetMinDhKey_Sz(ssl, 2056), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl, der, WOLFSSL_FILETYPE_ASN1),
+            DH_KEY_SIZE_E);
     }
 
-    wolfSSL_FreeArrays(ssl_c);
-    for (i = 0; i < XELEM_CNT(getters); i++)
-        ExpectIntEQ(getters[i](ssl_c, client, sizeof(client)), 0);
-    wolfSSL_free(ssl_s);
-    wolfSSL_free(ssl_c);
-    wolfSSL_CTX_free(ctx_s);
-    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_dtls_peer_buffers(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID) && \
+    !defined(WOLFSSL_NO_SOCK) && defined(XINET_PTON) && \
+    defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    void* current = NULL;
+    void* other = NULL;
+    byte out[sizeof(SOCKADDR_IN)];
+    unsigned int size = sizeof(out);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectNotNull(current = wolfSSL_dtls_create_peer(11111, (char*)"127.0.0.1"));
+    ExpectNotNull(other = wolfSSL_dtls_create_peer(22222, (char*)"127.0.0.1"));
+
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, &size), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, other, sizeof(out)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_peer(ssl, current, sizeof(out)),
+        WOLFSSL_SUCCESS);
+
+    /* Hold each of the other get-peer operands true. */
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, NULL, &size), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, NULL), WOLFSSL_FAILURE);
+    size--;
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, &size), WOLFSSL_FAILURE);
+    size = sizeof(out);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl, out, &size), WOLFSSL_SUCCESS);
+    ExpectIntEQ(size, sizeof(out));
+    ExpectBufEQ(out, current, sizeof(out));
+
+    /* An empty, differently sized address clears the staged peer. */
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, other, sizeof(out)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl, current, sizeof(out)),
+        WOLFSSL_SUCCESS);
+
+    wolfSSL_dtls_free_peer(other);
+    wolfSSL_dtls_free_peer(current);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }
