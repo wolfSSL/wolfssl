@@ -52,6 +52,9 @@ struct WOLFSSL_DH {
      */
     int length;
     wolfSSL_Ref ref;             /* Reference count information. */
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex opLock;        /* Held while an operation runs. */
+#endif
 };
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh,

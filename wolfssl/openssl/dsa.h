@@ -51,6 +51,9 @@ struct WOLFSSL_DSA {
     void*          internal;     /* our Dsa Key */
     char           inSet;        /* internal set from external ? */
     char           exSet;        /* external set from internal ? */
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex  opLock;       /* Held while an operation runs. */
+#endif
 };
 
 

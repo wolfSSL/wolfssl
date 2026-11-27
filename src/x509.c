@@ -14164,8 +14164,14 @@ cleanup:
         #endif
             return ret;
         }
-        ret = wc_SignCert_ex(certBodySz, sigType, der, (word32)derSz, type, key,
-            &rng);
+        if (!wolfssl_local_pkey_lock(pkey)) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            ret = wc_SignCert_ex(certBodySz, sigType, der, (word32)derSz, type,
+                key, &rng);
+            wolfssl_local_pkey_unlock(pkey);
+        }
         wc_FreeRng(&rng);
     #ifdef WOLFSSL_MLDSA_X509_SIGN
         if (mldsa != NULL) {

@@ -30,6 +30,9 @@
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
+#ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/pem.h>
+#endif
 #include <tests/utils.h>
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_crypto.h>
@@ -820,6 +823,138 @@ int test_wolfSSL_X509_sign2(void)
 #ifndef NO_ASN_TIME
     wolfSSL_ASN1_TIME_free(notBefore);
     wolfSSL_ASN1_TIME_free(notAfter);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_BIO) && \
+    !defined(SINGLE_THREADED)
+#define X509_SIGN_THREADS 4
+#define X509_SIGN_ROUNDS  16
+
+typedef struct X509SignThreadData {
+    EVP_PKEY* key;
+    const EVP_MD* md;
+    const char* certFile;
+    int failures;
+} X509SignThreadData;
+
+static THREAD_RETURN WOLFSSL_THREAD test_X509_sign_thread(void* arg)
+{
+    X509SignThreadData* data = (X509SignThreadData*)arg;
+    X509* x509;
+    int i;
+
+    for (i = 0; i < X509_SIGN_ROUNDS; i++) {
+        x509 = X509_load_certificate_file(data->certFile, SSL_FILETYPE_PEM);
+        if ((x509 == NULL) || (X509_sign(x509, data->key, data->md) <= 0) ||
+                (X509_verify(x509, X509_get0_pubkey(x509)) != 1)) {
+            data->failures++;
+        }
+        X509_free(x509);
+    }
+    WOLFSSL_RETURN_FROM_THREAD(0);
+}
+
+/* Sign in several threads at once. Every other thread uses key2 if set. */
+static int test_X509_sign_threads_key(EVP_PKEY* key, EVP_PKEY* key2,
+    const EVP_MD* md, const char* certFile)
+{
+    EXPECT_DECLS;
+    X509SignThreadData data[X509_SIGN_THREADS];
+    THREAD_TYPE threads[X509_SIGN_THREADS];
+    int started = 0;
+    int i;
+
+    XMEMSET(data, 0, sizeof(data));
+    while ((started < X509_SIGN_THREADS) && EXPECT_SUCCESS()) {
+        data[started].key = ((key2 != NULL) && (started % 2 == 1)) ? key2 : key;
+        data[started].md = md;
+        data[started].certFile = certFile;
+        ExpectIntEQ(wolfSSL_NewThread(&threads[started], test_X509_sign_thread,
+            &data[started]), 0);
+        if (EXPECT_SUCCESS()) {
+            started++;
+        }
+    }
+    for (i = 0; i < started; i++) {
+        ExpectIntEQ(wolfSSL_JoinThread(threads[i]), 0);
+    }
+    for (i = 0; i < started; i++) {
+        ExpectIntEQ(data[i].failures, 0);
+    }
+    return EXPECT_RESULT();
+}
+
+static EVP_PKEY* test_X509_sign_threads_load_key(const char* keyFile)
+{
+    EVP_PKEY* key = NULL;
+    BIO* bio = BIO_new_file(keyFile, "rb");
+
+    if (bio != NULL) {
+        key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+        BIO_free(bio);
+    }
+    return key;
+}
+#endif
+
+/* Threads signing with one shared key all make valid signatures. */
+int test_wolfSSL_X509_sign_threads(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_BIO) && \
+    !defined(SINGLE_THREADED)
+    EVP_PKEY* key = NULL;
+    EVP_PKEY* key2 = NULL;
+
+#if !defined(NO_RSA) && !defined(NO_SHA256)
+    ExpectNotNull(key = test_X509_sign_threads_load_key(svrKeyFile));
+    /* A second key holding the same RSA object. */
+    ExpectNotNull(key2 = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_set1_RSA(key2, EVP_PKEY_get0_RSA(key)), 1);
+    ExpectIntEQ(test_X509_sign_threads_key(key, key2, EVP_sha256(),
+        svrCertFile), TEST_SUCCESS);
+    EVP_PKEY_free(key);
+    key = NULL;
+    EVP_PKEY_free(key2);
+    key2 = NULL;
+#endif
+#if defined(HAVE_ECC) && !defined(NO_SHA256)
+    ExpectNotNull(key = test_X509_sign_threads_load_key(eccKeyFile));
+    /* A second key holding the same EC_KEY object. */
+    ExpectNotNull(key2 = EVP_PKEY_new());
+    ExpectIntEQ(EVP_PKEY_set1_EC_KEY(key2, EVP_PKEY_get0_EC_KEY(key)), 1);
+    ExpectIntEQ(test_X509_sign_threads_key(key, key2, EVP_sha256(),
+        eccCertFile), TEST_SUCCESS);
+    EVP_PKEY_free(key);
+    key = NULL;
+    EVP_PKEY_free(key2);
+    key2 = NULL;
+#endif
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN) && \
+    defined(HAVE_ED25519_VERIFY) && defined(HAVE_ED25519_KEY_IMPORT) && \
+    defined(HAVE_ED25519_KEY_EXPORT)
+    ExpectNotNull(key = test_X509_sign_threads_load_key(edKeyFile));
+    ExpectIntEQ(test_X509_sign_threads_key(key, NULL, NULL, edCertFile),
+        TEST_SUCCESS);
+    EVP_PKEY_free(key);
+    key = NULL;
+#endif
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && !defined(WOLFSSL_NO_ML_DSA_44)
+    /* ML-DSA takes no key lock: each sign decodes its own key from the DER. */
+    ExpectNotNull(key = test_X509_sign_threads_load_key(
+        "./certs/mldsa/mldsa44-key.pem"));
+    ExpectIntEQ(EVP_PKEY_id(key), EVP_PKEY_DILITHIUM);
+    ExpectIntEQ(test_X509_sign_threads_key(key, NULL, NULL,
+        "./certs/mldsa/mldsa44-cert.pem"), TEST_SUCCESS);
+    EVP_PKEY_free(key);
+    key = NULL;
 #endif
 #endif
     return EXPECT_RESULT();

@@ -8038,6 +8038,8 @@ WOLFSSL_LOCAL int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe);
 #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && defined(HAVE_ECC)
 WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
 WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
+WOLFSSL_LOCAL int wolfssl_local_ec_key_lock(WOLFSSL_EC_KEY* key);
+WOLFSSL_LOCAL void wolfssl_local_ec_key_unlock(WOLFSSL_EC_KEY* key);
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
@@ -8427,6 +8429,29 @@ WOLFSSL_LOCAL int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys,
     int tls13);
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 
+/* A wolfCrypt key keeps state while an operation runs. Operations on a compat
+ * key that threads share run one at a time under the key's lock. The lock is
+ * not recursive: a public function takes it and calls a static *_locked
+ * function, which never takes a key lock. */
+#ifndef SINGLE_THREADED
+    #define WOLFSSL_KEY_OP_LOCK_INIT(key) wc_InitMutex(&(key)->opLock)
+    #define WOLFSSL_KEY_OP_LOCK_FREE(key) ((void)wc_FreeMutex(&(key)->opLock))
+    #define WOLFSSL_KEY_OP_LOCK(key)      wc_LockMutex(&(key)->opLock)
+    #define WOLFSSL_KEY_OP_UNLOCK(key)    ((void)wc_UnLockMutex(&(key)->opLock))
+#else
+    #define WOLFSSL_KEY_OP_LOCK_INIT(key) ((void)(key), 0)
+    #define WOLFSSL_KEY_OP_LOCK_FREE(key) ((void)(key))
+    #define WOLFSSL_KEY_OP_LOCK(key)      ((void)(key), 0)
+    #define WOLFSSL_KEY_OP_UNLOCK(key)    ((void)(key))
+#endif
+#ifdef OPENSSL_EXTRA
+WOLFSSL_LOCAL int wolfssl_local_pkey_lock(WOLFSSL_EVP_PKEY* pkey);
+WOLFSSL_LOCAL void wolfssl_local_pkey_unlock(WOLFSSL_EVP_PKEY* pkey);
+#elif defined(OPENSSL_EXTRA_X509_SMALL)
+    #define wolfssl_local_pkey_lock(pkey)   ((void)(pkey), 1)
+    #define wolfssl_local_pkey_unlock(pkey) ((void)(pkey))
+#endif
+
 /* Set*Internal and Set*External functions */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int SetDsaInternal(WOLFSSL_DSA* dsa);
@@ -8436,9 +8461,16 @@ WOLFSSL_LOCAL int wolfssl_local_dsa_do_sign(const unsigned char* d, int dLen,
     unsigned char* sigRet, WOLFSSL_DSA* dsa);
 WOLFSSL_LOCAL int wolfssl_local_dsa_do_verify(const unsigned char* d, int dLen,
     unsigned char* sig, WOLFSSL_DSA* dsa, int* dsacheck);
+WOLFSSL_LOCAL int wolfssl_local_dsa_lock(WOLFSSL_DSA* dsa);
+WOLFSSL_LOCAL void wolfssl_local_dsa_unlock(WOLFSSL_DSA* dsa);
+WOLFSSL_LOCAL int wolfssl_local_dsa_set_external(WOLFSSL_DSA* dsa);
 #endif
 WOLFSSL_LOCAL int SetRsaExternal(WOLFSSL_RSA* rsa);
 WOLFSSL_LOCAL int SetRsaInternal(WOLFSSL_RSA* rsa);
+#ifndef NO_RSA
+WOLFSSL_LOCAL int wolfssl_local_rsa_lock(WOLFSSL_RSA* rsa);
+WOLFSSL_LOCAL void wolfssl_local_rsa_unlock(WOLFSSL_RSA* rsa);
+#endif
 
 typedef enum elem_set {
     ELEMENT_P   = 0x01,
@@ -8449,6 +8481,10 @@ typedef enum elem_set {
 } Element_Set;
 WOLFSSL_LOCAL int SetDhExternal_ex(WOLFSSL_DH *dh, int elm );
 WOLFSSL_LOCAL int SetDhInternal(WOLFSSL_DH* dh);
+#ifndef NO_DH
+WOLFSSL_LOCAL int wolfssl_local_dh_lock(WOLFSSL_DH* dh);
+WOLFSSL_LOCAL void wolfssl_local_dh_unlock(WOLFSSL_DH* dh);
+#endif
 WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 

@@ -597,6 +597,9 @@ struct WOLFSSL_EVP_PKEY {
     int save_type;    /* openssh dereference */
     int pkey_sz;
     wolfSSL_Ref ref;
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex opLock;  /* Held while an operation uses a key held here. */
+#endif
 
     union {
         char* ptr; /* der format of key */
