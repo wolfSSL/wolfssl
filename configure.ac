@@ -1572,9 +1572,6 @@ then
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
     test "$enable_chain_verify_cb" = "" && enable_chain_verify_cb=yes
-    # Field events come from the ASN.1 template parser only.
-    test "$enable_cert_events" = "" && test "$ASN_IMPL" = "template" &&
-        enable_cert_events=yes
     test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
     test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
     test "$enable_sni" = "" && enable_sni=yes
@@ -6376,25 +6373,6 @@ AC_ARG_ENABLE([certgencache],
 if test "$ENABLED_certgencache" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN_CACHE"
-fi
-
-
-# CERTIFICATE VALIDATION EVENTS
-AC_ARG_ENABLE([cert-events],
-    [AS_HELP_STRING([--enable-cert-events],[Enable structured certificate validation event callback (default: disabled). Requires the ASN.1 template parser.])],
-    [ ENABLED_CERT_EVENTS=$enableval ],
-    [ ENABLED_CERT_EVENTS=no ]
-    )
-
-if test "$ENABLED_CERT_EVENTS" = "yes"
-then
-    # asn_orig.c has no field-level event hooks. Reject the combination
-    # instead of building a callback that cannot report those defects.
-    if test "$ASN_IMPL" = "original"
-    then
-        AC_MSG_ERROR([--enable-cert-events is not supported with --enable-asn=original. Certificate validation events require the ASN.1 template parser.])
-    fi
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EVENTS"
 fi
 
 
@@ -15423,7 +15401,6 @@ echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
 echo "   * certgencache:               $ENABLED_certgencache"
-echo "   * cert events:                $ENABLED_CERT_EVENTS"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
