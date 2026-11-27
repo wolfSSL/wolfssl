@@ -2895,3 +2895,230 @@ int test_wc_Pkcs11_TokenOpenDropsPin(void)
 }
 
 #endif /* TEST_PKCS11_ECDSA */
+
+#if defined(HAVE_PKCS11) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_128) && \
+    !defined(NO_PKCS11_AES) && !defined(NO_PKCS11_AESCBC) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES)
+    #define TEST_PKCS11_AES_CBC
+#endif
+
+#ifdef TEST_PKCS11_AES_CBC
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/wc_pkcs11.h>
+
+#define TEST_PKCS11_AES_DEVID 0x7033
+
+/* Mock token: key captured from C_CreateObject, IV from C_*Init, and the
+ * operation performed with software AES-CBC in one shot - as a real token
+ * does for C_Encrypt/C_Decrypt. */
+static byte   test_pkcs11_aes_key[AES_256_KEY_SIZE];
+static word32 test_pkcs11_aes_keySz = 0;
+static byte   test_pkcs11_aes_iv[WC_AES_BLOCK_SIZE];
+
+static CK_RV test_pkcs11_aes_mech_info(CK_SLOT_ID slotId,
+    CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR info)
+{
+    (void)slotId;
+
+    if (type != CKM_AES_CBC || info == NULL)
+        return CKR_MECHANISM_INVALID;
+
+    XMEMSET(info, 0, sizeof(*info));
+    info->ulMinKeySize = AES_128_KEY_SIZE;
+    info->ulMaxKeySize = AES_256_KEY_SIZE;
+    info->flags = CKF_ENCRYPT | CKF_DECRYPT;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_aes_create_object(CK_SESSION_HANDLE session,
+    CK_ATTRIBUTE_PTR template, CK_ULONG count, CK_OBJECT_HANDLE_PTR object)
+{
+    CK_ULONG i;
+
+    (void)session;
+
+    if (template == NULL || object == NULL)
+        return CKR_MECHANISM_INVALID;
+
+    for (i = 0; i < count; i++) {
+        if (template[i].type == CKA_VALUE) {
+            if (template[i].ulValueLen > sizeof(test_pkcs11_aes_key))
+                return CKR_MECHANISM_INVALID;
+            XMEMCPY(test_pkcs11_aes_key, template[i].pValue,
+                template[i].ulValueLen);
+            test_pkcs11_aes_keySz = (word32)template[i].ulValueLen;
+        }
+    }
+
+    *object = 1;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_aes_destroy_object(CK_SESSION_HANDLE session,
+    CK_OBJECT_HANDLE object)
+{
+    (void)session;
+    (void)object;
+
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_aes_op_init(CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR mechanism, CK_OBJECT_HANDLE key)
+{
+    (void)session;
+    (void)key;
+
+    if (mechanism == NULL || mechanism->mechanism != CKM_AES_CBC ||
+            mechanism->pParameter == NULL ||
+            mechanism->ulParameterLen != WC_AES_BLOCK_SIZE) {
+        return CKR_MECHANISM_INVALID;
+    }
+    XMEMCPY(test_pkcs11_aes_iv, mechanism->pParameter, WC_AES_BLOCK_SIZE);
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_aes_op(int enc, CK_BYTE_PTR in, CK_ULONG inLen,
+    CK_BYTE_PTR out, CK_ULONG_PTR outLen)
+{
+    Aes aes;
+    int ret;
+
+    if (in == NULL || out == NULL || outLen == NULL || *outLen < inLen)
+        return CKR_MECHANISM_INVALID;
+
+    if (wc_AesInit(&aes, NULL, INVALID_DEVID) != 0)
+        return CKR_MECHANISM_INVALID;
+    ret = wc_AesSetKey(&aes, test_pkcs11_aes_key, test_pkcs11_aes_keySz,
+        test_pkcs11_aes_iv, enc ? AES_ENCRYPTION : AES_DECRYPTION);
+    if (ret == 0) {
+        if (enc)
+            ret = wc_AesCbcEncrypt(&aes, out, in, (word32)inLen);
+        else
+            ret = wc_AesCbcDecrypt(&aes, out, in, (word32)inLen);
+    }
+    wc_AesFree(&aes);
+    if (ret != 0)
+        return CKR_MECHANISM_INVALID;
+
+    *outLen = inLen;
+    return CKR_OK;
+}
+
+static CK_RV test_pkcs11_aes_encrypt(CK_SESSION_HANDLE session,
+    CK_BYTE_PTR in, CK_ULONG inLen, CK_BYTE_PTR out, CK_ULONG_PTR outLen)
+{
+    (void)session;
+    return test_pkcs11_aes_op(1, in, inLen, out, outLen);
+}
+
+static CK_RV test_pkcs11_aes_decrypt(CK_SESSION_HANDLE session,
+    CK_BYTE_PTR in, CK_ULONG inLen, CK_BYTE_PTR out, CK_ULONG_PTR outLen)
+{
+    (void)session;
+    return test_pkcs11_aes_op(0, in, inLen, out, outLen);
+}
+#endif /* TEST_PKCS11_AES_CBC */
+
+/* AES-CBC through PKCS#11 must chain the IV across calls on the same Aes
+ * object, as the software implementation does: encrypting/decrypting a
+ * message in pieces must give the same result as doing it in one call. */
+int test_wc_Pkcs11_AesCbcChain(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_PKCS11_AES_CBC
+    static const byte key[AES_128_KEY_SIZE] = {
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    };
+    static const byte iv[WC_AES_BLOCK_SIZE] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+    };
+    /* Four blocks, processed as two calls of two blocks each. */
+    byte msg[4 * WC_AES_BLOCK_SIZE];
+    byte refCt[sizeof(msg)];
+    byte ct[sizeof(msg)];
+    byte pt[sizeof(msg)];
+    const word32 half = sizeof(msg) / 2;
+    Pkcs11Token token;
+    CK_FUNCTION_LIST func;
+    Aes sw;
+    Aes hw;
+    word32 i;
+
+    for (i = 0; i < (word32)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    XMEMSET(&token, 0, sizeof(token));
+    XMEMSET(&func, 0, sizeof(func));
+    func.C_GetMechanismInfo = test_pkcs11_aes_mech_info;
+    func.C_CreateObject = test_pkcs11_aes_create_object;
+    func.C_DestroyObject = test_pkcs11_aes_destroy_object;
+    func.C_EncryptInit = test_pkcs11_aes_op_init;
+    func.C_Encrypt = test_pkcs11_aes_encrypt;
+    func.C_DecryptInit = test_pkcs11_aes_op_init;
+    func.C_Decrypt = test_pkcs11_aes_decrypt;
+    token.func = &func;
+    token.slotId = 1;
+    token.handle = 1;
+    token.version = WC_PCKS11VERSION_2_40;
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_PKCS11_AES_DEVID,
+        wc_Pkcs11_CryptoDevCb, &token), 0);
+
+    /* Reference: software, one shot. */
+    XMEMSET(&sw, 0, sizeof(sw));
+    ExpectIntEQ(wc_AesInit(&sw, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&sw, key, sizeof(key), iv, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&sw, refCt, msg, sizeof(msg)), 0);
+    wc_AesFree(&sw);
+
+    /* PKCS#11, one shot: sanity check of the mock. */
+    XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(&hw, 0, sizeof(hw));
+    ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&hw, ct, msg, sizeof(msg)), 0);
+    ExpectBufEQ(ct, refCt, sizeof(refCt));
+    wc_AesFree(&hw);
+
+    /* PKCS#11 encrypt in two calls: the second call must use the last
+     * ciphertext block of the first as its IV. */
+    XMEMSET(ct, 0, sizeof(ct));
+    XMEMSET(&hw, 0, sizeof(hw));
+    ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_ENCRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&hw, ct, msg, half), 0);
+    ExpectIntEQ(wc_AesCbcEncrypt(&hw, ct + half, msg + half, half), 0);
+    ExpectBufEQ(ct, refCt, half);
+    ExpectBufEQ(ct + half, refCt + half, half);
+    wc_AesFree(&hw);
+
+    /* PKCS#11 decrypt in two calls. */
+    XMEMSET(pt, 0, sizeof(pt));
+    XMEMSET(&hw, 0, sizeof(hw));
+    ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(&hw, pt, refCt, half), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(&hw, pt + half, refCt + half, half), 0);
+    ExpectBufEQ(pt, msg, half);
+    ExpectBufEQ(pt + half, msg + half, half);
+    wc_AesFree(&hw);
+
+    /* PKCS#11 decrypt in two calls, in place: the chained IV is the last
+     * ciphertext block, which the first call overwrites. */
+    XMEMCPY(pt, refCt, sizeof(pt));
+    XMEMSET(&hw, 0, sizeof(hw));
+    ExpectIntEQ(wc_AesInit(&hw, NULL, TEST_PKCS11_AES_DEVID), 0);
+    ExpectIntEQ(wc_AesSetKey(&hw, key, sizeof(key), iv, AES_DECRYPTION), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(&hw, pt, pt, half), 0);
+    ExpectIntEQ(wc_AesCbcDecrypt(&hw, pt + half, pt + half, half), 0);
+    ExpectBufEQ(pt, msg, half);
+    ExpectBufEQ(pt + half, msg + half, half);
+    wc_AesFree(&hw);
+
+    wc_CryptoCb_UnRegisterDevice(TEST_PKCS11_AES_DEVID);
+#endif
+    return EXPECT_RESULT();
+}
