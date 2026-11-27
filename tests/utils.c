@@ -587,26 +587,40 @@ static const byte test_hello_retry_request_random[32] = {
 /* Returns 1 if the first server->client record buffered in ctx is a
  * HelloRetryRequest, 0 otherwise. A HelloRetryRequest is sent as a ServerHello
  * (handshake type server_hello) carrying the special random above. */
-int test_memio_msg_is_hello_retry_request(const struct test_memio_ctx *ctx)
+int test_memio_is_hello_retry_request(const char *msg, int msg_sz)
 {
-    const char* msg = NULL;
-    int msg_sz = 0;
-    /* TLS record header (5) + handshake header (4) + legacy_version (2) is the
-     * offset of the 32-byte ServerHello random within the record. */
-    const int random_off = 5 + 4 + 2;
+    /* Record header + handshake header + legacy_version is the offset of the
+     * 32-byte ServerHello random within the record: 5 + 4 + 2 for TLS and
+     * 13 + 12 + 2 for DTLS (record version major 0xfe). */
+    int hs_off = 5;
+    int random_off = 5 + 4 + 2;
 
-    /* The server's flight is buffered for the client (client = 1). */
-    if (test_memio_get_message(ctx, 1, &msg, &msg_sz, 0) != 0)
+    if (msg == NULL || msg_sz < 2)
         return 0;
+    if ((byte)msg[1] == 0xfe) {
+        hs_off = 13;
+        random_off = 13 + 12 + 2;
+    }
     /* Need a handshake record (0x16) holding a server_hello (0x02) with a full
      * random. */
     if (msg_sz < random_off + (int)sizeof(test_hello_retry_request_random))
         return 0;
-    if ((byte)msg[0] != 0x16 || (byte)msg[5] != 0x02)
+    if ((byte)msg[0] != 0x16 || (byte)msg[hs_off] != 0x02)
         return 0;
 
     return XMEMCMP(msg + random_off, test_hello_retry_request_random,
                    sizeof(test_hello_retry_request_random)) == 0;
+}
+
+int test_memio_msg_is_hello_retry_request(const struct test_memio_ctx *ctx)
+{
+    const char* msg = NULL;
+    int msg_sz = 0;
+
+    /* The server's flight is buffered for the client (client = 1). */
+    if (test_memio_get_message(ctx, 1, &msg, &msg_sz, 0) != 0)
+        return 0;
+    return test_memio_is_hello_retry_request(msg, msg_sz);
 }
 
 int test_memio_move_message(struct test_memio_ctx *ctx, int client,

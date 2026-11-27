@@ -17725,3 +17725,211 @@ int test_dtls13_cid_downgrade_not_negotiated(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+/* Split the single ClientHello record queued for the server into two fragments
+ * carried by records seq and seq + 1. */
+static int test_dtls13_split_ch(struct test_memio_ctx* ctx, word32 seq)
+{
+    EXPECT_DECLS;
+    byte rec[2048];
+    byte frag[2048];
+    const char* msg = NULL;
+    int msgSz = 0;
+    word32 bodySz, off, fragSz;
+    int i;
+
+    ExpectIntEQ(ctx->s_msg_count, 1);
+    ExpectIntEQ(test_memio_get_message(ctx, 0, &msg, &msgSz, 0), 0);
+    ExpectIntGT(msgSz, DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + 1);
+    ExpectIntLE(msgSz, (int)sizeof(rec));
+    if (!EXPECT_SUCCESS())
+        return EXPECT_RESULT();
+    XMEMCPY(rec, msg, (size_t)msgSz);
+    ExpectIntEQ(rec[0], handshake);
+    ExpectIntEQ(rec[DTLS_RECORD_HEADER_SZ], client_hello);
+    bodySz = (word32)msgSz - DTLS_RECORD_HEADER_SZ - DTLS_HANDSHAKE_HEADER_SZ;
+    test_memio_clear_buffer(ctx, 0);
+    for (i = 0, off = 0; i < 2 && EXPECT_SUCCESS(); i++) {
+        fragSz = i == 0 ? bodySz / 2 : bodySz - off;
+        XMEMCPY(frag, rec, DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ);
+        XMEMSET(frag + 5, 0, 2);
+        c32toa(seq + (word32)i, frag + 7);
+        c16toa((word16)(DTLS_HANDSHAKE_HEADER_SZ + fragSz),
+                frag + DTLS_RECORD_HEADER_SZ - OPAQUE16_LEN);
+        c32to24(off, frag + DTLS_RECORD_HEADER_SZ + 6);
+        c32to24(fragSz, frag + DTLS_RECORD_HEADER_SZ + 9);
+        XMEMCPY(frag + DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ,
+                rec + DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ + off,
+                fragSz);
+        ExpectIntEQ(test_memio_inject_message(ctx, 0, (const char*)frag,
+                (int)(DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+                        fragSz)), 0);
+        off += fragSz;
+    }
+    ExpectIntEQ(ctx->s_msg_count, 2);
+    return EXPECT_RESULT();
+}
+
+/* Simulate loss of the HelloRetryRequest.
+ * - On a stateless server, recovery is accomplished through the client
+ *   retransmitting its ClientHello, which the server answers with a freshly
+ *   computed HRR, as it does for any ClientHello without a valid cookie.
+ * - On a stateful server with timer, the server's own retransmission timer
+ *   fires first and resends the HRR kept in its retransmit buffer.
+ * - On a stateful server without timer, the client's timer fires first and
+ *   it retransmits its ClientHello. The server recognizes the duplicate and
+ *   resends the buffered HRR.
+ * - On a stateful server whose resent HRR is lost as well, the ACK sent with
+ *   it has stopped the client from retransmitting, so only the server's timer
+ *   can recover the handshake.
+ * - A fragmented first ClientHello (cookie off, fragments allowed) is
+ *   reassembled both on arrival and when retransmitted; otherwise as above. */
+static int test_dtls13_hrr_lost_ex(int cookie, int serverTimer,
+    int loseResend, int fragCh)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    Dtls13RtxRecord* r;
+    const char* msg = NULL;
+    char buf[16];
+    int msgSz = 0;
+    int i, hrrCount;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+    if (cookie)
+        ExpectIntEQ(wolfSSL_send_hrr_cookie(ssl_s, NULL, 0), WOLFSSL_SUCCESS);
+    else
+        ExpectIntEQ(wolfSSL_disable_hrr_cookie(ssl_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_NoKeyShares(ssl_c), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    if (fragCh)
+        ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
+#endif
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    if (fragCh)
+        ExpectIntEQ(test_dtls13_split_ch(&test_ctx, 0), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_msg_count, 1);
+    ExpectIntEQ(test_memio_msg_is_hello_retry_request(&test_ctx), 1);
+    ExpectNull(ssl_s->dtls13Rtx.seenRecords);
+    if (cookie) {
+        ExpectNull(ssl_s->dtls13Rtx.rtxRecords);
+    }
+    else {
+        ExpectNotNull(ssl_s->dtls13Rtx.rtxRecords);
+        if (ssl_s->dtls13Rtx.rtxRecords != NULL) {
+            ExpectIntEQ(ssl_s->dtls13Rtx.rtxRecords->handshakeType,
+                    hello_retry_request);
+            ExpectNull(ssl_s->dtls13Rtx.rtxRecords->next);
+        }
+    }
+
+    ExpectIntEQ(test_memio_drop_message(&test_ctx, 1, 0), 0);
+
+    if (serverTimer) {
+        for (i = 0; i < 2 && test_ctx.c_msg_count == 0; i++)
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+    }
+    else {
+        for (i = 0; i < 2 && test_ctx.s_msg_count == 0; i++)
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        if (fragCh)
+            ExpectIntEQ(test_dtls13_split_ch(&test_ctx, 2), TEST_SUCCESS);
+        ExpectIntEQ(test_ctx.s_msg_count, fragCh ? 2 : 1);
+        ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    }
+    hrrCount = 0;
+    for (i = 0; i < test_ctx.c_msg_count; i++) {
+        ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i), 0);
+        hrrCount += test_memio_is_hello_retry_request(msg, msgSz);
+    }
+    ExpectIntEQ(hrrCount, 1);
+
+    if (loseResend) {
+        for (i = 0; i < test_ctx.c_msg_count; i++) {
+            ExpectIntEQ(test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i),
+                    0);
+            if (test_memio_is_hello_retry_request(msg, msgSz)) {
+                ExpectIntEQ(test_memio_drop_message(&test_ctx, 1, i), 0);
+                break;
+            }
+        }
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+        ExpectNull(ssl_c->dtls13Rtx.rtxRecords);
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_ctx.s_msg_count, 0);
+#ifndef NO_ASN_TIME
+        ssl_s->dtls13Rtx.lastRtx = 0;
+#endif
+        for (i = 0; i < 2 && test_ctx.c_msg_count == 0; i++)
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_ctx.c_msg_count, 1);
+        ExpectIntEQ(test_memio_msg_is_hello_retry_request(&test_ctx), 1);
+    }
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    ExpectIntGT(test_ctx.s_msg_count, 0);
+    msg = NULL;
+    ExpectIntEQ(test_memio_get_message(&test_ctx, 0, &msg, &msgSz, 0), 0);
+    if (msg != NULL &&
+            msgSz > DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ) {
+        ExpectIntEQ((byte)msg[0], handshake);
+        ExpectIntEQ((byte)msg[DTLS_RECORD_HEADER_SZ], client_hello);
+        ExpectIntEQ((byte)msg[DTLS_RECORD_HEADER_SZ + 4], 0);
+        ExpectIntEQ((byte)msg[DTLS_RECORD_HEADER_SZ + 5], 1);
+    }
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+            WOLFSSL_ERROR_WANT_READ);
+    ExpectNotNull(ssl_s->dtls13Rtx.rtxRecords);
+    for (r = ssl_s->dtls13Rtx.rtxRecords; r != NULL; r = r->next)
+        ExpectIntNE(r->handshakeType, hello_retry_request);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, "hello", 5), 5);
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), 5);
+    ExpectIntEQ(wolfSSL_write(ssl_s, "world", 5), 5);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, sizeof(buf)), 5);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_dtls13_hrr_lost(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(1, 0, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 1, 0, 0), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 1, 0), TEST_SUCCESS);
+#ifdef WOLFSSL_DTLS_CH_FRAG
+    ExpectIntEQ(test_dtls13_hrr_lost_ex(0, 0, 0, 1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
