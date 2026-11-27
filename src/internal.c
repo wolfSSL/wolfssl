@@ -3054,7 +3054,7 @@ int wolfSSL_crypto_policy_init_ctx(WOLFSSL_CTX * ctx,
             break;
         case 0:
         default:
-            ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
+            minDowngrade = WOLFSSL_MIN_DOWNGRADE;
             break;
         }
     }
@@ -3196,7 +3196,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     else
 #endif /* WOLFSSL_DTLS */
     {
-        /* current default: TLSv1_MINOR */
         ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
     }
 
@@ -4426,6 +4425,23 @@ int InitCtxSuitesWithMutex(WOLFSSL_CTX* ctx)
     }
 
     return ret;
+}
+
+/* Drop derived sigalgs so that InitSuites derives them again. */
+void ResetSuitesHashSigAlgo(Suites* suites)
+{
+    if (!suites->setSuites && !suites->setHashSigAlgo)
+        suites->hashSigAlgoSz = 0;
+}
+
+/* Derive ctx->suites again after a setting they depend on changed. */
+void RefreshCtxSuites(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL || ctx->suites == NULL || ctx->suites->setSuites)
+        return;
+
+    ResetSuitesHashSigAlgo(ctx->suites);
+    InitSSL_CTX_Suites(ctx, ctx->suites);
 }
 
 /* Call this when the ssl object needs to have its own ssl->suites object */
@@ -8812,6 +8828,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         WOLFSSL_MSG("wolfSSL_set_options error");
         return BAD_FUNC_ARG;
     }
+#ifdef OPENSSL_EXTRA
+    /* after wolfSSL_set_options(), which drops them */
+    ssl->options.minProtoMask = ctx->minProtoMask;
+    ssl->options.maxProtoMask = ctx->maxProtoMask;
+#endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
     #ifdef WOLFSSL_DTLS
@@ -35863,7 +35884,7 @@ static byte GetSigAlgFromName(const char* name, int len)
  *
  * suites  [in,out]  Cipher suites and signature algorithms.
  * list    [in]      String representing hash/signature algorithms to set.
- * returns  0 on failure.
+ * returns  0 on failure, leaving suites unchanged.
  *          1 on success.
  */
 int SetSuitesHashSigAlgo(Suites* suites, const char* list)
@@ -35873,9 +35894,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     const char* s = list;
     byte sig_alg = 0;
     byte mac_alg = no_mac;
-
-    /* Setting is destructive on error. */
-    suites->hashSigAlgoSz = 0;
+    byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
 
     do {
         if (*list == '+') {
@@ -35924,7 +35943,7 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
                     break;
                 }
             }
-            AddSuiteHashSigAlgo(suites->hashSigAlgo, mac_alg, sig_alg, 0, &idx);
+            AddSuiteHashSigAlgo(hashSigAlgo, mac_alg, sig_alg, 0, &idx);
             sig_alg = 0;
             mac_alg = no_mac;
             s = list + 1;
@@ -35937,8 +35956,10 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
     if (s != list && (sig_alg != 0 || mac_alg != 0)) {
         ret = 0;
     }
-    else {
+    if (ret == 1) {
+        XMEMCPY(suites->hashSigAlgo, hashSigAlgo, idx);
         suites->hashSigAlgoSz = idx;
+        suites->setHashSigAlgo = 1;
     }
 
     return ret;
