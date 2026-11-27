@@ -49,7 +49,6 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  *   - Bail paths print, so "covered nothing" differs from "nothing to say".
  */
 
@@ -141,8 +140,144 @@ static void wb_record(const Rec* r, WOLFSSL* ssl)
     g_calls++;
 }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+struct wb_transport {
+    int remaining;
+    int calls;
+};
+
+static int wb_send_retry(WOLFSSL* ssl, char* data, int size, void* context)
+{
+    struct wb_transport* test = (struct wb_transport*)context;
+
+    (void)ssl;
+    test->calls++;
+    if (test->remaining-- > 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return size == 1 && data[0] == 'T' ? size : WOLFSSL_CBIO_ERR_GENERAL;
+}
+
+static int wb_receive_retry(WOLFSSL* ssl, char* data, int size, void* context)
+{
+    struct wb_transport* test = (struct wb_transport*)context;
+
+    (void)ssl;
+    test->calls++;
+    if (test->remaining-- > 0)
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    if (size != 1)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    data[0] = 'T';
+    return size;
+}
+
+static int wb_transport_retry(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+{
+    static const struct {
+        byte autoRetry;
+        byte handshakeDone;
+        byte dtls;
+        int blocked;
+        int calls;
+        int succeeds;
+    } cases[] = {
+        { 1, 0, 0, 1, 2, 1 },
+        { 0, 0, 0, 1, 1, 0 },
+        { 1, 1, 0, 1, 1, 0 },
+#ifdef WOLFSSL_DTLS
+        { 1, 0, 1, 1, 1, 0 },
+#endif
+        { 1, 0, 0, WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 1,
+            WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 1, 0 }
+    };
+    int saved = ctx->autoRetry;
+    int failed = 0;
+    size_t i;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        struct wb_transport send = { cases[i].blocked, 0 };
+        struct wb_transport receive = { cases[i].blocked, 0 };
+        byte payload = 'T';
+        byte result = 0;
+
+        XMEMSET(ssl, 0, sizeof(*ssl));
+        ssl->ctx = ctx;
+        ctx->autoRetry = cases[i].autoRetry;
+        ssl->options.handShakeDone = cases[i].handshakeDone;
+        ssl->options.dtls = cases[i].dtls;
+        ssl->CBIOSend = wb_send_retry;
+        ssl->CBIORecv = wb_receive_retry;
+        ssl->IOCB_WriteCtx = &send;
+        ssl->IOCB_ReadCtx = &receive;
+        ssl->buffers.outputBuffer.buffer = &payload;
+        ssl->buffers.outputBuffer.length = 1;
+        ssl->buffers.outputBuffer.bufferSize = 1;
+
+        if (SendBuffered(ssl) != (cases[i].succeeds ? 0 : WANT_WRITE) ||
+            send.calls != cases[i].calls ||
+            ssl->buffers.outputBuffer.length != (cases[i].succeeds ? 0 : 1))
+            failed = 1;
+        if (wolfSSLReceive(ssl, &result, 1) !=
+            (cases[i].succeeds ? 1 : WANT_READ) ||
+            receive.calls != cases[i].calls ||
+            result != (cases[i].succeeds ? 'T' : 0))
+            failed = 1;
+    }
+    ctx->autoRetry = (byte)saved;
+    return failed;
+}
+static int wb_input_buffer(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+{
+    static const byte data[] = { 0x31, 0x32, 0x33 };
+    bufferStatic* input = &ssl->buffers.inputBuffer;
+    int failed = 1;
+
+    XMEMSET(ssl, 0, sizeof(*ssl));
+    ssl->ctx = ctx;
+    ssl->options.processReply = doProcessInit;
+    input->buffer = input->staticBuffer;
+    input->bufferSize = STATIC_BUFFER_LEN;
+    if (STATIC_BUFFER_LEN < sizeof(data))
+        return 0;
+    XMEMCPY(input->buffer, data, sizeof(data));
+    input->length = sizeof(data);
+    input->idx = 1;
+
+    if (GrowInputBuffer(ssl, 1, -1) != BAD_FUNC_ARG ||
+        GrowInputBuffer(ssl, -1, 1) != BAD_FUNC_ARG ||
+        GrowInputBuffer(ssl, STATIC_BUFFER_LEN, sizeof(data) - 1) != 0)
+        goto done;
+    if (!input->dynamicFlag || input->idx != 0 ||
+        input->length != sizeof(data) - 1 ||
+        XMEMCMP(input->buffer, data + 1, sizeof(data) - 1) != 0)
+        goto done;
+
+    /* Moving buffered input while processing its record would change the
+     * offsets that the parser still owns. */
+    ssl->options.processReply = getRecordLayerHeader;
+    ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+    if (!input->dynamicFlag)
+        goto done;
+
+    ssl->options.processReply = doProcessInit;
+    ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+    if (input->dynamicFlag || input->buffer != input->staticBuffer ||
+        input->length != sizeof(data) - 1 ||
+        XMEMCMP(input->buffer, data + 1, sizeof(data) - 1) != 0)
+        goto done;
+    failed = 0;
+
+done:
+    if (input->dynamicFlag)
+        ShrinkInputBuffer(ssl, FORCED_FREE);
+    return failed;
+}
+
+#endif
+
 int main(void)
 {
+    int failed = 0;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     size_t i;
@@ -304,6 +439,17 @@ int main(void)
         }
     }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_transport_retry(ctx, ssl)) {
+        puts("internal record white-box: unexpected transport retry result");
+        failed = 1;
+    }
+    if (wb_input_buffer(ctx, ssl)) {
+        puts("internal record white-box: unexpected input buffer result");
+        failed = 1;
+    }
+#endif
+
     printf("internal record white-box: %d GetRecordHeader calls\n", g_calls);
 
 done:
@@ -311,7 +457,7 @@ done:
     if (ctx != NULL)
         wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else

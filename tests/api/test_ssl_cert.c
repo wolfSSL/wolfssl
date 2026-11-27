@@ -6874,6 +6874,90 @@ int test_wolfSSL_alloc_failure_sweep(void)
     return EXPECT_RESULT();
 }
 
+#if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+static int fi_handshake_attempt(method_provider client, method_provider server,
+    int failAt)
+{
+    struct test_memio_ctx io;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    int ret;
+
+    XMEMSET(&io, 0, sizeof(io));
+    fi_failAt = -1;
+    ret = test_memio_setup(&io, &ctx_c, &ctx_s, &ssl_c, &ssl_s, client,
+        server);
+    fi_count = 0;
+    fi_failed = 0;
+    if (ret == 0) {
+        fi_failAt = failAt;
+        ret = test_memio_do_handshake(ssl_c, ssl_s, 12, NULL);
+        fi_failAt = -1;
+    }
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+    return ret;
+}
+
+static int fi_run_handshake_sweep(method_provider client, method_provider server)
+{
+    int total, i;
+    int injected = 0;
+
+    if (fi_handshake_attempt(client, server, -1) != 0)
+        return 1;
+    total = fi_count;
+    for (i = 0; i < total; i++) {
+        (void)fi_handshake_attempt(client, server, i);
+        if (fi_failed)
+            injected++;
+    }
+    if (injected == 0 || fi_handshake_attempt(client, server, -1) != 0)
+        return 1;
+    return 0;
+}
+#endif
+
+int test_wolfSSL_handshake_alloc_failure_sweep(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_MCDC_ALLOC_SWEEP) && defined(USE_WOLFSSL_MEMORY) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    wolfSSL_Malloc_cb previousMalloc = NULL;
+    wolfSSL_Free_cb previousFree = NULL;
+    wolfSSL_Realloc_cb previousRealloc = NULL;
+    int failed;
+
+    (void)wolfSSL_GetAllocators(&previousMalloc, &previousFree, &previousRealloc);
+    if (wolfSSL_SetAllocators(fi_malloc, fi_free, fi_realloc) != 0)
+        return EXPECT_RESULT();
+
+    failed = fi_run_handshake_sweep(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method);
+#ifdef WOLFSSL_TLS13
+    failed |= fi_run_handshake_sweep(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method);
+#endif
+
+    fi_failAt = -1;
+    (void)wolfSSL_SetAllocators(previousMalloc, previousFree, previousRealloc);
+    ExpectIntEQ(failed, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* ---------------------------------------------------------------------------
  * DTLS API argument guards, on a DTLS object.
  *

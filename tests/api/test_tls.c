@@ -35,6 +35,63 @@
 #include <wolfssl/ssl.h>
 
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+static int test_tls_recv_transport_error(WOLFSSL* ssl, char* buf, int sz,
+    void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    return *(const int*)ctx;
+}
+#endif
+
+int test_tls_read_transport_errors(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+    static const struct {
+        int status;
+        int readResult;
+        int error;
+    } cases[] = {
+        {WOLFSSL_CBIO_ERR_GENERAL, WOLFSSL_FATAL_ERROR, SOCKET_ERROR_E},
+        {WOLFSSL_CBIO_ERR_CONN_RST, 0, SOCKET_PEER_CLOSED_E},
+        {WOLFSSL_CBIO_ERR_CONN_CLOSE, 0, SOCKET_PEER_CLOSED_E},
+    };
+    size_t i;
+
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx testCtx;
+        byte out;
+        int status = cases[i].status;
+
+        XMEMSET(&testCtx, 0, sizeof(testCtx));
+        ExpectIntEQ(test_memio_setup(&testCtx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        if (EXPECT_SUCCESS()) {
+            wolfSSL_SSLSetIORecv(ssl_c, test_tls_recv_transport_error);
+            wolfSSL_SetIOReadCtx(ssl_c, &status);
+            ExpectIntEQ(wolfSSL_read(ssl_c, &out, sizeof(out)),
+                cases[i].readResult);
+            ExpectIntEQ(ssl_c->error, cases[i].error);
+        }
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_utils_memio_move_message(void)
 {
     EXPECT_DECLS;
@@ -7947,6 +8004,19 @@ static unsigned int test_dhe_psk_max_server_cb(WOLFSSL* ssl,
 
     return MAX_PSK_KEY_LEN;
 }
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static unsigned int test_dhe_psk_invalid_key_cb(WOLFSSL* ssl, const char* hint,
+    char* id, unsigned int id_max, unsigned char* key, unsigned int key_max)
+{
+    const int* oversized = (const int*)wolfSSL_get_psk_callback_ctx(ssl);
+    (void)hint;
+    (void)id;
+    (void)id_max;
+    (void)key;
+    return oversized != NULL && *oversized ? key_max + 1 : 0;
+}
+#endif
+
 #endif
 
 /* A DHE-PSK exchange fills the pre-master secret buffer with a two byte
@@ -7973,6 +8043,9 @@ int test_dhe_psk_max_premaster(void)
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    int oversized;
+#endif
 
     /* Both lengths, the largest secret the peer can pick and the longest key
      * have to fit. */
@@ -8005,6 +8078,36 @@ int test_dhe_psk_max_premaster(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    for (oversized = 0; oversized <= 1 && EXPECT_SUCCESS(); oversized++) {
+        ctx_c = ctx_s = NULL;
+        ssl_c = ssl_s = NULL;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-PSK-AES128-GCM-SHA256"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-PSK-AES128-GCM-SHA256"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_psk_callback_ctx(ssl_c, &oversized),
+            WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS()) {
+            wolfSSL_set_psk_client_callback(ssl_c, test_dhe_psk_invalid_key_cb);
+            wolfSSL_set_psk_server_callback(ssl_s, test_dhe_psk_max_server_cb);
+        }
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl_s, TEST_DHE_PSK_MAX_DH_FILE,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 }

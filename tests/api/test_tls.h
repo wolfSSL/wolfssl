@@ -37,6 +37,7 @@ int test_tls_get_peer_tmp_key(void);
 int test_tls_get_negotiated_group(void);
 int test_tls_alert_info_cb(void);
 int test_tls_shutdown_in_init(void);
+int test_tls_read_transport_errors(void);
 int test_tls_unknown_record_type_alert(void);
 int test_tls12_curve_intersection(void);
 int test_tls12_dhe_rsa_pss_sigalg(void);
@@ -152,6 +153,7 @@ int test_tls_unset_fd_no_stdin_io(void);
         TEST_DECL_GROUP("tls", test_tls_get_peer_tmp_key),                     \
         TEST_DECL_GROUP("tls", test_tls_get_negotiated_group),                 \
         TEST_DECL_GROUP("tls", test_tls_alert_info_cb),                        \
+        TEST_DECL_GROUP("tls", test_tls_read_transport_errors),               \
         TEST_DECL_GROUP("tls", test_tls_shutdown_in_init),                     \
         TEST_DECL_GROUP("tls", test_tls_unknown_record_type_alert),            \
         TEST_DECL_GROUP("tls", test_tls12_curve_intersection),                 \

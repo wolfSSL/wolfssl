@@ -38,13 +38,13 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  *   - Bail paths print, so "covered nothing" differs from "nothing to say".
  */
 
 #include <wolfssl/options.h>
 
 #include <src/keys.c>
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -243,6 +243,58 @@ static void wb_set_auth_keys(void)
 #endif
 }
 
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(NO_CHAPOL_AEAD) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+/* Drive the static key setup helpers with each allocation failing in turn. */
+static int wb_key_allocation_failures(void)
+{
+    Ciphers enc, dec;
+    Keys keys;
+    CipherSpecs specs;
+    int ret, failed = 0;
+    unsigned int nth;
+
+    XMEMSET(&keys, 0, sizeof(keys));
+    XMEMSET(&specs, 0, sizeof(specs));
+    specs.bulk_cipher_algorithm = wolfssl_chacha;
+    specs.key_size = CHACHA20_256_KEY_SIZE;
+    specs.iv_size = CHACHA20_IV_SIZE;
+
+    for (nth = 1; nth <= 2; nth++) {
+        XMEMSET(&enc, 0, sizeof(enc));
+        XMEMSET(&dec, 0, sizeof(dec));
+        mcdc_fa_install();
+        mcdc_fa_arm_only(nth);
+        ret = SetKeys(&enc, &dec, &keys, &specs, WOLFSSL_CLIENT_END,
+                      NULL, INVALID_DEVID, NULL, 0);
+        mcdc_fa_restore();
+        if (ret != MEMORY_E || dec.chacha != NULL ||
+                (enc.chacha != NULL) != (nth == 2)) {
+            failed = 1;
+        }
+        XFREE(enc.chacha, NULL, DYNAMIC_TYPE_CIPHER);
+        XFREE(dec.chacha, NULL, DYNAMIC_TYPE_CIPHER);
+    }
+
+#if defined(HAVE_ONE_TIME_AUTH) && defined(HAVE_POLY1305)
+    {
+        OneTimeAuth auth;
+        XMEMSET(&auth, 0, sizeof(auth));
+        mcdc_fa_install();
+        mcdc_fa_arm_only(1);
+        ret = SetAuthKeys(&auth, &keys, &specs, NULL, INVALID_DEVID);
+        mcdc_fa_restore();
+        if (ret != MEMORY_E || auth.poly1305 != NULL || auth.setup)
+            failed = 1;
+        XFREE(auth.poly1305, NULL, DYNAMIC_TYPE_CIPHER);
+    }
+#endif
+
+    return failed;
+}
+#endif
+
 /* -------------------------------------------------------------- SetKeysSide
 
  * `ret == 0 && ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)` and
@@ -291,10 +343,73 @@ static void wb_set_keys_side(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 }
 
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_discard_alert(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)ctx;
+    return sz;
+}
+
+/* The handshake rejects missing required EMS before key derivation. */
+static int wb_master_secret_ems(void)
+{
+    static const struct {
+        byte required;
+        byte negotiated;
+        int expected;
+    } cases[] = {
+        {0, 0, 0},
+        {1, 0, EXT_MASTER_SECRET_NEEDED_E},
+        {1, 1, 0},
+    };
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    int failed = 0;
+    size_t i;
+
+    if (ctx == NULL)
+        return 1;
+    wolfSSL_CTX_SetIOSend(ctx, wb_discard_alert);
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        WOLFSSL* ssl = wolfSSL_new(ctx);
+        if (ssl == NULL) {
+            failed = 1;
+            break;
+        }
+
+        ssl->options.cipherSuite0 = ECC_BYTE;
+        ssl->options.cipherSuite =
+            TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 & 0xff;
+        if (SetCipherSpecs(ssl) != 0 || ssl->arrays == NULL ||
+                ssl->hsHashes == NULL) {
+            failed = 1;
+            wolfSSL_free(ssl);
+            break;
+        }
+
+        ssl->options.requireEMS = cases[i].required;
+        ssl->options.haveEMS = cases[i].negotiated;
+        XMEMSET(ssl->arrays->preMasterSecret, 0x5a, SECRET_LEN);
+        ssl->arrays->preMasterSz = SECRET_LEN;
+        if (MakeMasterSecret(ssl) != cases[i].expected ||
+                (cases[i].expected != 0 && ssl->arrays->preMasterSz != 0))
+            failed = 1;
+        wolfSSL_free(ssl);
+    }
+    wolfSSL_CTX_free(ctx);
+    return failed;
+}
+#endif
+
 /* ---------------------------------------------------------------- main */
 
 int main(void)
 {
+    int failed = 0;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -317,7 +432,23 @@ int main(void)
     wb_set_cipher_specs(ssl, ctx);
     wb_set_keys();
     wb_set_auth_keys();
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    !defined(NO_CHAPOL_AEAD) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    failed = wb_key_allocation_failures();
+    if (failed)
+        puts("keys white-box: unexpected allocation failure behavior");
+#endif
     wb_set_keys_side(ssl, ctx);
+#if defined(HAVE_EXTENDED_MASTER) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_SHA256) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_master_secret_ems()) {
+        puts("keys white-box: unexpected EMS key derivation behavior");
+        failed = 1;
+    }
+#endif
 
     printf("keys white-box: %d vectors driven\n", g_checks);
 
@@ -326,7 +457,7 @@ done:
     if (ctx != NULL)
         wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else

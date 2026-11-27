@@ -40,7 +40,6 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it becomes a silent no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  */
 
 #include <wolfssl/options.h>
@@ -69,11 +68,55 @@ static void wb_match(const char* pattern, int patternLen,
     (void)MatchDomainName(pattern, patternLen, str, strLen, flags);
 }
 
+static int wb_domain_policy(void)
+{
+    static const struct {
+        const char* name;
+        int expected;
+    } labels[] = {
+        {"xn--demo", 1}, {"XN--demo", 1}, {"on--demo", 0},
+        {"xa--demo", 0}, {"xn_a-demo", 0}, {"xn-_demo", 0}, {"xn", 0}
+    }, patterns[] = {
+        {"xn--demo.example.com", 0}, {"x*.example.com", 0},
+        {"xn--d*.example.com", 1}, {"example.xn--d*", 1},
+        {"example.d*", 0}, {"example.xn--demo", 0}
+    };
+    size_t i;
+    int failed = 0;
+
+    for (i = 0; i < XELEM_CNT(labels); i++) {
+        if (LabelIsALabel(labels[i].name, (word32)XSTRLEN(labels[i].name)) !=
+                labels[i].expected)
+            failed = 1;
+    }
+    for (i = 0; i < XELEM_CNT(patterns); i++) {
+        if (PatternHasWildcardInALabel(patterns[i].name,
+                (word32)XSTRLEN(patterns[i].name)) != patterns[i].expected)
+            failed = 1;
+    }
+    if (!WildcardPlacementOK("*.example.com", 13,
+            WOLFSSL_NO_PARTIAL_WILDCARDS) ||
+            WildcardPlacementOK("*.com", 5, WOLFSSL_NO_PARTIAL_WILDCARDS) ||
+            WildcardPlacementOK("*", 1, WOLFSSL_NO_PARTIAL_WILDCARDS) ||
+            WildcardPlacementOK("ww*.example.com", 15,
+                WOLFSSL_NO_PARTIAL_WILDCARDS))
+        failed = 1;
+
+    /* In leftmost-only mode, single label names compare byte-for-byte. */
+    if (!MatchDomainName("localhost", 9, "localhost", 9, WB_LEFTMOST_FLAG))
+        failed = 1;
+    if (WB_LEFTMOST_FLAG != 0 &&
+            MatchDomainName("localhost", 9, "LOCALHOST", 9, WB_LEFTMOST_FLAG))
+        failed = 1;
+    return failed;
+}
+
 int main(void)
 {
     static const char kHost[]  = "www.example.com";
     static const char kWild[]  = "*.example.com";
     size_t i;
+    int failed = 0;
     unsigned int flagSets[2];
 
     if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
@@ -146,11 +189,15 @@ int main(void)
         wb_match("*.example.com", 13, "no-dots-here", 12, fl, "no dots");
     }
 
+    failed = wb_domain_policy();
+    if (failed)
+        puts("internal domain white-box: unexpected domain policy result");
+
     printf("internal domain white-box: %d vectors driven\n", g_checks);
 
 done:
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else

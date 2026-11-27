@@ -46,14 +46,34 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  *   - The target carries the SAME preprocessor guard that encloses it in
  *     internal.c.
  */
 
 #include <wolfssl/options.h>
 
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #include <wolfssl/wolfcrypt/sha256.h>
+    static int wb_sha256_copy(wc_Sha256* source, wc_Sha256* destination);
+    #define wc_Sha256Copy(source, destination) \
+        wb_sha256_copy((source), (destination))
+#endif
 #include <src/internal.c>
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SHA256) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    #undef wc_Sha256Copy
+    #include <wolfssl/wolfcrypt/error-crypt.h>
+    static int wb_copy_failed;
+    static int wb_sha256_copy(wc_Sha256* source, wc_Sha256* destination)
+    {
+        if (wb_copy_failed)
+            return WC_HW_E;
+        return wc_Sha256Copy(source, destination);
+    }
+#endif
 
 #include "mcdc_fault_alloc.h"
 
@@ -134,6 +154,98 @@ static void wb_eddsa_update(void)
     ssl.hsHashes = NULL;
 }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_eddsa_update_bounds(void)
+{
+    static const byte data = 0xAA;
+    WOLFSSL ssl;
+    HS_Hashes hashes;
+    int failed = 0;
+
+    XMEMSET(&ssl, 0, sizeof(ssl));
+    XMEMSET(&hashes, 0, sizeof(hashes));
+    ssl.hsHashes = &hashes;
+    if (EdDSA_Update(&ssl, &data, 1) != 0 || hashes.messages != NULL)
+        failed = 1;
+
+    ssl.options.cacheMessages = 1;
+    if (EdDSA_Update(&ssl, &data, -1) != BUFFER_ERROR)
+        failed = 1;
+    hashes.length = -1;
+    if (EdDSA_Update(&ssl, &data, 1) != BUFFER_ERROR)
+        failed = 1;
+    hashes.length = INT_MAX;
+    if (EdDSA_Update(&ssl, &data, 1) != BUFFER_ERROR)
+        failed = 1;
+    if (hashes.messages != NULL)
+        failed = 1;
+    return failed;
+}
+#endif
+
+#if !defined(NO_SHA256) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(MCDC_FA_UNAVAILABLE) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_transcript_copy(void)
+{
+    static const byte transcript[] = { 1, 2, 3, 4 };
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL* ssl = ctx != NULL ? wolfSSL_new(ctx) : NULL;
+    HS_Hashes* duplicate = NULL;
+    byte sourceHash[WC_SHA256_DIGEST_SIZE];
+    byte duplicateHash[WC_SHA256_DIGEST_SIZE];
+    int failed = 1;
+    int ret;
+
+    if (ssl == NULL)
+        goto done;
+    if (ssl->hsHashes == NULL && InitHandshakeHashes(ssl) != 0)
+        goto done;
+    if (InitHandshakeHashesAndCopy(NULL, ssl->hsHashes, &duplicate) !=
+            BAD_FUNC_ARG ||
+        InitHandshakeHashesAndCopy(ssl, NULL, &duplicate) != BAD_FUNC_ARG ||
+        InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, NULL) != BAD_FUNC_ARG)
+        goto done;
+
+    ssl->options.cacheMessages = 1;
+    if (wc_Sha256Update(&ssl->hsHashes->hashSha256, transcript,
+            sizeof(transcript)) != 0 ||
+        InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &duplicate) != 0 ||
+        EdDSA_Update(ssl, transcript, sizeof(transcript)) != 0 ||
+        InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &duplicate) != 0)
+        goto done;
+
+    if (duplicate->messages == ssl->hsHashes->messages ||
+        duplicate->length != sizeof(transcript) ||
+        XMEMCMP(duplicate->messages, transcript, sizeof(transcript)) != 0 ||
+        wc_Sha256GetHash(&ssl->hsHashes->hashSha256, sourceHash) != 0 ||
+        wc_Sha256GetHash(&duplicate->hashSha256, duplicateHash) != 0 ||
+        XMEMCMP(sourceHash, duplicateHash, sizeof(sourceHash)) != 0)
+        goto done;
+
+    wb_copy_failed = 1;
+    ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &duplicate);
+    wb_copy_failed = 0;
+    if (ret != WC_HW_E || duplicate == NULL || duplicate->messages != NULL)
+        goto done;
+
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &duplicate);
+    mcdc_fa_restore();
+    if (ret != MEMORY_E || duplicate != NULL)
+        goto done;
+
+    failed = 0;
+
+done:
+    if (ssl != NULL)
+        Free_HS_Hashes(duplicate, ssl->heap);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    return failed;
+}
+#endif
+
 #endif /* !WOLFSSL_NO_CLIENT_AUTH && (SM2 || ED25519 || ED448) */
 #endif /* !NO_TLS */
 
@@ -141,6 +253,7 @@ static void wb_eddsa_update(void)
 
 int main(void)
 {
+    int failed = 0;
     if (wolfSSL_Init() != WOLFSSL_SUCCESS) {
         printf("internal EdDSA white-box: wolfSSL_Init failed\n");
         return 0;
@@ -152,6 +265,19 @@ int main(void)
                 (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
     wb_eddsa_update();
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_eddsa_update_bounds()) {
+        puts("internal EdDSA white-box: message cache bounds failed");
+        failed = 1;
+    }
+#endif
+#if !defined(NO_SHA256) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(MCDC_FA_UNAVAILABLE) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_transcript_copy()) {
+        puts("internal EdDSA white-box: transcript copy failed");
+        failed = 1;
+    }
+#endif
     printf("internal EdDSA white-box: %d static-guard calls\n", g_calls);
 #else
     printf("internal EdDSA white-box: skipped (no EdDSA client auth)\n");
@@ -161,7 +287,7 @@ int main(void)
 #endif
 
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else
