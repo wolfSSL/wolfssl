@@ -117,6 +117,19 @@ static int wb_session_ticket_copy(void)
         goto done;
     }
 
+    /* The duplicator must reject a missing ticket backing buffer. */
+    {
+        byte* saved = input->ticket;
+        input->ticket = NULL;
+        copy = wolfSSL_SESSION_dup(input);
+        input->ticket = saved;
+        if (copy != NULL) {
+            failed = 1;
+            wolfSSL_SESSION_free(copy);
+            copy = NULL;
+        }
+    }
+
     if (wolfSSL_DupSession(input, output, 1) != WOLFSSL_FAILURE)
         failed = 1;
     if (SetSessionTicket(output, ticket, length - 1) != 0)
@@ -134,6 +147,14 @@ static int wb_session_ticket_copy(void)
 
     mcdc_fa_install();
     mcdc_fa_arm_only(1);
+    copy = wolfSSL_SESSION_dup(input);
+    mcdc_fa_restore();
+    if (copy != NULL) {
+        failed = 1;
+        wolfSSL_SESSION_free(copy);
+    }
+    mcdc_fa_install();
+    mcdc_fa_arm_only(2);
     copy = wolfSSL_SESSION_dup(input);
     mcdc_fa_restore();
     if (copy != NULL) {
@@ -297,11 +318,49 @@ done:
 #endif
 
 #if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_client_cache_insert(void)
+{
+    byte id[ID_LEN];
+    byte name[] = { 'h', 'o', 's', 't' };
+    ClientSession* entry;
+    int failed = 0;
+
+    XMEMSET(id, 0x45, sizeof(id));
+    if (AddSessionToClientCache(WOLFSSL_SERVER_END, 0, 0, name,
+            sizeof(name), id, 0, 3) != NULL ||
+        AddSessionToClientCache(WOLFSSL_CLIENT_END, INVALID_SESSION_ROW, 0,
+            name, sizeof(name), id, 0, 3) != NULL ||
+        AddSessionToClientCache(WOLFSSL_CLIENT_END, 0, 0, NULL, 0, id, 0,
+            3) != NULL)
+        failed = 1;
+#ifdef HAVE_SESSION_TICKET
+    if (AddSessionToClientCache(WOLFSSL_CLIENT_END, 0, 0, NULL, 0, id, 1,
+            3) != NULL)
+        failed = 1;
+#endif
+    entry = AddSessionToClientCache(WOLFSSL_CLIENT_END, 0, 0, name,
+        sizeof(name), id, 0, 3);
+    if (entry == NULL || entry->serverRow != 0 || entry->serverIdx != 0 ||
+            entry->cacheGen != 3)
+        failed = 1;
+    entry = AddSessionToClientCache(WOLFSSL_CLIENT_END, 0, 0, name, 0, id, 0,
+        4);
+    if (entry == NULL || entry->serverRow != 0 || entry->serverIdx != 0 ||
+            entry->cacheGen != 4)
+        failed = 1;
+    entry = AddSessionToClientCache(WOLFSSL_CLIENT_END, 0, 0, name,
+        sizeof(name), NULL, 0, 5);
+    if (entry == NULL || entry->cacheGen != 5)
+        failed = 1;
+    return failed;
+}
+
 static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
 {
     static const byte serverId[] = { 'c', 'a', 'c', 'h', 'e' };
     WOLFSSL* ssl = wolfSSL_new(ctx);
     WOLFSSL_SESSION* source = wolfSSL_SESSION_new();
+    WOLFSSL_SESSION* secondRef = NULL;
     WOLFSSL_SESSION* cached;
     const WOLFSSL_SESSION* locked = NULL;
     ClientSession* clientEntry = NULL;
@@ -363,6 +422,10 @@ static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
         XMEMCMP(secret, source->masterSecret, sizeof(secret)) != 0)
         goto done;
 
+    if (wolfSSL_SESSION_up_ref(source) != WOLFSSL_SUCCESS)
+        goto done;
+    secondRef = source;
+    wolfSSL_CTX_flush_sessions(ctx, source->bornOn);
     if (wolfSSL_SetSession(ssl, cached) != WOLFSSL_SUCCESS ||
         !ssl->options.resuming)
         goto done;
@@ -385,6 +448,7 @@ static int wb_internal_cache_roundtrip(WOLFSSL_CTX* ctx)
     failed = 0;
 
 done:
+    wolfSSL_SESSION_free(secondRef);
     wolfSSL_SESSION_free(source);
     wolfSSL_free(ssl);
     return failed;
@@ -548,6 +612,10 @@ int main(void)
 #if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_internal_cache_roundtrip(ctx)) {
         puts("ssl_sess white-box: unexpected internal cache result");
+        failed = 1;
+    }
+    if (wb_client_cache_insert()) {
+        puts("ssl_sess white-box: unexpected client cache insertion result");
         failed = 1;
     }
 #endif
