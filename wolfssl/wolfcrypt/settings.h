@@ -870,6 +870,14 @@
         #define WOLFSSL_MAX_ERROR_SZ 200
     #endif
 
+    #ifndef ERROR_QUEUE_MAX
+        /* ESP-IDF builds use the global error queue, where each error holds
+         * two WOLFSSL_MAX_ERROR_SZ strings. Once full, new errors are
+         * dropped until the app calls ERR_get_error(), ERR_print_errors*()
+         * or ERR_clear_error(). */
+        #define ERROR_QUEUE_MAX 16
+    #endif
+
     /* Debug message do not need an additional LF for ESP_LOG */
     #define WOLFSSL_DEBUG_LINE_ENDING ""
 
