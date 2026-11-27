@@ -2040,9 +2040,14 @@ if(WOLFSSL_SAKKE)
 endif()
 
 # SipHash
+# HashObject() uses it as a fast hash. Not a FIPS algorithm.
+set(SIPHASH_DEFAULT "yes")
+if(WOLFSSL_FIPS OR WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS OR WOLFSSL_16BIT)
+    set(SIPHASH_DEFAULT "no")
+endif()
 add_option("WOLFSSL_SIPHASH"
-    "Enable SipHash (default: disabled)"
-    "no" "yes;no")
+    "Enable SipHash (default: enabled)"
+    ${SIPHASH_DEFAULT} "yes;no")
 
 if(WOLFSSL_SIPHASH)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SIPHASH")

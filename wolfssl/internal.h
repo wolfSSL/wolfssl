@@ -8276,6 +8276,36 @@ WOLFSSL_LOCAL int Tls13KeyUpdateLimitReached(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
+#if !defined(NO_HASH_WRAPPER) && \
+    (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
+/* HashObject() is SipHash under a random key made in wolfSSL_Init(). Not
+ * where wolfSSL_Init() can't run an RNG: a crypto callback only DRBG has no
+ * device yet and a static memory build without malloc has no heap yet. */
+#if defined(WOLFSSL_SIPHASH) && !defined(WC_NO_RNG) && \
+    !((defined(WOLF_CRYPTO_CB_ONLY_SHA256) || \
+       defined(WOLF_CRYPTO_CB_ONLY_SHA512)) && defined(HAVE_HASHDRBG)) && \
+    !(defined(WOLFSSL_STATIC_MEMORY) && defined(WOLFSSL_NO_MALLOC))
+    #define WC_HASH_OBJECT_SIPHASH
+    WOLFSSL_LOCAL int  HashObjectKeyInit(WC_RNG* rng);
+    WOLFSSL_LOCAL void HashObjectKeyFree(void);
+#endif
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define HashObject wolfSSL_HashObject
+    #define SessionCacheHash wolfSSL_SessionCacheHash
+    #define sessionCacheHashKey wolfSSL_sessionCacheHashKey
+#endif
+WOLFSSL_TEST_VIS word32 HashObject(const byte* o, word32 len, int* error);
+#ifndef NO_SESSION_CACHE
+/* The session cache hashes with a key of its own, which is saved and restored
+ * with the cache. All zero when the hash has no key. A restore replaces it
+ * and must not run while another thread uses the cache. */
+#define SESSION_CACHE_HASH_KEY_SZ 16
+WOLFSSL_TEST_VIS extern byte sessionCacheHashKey[SESSION_CACHE_HASH_KEY_SZ];
+WOLFSSL_TEST_VIS word32 SessionCacheHash(const byte* id, word32 len,
+    int* error);
+#endif
+#endif
+
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
 WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 

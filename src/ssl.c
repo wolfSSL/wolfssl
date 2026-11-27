@@ -2734,6 +2734,30 @@ int wolfSSL_Init(void)
         }
 #endif
 
+#ifdef WC_HASH_OBJECT_SIPHASH
+        if (ret == WOLFSSL_SUCCESS) {
+            int keyRet;
+        #if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
+            /* Seeded just above, so no second RNG is needed. The lock covers
+             * builds where the RNG does not lock itself. Without the lock,
+             * use a temporary RNG. */
+            if (wc_LockMutex(&globalRNGMutex) == 0) {
+                keyRet = HashObjectKeyInit(initGlobalRNG ? &globalRNG : NULL);
+                wc_UnLockMutex(&globalRNGMutex);
+            }
+            else {
+                keyRet = HashObjectKeyInit(NULL);
+            }
+        #else
+            keyRet = HashObjectKeyInit(NULL);
+        #endif
+            if (keyRet != 0) {
+                WOLFSSL_MSG("HashObject key failed");
+                ret = WC_INIT_E;
+            }
+        }
+#endif
+
 #ifndef NO_SESSION_CACHE
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         for (i = 0; i < SESSION_ROWS; ++i) {
@@ -3921,6 +3945,10 @@ int wolfSSL_Cleanup(void)
 
 #ifdef OPENSSL_EXTRA
     wolfSSL_BN_free_one();
+#endif
+
+#ifdef WC_HASH_OBJECT_SIPHASH
+    HashObjectKeyFree();
 #endif
 
 #ifndef NO_SESSION_CACHE
