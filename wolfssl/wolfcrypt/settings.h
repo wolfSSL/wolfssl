@@ -704,6 +704,12 @@
     do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
 #endif
 
+/* dh.c is module code before FIPS v7 and outside the v7 module. */
+#if defined(_WC_BUILDING_DH_C) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_LT(7,0,0) && !defined(FIPS_NO_WRAPPERS)
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) &&   \
      !defined(WC_FIPS_186_5) && !defined(WC_FIPS_186_4)
     #if defined(HAVE_SELFTEST)

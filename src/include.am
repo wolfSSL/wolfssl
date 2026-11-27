@@ -1291,10 +1291,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
 endif
 endif
 
-if BUILD_DH
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dh.c
-endif
-
 if BUILD_CMAC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/cmac.c
 endif
@@ -1474,7 +1470,10 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wolfentropy.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/entropy-timers.c
 endif
 
-# Past wolfcrypt_last.c: X25519 and X448 are not v7 module services.
+# Past wolfcrypt_last.c: X25519, X448 and DH are not v7 module services.
+if BUILD_DH
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dh.c
+endif
 if BUILD_CURVE25519
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/curve25519.c
 endif
