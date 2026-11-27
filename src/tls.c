@@ -9495,8 +9495,16 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 }
 
 #ifdef WOLFSSL_HAVE_MLKEM
+#if defined(WC_MLKEM_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_MLKEM) && \
+    !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY)
+    /* Chunked ML-KEM needs the key object kept, not its encoding: storing the
+     * private key bytes leaves the TLS operations blocking. */
+    #define WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+#endif
 #if (defined(WOLFSSL_MLKEM_CACHE_A) || \
-    (defined(HAVE_PKCS11) && !defined(NO_PKCS11_MLKEM))) && \
+    (defined(HAVE_PKCS11) && !defined(NO_PKCS11_MLKEM)) || \
+    defined(WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK)) && \
     !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY)
     /* Store MlKemKey object rather than private key bytes in key share entry.
      * Improves performance at cost of more dynamic memory being used. */
@@ -9506,6 +9514,50 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ)
     #error "Choose WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY or "
            "WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ"
+#endif
+
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+#if !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
+/* Attach a non-blocking context for one operation when an async device is
+ * active; it comes off when the operation completes or the key is freed. */
+static int TLSX_MlKemNbAttach(WOLFSSL* ssl, MlKemKey* kem)
+{
+    int ret = 0;
+
+    if (ssl->devId != INVALID_DEVID && kem->nb == NULL &&
+            kem->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MLKEM) {
+        wc_MlKemNonBlock* nb = (wc_MlKemNonBlock*)XMALLOC(
+            sizeof(wc_MlKemNonBlock), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (nb == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            ret = wc_MlKemKey_set_nonblock(kem, nb);
+            if (ret != 0) {
+                XFREE(nb, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
+    }
+    return ret;
+}
+#endif
+
+static void TLSX_MlKemNbDetach(void* heap, MlKemKey* kem)
+{
+    if (kem != NULL && kem->nb != NULL) {
+        wc_MlKemNonBlock* nb = kem->nb;
+        (void)wc_MlKemKey_set_nonblock(kem, NULL);
+        XFREE(nb, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+}
+/* Still attached on entry: the operation pended and TLS re-entered after the
+ * poll finished it, so its output is already in place. */
+#define TLSX_MlKemNbDone(kem) ((kem) != NULL && (kem)->nb != NULL)
+#else
+    #define TLSX_MlKemNbAttach(ssl, kem) 0
+    #define TLSX_MlKemNbDetach(heap, kem) WC_DO_NOTHING
+    #define TLSX_MlKemNbDone(kem) 0
 #endif
 
 #if (!defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
@@ -9659,6 +9711,7 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
 {
     int ret = 0;
     int type = 0;
+    int done = 0;
 #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
         WC_DECLARE_VAR(kem, MlKemKey, 1, 0);
     byte* privKey = NULL;
@@ -9716,7 +9769,12 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
         }
     }
 #else
-    if (ret == 0) {
+    if (ret == 0 && kse->key != NULL) {
+        /* Key generation pended on this object. */
+        kem = (MlKemKey*)kse->key;
+        done = TLSX_MlKemNbDone(kem);
+    }
+    else if (ret == 0) {
         /* Allocate an ML-KEM key to hold private key. */
         kem = (MlKemKey*)XMALLOC(sizeof(MlKemKey), ssl->heap,
                                  DYNAMIC_TYPE_PRIVATE_KEY);
@@ -9724,11 +9782,14 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
             WOLFSSL_MSG("KEM memory allocation failure");
             ret = MEMORY_ERROR;
         }
-    }
-    if (ret == 0) {
-        ret = wc_MlKemKey_Init(kem, type, ssl->heap, ssl->devId);
-        if (ret != 0) {
-            WOLFSSL_MSG("Failed to initialize ML-KEM Key.");
+        if (ret == 0) {
+            ret = wc_MlKemKey_Init(kem, type, ssl->heap, ssl->devId);
+            if (ret != 0) {
+                WOLFSSL_MSG("Failed to initialize ML-KEM Key.");
+            }
+        }
+        if (ret == 0) {
+            ret = TLSX_MlKemNbAttach(ssl, kem);
         }
     }
     if (ret == 0) {
@@ -9736,19 +9797,32 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 #endif
 
+    if (ret == 0 && !done) {
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+        ret = wolfSSL_AsyncInit(ssl, &kem->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    }
+    if (ret == 0 && !done) {
+#endif
+        ret = wc_MlKemKey_MakeKey(kem, ssl->rng);
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            /* The retry re-enters with the same entry. */
+            kse->key = kem;
+            return wolfSSL_AsyncPush(ssl, &kem->asyncDev);
+        }
+#endif
+        if (ret != 0) {
+            WOLFSSL_MSG("ML-KEM keygen failure");
+        }
+    }
+    TLSX_MlKemNbDetach(ssl->heap, kem);
+
     if (ret == 0) {
         kse->pubKey = (byte*)XMALLOC(kse->pubKeyLen, ssl->heap,
                                      DYNAMIC_TYPE_PUBLIC_KEY);
         if (kse->pubKey == NULL) {
             WOLFSSL_MSG("pubkey memory allocation failure");
             ret = MEMORY_ERROR;
-        }
-    }
-
-    if (ret == 0) {
-        ret = wc_MlKemKey_MakeKey(kem, ssl->rng);
-        if (ret != 0) {
-            WOLFSSL_MSG("ML-KEM keygen failure");
         }
     }
     if (ret == 0) {
@@ -9771,6 +9845,7 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
 
     if (ret != 0) {
         /* Data owned by key share entry otherwise. */
+        TLSX_MlKemNbDetach(ssl->heap, kem);
         wc_MlKemKey_Free(kem);
         XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         kse->pubKey = NULL;
@@ -9905,8 +9980,30 @@ static int TLSX_KeyShare_GenPqcHybridKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
     /* Generate PQC key share part */
     if (ret == 0) {
         pqc_kse->group = pqc_group;
+    #if defined(WOLFSSL_ASYNC_CRYPT) && \
+        defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ)
+        /* A pended key generation left its object in privKey. */
+        if (kse->privKey != NULL &&
+            kse->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            pqc_kse->key = kse->privKey;
+            kse->privKey = NULL;
+        }
+    #endif
         ret = TLSX_KeyShare_GenPqcKeyClient(ssl, pqc_kse);
         /* No error message, TLSX_KeyShare_GenPqcKeyClient will do it. */
+    #if defined(WOLFSSL_ASYNC_CRYPT) && \
+        defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ)
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            /* Park the finished ECC key and the pended KEM object. */
+            kse->privKey = (byte*)pqc_kse->key;
+            kse->privKeyLen = 0;
+            pqc_kse->key = NULL;
+            kse->key = ecc_kse->key;
+            kse->keyLen = ecc_kse->keyLen;
+            kse->pubKeyLen = ecc_kse->pubKeyLen;
+            ecc_kse->key = NULL;
+        }
+    #endif
     }
 
     /* Allocate memory for combined public key */
@@ -10047,6 +10144,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
         }
         else if (WOLFSSL_NAMED_GROUP_IS_PQC(current->group)) {
 #ifdef WOLFSSL_HAVE_MLKEM
+            TLSX_MlKemNbDetach(heap, (MlKemKey*)current->key);
             wc_MlKemKey_Free((MlKemKey*)current->key);
         #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
             if (current->privKey != NULL) {
@@ -10062,6 +10160,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
             /* Free PQC private key */
         #ifdef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
+            TLSX_MlKemNbDetach(heap, (MlKemKey*)current->privKey);
             wc_MlKemKey_Free((MlKemKey*)current->privKey);
         #else
             if (current->privKey != NULL) {
@@ -10875,6 +10974,8 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
  *
  * ssl            The SSL/TLS object.
  * keyShareEntry  The key share entry object to use to calculate shared secret.
+ * ct             The ciphertext received from the server.
+ * ctLen          The length of the ciphertext.
  * ssOutput       The destination buffer for the shared secret.
  * ssOutSz        The size of the generated shared secret.
  *
@@ -10882,11 +10983,13 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
  */
 static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
                                              KeyShareEntry* keyShareEntry,
+                                             const byte* ct, word32 ctLen,
                                              unsigned char* ssOutput,
                                              word32* ssOutSz)
 {
     int       ret = 0;
     MlKemKey* kem = (MlKemKey*)keyShareEntry->key;
+    int       done = TLSX_MlKemNbDone(kem);
 #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
     word32    privSz = 0;
 #endif
@@ -10899,7 +11002,7 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
         return 0;
     }
 
-    if (keyShareEntry->ke == NULL) {
+    if (ct == NULL) {
         WOLFSSL_MSG("Invalid PQC algorithm specified.");
         return BAD_FUNC_ARG;
     }
@@ -10966,16 +11069,30 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
 #endif
 
     /* FIPS 203 7.3 ciphertext type check. */
-    if (ret == 0 && keyShareEntry->keLen != ctSz) {
+    if (ret == 0 && ctLen != ctSz) {
         WOLFSSL_MSG("PQC key share data is not the ciphertext size.");
         WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
         ret = BAD_KEY_SHARE_DATA;
     }
     if (ret == 0) {
+        ret = TLSX_MlKemNbAttach(ssl, kem);
+    }
+    if (ret == 0 && !done) {
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+        ret = wolfSSL_AsyncInit(ssl, &kem->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    }
+    if (ret == 0 && !done) {
+#endif
         PRIVATE_KEY_UNLOCK();
-        ret = wc_MlKemKey_Decapsulate(kem, ssOutput,
-                                      keyShareEntry->ke, ctSz);
+        ret = wc_MlKemKey_Decapsulate(kem, ssOutput, ct, ctSz);
         PRIVATE_KEY_LOCK();
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            /* The object and the ciphertext stay on the entry for the retry. */
+            keyShareEntry->key = kem;
+            return wolfSSL_AsyncPush(ssl, &kem->asyncDev);
+        }
+#endif
         if (ret != 0) {
             WOLFSSL_MSG("wc_MlKemKey decapsulation failure.");
             ret = BAD_FUNC_ARG;
@@ -10985,6 +11102,7 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
         *ssOutSz = ssSz;
     }
 
+    TLSX_MlKemNbDetach(ssl->heap, kem);
     wc_MlKemKey_Free(kem);
 
     XFREE(kem, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -11007,6 +11125,8 @@ static int TLSX_KeyShare_ProcessPqcClient(WOLFSSL* ssl,
                                           KeyShareEntry* keyShareEntry)
 {
     return TLSX_KeyShare_ProcessPqcClient_ex(ssl, keyShareEntry,
+                                             keyShareEntry->ke,
+                                             keyShareEntry->keLen,
                                              ssl->arrays->preMasterSecret,
                                              &ssl->arrays->preMasterSz);
 }
@@ -11027,8 +11147,10 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
     KeyShareEntry* pqc_kse = NULL;
     KeyShareEntry *ecc_kse = NULL;
     word32   ctSz = 0;
+    word32   ctOffset = 0;
     word32   ssSzPqc = 0;
     byte     ssPqc[WC_ML_KEM_SS_SZ];
+    int      eccDone = 0;
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* I am the server, the shared secret has already been generated and
@@ -11040,6 +11162,13 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
         WOLFSSL_MSG("Invalid PQC algorithm specified.");
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+    /* Re-entry after a pended decapsulation: the ECDH secret is already in
+     * preMasterSecret and the KEM object is in privKey. */
+    eccDone = (keyShareEntry->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+               keyShareEntry->key == NULL);
+#endif
 
     /* I am the client, both the PQC ciphertext and the ECHD public key are in
      * keyShareEntry->ke */
@@ -11124,27 +11253,15 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
             }
         }
         if (ret == 0) {
-            pqc_kse->keLen = ctSz;
-            pqc_kse->ke = (byte*)XMALLOC(pqc_kse->keLen, ssl->heap,
-                                         DYNAMIC_TYPE_PUBLIC_KEY);
-            if (pqc_kse->ke == NULL) {
-                WOLFSSL_MSG("pqc_kse memory allocation failure");
-                ret = MEMORY_ERROR;
-            }
-            /* Copy the PQC KEM ciphertext. Depending on the pqc_first flag,
-             * the KEM ciphertext comes before or after the ECDH public key. */
-            if (ret == 0) {
-                int offset = keyShareEntry->keLen - ctSz;
-
-                if (pqc_first)
-                    offset = 0;
-
-                XMEMCPY(pqc_kse->ke, keyShareEntry->ke + offset, ctSz);
-            }
+            /* The KEM ciphertext is used in place, before or after the ECDH
+             * key. */
+            ctOffset = keyShareEntry->keLen - ctSz;
+            if (pqc_first)
+                ctOffset = 0;
         }
     }
 
-    if (ret == 0) {
+    if (ret == 0 && !eccDone) {
         ecc_kse->group = ecc_group;
         ecc_kse->keLen = keyShareEntry->keLen - ctSz;
         ecc_kse->key = keyShareEntry->key;
@@ -11171,7 +11288,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
     /* Process ECDH key share part into ssl->arrays->preMasterSecret: at the
      * start, or after the KEM part if pqc_first and the module cannot join. */
-    if (ret == 0) {
+    if (ret == 0 && !eccDone) {
         int offset = 0;
 
     #ifndef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
@@ -11236,18 +11353,25 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
     }
 
     /* Process PQC KEM key share part. The module joins its shared secret, or
-     * without WOLFSSL_HAVE_TLS13_HYBRID_SECRET pqc_first places it. */
+     * without WOLFSSL_HAVE_TLS13_HYBRID_SECRET pqc_first places it. The KEM
+     * secret is staged after the ECDH one to survive a pend. */
     if (ret == 0) {
-    #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
-        ret = TLSX_KeyShare_ProcessPqcClient_ex(ssl, pqc_kse, ssPqc, &ssSzPqc);
-    #else
         int offset = ssl->arrays->preMasterSz;
 
+    #ifndef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
         if (pqc_first)
             offset = 0;
+    #endif
 
         ret = TLSX_KeyShare_ProcessPqcClient_ex(ssl, pqc_kse,
+                keyShareEntry->ke + ctOffset, ctSz,
                 ssl->arrays->preMasterSecret + offset, &ssSzPqc);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            keyShareEntry->lastRet = WC_PENDING_E;
+            /* The KEM object stays in privKey for the retry. */
+            pqc_kse->key = NULL;
+        }
     #endif
     }
 
@@ -11256,7 +11380,12 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
     #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
         /* The module joins the secrets; FIPS builds enforce the group's
-         * order and sizes. */
+         * order and sizes. The join is in place, so the staged KEM secret is
+         * moved out first. */
+        XMEMCPY(ssPqc, ssl->arrays->preMasterSecret + ssl->arrays->preMasterSz,
+                ssSzPqc);
+        ForceZero(ssl->arrays->preMasterSecret + ssl->arrays->preMasterSz,
+                  ssSzPqc);
         ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
                 ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
                 &ssl->arrays->preMasterSz, ssPqc, ssSzPqc);
@@ -11297,7 +11426,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 }
 #endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
-/* Process the key share extension on the client side.
+/* Process the key share extension to calculate the shared secret.
  *
  * ssl            The SSL/TLS object.
  * keyShareEntry  The key share entry object to use to calculate shared secret.
@@ -11322,6 +11451,13 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_ProcessX448(ssl, keyShareEntry);
+#ifdef WOLFSSL_HAVE_MLKEM
+    /* The server derived its shared secret when it encapsulated. */
+    else if ((ssl->options.side == WOLFSSL_SERVER_END) &&
+             (WOLFSSL_NAMED_GROUP_IS_PQC(keyShareEntry->group) ||
+              WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(keyShareEntry->group)))
+        ret = 0;
+#endif
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     else if (WOLFSSL_NAMED_GROUP_IS_PQC(keyShareEntry->group))
         ret = TLSX_KeyShare_ProcessPqcClient(ssl, keyShareEntry);
@@ -11674,20 +11810,23 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
  * keyShareEntry  The key share entry object to be sent to the client.
  * data           The key share data received from the client.
  * len            The length of the key share data from the client.
+ * ct             The destination buffer for the ciphertext, or NULL to build
+ *                it in keyShareEntry->pubKey as the server's share.
  * ssOutput       The destination buffer for the shared secret.
  * ssOutSz        The size of the generated shared secret.
+ * resume         1 when a pended encapsulation re-enters with the client key
+ *                already decoded.
  *
  * returns 0 on success and other values indicate failure.
  */
 static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
     KeyShareEntry* keyShareEntry, byte* clientData, word16 clientLen,
-    unsigned char* ssOutput, word32* ssOutSz)
+    byte* ct, unsigned char* ssOutput, word32* ssOutSz, int resume)
 {
     /* We are on the server side. The key share contains a PQC KEM public key
      * that we are using for an encapsulate operation. The resulting ciphertext
      * is stored in the server key share. */
     MlKemKey* kemKey = (MlKemKey*)keyShareEntry->key;
-    byte* ciphertext = NULL;
     int ret = 0;
     word32 pubSz = 0;
     word32 ctSz = 0;
@@ -11722,6 +11861,9 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
             }
         }
     }
+    if (ret == 0 && !resume) {
+        ret = TLSX_MlKemNbAttach(ssl, kemKey);
+    }
 
     if (ret == 0) {
         ret = wc_MlKemKey_PublicKeySize(kemKey, &pubSz);
@@ -11740,16 +11882,20 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
         ret = BAD_KEY_SHARE_DATA;
     }
 
-    if (ret == 0) {
-        ciphertext = (byte*)XMALLOC(ctSz, ssl->heap, DYNAMIC_TYPE_TLSX);
-
-        if (ciphertext == NULL) {
-            WOLFSSL_MSG("Ciphertext memory allocation failure.");
-            ret = MEMORY_E;
+    if (ret == 0 && ct == NULL) {
+        if (keyShareEntry->pubKey == NULL) {
+            keyShareEntry->pubKey = (byte*)XMALLOC(ctSz, ssl->heap,
+                                                   DYNAMIC_TYPE_PUBLIC_KEY);
+            if (keyShareEntry->pubKey == NULL) {
+                WOLFSSL_MSG("Ciphertext memory allocation failure.");
+                ret = MEMORY_E;
+            }
+            keyShareEntry->pubKeyLen = 0;
         }
+        ct = keyShareEntry->pubKey;
     }
 
-    if (ret == 0) {
+    if (ret == 0 && !resume) {
         ret = wc_MlKemKey_DecodePublicKey(kemKey, clientData, pubSz);
         /* FIPS 203 7.2 modulus check failed; the peer sent a bad key. */
         if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
@@ -11757,9 +11903,22 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
             ret = BAD_KEY_SHARE_DATA;
         }
     }
-    if (ret == 0) {
-        ret = wc_MlKemKey_Encapsulate(kemKey, ciphertext,
-                                      ssOutput, ssl->rng);
+    if (ret == 0 && !resume) {
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+        ret = wolfSSL_AsyncInit(ssl, &kemKey->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    }
+    if (ret == 0 && !resume) {
+#endif
+        ret = wc_MlKemKey_Encapsulate(kemKey, ct, ssOutput, ssl->rng);
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            /* TLSX_KeyShare_Setup() re-enters with the client share in ke. */
+            keyShareEntry->key = kemKey;
+            keyShareEntry->lastRet = WC_PENDING_E;
+            return wolfSSL_AsyncPush(ssl, &kemKey->asyncDev);
+        }
+#endif
         if (ret != 0) {
             WOLFSSL_MSG("wc_MlKemKey encapsulation failure.");
         }
@@ -11771,19 +11930,24 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
         *ssOutSz = ssSz;
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
-
-        XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        keyShareEntry->pubKey = ciphertext;
-        keyShareEntry->pubKeyLen = ctSz;
-        ciphertext = NULL;
+        if (ct == keyShareEntry->pubKey) {
+            keyShareEntry->pubKeyLen = ctSz;
+        }
+#ifdef WOLFSSL_ASYNC_CRYPT
+        keyShareEntry->lastRet = 0;
+#endif
 
         /* Set namedGroup so wolfSSL_get_curve_name() can function properly on
          * the server side. */
         ssl->namedGroup = keyShareEntry->group;
     }
+    else if (ct == keyShareEntry->pubKey) {
+        XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        keyShareEntry->pubKey = NULL;
+        keyShareEntry->pubKeyLen = 0;
+    }
 
-    XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
-
+    TLSX_MlKemNbDetach(ssl->heap, kemKey);
     wc_MlKemKey_Free(kemKey);
     XFREE(kemKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     keyShareEntry->key = NULL;
@@ -11805,6 +11969,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     int    pqc_group = 0;
     int    ecc_group = 0;
     int    pqc_first = 0;
+    int    kemResume = 0;
     KeyShareEntry *ecc_kse = NULL;
     KeyShareEntry *pqc_kse = NULL;
     word32 pubSz = 0;
@@ -11851,6 +12016,16 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     /* The ciphertext and shared secret sizes of a KEM are fixed. Hence, we
      * decode these sizes to properly concatenate the KEM ciphertext with the
      * ECDH public key. */
+#ifdef WOLFSSL_TLSX_PQC_MLKEM_NONBLOCK
+    if (ret == 0 && keyShareEntry->privKey != NULL) {
+        /* Re-entry after a pended encapsulation: the ECDH half is done, the
+         * combined share is parked in pubKey and the KEM object in privKey. */
+        kemResume = 1;
+        pqc_kse->key = keyShareEntry->privKey;
+        keyShareEntry->privKey = NULL;
+    }
+    else
+#endif
     if (ret == 0) {
         /* Allocate an ML-KEM key to hold private key. */
         pqc_kse->key = (MlKemKey*) XMALLOC(sizeof(MlKemKey), ssl->heap,
@@ -11873,18 +12048,22 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
                 WOLFSSL_MSG("Error creating ML-KEM key");
             }
         }
-        if (ret == 0) {
-            ret = wc_MlKemKey_SharedSecretSize((MlKemKey*)pqc_kse->key,
-                                               &ssSzPqc);
-        }
-        if (ret == 0) {
-            ret = wc_MlKemKey_CipherTextSize((MlKemKey*)pqc_kse->key,
-                                             &ctSz);
-        }
-        if (ret == 0) {
-            ret = wc_MlKemKey_PublicKeySize((MlKemKey*)pqc_kse->key,
-                                            &pubSz);
-        }
+    }
+    if (ret == 0) {
+        ret = wc_MlKemKey_SharedSecretSize((MlKemKey*)pqc_kse->key, &ssSzPqc);
+    }
+    if (ret == 0) {
+        ret = wc_MlKemKey_CipherTextSize((MlKemKey*)pqc_kse->key, &ctSz);
+    }
+    if (ret == 0) {
+        ret = wc_MlKemKey_PublicKeySize((MlKemKey*)pqc_kse->key, &pubSz);
+    }
+    if (ret == 0 && kemResume) {
+        /* Take back the combined share; the ECDH public key sits in it. */
+        ciphertext = keyShareEntry->pubKey;
+        keyShareEntry->pubKey = NULL;
+        ecc_kse->pubKeyLen = keyShareEntry->pubKeyLen - ctSz;
+        keyShareEntry->pubKeyLen = 0;
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -11905,7 +12084,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 #endif
 
     /* Generate the ECDH key share part to be sent to the client */
-    if (ret == 0 && ecc_group != 0 && ecc_kse->pubKey == NULL) {
+    if (ret == 0 && ecc_group != 0 && ecc_kse->pubKey == NULL && !kemResume) {
     #ifdef HAVE_CURVE25519
         if (ecc_group == WOLFSSL_ECC_X25519) {
             ret = TLSX_KeyShare_GenX25519Key(ssl, ecc_kse);
@@ -11947,9 +12126,9 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 
     /* Allocate buffer for the concatenated client key share data
      * (PQC KEM ciphertext + ECDH public key) */
-    if (ret == 0) {
+    if (ret == 0 && ciphertext == NULL) {
         ciphertext = (byte*)XMALLOC(ecc_kse->pubKeyLen + ctSz, ssl->heap,
-            DYNAMIC_TYPE_TLSX);
+            DYNAMIC_TYPE_PUBLIC_KEY);
 
         if (ciphertext == NULL) {
             WOLFSSL_MSG("Ciphertext memory allocation failure.");
@@ -11959,7 +12138,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 
     /* Process ECDH key share part into ssl->arrays->preMasterSecret: at the
      * start, or after the KEM part if pqc_first and the module cannot join. */
-    if (ret == 0) {
+    if (ret == 0 && !kemResume) {
         ecc_kse->keLen = len - pubSz;
         ecc_kse->ke = (byte*)XMALLOC(ecc_kse->keLen, ssl->heap,
                                      DYNAMIC_TYPE_PUBLIC_KEY);
@@ -12027,30 +12206,52 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     }
 
     /* Process PQC KEM key share part. The module joins its shared secret, or
-     * without WOLFSSL_HAVE_TLS13_HYBRID_SECRET pqc_first places it. */
+     * without WOLFSSL_HAVE_TLS13_HYBRID_SECRET pqc_first places it. The KEM
+     * secret is staged after the ECDH one to survive a pend; the ciphertext
+     * goes into the combined share in place. */
     if (ret == 0) {
-        int input_offset = ecc_kse->keLen;
-    #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
-        byte* output = ssPqc;
-    #else
+        int input_offset = len - pubSz;
+        word32 ctOffset = ecc_kse->pubKeyLen;
         byte* output = ssl->arrays->preMasterSecret + ssl->arrays->preMasterSz;
-    #endif
 
         if (pqc_first) {
             input_offset = 0;
+            ctOffset = 0;
         #ifndef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
             output = ssl->arrays->preMasterSecret;
         #endif
         }
+        if (!kemResume) {
+            XMEMCPY(ciphertext + (pqc_first ? ctSz : 0), ecc_kse->pubKey,
+                    ecc_kse->pubKeyLen);
+        }
 
         ret = TLSX_KeyShare_HandlePqcKeyServer(ssl, pqc_kse,
-                data + input_offset, pubSz, output, &ssSzPqc);
+                data + input_offset, pubSz, ciphertext + ctOffset, output,
+                &ssSzPqc, kemResume);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+            /* Park the KEM object and the combined share on the entry. */
+            keyShareEntry->privKey = (byte*)pqc_kse->key;
+            keyShareEntry->privKeyLen = 0;
+            pqc_kse->key = NULL;
+            keyShareEntry->pubKey = ciphertext;
+            keyShareEntry->pubKeyLen = ecc_kse->pubKeyLen + ctSz;
+            ciphertext = NULL;
+            keyShareEntry->lastRet = WC_PENDING_E;
+        }
+    #endif
     }
 
 #ifdef WOLFSSL_HAVE_TLS13_HYBRID_SECRET
     /* The module joins the secrets; FIPS builds enforce the group's order and
-     * sizes. */
+     * sizes. The join is in place, so the staged KEM secret is moved out
+     * first. */
     if (ret == 0) {
+        XMEMCPY(ssPqc, ssl->arrays->preMasterSecret + ssl->arrays->preMasterSz,
+                ssSzPqc);
+        ForceZero(ssl->arrays->preMasterSecret + ssl->arrays->preMasterSz,
+                  ssSzPqc);
         ret = wc_Tls13_HybridSharedSecret(keyShareEntry->group, pqc_first,
                 ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ,
                 &ssl->arrays->preMasterSz, ssPqc, ssSzPqc);
@@ -12073,18 +12274,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
         keyShareEntry->lastRet = 0;
     #endif
 
-        /* Concatenate the ECDH public key and the PQC KEM ciphertext. Based on
-         * the pqc_first flag, the ECDH public key goes before or after the KEM
-         * ciphertext. */
-        if (pqc_first) {
-            XMEMCPY(ciphertext, pqc_kse->pubKey, ctSz);
-            XMEMCPY(ciphertext + ctSz, ecc_kse->pubKey, ecc_kse->pubKeyLen);
-        }
-        else {
-            XMEMCPY(ciphertext, ecc_kse->pubKey, ecc_kse->pubKeyLen);
-            XMEMCPY(ciphertext + ecc_kse->pubKeyLen, pqc_kse->pubKey, ctSz);
-        }
-
+        /* The combined share is complete, in pqc_first order. */
         XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->pubKey = ciphertext;
         keyShareEntry->pubKeyLen = ecc_kse->pubKeyLen + ctSz;
@@ -12108,7 +12298,7 @@ int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
     TLSX_KeyShare_FreeAll(pqc_kse, ssl->heap);
-    XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
+    XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     return ret;
 }
 #endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_MLKEM_NO_ENCAPSULATE */
@@ -12575,7 +12765,20 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
          * that no usable share was found. */
         KeyShareEntry* serverKSE = (KeyShareEntry*)extension->data;
         if (serverKSE && serverKSE->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
+        #if defined(WOLFSSL_HAVE_MLKEM) && \
+            !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
+            /* A pended server encapsulation is finished by
+             * TLSX_KeyShare_Setup(); GenKey would run a client generator. */
+            if (serverKSE->ke != NULL &&
+                    (WOLFSSL_NAMED_GROUP_IS_PQC(serverKSE->group) ||
+                     WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(serverKSE->group))) {
+                ret = 0;
+            }
+            else
+        #endif
+            {
+                ret = TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
+            }
         }
         else
     #endif
@@ -12667,6 +12870,15 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
                     return TLSX_KeyShare_HandlePqcHybridKeyServer((WOLFSSL*)ssl,
                             serverKSE, serverKSE->ke, serverKSE->keLen);
                 }
+                /* Likewise a pended standalone encapsulation, marked by the
+                 * object on the entry. */
+                if (serverKSE->ke != NULL && serverKSE->key != NULL &&
+                        WOLFSSL_NAMED_GROUP_IS_PQC(serverKSE->group)) {
+                    return TLSX_KeyShare_HandlePqcKeyServer(ssl, serverKSE,
+                            serverKSE->ke, serverKSE->keLen, NULL,
+                            ssl->arrays->preMasterSecret,
+                            &ssl->arrays->preMasterSz, 1);
+                }
 #endif
                 /* in async case make sure key generation is finalized */
                 if (serverKSE->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E))
@@ -12691,8 +12903,9 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
 #if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
         if (WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group)) {
             ret = TLSX_KeyShare_HandlePqcKeyServer(ssl, serverKSE,
-                    clientKSE->ke, clientKSE->keLen,
-                    ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz);
+                    clientKSE->ke, clientKSE->keLen, NULL,
+                    ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
+                    0);
         }
         else if (WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(clientKSE->group)) {
             ret = TLSX_KeyShare_HandlePqcHybridKeyServer(ssl, serverKSE,
@@ -12756,6 +12969,11 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
 
     ret = TLSX_KeyShare_Choose(ssl, ssl->extensions, ssl->cipher.cipherSuite0,
         ssl->cipher.cipherSuite, &clientKSE, &searched);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Chosen on an earlier pass: finish it as MatchSuite does. */
+    if (ret == 0 && !searched)
+        return TLSX_KeyShare_Setup(ssl, NULL);
+#endif
     if (ret != 0 || !searched)
         return ret;
 

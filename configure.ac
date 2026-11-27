@@ -2609,8 +2609,16 @@ do
     ENABLED_MLDSA_NO_CTX=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_NO_CTX"
     ;;
+  nonblock)
+    # Resumable operations on the small-memory paths. asynccrypt and
+    # asynccrypt-sw are auto-enabled earlier in this file so the TLS layer
+    # drives them a chunk per wolfSSL_AsyncPoll().
+    AM_CFLAGS="$AM_CFLAGS -DWC_MLDSA_NONBLOCK -DWOLFSSL_MLDSA_SIGN_SMALL_MEM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM"
+    ;;
   *)
-    AC_MSG_ERROR([Invalid choice for ML-DSA [all,make,sign,verify,verify-only,small,44,65,87,no-ctx]: $ENABLED_MLDSA.])
+    AC_MSG_ERROR([Invalid choice for ML-DSA [all,make,sign,verify,verify-only,small,nonblock,44,65,87,no-ctx]: $ENABLED_MLDSA.])
     break;;
   esac
 done
@@ -6634,6 +6642,15 @@ then
     test -z "$enable_asynccrypt_sw" && enable_asynccrypt_sw=yes
 fi
 
+# Handle ML-DSA/ML-KEM nonblock the same way: --enable-mldsa=yes,nonblock and
+# --enable-mlkem=yes,nonblock run the operations a chunk per poll.
+case ",$ENABLED_MLDSA,$ENABLED_MLKEM," in
+  *,nonblock,*)
+    test -z "$enable_asynccrypt" && enable_asynccrypt=yes
+    test -z "$enable_asynccrypt_sw" && enable_asynccrypt_sw=yes
+    ;;
+esac
+
 if test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_QUIC" = "yes" && test "$ENABLED_FIPS" = "no"
 then
     ENABLED_CURVE25519=yes
@@ -8873,6 +8890,13 @@ do
   noasm)
     AM_CFLAGS="$AM_CFLAGS -DWC_MLKEM_NO_ASM"
     ;;
+  nonblock)
+    # Resumable operations on the small-memory paths. asynccrypt and
+    # asynccrypt-sw are auto-enabled earlier in this file so the TLS layer
+    # drives them a chunk per wolfSSL_AsyncPoll().
+    AM_CFLAGS="$AM_CFLAGS -DWC_MLKEM_NONBLOCK -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM"
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for MLKEM []: $ENABLED_MLKEM.])
     break;;
@@ -8895,6 +8919,25 @@ then
     ENABLED_MLKEM_MAKE_KEY=yes
     ENABLED_MLKEM_ENCAPSULATE=yes
     ENABLED_MLKEM_DECAPSULATE=yes
+fi
+
+# FIPS v7 runs a pairwise consistency test on key generation, which the
+# nonblock key generation does not support. The FIPS block resets the option
+# strings, so check what was asked for.
+if test "$ENABLED_FIPS" != "no" && test "${HAVE_FIPS_VERSION_MAJOR:-0}" -ge 7
+then
+    case ",$enable_mldsa,$enable_dilithium," in
+      *,nonblock,*)
+        AS_IF([test "$ENABLED_MLDSA_MAKE_KEY" = "yes"],
+            [AC_MSG_ERROR([ML-DSA nonblock with key generation is not available in FIPS v7 builds.])])
+        ;;
+    esac
+    case ",$enable_mlkem,$enable_kyber," in
+      *,nonblock,*)
+        AS_IF([test "$ENABLED_MLKEM_MAKE_KEY" = "yes"],
+            [AC_MSG_ERROR([ML-KEM nonblock with key generation is not available in FIPS v7 builds.])])
+        ;;
+    esac
 fi
 
 # Selftest uses its own random.c which doesn't support SHA-512 DRBG
@@ -12778,6 +12821,14 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT_SW"
         ENABLED_ASYNCCRYPT_SW=yes
     fi
+fi
+
+# WC_ASYNC_DEV holds one backend, so the software simulator (also enabled by
+# the nonblock options) cannot be combined with Intel QAT or Cavium.
+if test "x$ENABLED_ASYNCCRYPT_SW" = "xyes" &&
+   { test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_CAVIUM" = "xyes"; }
+then
+    AC_MSG_ERROR([asynccrypt-sw (or a nonblock option) cannot be combined with Intel QAT or Cavium])
 fi
 
 # Crypto callbacks with async crypt cannot complete TLS 1.2 record ciphers
