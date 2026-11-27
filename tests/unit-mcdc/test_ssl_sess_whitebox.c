@@ -211,6 +211,91 @@ done:
 }
 #endif
 
+#if defined(HAVE_EXT_CACHE) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+struct wb_external_cache {
+    WOLFSSL_SESSION* session;
+    int transfer;
+    int lookups;
+};
+
+static WOLFSSL_SESSION* wb_external_get(WOLFSSL* ssl, const byte* id, int len,
+    int* copy)
+{
+    struct wb_external_cache* cache =
+        (struct wb_external_cache*)wolfSSL_GetIOReadCtx(ssl);
+    WOLFSSL_SESSION* session = cache->session;
+
+    if (id == NULL || len != ID_LEN)
+        return NULL;
+    cache->lookups++;
+    *copy = !cache->transfer;
+    if (cache->transfer)
+        cache->session = NULL;
+    return session;
+}
+
+/* Drive the internal cache lookup with independently owned sessions. */
+static int wb_external_cache_lookup(WOLFSSL_CTX* ctx)
+{
+    struct wb_external_cache cache = { NULL, 0, 0 };
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    WOLFSSL_SESSION* output = wolfSSL_SESSION_new();
+    int failed = 1;
+
+    cache.session = wolfSSL_SESSION_new();
+    if (ssl == NULL || output == NULL || cache.session == NULL)
+        goto done;
+
+    wolfSSL_SetIOReadCtx(ssl, &cache);
+    wolfSSL_CTX_sess_set_get_cb(ctx, wb_external_get);
+    ssl->options.internalCacheLookupOff = 1;
+    ssl->version = MakeTLSv1_2();
+    cache.session->version = MakeTLSv1_2();
+
+    if (CheckSessionMatch(NULL, cache.session) ||
+            CheckSessionMatch(ssl, NULL) ||
+            !CheckSessionMatch(ssl, cache.session))
+        goto done;
+    if (GetSessionFromCache(ssl, output, 0) != WOLFSSL_FAILURE ||
+            cache.lookups != 0)
+        goto done;
+
+    ssl->options.haveSessionId = 1;
+    if (GetSessionFromCache(ssl, NULL, 0) != WOLFSSL_FAILURE ||
+            GetSessionFromCache(ssl, output, 1) != WOLFSSL_FAILURE ||
+            cache.lookups != 0)
+        goto done;
+    if (GetSessionFromCache(ssl, output, 0) != WOLFSSL_SUCCESS ||
+            cache.lookups != 1)
+        goto done;
+
+    cache.session->version = MakeTLSv1_3();
+    if (GetSessionFromCache(ssl, output, 0) != WOLFSSL_FAILURE ||
+            cache.lookups != 2)
+        goto done;
+    cache.transfer = 1;
+    ssl->version = MakeTLSv1_3();
+    ssl->options.haveSessionId = 0;
+    ssl->session->haveAltSessionID = 1;
+    cache.session->haveAltSessionID = 1;
+    if (GetSessionFromCache(ssl, ssl->session, 0) != WOLFSSL_SUCCESS ||
+            cache.lookups != 3 || cache.session != NULL)
+        goto done;
+    if (GetSessionFromCache(ssl, output, 0) != WOLFSSL_FAILURE ||
+            cache.lookups != 4)
+        goto done;
+    failed = 0;
+
+done:
+    wolfSSL_CTX_sess_set_get_cb(ctx, NULL);
+    wolfSSL_SESSION_free(cache.session);
+    wolfSSL_SESSION_free(output);
+    wolfSSL_free(ssl);
+    return failed;
+}
+#endif
+
 int main(void)
 {
     int failed = 0;
@@ -353,6 +438,14 @@ int main(void)
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_session_nonce_copy()) {
         puts("ssl_sess white-box: unexpected nonce copy result");
+        failed = 1;
+    }
+#endif
+
+#if defined(HAVE_EXT_CACHE) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_external_cache_lookup(ctx)) {
+        puts("ssl_sess white-box: unexpected external cache result");
         failed = 1;
     }
 #endif
