@@ -15,6 +15,7 @@
     <ul>
         <li>\ref ASN</li>
         <li>\ref Base_Encoding</li>
+        <li>\ref BuildCheck</li>
         <li>\ref Compression</li>
         <li>\ref Error</li>
         <li>\ref IoTSafe</li>

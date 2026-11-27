@@ -1924,6 +1924,11 @@ typedef int (*wc_UnknownExtCallback32Ex)(const word32* oid, word32 oidSz,
                                          word32 derSz, void *ctx);
 #endif
 
+/* Defined only when this full section of asn.h was processed, not just the
+ * SN_* names that openssl/obj_mac.h includes asn.h for; build_check.h uses it
+ * to tell whether DecodedCert is available. */
+#define WC_DECODEDCERT_DEFINED
+
 struct DecodedCert {
     const byte* publicKey;
     word32  pubKeySize;

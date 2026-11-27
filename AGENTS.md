@@ -38,6 +38,18 @@ and corrupts memory at runtime.
 - `user_settings.h` builds: define `WOLFSSL_USER_SETTINGS` for **both** the library
   and the application, and keep one shared `user_settings.h` on the include path.
 - Never commit a generated `wolfssl/options.h` (it is per-configure output).
+- To verify at run time, include `<wolfssl/wolfcrypt/build_check.h>` and call
+  `wc_CheckBuildConfig(&mismatch)` before `wolfSSL_Init()`, or
+  `wc_CheckBuildConfigEx(&mismatch, buf, 2048)` to also get a description
+  naming each difference (`OPENSSL_EXTRA: app=on lib=off; sizeof(Aes): ...`).
+  It compares the app's feature-macro bits, the sizes of public structs apps
+  allocate (keys, contexts, `Cert`, compat-layer `EVP_*`/`SHA*` contexts, ...)
+  and the `options.h` hash with the loaded library's, and returns
+  `BUILD_CONFIG_MISMATCH_E` on a difference. It needs `HAVE_WC_INTROSPECTION`,
+  on by default with autotools and CMake; add it to `user_settings.h`
+  yourself. When a public struct's layout starts depending on a new macro,
+  CI (`build-config-check.yml`) asks for it to be added to
+  `wolfssl/wolfcrypt/build_check_list.h`.
 
 ## Autotools build (primary)
 

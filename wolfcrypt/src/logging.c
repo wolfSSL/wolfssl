@@ -21,6 +21,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef HAVE_WC_INTROSPECTION
+#include <wolfssl/wolfcrypt/build_check.h>
+#endif
+
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 /* avoid adding WANT_READ and WANT_WRITE to error queue */
 #include <wolfssl/error-ssl.h>
@@ -101,6 +105,368 @@ PEDANTIC_EXTENSION const char *wolfSSL_global_cflags(void) {
 #else
   return NULL;
 #endif
+}
+
+/* Names for the fingerprint, built from the same list that
+ * wc_BuildConfig_Local() expands, so names cannot drift from their bits.
+ * One table holds both kinds of entry. */
+#define WC_BUILD_NAME_FEATURE 0
+#define WC_BUILD_NAME_SIZE    1
+
+typedef struct wc_BuildName {
+    byte kind;  /* WC_BUILD_NAME_FEATURE or WC_BUILD_NAME_SIZE */
+    byte a;     /* feature word, or size slot */
+    byte b;     /* feature bit; 0 for a size slot */
+    const char* name;
+} wc_BuildName;
+
+static const wc_BuildName wc_build_names[] = {
+#define WC_BCF(w, b, n)     { WC_BUILD_NAME_FEATURE, (w), (b), #n },
+#define WC_BCF_NO(w, b, n)  { WC_BUILD_NAME_FEATURE, (w), (b), #n },
+#define WC_BCS(s, t)        { WC_BUILD_NAME_SIZE, (s), 0, #t },
+#define WC_BCS_NO(s, t)     { WC_BUILD_NAME_SIZE, (s), 0, #t },
+#define WC_BCS_UNKNOWN(s, t) { WC_BUILD_NAME_SIZE, (s), 0, #t },
+#include <wolfssl/wolfcrypt/build_check_list.h>
+#undef WC_BCF
+#undef WC_BCF_NO
+#undef WC_BCS
+#undef WC_BCS_NO
+#undef WC_BCS_UNKNOWN
+    { 0, 0, 0, NULL }
+};
+
+static const char* wc_build_name(byte kind, word32 a, word32 b)
+{
+    int i;
+
+    for (i = 0; wc_build_names[i].name != NULL; i++) {
+        if ((wc_build_names[i].kind == kind) && (wc_build_names[i].a == a) &&
+                (wc_build_names[i].b == b)) {
+            return wc_build_names[i].name;
+        }
+    }
+    return NULL;
+}
+
+/* Name of the macro behind a feature bit.
+ *
+ * word  [in]  Feature word index.
+ * bit   [in]  Bit index in the word.
+ * returns the macro name, or NULL for an unused or out of range bit.
+ */
+const char* wc_BuildConfigFeatureName(word32 word, word32 bit)
+{
+    if ((word >= (word32)WC_BUILD_FEATURE_WORDS) || (bit >= 32)) {
+        return NULL;
+    }
+    return wc_build_name(WC_BUILD_NAME_FEATURE, word, bit);
+}
+
+/* Type recorded in a size slot.
+ *
+ * slot  [in]  Size slot index.
+ * returns the type name, or NULL for an unused or out of range slot.
+ */
+const char* wc_BuildConfigSizeName(word32 slot)
+{
+    if (slot >= (word32)WC_BUILD_SIZE_COUNT) {
+        return NULL;
+    }
+    return wc_build_name(WC_BUILD_NAME_SIZE, slot, 0);
+}
+
+/* Output state for wc_build_config_describe(): the optional caller buffer
+ * and the item being formatted. Each difference is built in item (an item
+ * longer than 95 characters is cut short; none in the list comes close),
+ * then logged and/or appended to buf by wc_build_item_end(). No snprintf, so
+ * this works on every platform the library does. */
+typedef struct wc_BuildDescribe {
+    char*  buf;
+    word32 sz;
+    word32 len;
+    int    truncated;
+    int    count;
+    char   item[96];
+    word32 itemLen;
+} wc_BuildDescribe;
+
+static void wc_build_item_str(wc_BuildDescribe* d, const char* str)
+{
+    while ((*str != '\0') && (d->itemLen < (word32)sizeof(d->item) - 1)) {
+        d->item[d->itemLen++] = *str++;
+    }
+    d->item[d->itemLen] = '\0';
+}
+
+static void wc_build_item_dec(wc_BuildDescribe* d, word32 v)
+{
+    char tmp[11];
+    int  i = (int)sizeof(tmp) - 1;
+
+    tmp[i] = '\0';
+    do {
+        tmp[--i] = (char)('0' + (v % 10));
+        v /= 10;
+    } while ((v != 0) && (i > 0));
+    wc_build_item_str(d, &tmp[i]);
+}
+
+static void wc_build_item_hex(wc_BuildDescribe* d, word32 v)
+{
+    static const char hexChars[] = "0123456789abcdef";
+    char tmp[11];
+    int  i;
+
+    tmp[0] = '0';
+    tmp[1] = 'x';
+    for (i = 0; i < 8; i++) {
+        tmp[2 + i] = hexChars[(v >> (28 - (4 * i))) & 0xf];
+    }
+    tmp[10] = '\0';
+    wc_build_item_str(d, tmp);
+}
+
+/* Finish the current item: log it when doLog is set, and append it to the
+ * output buffer, if any. When an item does not fit, the buffer is marked
+ * truncated and ends in "..." (if it has room for one). */
+static void wc_build_item_end(wc_BuildDescribe* d, int doLog)
+{
+    word32 need;
+    word32 i;
+
+    if (doLog) {
+        WOLFSSL_MSG(d->item);
+    }
+    (void)doLog;
+
+    if ((d->buf != NULL) && !d->truncated) {
+        need = d->itemLen + ((d->count > 0) ? 2U : 0U);
+        if (d->len + need + 1 <= d->sz) {
+            if (d->count > 0) {
+                d->buf[d->len++] = ';';
+                d->buf[d->len++] = ' ';
+            }
+            for (i = 0; i < d->itemLen; i++) {
+                d->buf[d->len++] = d->item[i];
+            }
+            d->buf[d->len] = '\0';
+        }
+        else {
+            /* Mark the cut with "...", overwriting the tail if needed; a
+             * buffer of under 4 bytes keeps only what already fit. */
+            d->truncated = 1;
+            if (d->sz >= 4) {
+                if (d->len + 4 > d->sz) {
+                    d->len = d->sz - 4;
+                }
+                d->buf[d->len++] = '.';
+                d->buf[d->len++] = '.';
+                d->buf[d->len++] = '.';
+                d->buf[d->len] = '\0';
+            }
+        }
+    }
+    d->count++;
+    d->itemLen = 0;
+    d->item[0] = '\0';
+}
+
+/* Walk the differences between cfg (the caller's view) and lib (the
+ * library's view), describing each one in d and, when doLog is set, in the
+ * debug log. Feature bits with no name are reported by word and bit.
+ *
+ * returns a WC_BUILD_MISMATCH_* bitmask of what differed.
+ */
+static word32 wc_build_config_describe(const wc_BuildConfig* cfg,
+    const wc_BuildConfig* lib, wc_BuildDescribe* d, int doLog)
+{
+    word32 diff = 0;
+    word32 w;
+    word32 b;
+    const char* name;
+
+    if (cfg->libVersionHex != lib->libVersionHex) {
+        diff |= WC_BUILD_MISMATCH_VERSION;
+        wc_build_item_str(d, "version: app=");
+        wc_build_item_hex(d, cfg->libVersionHex);
+        wc_build_item_str(d, " lib=");
+        wc_build_item_hex(d, lib->libVersionHex);
+        wc_build_item_end(d, doLog);
+    }
+    for (w = 0; w < (word32)WC_BUILD_FEATURE_WORDS; w++) {
+        if (cfg->features[w] == lib->features[w]) {
+            continue;
+        }
+        diff |= WC_BUILD_MISMATCH_FEATURES;
+        for (b = 0; b < 32; b++) {
+            if (((cfg->features[w] ^ lib->features[w]) & WC_BUILD_BIT(b)) ==
+                    0) {
+                continue;
+            }
+            name = wc_BuildConfigFeatureName(w, b);
+            if (name != NULL) {
+                wc_build_item_str(d, name);
+            }
+            else {
+                wc_build_item_str(d, "feature word ");
+                wc_build_item_dec(d, w);
+                wc_build_item_str(d, " bit ");
+                wc_build_item_dec(d, b);
+            }
+            wc_build_item_str(d, (cfg->features[w] & WC_BUILD_BIT(b)) ?
+                ": app=on lib=off" : ": app=off lib=on");
+            wc_build_item_end(d, doLog);
+        }
+    }
+    for (w = 0; w < (word32)WC_BUILD_SIZE_COUNT; w++) {
+        /* A side that could not see the type cannot be compared. */
+        if ((cfg->sizes[w] == lib->sizes[w]) ||
+                (cfg->sizes[w] == WC_BUILD_SIZE_UNKNOWN) ||
+                (lib->sizes[w] == WC_BUILD_SIZE_UNKNOWN)) {
+            continue;
+        }
+        diff |= WC_BUILD_MISMATCH_SIZES;
+        name = wc_BuildConfigSizeName(w);
+        if (name != NULL) {
+            wc_build_item_str(d, "sizeof(");
+            wc_build_item_str(d, name);
+            wc_build_item_str(d, "): app=");
+        }
+        else {
+            wc_build_item_str(d, "size slot ");
+            wc_build_item_dec(d, w);
+            wc_build_item_str(d, ": app=");
+        }
+        wc_build_item_dec(d, cfg->sizes[w]);
+        wc_build_item_str(d, " lib=");
+        wc_build_item_dec(d, lib->sizes[w]);
+        wc_build_item_end(d, doLog);
+    }
+    if ((cfg->optionsHash != 0) && (lib->optionsHash != 0) &&
+            (cfg->optionsHash != lib->optionsHash)) {
+        diff |= WC_BUILD_MISMATCH_OPTIONS_HASH;
+        wc_build_item_str(d, "options.h hash: app=");
+        wc_build_item_hex(d, cfg->optionsHash);
+        wc_build_item_str(d, " lib=");
+        wc_build_item_hex(d, lib->optionsHash);
+        wc_build_item_end(d, doLog);
+    }
+    return diff;
+}
+
+/* The version 1 fields are fixed; a later version only appends. */
+wc_static_assert(sizeof(wc_BuildConfig) == WC_BUILD_CONFIG_V1_SZ);
+
+/* Check that a caller's struct has a layout this library can read: version 1
+ * or later, and covering at least the version 1 fields.  A smaller struct
+ * than this library's (an older caller) is fine: the comparison only reads
+ * the version 1 fields, which every layout has. */
+static int wc_build_config_valid(const wc_BuildConfig* cfg)
+{
+    return (cfg != NULL) &&
+        (cfg->structSz >= WC_BUILD_CONFIG_V1_SZ) &&
+        (cfg->cfgVersion >= 1);
+}
+
+/* Report the build configuration this library was compiled with.
+ *
+ * cfg    [out]  Filled with the library's configuration fingerprint.
+ * cfgSz  [in]   Size of the caller's *cfg in bytes, normally sizeof(*cfg).
+ *               At most this many bytes are written; cfg->structSz is set to
+ *               the number written.
+ * returns 0 on success, BAD_FUNC_ARG when cfg is NULL or cfgSz is less than
+ *         WC_BUILD_CONFIG_V1_SZ.
+ */
+int wc_GetBuildConfig(wc_BuildConfig* cfg, word32 cfgSz)
+{
+    wc_BuildConfig lib;
+
+    if ((cfg == NULL) || (cfgSz < WC_BUILD_CONFIG_V1_SZ)) {
+        return BAD_FUNC_ARG;
+    }
+    if (cfgSz > (word32)sizeof(lib)) {
+        cfgSz = (word32)sizeof(lib);
+    }
+    wc_BuildConfig_Local(&lib);
+    lib.structSz = cfgSz;
+    XMEMCPY(cfg, &lib, cfgSz);
+    return 0;
+}
+
+/* Compare a caller's build configuration with the library's.
+ *
+ * Only fields present in both layouts are compared: cfg->structSz must cover
+ * at least the version 1 layout, and a larger caller struct (newer header) is
+ * accepted with the fields this library does not know about ignored.
+ * The options hashes are only compared when both are non-zero. With
+ * DEBUG_WOLFSSL, each difference is logged by name.
+ *
+ * cfg       [in]   Caller's configuration (see wc_BuildConfig_Local()).
+ * mismatch  [out]  Optional; receives a WC_BUILD_MISMATCH_* bitmask.
+ * returns 0 when the configurations match, BUILD_CONFIG_MISMATCH_E when they
+ *         differ, BAD_FUNC_ARG on NULL cfg or an unrecognized layout.
+ */
+int wc_CompareBuildConfig(const wc_BuildConfig* cfg, word32* mismatch)
+{
+    wc_BuildConfig lib;
+    wc_BuildDescribe d;
+    word32 diff;
+    int doLog = 0;
+
+    if (mismatch != NULL) {
+        *mismatch = 0;
+    }
+    if (!wc_build_config_valid(cfg)) {
+        return BAD_FUNC_ARG;
+    }
+
+    wc_BuildConfig_Local(&lib);
+    XMEMSET(&d, 0, sizeof(d));
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)
+    doLog = 1;
+#endif
+    diff = wc_build_config_describe(cfg, &lib, &d, doLog);
+
+    if (mismatch != NULL) {
+        *mismatch = diff;
+    }
+    return (diff == 0) ? 0 : BUILD_CONFIG_MISMATCH_E;
+}
+
+/* Describe how a caller's build configuration differs from the library's.
+ *
+ * cfg    [in]   Caller's configuration (see wc_BuildConfig_Local()).
+ * buf    [out]  Receives a NUL-terminated, "; "-separated description.
+ * bufSz  [in]   Size of buf in bytes.
+ * returns the length of the description (0 when the configurations match),
+ *         BUFFER_E when buf is too small (it then holds the items that fit,
+ *         ending in "..." when bufSz is at least 4), BAD_FUNC_ARG on NULL
+ *         arguments, a zero bufSz or an unrecognized layout.
+ */
+int wc_BuildConfigMismatchString(const wc_BuildConfig* cfg, char* buf,
+    word32 bufSz)
+{
+    wc_BuildConfig lib;
+    wc_BuildDescribe d;
+
+    if ((buf == NULL) || (bufSz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+    buf[0] = '\0';
+    if (!wc_build_config_valid(cfg)) {
+        return BAD_FUNC_ARG;
+    }
+
+    wc_BuildConfig_Local(&lib);
+    XMEMSET(&d, 0, sizeof(d));
+    d.buf = buf;
+    d.sz  = bufSz;
+    (void)wc_build_config_describe(cfg, &lib, &d, 0);
+
+    if (d.truncated) {
+        return BUFFER_E;
+    }
+    return (int)d.len;
 }
 
 #endif /* HAVE_WC_INTROSPECTION */
