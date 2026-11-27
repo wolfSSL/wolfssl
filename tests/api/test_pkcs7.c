@@ -11517,3 +11517,116 @@ int test_wc_PKCS7_VerifySignedData_ConstructedContent(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && \
+    !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+typedef struct {
+    byte   buf[128];
+    word32 sz;
+} pkcs7StreamOutCtx;
+
+static int pkcs7_stream_out_cb(PKCS7* pkcs7, const byte* output,
+    word32 outputSz, void* ctx)
+{
+    pkcs7StreamOutCtx* out = (pkcs7StreamOutCtx*)ctx;
+
+    (void)pkcs7;
+    if (outputSz > sizeof(out->buf) - out->sz)
+        return BUFFER_E;
+    XMEMCPY(out->buf + out->sz, output, outputSz);
+    out->sz += outputSz;
+    return 0;
+}
+#endif
+
+/* A detached verify in stream-out mode streams nothing and checks the content
+ * or hash the caller supplied. */
+int test_wc_PKCS7_VerifySignedData_StreamOutDetached(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && \
+    !defined(NO_PKCS7_STREAM) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    word32 oidSz = (word32)sizeof(pkcs7DataOid);
+    byte   data[100];
+    byte   other[100];
+    byte   hash[WC_SHA256_DIGEST_SIZE];
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    byte*  bare = NULL;
+    int    msgSz = 0;
+    int    oid = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    word32 i;
+    pkcs7StreamOutCtx out;
+
+    XMEMSET(data, 'A', sizeof(data));
+    XMEMSET(other, 'B', sizeof(other));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(bare = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_Sha256Hash(data, sizeof(data), hash), 0);
+
+    /* detached content data verifies and other fails with SIG_VERIFY_E */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data, sizeof(data),
+            PKCS7_SIGN_NO_CERTS | PKCS7_SIGN_DETACHED, &rng)), 0);
+    }
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&out, 0, sizeof(out));
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+            pkcs7_stream_out_cb, &out), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content   = (i == 0) ? data : other;
+            pkcs7->contentSz = sizeof(data);
+        }
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz),
+            (i == 0) ? 0 : WC_NO_ERR_TRACE(SIG_VERIFY_E));
+        ExpectIntEQ(out.sz, 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* eContent without its [0] wrapper and a caller hash fail SIG_VERIFY_E */
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT((msgSz = pkcs7_sign_data(msg, msgMax, data, sizeof(data),
+            0, &rng)), 0);
+    }
+    ExpectIntGT((oid = test_PKCS7_findBytes(msg, msgSz, pkcs7DataOid,
+        (int)oidSz)), 2);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(msg[oid + oidSz],
+            ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0);
+        ExpectIntEQ(msg[oid + oidSz + 2], ASN_OCTET_STRING);
+    }
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(bare, msg, (word32)oid + oidSz);
+        XMEMCPY(bare + oid + oidSz, msg + oid + oidSz + 2,
+            (word32)msgSz - oid - oidSz - 2);
+        ExpectIntEQ(pkcs7_grow_der_len(bare, (word32)oid - 2, -2), 0);
+        ExpectIntEQ(pkcs7_grow_outer(bare, -2), 0);
+    }
+    XMEMSET(&out, 0, sizeof(out));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, pkcs7_stream_out_cb,
+        &out), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, sizeof(hash), bare,
+        (word32)msgSz - 2, NULL, 0), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+    ExpectIntEQ(out.sz, 0);
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(bare, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}

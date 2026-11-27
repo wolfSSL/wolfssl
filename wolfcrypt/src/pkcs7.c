@@ -7526,9 +7526,10 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             if (keepContent) {
             #ifdef ASN_BER_TO_DER
                 if (pkcs7->streamOutCb) {
-                    /* refuse if both streamed eContent and caller-supplied
-                     * content are present */
-                    if (pkcs7->content != NULL && pkcs7->contentSz > 0) {
+                    /* refuse streamed eContent when the caller set content
+                     * or the verify is detached */
+                    if ((pkcs7->content != NULL && pkcs7->contentSz > 0) ||
+                            pkcs7->stream->detached) {
                         ret = SIG_VERIFY_E;
                         break;
                     }
@@ -9116,7 +9117,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                     /* get final hash if having done hash updates while
                      * streaming out the content */
-                    if (pkcs7->streamOutCb) {
+                    if (pkcs7->streamOutCb && !pkcs7->stream->detached &&
+                            !pkcs7->stream->noContent) {
                         ret = wc_HashFinal(&pkcs7->stream->hashAlg,
                             pkcs7->stream->hashType, streamHash);
                         hashBuf = streamHash;
