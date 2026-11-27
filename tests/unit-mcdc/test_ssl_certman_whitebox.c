@@ -122,6 +122,44 @@ static int wb_crl_enable_failures(WOLFSSL_CERT_MANAGER* cm)
 }
 #endif
 
+#if defined(HAVE_OCSP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_ca_by_key_hash(WOLFSSL_CERT_MANAGER* cm)
+{
+    byte hash[KEYID_SIZE];
+    Signer direct;
+    Signer fallback;
+    int failed = 0;
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(&direct, 0, sizeof(direct));
+    XMEMSET(&fallback, 0, sizeof(fallback));
+    XMEMCPY(direct.subjectKeyIdHash, hash, sizeof(hash));
+    XMEMCPY(direct.subjectKeyHash, hash, sizeof(hash));
+    XMEMCPY(fallback.subjectKeyHash, hash, sizeof(hash));
+
+    if (GetCAByKeyHash(NULL, hash) != NULL ||
+            GetCAByKeyHash(cm, NULL) != NULL ||
+            GetCAByKeyHash(cm, hash) != NULL)
+        failed = 1;
+
+    cm->caTable[HashSigner(hash)] = &direct;
+    if (GetCAByKeyHash(cm, hash) != &direct)
+        failed = 1;
+
+    /* A signer can be found through its public-key hash when its subject
+     * key identifier differs. */
+    direct.subjectKeyIdHash[0] = 1;
+    direct.subjectKeyHash[0] = 1;
+    fallback.subjectKeyIdHash[0] = 2;
+    direct.next = &fallback;
+    if (GetCAByKeyHash(cm, hash) != &fallback)
+        failed = 1;
+
+    cm->caTable[HashSigner(hash)] = NULL;
+    return failed;
+}
+#endif
+
 int main(void)
 {
     int failed = 0;
@@ -189,6 +227,13 @@ int main(void)
     failed = wb_crl_enable_failures(cm);
     if (failed)
         puts("ssl_certman white-box: unexpected CRL allocation result");
+#endif
+
+#if defined(HAVE_OCSP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_ca_by_key_hash(cm)) {
+        puts("ssl_certman white-box: unexpected signer lookup result");
+        failed = 1;
+    }
 #endif
 
     printf("ssl_certman white-box: %d vectors driven\n", g_checks);
