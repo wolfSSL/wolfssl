@@ -502,6 +502,100 @@ static int wb_curve_key_cleanup(void)
 }
 #endif
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
+static int wb_suite_credentials(WbFix* f)
+{
+    DerBuffer cert, key;
+    byte fixture = 0;
+    int failed = 0;
+
+    wb_reset(f);
+    XMEMSET(&cert, 0, sizeof(cert));
+    XMEMSET(&key, 0, sizeof(key));
+    f->ssl->options.side = WOLFSSL_SERVER_END;
+
+    if (InitSSL_Suites(f->ssl) != NO_PRIVATE_KEY)
+        failed = 1;
+    f->ssl->buffers.certificate = &cert;
+    if (InitSSL_Suites(f->ssl) != NO_PRIVATE_KEY)
+        failed = 1;
+
+    cert.buffer = &fixture;
+    if (InitSSL_Suites(f->ssl) != NO_PRIVATE_KEY)
+        failed = 1;
+    f->ssl->buffers.key = &key;
+    if (InitSSL_Suites(f->ssl) != NO_PRIVATE_KEY)
+        failed = 1;
+
+    key.buffer = &fixture;
+    if (InitSSL_Suites(f->ssl) != WOLFSSL_SUCCESS)
+        failed = 1;
+
+    f->ssl->buffers.certificate = NULL;
+    f->ssl->buffers.key = NULL;
+#ifdef HAVE_ANON
+    f->ssl->options.useAnon = 1;
+    if (InitSSL_Suites(f->ssl) != WOLFSSL_SUCCESS)
+        failed = 1;
+    f->ssl->options.useAnon = 0;
+#endif
+#ifndef NO_PSK
+    f->ssl->options.havePSK = 1;
+    if (InitSSL_Suites(f->ssl) != WOLFSSL_SUCCESS)
+        failed = 1;
+#endif
+    wb_reset(f);
+    return failed;
+}
+#endif
+
+#if !defined(NO_CERTS) && (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB))
+static int wb_context_credential_ownership(WbFix* f)
+{
+    DerBuffer cert, chain, key;
+    int failed = 0;
+
+    XMEMSET(&cert, 0, sizeof(cert));
+    XMEMSET(&chain, 0, sizeof(chain));
+    XMEMSET(&key, 0, sizeof(key));
+    wb_reset(f);
+    f->ssl->buffers.certificate = f->ctx->certificate = &cert;
+    f->ssl->buffers.certChain = f->ctx->certChain = &chain;
+    f->ssl->buffers.key = f->ctx->privateKey = &key;
+    f->ssl->buffers.certChainCnt = f->ctx->certChainCnt = 1;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != 0)
+        failed = 1;
+
+    f->ctx->certificate = NULL;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != BAD_STATE_E)
+        failed = 1;
+    f->ssl->buffers.weOwnCert = 1;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != 0)
+        failed = 1;
+
+    f->ctx->certChain = NULL;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != BAD_STATE_E)
+        failed = 1;
+    f->ctx->certChain = &chain;
+    f->ctx->certChainCnt = 2;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != BAD_STATE_E)
+        failed = 1;
+    f->ssl->buffers.weOwnCertChain = 1;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != 0)
+        failed = 1;
+
+    f->ctx->privateKey = NULL;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != BAD_STATE_E)
+        failed = 1;
+    f->ssl->buffers.weOwnKey = 1;
+    if (CheckSSL_CTX_CertsAndKeys(f->ssl) != 0)
+        failed = 1;
+
+    wb_reset(f);
+    return failed;
+}
+#endif
+
 /* AllocateSuites can copy the CTX list or start with an empty local list. */
 static int wb_allocate_suites(WbFix* f)
 {
@@ -1164,6 +1258,18 @@ int main(void)
     !defined(HAVE_SELFTEST)
     if (wb_curve_key_cleanup()) {
         puts("internal null-guard white-box: curve key cleanup failed");
+        failed = 1;
+    }
+#endif
+#if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
+    if (wb_suite_credentials(&f)) {
+        puts("internal null-guard white-box: suite credential check failed");
+        failed = 1;
+    }
+#endif
+#if !defined(NO_CERTS) && (defined(HAVE_SNI) || defined(WOLFSSL_CERT_SETUP_CB))
+    if (wb_context_credential_ownership(&f)) {
+        puts("internal null-guard white-box: context ownership check failed");
         failed = 1;
     }
 #endif
