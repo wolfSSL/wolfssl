@@ -6367,8 +6367,23 @@ int test_wolfSSL_x509_accessor_guards(void)
         iSz = (int)sizeof(buf);
         (void)wolfSSL_X509_get_serial_number(x509, buf, &iSz);
         (void)wolfSSL_X509_get_next_altname(x509);
-        (void)wolfSSL_X509_notBefore(x509);
-        (void)wolfSSL_X509_notAfter(x509);
+        {
+            int beforeLen = x509->notBefore.length;
+            int afterLen = x509->notAfter.length;
+
+            ExpectNotNull(wolfSSL_X509_notBefore(x509));
+            ExpectNotNull(wolfSSL_X509_notAfter(x509));
+            x509->notBefore.length = -1;
+            x509->notAfter.length = -1;
+            ExpectNull(wolfSSL_X509_notBefore(x509));
+            ExpectNull(wolfSSL_X509_notAfter(x509));
+            x509->notBefore.length = sizeof(x509->notBeforeData);
+            x509->notAfter.length = sizeof(x509->notAfterData);
+            ExpectNull(wolfSSL_X509_notBefore(x509));
+            ExpectNull(wolfSSL_X509_notAfter(x509));
+            x509->notBefore.length = beforeLen;
+            x509->notAfter.length = afterLen;
+        }
         (void)wolfSSL_X509_version(x509);
 
 #ifdef OPENSSL_EXTRA

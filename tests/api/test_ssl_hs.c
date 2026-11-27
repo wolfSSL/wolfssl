@@ -2127,10 +2127,16 @@ int test_wolfSSL_accept_bad_args(void)
     test_ssl_hs_need_creds(ssl);
     if (ssl != NULL) {
         DerBuffer* savedCert = ssl->buffers.certificate;
+        DerBuffer emptyCert;
+
+        XMEMSET(&emptyCert, 0, sizeof(emptyCert));
 
         ssl->buffers.certificate = NULL;
         ExpectIntEQ(wolfSSL_accept(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
         ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(NO_PRIVATE_KEY));
+        ssl->buffers.certificate = &emptyCert;
+        ExpectIntEQ(wolfSSL_accept(ssl), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0), NO_PRIVATE_KEY);
         ssl->buffers.certificate = savedCert;
     }
     wolfSSL_free(ssl);
@@ -2151,13 +2157,18 @@ int test_wolfSSL_accept_bad_args(void)
     test_ssl_hs_need_creds(ssl);
     if (ssl != NULL) {
         DerBuffer* savedKey = ssl->buffers.key;
+        DerBuffer emptyKey;
         int savedDevId = ssl->devId;
 
+        XMEMSET(&emptyKey, 0, sizeof(emptyKey));
         ExpectNotNull(ssl->buffers.certificate);
         ssl->buffers.key = NULL;
         ssl->devId = INVALID_DEVID;
         ExpectIntEQ(wolfSSL_accept(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
         ExpectIntEQ(wolfSSL_get_error(ssl, 0), WC_NO_ERR_TRACE(NO_PRIVATE_KEY));
+        ssl->buffers.key = &emptyKey;
+        ExpectIntEQ(wolfSSL_accept(ssl), WOLFSSL_FATAL_ERROR);
+        ExpectIntEQ(wolfSSL_get_error(ssl, 0), NO_PRIVATE_KEY);
         /* Put both back so the object disposes of it as it would have. */
         ssl->buffers.key = savedKey;
         ssl->devId = savedDevId;

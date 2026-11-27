@@ -154,6 +154,63 @@ done:
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_session_nonce_copy(void)
+{
+    WOLFSSL_SESSION* input = wolfSSL_SESSION_new();
+    WOLFSSL_SESSION* output = wolfSSL_SESSION_new();
+    byte nonce[MAX_TICKET_NONCE_STATIC_SZ + 1];
+    byte prealloc[sizeof(nonce)];
+    byte capacity, used;
+    int ret, failed = 0;
+
+    if (input == NULL || output == NULL) {
+        failed = 1;
+        goto done;
+    }
+    XMEMSET(nonce, 0x3e, sizeof(nonce));
+    if (SessionTicketNoncePopulate(input, nonce, sizeof(nonce)) != 0) {
+        failed = 1;
+        goto done;
+    }
+
+    capacity = sizeof(prealloc);
+    used = 0;
+    if (wolfSSL_DupSessionEx(input, output, 1, 0, NULL, &capacity, &used) !=
+            WOLFSSL_FAILURE || used)
+        failed = 1;
+    capacity = sizeof(prealloc) - 1;
+    if (wolfSSL_DupSessionEx(input, output, 1, 0, prealloc, &capacity, &used)
+            != WOLFSSL_FAILURE || used)
+        failed = 1;
+    capacity = sizeof(prealloc);
+    if (wolfSSL_DupSessionEx(input, output, 1, 0, prealloc, &capacity, &used)
+            != WOLFSSL_SUCCESS || !used || capacity != sizeof(nonce) ||
+            XMEMCMP(prealloc, nonce, sizeof(nonce)) != 0)
+        failed = 1;
+
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    ret = wolfSSL_DupSession(input, output, 0);
+    mcdc_fa_restore();
+    if (ret != WOLFSSL_FAILURE)
+        failed = 1;
+    if (wolfSSL_DupSession(input, output, 0) != WOLFSSL_SUCCESS ||
+            output->ticketNonce.data == NULL ||
+            output->ticketNonce.data == input->ticketNonce.data ||
+            output->ticketNonce.len != sizeof(nonce) ||
+            XMEMCMP(output->ticketNonce.data, nonce, sizeof(nonce)) != 0)
+        failed = 1;
+
+done:
+    wolfSSL_SESSION_free(output);
+    wolfSSL_SESSION_free(input);
+    return failed;
+}
+#endif
+
 int main(void)
 {
     int failed = 0;
@@ -287,6 +344,15 @@ int main(void)
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_session_ticket_copy()) {
         puts("ssl_sess white-box: unexpected ticket copy result");
+        failed = 1;
+    }
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_session_nonce_copy()) {
+        puts("ssl_sess white-box: unexpected nonce copy result");
         failed = 1;
     }
 #endif
