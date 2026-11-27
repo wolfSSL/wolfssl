@@ -3212,6 +3212,22 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     (void)ret;
 #endif
 
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    /* Taken after the reference count's own mutex on purpose: a failure here
+     * unwinds through wolfSSL_CTX_free(), which decrements that count before
+     * it reaches SSL_CtxResourceFree(). */
+    if (wc_InitMutex(&ctx->sctLock) != 0) {
+        WOLFSSL_MSG("Mutex error on CTX timestamp list init");
+        WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
+        return BAD_MUTEX_E;
+    }
+    /* Recorded so that teardown of a context whose initialisation failed
+     * before or at this point does not destroy a mutex that does not exist.
+     * Either of the two inits above can fail, and both unwind through
+     * wolfSSL_CTX_free(). */
+    ctx->sctLockInit = 1;
+#endif
+
 #ifndef NO_CERTS
     ctx->privateKeyDevId = INVALID_DEVID;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -3539,6 +3555,18 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->onHeapHint == 0) {
         heapAtCTXInit = NULL;
+    }
+#endif
+
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    XFREE(ctx->sctList, ctx->heap, DYNAMIC_TYPE_TLSX);
+    ctx->sctList = NULL;
+    ctx->sctListSz = 0;
+    /* Nothing can be holding this: the last reference to the context is
+     * gone, which is what brought us here. */
+    if (ctx->sctLockInit) {
+        wc_FreeMutex(&ctx->sctLock);
+        ctx->sctLockInit = 0;
     }
 #endif
 
@@ -9272,6 +9300,10 @@ static void InitSSL_Tls13Options(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->numGroups = ctx->numGroups;
     }
 
+    /* The SCT list is deliberately not copied from the context here: this
+     * function cannot report an allocation failure. The copy is taken in
+     * TLSX_SCTS_Parse() when the server decides to answer, which can. */
+
     /* Server clears this when the ClientHello legacy_session_id is empty. */
     ssl->options.tls13MiddleBoxCompat = 1;
 }
@@ -9777,10 +9809,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->sigSpec = ctx->sigSpec;
     ssl->sigSpecSz = ctx->sigSpecSz;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
-#ifdef HAVE_OCSP
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_SIGNED_CERT_TIMESTAMP))
     ssl->response_idx = 0;
-#endif
 #endif
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     ssl->secLevel = ctx->secLevel;
@@ -10707,6 +10738,14 @@ static void FreeSSL_StaticMemory(WOLFSSL* ssl)
 /* In case holding SSL object in array and don't want to free actual ssl */
 void wolfSSL_ResourceFree(WOLFSSL* ssl)
 {
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    XFREE(ssl->peerSctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->peerSctList = NULL;
+    ssl->peerSctListSz = 0;
+    XFREE(ssl->sctList, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ssl->sctList = NULL;
+    ssl->sctListSz = 0;
+#endif
     /* Note: any resources used during the handshake should be released in the
      * function FreeHandshakeResources(). Be careful with the special cases
      * like the RNG which may optionally be kept for the whole session. (For
@@ -10854,10 +10893,13 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecretSecondary);
 #endif
 #if !defined(NO_CERTS) && defined(WOLFSSL_TLS13) && \
-    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
+    defined(WOLFSSL_CERT_ENTRY_EXTS)
     {
-        /* Release the certificate status extensions of a Certificate message
-         * that was never sent in full. */
+        /* Release the per-certificate extensions of a Certificate message
+         * that was never sent in full. Guarded by the same macro that decides
+         * whether those buffers are ever filled: an SCT-only build fills them
+         * too, and freeing only in a build with stapled OCSP leaked the
+         * timestamps of a fragmented send that stopped early. */
         int extIdx;
 
         for (extIdx = 0; extIdx < MAX_CERT_EXTENSIONS; extIdx++)
@@ -20324,7 +20366,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     WOLFSSL_MSG_EX("\tParsing %d bytes of cert extensions",
                         args->exts[args->totalCerts].length);
                     #if !defined(NO_TLS)
-                    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+                    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                        defined(HAVE_SIGNED_CERT_TIMESTAMP)
                     ssl->response_idx = args->totalCerts;
                     #endif
                     ret = TLSX_Parse(ssl, args->exts[args->totalCerts].buffer,
@@ -42407,6 +42450,28 @@ static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
         ret = TLSX_GetResponseSize(ssl, server_hello, &length);
         if (ret != 0)
             return ret;
+    #if defined(HAVE_SIGNED_CERT_TIMESTAMP) && defined(HAVE_MAX_FRAGMENT)
+        /* The ServerHello goes out as one record, which must not exceed a
+         * max_fragment_length the client negotiated (RFC 6066 Sect. 4); a
+         * peer may abort on one that does. The SCT list is the only part of
+         * it whose size the application controls, and RFC 6962 leaves
+         * answering optional, so it is dropped rather than the record
+         * overflowed. */
+        if (((word32)length + HANDSHAKE_HEADER_SZ >
+                (word32)wolfSSL_GetMaxFragSize(ssl)) &&
+                (TLSX_Find(ssl->extensions,
+                           TLSX_SIGNED_CERT_TIMESTAMP) != NULL)) {
+            WOLFSSL_MSG("SCT list does not fit the ServerHello fragment, "
+                        "not sent");
+            TLSX_Remove(&ssl->extensions, TLSX_SIGNED_CERT_TIMESTAMP,
+                        ssl->heap);
+            length = VERSION_SZ + RAN_LEN + ENUM_LEN + sessIdSz + SUITE_LEN +
+                     ENUM_LEN;
+            ret = TLSX_GetResponseSize(ssl, server_hello, &length);
+            if (ret != 0)
+                return ret;
+        }
+    #endif
 #else
         if (ssl->options.haveEMS) {
             length += HELLO_EXT_SZ_SZ + HELLO_EXT_SZ;

@@ -27,6 +27,15 @@
   Both macros are documented in
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
 
+* Added the RFC 6962 signed_certificate_timestamp TLS extension for TLS 1.2
+  and TLS 1.3 (`--enable-sct`, CMake `WOLFSSL_SCT`, macro
+  `HAVE_SIGNED_CERT_TIMESTAMP`). A server presents the SCT list set with
+  `wolfSSL_CTX_set_signed_cert_timestamp_list()` or
+  `wolfSSL_set_signed_cert_timestamp_list()` (mapped to the BoringSSL names in
+  the compatibility layer), and a client reads the peer's list with
+  `wolfSSL_get0_signed_cert_timestamp_list()`. wolfSSL carries the list and
+  leaves validating it to the application. by @SparkiDev (PR 12257)
+
 ## Behavioral Changes
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
@@ -124,6 +133,12 @@
   differences.  `length == 0` still returns 0.  The sentinel is positive
   because callers fold the result into constant-time masks that read a
   negative value as a match.
+
+* **Behavioral change (`--enable-all` and `--enable-tlsx` request SCTs)**:
+  both options now enable signed_certificate_timestamp, and a client built with
+  it adds an empty signed_certificate_timestamp extension to every
+  ClientHello. Build with `--disable-sct` (CMake `-DWOLFSSL_SCT=no`) to leave
+  it out. by @SparkiDev (PR 12257)
 
 ## Post-Quantum Cryptography (PQC)
 

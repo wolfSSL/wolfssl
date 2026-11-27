@@ -12238,6 +12238,1119 @@ int test_tls13_client_cookie_too_big(void)
     return EXPECT_RESULT();
 }
 
+/* What a recycled object does with its SCT list. A snapshot adopted from the
+ * context has to go, or a context whose list was rotated never reaches an
+ * object that has already served one handshake; a list the application set on
+ * the object is that object's configuration and has to stay. */
+int test_tls12_sct_clear_ctx_snapshot(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Two distinguishable lists, one 8 byte SerializedSCT each. */
+    static const unsigned char first[] = {
+        0x00, 0x0a, 0x00, 0x08, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4
+    };
+    static const unsigned char second[] = {
+        0x00, 0x0a, 0x00, 0x08, 0xfe, 0xed, 0xfa, 0xce, 5, 6, 7, 8
+    };
+    static const unsigned char ownList[] = {
+        0x00, 0x0a, 0x00, 0x08, 0xab, 0xcd, 0xef, 0x01, 9, 8, 7, 6
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx_s, first,
+        (unsigned short)sizeof(first)), WOLFSSL_SUCCESS);
+
+    /* The server adopts the context's list while answering the request. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->sctListSz, (word16)sizeof(first));
+        ExpectIntEQ(ssl_s->sctListFromCtx, 1);
+    }
+
+    /* Rotate the context's list and recycle the object: the stale snapshot
+     * must not survive, or the rotation would never reach this connection. */
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx_s, second,
+        (unsigned short)sizeof(second)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    if (ssl_s != NULL) {
+        ExpectNull(ssl_s->sctList);
+        ExpectIntEQ(ssl_s->sctListSz, 0);
+    }
+
+    /* A list set on the object is configuration, and outlives a reset. */
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, ownList,
+        (unsigned short)sizeof(ownList)), WOLFSSL_SUCCESS);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->sctListFromCtx, 0);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    if (ssl_s != NULL) {
+        ExpectNotNull(ssl_s->sctList);
+        ExpectIntEQ(ssl_s->sctListSz, (word16)sizeof(ownList));
+        ExpectIntEQ(XMEMCMP(ssl_s->sctList, ownList, sizeof(ownList)), 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && defined(HAVE_SNI) && \
+    defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+#define TEST_TLS13_SCT_SNI_CTX_SWITCH
+
+/* Switch to the context handed over as the servername argument, the way
+ * stunnel and nginx pick a certificate once they have seen the name. */
+static int sct_sni_switch_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    WOLFSSL_CTX* ctx2 = (WOLFSSL_CTX*)arg;
+
+    (void)ad;
+
+    if (wolfSSL_set_SSL_CTX(ssl, ctx2) != ctx2)
+        return fatal_return;
+
+    return 0;
+}
+
+static int test_tls13_sct_sni_ctx_switch_one(method_provider method_c,
+    method_provider method_s, int secondHasList)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL, *ctx2 = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* host = "example.com";
+    const unsigned char* got = NULL;
+    /* Two distinguishable lists, one 8 byte SerializedSCT each. */
+    static const unsigned char first[] = {
+        0x00, 0x0a, 0x00, 0x08, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4
+    };
+    static const unsigned char second[] = {
+        0x00, 0x0a, 0x00, 0x08, 0xfe, 0xed, 0xfa, 0xce, 5, 6, 7, 8
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* The context the callback switches to. It carries its own certificate,
+     * and its own timestamps -- or deliberately none, which is the case where
+     * the answer has to be dropped rather than sent empty. */
+    ExpectNotNull(ctx2 = wolfSSL_CTX_new(method_s()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx2, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx2, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    if (secondHasList) {
+        ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx2, second,
+            (unsigned short)sizeof(second)), WOLFSSL_SUCCESS);
+    }
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    /* The context the ClientHello is parsed against, with the list that must
+     * not be the one answered with. */
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx_s, first,
+        (unsigned short)sizeof(first)), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_servername_callback(ctx_s, sct_sni_switch_cb);
+    ExpectIntEQ(wolfSSL_CTX_set_servername_arg(ctx_s, ctx2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+        (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    if (secondHasList) {
+        /* The timestamps of the context that supplied the certificate. */
+        ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+            (int)sizeof(second));
+        ExpectNotNull(got);
+        if (got != NULL)
+            ExpectIntEQ(XMEMCMP(got, second, sizeof(second)), 0);
+        if (ssl_s != NULL) {
+            ExpectIntEQ(ssl_s->sctListSz, (word16)sizeof(second));
+            ExpectIntEQ(ssl_s->sctListFromCtx, 1);
+        }
+    }
+    else {
+        /* Nothing attests the second context's certificate, so the request
+         * goes unanswered. The handshake still completes: the response is
+         * removed rather than written as an empty list, which
+         * SignedCertificateTimestampList does not allow. */
+        ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got), 0);
+        ExpectNull(got);
+        if (ssl_s != NULL) {
+            ExpectNull(ssl_s->sctList);
+            ExpectIntEQ(ssl_s->sctListSz, 0);
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx2);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* An SNI callback that switches contexts changes which certificate the server
+ * presents, and RFC 6962 Sect. 3.3 ties the timestamps to the certificate they
+ * attest. The ClientHello -- and with it the request -- is parsed before
+ * SNI_Callback() runs, so a server that settles its answer while parsing sends
+ * the list of the context it has since left behind, or none at all when only
+ * the context it switched to carries one. */
+int test_tls13_sct_sni_ctx_switch(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_SCT_SNI_CTX_SWITCH
+    static const struct {
+        method_provider c;
+        method_provider s;
+    } methods[] = {
+    #ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+    #endif
+    #ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+    #endif
+    };
+    size_t i;
+
+    /* TLS 1.2 answers in the ServerHello and TLS 1.3 in the end entity
+     * certificate's entry, so both paths are driven. */
+    for (i = 0; i < sizeof(methods) / sizeof(*methods); i++) {
+        ExpectIntEQ(test_tls13_sct_sni_ctx_switch_one(methods[i].c,
+            methods[i].s, 1), TEST_SUCCESS);
+        ExpectIntEQ(test_tls13_sct_sni_ctx_switch_one(methods[i].c,
+            methods[i].s, 0), TEST_SUCCESS);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* The response framing walk in TLSX_SCTS_Parse() is the attacker controlled
+ * path: a client that asked for SCTs hands whatever the server sent straight
+ * into it. Each malformed vector has a consistent outer length, so it gets
+ * past the first check and reaches the branch it is named for. The walk's
+ * widened offset check guards a sum that could only wrap for an extension
+ * close to 0xFFFF bytes, which TLSX_Parse() cannot be handed, so it is not
+ * driven here. */
+int test_tls13_sct_response_framing(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SIGNED_CERT_TIMESTAMP) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    struct {
+        const char* desc;
+        const byte* body;
+        word16      bodySz;
+        int         expect;
+    } cases[7];
+    /* outer list length 10, one 8 byte SerializedSCT: accepted. */
+    static const byte ok[]        = { 0x00, 0x0a, 0x00, 0x08,
+                                      1, 2, 3, 4, 5, 6, 7, 8 };
+    /* Too short to hold even the outer length. */
+    static const byte runt[]      = { 0x00 };
+    /* Outer length of zero is not a list. */
+    static const byte zeroList[]  = { 0x00, 0x00 };
+    /* Outer length disagrees with the extension length. */
+    static const byte outerLong[] = { 0x00, 0x20, 0x00, 0x08,
+                                      1, 2, 3, 4, 5, 6, 7, 8 };
+    /* An entry whose length runs past the end of the list. */
+    static const byte entryLong[] = { 0x00, 0x0a, 0x00, 0x40,
+                                      1, 2, 3, 4, 5, 6, 7, 8 };
+    /* A zero length SerializedSCT. */
+    static const byte entryZero[] = { 0x00, 0x02, 0x00, 0x00 };
+    /* Two entries, the second truncated to a single length byte. */
+    static const byte trailing[]  = { 0x00, 0x05, 0x00, 0x02, 1, 2, 0x00 };
+    size_t i;
+
+    cases[0].desc = "well formed";     cases[0].body = ok;
+    cases[0].bodySz = (word16)sizeof(ok);               cases[0].expect = 0;
+    cases[1].desc = "runt";            cases[1].body = runt;
+    cases[1].bodySz = (word16)sizeof(runt);             cases[1].expect = 1;
+    cases[2].desc = "zero list";       cases[2].body = zeroList;
+    cases[2].bodySz = (word16)sizeof(zeroList);         cases[2].expect = 1;
+    cases[3].desc = "outer too long";  cases[3].body = outerLong;
+    cases[3].bodySz = (word16)sizeof(outerLong);        cases[3].expect = 1;
+    cases[4].desc = "entry too long";  cases[4].body = entryLong;
+    cases[4].bodySz = (word16)sizeof(entryLong);        cases[4].expect = 1;
+    cases[5].desc = "zero entry";      cases[5].body = entryZero;
+    cases[5].bodySz = (word16)sizeof(entryZero);        cases[5].expect = 1;
+    cases[6].desc = "trailing stub";   cases[6].body = trailing;
+    cases[6].bodySz = (word16)sizeof(trailing);         cases[6].expect = 1;
+
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        byte ext[64];
+        int  ret;
+
+        /* Send the ClientHello first, so the client has actually asked for
+         * SCTs and the response is not turned away as unsolicited before the
+         * framing is ever looked at. Stopping there also keeps the client's
+         * extension list, which a finished handshake frees in builds that
+         * need none of it afterwards. */
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+        ExpectIntEQ(wolfSSL_connect(ssl_c),
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+        ExpectIntEQ(wolfSSL_get_error(ssl_c,
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)), WOLFSSL_ERROR_WANT_READ);
+
+        ext[0] = 0x00; ext[1] = 0x12;
+        ext[2] = (byte)(cases[i].bodySz >> 8);
+        ext[3] = (byte)(cases[i].bodySz & 0xff);
+        XMEMCPY(ext + 4, cases[i].body, cases[i].bodySz);
+
+        ret = TLSX_Parse(ssl_c, ext, (word16)(4 + cases[i].bodySz),
+                  certificate, NULL);
+        if (cases[i].expect == 0)
+            ExpectIntEQ(ret, 0);
+        else
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(BUFFER_ERROR));
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A server must not accept a SignedCertificateTimestampList it never asked
+ * for. The server's own response extension sits on the same list node the
+ * "did we request this" lookup consults, so without a role check the lookup
+ * takes that self-push as proof of a request and stores an unsolicited list
+ * arriving in a client's Certificate message. */
+int test_tls13_sct_unsolicited_at_server(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SIGNED_CERT_TIMESTAMP) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* A well formed list: outer length 10, one 8 byte SerializedSCT. */
+    static const byte sct[] = {
+        0x00, 0x0a, 0x00, 0x08,
+        0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04
+    };
+    byte ext[4 + sizeof(sct)];
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE));
+    /* Give the server a list of its own, which is what puts the extension on
+     * ssl->extensions as a response and made the old lookup pass. */
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx, sct,
+        (unsigned short)sizeof(sct)), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* The client asks, so the server pushes its own response. */
+    if (ssl != NULL) {
+        static const byte req[] = { 0x00, 0x12, 0x00, 0x00 };
+
+        ExpectIntEQ(TLSX_Parse(ssl, req, (word16)sizeof(req), client_hello,
+            (Suites*)WOLFSSL_SUITES(ssl)), 0);
+        ExpectIntEQ(wolfSSL_signed_cert_timestamp_requested(ssl), 1);
+    }
+
+    /* Now the client sends one back in its own Certificate message. */
+    ext[0] = 0x00; ext[1] = 0x12;
+    ext[2] = 0x00; ext[3] = (byte)sizeof(sct);
+    XMEMCPY(ext + 4, sct, sizeof(sct));
+    ExpectIntEQ(TLSX_Parse(ssl, ext, (word16)sizeof(ext), certificate, NULL),
+        WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+    /* And nothing was stored. */
+    if (ssl != NULL)
+        ExpectIntEQ(ssl->peerSctListSz, 0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_sct_clear_releases_peer_list(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SIGNED_CERT_TIMESTAMP) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static const unsigned char sctList[] = {
+        0x00, 0x0a, 0x00, 0x08,
+        0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04
+    };
+    const unsigned char* got = NULL;
+
+    /* wolfSSL_clear() documents that it drops what the peer sent, so a
+     * recycled object does not report the previous connection's timestamps.
+     * The release was documented and reset in code but never asserted. Driven
+     * through a real handshake rather than by poking peerSctList, so it is the
+     * delivered list that gets released. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, sctList,
+        (unsigned short)sizeof(sctList)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+        (int)sizeof(sctList));
+    ExpectNotNull(got);
+
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+
+    got = NULL;
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got), 0);
+    ExpectNull(got);
+    if (ssl_c != NULL)
+        ExpectNull(ssl_c->peerSctList);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+#define TEST_TLS13_SCT_OVERSIZE
+
+/* Drive the sizing pass with a list the setter would refuse, by planting it
+ * on the object. The ServerHello must be refused rather than sized with a
+ * wrapped word16 and then written past the end of the buffer that total
+ * bought. */
+static int test_tls13_sct_oversize_one(word16 bigSz)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte* big = NULL;
+
+    /* Well formed framing: an outer list length followed by one SerializedSCT
+     * filling the rest. */
+    ExpectNotNull(big = (byte*)XMALLOC(bigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (big != NULL) {
+        XMEMSET(big, 0xAB, bigSz);
+        c16toa((word16)(bigSz - OPAQUE16_LEN), big);
+        c16toa((word16)(bigSz - (2 * OPAQUE16_LEN)), big + OPAQUE16_LEN);
+    }
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* The setter refuses this size, which is the first line of defence; this
+     * reaches the second one with a list the setter can no longer deliver. */
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, big, bigSz),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    if ((ssl_s != NULL) && (big != NULL)) {
+        ssl_s->sctList = big;
+        ssl_s->sctListSz = bigSz;
+    }
+
+    /* The server cannot build a ServerHello carrying it. */
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(BUFFER_E));
+
+    /* Planted, so it is not the object's to release. */
+    if (ssl_s != NULL) {
+        ssl_s->sctList = NULL;
+        ssl_s->sctListSz = 0;
+    }
+    XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* An SCT list large enough that its extension cannot fit the 2-byte
+ * extensions-block length must be refused while sizing the message, not
+ * wrapped onto the wire. Asserting the specific error matters: a silent wrap
+ * would also end in a failed handshake, so "it failed" proves nothing. */
+int test_tls13_sct_oversize_list(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_SCT_OVERSIZE
+    word16 sz;
+
+    /* Swept rather than aimed at one size: the wrap needs the whole extensions
+     * block to land on exactly 0xFFFF, and how much the ServerHello's other
+     * extensions contribute depends on the build. Every size in this range has
+     * to be refused -- by the per-extension bound, by the block length's own
+     * two bytes, or by the message total -- and none of them may reach a
+     * write. */
+    for (sz = 0xFFFF - 68; sz <= 0xFFFF - 4; sz++)
+        ExpectIntEQ(test_tls13_sct_oversize_one(sz), TEST_SUCCESS);
+    ExpectIntEQ(test_tls13_sct_oversize_one(0xFFFF), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && defined(HAVE_SNI) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+#define TEST_TLS13_SCT_SET_IN_SNI_CB
+
+/* One 8 byte SerializedSCT, installed on the object from the callback. */
+static const unsigned char sct_sni_set_list[] = {
+    0x00, 0x0a, 0x00, 0x08, 0x5e, 0x77, 0x11, 0x22, 3, 4, 5, 6
+};
+
+static int sct_sni_set_cb(WOLFSSL* ssl, int* ad, void* arg)
+{
+    (void)ad;
+    (void)arg;
+
+    if (wolfSSL_set_signed_cert_timestamp_list(ssl, sct_sni_set_list,
+            (unsigned short)sizeof(sct_sni_set_list)) != WOLFSSL_SUCCESS) {
+        return fatal_return;
+    }
+
+    return 0;
+}
+
+static int test_tls13_sct_set_in_sni_cb_one(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char* host = "example.com";
+    const unsigned char* got = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    /* Neither the context nor the object carries a list when the ClientHello
+     * is parsed, so the parser has nothing to register a response for. */
+    wolfSSL_CTX_set_servername_callback(ctx_s, sct_sni_set_cb);
+    ExpectIntEQ(wolfSSL_UseSNI(ssl_c, WOLFSSL_SNI_HOST_NAME, host,
+        (word16)XSTRLEN(host)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The list installed from the callback has to reach the client: a setter
+     * that returns success and sends nothing is the quiet failure here. */
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+        (int)sizeof(sct_sni_set_list));
+    ExpectNotNull(got);
+    if (got != NULL) {
+        ExpectIntEQ(XMEMCMP(got, sct_sni_set_list,
+            sizeof(sct_sni_set_list)), 0);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A server may only learn which timestamps to present once it has seen the
+ * name, so wolfSSL_set_signed_cert_timestamp_list() has to work from an SNI
+ * callback. That runs after TLSX_SCTS_Parse(), which registers the response
+ * only for a list that already existed, and both write paths look for that
+ * registration before writing anything. */
+int test_tls13_sct_set_in_sni_cb(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_TLS13_SCT_SET_IN_SNI_CB
+    static const struct {
+        method_provider c;
+        method_provider s;
+    } methods[] = {
+    #ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+    #endif
+    #ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+    #endif
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(methods) / sizeof(*methods); i++) {
+        ExpectIntEQ(test_tls13_sct_set_in_sni_cb_one(methods[i].c,
+            methods[i].s), TEST_SUCCESS);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* What the setters accept. A list that is malformed, or too large for this end
+ * to ever send, is a configuration mistake: caught here the caller still has
+ * the error in hand, accepted it breaks every handshake that asks for
+ * timestamps. BoringSSL's same-named API refuses malformed input too. */
+int test_tls13_sct_setter_validation(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    byte*        big = NULL;
+    const word16 bigSz = WOLFSSL_MAX_SCT_LIST_SZ + 1;
+    /* Well formed: outer length 10, one 8 byte SerializedSCT. */
+    static const unsigned char good[] = {
+        0x00, 0x0a, 0x00, 0x08, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4
+    };
+    /* Outer length says 10 but only 6 bytes follow it. */
+    static const unsigned char shortList[] = {
+        0x00, 0x0a, 0x00, 0x04, 0xde, 0xad, 0xbe, 0xef
+    };
+    /* Outer length 10, then a SerializedSCT claiming 12. */
+    static const unsigned char longEntry[] = {
+        0x00, 0x0a, 0x00, 0x0c, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4
+    };
+    /* A zero length SerializedSCT, which the lower bound of one forbids. */
+    static const unsigned char zeroEntry[] = {
+        0x00, 0x0a, 0x00, 0x00, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4
+    };
+    /* The outer length alone, with no timestamp after it. */
+    static const unsigned char emptyList[] = { 0x00, 0x00 };
+    static const struct {
+        const unsigned char* list;
+        unsigned short       sz;
+    } bad[] = {
+        { shortList, (unsigned short)sizeof(shortList) },
+        { longEntry, (unsigned short)sizeof(longEntry) },
+        { zeroEntry, (unsigned short)sizeof(zeroEntry) },
+        { emptyList, (unsigned short)sizeof(emptyList) },
+    };
+    size_t i;
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    for (i = 0; i < sizeof(bad) / sizeof(*bad); i++) {
+        ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx,
+            bad[i].list, bad[i].sz), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl, bad[i].list,
+            bad[i].sz), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
+
+    /* Well framed but larger than a ServerHello can carry. */
+    ExpectNotNull(big = (byte*)XMALLOC(bigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (big != NULL) {
+        XMEMSET(big, 0xAB, bigSz);
+        c16toa((word16)(bigSz - OPAQUE16_LEN), big);
+        c16toa((word16)(bigSz - (2 * OPAQUE16_LEN)), big + OPAQUE16_LEN);
+        ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx, big,
+            (unsigned short)bigSz), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl, big,
+            (unsigned short)bigSz), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
+    XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    big = NULL;
+
+    /* A length past 64K that a 16-bit parameter would have truncated: 65548
+     * is 12 modulo 65536, and the buffer starts with the well formed 12-byte
+     * list `good`, so a truncated length would pass every check and store
+     * just that prefix. The setters take a size_t, as BoringSSL's do, and
+     * refuse it. */
+    ExpectNotNull(big = (byte*)XMALLOC(65548, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    if (big != NULL) {
+        XMEMSET(big, 0, 65548);
+        XMEMCPY(big, good, sizeof(good));
+        ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx, big,
+            (size_t)65548), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+        ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl, big,
+            (size_t)65548), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    }
+    XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* Nothing above may have been stored. */
+    if (ctx != NULL)
+        ExpectNull(ctx->sctList);
+    if (ssl != NULL)
+        ExpectNull(ssl->sctList);
+
+    /* And a good one is still taken. */
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx, good,
+        (unsigned short)sizeof(good)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl, good,
+        (unsigned short)sizeof(good)), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* RFC 8446 Sect. 4.2 permits signed_certificate_timestamp in a
+ * CertificateRequest, where a server asks the client to staple SCTs to its
+ * own Certificate. wolfSSL does not produce those, but it must not turn a
+ * legal message into a fatal alert - before the extension was implemented the
+ * type was unknown there and ignored. */
+int test_tls13_sct_in_cert_request(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SIGNED_CERT_TIMESTAMP) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    /* signed_certificate_timestamp(18), empty - the ask carries no data. */
+    static const byte empty[] = { 0x00, 0x12, 0x00, 0x00 };
+    /* The same with a stray payload byte. */
+    static const byte bodied[] = { 0x00, 0x12, 0x00, 0x01, 0x00 };
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* A CertificateRequest counts as a request, so TLSX_Parse() requires the
+     * suites argument. */
+    ExpectIntEQ(TLSX_Parse(ssl, empty, (word16)sizeof(empty),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)), 0);
+    ExpectIntEQ(TLSX_Parse(ssl, bodied, (word16)sizeof(bodied),
+        certificate_request, (Suites*)WOLFSSL_SUITES(ssl)),
+        WC_NO_ERR_TRACE(BUFFER_ERROR));
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An SCT list too large for a negotiated max_fragment_length.
+ *
+ * At TLS 1.2 the list travels in the ServerHello, which goes out as one
+ * record, and that record must not exceed the 512 bytes the client asked for
+ * (RFC 6066 Sect. 4). wolfSSL's own client happens to accept a larger one,
+ * so the test checks what was sent rather than for a failed handshake.
+ * Answering with timestamps is optional, so the server leaves a list that
+ * does not fit out of the ServerHello rather than overflow the record. A
+ * list that does fit is still sent under the same limit. */
+int test_tls12_sct_max_fragment(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && defined(HAVE_MAX_FRAGMENT) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* list length 10, then one 8 byte SerializedSCT. */
+    static const unsigned char smallList[] = {
+        0x00, 0x0a, 0x00, 0x08,
+        0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04
+    };
+    /* list length 1002, then one 1000 byte SerializedSCT. */
+    unsigned char bigList[4 + 1000];
+    const unsigned char* got = NULL;
+    int round;
+
+    XMEMSET(bigList, 0x5a, sizeof(bigList));
+    bigList[0] = (unsigned char)((sizeof(bigList) - 2) >> 8);
+    bigList[1] = (unsigned char)((sizeof(bigList) - 2) & 0xff);
+    bigList[2] = (unsigned char)((sizeof(bigList) - 4) >> 8);
+    bigList[3] = (unsigned char)((sizeof(bigList) - 4) & 0xff);
+
+    for (round = 0; round < 2; round++) {
+        const unsigned char* list = (round == 0) ? bigList : smallList;
+        unsigned short listSz = (unsigned short)((round == 0) ?
+            sizeof(bigList) : sizeof(smallList));
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_9),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, list,
+            listSz), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        if (ssl_s != NULL)
+            ExpectIntEQ(wolfSSL_signed_cert_timestamp_requested(ssl_s), 1);
+        got = NULL;
+        if (round == 0) {
+            /* Too big for 512 bytes: left out, and the handshake survives. */
+            ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+                0);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+                (int)listSz);
+            if (got != NULL)
+                ExpectIntEQ(XMEMCMP(got, list, listSz), 0);
+        }
+
+        wolfSSL_free(ssl_c);     ssl_c = NULL;
+        wolfSSL_free(ssl_s);     ssl_s = NULL;
+        wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+        wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test the signed_certificate_timestamp extension (RFC 6962 Sect. 3.3).
+ *
+ * A client asks with an empty extension and the server answers with a
+ * SignedCertificateTimestampList, in the ServerHello at TLS 1.2. wolfSSL
+ * carries the blob and leaves validation to the application, so the test
+ * checks delivery and framing rather than any timestamp being genuine. */
+int test_tls12_signed_cert_timestamp(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SIGNED_CERT_TIMESTAMP) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* list length 10, then one 8 byte SerializedSCT. */
+    static const unsigned char sctList[] = {
+        0x00, 0x0a, 0x00, 0x08,
+        0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04
+    };
+    const unsigned char* got = NULL;
+
+    /* These carry BoringSSL's names, which document one on success and zero
+     * on error, so a failure has to be falsy: a negative code would slip past
+     * the `if (!...)` a caller ported from there writes. */
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(NULL, sctList,
+        (unsigned short)sizeof(sctList)), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectFalse(wolfSSL_CTX_set_signed_cert_timestamp_list(NULL, sctList,
+        (unsigned short)sizeof(sctList)));
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx_s, NULL, 4),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx_s, sctList, 0),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_CTX_set_signed_cert_timestamp_list(ctx_s, sctList,
+        (unsigned short)sizeof(sctList)), WOLFSSL_SUCCESS);
+    /* The context's list alone would reach ssl_s, which copies it when it
+     * parses the ClientHello; the per-object setter is exercised as well. */
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, sctList,
+        (unsigned short)sizeof(sctList)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The server saw the request and the client got the list back. */
+    if (ssl_s != NULL)
+        ExpectIntEQ(wolfSSL_signed_cert_timestamp_requested(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+        (int)sizeof(sctList));
+    ExpectNotNull(got);
+    if (got != NULL)
+        ExpectIntEQ(XMEMCMP(got, sctList, sizeof(sctList)), 0);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* No list configured: the client still asks, and gets nothing back. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL)
+        ExpectIntEQ(wolfSSL_signed_cert_timestamp_requested(ssl_s), 1);
+    got = NULL;
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got), 0);
+    ExpectNull(got);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+#ifndef NO_SESSION_CACHE
+    /* RFC 6962 Sect. 3.3.1: a resumed session sends no Certificate, so the
+     * server does not answer with timestamps. RFC 9162 makes this a MUST NOT
+     * for the successor extension. Session ID resumption through the server's
+     * cache, so no session ticket support is needed. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, sctList,
+        (unsigned short)sizeof(sctList)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    got = NULL;
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+        (int)sizeof(sctList));
+    if (EXPECT_SUCCESS()) {
+        WOLFSSL_SESSION* sess = wolfSSL_get1_session(ssl_c);
+
+        ExpectNotNull(sess);
+        wolfSSL_free(ssl_c);     ssl_c = NULL;
+        wolfSSL_free(ssl_s);     ssl_s = NULL;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
+            &ssl_s, wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, sctList,
+            (unsigned short)sizeof(sctList)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        /* Asserted rather than tested for: if resumption stopped working
+         * the check below would otherwise be skipped silently. */
+        ExpectIntEQ(wolfSSL_session_reused(ssl_c), 1);
+        got = NULL;
+        ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got), 0);
+        wolfSSL_SESSION_free(sess);
+    }
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif /* !NO_SESSION_CACHE */
+
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_sct_certificate_msg(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SIGNED_CERT_TIMESTAMP) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    /* list length 10, then one 8 byte SerializedSCT. */
+    static const unsigned char sctList[] = {
+        0x00, 0x0a, 0x00, 0x08,
+        0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04
+    };
+    const unsigned char* got = NULL;
+
+    /* RFC 6962 Sect. 3.3: TLS 1.2 answers in the ServerHello, TLS 1.3 in the
+     * end entity certificate's CertificateEntry extensions. The TLS 1.2 leg
+     * is test_tls12_signed_cert_timestamp(); this is the 1.3 one, which is a
+     * different write path entirely. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, sctList,
+        (unsigned short)sizeof(sctList)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The server saw the request and the client got the list back. */
+    if (ssl_s != NULL)
+        ExpectIntEQ(wolfSSL_signed_cert_timestamp_requested(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+        (int)sizeof(sctList));
+    ExpectNotNull(got);
+    if (got != NULL)
+        ExpectIntEQ(XMEMCMP(got, sctList, sizeof(sctList)), 0);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+
+    /* No list configured: the entry's extensions field stays empty and the
+     * handshake is unaffected. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    got = NULL;
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got), 0);
+
+    wolfSSL_free(ssl_c);     ssl_c = NULL;
+    wolfSSL_free(ssl_s);     ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c); ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s); ctx_s = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_sct_cert_chain(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SIGNED_CERT_TIMESTAMP) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL     *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    static const unsigned char sctList[] = {
+        0x00, 0x0a, 0x00, 0x08,
+        0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04
+    };
+    const unsigned char* got = NULL;
+
+    /* A chain, not a single certificate: the SCT goes on the end entity
+     * certificate only, so every certificate after it must advance to its own
+     * empty extensions entry. When the index stopped advancing, each chain
+     * certificate reused the leaf's entry - reading a buffer already freed and
+     * claiming bytes the message length never budgeted for. Built by hand
+     * because test_memio_setup() loads a single certificate, which leaves
+     * certChainCnt at zero and cannot reach any of that. */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx_s,
+        "certs/intermediate/server-chain.pem"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, "certs/server-key.pem",
+        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+
+    ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, 0),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_c, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_memio_write_cb);
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    /* The chain really is more than one certificate, or this proves nothing. */
+    if (ssl_s != NULL)
+        ExpectIntGT(ssl_s->buffers.certChainCnt, 0);
+    ExpectIntEQ(wolfSSL_set_signed_cert_timestamp_list(ssl_s, sctList,
+        (unsigned short)sizeof(sctList)), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get0_signed_cert_timestamp_list(ssl_c, &got),
+        (int)sizeof(sctList));
+    ExpectNotNull(got);
+    if (got != NULL)
+        ExpectIntEQ(XMEMCMP(got, sctList, sizeof(sctList)), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test that each extension added recently is refused in messages it is not
+ * listed for.
+ *
+ * Twice in developing these an extension leaked into EncryptedExtensions and
+ * only an interop run caught it, because a peer that ignores an unexpected
+ * extension will still complete the handshake. Checking the receive gate is
+ * the cheap half of that; a wolfSSL peer rejecting the message is what turns
+ * a send-side leak into a visible failure. */
+int test_tls13_new_ext_placement(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    Suites* suites = NULL;
+#ifdef HAVE_SNI
+    /* server_name: CH, EE, CR. */
+    static const byte sni[] = {
+        0x00, 0x00, 0x00, 0x10, 0x00, 0x0e, 0x00, 0x00, 0x0b,
+        'w', 'o', 'l', 'f', 's', 's', 'l', '.', 'c', 'o', 'm'
+    };
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    /* signed_certificate_timestamp: CH, CR, CT. Empty as a request. */
+    static const byte sct[] = { 0x00, 0x12, 0x00, 0x00 };
+#endif
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    /* The certificate exists only so wolfSSL_new() succeeds for a server
+     * object - nothing below sends one - so use whichever algorithm the
+     * build has. svrCertFile is RSA, which a build without RSA cannot
+     * load. */
+#ifndef NO_RSA
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE));
+#else
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
+        CERT_FILETYPE));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+        CERT_FILETYPE));
+#endif
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL)
+        suites = (Suites*)WOLFSSL_SUITES(ssl);
+    /* Every use below sits behind one of the extension macros, so a build with
+     * none of them leaves this set and never read. */
+    (void)suites;
+
+#ifdef HAVE_SNI
+    ExpectIntEQ(TLSX_Parse(ssl, sni, (word16)sizeof(sni), client_hello,
+        suites), 0);
+    ExpectIntEQ(TLSX_Parse(ssl, sni, (word16)sizeof(sni), session_ticket,
+        NULL), WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+#endif
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    ExpectIntEQ(TLSX_Parse(ssl, sct, (word16)sizeof(sct), client_hello,
+        suites), 0);
+    /* RFC 8446 Sect. 4.2 also lists CertificateRequest, where a server asks
+     * the client to staple SCTs to its own Certificate. Accepted and ignored
+     * rather than fatal - see test_tls13_sct_in_cert_request. */
+    ExpectIntEQ(TLSX_Parse(ssl, sct, (word16)sizeof(sct), certificate_request,
+        suites), 0);
+    /* TLS 1.3 moved the answer to the Certificate message, so
+     * EncryptedExtensions is refused. This is the leak OpenSSL rejected. */
+    ExpectIntEQ(TLSX_Parse(ssl, sct, (word16)sizeof(sct), encrypted_extensions,
+        NULL), WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+    ExpectIntEQ(TLSX_Parse(ssl, sct, (word16)sizeof(sct), session_ticket,
+        NULL), WC_NO_ERR_TRACE(EXT_NOT_ALLOWED));
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test the cookie extension of a ClientHello on the server. How much of it a
  * server checks depends on the build:
  *  - without WOLFSSL_TLS13_COOKIE there is no cookie code, so the extension

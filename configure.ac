@@ -1406,6 +1406,7 @@ then
     test "$enable_srtp" = "" && enable_srtp=no
     test "$enable_ocsp" = "" && enable_ocsp=no
     test "$enable_tlsx" = "" && enable_tlsx=no
+    test "$enable_sct" = "" && enable_sct=no
     test "$enable_sni" = "" && enable_sni=no
     test "$enable_crl_monitor" = "" && enable_crl_monitor=no
     test "$enable_alpn" = "" && enable_alpn=no
@@ -1583,6 +1584,7 @@ then
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_rpk" = "" && enable_rpk=yes
 
+    test "$enable_sct" = "" && enable_sct=yes
     if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
         # Disable QUIC with JNI since incompatible with client-side
@@ -10234,6 +10236,10 @@ then
     ENABLED_ALPN=yes
     ENABLED_TRUSTED_CA=yes
     ENABLED_ENCRYPT_THEN_MAC=yes
+    dnl A seed rather than an ENABLED_ var: this block runs before that option
+    dnl is declared, and AC_ARG_ENABLE keys off ${enable_X+set}. It is a pure
+    dnl extension, which is what --enable-tlsx means.
+    test "$enable_sct" = "" && enable_sct=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" != "xno" || test "$ENABLED_CURVE25519" != "no" || test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
@@ -11668,6 +11674,25 @@ AC_ARG_WITH([libz],
         ENABLED_LIBZ="yes"
     ]
 )
+
+# Signed Certificate Timestamp (RFC 6962)
+AC_ARG_ENABLE([sct],
+    [AS_HELP_STRING([--enable-sct],[Enable RFC 6962 signed_certificate_timestamp. Carries a Certificate Transparency SCT list between peers; validating it is left to the application (default: disabled)])],
+    [ ENABLED_SCT=$enableval ],
+    [ ENABLED_SCT=no ]
+    )
+dnl The extension lives in the TLS layer, so a crypto-only or no-TLS build has
+dnl nothing to attach it to. The no-TLS defaults above only cover an unset
+dnl option; an explicit --enable-sct is overridden here, as CMake does.
+if test "$ENABLED_SCT" = "yes" && test "$ENABLED_TLS" = "no"
+then
+    AC_MSG_WARN([--enable-sct needs TLS; disabled in this no-TLS build])
+    ENABLED_SCT=no
+fi
+if test "$ENABLED_SCT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SIGNED_CERT_TIMESTAMP"
+fi
 
 
 # PKCS#11
@@ -15511,6 +15536,7 @@ echo "   * Falcon:                     $ENABLED_FALCON"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+echo "   * Signed Cert Timestamps:     $ENABLED_SCT"
 echo "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"

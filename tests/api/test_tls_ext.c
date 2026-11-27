@@ -2964,6 +2964,13 @@ int test_wolfSSL_CTX_add_client_custom_ext(void)
     ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, 0x0000,
         test_custom_ext_add_cb, test_custom_ext_free_cb, NULL,
         test_custom_ext_parse_cb, NULL), 0);
+#ifdef HAVE_SIGNED_CERT_TIMESTAMP
+    /* As is signed_certificate_timestamp (RFC 6962), when wolfSSL handles
+     * it. */
+    ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, 0x0012,
+        test_custom_ext_add_cb, test_custom_ext_free_cb, NULL,
+        test_custom_ext_parse_cb, NULL), 0);
+#endif
 
     /* free_cb without add_cb is rejected. */
     ExpectIntEQ(wolfSSL_CTX_add_client_custom_ext(ctx, TEST_CUSTOM_EXT_TYPE,

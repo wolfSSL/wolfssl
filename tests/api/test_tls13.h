@@ -222,6 +222,20 @@ int test_tls13_cks_hrr_reparse(void);
 int test_tls13_update_keys_want_write(void);
 int test_tls13_AEAD_limit_KeyUpdate_want_write(void);
 int test_tls13_exporter_suite_decision_coverage(void);
+int test_tls12_sct_clear_ctx_snapshot(void);
+int test_tls13_sct_sni_ctx_switch(void);
+int test_tls13_sct_set_in_sni_cb(void);
+int test_tls13_sct_setter_validation(void);
+int test_tls13_sct_response_framing(void);
+int test_tls13_sct_unsolicited_at_server(void);
+int test_tls13_sct_clear_releases_peer_list(void);
+int test_tls13_sct_oversize_list(void);
+int test_tls13_sct_in_cert_request(void);
+int test_tls12_signed_cert_timestamp(void);
+int test_tls12_sct_max_fragment(void);
+int test_tls13_sct_certificate_msg(void);
+int test_tls13_sct_cert_chain(void);
+int test_tls13_new_ext_placement(void);
 
 #define TEST_TLS13_DECLS                                        \
     TEST_DECL_GROUP("tls13", test_tls13_apis),                  \
@@ -422,6 +436,20 @@ int test_tls13_exporter_suite_decision_coverage(void);
     TEST_DECL_GROUP("tls13", test_tls13_exporter_suite_decision_coverage), \
     TEST_DECL_GROUP("tls13", test_tls13_ecdsa_scheme_curve_binding), \
     TEST_DECL_GROUP("tls13", test_tls13_new_session_ticket_max_fragment), \
-    TEST_DECL_GROUP("tls13", test_tls13_psk_cb_no_cipher_name)
+    TEST_DECL_GROUP("tls13", test_tls13_psk_cb_no_cipher_name), \
+    TEST_DECL_GROUP("tls13", test_tls12_sct_clear_ctx_snapshot), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_sni_ctx_switch), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_set_in_sni_cb), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_setter_validation), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_response_framing), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_unsolicited_at_server), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_clear_releases_peer_list), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_oversize_list), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_in_cert_request), \
+    TEST_DECL_GROUP("tls13", test_tls12_signed_cert_timestamp), \
+    TEST_DECL_GROUP("tls13", test_tls12_sct_max_fragment), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_certificate_msg), \
+    TEST_DECL_GROUP("tls13", test_tls13_sct_cert_chain), \
+    TEST_DECL_GROUP("tls13", test_tls13_new_ext_placement)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */
