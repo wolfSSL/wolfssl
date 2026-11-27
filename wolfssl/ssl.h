@@ -744,6 +744,8 @@ struct WOLFSSL_X509_STORE_CTX {
     struct Signer* extraCa;      /* chain CAs the connection's verify callback
                                   * accepted, set by the handshake. Not owned
                                   * by this ctx. */
+    struct WOLFSSL_X509* chainCaIssuer; /* issuer the chain builder supplied
+                                         * for this link. Not owned. */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 };
 
