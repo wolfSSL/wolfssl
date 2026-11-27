@@ -8004,6 +8004,19 @@ static unsigned int test_dhe_psk_max_server_cb(WOLFSSL* ssl,
 
     return MAX_PSK_KEY_LEN;
 }
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static unsigned int test_dhe_psk_invalid_key_cb(WOLFSSL* ssl, const char* hint,
+    char* id, unsigned int id_max, unsigned char* key, unsigned int key_max)
+{
+    const int* oversized = (const int*)wolfSSL_get_psk_callback_ctx(ssl);
+    (void)hint;
+    (void)id;
+    (void)id_max;
+    (void)key;
+    return oversized != NULL && *oversized ? key_max + 1 : 0;
+}
+#endif
+
 #endif
 
 /* A DHE-PSK exchange fills the pre-master secret buffer with a two byte
@@ -8030,6 +8043,9 @@ int test_dhe_psk_max_premaster(void)
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    int oversized;
+#endif
 
     /* Both lengths, the largest secret the peer can pick and the longest key
      * have to fit. */
@@ -8062,6 +8078,36 @@ int test_dhe_psk_max_premaster(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    for (oversized = 0; oversized <= 1 && EXPECT_SUCCESS(); oversized++) {
+        ctx_c = ctx_s = NULL;
+        ssl_c = ssl_s = NULL;
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, "DHE-PSK-AES128-GCM-SHA256"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, "DHE-PSK-AES128-GCM-SHA256"),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_psk_callback_ctx(ssl_c, &oversized),
+            WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS()) {
+            wolfSSL_set_psk_client_callback(ssl_c, test_dhe_psk_invalid_key_cb);
+            wolfSSL_set_psk_server_callback(ssl_s, test_dhe_psk_max_server_cb);
+        }
+        ExpectIntEQ(wolfSSL_SetTmpDH_file(ssl_s, TEST_DHE_PSK_MAX_DH_FILE,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+            WC_NO_ERR_TRACE(PSK_KEY_ERROR));
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
 #endif
     return EXPECT_RESULT();
 }

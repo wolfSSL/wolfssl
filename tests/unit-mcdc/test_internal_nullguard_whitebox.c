@@ -1138,6 +1138,121 @@ static void wb_get_real_session_id(WbFix* f)
 }
 #endif /* !NO_WOLFSSL_SERVER && HAVE_SESSION_TICKET && WOLFSSL_TICKET_HAVE_ID */
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    (!defined(NO_DH) || !defined(NO_RSA)) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(NO_DH) && !defined(NO_PSK)
+static unsigned int wb_psk_not_called(WOLFSSL* ssl, const char* hint,
+    char* identity, unsigned int identityCapacity, unsigned char* key,
+    unsigned int keyCapacity)
+{
+    (void)ssl;
+    (void)hint;
+    (void)identity;
+    (void)identityCapacity;
+    (void)key;
+    (void)keyCapacity;
+    return 0;
+}
+#endif
+
+static int wb_send_key_exchange(WOLFSSL* ssl)
+{
+    ssl->options.buildingMsg = 0;
+    return SendClientKeyExchange(ssl);
+}
+
+static int wb_missing_exchange_keys(WbFix* f)
+{
+    int failed = 0;
+    int ret;
+
+    wb_reset(f);
+    f->ssl->arrays = f->arrays;
+#ifdef WOLFSSL_ASYNC_IO
+    f->ssl->async = (struct WOLFSSL_ASYNC*)XMALLOC(sizeof(*f->ssl->async),
+        NULL, DYNAMIC_TYPE_ASYNC);
+    if (f->ssl->async == NULL)
+        return 1;
+    XMEMSET(f->ssl->async, 0, sizeof(*f->ssl->async));
+#endif
+
+#ifndef NO_RSA
+    {
+        RsaKey* rsa = NULL;
+
+        f->ssl->specs.kea = rsa_kea;
+        if (wb_send_key_exchange(f->ssl) != NO_PEER_KEY)
+            failed = 1;
+
+        if (AllocKey(f->ssl, DYNAMIC_TYPE_RSA, (void**)&rsa) != 0) {
+        #ifdef WOLFSSL_ASYNC_IO
+            FreeAsyncCtx(f->ssl, 1);
+        #endif
+            return 1;
+        }
+        f->ssl->peerRsaKey = rsa;
+        if (wb_send_key_exchange(f->ssl) != NO_PEER_KEY)
+            failed = 1;
+
+        /* An allocation error after the guard is the positive partner. The
+         * RSA key object never reaches an encryption operation. */
+        f->ssl->peerRsaKeyPresent = 1;
+        mcdc_fa_install();
+        mcdc_fa_arm_only(1);
+        ret = wb_send_key_exchange(f->ssl);
+        mcdc_fa_restore();
+        if (ret != MEMORY_E)
+            failed = 1;
+        FreePeerCertKeys(f->ssl);
+    }
+#endif
+#ifndef NO_DH
+    {
+        static const byte exchanges[] = {
+            diffie_hellman_kea,
+        #ifndef NO_PSK
+            dhe_psk_kea,
+        #endif
+        };
+        byte unread = 0;
+        size_t i;
+        int omitted;
+
+        /* These buffers are borrowed by the fixture. Allocation stops the
+         * accepting case before their data would be read. */
+        for (i = 0; i < sizeof(exchanges) / sizeof(exchanges[0]); i++) {
+            for (omitted = 0; omitted <= 3; omitted++) {
+                f->ssl->specs.kea = exchanges[i];
+                f->ssl->buffers.serverDH_P.buffer =
+                    omitted == 0 ? NULL : &unread;
+                f->ssl->buffers.serverDH_G.buffer =
+                    omitted == 1 ? NULL : &unread;
+                f->ssl->buffers.serverDH_Pub.buffer =
+                    omitted == 2 ? NULL : &unread;
+            #ifndef NO_PSK
+                f->ssl->options.client_psk_cb = wb_psk_not_called;
+            #endif
+                mcdc_fa_install();
+                mcdc_fa_arm_only(1);
+                ret = wb_send_key_exchange(f->ssl);
+                mcdc_fa_restore();
+                if (ret != (omitted == 3 ? MEMORY_E : NO_PEER_KEY))
+                    failed = 1;
+            }
+        }
+        f->ssl->buffers.serverDH_P.buffer = NULL;
+        f->ssl->buffers.serverDH_G.buffer = NULL;
+        f->ssl->buffers.serverDH_Pub.buffer = NULL;
+    }
+#endif
+#ifdef WOLFSSL_ASYNC_IO
+    FreeAsyncCtx(f->ssl, 1);
+#endif
+    return failed;
+}
+#endif
+
 /* ---------------------------------------------------------------------- main */
 
 int main(void)
@@ -1280,6 +1395,15 @@ int main(void)
 #if !defined(NO_RSA) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_key_lifecycle(&f)) {
         puts("internal null-guard white-box: key lifecycle check failed");
+        failed = 1;
+    }
+#endif
+
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    (!defined(NO_DH) || !defined(NO_RSA)) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_missing_exchange_keys(&f)) {
+        puts("internal null-guard white-box: unexpected exchange key result");
         failed = 1;
     }
 #endif

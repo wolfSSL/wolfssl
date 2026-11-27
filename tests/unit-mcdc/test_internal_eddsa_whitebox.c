@@ -154,6 +154,35 @@ static void wb_eddsa_update(void)
     ssl.hsHashes = NULL;
 }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_eddsa_update_bounds(void)
+{
+    static const byte data = 0xAA;
+    WOLFSSL ssl;
+    HS_Hashes hashes;
+    int failed = 0;
+
+    XMEMSET(&ssl, 0, sizeof(ssl));
+    XMEMSET(&hashes, 0, sizeof(hashes));
+    ssl.hsHashes = &hashes;
+    if (EdDSA_Update(&ssl, &data, 1) != 0 || hashes.messages != NULL)
+        failed = 1;
+
+    ssl.options.cacheMessages = 1;
+    if (EdDSA_Update(&ssl, &data, -1) != BUFFER_ERROR)
+        failed = 1;
+    hashes.length = -1;
+    if (EdDSA_Update(&ssl, &data, 1) != BUFFER_ERROR)
+        failed = 1;
+    hashes.length = INT_MAX;
+    if (EdDSA_Update(&ssl, &data, 1) != BUFFER_ERROR)
+        failed = 1;
+    if (hashes.messages != NULL)
+        failed = 1;
+    return failed;
+}
+#endif
+
 #if !defined(NO_SHA256) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(MCDC_FA_UNAVAILABLE) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 static int wb_transcript_copy(void)
@@ -236,6 +265,12 @@ int main(void)
                 (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
     wb_eddsa_update();
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_eddsa_update_bounds()) {
+        puts("internal EdDSA white-box: message cache bounds failed");
+        failed = 1;
+    }
+#endif
 #if !defined(NO_SHA256) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(MCDC_FA_UNAVAILABLE) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wb_transcript_copy()) {
