@@ -1461,6 +1461,12 @@ WOLFSSL_API int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl,
 WOLFSSL_API int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx,
                                                const char* list);
 WOLFSSL_API int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
+#ifdef WOLFSSL_TLS13
+WOLFSSL_API int  wolfSSL_CTX_set1_sigalgs_cert_list(WOLFSSL_CTX* ctx,
+                                                    const char* list);
+WOLFSSL_API int  wolfSSL_set1_sigalgs_cert_list(WOLFSSL* ssl,
+                                                const char* list);
+#endif /* WOLFSSL_TLS13 */
 #endif
 WOLFSSL_ABI WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx);
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl);

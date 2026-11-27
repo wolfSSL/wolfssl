@@ -44,6 +44,13 @@
   keyCertSign on a certificate that is not a CA has its own condition. A
   required field that is absent uses reason missing. by @sameehj
 
+* Added `wolfSSL_CTX_set1_sigalgs_cert_list()` and
+  `wolfSSL_set1_sigalgs_cert_list()` (`SSL_CTX_set1_sigalgs_cert_list()` and
+  `SSL_set1_sigalgs_cert_list()` in the compatibility layer) to send the TLS
+  1.3 signature_algorithms_cert extension, naming the schemes accepted in a
+  peer's certificate chain separately from those for handshake signatures.
+  They need `OPENSSL_EXTRA`. by @SparkiDev (PR 12259)
+
 ## Behavioral Changes
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
@@ -142,6 +149,22 @@
   because callers fold the result into constant-time masks that read a
   negative value as a match.
 
+* **Behavioral change (SHA-1 certificate chains are checked per signature
+  scheme)**: a TLS 1.3 end now sends a certificate signed with SHA-1 only if
+  the peer advertised that exact scheme (rsa_pkcs1_sha1, ecdsa_sha1 or
+  dsa_sha1), where any advertised SHA-1 scheme used to permit any SHA-1
+  certificate, and never sends an RSA-PSS certificate whose parameters name
+  SHA-1. A server holding such a chain now ends the handshake with
+  handshake_failure. This is stricter than RFC 8446 Section 4.4.2.2 requires.
+  by @SparkiDev (PR 12259)
+* **Behavioral change (`set1_sigalgs_list()` parsing)**: a list that fails to
+  parse now leaves the earlier list, or the default, in place instead of a
+  partial one; RSA-PSS is accepted with SHA-256, SHA-384 and SHA-512 only,
+  where other digests were encoded as unrelated code points (SHA-224 as
+  Ed448's 0x0808); and an entry with no code point, such as a Brainpool curve
+  with SHA-1, fails the call instead of being dropped. by @SparkiDev
+  (PR 12259)
+
 ## Post-Quantum Cryptography (PQC)
 
 * Added opt-in per-key Falcon signing caches (`--enable-falcon=cache-key`, `cache-basis`), roughly doubling signing speed with the default integer fpr backend. by @Frauschi
@@ -201,6 +224,11 @@
   and Keil's AC5 armcc under `__KEIL__`, `__asm__`, which neither accepts.
   Both now get `__asm`, which IAR keeps under `--strict` and both Keil
   compilers accept.
+
+* Fixed `wolfSSL_CTX_set1_sigalgs_list()` on a context whose cipher suites
+  had not been built yet: it left them empty, so every connection made from
+  the context sent a ClientHello with no cipher suites and failed its
+  handshake. by @SparkiDev (PR 12259)
 
 ## Fixes
 

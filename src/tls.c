@@ -8729,6 +8729,7 @@ static int TLSX_SetSignatureAlgorithms(TLSX** extensions, WOLFSSL* ssl,
 /******************************************************************************/
 
 #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+#ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
 /* Return the size of the SignatureAlgorithmsCert extension's data.
  *
  * data  The SSL/TLS object.
@@ -8738,10 +8739,7 @@ static word16 TLSX_SignatureAlgorithmsCert_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
 
-    if (ssl->certHashSigAlgo == NULL)
-        return OPAQUE16_LEN;
-
-    return OPAQUE16_LEN + ssl->certHashSigAlgoSz;
+    return OPAQUE16_LEN + ssl->ourCertSigAlgoSz;
 }
 
 /* Writes the SignatureAlgorithmsCert extension into the buffer.
@@ -8754,17 +8752,13 @@ static word16 TLSX_SignatureAlgorithmsCert_Write(void* data, byte* output)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
 
-    if (ssl->certHashSigAlgo == NULL) {
-        c16toa(0, output);
-        return OPAQUE16_LEN;
-    }
+    c16toa(ssl->ourCertSigAlgoSz, output);
+    XMEMCPY(output + OPAQUE16_LEN, ssl->ourCertSigAlgo,
+            ssl->ourCertSigAlgoSz);
 
-    c16toa(ssl->certHashSigAlgoSz, output);
-    XMEMCPY(output + OPAQUE16_LEN, ssl->certHashSigAlgo,
-            ssl->certHashSigAlgoSz);
-
-    return OPAQUE16_LEN + ssl->certHashSigAlgoSz;
+    return OPAQUE16_LEN + ssl->ourCertSigAlgoSz;
 }
+#endif /* WOLFSSL_HAVE_OUR_CERT_SIGALGO */
 
 /* Parse the SignatureAlgorithmsCert extension.
  *
@@ -8810,6 +8804,7 @@ static int TLSX_SignatureAlgorithmsCert_Parse(WOLFSSL *ssl, const byte* input,
     return 0;
 }
 
+#ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
 /* Sets a new SignatureAlgorithmsCert extension into the extension list.
  *
  * extensions  The list of extensions.
@@ -8828,6 +8823,11 @@ static int TLSX_SetSignatureAlgorithmsCert(TLSX** extensions,
 
 #define SAC_GET_SIZE  TLSX_SignatureAlgorithmsCert_GetSize
 #define SAC_WRITE     TLSX_SignatureAlgorithmsCert_Write
+#else
+/* Nothing can set the list, so the extension is never pushed to be sent. */
+#define SAC_GET_SIZE(a)     0
+#define SAC_WRITE(a, b)     0
+#endif /* WOLFSSL_HAVE_OUR_CERT_SIGALGO */
 #define SAC_PARSE     TLSX_SignatureAlgorithmsCert_Parse
 #endif /* WOLFSSL_TLS13 */
 
@@ -16843,6 +16843,22 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
         }
     #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+        /* Both roles offer the signature algorithms they accept in a peer's
+         * certificate: the client in the ClientHello, the server in the
+         * CertificateRequest. RFC 8446 Sect. 4.2.3 makes signature_algorithms
+         * cover certificates when this extension is absent, so it is sent
+         * only when the application asked for a different list. */
+    #ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
+        if (IsAtLeastTLSv1_3(ssl->version) && ssl->ourCertSigAlgoSz > 0) {
+            WOLFSSL_MSG("Adding signature algorithms cert extension");
+            if ((ret = TLSX_SetSignatureAlgorithmsCert(&ssl->extensions, ssl,
+                                                       ssl->heap)) != 0) {
+                return ret;
+            }
+        }
+    #endif
+    #endif
         if (!isServer && IsAtLeastTLSv1_3(ssl->version)) {
             /* Add mandatory TLS v1.3 extension: supported version */
             WOLFSSL_MSG("Adding supported versions extension");
@@ -16850,16 +16866,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                                                              ssl->heap)) != 0) {
                 return ret;
             }
-
-        #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-            if (ssl->certHashSigAlgoSz > 0) {
-                WOLFSSL_MSG("Adding signature algorithms cert extension");
-                if ((ret = TLSX_SetSignatureAlgorithmsCert(&ssl->extensions,
-                                                        ssl, ssl->heap)) != 0) {
-                    return ret;
-                }
-            }
-        #endif
 
         #if defined(HAVE_SUPPORTED_CURVES)
             extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
@@ -17872,8 +17878,10 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
     #ifdef WOLFSSL_TLS13
-        /* RFC 8446 4.2.3: the list may not be empty, so drop the extension. */
-        if ((ssl->certHashSigAlgo == NULL) || (ssl->certHashSigAlgoSz == 0)) {
+        /* RFC 8446 4.2.3: the list may not be empty, so drop the extension
+         * when this end set none. ourCertSigAlgo is the list this end offers;
+         * certHashSigAlgo is the one received from the peer. */
+        if (WOLFSSL_OUR_CERT_SIGALGO_SZ(ssl) == 0) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
         }
@@ -17925,6 +17933,10 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+        if (WOLFSSL_OUR_CERT_SIGALGO_SZ(ssl) > 0) {
+            TURN_OFF(semaphore,
+                    TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
+        }
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (HasAnyCANames(ssl)) {
@@ -18115,8 +18127,10 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
     #ifdef WOLFSSL_TLS13
-        /* RFC 8446 4.2.3: the list may not be empty, so drop the extension. */
-        if ((ssl->certHashSigAlgo == NULL) || (ssl->certHashSigAlgoSz == 0)) {
+        /* RFC 8446 4.2.3: the list may not be empty, so drop the extension
+         * when this end set none. ourCertSigAlgo is the list this end offers;
+         * certHashSigAlgo is the one received from the peer. */
+        if (WOLFSSL_OUR_CERT_SIGALGO_SZ(ssl) == 0) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
         }
@@ -18177,6 +18191,10 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+        if (WOLFSSL_OUR_CERT_SIGALGO_SZ(ssl) > 0) {
+            TURN_OFF(semaphore,
+                    TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS_CERT));
+        }
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
         if (HasAnyCANames(ssl)) {

@@ -2076,7 +2076,12 @@ int wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list)
         WOLFSSL_MSG("Bad function arguments");
         ret = WOLFSSL_FAILURE;
     }
-    else if (AllocateCtxSuites(ctx) != 0) {
+    /* Derive the default suites first, as wolfSSL_new() would. Suites
+     * merely allocated here would be left empty - no cipher suites and, after
+     * a failed parse, no signature algorithms - and wolfSSL_new() only
+     * derives them when there are none, so every connection made from this
+     * context would fail its handshake. */
+    else if (InitCtxSuitesWithMutex(ctx) != 0) {
         ret = WOLFSSL_FAILURE;
     }
     else {
@@ -2112,6 +2117,73 @@ int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
 
     return ret;
 }
+
+#ifdef WOLFSSL_TLS13
+/* Set the certificate signature algorithms list on the context.
+ *
+ * Sent as the TLS 1.3 signature_algorithms_cert extension: by a client in the
+ * ClientHello and by a server in the CertificateRequest. Leave it unset when
+ * the same algorithms are acceptable for certificates and for handshake
+ * signatures -- signature_algorithms then covers both (RFC 8446 Sect 4.2.3).
+ *
+ * Needs OPENSSL_EXTRA as well as TLS 1.3, like wolfSSL_CTX_set1_sigalgs_list()
+ * that it mirrors: the text list parser is part of the OpenSSL compatibility
+ * layer, and it is the only way to populate this extension. A build without
+ * that option never sends signature_algorithms_cert.
+ *
+ * @param [in] ctx   SSL/TLS context object.
+ * @param [in] list  Colon-separated list of <public key>+<digest> algorithms.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ctx or list is NULL or on error.
+ */
+int wolfSSL_CTX_set1_sigalgs_cert_list(WOLFSSL_CTX* ctx, const char* list)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_CTX_set1_sigalgs_cert_list");
+
+    if ((ctx == NULL) || (list == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = SetHashSigAlgoList(ctx->ourCertSigAlgo,
+                                 (word16)sizeof(ctx->ourCertSigAlgo),
+                                 &ctx->ourCertSigAlgoSz, list, 1);
+    }
+
+    return ret;
+}
+
+/* Set the certificate signature algorithms list on the object.
+ *
+ * Overrides any list set on the context. See
+ * wolfSSL_CTX_set1_sigalgs_cert_list().
+ *
+ * @param [in] ssl   SSL/TLS object.
+ * @param [in] list  Colon-separated list of <public key>+<digest> algorithms.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ssl or list is NULL or on error.
+ */
+int wolfSSL_set1_sigalgs_cert_list(WOLFSSL* ssl, const char* list)
+{
+    int ret;
+
+    WOLFSSL_MSG("wolfSSL_set1_sigalgs_cert_list");
+
+    if ((ssl == NULL) || (list == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = SetHashSigAlgoList(ssl->ourCertSigAlgo,
+                                 (word16)sizeof(ssl->ourCertSigAlgo),
+                                 &ssl->ourCertSigAlgoSz, list, 1);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TLS13 */
 
 /* Group names include the FFDHE groups, so this is not EC-only. */
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \

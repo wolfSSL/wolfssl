@@ -14222,6 +14222,81 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
 int wolfSSL_UseMaxFragment(WOLFSSL* ssl, unsigned char mfl);
 
 /*!
+    \brief Sets the signature schemes this context advertises for a peer's
+    certificate chain, sent as the signature_algorithms_cert extension of RFC
+    8446 Sect. 4.2.3. A client sends it in the ClientHello and a server in the
+    CertificateRequest. Without it, the schemes in signature_algorithms apply
+    to certificates as well; sending it lets the two differ, so the peer can
+    pick a chain with, say, a legacy digest without that digest being offered
+    for handshake signatures.
+
+    The list is advertised only: the chain the peer sends is not checked
+    against it, and is verified as it would be without the extension.
+
+    The names are those of wolfSSL_CTX_set1_sigalgs_list(), with one
+    difference: "SHA1" is accepted whenever SHA-1 is built in, as in
+    "RSA+SHA1" or "ECDSA+SHA1", even in a build whose handshake list refuses
+    it. RSA-PSS takes only SHA256, SHA384 or SHA512, as in that function.
+
+    Needs OPENSSL_EXTRA (--enable-opensslextra) as well as TLS 1.3, like
+    wolfSSL_CTX_set1_sigalgs_list() that it mirrors: parsing a text list of
+    scheme names is part of the OpenSSL compatibility layer. These two setters
+    are the only way to populate the extension, so a build without that option
+    never sends signature_algorithms_cert.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ctx or list is NULL, or the list cannot be
+    parsed. A list that cannot be parsed leaves any list set earlier in place.
+
+    Call it before any WOLFSSL is created from this context: wolfSSL_new()
+    copies the context's list into the new object, so objects made earlier
+    keep whatever was set when they were created.
+
+    \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
+    \param list colon separated scheme names, for example
+    "RSA-PSS+SHA256:ECDSA+SHA256".
+
+    _Example_
+    \code
+    wolfSSL_CTX_set1_sigalgs_cert_list(ctx, "RSA-PSS+SHA256:ECDSA+SHA256");
+    \endcode
+
+    \sa wolfSSL_set1_sigalgs_cert_list
+*/
+int wolfSSL_CTX_set1_sigalgs_cert_list(WOLFSSL_CTX* ctx, const char* list);
+
+/*!
+    \brief Sets the signature schemes advertised for a peer's certificate
+    chain for one SSL object, overriding the context's list. See
+    wolfSSL_CTX_set1_sigalgs_cert_list().
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return WOLFSSL_FAILURE when ssl or list is NULL, or the list cannot be
+    parsed. A list that cannot be parsed leaves any list set earlier in place.
+
+    Call it before wolfSSL_connect() or wolfSSL_accept(), and do not call it
+    again until the handshake is complete. Whether the extension is sent at
+    all is decided at the start of the handshake, so a later call cannot add
+    it. Each message that carries it reads the current list, so a call during
+    the handshake would change a second ClientHello after a HelloRetryRequest,
+    which RFC 8446 Sect. 4.1.2 requires to repeat the first. Once the
+    handshake is complete, a call does change the list a post-handshake
+    CertificateRequest offers.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param list colon separated scheme names.
+
+    _Example_
+    \code
+    wolfSSL_set1_sigalgs_cert_list(ssl, "RSA-PSS+SHA256");
+    \endcode
+
+    \sa wolfSSL_CTX_set1_sigalgs_cert_list
+*/
+int wolfSSL_set1_sigalgs_cert_list(WOLFSSL* ssl, const char* list);
+
+
+/*!
     \brief This function is called on the client side to enable the use
     of Maximum Fragment Length for SSL objects created from the SSL context
     passed in the 'ctx' parameter. It means that the Maximum Fragment Length
@@ -16755,7 +16830,9 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     Notes for TLS 1.3: per RFC 8446, RSA PKCS#1 v1.5, DSA, SHA-1, and SHA-224
     cannot be used as handshake signatures and will be filtered out at
     negotiation time even if listed. Specifying "RSA-PSS+SHAxxx" causes both
-    the rsa_pss_rsae_shaxxx and rsa_pss_pss_shaxxx schemes to be added.
+    the rsa_pss_rsae_shaxxx and rsa_pss_pss_shaxxx schemes to be added. RSA-PSS
+    is accepted with SHA256, SHA384 and SHA512 only, the digests TLS assigns
+    RSA-PSS code points for; with any other the call fails.
     Brainpool ECDSA signature schemes (RFC 8734) cannot be selected through
     this string interface; they are negotiated automatically when
     HAVE_ECC_BRAINPOOL is enabled.
@@ -16769,6 +16846,7 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     \return WOLFSSL_FAILURE if a pointer parameter is NULL, allocation of the
     suites structure fails, or any token in the list is not recognized or not
     supported by the current build.
+    On failure the list set earlier, or the default, is left in place.
 
     _Example_
     \code
@@ -16794,8 +16872,8 @@ int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list);
     wolfSSL session in order of preference. The list format and the set of
     recognized public-key and digest tokens are identical to those documented
     for wolfSSL_CTX_set1_sigalgs_list(); refer to that function for the full
-    token tables and TLS 1.3 caveats. The previous list stored in the session
-    is replaced.
+    token tables and TLS 1.3 caveats. On success the previous list stored in
+    the session is replaced.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using
     wolfSSL_new().
@@ -16806,6 +16884,7 @@ int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list);
     \return WOLFSSL_FAILURE if a pointer parameter is NULL, allocation of the
     suites structure fails, or any token in the list is not recognized or not
     supported by the current build.
+    On failure the list set earlier, or the default, is left in place.
 
     _Example_
     \code

@@ -2080,6 +2080,18 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #endif
 #endif
 
+/* The signature_algorithms_cert list this end offers. Only the OPENSSL_EXTRA
+ * setters wolfSSL_CTX_set1_sigalgs_cert_list() and
+ * wolfSSL_set1_sigalgs_cert_list() can fill it, so other builds carry no
+ * storage for it and never send the extension; WOLFSSL_OUR_CERT_SIGALGO_SZ()
+ * is then a constant 0. */
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA)
+    #define WOLFSSL_HAVE_OUR_CERT_SIGALGO
+    #define WOLFSSL_OUR_CERT_SIGALGO_SZ(ssl)  ((ssl)->ourCertSigAlgoSz)
+#else
+    #define WOLFSSL_OUR_CERT_SIGALGO_SZ(ssl)  0
+#endif
+
 
 /* set minimum ECC key size allowed */
 #ifndef WOLFSSL_MIN_ECC_BITS
@@ -2720,6 +2732,9 @@ WOLFSSL_LOCAL int  SetCipherList(const WOLFSSL_CTX* ctx, Suites* suites,
 WOLFSSL_LOCAL int  SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites,
                                           const byte* list, const int listSz);
 WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites* suites, const char* list);
+WOLFSSL_LOCAL int  SetHashSigAlgoList(byte* hashSigAlgo, word16 maxSz,
+                                      word16* hashSigAlgoSz, const char* list,
+                                      int certList);
 
 #ifndef PSK_TYPES_DEFINED
     typedef unsigned int (*wc_psk_client_callback)(WOLFSSL*, const char*, char*,
@@ -4830,6 +4845,13 @@ struct WOLFSSL_CTX {
     word16          group[WOLFSSL_MAX_GROUP_COUNT];
     byte            numGroups;
 #endif
+#ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
+    /* signature_algorithms_cert this end offers, set by
+     * wolfSSL_CTX_set1_sigalgs_cert_list(). Empty means the extension is not
+     * sent and signature_algorithms covers certificates too. */
+    word16          ourCertSigAlgoSz;
+    byte            ourCertSigAlgo[WOLFSSL_MAX_SIGALGO];
+#endif
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) && !defined(NO_TLS)
@@ -5895,6 +5917,16 @@ enum cipherState {
     CIPHER_STATE_END
 };
 
+#if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+/* The TLS 1.3 signature schemes that name SHA-1, one bit each, as recorded in
+ * Options.peerSha1CertSigs. RFC 8446 assigns exactly these three and no
+ * rsa_pss_*_sha1, so the set is closed. */
+#define WOLFSSL_SHA1_CERT_RSA     0x01  /* rsa_pkcs1_sha1 */
+#define WOLFSSL_SHA1_CERT_DSA     0x02  /* dsa_sha1 */
+#define WOLFSSL_SHA1_CERT_ECDSA   0x04  /* ecdsa_sha1 */
+#define WOLFSSL_SHA1_CERT_ALL     0x07
+#endif
+
 struct Options {
 #ifndef NO_PSK
     wc_psk_client_callback client_psk_cb;
@@ -6157,8 +6189,14 @@ struct Options {
     word16            clientInEarlyData:1; /* Client is in wolfSSL_read_early_data */
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-    word16            peerSha1CertOk:1;   /* Peer advertised a SHA-1 signature
-                                           * scheme for certificates */
+    /* Which SHA-1 signature schemes the peer advertised for certificates, as
+     * WOLFSSL_SHA1_CERT_* bits. A bit per scheme rather than one flag for the
+     * digest: the willingness RFC 9846 Sect. 4.5.1.2 requires is per scheme,
+     * so a peer that named ecdsa_sha1 alone has not agreed to accept an
+     * rsa_pkcs1_sha1 chain. Taken from signature_algorithms_cert when the
+     * peer sent it and from signature_algorithms otherwise, and handed to the
+     * write side of a write-dup pair. */
+    word16            peerSha1CertSigs:3;
 #endif
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
@@ -6805,7 +6843,7 @@ typedef struct BuildMsgArgs {
         byte postHandshakeSigAlgo;       /* ssl->options.sigAlgo */
         byte postHandshakeHashAlgo;      /* ssl->options.hashAlgo */
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-        byte postHandshakeSha1CertOk;    /* ssl->options.peerSha1CertOk */
+        byte postHandshakeSha1CertOk;    /* ssl->options.peerSha1CertSigs */
 #endif
         /* After the write side sends the PHA response, it stores its updated
          * transcript here so the read side can resume from it on the next
@@ -7241,8 +7279,17 @@ struct WOLFSSL {
 #endif
     word16          pssAlgo;
 #ifdef WOLFSSL_TLS13
+    /* signature_algorithms_cert received from the peer, in its ClientHello or
+     * CertificateRequest. SetPeerSha1CertOk() reduces it to
+     * Options.peerSha1CertSigs and frees it. Never sent. */
     word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
     byte*           certHashSigAlgo;    /* peer's cert sig/algo list */
+#endif
+#ifdef WOLFSSL_HAVE_OUR_CERT_SIGALGO
+    /* signature_algorithms_cert this end offers, inherited from the context
+     * and overridable with wolfSSL_set1_sigalgs_cert_list(). */
+    word16          ourCertSigAlgoSz;
+    byte            ourCertSigAlgo[WOLFSSL_MAX_SIGALGO];
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     int             eccVerifyRes;
