@@ -190,12 +190,20 @@ static int wb_rsa_pss_constraints(WbFix* f)
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 static int wb_handshake_hash_copy(WbFix* f)
 {
+    static const byte record[RECORD_HEADER_SZ + 1] = {0};
     HS_Hashes* copy = NULL;
     int failed = 0;
 
     wb_reset(f);
+    if (HashOutput(f->ssl, record, sizeof(record), 0) != BAD_FUNC_ARG)
+        failed = 1;
     if (InitHandshakeHashes(f->ssl) != 0)
         return 1;
+    if (HashOutput(f->ssl, NULL, sizeof(record), 0) != BAD_FUNC_ARG)
+        failed = 1;
+    if (HashOutput(f->ssl, record, sizeof(record), 0) != 0)
+        failed = 1;
+
     if (InitHandshakeHashesAndCopy(NULL, f->ssl->hsHashes, &copy) !=
             BAD_FUNC_ARG)
         failed = 1;
@@ -207,6 +215,18 @@ static int wb_handshake_hash_copy(WbFix* f)
     if (InitHandshakeHashesAndCopy(f->ssl, f->ssl->hsHashes, &copy) != 0 ||
             copy == NULL || copy == f->ssl->hsHashes)
         failed = 1;
+#if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+    ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+     (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+     (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
+    f->ssl->options.cacheMessages = 1;
+    if (HashOutput(f->ssl, record, sizeof(record), 0) != 0 ||
+            InitHandshakeHashesAndCopy(f->ssl, f->ssl->hsHashes, &copy) != 0 ||
+            copy == NULL || copy->messages == NULL ||
+            copy->messages == f->ssl->hsHashes->messages ||
+            copy->length != 1 || copy->messages[0] != record[RECORD_HEADER_SZ])
+        failed = 1;
+#endif
     if (copy != f->ssl->hsHashes)
         Free_HS_Hashes(copy, f->ssl->heap);
     Free_HS_Hashes(f->ssl->hsHashes, f->ssl->heap);
