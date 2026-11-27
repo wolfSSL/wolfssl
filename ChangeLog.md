@@ -28,6 +28,12 @@
   `wolfcrypt/src/port/nxp/README_SE050.md` and `IDE/CRYPTOCELL/README.md`. by @SparkiDev
 
 ## Behavioral Changes
+* **Behavioral change (persisted CA cache is version 3)**:
+  `PERSIST_CERT_CACHE` stores each CA's DER and rebuilds the signer on
+  restore, and it defines `WOLFSSL_SIGNER_DER_CERT`, so each CA keeps that
+  DER in memory. `WOLFSSL_CACHE_CERT_VERSION` is 3. Restoring a version 1
+  file returns `CACHE_MATCH_ERROR`. Regenerate saved caches. by @sameehj
+
 * **Behavioral change (DSA now uses the leftmost |q| bytes of the digest)**:
   `wc_DsaSign_ex()`/`wc_DsaVerify_ex()` read the whole digest, and the EVP DSA
   paths always read 20 bytes, so neither followed FIPS 186-4 4.2.  Both now use
