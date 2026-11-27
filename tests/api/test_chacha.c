@@ -474,58 +474,161 @@ int test_wc_Chacha_MonteCarlo(void)
  * ChaCha20 counter overflow
  ******************************************************************************/
 
-/*
- * Verify that the ChaCha20 block counter (X[12], a 32-bit value) wraps
- * correctly from 0xFFFFFFFF back to 0x00000000.
- *
- * We set the counter to 0xFFFFFFFF and encrypt 65 bytes in a single call,
- * which requires two 64-byte key-stream blocks.  We then re-encrypt the same
- * data as two separate calls - 64 bytes at counter=0xFFFFFFFF and 1 byte at
- * counter=0x00000000 - and confirm the outputs match.
- */
+/* Wycheproof chacha20_counter_test.json: block 0xFFFFFFFF is the last one an
+ * IETF (key, nonce) pair may use (tcIds 37-42), and XChaCha20 carries its
+ * 64-bit counter into the next word (tcIds 11-14). */
 int test_wc_Chacha_CounterOverflow(void)
 {
     EXPECT_DECLS;
 #ifdef HAVE_CHACHA
     ChaCha enc;
-    static const byte key[CHACHA_MAX_KEY_SZ] = {
-        0x00,0x01,0x02,0x03, 0x04,0x05,0x06,0x07,
-        0x08,0x09,0x0a,0x0b, 0x0c,0x0d,0x0e,0x0f,
-        0x10,0x11,0x12,0x13, 0x14,0x15,0x16,0x17,
-        0x18,0x19,0x1a,0x1b, 0x1c,0x1d,0x1e,0x1f
+    static const byte key[CHACHA_MAX_KEY_SZ] = { 0 };
+    static const byte nonce[CHACHA_IV_BYTES] = { 0 };
+    static const byte plain[3 * CHACHA_CHUNK_BYTES] = { 0 };
+    /* Wycheproof tcId 39: keystream block 0xFFFFFFFF, all-zero key/nonce. */
+    static const byte lastBlock[CHACHA_CHUNK_BYTES] = {
+        0xac, 0xe4, 0xcd, 0x09, 0xe2, 0x94, 0xd1, 0x91,
+        0x2d, 0x4a, 0xd2, 0x05, 0xd0, 0x6f, 0x95, 0xd9,
+        0xc2, 0xf2, 0xbf, 0xcf, 0x45, 0x3e, 0x87, 0x53,
+        0xf1, 0x28, 0x76, 0x5b, 0x62, 0x21, 0x5f, 0x4d,
+        0x92, 0xc7, 0x4f, 0x2f, 0x62, 0x6c, 0x6a, 0x64,
+        0x0c, 0x0b, 0x12, 0x84, 0xd8, 0x39, 0xec, 0x81,
+        0xf1, 0x69, 0x62, 0x81, 0xda, 0xfc, 0x3e, 0x68,
+        0x45, 0x93, 0x93, 0x70, 0x23, 0xb5, 0x8b, 0x1d
     };
-    static const byte nonce[CHACHA_IV_BYTES] = {
-        0x00,0x00,0x00,0x09, 0x00,0x00,0x00,0x4a, 0x00,0x00,0x00,0x00
-    };
-    /* 65 bytes of zeroed plaintext - easy to verify, no KAT needed. */
-    static const byte plain[65] = { 0 };
-    /* combined: single call spanning the 0xFFFFFFFF->0x00000000 boundary */
-    byte cipher_combined[65];
-    /* per-block: block at counter=0xFFFFFFFF (64 bytes) */
-    byte cipher_b0[64];
-    /* per-block: first byte of block at counter=0x00000000 (1 byte) */
-    byte cipher_b1[1];
+    static const word32 badLens[] = { 65, 127, 128 };
+    byte out[3 * CHACHA_CHUNK_BYTES];
+    byte untouched[3 * CHACHA_CHUNK_BYTES];
+    word32 i;
 
     XMEMSET(&enc, 0, sizeof(enc));
-
-    /* Encrypt 65 bytes in one shot, starting at counter 0xFFFFFFFF. */
+    XMEMSET(untouched, 0xA5, sizeof(untouched));
     ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+
+    /* tcId 39: all 64 bytes of block 0xFFFFFFFF are allowed. */
+    XMEMSET(out, 0xA5, sizeof(out));
     ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0xFFFFFFFFUL), 0);
-    ExpectIntEQ(wc_Chacha_Process(&enc, cipher_combined, plain, 65), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, CHACHA_CHUNK_BYTES), 0);
+    ExpectBufEQ(out, lastBlock, CHACHA_CHUNK_BYTES);
+    /* A later call must not wrap to block 0, and writes nothing. */
+    ExpectIntEQ(wc_Chacha_Process(&enc, out + CHACHA_CHUNK_BYTES, plain, 1),
+        CHACHA_POLY_OVERFLOW);
+    ExpectBufEQ(out + CHACHA_CHUNK_BYTES, untouched, 1);
 
-    /* First 64 bytes: key-stream block at counter 0xFFFFFFFF. */
-    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
+    /* tcIds 40-42: one call past block 0xFFFFFFFF is refused up front. */
+    for (i = 0; i < (word32)(sizeof(badLens) / sizeof(badLens[0])); i++) {
+        XMEMSET(out, 0xA5, sizeof(out));
+        ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0xFFFFFFFFUL), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, badLens[i]),
+            CHACHA_POLY_OVERFLOW);
+        ExpectBufEQ(out, untouched, badLens[i]);
+    }
+
+    /* Split across calls: 63 + 1 bytes fill the block, the next byte fails. */
+    XMEMSET(out, 0xA5, sizeof(out));
     ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0xFFFFFFFFUL), 0);
-    ExpectIntEQ(wc_Chacha_Process(&enc, cipher_b0, plain, 64), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, 63), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out + 63, plain, 1), 0);
+    ExpectBufEQ(out, lastBlock, CHACHA_CHUNK_BYTES);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out + 64, plain, 1),
+        CHACHA_POLY_OVERFLOW);
+    ExpectBufEQ(out + 64, untouched, 1);
 
-    /* Byte 65: first byte of key-stream block at counter 0x00000000. */
-    ExpectIntEQ(wc_Chacha_SetKey(&enc, key, sizeof(key)), 0);
-    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0x00000000UL), 0);
-    ExpectIntEQ(wc_Chacha_Process(&enc, cipher_b1, plain + 64, 1), 0);
+    /* Two blocks from 0xFFFFFFFE end exactly at the limit. */
+    XMEMSET(out, 0xA5, sizeof(out));
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0xFFFFFFFEUL), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, 128), 0);
+    ExpectBufEQ(out + CHACHA_CHUNK_BYTES, lastBlock, CHACHA_CHUNK_BYTES);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, 1), CHACHA_POLY_OVERFLOW);
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0xFFFFFFFEUL), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, 129),
+        CHACHA_POLY_OVERFLOW);
 
-    /* Combined output must match per-block results. */
-    ExpectBufEQ(cipher_combined,      cipher_b0, 64);
-    ExpectBufEQ(cipher_combined + 64, cipher_b1, 1);
+    /* A new IV restores the full counter range. */
+    ExpectIntEQ(wc_Chacha_SetIV(&enc, nonce, 0), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, 128), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Wycheproof chacha20_counter_test.json XChaCha20 tcId 14: counter
+ * 0x00000000FFFFFFFF is followed by 0x0000000100000000, not block 0. */
+int test_wc_Chacha_XChachaCounterCarry(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CHACHA) && defined(HAVE_XCHACHA)
+    ChaCha enc;
+    static const byte key[CHACHA_MAX_KEY_SZ] = { 0 };
+    static const byte nonce[XCHACHA_NONCE_BYTES] = { 0 };
+    static const byte plain[128] = { 0 };
+    static const byte expected[128] = {
+        0xb9, 0x52, 0x12, 0x61, 0x24, 0x51, 0x11, 0x94,
+        0x24, 0xff, 0x54, 0xb8, 0x80, 0x64, 0xf0, 0x35,
+        0xa0, 0xef, 0x69, 0xb5, 0x3a, 0x28, 0xc6, 0x34,
+        0xb6, 0x79, 0xeb, 0xf6, 0xb3, 0x19, 0xc5, 0x48,
+        0x37, 0x69, 0xa7, 0xf2, 0x27, 0x42, 0x57, 0x1d,
+        0x18, 0xb0, 0xe2, 0xfa, 0xeb, 0xb1, 0xdf, 0x1c,
+        0xa7, 0x02, 0x25, 0x75, 0x2d, 0x4f, 0x68, 0xf2,
+        0x4a, 0xd5, 0x8a, 0x4d, 0x2d, 0xc5, 0xc3, 0x2b,
+        0x88, 0x61, 0x04, 0x3e, 0xc0, 0x72, 0x4c, 0x04,
+        0x83, 0x7e, 0xae, 0x0f, 0x33, 0x75, 0x0f, 0xa7,
+        0x90, 0xdb, 0x25, 0x48, 0xbf, 0xf4, 0x51, 0x1f,
+        0x1c, 0xb4, 0xc5, 0x48, 0x29, 0x7f, 0x6a, 0x06,
+        0xa4, 0xc0, 0xdd, 0xd4, 0x3a, 0xdf, 0x81, 0x83,
+        0x80, 0x2b, 0x9b, 0x0b, 0xe9, 0xa5, 0xf7, 0x43,
+        0xd3, 0x08, 0xdc, 0x69, 0x9c, 0x31, 0xef, 0x98,
+        0x4f, 0x61, 0x0b, 0xf0, 0xad, 0x56, 0xd9, 0xd6
+    };
+    /* tcId 25: keystream block 0xFFFFFFFFFFFFFFFF. */
+    static const byte lastBlock[CHACHA_CHUNK_BYTES] = {
+        0x0e, 0xdc, 0x30, 0x9d, 0x13, 0xc5, 0xa1, 0xac,
+        0xd1, 0x69, 0x83, 0x35, 0xfb, 0x5e, 0x24, 0xf6,
+        0x15, 0xd7, 0x49, 0xeb, 0xcd, 0x7e, 0x9d, 0x52,
+        0x62, 0x83, 0x5c, 0x90, 0x64, 0x42, 0xeb, 0x5f,
+        0x1e, 0xef, 0x3d, 0x24, 0xcd, 0x0d, 0x63, 0xcb,
+        0x02, 0xf1, 0xdf, 0x74, 0xbd, 0x1d, 0xe2, 0x55,
+        0x1f, 0x85, 0x88, 0x04, 0x45, 0x45, 0xf0, 0x21,
+        0x2d, 0x26, 0x74, 0x31, 0xa8, 0x09, 0x90, 0xf9
+    };
+    static const word32 splits[] = { 1, 63, 64, 65, 127 };
+    byte out[128];
+    byte untouched[128];
+    word32 i;
+
+    XMEMSET(&enc, 0, sizeof(enc));
+    XMEMSET(untouched, 0xA5, sizeof(untouched));
+
+    XMEMSET(out, 0, sizeof(out));
+    ExpectIntEQ(wc_XChacha_SetKey(&enc, key, sizeof(key), nonce,
+        sizeof(nonce), 0xFFFFFFFFUL), 0);
+    ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, sizeof(out)), 0);
+    ExpectBufEQ(out, expected, sizeof(expected));
+
+    /* The carry must also happen between calls, mid-block or on a boundary. */
+    for (i = 0; i < (word32)(sizeof(splits) / sizeof(splits[0])); i++) {
+        XMEMSET(out, 0, sizeof(out));
+        ExpectIntEQ(wc_XChacha_SetKey(&enc, key, sizeof(key), nonce,
+            sizeof(nonce), 0xFFFFFFFFUL), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, splits[i]), 0);
+        ExpectIntEQ(wc_Chacha_Process(&enc, out + splits[i], plain,
+            (word32)sizeof(out) - splits[i]), 0);
+        ExpectBufEQ(out, expected, sizeof(expected));
+    }
+
+    /* tcIds 25-26: block 0xFFFFFFFFFFFFFFFF is the last, nothing wraps. */
+    for (i = 0; i < 2; i++) {
+        ExpectIntEQ(wc_XChacha_SetKey(&enc, key, sizeof(key), nonce,
+            sizeof(nonce), 0xFFFFFFFFUL), 0);
+        enc.X[CHACHA_MATRIX_CNT_IV + 1] = 0xFFFFFFFFUL;
+        if (i == 0) {
+            ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, 64), 0);
+            ExpectBufEQ(out, lastBlock, sizeof(lastBlock));
+        }
+        XMEMSET(out, 0xA5, sizeof(out));
+        ExpectIntEQ(wc_Chacha_Process(&enc, out, plain, 65),
+            CHACHA_POLY_OVERFLOW);
+        ExpectBufEQ(out, untouched, 65);
+    }
 #endif
     return EXPECT_RESULT();
 }
