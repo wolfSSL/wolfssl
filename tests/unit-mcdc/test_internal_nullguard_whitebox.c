@@ -61,6 +61,7 @@
 #include <wolfssl/options.h>
 
 #include <src/internal.c>
+#include "mcdc_fault_alloc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -94,6 +95,37 @@ static void wb_reset(WbFix* f)
     f->ssl->version.major = SSLv3_MAJOR;
     f->ssl->version.minor = TLSv1_2_MINOR;
 }
+
+#if !defined(NO_DH) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_copy_dh_params(WbFix* f)
+{
+    byte prime = 23;
+    byte generator = 2;
+    int ret, firstError, secondError;
+
+    wb_reset(f);
+    f->ctx->serverDH_P.buffer = &prime;
+    f->ctx->serverDH_P.length = 1;
+    f->ctx->serverDH_G.buffer = &generator;
+    f->ctx->serverDH_G.length = 1;
+
+    mcdc_fa_install();
+    mcdc_fa_arm_only(1);
+    firstError = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+    mcdc_fa_arm_only(2);
+    secondError = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+    mcdc_fa_restore();
+
+    ret = CopySSL_CTX_DhParams(f->ssl, f->ctx);
+    if (f->ssl->buffers.weOwnDH) {
+        XFREE(f->ssl->buffers.serverDH_P.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(f->ssl->buffers.serverDH_G.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+    wb_reset(f);
+    return firstError == MEMORY_E && secondError == MEMORY_E && ret == 0;
+}
+#endif
 
 /* ------------------------------------------------- SupportedHashSigAlgo
  *
@@ -558,6 +590,12 @@ int main(void)
 #if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SESSION_TICKET) && \
     defined(WOLFSSL_TICKET_HAVE_ID)
     wb_get_real_session_id(&f);
+#endif
+
+#if !defined(NO_DH) && !defined(MCDC_FA_UNAVAILABLE) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (!wb_copy_dh_params(&f))
+        puts("internal null-guard white-box: with failures (DH param copy)");
 #endif
 
     printf("internal null-guard white-box: %d static-guard calls\n", g_calls);
