@@ -337,6 +337,53 @@ int test_wolfSSL_set_connect_accept_state(void)
     return EXPECT_RESULT();
 }
 
+/* Random accessors report capacity and copy only the requested bytes. */
+int test_wolfSSL_handshake_randoms(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+    static size_t (*const getters[])(const WOLFSSL*, unsigned char*, size_t) = {
+        wolfSSL_get_client_random, wolfSSL_get_server_random
+    };
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    byte client[RAN_LEN + 1];
+    byte server[RAN_LEN];
+    unsigned int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_KeepArrays(ssl_c);
+    wolfSSL_KeepArrays(ssl_s);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    for (i = 0; i < XELEM_CNT(getters); i++) {
+        client[RAN_LEN] = 0xa5;
+        ExpectIntEQ(getters[i](NULL, NULL, 0), RAN_LEN);
+        ExpectIntEQ(getters[i](NULL, client, sizeof(client)), 0);
+        ExpectIntEQ(getters[i](ssl_c, NULL, sizeof(client)), 0);
+        ExpectIntEQ(getters[i](ssl_c, client, sizeof(client)), RAN_LEN);
+        ExpectIntEQ(client[RAN_LEN], 0xa5);
+        ExpectIntEQ(getters[i](ssl_s, server, sizeof(server)), RAN_LEN);
+        ExpectBufEQ(client, server, RAN_LEN);
+        ExpectIntEQ(getters[i](ssl_c, client, 1), 1);
+        ExpectIntEQ(client[0], server[0]);
+    }
+
+    wolfSSL_FreeArrays(ssl_c);
+    for (i = 0; i < XELEM_CNT(getters); i++)
+        ExpectIntEQ(getters[i](ssl_c, client, sizeof(client)), 0);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test wolfSSL_SSL_do_handshake().
  *
  * Drives a handshake through the OpenSSL-compatibility entry point, which

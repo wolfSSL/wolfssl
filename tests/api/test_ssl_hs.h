@@ -29,6 +29,7 @@ int test_tls_wire_sequence(void);
 
 int test_wolfSSL_state_string_long(void);
 int test_wolfSSL_state_string_long_states(void);
+int test_wolfSSL_handshake_randoms(void);
 int test_wolfSSL_set_connect_accept_state(void);
 int test_wolfSSL_SSL_do_handshake(void);
 int test_wolfSSL_SSL_in_init_hs(void);
@@ -58,6 +59,7 @@ int test_wolfSSL_hs_info_cb(void);
 #define TEST_SSL_HS_DECLS                                                      \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_state_string_long),             \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_state_string_long_states),      \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_handshake_randoms), \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_set_connect_accept_state),      \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_do_handshake),              \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_in_init_hs),                \
