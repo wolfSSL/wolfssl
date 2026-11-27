@@ -25,12 +25,3 @@ server-self-issued-cert.pem:
 ca-cert-unknown-crit-ext.pem:
   ../ca-cert.pem with the same name and key, plus an unknown critical
   extension. Regenerate with certs/test/gen-verify-cb-certs.sh.
-cert-events/*.der, cert-events/*.pem:
-  Copies of certs/server-cert.der, each with exactly one defect and signed
-  again with certs/ca-key.pem, so verification reaches the defect.
-  good.der has no defect. The chain-*.pem files are chains for a server
-  using certs/server-key.pem, with CAs keyed by
-  certs/intermediate/ca-int*-key.pem under certs/ca-cert.pem; chain-good.pem
-  has no fault. Used by the certificate validation event tests in
-  tests/api/test_certman.c. Valid until 2049. Regenerate with
-  certs/test/gen-cert-events.py.
