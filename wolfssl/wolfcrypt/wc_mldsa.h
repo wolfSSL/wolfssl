@@ -746,6 +746,7 @@ struct wc_MlDsaKey {
 #ifdef WC_MLDSA_CACHE_MATRIX_A
     sword32* a;
     byte aSet;
+    byte aRho[MLDSA_PUB_SEED_SZ]; /* public seed of cached matrix a */
 #endif
 #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
     sword32* s1;
@@ -761,6 +762,7 @@ struct wc_MlDsaKey {
 #ifdef WC_MLDSA_CACHE_MATRIX_A
     sword32 a[MLDSA_MAX_MATRIX_COUNT];
     byte aSet;
+    byte aRho[MLDSA_PUB_SEED_SZ]; /* public seed of cached matrix a */
 #endif
 #ifdef WC_MLDSA_CACHE_PRIV_VECTORS
     sword32 s1[MLDSA_MAX_L_VECTOR_COUNT];

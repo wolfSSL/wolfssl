@@ -77577,8 +77577,15 @@ static const byte mldsa_kat_pub_digest_65[32] = {
 #define MLDSA_KAT_PUB_DIGEST_65 NULL
 #endif
 
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && defined(WOLFSSL_MLDSA_PRIVATE_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_VERIFY) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    #define MLDSA_REUSE_OTHER_PUB
+#endif
+
 /* A key generated into an object that already held a key must sign and verify
- * exactly like one generated into a fresh object, whatever the key caches. */
+ * exactly like one generated into a fresh object, whatever the key caches. So
+ * must a key that has another key pair's public key imported next to it. */
 static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest,
     const byte* expPubDigest)
 {
@@ -77590,6 +77597,15 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest,
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
     byte* pub = NULL;
     word32 pubLen;
+#endif
+#ifdef MLDSA_REUSE_OTHER_PUB
+    byte* otherPub = NULL;
+    byte* otherSig = NULL;
+    byte* ownPriv = NULL;
+    word32 otherPubLen;
+    word32 otherSigLen;
+    word32 ownPrivLen;
+    int i;
 #endif
     word32 sigLen;
     word32 freshSigLen;
@@ -77617,6 +77633,14 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest,
     if ((key == NULL) || (freshKey == NULL) || (sig == NULL) ||
             (freshSig == NULL))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#ifdef MLDSA_REUSE_OTHER_PUB
+    otherPub = (byte*)XMALLOC(MLDSA_MAX_PUB_KEY_SIZE + MLDSA_MAX_SIG_SIZE +
+        MLDSA_MAX_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (otherPub == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    otherSig = otherPub + MLDSA_MAX_PUB_KEY_SIZE;
+    ownPriv = otherSig + MLDSA_MAX_SIG_SIZE;
+#endif
 
     ret = wc_MlDsaKey_Init(freshKey, HEAP_HINT, INVALID_DEVID);
     if (ret != 0)
@@ -77708,6 +77732,15 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest,
     if (res != 1)
         ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
 #endif
+#ifdef MLDSA_REUSE_OTHER_PUB
+    /* Keep the other key pair's public key and signature. */
+    otherPubLen = MLDSA_MAX_PUB_KEY_SIZE;
+    ret = wc_MlDsaKey_ExportPubRaw(key, otherPub, &otherPubLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    XMEMCPY(otherSig, sig, sigLen);
+    otherSigLen = sigLen;
+#endif
 
     ret = wc_MlDsaKey_MakeKeyFromSeed(key, mldsa_kat_key_seed);
     if (ret != SEED_OK)
@@ -77729,6 +77762,49 @@ static wc_test_ret_t mldsa_make_key_reuse_test(int param, const byte* expDigest,
         ERROR_OUT(WC_TEST_RET_ENC_I(res), out);
 #endif
 
+#ifdef MLDSA_REUSE_OTHER_PUB
+    /* With the other public key imported, signing still uses the private key
+     * and verifying the public key. Twice, so each follows the other. */
+    ret = wc_MlDsaKey_ImportPubRaw(key, otherPub, otherPubLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    for (i = 0; i < 2; i++) {
+        sigLen = (word32)sigSz;
+        ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, sig, &sigLen,
+            mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg), mldsa_kat_sig_seed);
+        if (ret != SEED_OK)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if ((sigLen != freshSigLen) || (XMEMCMP(sig, freshSig, sigLen) != 0))
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+        res = 0;
+        ret = wc_MlDsaKey_VerifyCtx(key, otherSig, otherSigLen, NULL, 0,
+            mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg), &res);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (res != 1)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+    }
+
+    /* The same when both halves come in one call, public key first. */
+    ownPrivLen = MLDSA_MAX_KEY_SIZE;
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_MlDsaKey_ExportPrivRaw(freshKey, ownPriv, &ownPrivLen);
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_MlDsaKey_ImportKey(key, ownPriv, ownPrivLen, otherPub,
+        otherPubLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    res = 0;
+    ret = wc_MlDsaKey_VerifyCtx(key, otherSig, otherSigLen, NULL, 0,
+        mldsa_kat_msg, (word32)sizeof(mldsa_kat_msg), &res);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (res != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
     ret = 0;
 out:
     if (shakeInit)
@@ -77739,6 +77815,9 @@ out:
         wc_MlDsaKey_Free(freshKey);
 #ifdef WOLFSSL_MLDSA_PUBLIC_KEY
     XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifdef MLDSA_REUSE_OTHER_PUB
+    XFREE(otherPub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     XFREE(freshSig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
