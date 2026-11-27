@@ -350,6 +350,8 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     is valid only until the next verify on this structure or wc_PKCS7_Free();
     when the message is verified from a single input buffer it may point into
     that buffer, so it is also invalid once the input buffer is freed or reused.
+    A verify that fails with an error other than PKCS7_SIGNEEDS_CHECK leaves
+    pkcs7->content as the caller set it.
 
     \return 0 Returned on successfully extracting the information
     from the message
@@ -365,7 +367,8 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate
+    hold the encoded certificate, or if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -431,6 +434,14 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     revocation list, and then verifies the signature. It stores the extracted
     content in the given PKCS7 structure, in the same form as
     wc_PKCS7_VerifySignedData() reports it.
+    Content that a verify leaves in pkcs7->content can point into the
+    input buffer, so it stays valid only while that buffer does and until
+    the next verify or wc_PKCS7_Free() on the same structure. A verify that
+    fails with an error other than PKCS7_SIGNEEDS_CHECK leaves pkcs7->content
+    as the caller set it.
+    Set pkcs7->contentSz to the content length before each header/footer
+    verify, since a value left by an earlier verify on the same structure is
+    kept.
 
     \return 0 Returned on successfully extracting the information
     from the message
@@ -446,7 +457,8 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate
+    hold the encoded certificate, or if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -477,7 +489,7 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     to verify and decode
     \param pkiMsgHeadSz size of the signed message header
     \param pkiMsgFoot pointer to the buffer containing the signed message footer
-    to verify and decode
+    to verify and decode, only supported together with hashBuf
     \param pkiMsgFootSz size of the signed message footer
 
     _Example_
