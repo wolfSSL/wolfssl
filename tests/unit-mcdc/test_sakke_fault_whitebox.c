@@ -640,19 +640,22 @@ int main(int argc, char** argv)
              *
              * The accepting (T,T) row at 1632 is the unarmed a == m call right
              * before it; the (T,F) row comes from the a=40,m=100 tplmod calls
-             * in the sweep below (300 -> 200 -> 100 -> stop). */
+             * in the sweep below (300 -> 200 -> 100 -> stop).
+             *
+             * With constant time modular addition (SAKKE_HAVE_ADDMOD_CT) the
+             * helper is two branch-free mp_addmod_ct() calls instead. */
             {
-                mp_int a, m, r;
+                mp_int a, m, r, t;
                 int e0, e1;
-                mp_init(&a); mp_init(&m); mp_init(&r);
+                mp_init(&a); mp_init(&m); mp_init(&r); mp_init(&t);
                 mp_set(&a, 100); mp_set(&m, 100);
-                e1 = sakke_tplmod(&a, &m, &r);              /* 1632 (T,T) */
+                e1 = sakke_tplmod(&a, &m, &r, &t);          /* 1632 (T,T) */
                 mcdc_fm_arm(3);
-                e0 = sakke_tplmod(&a, &m, &r);              /* 1632 (F,-) */
+                e0 = sakke_tplmod(&a, &m, &r, &t);          /* 1632 (F,-) */
                 mcdc_fm_disarm();
                 printf("  [wb] sakke_tplmod 1632 vectors: (T,T)=%d armed=%d\n",
                        e1, e0);
-                mp_free(&a); mp_free(&m); mp_free(&r);
+                mp_free(&a); mp_free(&m); mp_free(&r); mp_free(&t);
             }
 
             /* sakke_addmod 1604 idx0, same shape but one reduction: a direct
@@ -673,17 +676,19 @@ int main(int argc, char** argv)
             }
 
             for (n = 1; n <= SAKKE_K_SMALLMP; n++) {
-                mp_int a, b, m, r;
+                mp_int a, b, m, r, t;
                 mp_init(&a); mp_init(&b); mp_init(&m); mp_init(&r);
+                mp_init(&t);
                 mp_set(&a, 60); mp_set(&b, 70); mp_set(&m, 100);
                 mcdc_fa_arm(n);
                 (void)sakke_addmod(&a, &b, &m, &r);
                 mcdc_fa_disarm();
                 mp_set(&a, 40); mp_set(&m, 100);
                 mcdc_fa_arm(n);
-                (void)sakke_tplmod(&a, &m, &r);
+                (void)sakke_tplmod(&a, &m, &r, &t);
                 mcdc_fa_disarm();
                 mp_free(&a); mp_free(&b); mp_free(&m); mp_free(&r);
+                mp_free(&t);
             }
             WB_NOTE("sakke_addmod / sakke_tplmod fault sweep done");
         }

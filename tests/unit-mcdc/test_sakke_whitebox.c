@@ -198,12 +198,13 @@ int main(void)
     /* --- sakke.c:1604 sakke_addmod() / 1626,1629,1632 sakke_tplmod() ---
      * Pure mp_int reduction helpers -- no key state needed at all. */
     {
-        mp_int a, b, m, r;
+        mp_int a, b, m, r, t;
 
         mp_init(&a);
         mp_init(&b);
         mp_init(&m);
         mp_init(&r);
+        mp_init(&t);
 
         /* sakke_addmod(): r < m (guard false, no subtraction). */
         mp_set(&a, 3); mp_set(&b, 4); mp_set(&m, 100);
@@ -215,17 +216,19 @@ int main(void)
 
         /* sakke_tplmod(): 3*10=30 < 100 -- all three checks false. */
         mp_set(&a, 10); mp_set(&m, 100);
-        if (sakke_tplmod(&a, &m, &r) != 0) wb_fail = 1;
+        if (sakke_tplmod(&a, &m, &r, &t) != 0) wb_fail = 1;
         /* 3*40=120 -> one subtraction to 20 -- 1st check true, 2nd/3rd
          * false. */
         mp_set(&a, 40); mp_set(&m, 100);
-        if (sakke_tplmod(&a, &m, &r) != 0) wb_fail = 1;
+        if (sakke_tplmod(&a, &m, &r, &t) != 0) wb_fail = 1;
         /* 3*25=75 -> 45 -> 15 -- 1st and 2nd checks true, 3rd false. */
         mp_set(&a, 25); mp_set(&m, 30);
-        if (sakke_tplmod(&a, &m, &r) != 0) wb_fail = 1;
+        if (sakke_tplmod(&a, &m, &r, &t) != 0) wb_fail = 1;
         /* 3*11=33 -> 23 -> 13 -> 3 -- all three checks true. */
         mp_set(&a, 11); mp_set(&m, 10);
-        if (sakke_tplmod(&a, &m, &r) != 0) wb_fail = 1;
+        if (sakke_tplmod(&a, &m, &r, &t) != 0) wb_fail = 1;
+        /* With constant time modular addition (SAKKE_HAVE_ADDMOD_CT) the
+         * helper is branch-free and these only exercise it. */
         WB_NOTE("sakke_tplmod() 3-stage reduction (lines 1626/1629/1632) "
             "all true/false combinations exercised");
 
@@ -233,6 +236,7 @@ int main(void)
         mp_free(&b);
         mp_free(&m);
         mp_free(&r);
+        mp_free(&t);
     }
 #else
     WB_NOTE("WOLFSSL_HAVE_SP_ECC defined -- sakke_mulmod_base_add()/"

@@ -1910,8 +1910,184 @@ static int eccsi_encode_sig(const EccsiKey* key, mp_int* r, mp_int* s,
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Other -ve value when an internal operation fails.
  */
+/* Temporaries for constant time signing operations. */
+#define ECCSI_CT_NORM2      0
+#define ECCSI_CT_T1         1
+#define ECCSI_CT_T2         2
+#define ECCSI_CT_HE         3
+#define ECCSI_CT_CNT        4
+
+#if defined(USE_FAST_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    /* Constant time modular operations available for signing. */
+    #define ECCSI_SIGN_CT
+
+/*
+ * Initialize temporaries and Montgomery values for constant time signing.
+ *
+ * Order must be loaded. Montgomery multiplier and R^2 mod q are public.
+ *
+ * @param  [in]   key  ECCSI key.
+ * @param  [in]   ct   Array of ECCSI_CT_CNT temporaries to initialize.
+ * @param  [out]  mp   Montgomery multiplier for order.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int eccsi_sign_ct_init(EccsiKey* key, mp_int* ct, mp_digit* mp)
+{
+    int err;
+
+    err = mp_init_multi(&ct[0], &ct[1], &ct[2], &ct[3], NULL, NULL);
+    if (err == 0) {
+        err = mp_montgomery_setup(&key->params.order, mp);
+    }
+    if (err == 0) {
+        err = mp_montgomery_calc_normalization(&ct[ECCSI_CT_NORM2],
+            &key->params.order);
+    }
+    if (err == 0) {
+        err = mp_sqrmod(&ct[ECCSI_CT_NORM2], &key->params.order,
+            &ct[ECCSI_CT_NORM2]);
+    }
+
+    return err;
+}
+
+/*
+ * Clear temporaries used for constant time signing - zeroize secrets.
+ *
+ * @param  [in]  ct  Array of ECCSI_CT_CNT temporaries.
+ */
+static void eccsi_sign_ct_free(mp_int* ct)
+{
+    mp_forcezero(&ct[ECCSI_CT_T1]);
+    mp_forcezero(&ct[ECCSI_CT_T2]);
+    mp_clear(&ct[ECCSI_CT_NORM2]);
+    mp_clear(&ct[ECCSI_CT_HE]);
+}
+
+/*
+ * Compare two numbers for equality in constant time.
+ *
+ * Only the digit counts are used - not the values.
+ *
+ * @param  [in]  a  MP integer. Assumed positive.
+ * @param  [in]  b  MP integer. Assumed positive.
+ * @return  1 when equal.
+ * @return  0 otherwise.
+ */
+static int eccsi_mp_eq_ct(const mp_int* a, const mp_int* b)
+{
+    int i;
+    int n = ((int)a->used < (int)b->used) ? (int)a->used : (int)b->used;
+    mp_digit diff = (mp_digit)((int)a->used ^ (int)b->used);
+
+    for (i = 0; i < n; i++) {
+        diff |= a->dp[i] ^ b->dp[i];
+    }
+
+    return diff == 0;
+}
+
+/*
+ * Montgomery multiplication in constant time: r = a * b / R mod m
+ *
+ * a * b must be less than m * R. r must not be a or b.
+ *
+ * @param  [in]   a   MP integer to multiply.
+ * @param  [in]   b   MP integer to multiply.
+ * @param  [in]   m   MP integer that is the modulus.
+ * @param  [in]   mp  Montgomery multiplier for modulus.
+ * @param  [out]  r   MP integer to hold result. Must hold a double width
+ *                    product.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int eccsi_mont_mul_ct(mp_int* a, mp_int* b, mp_int* m, mp_digit mp,
+        mp_int* r)
+{
+    int err;
+
+    err = mp_mul(a, b, r);
+    if (err == 0) {
+        err = mp_montgomery_reduce_ct(r, m, mp);
+    }
+
+    return err;
+}
+
+/*
+ * Modular multiplication in constant time: r = a * b mod m
+ *
+ * a and b are not in Montgomery form. a * b must be less than m * R.
+ *
+ * @param  [in]   a   MP integer to multiply.
+ * @param  [in]   b   MP integer to multiply.
+ * @param  [in]   m   MP integer that is the modulus.
+ * @param  [in]   mp  Montgomery multiplier for modulus.
+ * @param  [in]   ct  Constant time temporaries.
+ * @param  [out]  r   MP integer to hold result. Must not be a temporary.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int eccsi_mulmod_ct(mp_int* a, mp_int* b, mp_int* m, mp_digit mp,
+        mp_int* ct, mp_int* r)
+{
+    int err;
+
+    /* a * b / R */
+    err = eccsi_mont_mul_ct(a, b, m, mp, &ct[ECCSI_CT_T1]);
+    /* a * b / R * R^2 / R = a * b */
+    if (err == 0) {
+        err = eccsi_mont_mul_ct(&ct[ECCSI_CT_T1], &ct[ECCSI_CT_NORM2], m, mp,
+            &ct[ECCSI_CT_T2]);
+    }
+    if (err == 0) {
+        err = mp_copy(&ct[ECCSI_CT_T2], r);
+    }
+
+    return err;
+}
+
+/*
+ * Calculate s' = ( (( HE + r * SSK )^-1) * j ) modulo q in constant time.
+ *
+ * q is prime: invert with Fermat's little theorem in Montgomery form.
+ *
+ * @param  [in]       key  ECCSI key.
+ * @param  [in]       mp   Montgomery multiplier for order.
+ * @param  [in]       ct   Constant time temporaries.
+ * @param  [in, out]  s    On in, HE + r * SSK. On out, s'.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int eccsi_sign_s_ct(EccsiKey* key, mp_digit mp, mp_int* ct, mp_int* s)
+{
+    int err;
+    mp_int* order = &key->params.order;
+
+    /* s * R - Montgomery form */
+    err = eccsi_mont_mul_ct(s, &ct[ECCSI_CT_NORM2], order, mp,
+        &ct[ECCSI_CT_T1]);
+    /* s^-1 * R */
+    if (err == 0) {
+        err = mp_invmod_mont_ct(&ct[ECCSI_CT_T1], order, &ct[ECCSI_CT_T2], mp);
+    }
+    /* s^-1 * R * j / R = s^-1 * j */
+    if (err == 0) {
+        err = eccsi_mont_mul_ct(&ct[ECCSI_CT_T2],
+            wc_ecc_key_get_priv(&key->pubkey), order, mp, &ct[ECCSI_CT_T1]);
+    }
+    if (err == 0) {
+        err = mp_copy(&ct[ECCSI_CT_T1], s);
+    }
+
+    return err;
+}
+#endif /* USE_FAST_MATH || WOLFSSL_SP_MATH_ALL */
+
 static int eccsi_gen_sig(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
-        const byte* msg, word32 msgSz, mp_int* r, mp_int* s)
+        const byte* msg, word32 msgSz, mp_int* r, mp_int* s, mp_digit mp,
+        mp_int* ct)
 {
     int err = 0;
     int sz = key->ecc.dp->size;
@@ -1919,6 +2095,7 @@ static int eccsi_gen_sig(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
     const mp_int* jx = NULL;
     mp_int* he = &key->tmp;
     int genTryCnt = 0;
+    int retry = 0;
 
     do {
         /* Don't infinitely gen sigs when random number generator fails. */
@@ -1947,6 +2124,25 @@ static int eccsi_gen_sig(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         if (err == 0) {
             err = mp_read_unsigned_bin(he, key->data, heSz);
         }
+    #ifdef ECCSI_SIGN_CT
+        /* SSK is secret - constant time operations. HE is public. */
+        if (err == 0) {
+            err = mp_mod(he, &key->params.order, &ct[ECCSI_CT_HE]);
+        }
+        /* s' = r * SSK */
+        if (err == 0) {
+            err = eccsi_mulmod_ct(r, &key->ssk, &key->params.order, mp, ct,
+                s);
+        }
+        /* s' = HE + r * SSK */
+        if (err == 0) {
+            err = mp_addmod_ct(&ct[ECCSI_CT_HE], s, &key->params.order, s);
+        }
+        /* s' is secret - compare without an early exit. */
+        if (err == 0) {
+            retry = mp_iszero(s) | eccsi_mp_eq_ct(s, &ct[ECCSI_CT_HE]);
+        }
+    #else
         /* s' = r * SSK */
         if (err == 0) {
             err = mp_mulmod(r, &key->ssk, &key->params.order, s);
@@ -1955,8 +2151,17 @@ static int eccsi_gen_sig(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         if (err == 0) {
             err = mp_addmod(he, s, &key->params.order, s);
         }
+        if (err == 0) {
+            retry = mp_iszero(s) || (mp_cmp(s, he) == MP_EQ);
+        }
+    #endif
     }
-    while ((err == 0) && (mp_iszero(s) || (mp_cmp(s, he) == MP_EQ)));
+    while ((err == 0) && retry);
+
+#ifndef ECCSI_SIGN_CT
+    (void)mp;
+    (void)ct;
+#endif
 
     return err;
 }
@@ -1993,6 +2198,13 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
     mp_int* s = NULL;
     mp_int* j = NULL;
     word32 sz = 0;
+    mp_digit mp = 0;
+#ifdef ECCSI_SIGN_CT
+    int ctInit = 0;
+    WC_DECLARE_VAR(ct, mp_int, ECCSI_CT_CNT, NULL);
+#else
+    mp_int* ct = NULL;
+#endif
 
     if ((key == NULL) || (rng == NULL) || (msg == NULL) || (sigSz == NULL)) {
         err = BAD_FUNC_ARG;
@@ -2022,12 +2234,38 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
 
         err = eccsi_load_order(key);
     }
+#ifdef ECCSI_SIGN_CT
+    if (err == 0) {
+        WC_ALLOC_VAR_EX(ct, mp_int, ECCSI_CT_CNT, key->heap, DYNAMIC_TYPE_ECC,
+            err = MEMORY_E);
+    }
+    if (err == 0) {
+        err = eccsi_sign_ct_init(key, ct, &mp);
+        ctInit = 1;
+    }
+#endif
 
     if (err == 0) {
         /* Steps 1 to 4. */
-        err = eccsi_gen_sig(key, rng, hashType, msg, msgSz, r, s);
+        err = eccsi_gen_sig(key, rng, hashType, msg, msgSz, r, s, mp, ct);
     }
 
+#ifdef ECCSI_SIGN_CT
+    /* Step 5: s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j
+     * Constant time inversion and multiplications. */
+    if (err == 0) {
+        err = eccsi_sign_s_ct(key, mp, ct, s);
+    }
+    /* Erase j and temporaries on every path past argument checks. */
+    if (s != NULL) {
+        ecc_forcezero_k(&key->pubkey);
+    }
+    if (ctInit) {
+        eccsi_sign_ct_free(ct);
+    }
+    WC_FREE_VAR_EX(ct, (key != NULL) ? key->heap : NULL, DYNAMIC_TYPE_ECC);
+    (void)j;
+#else
     /* Step 5: s' = ( (( HE + r * SSK )^-1) * j ) modulo q, erase j
      * HE + r * SSK depends on the secret signing key and the nonce. With SP
      * assembly, calculate s' in constant time without exposing the inverse.
@@ -2079,6 +2317,7 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         mp_forcezero(&key->tmp);
         ecc_forcezero_k(&key->pubkey);
     }
+#endif
     if (err == 0) {
         /* Step 6: s = s' fitted */
         err = eccsi_fit_to_octets(s, &key->params.order, (int)sz, s);
@@ -2236,6 +2475,111 @@ static int eccsi_calc_j(EccsiKey* key, const mp_int* hem, const byte* sig,
     return err;
 }
 
+#if !defined(WOLFSSL_SP_MATH) && defined(ECC_SHAMIR) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    /* Verification uses Shamir's trick on public values. */
+    #define ECCSI_VERIFY_SHAMIR
+
+/*
+ * Whether the curve's scalar multiplication is done by SP code.
+ *
+ * @param  [in]  key  ECCSI key.
+ * @return  1 when SP code is used.
+ * @return  0 otherwise.
+ */
+static int eccsi_use_sp(const EccsiKey* key)
+{
+#if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256)
+    return (key->ecc.idx != ECC_CUSTOM_IDX) &&
+           (ecc_sets[key->ecc.idx].id == ECC_SECP256R1);
+#else
+    (void)key;
+    return 0;
+#endif
+}
+
+/*
+ * Calculate J for verification from public values with Shamir's trick.
+ *
+ * Y = [HS]PVT + KPAK
+ * J = [s]( [HE]G + [r]Y ) = [s * HE]G + [s * r]Y as G and Y have order q.
+ *
+ * Not constant time: all values are public.
+ *
+ * @param  [in]       key    ECCSI key.
+ * @param  [in]       hem    HE as an MP integer.
+ * @param  [in]       r      First part of signature.
+ * @param  [in]       sig    Signature.
+ * @param  [in]       sigSz  Size of signature in bytes.
+ * @param  [in, out]  pvt    On in, PVT. On out, Y.
+ * @param  [out]      j      J point. May be the base point.
+ * @return  0 on success.
+ * @return  MP_ZERO_E or ECC_OUT_OF_RANGE_E when s is not in [1, q-1].
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int eccsi_verify_calc_j_pub(EccsiKey* key, mp_int* hem, mp_int* r,
+        const byte* sig, word32 sigSz, ecc_point* pvt, ecc_point* j)
+{
+    int err = 0;
+    int init = 0;
+    EccsiKeyParams* params = &key->params;
+    WC_DECLARE_VAR(t, mp_int, 3, key->heap);
+
+    WC_ALLOC_VAR_EX(t, mp_int, 3, key->heap, DYNAMIC_TYPE_ECC,
+        err = MEMORY_E);
+    if (err == 0) {
+        err = mp_init_multi(&t[0], &t[1], &t[2], NULL, NULL, NULL);
+        init = (err == 0);
+    }
+    /* Y = [HS]PVT + [1]KPAK */
+    if (err == 0) {
+        err = mp_read_unsigned_bin(&t[1], key->idHash, key->idHashSz);
+    }
+    if (err == 0) {
+        err = mp_set(&t[0], 1);
+    }
+    if (err == 0) {
+        err = ecc_mul2add(pvt, &t[1], &key->ecc.pubkey, &t[0], pvt,
+            &params->a, &params->prime, key->heap);
+    }
+    if (err == 0) {
+        err = eccsi_decode_sig_s(key, sig, sigSz, &t[2]);
+    }
+    /* Validate s is in [1, q-1]: s=0 would give J at infinity. */
+    if (err == 0) {
+        if (mp_iszero(&t[2])) {
+            err = MP_ZERO_E;
+        }
+        else if (mp_cmp(&t[2], &params->order) != MP_LT) {
+            err = ECC_OUT_OF_RANGE_E;
+        }
+    }
+    /* s * HE mod q and s * r mod q */
+    if (err == 0) {
+        err = mp_mulmod(&t[2], hem, &params->order, &t[0]);
+    }
+    if (err == 0) {
+        err = mp_mulmod(&t[2], r, &params->order, &t[1]);
+    }
+    /* J = [s * HE]G + [s * r]Y */
+    if (err == 0) {
+        err = ecc_mul2add(params->base, &t[0], pvt, &t[1], j, &params->a,
+            &params->prime, key->heap);
+    }
+
+    if (init) {
+        mp_clear(&t[2]);
+        mp_clear(&t[1]);
+        mp_clear(&t[0]);
+    }
+    WC_FREE_VAR_EX(t, key->heap, DYNAMIC_TYPE_ECC);
+
+    return err;
+}
+#endif
+
 /**
  * Verify the ECCSI hash (of ID with the key).
  *
@@ -2332,25 +2676,40 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,
         err = eccsi_compute_he(key, hashType, r, msg, msgSz, he, &heSz);
     }
 
-    /* Step 4: Y = [HS]PVT + KPAK */
-    if (err == 0) {
-        y = pvt;
-        err = eccsi_calc_y(key, pvt, mp, y);
-    }
-
-    /* Step 5: Compute J = [s]( [HE]G + [r]Y ) */
-    /* [r]Y */
-    if (err == 0) {
+#ifdef ECCSI_VERIFY_SHAMIR
+    if ((err == 0) && (!eccsi_use_sp(key))) {
+        /* Step 4 and 5 with public values only. */
         hem = &key->tmp;
         err = mp_read_unsigned_bin(hem, he, heSz);
+        if (err == 0) {
+            j = params->base;
+            err = eccsi_verify_calc_j_pub(key, hem, r, sig, sigSz, pvt, j);
+            key->params.haveBase = 0;
+        }
     }
-    if (err == 0) {
-        err = eccsi_mulmod_point(key, r, y, y, 0);
-    }
-    if (err == 0) {
-        j = params->base;
-        err = eccsi_calc_j(key, hem, sig, sigSz, y, mp, j);
-        key->params.haveBase = 0;
+    else
+#endif
+    {
+        /* Step 4: Y = [HS]PVT + KPAK */
+        if (err == 0) {
+            y = pvt;
+            err = eccsi_calc_y(key, pvt, mp, y);
+        }
+
+        /* Step 5: Compute J = [s]( [HE]G + [r]Y ) */
+        /* [r]Y */
+        if (err == 0) {
+            hem = &key->tmp;
+            err = mp_read_unsigned_bin(hem, he, heSz);
+        }
+        if (err == 0) {
+            err = eccsi_mulmod_point(key, r, y, y, 0);
+        }
+        if (err == 0) {
+            j = params->base;
+            err = eccsi_calc_j(key, hem, sig, sigSz, y, mp, j);
+            key->params.haveBase = 0;
+        }
     }
 
     /* Defense-in-depth: reject J = point at infinity before the final

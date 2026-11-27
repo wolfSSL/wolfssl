@@ -1456,9 +1456,9 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   for (i = 1; i < CT_INV_MOD_PRE_CNT; i++) {
     fp_init(&pre[i]);
     err |= fp_sqr(&pre[i-1], &pre[i]);
-    err |= fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_montgomery_reduce_ex(&pre[i], b, mp, 1);
     err |= fp_mul(&pre[i], a, &pre[i]);
-    err |= fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_montgomery_reduce_ex(&pre[i], b, mp, 1);
   }
 
   err |= fp_sub_d(b, 2, e);
@@ -1476,16 +1476,16 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
 
     if ((j == CT_INV_MOD_PRE_CNT) || (!set && j > 0)) {
       err |= fp_mul(t, &pre[j-1], t);
-      err |= fp_montgomery_reduce(t, b, mp);
+      err |= fp_montgomery_reduce_ex(t, b, mp, 1);
       j = 0;
     }
     err |= fp_sqr(t, t);
-    err |= fp_montgomery_reduce(t, b, mp);
+    err |= fp_montgomery_reduce_ex(t, b, mp, 1);
     j += set;
   }
   if (j > 0) {
     err |= fp_mul(t, &pre[j-1], c);
-    err |= fp_montgomery_reduce(c, b, mp);
+    err |= fp_montgomery_reduce_ex(c, b, mp, 1);
   }
   else
     fp_copy(t, c);
@@ -1573,6 +1573,25 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   return err;
 }
 
+/* Set used to the number of digits up to the top non-zero digit.
+ *
+ * Constant time in the digit values - every digit up to used is examined.
+ */
+static void fp_clamp_ct(fp_int *a)
+{
+  int i;
+  int used = 0;
+
+  for (i = 0; i < a->used; i++) {
+    fp_digit d = a->dp[i];
+    /* All bits set when digit is non-zero. */
+    int nz = (int)0 - (int)((d | ((fp_digit)0 - d)) >> (DIGIT_BIT - 1));
+    /* When digit is non-zero, used is this digit's index + 1. */
+    used ^= (used ^ (i + 1)) & nz;
+  }
+  a->used = used;
+}
+
 /* d = a - b (mod c) - constant time (a < c and b < c and all positive)
  * c and d must not be the same pointers.
  */
@@ -1610,10 +1629,12 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     d->dp[i]   = (fp_digit)w;
     w        >>= DIGIT_BIT;
   }
+  /* Top digit of a was consumed - ct operations read it assuming zero. */
+  d->dp[i] = 0;
   /* Result will always have digits equal to or less than those in modulus. */
   d->used = i;
   d->sign = FP_ZPOS;
-  fp_clamp(d);
+  fp_clamp_ct(d);
 
   return FP_OKAY;
 }
@@ -3639,6 +3660,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
    WC_DECLARE_VAR(c, fp_digit, FP_SIZE+1, 0);
    fp_digit *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
+   fp_digit hi = 0;
 
    /* bail if too large */
    if (m->used > (FP_SIZE/2)) {
@@ -3647,7 +3669,8 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
    }
 
 #ifdef TFM_SMALL_MONT_SET
-   if (m->used <= 16) {
+   /* Small reduction does not have a constant time final subtraction. */
+   if ((m->used <= 16) && (!ct)) {
       return fp_montgomery_reduce_small(a, m, mp);
    }
 #endif
@@ -3693,11 +3716,16 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
           ++_c;
        }
        LOOP_END;
-       while (cy) {
-           PROPCARRY;
-           ++_c;
+       /* Add carry into one digit only - data dependent propagation is not
+        * constant time. Overflow is deferred to the next round where it
+        * lands on the same digit. */
+       PROPCARRY;
+       {
+           fp_digit t = (_c[0] += hi);
+           hi = cy + (fp_digit)(t < hi);
        }
   }
+  c[pa + pa] += hi;
 
   /* now copy out */
   _c   = c + pa;
@@ -3714,22 +3742,18 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
   MONT_FINI;
 
   a->used = pa+1;
-  fp_clamp(a);
 
-#ifndef WOLFSSL_MONT_RED_CT
   /* if A >= m then A = A - m */
-  if (fp_cmp_mag (a, m) != FP_LT) {
-    s_fp_sub (a, m, a);
-  }
-  (void)ct;
-#else
   if (ct) {
+    /* Carry digit is read directly - clamping first would reveal it. */
     fp_submod_ct(a, m, m, a);
   }
-  else if (fp_cmp_mag (a, m) != FP_LT) {
-    s_fp_sub (a, m, a);
+  else {
+    fp_clamp(a);
+    if (fp_cmp_mag (a, m) != FP_LT) {
+      s_fp_sub (a, m, a);
+    }
   }
-#endif
 
   WC_FREE_VAR_EX(c, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
@@ -3742,6 +3766,7 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
    WC_DECLARE_VAR(c, fp_digit, FP_SIZE+1, 0);
    fp_digit *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa, err = 0;
+   fp_digit hi = 0;
 
    IF_HAVE_INTEL_MULX(err=fp_montgomery_reduce_mulx(a, m, mp, ct), return err) ;
    (void)err;
@@ -3753,7 +3778,8 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
    }
 
 #ifdef TFM_SMALL_MONT_SET
-   if (m->used <= 16) {
+   /* Small reduction does not have a constant time final subtraction. */
+   if ((m->used <= 16) && (!ct)) {
       return fp_montgomery_reduce_small(a, m, mp);
    }
 #endif
@@ -3801,11 +3827,16 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
           ++_c;
        }
        LOOP_END;
-       while (cy) { /* //NOLINT(bugprone-infinite-loop) */ /* PROPCARRY is an asm macro */
-           PROPCARRY;
-           ++_c;
+       /* Add carry into one digit only - data dependent propagation is not
+        * constant time. Overflow is deferred to the next round where it
+        * lands on the same digit. */
+       PROPCARRY;
+       {
+           fp_digit t = (_c[0] += hi);
+           hi = cy + (fp_digit)(t < hi);
        }
   }
+  c[pa + pa] += hi;
 
   /* now copy out */
   _c   = c + pa;
@@ -3822,22 +3853,18 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
   MONT_FINI;
 
   a->used = pa+1;
-  fp_clamp(a);
 
-#ifndef WOLFSSL_MONT_RED_CT
   /* if A >= m then A = A - m */
-  if (fp_cmp_mag (a, m) != FP_LT) {
-    s_fp_sub (a, m, a);
-  }
-  (void)ct;
-#else
   if (ct) {
+    /* Carry digit is read directly - clamping first would reveal it. */
     fp_submod_ct(a, m, m, a);
   }
-  else if (fp_cmp_mag (a, m) != FP_LT) {
-    s_fp_sub (a, m, a);
+  else {
+    fp_clamp(a);
+    if (fp_cmp_mag (a, m) != FP_LT) {
+      s_fp_sub (a, m, a);
+    }
   }
-#endif
 
   WC_FREE_VAR_EX(c, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
@@ -3845,7 +3872,12 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
 
 int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
+#ifdef WOLFSSL_MONT_RED_CT
   return fp_montgomery_reduce_ex(a, m, mp, 1);
+#else
+  /* Callers that operate on secrets use fp_montgomery_reduce_ex() with ct. */
+  return fp_montgomery_reduce_ex(a, m, mp, 0);
+#endif
 }
 
 int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)

@@ -13188,14 +13188,14 @@ static int _sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
             _sp_init_size(pre[i], (sp_size_t)(m->used * 2 + 1));
             err = sp_sqr(pre[i-1], pre[i]);
             if (err == MP_OKAY) {
-                err = _sp_mont_red(pre[i], m, mp, 0);
+                err = _sp_mont_red(pre[i], m, mp, 1);
             }
             /* ..10 -> ..11 */
             if (err == MP_OKAY) {
                 err = sp_mul(pre[i], a, pre[i]);
             }
             if (err == MP_OKAY) {
-                err = _sp_mont_red(pre[i], m, mp, 0);
+                err = _sp_mont_red(pre[i], m, mp, 1);
             }
         }
     }
@@ -13249,7 +13249,7 @@ static int _sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
                     /* 6.4.2.1. t = (t ^ 2) mod m */
                     err = sp_sqr(t, t);
                     if (err == MP_OKAY) {
-                        err = _sp_mont_red(t, m, mp, 0);
+                        err = _sp_mont_red(t, m, mp, 1);
                     }
                 }
                 /* 6.4.3. s = 1 - bit */
@@ -13260,7 +13260,7 @@ static int _sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
                     err = sp_mul(t, pre[j-1], t);
                 }
                 if (err == MP_OKAY) {
-                    err = _sp_mont_red(t, m, mp, 0);
+                    err = _sp_mont_red(t, m, mp, 1);
                 }
                 /* 6.4.5. j = 0
                  *        Reset number of 1 bits seen.
@@ -13276,7 +13276,7 @@ static int _sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
             /* 7.1. t = (t ^ 2) mod m */
             err = sp_sqr(t, t);
             if (err == MP_OKAY) {
-                err = _sp_mont_red(t, m, mp, 0);
+                err = _sp_mont_red(t, m, mp, 1);
             }
         }
     }
@@ -13285,7 +13285,7 @@ static int _sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
         if (j > 0) {
             err = sp_mul(t, pre[j-1], r);
             if (err == MP_OKAY) {
-                err = _sp_mont_red(r, m, mp, 0);
+                err = _sp_mont_red(r, m, mp, 1);
             }
         }
         /* 9. Else r = t */
@@ -18119,6 +18119,13 @@ int sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r)
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE) || \
     defined(OPENSSL_ALL)
+/* Signed double width type available - see sp_int.h. */
+#if (SP_WORD_SIZE < 64) || ((defined(WOLFSSL_SP_MATH) || \
+    defined(WOLFSSL_SP_MATH_ALL)) && !defined(_WIN64) && \
+    defined(WOLFSSL_UINT128_T_DEFINED))
+    #define SP_INT_HAVE_SWORD
+#endif
+
 /* Final subtraction of Montgomery reduction in constant time: a = a mod m
  *
  * a is in n digits with the carry in digit n and is less than 2 * m.
@@ -18134,7 +18141,7 @@ static void _sp_mont_red_sub_ct(sp_int* a, const sp_int* m, unsigned int n)
     unsigned int i;
     volatile sp_int_digit vmask;
     sp_int_digit mask;
-#ifndef SQR_MUL_ASM
+#if !defined(SQR_MUL_ASM) || defined(SP_INT_HAVE_SWORD)
     sp_int_sword w = 0;
 
     /* a = a - m */
@@ -18234,9 +18241,10 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     /* Adding numbers into m->used * 2 digits - zero out unused digits. */
 #ifndef WOLFSSL_NO_CT_OPS
     if (ct == 1) {
+        /* Zero digits at and above used without depending on used. */
+        sp_int_digit aUsed = (sp_int_digit)a->used;
         for (i = 0; i < (unsigned int)m->used * 2; i++) {
-            a->dp[i] &= (sp_int_digit)
-                (sp_int_sdigit)ctMaskIntGTE((int)a->used - 1, (int)i);
+            a->dp[i] &= (sp_int_digit)0 - (sp_int_digit)((sp_int_digit)i < aUsed);
         }
     }
     else
@@ -18358,9 +18366,10 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
 
 #ifndef WOLFSSL_NO_CT_OPS
     if (ct == 1) {
+        /* Zero digits at and above used without depending on used. */
+        sp_int_digit aUsed = (sp_int_digit)a->used;
         for (i = 0; i < (unsigned int)m->used * 2; i++) {
-            a->dp[i] &= (sp_int_digit)
-                (sp_int_sdigit)ctMaskIntGTE((int)a->used - 1, (int)i);
+            a->dp[i] &= (sp_int_digit)0 - (sp_int_digit)((sp_int_digit)i < aUsed);
         }
     }
     else
