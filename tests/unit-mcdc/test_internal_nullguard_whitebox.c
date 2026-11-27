@@ -52,7 +52,6 @@
  * Rules, as for the sibling drivers:
  *   - options.h FIRST, or the smoke build compiles this with the feature
  *     macros undefined and it silently becomes a no-op that still exits 0.
- *   - main() ALWAYS returns 0; a non-zero exit discards the whole variant.
  *   - Each target is wrapped in the SAME preprocessor guard that encloses it
  *     in internal.c, so this TU tracks the file across configurations instead
  *     of failing to link under a narrower one.
@@ -95,6 +94,66 @@ static void wb_reset(WbFix* f)
     f->ssl->version.major = SSLv3_MAJOR;
     f->ssl->version.minor = TLSv1_2_MINOR;
 }
+
+/* AllocateSuites can copy the CTX list or start with an empty local list. */
+static int wb_allocate_suites(WbFix* f)
+{
+    int failed = 0;
+    int fixture;
+
+    for (fixture = 0; fixture < 3; fixture++) {
+        int ret;
+
+        wb_reset(f);
+        XMEMSET(f->suites, 0, sizeof(*f->suites));
+        f->suites->suites[0] = ECC_BYTE;
+        f->suites->suiteSz = 2;
+        if (fixture == 0)
+            f->ssl->ctx = NULL;
+        if (fixture == 2)
+            f->ctx->suites = f->suites;
+
+        ret = AllocateSuites(f->ssl);
+        if (ret != 0 || f->ssl->suites == NULL ||
+                f->ssl->suites->suiteSz != (fixture == 2 ? 2 : 0) ||
+                f->ssl->suites->suites[0] != (fixture == 2 ? ECC_BYTE : 0))
+            failed = 1;
+        XFREE(f->ssl->suites, NULL, DYNAMIC_TYPE_SUITES);
+    }
+    wb_reset(f);
+    return failed;
+}
+
+#if !defined(NO_RSA) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_key_lifecycle(WbFix* f)
+{
+    void* key = NULL;
+    void* original;
+    int failed = 0;
+
+    wb_reset(f);
+    if (AllocKey(NULL, DYNAMIC_TYPE_RSA, &key) != BAD_FUNC_ARG ||
+            AllocKey(f->ssl, DYNAMIC_TYPE_RSA, NULL) != BAD_FUNC_ARG)
+        failed = 1;
+
+    if (AllocKey(f->ssl, DYNAMIC_TYPE_RSA, &key) != 0 || key == NULL)
+        return 1;
+    original = key;
+    if (AllocKey(f->ssl, DYNAMIC_TYPE_RSA, &key) != BAD_STATE_E ||
+            key != original)
+        failed = 1;
+
+    FreeKey(NULL, DYNAMIC_TYPE_RSA, &key);
+    FreeKey(f->ssl, DYNAMIC_TYPE_RSA, NULL);
+    if (key != original)
+        failed = 1;
+    FreeKey(f->ssl, DYNAMIC_TYPE_RSA, &key);
+    if (key != NULL)
+        failed = 1;
+    FreeKey(f->ssl, DYNAMIC_TYPE_RSA, &key);
+    return failed;
+}
+#endif
 
 #if !defined(NO_DH) && !defined(MCDC_FA_UNAVAILABLE) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
@@ -583,6 +642,7 @@ static void wb_get_real_session_id(WbFix* f)
 int main(void)
 {
     WbFix f;
+    int failed = 0;
 
     XMEMSET(&f, 0, sizeof(f));
 
@@ -642,8 +702,21 @@ int main(void)
 
 #if !defined(NO_DH) && !defined(MCDC_FA_UNAVAILABLE) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    if (!wb_copy_dh_params(&f))
-        puts("internal null-guard white-box: with failures (DH param copy)");
+    if (!wb_copy_dh_params(&f)) {
+        puts("internal null-guard white-box: DH parameter copy failed");
+        failed = 1;
+    }
+#endif
+
+    if (wb_allocate_suites(&f)) {
+        puts("internal null-guard white-box: suite allocation failed");
+        failed = 1;
+    }
+#if !defined(NO_RSA) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_key_lifecycle(&f)) {
+        puts("internal null-guard white-box: key lifecycle check failed");
+        failed = 1;
+    }
 #endif
 
     printf("internal null-guard white-box: %d static-guard calls\n", g_calls);
@@ -657,7 +730,7 @@ done:
     XFREE(f.ctx, NULL, DYNAMIC_TYPE_CTX);
     XFREE(f.ssl, NULL, DYNAMIC_TYPE_SSL);
     wolfSSL_Cleanup();
-    return 0;   /* always 0: a non-zero exit discards the variant */
+    return failed;
 }
 
 #else
