@@ -53,6 +53,8 @@ int test_wolfSSL_max_send_fragment_dtls(void);
 int test_wolfSSL_max_send_fragment_write_dup(void);
 int test_wolfSSL_write_dup_max_fragment(void);
 int test_wolfSSL_get_error_bad_record(void);
+int test_wolfSSL_write_retry_flushed(void);
+int test_wolfSSL_clear_write_pending(void);
 
 #define TEST_SSL_RW_DECLS                                                      \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_send),                          \
@@ -86,6 +88,8 @@ int test_wolfSSL_get_error_bad_record(void);
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_max_send_fragment_dtls),        \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_max_send_fragment_write_dup),   \
         TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_dup_max_fragment),        \
-        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_get_error_bad_record)
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_get_error_bad_record),          \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_write_retry_flushed),           \
+        TEST_DECL_GROUP("ssl_rw", test_wolfSSL_clear_write_pending)
 
 #endif /* TESTS_API_SSL_RW_H */
