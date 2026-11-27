@@ -2389,6 +2389,17 @@ WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);
 WOLFSSL_LOCAL void InitSSL_CTX_Suites(const WOLFSSL_CTX* ctx,
     Suites* suites);
 WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
+WOLFSSL_LOCAL void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv,
+    int keySz, word16 haveRSA, word16 havePSK, word16 haveDH,
+    word16 haveECDSAsig, word16 haveECC, word16 haveStaticECC,
+    word16 haveAnon, int side);
+WOLFSSL_LOCAL int ResetSuitesForVersion(WOLFSSL* ssl);
+WOLFSSL_LOCAL int FilterSuitesForVersion(WOLFSSL* ssl);
+WOLFSSL_LOCAL ProtocolVersion SslNewestVersion(const WOLFSSL* ssl);
+WOLFSSL_LOCAL byte SslMaxMinor(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int TlsMinorAllowed(unsigned long mask, int minor);
+WOLFSSL_LOCAL int SslFixedVersionMasked(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int SslReconcileVersion(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
 
@@ -5901,6 +5912,9 @@ struct Options {
     void*             psk_ctx;
 #endif /* NO_PSK */
     unsigned long     mask; /* store SSL_OP_ flags */
+#ifdef WOLFSSL_DTLS
+    unsigned long     dtlsMaxMask; /* mask bits the DTLS maximum added */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     word16            minProto:1; /* sets min to min available */
     word16            maxProto:1; /* sets max to max available */
@@ -7065,6 +7079,7 @@ struct WOLFSSL {
                              * object needs separate instance of suites use
                              * AllocateSuites(). */
     Suites*         clSuites;
+    Suites*         suitesUser; /* unfiltered copy of user-set suites */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher
@@ -8544,6 +8559,14 @@ WOLFSSL_LOCAL int DtlsUpdateWindow(WOLFSSL* ssl);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
 WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsMinDowngrade(byte minDowngrade);
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL int InitSSL_DtlsServer(WOLFSSL* ssl);
+#endif
+WOLFSSL_LOCAL byte DtlsMaskAllowedMinor(unsigned long mask, byte maxMinor,
+    byte minDowngrade);
+WOLFSSL_LOCAL byte DtlsAllowedMinor(const WOLFSSL* ssl, byte maxMinor,
+    byte minDowngrade);
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int DtlsNoCookieChGood(WOLFSSL* ssl);
 #endif
