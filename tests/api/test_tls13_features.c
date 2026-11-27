@@ -1477,5 +1477,9 @@ int test_tls13_feat_ech_psk_disabled_client(void)
 {
     return TEST_SKIPPED;
 }
+int test_tls13_feat_ech_config_rotation(void)
+{
+    return TEST_SKIPPED;
+}
 
 #endif

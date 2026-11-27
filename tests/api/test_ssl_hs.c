@@ -1850,7 +1850,7 @@ int test_wolfSSL_dh_ctx_params_oom(void)
 int test_wolfSSL_tmp_dh_allocations(void)
 {
     EXPECT_DECLS;
-#ifdef TEST_NATIVE_DH_OOM
+#if defined(TEST_NATIVE_DH_OOM) && defined(USE_WOLFSSL_MEMORY)
     wolfSSL_Malloc_cb prevM = NULL;
     wolfSSL_Free_cb prevF = NULL;
     wolfSSL_Realloc_cb prevR = NULL;

@@ -417,6 +417,8 @@ int test_wolfSSL_CertManager_CA_min_key_size(void)
 
         ExpectIntEQ(load_file(cases[i].path, &cert, &length), 0);
         ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        if (EXPECT_SUCCESS())
+            wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
         ExpectIntEQ(cases[i].setMin(ctx, cases[i].tooLarge), WOLFSSL_SUCCESS);
         ExpectIntEQ(wolfSSL_CTX_load_verify_buffer(ctx, cert, (long)length,
             WOLFSSL_FILETYPE_ASN1), cases[i].error);
