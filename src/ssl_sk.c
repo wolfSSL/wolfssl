@@ -851,7 +851,7 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
 
     switch(type) {
        case STACK_TYPE_ACCESS_DESCRIPTION:
-        #if defined(OPENSSL_ALL)
+        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
             func = (wolfSSL_sk_freefunc)wolfSSL_ACCESS_DESCRIPTION_free;
         #endif
             break;

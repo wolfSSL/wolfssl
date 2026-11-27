@@ -4071,6 +4071,8 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                             pkey->pkey.ptr = (char*)edDer;
                             pkey->pkey_sz = edDerSz;
                             pkey->pkcs8HeaderSz = (word16)hdrIdx;
+                            pkey->isPriv = 1;
+                            pkey->isRaw = 0;
                             ret = WOLFSSL_SUCCESS;
                         }
                         else {
@@ -4850,6 +4852,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, WOLFSSL_ENGINE* e,
             }
             pkey->pkey_sz = keylen;
             pkey->type = pkey->save_type = type;
+            pkey->isPriv = 1;
+            pkey->isRaw = 1;
         }
     }
 
@@ -4901,6 +4905,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
             pkey->pkey_sz = (int)len;
             pkey->type = pkey->save_type = WC_EVP_PKEY_CMAC;
             pkey->cmacCtx = ctx;
+            pkey->isPriv = 1;
+            pkey->isRaw = 1;
         }
     }
     else {
@@ -9420,6 +9426,7 @@ static void clearEVPPkeyKeys(WOLFSSL_EVP_PKEY *pkey)
     if(pkey == NULL)
         return;
     WOLFSSL_ENTER("clearEVPPkeyKeys");
+    pkey->isPriv = 0;
 #ifndef NO_RSA
     if (pkey->rsa != NULL && pkey->ownRsa == 1) {
         wolfSSL_RSA_free(pkey->rsa);
@@ -9645,6 +9652,8 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
     }
     else {
         pkey->pkey_sz = derSz;
+        pkey->isPriv = (rsa->type == RSA_PRIVATE);
+        pkey->isRaw = 0;
         return WOLFSSL_SUCCESS;
     }
 }
@@ -9784,6 +9793,8 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
         return WOLFSSL_FAILURE;
     }
     pkey->pkey_sz = derSz;
+    pkey->isPriv = (dsa->type == DSA_PRIVATE);
+    pkey->isRaw = 0;
     XMEMCPY(pkey->pkey.ptr, derBuf, (size_t)derSz);
     XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -9920,7 +9931,8 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DH");
 
-    if (pkey == NULL || key == NULL)
+    /* DER encoding needs a generator. */
+    if (pkey == NULL || key == NULL || key->g == NULL)
         return WOLFSSL_FAILURE;
 
     clearEVPPkeyKeys(pkey);
@@ -9983,6 +9995,8 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     /* Store DH key into pkey (DER format) */
     pkey->pkey.ptr = (char*)derBuf;
     pkey->pkey_sz = (int)derSz;
+    pkey->isPriv = (havePrivate != 0);
+    pkey->isRaw = 0;
 
     return WOLFSSL_SUCCESS;
 }
@@ -10119,6 +10133,8 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                         pkey->pkey_sz = (int)derSz;
                         pkey->pkey.ptr = (char*)derBuf;
                         pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
+                        pkey->isPriv = 1;
+                        pkey->isRaw = 0;
                         return WOLFSSL_SUCCESS;
                     }
                     else {
@@ -10168,6 +10184,8 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                          * it, or the export paths start inside the new
                          * encoding. */
                         pkey->pkcs8HeaderSz = 0;
+                        pkey->isPriv = 1;
+                        pkey->isRaw = 0;
                         return WOLFSSL_SUCCESS;
                     }
                     else {
@@ -10235,6 +10253,8 @@ static int ECC_populate_EVP_PKEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
     }
     if (derBuf != NULL) {
         pkey->pkey_sz = (int)derSz;
+        pkey->isPriv = 0;
+        pkey->isRaw = 0;
         return WOLFSSL_SUCCESS;
     }
     else {
@@ -10285,6 +10305,7 @@ void* wolfSSL_EVP_X_STATE(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
 {
     int ret;
+    int isPriv;
 
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
@@ -10292,7 +10313,11 @@ int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
     /* try and populate public pkey_sz and pkey.ptr */
     ret = ECC_populate_EVP_PKEY(pkey, key);
     if (ret == WOLFSSL_SUCCESS) { /* take ownership of key if can be used */
+        /* The encoding just cached describes the new key, so carry its
+         * private/public state over the clear below. */
+        isPriv = pkey->isPriv;
         clearEVPPkeyKeys(pkey); /* clear out any previous keys */
+        pkey->isPriv = (isPriv != 0);
 
         pkey->type = WC_EVP_PKEY_EC;
         pkey->ecc = key;
@@ -11091,6 +11116,8 @@ int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
                 if (ret >= 0) {
                     pkey->pkey_sz = ret;
                     pkey->pkey.ptr = (char*)derBuf;
+                    pkey->isPriv = 1;
+                    pkey->isRaw = 0;
                 }
                 else { /* failure - okay to ignore */
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);

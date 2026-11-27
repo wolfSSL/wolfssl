@@ -1095,25 +1095,22 @@ int test_wolfSSL_X509V3_set_ctx(void)
 
     wolfSSL_X509V3_set_ctx(NULL, NULL, NULL, NULL, NULL, 0);
     wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
+    ExpectNull(ctx.issuer);
+    ExpectNull(ctx.subject);
     wolfSSL_X509V3_set_ctx(&ctx, issuer, NULL, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
+    ExpectPtrEq(ctx.issuer, issuer);
+    ExpectNull(ctx.subject);
     wolfSSL_X509V3_set_ctx(&ctx, NULL, subject, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, &req, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, &crl, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, NULL, 1);
-    /* X509 allocated in context results in 'failure' (but not return). */
-    wolfSSL_X509V3_set_ctx(&ctx, NULL, NULL, NULL, NULL, 0);
-    wolfSSL_X509_free(ctx.x509);
-    ctx.x509 = NULL;
+    ExpectNull(ctx.issuer);
+    ExpectPtrEq(ctx.subject, subject);
+    wolfSSL_X509V3_set_ctx(&ctx, issuer, subject, &req, &crl, 1);
+    ExpectPtrEq(ctx.issuer, issuer);
+    ExpectPtrEq(ctx.subject, subject);
+    /* No zero init required. */
+    XMEMSET(&ctx, 0xff, sizeof(ctx));
+    wolfSSL_X509V3_set_ctx(&ctx, issuer, subject, NULL, NULL, 0);
+    ExpectPtrEq(ctx.issuer, issuer);
+    ExpectPtrEq(ctx.subject, subject);
 
     wolfSSL_X509_free(subject);
     wolfSSL_X509_free(issuer);
@@ -1223,6 +1220,7 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
     size_t i;
     X509_EXTENSION* ext = NULL;
     X509* x509 = NULL;
+    X509* x509Crit = NULL;
     unsigned int keyUsageFlags;
     unsigned int extKeyUsageFlags;
     WOLFSSL_CONF conf;
@@ -1230,6 +1228,7 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
 #ifndef NO_WOLFSSL_STUB
     WOLFSSL_LHASH lhash;
 #endif
+    char bcTooLong[32];
 
     ExpectNotNull(x509 = X509_new());
     ExpectNull(X509V3_EXT_nconf(NULL, NULL, ext_names[0], NULL));
@@ -1273,6 +1272,59 @@ int test_wolfSSL_X509V3_EXT_nconf(void)
         X509_EXTENSION_free(ext);
         ext = NULL;
     }
+
+    /* basicConstraints from string */
+    ExpectNotNull(ext = X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
+        "CA:FALSE"));
+    if (ext != NULL) {
+        ExpectNotNull(ext->obj);
+        ExpectIntEQ(ext->obj->type, NID_basic_constraints);
+        ExpectIntEQ(ext->obj->ca, 0);
+        ExpectNull(ext->obj->pathlen);
+        ExpectIntEQ(ext->crit, 0);
+    }
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+    ExpectNotNull(ext = X509V3_EXT_nconf_nid(NULL, NULL,
+        NID_basic_constraints, "critical, CA:TRUE, pathlen:2"));
+    if (ext != NULL) {
+        ExpectNotNull(ext->obj);
+        ExpectIntEQ(ext->obj->ca, 1);
+        ExpectNotNull(ext->obj->pathlen);
+        ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(ext->obj->pathlen), 2);
+        ExpectIntEQ(ext->crit, 1);
+    }
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_get_pathLength(x509), 2);
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+    ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
+        "CA:MAYBE"));
+    ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
+        "pathlen:1"));
+    ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
+        "CA:TRUE,pathlen:x"));
+    (void)XSNPRINTF(bcTooLong, sizeof(bcTooLong), "CA:TRUE,pathlen:%d",
+        WOLFSSL_MAX_PATH_LEN + 1);
+    ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
+        bcTooLong));
+    /* critical is only accepted as a prefix, and only once. */
+    ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
+        "CA:TRUE,critical"));
+    ExpectNull(X509V3_EXT_nconf_nid(NULL, NULL, NID_basic_constraints,
+        "critical,critical,CA:TRUE"));
+
+    /* The critical prefix is handled for every extension type. */
+    ExpectNotNull(ext = X509V3_EXT_nconf_nid(NULL, NULL, NID_key_usage,
+        "critical,digitalSignature"));
+    ExpectIntEQ(ext->crit, 1);
+    ExpectNotNull(x509Crit = X509_new());
+    ExpectIntEQ(X509_add_ext(x509Crit, ext, -1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_get_key_usage(x509Crit), KU_DIGITAL_SIGNATURE);
+    X509_free(x509Crit);
+    x509Crit = NULL;
+    X509_EXTENSION_free(ext);
+    ext = NULL;
 
     /* Test adding extension to X509 */
     for (i = 0; i < ext_nids_count; i++) {
@@ -1640,6 +1692,11 @@ int test_wolfSSL_X509V3_EXT_aia(void)
 
     wolfSSL_AUTHORITY_INFO_ACCESS_pop_free(aia,
         wolfSSL_ACCESS_DESCRIPTION_free);
+    aia = NULL;
+    /* Plain free releases the entries too. */
+    ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS *)
+        wolfSSL_X509V3_EXT_d2i(ext));
+    wolfSSL_AUTHORITY_INFO_ACCESS_free(aia);
     wolfSSL_ASN1_OBJECT_free(entry);
     wolfSSL_sk_free(node);
     wolfSSL_ASN1_OBJECT_free(obj);
@@ -1940,6 +1997,11 @@ int test_wolfSSL_X509V3_EXT(void)
     ExpectIntNE(critical, -1);
     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(
         (WOLFSSL_AUTHORITY_INFO_ACCESS*)ext2, NULL);
+    ext2 = NULL;
+    /* Stack of ASN1_OBJECTs borrowing x509 data: must not free that data. */
+    ExpectNotNull(ext2 = (WOLFSSL_X509_EXTENSION*)X509_get_ext_d2i(x509,
+        NID_info_access, NULL, NULL));
+    wolfSSL_AUTHORITY_INFO_ACCESS_free((WOLFSSL_AUTHORITY_INFO_ACCESS*)ext2);
     ext2 = NULL;
 #if defined(WOLFSSL_QT)
     ExpectIntEQ(OPENSSL_sk_num(aia), 1); /* Only one URI entry for this cert */

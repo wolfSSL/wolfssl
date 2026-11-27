@@ -880,24 +880,51 @@ int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM* bn)
     return ret;
 }
 
-#ifndef NO_WOLFSSL_STUB
-/* Mask the lowest n bits.
- *
- * TODO: mp_mod_2d()
+#ifdef WOLFSSL_HAVE_MP_MOD_2D
+/* Keep only the lowest n bits of the magnitude. Sign is kept, as in OpenSSL.
  *
  * Return compliant with OpenSSL.
  *
  * @param [in, out] bn  Big number to operation on.
  * @param [in]      n   Number of bits.
+ * @return  1 on success.
+ * @return  0 when bn or internal representation of bn is NULL.
+ * @return  0 when n is negative.
  * @return  0 on failure.
  */
 int wolfSSL_mask_bits(WOLFSSL_BIGNUM* bn, int n)
 {
-    (void)bn;
-    (void)n;
+    int ret = 1;
+    int neg = 0;
+
     WOLFSSL_ENTER("wolfSSL_BN_mask_bits");
-    WOLFSSL_STUB("BN_mask_bits");
-    return 0;
+
+    /* Validate parameters. */
+    if (BN_IS_NULL(bn) || (n < 0)) {
+        WOLFSSL_MSG("bn NULL error");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        /* mp_mod_2d() of a negative gives a positive residue. */
+        neg = mp_isneg((mp_int*)bn->internal);
+        if (neg && (mp_abs((mp_int*)bn->internal, (mp_int*)bn->internal) !=
+                MP_OKAY)) {
+            WOLFSSL_MSG("mp_abs error");
+            ret = 0;
+        }
+        /* Use wolfCrypt perform operation. */
+        if ((ret == 1) && (mp_mod_2d((mp_int*)bn->internal, n,
+                (mp_int*)bn->internal) != MP_OKAY)) {
+            WOLFSSL_MSG("mp_mod_2d error");
+            ret = 0;
+        }
+        if (neg && !mp_iszero((mp_int*)bn->internal)) {
+            mp_setneg((mp_int*)bn->internal);
+        }
+    }
+
+    return ret;
 }
 #endif
 
