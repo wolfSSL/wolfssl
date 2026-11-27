@@ -495,20 +495,9 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
         int blockSz = wolfSSL_EVP_CIPHER_block_size(cipher);
         byte *tmpBuf;
 
-        /* Add space for padding. */
-    #ifdef WOLFSSL_NO_REALLOC
-        tmpBuf = (byte*)XMALLOC((size_t)(derSz + blockSz), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmpBuf != NULL && der != NULL)
-        {
-                XMEMCPY(tmpBuf, der, (size_t)(derSz));
-                XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                der = NULL;
-        }
-    #else
-        tmpBuf = (byte*)XREALLOC(der, (size_t)(derSz + blockSz), heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        /* Add space for padding; der is a private key, so scrub the old block */
+        tmpBuf = (byte*)XREALLOC_SCRUBBED(der, (size_t)derSz,
+            (size_t)(derSz + blockSz), heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpBuf == NULL) {
             WOLFSSL_ERROR_MSG("Extending DER buffer failed");
             ret = 0; /* der buffer is free'd at the end of the function */
