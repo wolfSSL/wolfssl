@@ -1420,7 +1420,8 @@ int test_wolfSSL_X509_check_ip(void)
     ExpectIntEQ(wolfSSL_X509_check_ip(empty, ip4, sizeof(ip4), 0), 0);
 
 #if defined(WOLFSSL_IP_ALT_NAME) && defined(WOLFSSL_CERT_GEN) && \
-    defined(WOLFSSL_ALT_NAMES) && !defined(NO_SHA256)
+    defined(WOLFSSL_ALT_NAMES) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
     {
         /* 2001:db8::2 */
         static const unsigned char ip6Other[] = {
