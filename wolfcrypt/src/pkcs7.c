@@ -8713,6 +8713,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                     if (ret == 0) {
                         byte isDynamic = (byte)pkcs7->isDynamic;
+                        byte contentInDynamic = (content != NULL &&
+                                content == pkcs7->contentDynamic);
                     #ifndef NO_PKCS7_STREAM
                         PKCS7State* stream = pkcs7->stream;
                         pkcs7->stream = NULL;
@@ -8747,6 +8749,8 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                             pkcs7->contentDynamic = contentDynamic;
                             contentDynamic = NULL;
                         }
+                        if (contentInDynamic)
+                            content = pkcs7->contentDynamic;
 
                         /* Restore content is PKCS#7 flag */
                         pkcs7->contentIsPkcs7Type = (contentIsPkcs7Type != 0);
