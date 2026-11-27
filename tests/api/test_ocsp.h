@@ -37,6 +37,8 @@ int test_ocsp_ctx_stapling_nonce_per_connection(void);
 int test_ocsp_ctx_stapling_v2_nonce_per_connection(void);
 int test_ocsp_responder_keyhash_binding(void);
 int test_ocsp_response_parsing(void);
+int test_http_connect_blocking_mode(void);
+int test_http_fetch_slow_progress(void);
 int test_ocsp_tls_cert_cb(void);
 int test_ocsp_status_request_v2_multi_revoked_single(void);
 int test_ocsp_status_verify_cb_undecodable_staple(void);
@@ -73,10 +75,10 @@ int test_ocsp_staple_signed_by_waived_ca(void);
 int test_ocsp_ctx_request_cache(void);
 int test_ocsp_ctx_request_cache_cert_change(void);
 int test_ocsp_ctx_request_cache_drop_in_use(void);
+int test_ocsp_chain_stapling_timeout(void);
 int test_ocsp_responder(void);
 int test_ocsp_ancestor_responder_rejected(void);
 int test_ocsp_forged_responder_cert_rejected(void);
 int test_wolfIO_DecodeUrl_crlf_reject(void);
 int test_wolfIO_DecodeUrl_host_bounds(void);
 #endif /* WOLFSSL_TEST_OCSP_H */
-
