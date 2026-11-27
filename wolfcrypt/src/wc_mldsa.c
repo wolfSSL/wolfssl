@@ -17678,8 +17678,9 @@ int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId)
  * set, MakeKey/Sign/Verify run one chunk per call and return MP_WOULDBLOCK
  * until the operation completes. The context is owned by the caller and must
  * outlive the operation. Attaching, clearing or freeing the key abandons any
- * operation still in flight on the current context, as does starting another
- * operation. Decoding a private key always runs to completion. */
+ * operation still in flight on the current context, as do starting another
+ * operation and importing or decoding a key into the key. Decoding a private
+ * key always runs to completion. */
 int wc_MlDsaKey_set_nonblock(wc_MlDsaKey* key, wc_MlDsaNonBlock* nb)
 {
     int ret = 0;
@@ -17829,6 +17830,11 @@ int wc_MlDsaKey_SetParams(wc_MlDsaKey* key, byte level)
     else {
         ret = BAD_FUNC_ARG;
     }
+#ifdef WC_MLDSA_NONBLOCK
+    if ((ret == 0) && (key->nb != NULL) && (key->nb->op != 0)) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     if (ret == 0) {
 #if !defined(WC_MLDSA_FIXED_ARRAY) && defined(WC_MLDSA_CACHE_PRIV_VECTORS)
@@ -18588,7 +18594,11 @@ int wc_MlDsaKey_ImportPubRaw(wc_MlDsaKey* key, const byte* in, word32 inLen)
         }
     }
 
-
+#ifdef WC_MLDSA_NONBLOCK
+    if (ret == 0) {
+        mldsa_nb_release(key);
+    }
+#endif
 #ifdef WOLFSSL_MLDSA_DYNAMIC_KEYS
     if (ret == 0) {
         ret = mldsa_alloc_pub_buf(key);
@@ -18768,6 +18778,9 @@ static int mldsa_set_priv_key(const byte* priv, word32 privSz,
     }
 
     if (ret == 0) {
+#ifdef WC_MLDSA_NONBLOCK
+        mldsa_nb_release(key);
+#endif
         /* A failed rebuild below must not leave the old key usable. */
         key->prvKeySet = 0;
     #ifdef WC_MLDSA_CACHE_PRIV_VECTORS

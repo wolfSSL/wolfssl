@@ -72812,6 +72812,7 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     byte*            ct2 = NULL;
     byte*            pub = NULL;
     byte*            pubRef = NULL;
+    byte*            priv = NULL;
     byte             ss[WC_ML_KEM_SS_SZ];
     byte             ssDec[WC_ML_KEM_SS_SZ];
     byte             seed[WC_ML_KEM_MAKEKEY_RAND_SZ];
@@ -72819,6 +72820,8 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     byte             m[WC_ML_KEM_ENC_RAND_SZ];
     word32           ctSz = 0;
     word32           pubSz = 0;
+    word32           privSz = 0;
+    word32           i;
     int              keyInited = 0;
     int              refInited = 0;
 
@@ -72837,12 +72840,13 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
     NB_STEP(wc_MlKemKey_set_nonblock(&key, &nb));
     NB_STEP(wc_MlKemKey_CipherTextSize(&key, &ctSz));
     NB_STEP(wc_MlKemKey_PublicKeySize(&key, &pubSz));
+    NB_STEP(wc_MlKemKey_PrivateKeySize(&key, &privSz));
     NB_STEP(wc_RNG_GenerateBlock(rng, seed, sizeof(seed)));
     NB_STEP(wc_RNG_GenerateBlock(rng, seed2, sizeof(seed2)));
     NB_STEP(wc_RNG_GenerateBlock(rng, m, sizeof(m)));
     if (ret == 0) {
-        buf = (byte*)XMALLOC(2 * (size_t)ctSz + 2 * (size_t)pubSz, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
+        buf = (byte*)XMALLOC(2 * (size_t)ctSz + 2 * (size_t)pubSz +
+            (size_t)privSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (buf == NULL)
             ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         else {
@@ -72850,6 +72854,7 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
             ct2 = ct + ctSz;
             pub = ct2 + ctSz;
             pubRef = pub + pubSz;
+            priv = pubRef + pubSz;
         }
     }
 
@@ -72970,6 +72975,31 @@ static wc_test_ret_t mlkem_nonblock_test_type(int type, WC_RNG* rng)
         NB_EXPECT(XMEMCMP(pub, pubRef, pubSz) == 0);
     }
 #endif
+
+    /* Decoding an expanded private key releases a key generation in flight,
+     * so the next one starts over with a secret vector of its own. */
+    NB_STEP(wc_MlKemKey_EncodePrivateKey(&ref, priv, privSz));
+    NB_START(wc_MlKemKey_MakeKey(&key, rng));
+    NB_STEP(wc_MlKemKey_DecodePrivateKey(&key, priv, privSz));
+    NB_EXPECT((nb.work == NULL) && (nb.op == 0));
+    NB_RUN(wc_MlKemKey_MakeKey(&key, rng));
+    NB_STEP(wc_MlKemKey_EncodePrivateKey(&key, priv, privSz));
+    if (ret == 0) {
+        /* s comes before ek || H(ek) || z in the encoding. */
+        for (i = 0; i < privSz - pubSz - 2 * WC_ML_KEM_SYM_SZ; i++) {
+            if (priv[i] != 0)
+                break;
+        }
+        NB_EXPECT(i < privSz - pubSz - 2 * WC_ML_KEM_SYM_SZ);
+    }
+    /* Decoding a public key releases an encapsulation in flight, so it starts
+     * over against the decoded key. */
+    NB_START(wc_MlKemKey_Encapsulate(&key, ct, ss, rng));
+    NB_STEP(wc_MlKemKey_DecodePublicKey(&key, pubRef, pubSz));
+    NB_EXPECT((nb.work == NULL) && (nb.op == 0));
+    NB_RUN(wc_MlKemKey_Encapsulate(&key, ct, ss, rng));
+    NB_STEP(wc_MlKemKey_Decapsulate(&ref, ssDec, ct, ctSz));
+    NB_EXPECT(XMEMCMP(ss, ssDec, sizeof(ss)) == 0);
 
     /* Nothing is left in the context once its operations have completed. */
     NB_EXPECT((nb.work == NULL) && (nb.decWork == NULL) && (nb.op == 0));
@@ -78930,6 +78960,7 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     byte*            sig2 = NULL;
     byte*            pub = NULL;
     byte*            pubRef = NULL;
+    byte*            priv = NULL;
     int              sigSz = 0;
     int              pubSz = 0;
     word32           sigLen = 0;
@@ -78970,8 +79001,8 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
     NB_STEP(wc_RNG_GenerateBlock(rng, hash, sizeof(hash)));
 #endif
     if (ret == 0) {
-        buf = (byte*)XMALLOC(2 * (size_t)sigSz + 2 * (size_t)pubSz, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
+        buf = (byte*)XMALLOC(2 * (size_t)sigSz + 2 * (size_t)pubSz +
+            MLDSA_MAX_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (buf == NULL)
             ret = WC_TEST_RET_ENC_EC(MEMORY_E);
         else {
@@ -78979,6 +79010,7 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
             sig2 = sig + sigSz;
             pub = sig2 + sigSz;
             pubRef = pub + pubSz;
+            priv = pubRef + pubSz;
         }
     }
 
@@ -79210,6 +79242,45 @@ static wc_test_ret_t mldsa_nonblock_test_level(int level, WC_RNG* rng)
         NB_STEP(wc_MlDsaKey_ExportPubRaw(&key, pub, &len));
         NB_EXPECT(XMEMCMP(pub, pubRef, (size_t)pubSz) == 0);
     }
+#endif
+
+    /* The parameters cannot be set under an operation in flight, which then
+     * still completes. */
+    sigLen2 = (word32)sigSz;
+    NB_START(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+        (word32)sizeof(msg), rng));
+    if (ret == 0)
+        rc = wc_MlDsaKey_SetParams(&key, (byte)level);
+    NB_EXPECT((rc == WC_NO_ERR_TRACE(BAD_STATE_E)) && (nb.op != 0));
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg,
+        (word32)sizeof(msg), rng));
+    NB_STEP(wc_MlDsaKey_VerifyCtx(&ref, sig2, sigLen2, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+#if defined(WOLFSSL_MLDSA_PRIVATE_KEY) && defined(WOLFSSL_MLDSA_PUBLIC_KEY)
+    /* Importing a public key releases a verify in flight, so it starts over
+     * against the imported key. */
+    NB_RUN(wc_MlDsaKey_MakeKeyFromSeed(&key, seed2));
+    NB_START(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen2, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_STEP(wc_MlDsaKey_ImportPubRaw(&key, pubRef, (word32)pubSz));
+    NB_EXPECT((nb.work == NULL) && (nb.op == 0));
+    NB_RUN(wc_MlDsaKey_VerifyCtx(&key, sig2, sigLen2, NULL, 0, msg,
+        (word32)sizeof(msg), &res));
+    NB_EXPECT(res == 1);
+    /* Importing a private key releases a key generation in flight, so the
+     * imported key is the one that signs. */
+    len = MLDSA_MAX_KEY_SIZE;
+    NB_STEP(wc_MlDsaKey_ExportPrivRaw(&ref, priv, &len));
+    NB_START(wc_MlDsaKey_MakeKey(&key, rng));
+    NB_STEP(wc_MlDsaKey_ImportPrivRaw(&key, priv, len));
+    NB_EXPECT((nb.work == NULL) && (nb.op == 0));
+    sigLen2 = (word32)sigSz;
+    NB_RUN(wc_MlDsaKey_SignCtx(&key, NULL, 0, sig2, &sigLen2, msg2,
+        (word32)sizeof(msg2), rng));
+    NB_STEP(wc_MlDsaKey_VerifyCtx(&ref, sig2, sigLen2, NULL, 0, msg2,
+        (word32)sizeof(msg2), &res));
+    NB_EXPECT(res == 1);
 #endif
 
     /* Nothing is left in the context once its operations have completed. */

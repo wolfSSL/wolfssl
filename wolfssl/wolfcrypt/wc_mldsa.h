@@ -660,11 +660,13 @@ typedef struct wc_MlDsaParams MlDsaParams;
  * Re-invoke the same function with the same arguments until it stops returning
  * MP_WOULDBLOCK. The context records which operation owns it and what that
  * operation was started with: calling a different operation, or the same one
- * with other arguments, releases what was in flight and starts over. A resumed
- * operation whose message or signature buffer was rewritten in place since it
- * started returns BAD_STATE_E. A key generation from an RNG has no
- * arguments to tell it from the one in flight, so it resumes that one:
- * re-attach the context to start another. */
+ * with other arguments, releases what was in flight and starts over. So does
+ * importing or decoding a key into the key. A resumed operation whose message
+ * or signature buffer was rewritten in place since it started returns
+ * BAD_STATE_E, as does wc_MlDsaKey_SetParams() while an operation is in
+ * flight. A key generation from an RNG has no arguments to tell it from the
+ * one in flight, so it resumes that one: re-attach the context to start
+ * another. */
 typedef struct wc_MlDsaNonBlock {
     void*  work;    /* working allocation kept alive across yields */
     const void* in; /* message the operation was started with */

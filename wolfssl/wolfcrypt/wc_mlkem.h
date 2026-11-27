@@ -392,11 +392,11 @@ enum {
  * Re-invoke the same function with the same arguments until it stops returning
  * MP_WOULDBLOCK. The context records which operation owns it and what that
  * operation was started with: calling a different operation, or the same one
- * with other arguments, releases what was in flight and starts over. A resumed
- * decapsulation whose cipher text was rewritten in place since it started
- * returns BAD_STATE_E. A key generation from an RNG has no
- * arguments to tell it from the one in flight, so it resumes that one:
- * re-attach the context to start another. */
+ * with other arguments, releases what was in flight and starts over. So does
+ * decoding a key into the key. A resumed decapsulation whose cipher text was
+ * rewritten in place since it started returns BAD_STATE_E. A key generation
+ * from an RNG has no arguments to tell it from the one in flight, so it
+ * resumes that one: re-attach the context to start another. */
 typedef struct wc_MlKemNonBlock {
     void*  work;     /* keygen/encapsulate vectors, kept alive across yields */
     void*  decWork;  /* decapsulate scratch: msg and kr for the re-encryption */

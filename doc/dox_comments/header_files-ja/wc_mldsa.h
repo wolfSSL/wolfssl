@@ -136,6 +136,7 @@ int wc_MlDsaKey_InitLabel(wc_MlDsaKey* key, const char* label, void* heap,
     \return 0 成功した場合に返されます。
     \return BAD_FUNC_ARG keyがNULLの場合、またはlevelが認識できるパラメータセットでない場合に返されます。
     \return NOT_COMPILED_IN levelがビルド時に無効化されたパラメータセットを指している場合に返されます。
+    \return BAD_STATE_E 指定された鍵を用いてノンブロッキング処理(WC_MLDSA_NONBLOCK)が実行中の場合に返されます。鍵は変更されません。
 
     \param [in,out] key 初期化済みのwc_MlDsaKeyへのポインタ。
     \param [in] level パラメータセット。WC_ML_DSA_44、WC_ML_DSA_65、WC_ML_DSA_87のいずれか。
