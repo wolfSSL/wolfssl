@@ -398,6 +398,84 @@ static void wb_rsa_null_args(WOLFSSL* ssl)
     !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_CERTS) && defined(WOLFSSL_SHA384)
+static int wb_rsa_signature_policy(WOLFSSL* ssl)
+{
+    static const byte allowedPss[] = { NEW_SA_MAJOR, RSA_PSS_PSS_SHA256_MINOR };
+    static const byte allowedRsa[] = {
+        sha256_mac, rsa_sa_algo, sha384_mac, rsa_sa_algo
+    };
+    static const byte reversedRsa[] = {
+        sha384_mac, rsa_sa_algo, sha256_mac, rsa_sa_algo
+    };
+    int failed = 1;
+
+    ssl->version = MakeTLSv1_2();
+    ssl->options.tls = 1;
+    ssl->options.tls1_1 = 1;
+    ssl->options.side = WOLFSSL_SERVER_END;
+    ssl->specs.sig_algo = rsa_sa_algo;
+    ssl->buffers.keyType = rsa_sa_algo;
+    ssl->buffers.keySz = 256;
+    ssl->useRsaPss = 1;
+
+    if (PickHashSigAlgo(ssl, NULL, 0, 0) != MATCH_SUITE_ERROR ||
+        PickHashSigAlgo(ssl, allowedPss, sizeof(allowedPss), 0) != 0 ||
+        ssl->options.sigAlgo != rsa_pss_pss_algo)
+        goto done;
+
+    ssl->options.side = WOLFSSL_CLIENT_END;
+    if (PickHashSigAlgo(ssl, NULL, 0, 0) != 0)
+        goto done;
+    ssl->options.side = WOLFSSL_SERVER_END;
+    ssl->specs.sig_algo = ecc_dsa_sa_algo;
+    if (PickHashSigAlgo(ssl, NULL, 0, 0) != 0)
+        goto done;
+    ssl->specs.sig_algo = rsa_sa_algo;
+    ssl->version = MakeTLSv1_3();
+    if (PickHashSigAlgo(ssl, NULL, 0, 0) != 0)
+        goto done;
+
+    ssl->version = MakeTLSv1_2();
+    ssl->useRsaPss = 0;
+    if (PickHashSigAlgo(ssl, NULL, 0, 0) != 0 ||
+        PickHashSigAlgo(ssl, allowedRsa, sizeof(allowedRsa), 0) != 0 ||
+        PickHashSigAlgo(ssl, reversedRsa, sizeof(reversedRsa), 0) != 0)
+        goto done;
+#ifdef WOLFSSL_STRONGEST_HASH_SIG
+    if (ssl->options.hashAlgo != sha384_mac)
+        goto done;
+#else
+    if (ssl->options.hashAlgo != sha256_mac)
+        goto done;
+#endif
+
+    ssl->peerRsaPss = 1;
+    ssl->peerRsaPssHash = WC_HASH_TYPE_SHA256;
+    ssl->peerRsaPssMgf = WC_MGF1SHA256;
+    ssl->peerRsaPssSaltLen = WC_SHA256_DIGEST_SIZE;
+    if (CheckPeerRsaSigAlgo(ssl, rsa_pss_pss_algo, sha256_mac) != 0 ||
+        CheckPeerRsaSigAlgo(ssl, rsa_pss_sa_algo, sha256_mac) !=
+            INVALID_PARAMETER ||
+        CheckPeerRsaSigAlgo(ssl, rsa_pss_pss_algo, sha384_mac) !=
+            INVALID_PARAMETER)
+        goto done;
+    ssl->peerRsaPssMgf = WC_MGF1SHA384;
+    if (CheckPeerRsaSigAlgo(ssl, rsa_pss_pss_algo, sha256_mac) != INVALID_PARAMETER)
+        goto done;
+    ssl->peerRsaPssMgf = WC_MGF1SHA256;
+    ssl->peerRsaPssSaltLen++;
+    if (CheckPeerRsaSigAlgo(ssl, rsa_pss_pss_algo, sha256_mac) != INVALID_PARAMETER)
+        goto done;
+    failed = 0;
+
+done:
+    ssl->options.side = WOLFSSL_CLIENT_END;
+    return failed;
+}
+#endif
+
 static int wb_rsa_pss(WOLFSSL_CTX* ctx)
 {
     static const int algorithms[] = {
@@ -416,6 +494,11 @@ static int wb_rsa_pss(WOLFSSL_CTX* ctx)
     if (ssl == NULL || wc_InitRsaKey(&key, NULL) != 0)
         goto done;
     initialized = 1;
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_CERTS) && defined(WOLFSSL_SHA384)
+    if (wb_rsa_signature_policy(ssl))
+        goto done;
+#endif
     if (wc_RsaPrivateKeyDecode(client_key_der_2048, &idx, &key,
             sizeof_client_key_der_2048) != 0)
         goto done;
