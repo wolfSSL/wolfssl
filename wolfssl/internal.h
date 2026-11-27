@@ -7055,6 +7055,25 @@ enum Tls13KdfSendStep {
 };
 
 
+#if !defined(NO_CERTS) && !defined(IGNORE_KEY_EXTENSIONS)
+/* One CA whose Extended Key Usage error this handshake accepted. The issuer
+ * walk matches the subject name, the subject key id and the public key, so
+ * a different certificate that reuses the key is not waived. When the signer
+ * still holds the certificate, the DER hash is matched too.
+ * SIGNER_DIGEST_SIZE and KEYID_SIZE come from the certificate ASN code, so a
+ * build with no certificates does not have this struct. */
+struct EkuWaivedCa {
+    byte hash[SIGNER_DIGEST_SIZE];
+    byte nameHash[SIGNER_DIGEST_SIZE];
+    byte keyHash[KEYID_SIZE];
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    byte certHash[KEYID_SIZE];
+    byte haveCertHash;
+#endif
+    struct EkuWaivedCa* next;
+};
+#endif
+
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
 #if defined(WOLFSSL_HAPROXY)
@@ -7384,6 +7403,12 @@ struct WOLFSSL {
 #endif
 #ifndef NO_CERTS
     Signer*         waivedCAs;          /* callback-accepted chain CAs */
+#ifndef IGNORE_KEY_EXTENSIONS
+    struct EkuWaivedCa* ekuWaived;      /* purpose errors this handshake
+                                         * accepted, by CA identity */
+    int             ekuIssuerRet;       /* issuer purpose error still to
+                                         * report after a leaf error */
+#endif
 #endif
 #ifdef KEEP_PEER_CERT
 #ifdef WOLFSSL_DYNAMIC_PEER_CERT
