@@ -24,9 +24,15 @@ permissions:
 
 # Build the STM32 software simulator (https://github.com/wolfSSL/simulators,
 # STM32Sim/ subdirectory) and run the wolfCrypt test suite on emulated
-# STM32H753 (Cortex-M7), STM32U585 (Cortex-M33), and STM32MP135 (Cortex-A7)
-# hardware. Replaces the previous Renode-based STM32H753 workflow and adds
-# U5/PKA + MP135 (SHA3/SHAKE on HASH1) coverage.
+# STM32H753 (Cortex-M7), STM32U585 (Cortex-M33), STM32MP135 (Cortex-A7)
+# and STM32F417 (Cortex-M4) hardware. Replaces the previous Renode-based
+# STM32H753 workflow and adds U5/PKA + MP135 (SHA3/SHAKE on HASH1) coverage.
+#
+# The F417 entry is the only one that builds the STM32 hardware DES/TDES
+# code (CBC and ECB; the other chips set NO_DES3) and the CubeMX HAL arm
+# of wc_GenerateSeed() (the others use WOLFSSL_STM32_RNG_NOLIB). It also
+# covers the F4 CRYP AES without hardware GCM and the F4 HASH register
+# layout (SHA-1, MD5).
 #
 # The F417-RNG-fault entry runs the STM32F4 RNG fault test: the StdPeriph
 # and WOLFSSL_STM32_RNG_NOLIB arms of wc_GenerateSeed() on an emulated
@@ -46,7 +52,7 @@ permissions:
 # simulators pull request.
 
 env:
-  SIMULATORS_REF: 02351c8ca4d11fa19b52c5c8b14a7b9901d4b250
+  SIMULATORS_REF: 95af06fe1384ae0f9d513572471929de66b4d739
 
 jobs:
   stm32_sim:
@@ -64,6 +70,8 @@ jobs:
             script: run-wolfcrypt-u5.sh
           - chip_label: MP135
             script: run-wolfcrypt-mp135.sh
+          - chip_label: F417
+            script: run-wolfcrypt-f417.sh
           - chip_label: F417-RNG-fault
             script: run-rng-fault-f417.sh
     steps:
