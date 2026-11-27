@@ -29,6 +29,18 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+/* Hide a secret-derived mask from the optimizer so that masked selection is
+ * not converted into a conditional branch or conditional loads/stores (seen
+ * with GCC on PPC, PPC64, m68k, SH-4, RISC-V 64 and s390x).
+ */
+#ifndef FE_CT_BARRIER
+    #if defined(__GNUC__) && !defined(WOLFSSL_NO_ASM_BARRIER)
+        #define FE_CT_BARRIER(v)    __asm__ __volatile__ ("" : "+r" (v))
+    #else
+        #define FE_CT_BARRIER(v)    (void)(v)
+    #endif
+#endif
+
 #if defined(HAVE___UINT128_T) && !defined(NO_CURVED448_128BIT) && \
         !defined(NO_INT128)
     #define CURVED448_128BIT

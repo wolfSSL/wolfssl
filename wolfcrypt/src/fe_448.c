@@ -127,6 +127,7 @@ static void fe448_cswap(word8* a, word8* b, int c)
     word8 mask = -(word8)c;
     word8 t[56];
 
+    FE_CT_BARRIER(mask);
     for (i = 0; i < 56; i++)
         t[i] = (a[i] ^ b[i]) & mask;
     for (i = 0; i < 56; i++)
@@ -478,6 +479,7 @@ void fe448_cmov(word8* a, const word8* b, int c)
     word8 m = -(word8)c;
     word8 t[56];
 
+    FE_CT_BARRIER(m);
     for (i = 0; i < 56; i++)
         t[i] = m & (a[i] ^ b[i]);
     for (i = 0; i < 56; i++)
@@ -734,14 +736,24 @@ void fe448_copy(sword64* d, const sword64* a)
 static void fe448_cswap(sword64* a, sword64* b, int c)
 {
     sword64 mask = -(sword64)c;
-    sword64 t0 = (a[0] ^ b[0]) & mask;
-    sword64 t1 = (a[1] ^ b[1]) & mask;
-    sword64 t2 = (a[2] ^ b[2]) & mask;
-    sword64 t3 = (a[3] ^ b[3]) & mask;
-    sword64 t4 = (a[4] ^ b[4]) & mask;
-    sword64 t5 = (a[5] ^ b[5]) & mask;
-    sword64 t6 = (a[6] ^ b[6]) & mask;
-    sword64 t7 = (a[7] ^ b[7]) & mask;
+    sword64 t0;
+    sword64 t1;
+    sword64 t2;
+    sword64 t3;
+    sword64 t4;
+    sword64 t5;
+    sword64 t6;
+    sword64 t7;
+
+    FE_CT_BARRIER(mask);
+    t0 = (a[0] ^ b[0]) & mask;
+    t1 = (a[1] ^ b[1]) & mask;
+    t2 = (a[2] ^ b[2]) & mask;
+    t3 = (a[3] ^ b[3]) & mask;
+    t4 = (a[4] ^ b[4]) & mask;
+    t5 = (a[5] ^ b[5]) & mask;
+    t6 = (a[6] ^ b[6]) & mask;
+    t7 = (a[7] ^ b[7]) & mask;
     a[0] ^= t0;
     a[1] ^= t1;
     a[2] ^= t2;
@@ -1283,14 +1295,24 @@ void fe448_pow_2_446_222_1(sword64* r, const sword64* a)
 void fe448_cmov(sword64* a, const sword64* b, int c)
 {
     sword64 m = -(sword64)c;
-    sword64 t0 = m & (a[0] ^ b[0]);
-    sword64 t1 = m & (a[1] ^ b[1]);
-    sword64 t2 = m & (a[2] ^ b[2]);
-    sword64 t3 = m & (a[3] ^ b[3]);
-    sword64 t4 = m & (a[4] ^ b[4]);
-    sword64 t5 = m & (a[5] ^ b[5]);
-    sword64 t6 = m & (a[6] ^ b[6]);
-    sword64 t7 = m & (a[7] ^ b[7]);
+    sword64 t0;
+    sword64 t1;
+    sword64 t2;
+    sword64 t3;
+    sword64 t4;
+    sword64 t5;
+    sword64 t6;
+    sword64 t7;
+
+    FE_CT_BARRIER(m);
+    t0 = m & (a[0] ^ b[0]);
+    t1 = m & (a[1] ^ b[1]);
+    t2 = m & (a[2] ^ b[2]);
+    t3 = m & (a[3] ^ b[3]);
+    t4 = m & (a[4] ^ b[4]);
+    t5 = m & (a[5] ^ b[5]);
+    t6 = m & (a[6] ^ b[6]);
+    t7 = m & (a[7] ^ b[7]);
 
     a[0] ^= t0;
     a[1] ^= t1;
@@ -1624,22 +1646,40 @@ void fe448_copy(sword32* d, const sword32* a)
 static void fe448_cswap(sword32* a, sword32* b, int c)
 {
     sword32 mask = -(sword32)c;
-    sword32 t0 = (a[0] ^ b[0]) & mask;
-    sword32 t1 = (a[1] ^ b[1]) & mask;
-    sword32 t2 = (a[2] ^ b[2]) & mask;
-    sword32 t3 = (a[3] ^ b[3]) & mask;
-    sword32 t4 = (a[4] ^ b[4]) & mask;
-    sword32 t5 = (a[5] ^ b[5]) & mask;
-    sword32 t6 = (a[6] ^ b[6]) & mask;
-    sword32 t7 = (a[7] ^ b[7]) & mask;
-    sword32 t8 = (a[8] ^ b[8]) & mask;
-    sword32 t9 = (a[9] ^ b[9]) & mask;
-    sword32 t10 = (a[10] ^ b[10]) & mask;
-    sword32 t11 = (a[11] ^ b[11]) & mask;
-    sword32 t12 = (a[12] ^ b[12]) & mask;
-    sword32 t13 = (a[13] ^ b[13]) & mask;
-    sword32 t14 = (a[14] ^ b[14]) & mask;
-    sword32 t15 = (a[15] ^ b[15]) & mask;
+    sword32 t0;
+    sword32 t1;
+    sword32 t2;
+    sword32 t3;
+    sword32 t4;
+    sword32 t5;
+    sword32 t6;
+    sword32 t7;
+    sword32 t8;
+    sword32 t9;
+    sword32 t10;
+    sword32 t11;
+    sword32 t12;
+    sword32 t13;
+    sword32 t14;
+    sword32 t15;
+
+    FE_CT_BARRIER(mask);
+    t0 = (a[0] ^ b[0]) & mask;
+    t1 = (a[1] ^ b[1]) & mask;
+    t2 = (a[2] ^ b[2]) & mask;
+    t3 = (a[3] ^ b[3]) & mask;
+    t4 = (a[4] ^ b[4]) & mask;
+    t5 = (a[5] ^ b[5]) & mask;
+    t6 = (a[6] ^ b[6]) & mask;
+    t7 = (a[7] ^ b[7]) & mask;
+    t8 = (a[8] ^ b[8]) & mask;
+    t9 = (a[9] ^ b[9]) & mask;
+    t10 = (a[10] ^ b[10]) & mask;
+    t11 = (a[11] ^ b[11]) & mask;
+    t12 = (a[12] ^ b[12]) & mask;
+    t13 = (a[13] ^ b[13]) & mask;
+    t14 = (a[14] ^ b[14]) & mask;
+    t15 = (a[15] ^ b[15]) & mask;
     a[0] ^= t0;
     a[1] ^= t1;
     a[2] ^= t2;
@@ -2468,22 +2508,40 @@ void fe448_pow_2_446_222_1(sword32* r, const sword32* a)
 void fe448_cmov(sword32* a, const sword32* b, int c)
 {
     sword32 m = -(sword32)c;
-    sword32 t0 = m & (a[0] ^ b[0]);
-    sword32 t1 = m & (a[1] ^ b[1]);
-    sword32 t2 = m & (a[2] ^ b[2]);
-    sword32 t3 = m & (a[3] ^ b[3]);
-    sword32 t4 = m & (a[4] ^ b[4]);
-    sword32 t5 = m & (a[5] ^ b[5]);
-    sword32 t6 = m & (a[6] ^ b[6]);
-    sword32 t7 = m & (a[7] ^ b[7]);
-    sword32 t8 = m & (a[8] ^ b[8]);
-    sword32 t9 = m & (a[9] ^ b[9]);
-    sword32 t10 = m & (a[10] ^ b[10]);
-    sword32 t11 = m & (a[11] ^ b[11]);
-    sword32 t12 = m & (a[12] ^ b[12]);
-    sword32 t13 = m & (a[13] ^ b[13]);
-    sword32 t14 = m & (a[14] ^ b[14]);
-    sword32 t15 = m & (a[15] ^ b[15]);
+    sword32 t0;
+    sword32 t1;
+    sword32 t2;
+    sword32 t3;
+    sword32 t4;
+    sword32 t5;
+    sword32 t6;
+    sword32 t7;
+    sword32 t8;
+    sword32 t9;
+    sword32 t10;
+    sword32 t11;
+    sword32 t12;
+    sword32 t13;
+    sword32 t14;
+    sword32 t15;
+
+    FE_CT_BARRIER(m);
+    t0 = m & (a[0] ^ b[0]);
+    t1 = m & (a[1] ^ b[1]);
+    t2 = m & (a[2] ^ b[2]);
+    t3 = m & (a[3] ^ b[3]);
+    t4 = m & (a[4] ^ b[4]);
+    t5 = m & (a[5] ^ b[5]);
+    t6 = m & (a[6] ^ b[6]);
+    t7 = m & (a[7] ^ b[7]);
+    t8 = m & (a[8] ^ b[8]);
+    t9 = m & (a[9] ^ b[9]);
+    t10 = m & (a[10] ^ b[10]);
+    t11 = m & (a[11] ^ b[11]);
+    t12 = m & (a[12] ^ b[12]);
+    t13 = m & (a[13] ^ b[13]);
+    t14 = m & (a[14] ^ b[14]);
+    t15 = m & (a[15] ^ b[15]);
 
     a[0] ^= t0;
     a[1] ^= t1;

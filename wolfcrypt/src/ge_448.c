@@ -223,6 +223,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
         u += r[i] - ed448_order[i]; u >>= 8;
     }
     o = 0 - (u >= 0);
+    FE_CT_BARRIER(o);
     u = 0;
     for (i = 0; i < 56; i++) {
         u += r[i] - (ed448_order[i] & o); r[i] = u & 0xff; u >>= 8;
@@ -1195,6 +1196,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     u += (sword64)rd[6] - (sword64)0x0ffffffffffffffL; u >>= 56;
     u += (sword64)rd[7] - (sword64)0x03fffffffffffffL; u >>= 56;
     o = (word64)0 - (u >= 0);
+    FE_CT_BARRIER(o);
     u = 0;
     u += (sword64)rd[0] - (sword64)((word64)0x078c292ab5844f3L & o);
     rd[0] = u & 0xffffffffffffff;
@@ -6551,6 +6553,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     u += (sword32)rd[14] - (sword32)0x0fffffffL; u >>= 28;
     u += (sword32)rd[15] - (sword32)0x03ffffffL; u >>= 28;
     o = (word32)0 - (u >= 0);
+    FE_CT_BARRIER(o);
     u = 0;
     u += (sword32)rd[0] - (sword32)((word32)0x0b5844f3L & o);
     rd[0] = u & 0xfffffff;
