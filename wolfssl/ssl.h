@@ -906,6 +906,18 @@ struct WOLFSSL_X509_STORE {
     WOLF_STACK_OF(WOLFSSL_X509)* trusted;
     WOLF_STACK_OF(WOLFSSL_X509)* owned;
     word32 numAdded; /* Unused, retained for ABI */
+    /* Certs on an SSL_CTX-owned store that AddCA() rejected as issuers
+     * (CA:FALSE, or CA:TRUE without keyCertSign), whether added after the
+     * attach or pushed from certs at attach. Kept only so the store
+     * enumeration APIs still list them, never added to the CertManager.
+     * A cert that is also a CertManager signer is listed and counted once,
+     * except that X509_CA_num() counts it twice without
+     * WOLFSSL_SIGNER_DER_CERT (signers keep no DER to compare).
+     * Cleared by wolfSSL_CertManagerUnloadCAs() (and so
+     * wolfSSL_CTX_UnloadCAs()) on the CertManager's store, but not by the
+     * by-type unloads, as these certs have no signer type.
+     * Guarded by cm->caLock. */
+    WOLF_STACK_OF(WOLFSSL_X509)* nonCaCerts;
 };
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)

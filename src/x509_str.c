@@ -894,6 +894,53 @@ static int X509DerEquals(WOLFSSL_X509* cur, WOLFSSL_X509* x509)
                    x509->derCert->length) == 0;
 }
 
+#ifdef WOLFSSL_SIGNER_DER_CERT
+/* Returns 1 if a signer in cm has the same DER encoding as x509, 0 otherwise.
+ * The caller must hold cm->caLock. */
+static int X509StoreCmHasCert(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_X509* x509)
+{
+    int row;
+    Signer* signer;
+
+    if (x509 == NULL || x509->derCert == NULL)
+        return 0;
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        for (signer = cm->caTable[row]; signer != NULL;
+                signer = signer->next) {
+            if (signer->derCert != NULL &&
+                    signer->derCert->length == x509->derCert->length &&
+                    XMEMCMP(signer->derCert->buffer, x509->derCert->buffer,
+                            x509->derCert->length) == 0) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+#endif
+
+/* Number of certs in sk that are not also signers in cm, so a cert held both
+ * outside and inside the CertManager is counted once. Without
+ * WOLFSSL_SIGNER_DER_CERT signers keep no DER to compare, so every cert in sk
+ * is counted. The caller must hold cm->caLock. */
+static int X509StoreNumNotInCm(WOLFSSL_CERT_MANAGER* cm,
+    WOLF_STACK_OF(WOLFSSL_X509)* sk)
+{
+    int i;
+    int cnt = 0;
+
+    for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+    #ifdef WOLFSSL_SIGNER_DER_CERT
+        if (X509StoreCmHasCert(cm, wolfSSL_sk_X509_value(sk, i)))
+            continue;
+    #else
+        (void)cm;
+    #endif
+        cnt++;
+    }
+    return cnt;
+}
+
 /* Returns 1 if x509's DER matches an entry in either origTrustedSk (an
  * immutable snapshot of the caller's trusted set - store->certs or the
  * set0_trusted_stack override - captured before any intermediates were
@@ -1851,6 +1898,52 @@ WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_CTX_get0_param(
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
 #if defined(WOLFSSL_SIGNER_DER_CERT)
+/* Append a new reference to each cert in src that is not also a signer in
+ * cm to dst. The caller must hold cm->caLock. */
+static int X509StackAppendRefs(WOLFSSL_CERT_MANAGER* cm, WOLFSSL_STACK* dst,
+    WOLF_STACK_OF(WOLFSSL_X509)* src)
+{
+    int i;
+    WOLFSSL_X509* x509;
+
+    for (i = 0; i < wolfSSL_sk_X509_num(src); i++) {
+        x509 = wolfSSL_sk_X509_value(src, i);
+        /* Already listed from the CertManager. */
+        if (X509StoreCmHasCert(cm, x509))
+            continue;
+        if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_X509_up_ref error");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        if (wolfSSL_sk_X509_push(dst, x509) <= 0) {
+            WOLFSSL_MSG("wolfSSL_sk_X509_push error");
+            wolfSSL_X509_free(x509);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+/* Append the certs a store holds outside its CertManager - store->certs on a
+ * store not yet attached to an SSL_CTX, and store->nonCaCerts on one that is
+ * - so enumeration lists everything X509_STORE_add_cert() accepted. A cert
+ * that is also a CertManager signer (e.g. loaded with
+ * SSL_CTX_load_verify_locations(), before or after) is listed from the
+ * CertManager only. */
+static int X509StoreAppendNonCmCerts(WOLFSSL_X509_STORE* store,
+    WOLFSSL_STACK* dst)
+{
+    int ret;
+
+    if (wc_LockMutex(&store->cm->caLock) != 0)
+        return WOLFSSL_FATAL_ERROR;
+    ret = X509StackAppendRefs(store->cm, dst, store->certs);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = X509StackAppendRefs(store->cm, dst, store->nonCaCerts);
+    wc_UnLockMutex(&store->cm->caLock);
+    return ret;
+}
+
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
     WOLFSSL_X509_STORE_CTX* ctx, WOLFSSL_X509_NAME* name)
 {
@@ -1883,11 +1976,38 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
         }
     }
 
+    if (err == 0 && store->cm == NULL) {
+        err = 1;
+    }
+
     if (err == 0) {
         sk = wolfSSL_CertManagerGetCerts(store->cm);
         if (sk == NULL) {
-            err = 1;
+            /* GetCerts() also returns NULL when the CertManager has no
+             * signers to list. Start from an empty stack only then, as certs
+             * held outside the CertManager can still match. Any other NULL
+             * is an error. */
+            if (wc_LockMutex(&store->cm->caLock) != 0) {
+                err = 1;
+            }
+            else {
+                if (wolfssl_cm_num_der_certs(store->cm) != 0) {
+                    err = 1;
+                }
+                wc_UnLockMutex(&store->cm->caLock);
+            }
+            if (err == 0) {
+                sk = wolfSSL_sk_X509_new_null();
+                if (sk == NULL) {
+                    err = 1;
+                }
+            }
         }
+    }
+
+    /* Match against the same set X509_STORE_get0_objects() lists. */
+    if (err == 0 && X509StoreAppendNonCmCerts(store, sk) != WOLFSSL_SUCCESS) {
+        err = 1;
     }
 
     if (err == 0) {
@@ -2127,6 +2247,10 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
                 wolfSSL_sk_X509_pop_free(store->trusted, NULL);
                 store->trusted = NULL;
             }
+            if (store->nonCaCerts != NULL) {
+                wolfSSL_sk_X509_pop_free(store->nonCaCerts, NULL);
+                store->nonCaCerts = NULL;
+            }
 #endif
 #ifdef OPENSSL_ALL
             if (store->objs != NULL) {
@@ -2339,6 +2463,46 @@ static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
     return result;
 }
 
+/* Retain a certificate that AddCA() rejected as an issuer so that store
+ * enumeration still returns it. It is not added to the CertManager, so it
+ * cannot act as an issuer. store->nonCaCerts is guarded by cm->caLock, so this
+ * is as safe to call concurrently as adding a CA. The same cert may also be,
+ * or later become, a CertManager signer (AddCA() checks CA status before
+ * looking for duplicates, and SSL_CTX_load_verify_locations() adds without
+ * checking CA status); enumeration and X509_CA_num() then list it once. */
+static int X509StoreKeepNonCa(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
+{
+    int ret = WOLFSSL_SUCCESS;
+    int have = 0;
+    int i;
+
+    if (wc_LockMutex(&store->cm->caLock) != 0)
+        return WOLFSSL_FATAL_ERROR;
+
+    for (i = 0; !have && i < wolfSSL_sk_X509_num(store->nonCaCerts); i++) {
+        if (X509DerEquals(wolfSSL_sk_X509_value(store->nonCaCerts, i), x509))
+            have = 1;
+    }
+
+    if (!have && store->nonCaCerts == NULL) {
+        store->nonCaCerts = wolfSSL_sk_X509_new_null();
+        if (store->nonCaCerts == NULL)
+            ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (!have && ret == WOLFSSL_SUCCESS) {
+        if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (wolfSSL_sk_X509_push(store->nonCaCerts, x509) <= 0) {
+            wolfSSL_X509_free(x509);
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    wc_UnLockMutex(&store->cm->caLock);
+    return ret;
+}
+
 /* Push certificates from the store's X509 stacks (certs and trusted) into the
  * CertManager, then free and NULL the stacks to signal that this store is now
  * owned by an SSL_CTX.
@@ -2361,13 +2525,20 @@ WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store)
     if (store == NULL || store->cm == NULL)
         return WOLFSSL_SUCCESS;
 
-    /* Push non-self-signed intermediates from store->certs into the CM. */
+    /* Push non-self-signed certs from store->certs into the CM as user
+     * intermediates, so AddCA() enforces CA:TRUE and keyCertSign. Certs it
+     * rejects are kept in store->nonCaCerts for enumeration only. */
     if (store->certs != NULL) {
         num = wolfSSL_sk_X509_num(store->certs);
         for (i = 0; i < num; i++) {
             x509 = wolfSSL_sk_X509_value(store->certs, i);
             if (x509 != NULL) {
-                ret = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
+                ret = X509StoreAddCa(store, x509, WOLFSSL_USER_INTER);
+                if (ret == WC_NO_ERR_TRACE(NOT_CA_ERROR)) {
+                    WOLFSSL_MSG("X509StorePushCertsToCM: not a CA, not added "
+                                "to CertManager");
+                    ret = X509StoreKeepNonCa(store, x509);
+                }
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("X509StorePushCertsToCM: failed to add cert");
                     anyFail = 1;
@@ -2375,7 +2546,7 @@ WOLFSSL_LOCAL int X509StorePushCertsToCM(WOLFSSL_X509_STORE* store)
             }
         }
         /* Free and NULL to mark store as CTX-owned. Future add_cert calls
-         * will go directly to the CertManager. */
+         * go to the CertManager, or to nonCaCerts if AddCA() rejects them. */
         wolfSSL_sk_X509_pop_free(store->certs, NULL);
         store->certs = NULL;
     }
@@ -2413,8 +2584,9 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
     if (store != NULL && store->cm != NULL && x509 != NULL
                                                 && x509->derCert != NULL) {
         /* Mimic the openssl behavior, must be self signed to be considered
-         * trusted, addCA() internals will do additional checks for
-         * CA=TRUE */
+         * trusted. Other certs are held in store->certs until the store is
+         * attached to an SSL_CTX, then added to the CM as user intermediates,
+         * for which AddCA() checks CA=TRUE and keyCertSign. */
         if (wolfSSL_X509_NAME_cmp(&x509->issuer, &x509->subject) == 0) {
             result = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
             if (result == WOLFSSL_SUCCESS && store->trusted != NULL) {
@@ -2449,9 +2621,17 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
             }
             else {
                 /* If store->certs is NULL, this is an X509_STORE managed by an
-                 * SSL_CTX, preserve behavior and always add as USER_CA */
+                 * SSL_CTX, add straight to the CM as a user intermediate */
                 result = X509StoreAddCa(
-                            store, x509, WOLFSSL_USER_CA);
+                            store, x509, WOLFSSL_USER_INTER);
+                if (result == WC_NO_ERR_TRACE(NOT_CA_ERROR)) {
+                    /* Like OpenSSL, accept the cert into the store, but it
+                     * cannot act as an issuer, so keep it out of the CM and
+                     * only in nonCaCerts for enumeration. */
+                    WOLFSSL_MSG("X509_STORE_add_cert: not a CA, not added to "
+                                "CertManager");
+                    result = X509StoreKeepNonCa(store, x509);
+                }
             }
         }
     }
@@ -2747,9 +2927,11 @@ int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
                 }
             }
 
-            if (store->certs != NULL) {
-                cnt_ret += wolfSSL_sk_X509_num(store->certs);
-            }
+            /* Count certs the store holds outside the CM (store->certs
+             * before attach, nonCaCerts after), so the count does not change
+             * when the store is attached, but not those also in the CM. */
+            cnt_ret += X509StoreNumNotInCm(store->cm, store->certs);
+            cnt_ret += X509StoreNumNotInCm(store->cm, store->nonCaCerts);
             wc_UnLockMutex(&store->cm->caLock);
         }
     }
@@ -2895,7 +3077,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
 
 #if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
     cert_stack = wolfSSL_CertManagerGetCerts(store->cm);
-    if (cert_stack == NULL && wolfSSL_sk_X509_num(store->certs) > 0) {
+    if (cert_stack == NULL) {
         cert_stack = wolfSSL_sk_X509_new_null();
         if (cert_stack == NULL) {
             WOLFSSL_MSG("wolfSSL_sk_X509_OBJECT_new error");
@@ -2903,17 +3085,8 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
         }
     }
     /* Reference borrowed certs so cert_stack owns every entry. */
-    for (i = 0; i < wolfSSL_sk_X509_num(store->certs); i++) {
-        x509 = wolfSSL_sk_X509_value(store->certs, i);
-        if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("wolfSSL_X509_up_ref error");
-            goto err_cleanup;
-        }
-        if (wolfSSL_sk_X509_push(cert_stack, x509) <= 0) {
-            WOLFSSL_MSG("wolfSSL_sk_X509_push error");
-            wolfSSL_X509_free(x509);
-            goto err_cleanup;
-        }
+    if (X509StoreAppendNonCmCerts(store, cert_stack) != WOLFSSL_SUCCESS) {
+        goto err_cleanup;
     }
     for (i = 0; i < wolfSSL_sk_X509_num(cert_stack); i++) {
         x509 = (WOLFSSL_X509 *)wolfSSL_sk_value(cert_stack, i);

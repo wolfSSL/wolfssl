@@ -6151,3 +6151,492 @@ int test_wolfSSL_CTX_set_cert_store(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+#if defined(WOLFSSL_SIGNER_DER_CERT)
+/* Check that cert is listed exactly n times by each store enumeration API:
+ * X509_STORE_get0_objects() (OPENSSL_ALL) and X509_STORE_get1_certs(). */
+static int store_lists_cert_n(X509_STORE* store, X509* cert, int n)
+{
+    EXPECT_DECLS;
+    X509_STORE_CTX* sctx = NULL;
+    WOLF_STACK_OF(X509)* certs = NULL;
+    int found = 0;
+    int i;
+#ifdef OPENSSL_ALL
+    WOLF_STACK_OF(X509_OBJECT)* objs = NULL;
+    X509_OBJECT* obj = NULL;
+    X509* x = NULL;
+
+    ExpectNotNull(objs = X509_STORE_get0_objects(store));
+    for (i = 0; i < sk_X509_OBJECT_num(objs); i++) {
+        obj = sk_X509_OBJECT_value(objs, i);
+        if (X509_OBJECT_get_type(obj) != X509_LU_X509)
+            continue;
+        x = X509_OBJECT_get0_X509(obj);
+        if (x != NULL && X509_cmp(x, cert) == 0)
+            found++;
+    }
+    ExpectIntEQ(found, n);
+#endif
+
+    ExpectNotNull(sctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(sctx, store, NULL, NULL), SSL_SUCCESS);
+    ExpectNotNull(certs = X509_STORE_get1_certs(sctx,
+        X509_get_subject_name(cert)));
+    found = 0;
+    for (i = 0; i < sk_X509_num(certs); i++) {
+        if (X509_cmp(sk_X509_value(certs, i), cert) == 0)
+            found++;
+    }
+    ExpectIntEQ(found, n);
+    sk_X509_pop_free(certs, NULL);
+    X509_STORE_CTX_free(sctx);
+    return EXPECT_RESULT();
+}
+
+static int store_lists_cert_once(X509_STORE* store, X509* cert)
+{
+    return store_lists_cert_n(store, cert, 1);
+}
+#endif
+
+/* Attach a store holding root and inter to a fresh SSL_CTX - either adding
+ * both before SSL_CTX_set_cert_store() (pushed into the CertManager on attach)
+ * or after it (added straight to the CertManager) - then verify leaf against
+ * the CertManager and with X509_verify_cert() on the attached store.  The
+ * CertManager verify result is returned via *verifyRet, and inter must still
+ * be listed by the store enumeration APIs. */
+static int ctx_store_verify_leaf(X509* root, X509* inter, X509* leaf,
+    int addAfterAttach, int* verifyRet)
+{
+    EXPECT_DECLS;
+    SSL_CTX* ctx = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* sctx = NULL;
+    const unsigned char* der = NULL;
+    int derSz = 0;
+
+    ExpectNotNull(ctx = SSL_CTX_new(TLS_client_method()));
+    ExpectNotNull(store = X509_STORE_new());
+    if (!addAfterAttach) {
+        ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
+        ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+        /* A second add must not make the attach list it twice. */
+        ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+    }
+    if (ctx != NULL && store != NULL) {
+        SSL_CTX_set_cert_store(ctx, store);
+    }
+    else {
+        X509_STORE_free(store);
+        store = NULL;
+    }
+    if (addAfterAttach) {
+        ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
+        /* Like OpenSSL, adding a non-CA succeeds (applications such as nginx
+         * treat a failure as fatal), but it must not become a CA. */
+        ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+        /* Adding it again also succeeds and must not duplicate it. */
+        ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+    }
+
+    ExpectNotNull(der = wolfSSL_X509_get_der(leaf, &derSz));
+    if (EXPECT_SUCCESS() && verifyRet != NULL) {
+        *verifyRet = wolfSSL_CertManagerVerifyBuffer(
+            wolfSSL_CTX_GetCertManager(ctx), der, derSz, WOLFSSL_FILETYPE_ASN1);
+    }
+
+    /* X509_verify_cert() on the attached store relies only on the
+     * CertManager and must reject the leaf too. */
+    ExpectNotNull(sctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(sctx, store, leaf, NULL), SSL_SUCCESS);
+    ExpectIntNE(X509_verify_cert(sctx), 1);
+    X509_STORE_CTX_free(sctx);
+
+    if (store != NULL) {
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        /* Like OpenSSL, the rejected cert is still in the store and is
+         * listed exactly once, even though it is not in the CertManager. */
+        ExpectIntEQ(store_lists_cert_once(store, inter), TEST_SUCCESS);
+    #endif
+        /* root and inter are counted whether added before or after the
+         * attach. */
+        ExpectIntEQ(wolfSSL_X509_CA_num(store), 2);
+
+        /* Unloading the CAs of the attached store's cert manager also
+         * drops inter, which is held outside it. */
+        ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_CA_num(store), 0);
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        ExpectIntEQ(store_lists_cert_n(store, inter, 0), TEST_SUCCESS);
+    #endif
+    }
+
+    SSL_CTX_free(ctx);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Regression: certificates added to an X509_STORE that is then attached with
+ * SSL_CTX_set_cert_store() must not bypass the CA admission checks.  A
+ * CA:FALSE certificate, or a CA:TRUE certificate whose KeyUsage lacks
+ * keyCertSign, must not become a trust anchor for leaves signed by its key,
+ * whether it was added before or after the attach.  Legitimate intermediates
+ * must still be usable, survive wolfSSL_CertManagerUnloadIntermediateCerts()
+ * (which flushes only CAs cached from a peer's chain), and be unloadable as
+ * WOLFSSL_USER_INTER. */
+int test_wolfSSL_CTX_set_cert_store_non_ca(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    SSL_CTX* ctx = NULL;
+    X509_STORE* store = NULL;
+    X509* root = NULL;
+    X509* inter = NULL;
+    X509* inter2 = NULL;
+    X509* leaf = NULL;
+    X509_STORE_CTX* sctx = NULL;
+    int verifyRet;
+    int addAfterAttach;
+
+    /* Sanity: legitimate intermediates pushed on attach anchor the chain.
+     * Their unload behavior is checked at the end. */
+    ExpectNotNull(root = wolfSSL_X509_load_certificate_file(
+        "./certs/ca-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(inter = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(inter2 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(ctx = SSL_CTX_new(TLS_client_method()));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, inter2), SSL_SUCCESS);
+    if (ctx != NULL && store != NULL) {
+        SSL_CTX_set_cert_store(ctx, store);
+    }
+    else {
+        X509_STORE_free(store);
+    }
+    store = NULL;
+    ExpectIntEQ(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    /* X509_verify_cert() on the attached store accepts the chain too. */
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(sctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(sctx, SSL_CTX_get_cert_store(ctx), leaf,
+        NULL), SSL_SUCCESS);
+    ExpectIntEQ(X509_verify_cert(sctx), 1);
+    X509_STORE_CTX_free(sctx);
+    sctx = NULL;
+    X509_free(leaf);
+    leaf = NULL;
+    X509_free(root);
+    root = NULL;
+    X509_free(inter);
+    inter = NULL;
+    X509_free(inter2);
+    inter2 = NULL;
+
+#if defined(WOLFSSL_SIGNER_DER_CERT)
+    /* A store not attached to an SSL_CTX lists a non-self-signed cert held
+     * only in store->certs, both while its CertManager has no signers and
+     * once a root is added. */
+    ExpectNotNull(root = wolfSSL_X509_load_certificate_file(
+        "./certs/ca-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(inter = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+    ExpectIntEQ(store_lists_cert_once(store, inter), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_CA_num(store), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, root), SSL_SUCCESS);
+    ExpectIntEQ(store_lists_cert_once(store, inter), TEST_SUCCESS);
+    ExpectIntEQ(store_lists_cert_once(store, root), TEST_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_CA_num(store), 2);
+    X509_STORE_free(store);
+    store = NULL;
+    X509_free(root);
+    root = NULL;
+    X509_free(inter);
+    inter = NULL;
+#endif
+
+    /* CA:FALSE intermediate in the store must not anchor a leaf it signed. */
+    ExpectNotNull(root = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca_false_intermediate/test_ca.pem",
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(inter = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca_false_intermediate/test_int_not_cacert.pem",
+        SSL_FILETYPE_PEM));
+    ExpectNotNull(leaf = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca_false_intermediate/test_sign_bynoca_srv.pem",
+        SSL_FILETYPE_PEM));
+    for (addAfterAttach = 0; addAfterAttach <= 1; addAfterAttach++) {
+        verifyRet = WOLFSSL_SUCCESS;
+        ExpectIntEQ(ctx_store_verify_leaf(root, inter, leaf, addAfterAttach,
+            &verifyRet), TEST_SUCCESS);
+        ExpectIntEQ(verifyRet, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    }
+    {
+        /* The CA:FALSE cert is already in the CertManager (loading verify
+         * locations does not check CA status), then also added to the
+         * CTX-owned store. It must still be listed only once. */
+        SSL_CTX* ctx2 = NULL;
+
+        ExpectNotNull(ctx2 = SSL_CTX_new(TLS_client_method()));
+        ExpectIntEQ(SSL_CTX_load_verify_locations(ctx2,
+            "./certs/intermediate/ca_false_intermediate/"
+            "test_int_not_cacert.pem", NULL), SSL_SUCCESS);
+        ExpectIntEQ(X509_STORE_add_cert(SSL_CTX_get_cert_store(ctx2), inter),
+            SSL_SUCCESS);
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        /* Duplicates are detected by comparing against the signers' DER,
+         * which is only kept with WOLFSSL_SIGNER_DER_CERT. */
+        ExpectIntEQ(store_lists_cert_once(SSL_CTX_get_cert_store(ctx2),
+            inter), TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 1);
+    #endif
+        SSL_CTX_free(ctx2);
+        ctx2 = NULL;
+
+        /* Reverse order: added to the CTX-owned store first (kept outside
+         * the CertManager), then loaded into the CertManager. Still listed
+         * and counted once. */
+        ExpectNotNull(ctx2 = SSL_CTX_new(TLS_client_method()));
+        ExpectIntEQ(X509_STORE_add_cert(SSL_CTX_get_cert_store(ctx2), inter),
+            SSL_SUCCESS);
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        /* Only the non-CA cert, with no CertManager signers at all. */
+        ExpectIntEQ(store_lists_cert_once(SSL_CTX_get_cert_store(ctx2),
+            inter), TEST_SUCCESS);
+    #endif
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 1);
+        ExpectIntEQ(SSL_CTX_load_verify_locations(ctx2,
+            "./certs/intermediate/ca_false_intermediate/"
+            "test_int_not_cacert.pem", NULL), SSL_SUCCESS);
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        ExpectIntEQ(store_lists_cert_once(SSL_CTX_get_cert_store(ctx2),
+            inter), TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 1);
+        /* Unloading only the user CAs removes the cert manager's copy; the
+         * store still holds the cert outside it and lists it once. */
+        ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(
+            wolfSSL_CTX_GetCertManager(ctx2), WOLFSSL_USER_CA),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(store_lists_cert_once(SSL_CTX_get_cert_store(ctx2),
+            inter), TEST_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 1);
+    #endif
+        SSL_CTX_free(ctx2);
+        ctx2 = NULL;
+
+        /* A cert kept by the context's own store goes away with its cert
+         * manager when SSL_CTX_set_cert_store() replaces both, and is not
+         * listed by the new store. */
+        ExpectNotNull(ctx2 = SSL_CTX_new(TLS_client_method()));
+        ExpectIntEQ(X509_STORE_add_cert(SSL_CTX_get_cert_store(ctx2), inter),
+            SSL_SUCCESS);
+        if (ctx2 != NULL) {
+            ExpectNotNull(ctx2->x509_store.nonCaCerts);
+        }
+        {
+            X509_STORE* store2 = NULL;
+
+            ExpectNotNull(store2 = X509_STORE_new());
+            if (ctx2 != NULL && store2 != NULL) {
+                SSL_CTX_set_cert_store(ctx2, store2);
+            }
+            else {
+                X509_STORE_free(store2);
+            }
+        }
+        if (ctx2 != NULL) {
+            ExpectNull(ctx2->x509_store.nonCaCerts);
+        }
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 0);
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        ExpectIntEQ(store_lists_cert_n(SSL_CTX_get_cert_store(ctx2), inter,
+            0), TEST_SUCCESS);
+    #endif
+        SSL_CTX_free(ctx2);
+        ctx2 = NULL;
+
+        /* The context's old cert manager can outlive the context when
+         * something else holds a reference to it. Replacing the store must
+         * not leave it pointing at the context's own store, which is freed
+         * with the context: unloading its CAs afterwards must not touch it. */
+        {
+            WOLFSSL_CERT_MANAGER* cm = NULL;
+            X509_STORE* store2 = NULL;
+
+            ExpectNotNull(ctx2 = SSL_CTX_new(TLS_client_method()));
+            ExpectIntEQ(X509_STORE_add_cert(SSL_CTX_get_cert_store(ctx2),
+                inter), SSL_SUCCESS);
+            ExpectNotNull(cm = wolfSSL_CTX_GetCertManager(ctx2));
+            /* Only keep cm if this test now holds its own reference. */
+            if (cm != NULL && wolfSSL_CertManager_up_ref(cm) != 1) {
+                cm = NULL;
+            }
+            ExpectNotNull(cm);
+            ExpectNotNull(store2 = X509_STORE_new());
+            if (ctx2 != NULL && store2 != NULL) {
+                SSL_CTX_set_cert_store(ctx2, store2);
+            }
+            else {
+                X509_STORE_free(store2);
+            }
+            if (cm != NULL) {
+                ExpectNull(cm->x509_store_p);
+            }
+            SSL_CTX_free(ctx2);
+            ctx2 = NULL;
+            if (cm != NULL) {
+                ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(cm),
+                    WOLFSSL_SUCCESS);
+                wolfSSL_CertManagerFree(cm);
+            }
+        }
+
+        /* Unloading the CAs also drops the certs kept outside the
+         * CertManager, as it did when every cert added to an SSL_CTX-owned
+         * store was a signer. The store can take the cert again after. */
+        ExpectNotNull(ctx2 = SSL_CTX_new(TLS_client_method()));
+        ExpectIntEQ(X509_STORE_add_cert(SSL_CTX_get_cert_store(ctx2), inter),
+            SSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 1);
+        ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx2), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 0);
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        ExpectIntEQ(store_lists_cert_n(SSL_CTX_get_cert_store(ctx2), inter,
+            0), TEST_SUCCESS);
+    #endif
+        ExpectIntEQ(X509_STORE_add_cert(SSL_CTX_get_cert_store(ctx2), inter),
+            SSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_CA_num(SSL_CTX_get_cert_store(ctx2)), 1);
+    #if defined(WOLFSSL_SIGNER_DER_CERT)
+        ExpectIntEQ(store_lists_cert_once(SSL_CTX_get_cert_store(ctx2),
+            inter), TEST_SUCCESS);
+    #endif
+        SSL_CTX_free(ctx2);
+    }
+    X509_free(root);
+    root = NULL;
+    X509_free(inter);
+    inter = NULL;
+    X509_free(leaf);
+    leaf = NULL;
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && \
+    !defined(NO_SHA256) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN_TIME) && !defined(ALLOW_INVALID_CERTSIGN)
+    /* CA:TRUE intermediate without keyCertSign must not anchor a leaf. */
+    {
+        WC_RNG rng;
+        RsaKey caKey, intKey, leafKey;
+        int rngI = 0, caI = 0, intI = 0, leafI = 0;
+        word32 idx;
+        byte* intDer = NULL;
+        byte* leafDer = NULL;
+        int intSz = 0, leafSz = 0;
+        const byte* p;
+
+        intDer  = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        leafDer = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ExpectNotNull(intDer);
+        ExpectNotNull(leafDer);
+
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        if (EXPECT_SUCCESS()) rngI = 1;
+        ExpectIntEQ(wc_InitRsaKey(&caKey, NULL), 0);
+        if (EXPECT_SUCCESS()) caI = 1;
+        idx = 0;
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(ca_key_der_2048, &idx, &caKey,
+            sizeof_ca_key_der_2048), 0);
+        ExpectIntEQ(wc_InitRsaKey(&intKey, NULL), 0);
+        if (EXPECT_SUCCESS()) intI = 1;
+        idx = 0;
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &intKey,
+            sizeof_server_key_der_2048), 0);
+        ExpectIntEQ(wc_InitRsaKey(&leafKey, NULL), 0);
+        if (EXPECT_SUCCESS()) leafI = 1;
+        idx = 0;
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(client_key_der_2048, &idx,
+            &leafKey, sizeof_client_key_der_2048), 0);
+
+        ExpectIntGT((intSz = gen_ca_int_keyusage(intDer, FOURK_BUF, &intKey,
+            &caKey, &rng, "No keyCertSign Intermediate", "digitalSignature",
+            0)), 0);
+        ExpectIntGT((leafSz = gen_leaf_under_int(leafDer, FOURK_BUF,
+            &leafKey, intDer, intSz, &intKey, &rng, "Leaf under bad int")), 0);
+
+        p = ca_cert_der_2048;
+        ExpectNotNull(root = d2i_X509(NULL, &p, (int)sizeof_ca_cert_der_2048));
+        p = intDer;
+        ExpectNotNull(inter = d2i_X509(NULL, &p, intSz));
+        p = leafDer;
+        ExpectNotNull(leaf = d2i_X509(NULL, &p, leafSz));
+        for (addAfterAttach = 0; addAfterAttach <= 1; addAfterAttach++) {
+            verifyRet = WOLFSSL_SUCCESS;
+            ExpectIntEQ(ctx_store_verify_leaf(root, inter, leaf,
+                addAfterAttach, &verifyRet), TEST_SUCCESS);
+            ExpectIntEQ(verifyRet, WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+        }
+        X509_free(root);
+        X509_free(inter);
+        X509_free(leaf);
+
+        if (rngI)  wc_FreeRng(&rng);
+        if (caI)   wc_FreeRsaKey(&caKey);
+        if (intI)  wc_FreeRsaKey(&intKey);
+        if (leafI) wc_FreeRsaKey(&leafKey);
+        XFREE(intDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(leafDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+    /* The pushed legitimate intermediates are user intermediates, not chain
+     * CAs cached from a peer: flushing the peer-cached intermediates keeps
+     * them, while unloading WOLFSSL_USER_INTER removes them. */
+    ExpectIntEQ(wolfSSL_CertManagerUnloadIntermediateCerts(
+        wolfSSL_CTX_GetCertManager(ctx)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(
+        wolfSSL_CTX_GetCertManager(ctx), WOLFSSL_USER_INTER), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    /* Same for intermediates added to the store after it is attached. */
+    inter = NULL;
+    inter2 = NULL;
+    ExpectNotNull(inter = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(inter2 = wolfSSL_X509_load_certificate_file(
+        "./certs/intermediate/ca-int2-cert.pem", SSL_FILETYPE_PEM));
+    ExpectNotNull(store = SSL_CTX_get_cert_store(ctx));
+    ExpectIntEQ(X509_STORE_add_cert(store, inter), SSL_SUCCESS);
+    ExpectIntEQ(X509_STORE_add_cert(store, inter2), SSL_SUCCESS);
+    store = NULL;
+    ExpectIntEQ(wolfSSL_CertManagerUnloadIntermediateCerts(
+        wolfSSL_CTX_GetCertManager(ctx)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(
+        wolfSSL_CTX_GetCertManager(ctx), WOLFSSL_USER_INTER), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerify(wolfSSL_CTX_GetCertManager(ctx),
+        "./certs/intermediate/server-int-cert.pem", SSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    X509_free(inter);
+    X509_free(inter2);
+    SSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
