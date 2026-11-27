@@ -9099,7 +9099,7 @@ int test_dtls12_cookie_secret_secondary_cleared(void)
      * make the s1 cookie verify - then clear the secondary again. */
     ExpectIntEQ(wolfSSL_DTLS_SetCookieSecret(ssl_s, s2, sizeof(s2)), 0);
     ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s1, sizeof(s1)), 0);
-    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, NULL, 0), 0);
+    ExpectIntEQ(wolfSSL_DTLS_SetCookieSecretSecondary(ssl_s, s1, 0), 0);
 
     /* Server processes CH2: the s1 cookie no longer verifies (only primary s2
      * remains), so the server stays stateless. */

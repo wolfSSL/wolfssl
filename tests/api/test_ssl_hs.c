@@ -449,6 +449,34 @@ int test_wolfSSL_dtls_peer_buffers(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_dtls13_scheduled_work_readiness(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+    WOLFSSL_CTX* tlsCtx = NULL;
+    WOLFSSL_CTX* dtlsCtx = NULL;
+    WOLFSSL* tls = NULL;
+    WOLFSSL* dtls = NULL;
+
+    ExpectNotNull(tlsCtx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(dtlsCtx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
+    ExpectNotNull(tls = wolfSSL_new(tlsCtx));
+    ExpectNotNull(dtls = wolfSSL_new(dtlsCtx));
+
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(tls), 0);
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(tls), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_dtls13_pending_work(dtls), 0);
+    ExpectIntEQ(wolfSSL_dtls13_do_scheduled_work(dtls), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(dtls);
+    wolfSSL_free(tls);
+    wolfSSL_CTX_free(dtlsCtx);
+    wolfSSL_CTX_free(tlsCtx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test wolfSSL_SSL_do_handshake().
  *
  * Drives a handshake through the OpenSSL-compatibility entry point, which
