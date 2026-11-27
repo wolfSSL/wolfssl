@@ -2802,7 +2802,10 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 outLen
     \ingroup ASN
 
     \brief This function encodes a Curve25519 key to DER format. It can encode
-    either a private key, a public key, or both.
+    either a private key, a public key, or both. When both are set, the
+    [1] publicKey is written as an RFC 5958 BIT STRING, which wolfSSL
+    releases before this change cannot read;
+    wc_Curve25519PrivateKeyToDer() omits it.
 
     \return >0 Success, length of DER encoding
     \return BAD_FUNC_ARG Returns if key or output is null
@@ -2921,6 +2924,9 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
 /*!
     \ingroup ED25519
     \brief Encodes Ed25519 key to DER format.
+    The [1] publicKey is written as an RFC 5958 BIT STRING, which
+    wolfSSL releases before this change cannot read; wc_Ed25519PrivateKeyToDer()
+    omits it.
 
     \return Size on success
     \return negative on error
@@ -3081,6 +3087,9 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 /*!
     \ingroup ED448
     \brief Encodes Ed448 key to DER format.
+    The [1] publicKey is written as an RFC 5958 BIT STRING, which
+    wolfSSL releases before this change cannot read; wc_Ed448PrivateKeyToDer()
+    omits it.
 
     \return Size on success
     \return negative on error
