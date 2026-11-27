@@ -864,6 +864,28 @@ static void wb_build_cert_status_cb(WbFix* f)
     f->cm->ocsp_stapling = NULL;
     XFREE(ocsp, NULL, DYNAMIC_TYPE_OCSP);
 }
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_send_certificate_status(WbFix* f)
+{
+    int failed = 0;
+
+    if (SendCertificateStatus(NULL) != BAD_FUNC_ARG)
+        failed = 1;
+
+    wb_reset(f);
+    f->ctx->cm = NULL;
+    if (SendCertificateStatus(f->ssl) != BAD_FUNC_ARG)
+        failed = 1;
+
+    f->ctx->cm = f->cm;
+    /* Without a negotiated status type no response is queued. */
+    if (SendCertificateStatus(f->ssl) != 0)
+        failed = 1;
+
+    return failed;
+}
+#endif
+
 #endif /* !NO_WOLFSSL_SERVER */
 #endif /* (HAVE_CERTIFICATE_STATUS_REQUEST || ..._V2) && !WOLFSSL_NO_TLS12 */
 
@@ -1291,6 +1313,12 @@ int main(void)
 #ifndef NO_WOLFSSL_SERVER
     wb_get_ctx_ocsp_lock(&f);
     wb_build_cert_status_cb(&f);
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wb_send_certificate_status(&f)) {
+        puts("internal null-guard white-box: certificate status arguments failed");
+        failed = 1;
+    }
+#endif
 #endif
 #endif
 #ifndef NO_SESSION_CACHE
