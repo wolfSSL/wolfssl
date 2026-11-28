@@ -12398,7 +12398,7 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
-    \brief この関数は、wolfSSLコンテキストで優先順位に従って許可する署名アルゴリズムのリストを設定します。リストはnull終端のテキスト文字列で、コロン区切りのリストです。各要素は "<公開鍵アルゴリズム>+<ハッシュ>" の形式（例: "RSA-PSS+SHA256:ECDSA+SHA384"）で指定します。Edwards曲線アルゴリズムである "ED25519" および "ED448" はハッシュがアルゴリズムに内包されるため、サフィックスを付けずに記述します。コンテキストに既に保持されているリストは置き換えられます。
+    \brief この関数は、wolfSSLコンテキストで優先順位に従って許可する署名アルゴリズムのリストを設定します。リストはnull終端のテキスト文字列で、コロン区切りのリストです。各要素は "<公開鍵アルゴリズム>+<ハッシュ>" の形式（例: "RSA-PSS+SHA256:ECDSA+SHA384"）で指定します。Edwards曲線アルゴリズムである "ED25519" および "ED448"、ならびに ML-DSA アルゴリズムである "MLDSA44"、"MLDSA65"、"MLDSA87" はハッシュがアルゴリズムに内包されるため、サフィックスを付けずに記述します。コンテキストに既に保持されているリストは置き換えられます。
 
     認識される公開鍵トークンとハッシュトークン、および各トークンを利用するために必要なビルドオプションを以下の表に示します。
 
@@ -12413,6 +12413,12 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     | ED448             | HAVE_ED448 （ハッシュ指定不要）                    |
     | DSA               | !NO_DSA                                            |
     | SM2               | WOLFSSL_SM2 かつ WOLFSSL_SM3（ハッシュは SM3 固定） |
+    | MLDSA44           | WOLFSSL_HAVE_MLDSA かつ !WOLFSSL_NO_ML_DSA_44      |
+    |                   | （ハッシュ指定不要）                                |
+    | MLDSA65           | WOLFSSL_HAVE_MLDSA かつ !WOLFSSL_NO_ML_DSA_65      |
+    |                   | （ハッシュ指定不要）                                |
+    | MLDSA87           | WOLFSSL_HAVE_MLDSA かつ !WOLFSSL_NO_ML_DSA_87      |
+    |                   | （ハッシュ指定不要）                                |
 
     ハッシュトークン:
 
@@ -12428,7 +12434,7 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     TLS 1.3 における注意事項: RFC 8446 の規定により、RSA PKCS#1 v1.5、DSA、SHA-1、SHA-224 はハンドシェイク署名としては使用できず、リストに含まれていてもネゴシエーション時に除外されます。"RSA-PSS+SHAxxx" を指定した場合は rsa_pss_rsae_shaxxx と rsa_pss_pss_shaxxx の両方のスキームが追加されます。Brainpool ECDSA 署名スキーム（RFC 8734）は本文字列インタフェースでは選択できず、HAVE_ECC_BRAINPOOL が有効な場合に自動でネゴシエーションされます。
 
     \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
-    \param [in] list "<公開鍵アルゴリズム>+<ハッシュ>" 要素（または digest を伴わない "ED25519" / "ED448"）のコロン区切りリスト。
+    \param [in] list "<公開鍵アルゴリズム>+<ハッシュ>" 要素（またはハッシュを伴わない "ED25519" / "ED448" / "MLDSA44" / "MLDSA65" / "MLDSA87"）のコロン区切りリスト。
 
     \return WOLFSSL_SUCCESS 成功時。
     \return WOLFSSL_FAILURE ポインタパラメータがNULLの場合、suites 構造体の確保に失敗した場合、またはリスト中のいずれかのトークンが認識されないか現在のビルドでサポートされていない場合。
@@ -12456,7 +12462,7 @@ int  wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list);
     \brief この関数は、wolfSSLセッションで優先順位に従って許可する署名アルゴリズムのリストを設定します。リストの形式、認識される公開鍵トークンおよびハッシュトークンは wolfSSL_CTX_set1_sigalgs_list() と同一です。トークン一覧および TLS 1.3 における注意事項については wolfSSL_CTX_set1_sigalgs_list() の説明を参照してください。セッションに既に保持されているリストは置き換えられます。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
-    \param [in] list "<公開鍵アルゴリズム>+<ハッシュ>" 要素（または digest を伴わない "ED25519" / "ED448"）のコロン区切りリスト。
+    \param [in] list "<公開鍵アルゴリズム>+<ハッシュ>" 要素（またはハッシュを伴わない "ED25519" / "ED448" / "MLDSA44" / "MLDSA65" / "MLDSA87"）のコロン区切りリスト。
 
     \return WOLFSSL_SUCCESS 成功時。
     \return WOLFSSL_FAILURE ポインタパラメータがNULLの場合、suites 構造体の確保に失敗した場合、またはリスト中のいずれかのトークンが認識されないか現在のビルドでサポートされていない場合。

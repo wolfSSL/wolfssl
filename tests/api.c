@@ -21834,6 +21834,88 @@ static int test_wolfSSL_set1_sigalgs_list(void)
     ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "ED448"), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "ED448"), WOLFSSL_SUCCESS);
 #endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    /* ML-DSA: no digest suffix, order kept, mixed with classic algorithms. */
+    #if defined(HAVE_ECC) && !defined(NO_SHA256) && \
+        !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_65) && \
+        !defined(WOLFSSL_NO_ML_DSA_87)
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl,
+        "MLDSA65:ECDSA+SHA256:MLDSA44:MLDSA87"), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS() && ssl != NULL && ssl->suites != NULL) {
+        static const byte expMlDsa[8] = {
+            0x09, 0x05, 0x04, 0x03, 0x09, 0x04, 0x09, 0x06
+        };
+        ExpectIntEQ(ssl->suites->hashSigAlgoSz, sizeof(expMlDsa));
+        ExpectBufEQ(ssl->suites->hashSigAlgo, expMlDsa, sizeof(expMlDsa));
+    }
+    #endif
+    #if !defined(WOLFSSL_NO_ML_DSA_44) && !defined(WOLFSSL_NO_ML_DSA_87)
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA87:MLDSA44"),
+        WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS() && ssl != NULL && ssl->suites != NULL) {
+        static const byte expMlDsa2[4] = { 0x09, 0x06, 0x09, 0x04 };
+        ExpectIntEQ(ssl->suites->hashSigAlgoSz, sizeof(expMlDsa2));
+        ExpectBufEQ(ssl->suites->hashSigAlgo, expMlDsa2, sizeof(expMlDsa2));
+    }
+    #endif
+    /* Each parameter set is accepted only when compiled in; a disabled set
+     * must not be advertised. */
+    #ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "MLDSA44"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA44"), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS() && ssl != NULL && ssl->suites != NULL) {
+        static const byte expMlDsa44[2] = { 0x09, 0x04 };
+        ExpectIntEQ(ssl->suites->hashSigAlgoSz, sizeof(expMlDsa44));
+        ExpectBufEQ(ssl->suites->hashSigAlgo, expMlDsa44, sizeof(expMlDsa44));
+    }
+    #else
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "MLDSA44"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA44"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_65
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "MLDSA65"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA65"), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS() && ssl != NULL && ssl->suites != NULL) {
+        static const byte expMlDsa65[2] = { 0x09, 0x05 };
+        ExpectIntEQ(ssl->suites->hashSigAlgoSz, sizeof(expMlDsa65));
+        ExpectBufEQ(ssl->suites->hashSigAlgo, expMlDsa65, sizeof(expMlDsa65));
+    }
+    #else
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "MLDSA65"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA65"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_87
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "MLDSA87"),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA87"), WOLFSSL_SUCCESS);
+    if (EXPECT_SUCCESS() && ssl != NULL && ssl->suites != NULL) {
+        static const byte expMlDsa87[2] = { 0x09, 0x06 };
+        ExpectIntEQ(ssl->suites->hashSigAlgoSz, sizeof(expMlDsa87));
+        ExpectBufEQ(ssl->suites->hashSigAlgo, expMlDsa87, sizeof(expMlDsa87));
+    }
+    #else
+    ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "MLDSA87"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA87"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    #endif
+    /* Names are upper case only, a digest suffix and unknown parameter sets
+     * are rejected. */
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "mldsa44"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA44+SHA256"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "MLDSA99"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    ExpectIntEQ(wolfSSL_set1_sigalgs_list(ssl, "ML-DSA-44"),
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+#endif /* WOLFSSL_HAVE_MLDSA */
 #ifndef NO_DSA
     #ifndef NO_SHA256
         ExpectIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "DSA+SHA256"),
