@@ -35,6 +35,11 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_p7p12.h>
 
+/* getpid() gives the detached-content test file a per-process name */
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+#include <unistd.h>
+#endif
+
 int test_wolfssl_PKCS7(void)
 {
     EXPECT_DECLS;
@@ -747,6 +752,159 @@ int test_wolfSSL_PKCS7_verify_signer_forgery(void)
     PKCS7_free(p7);
     X509_STORE_free(store);
     X509_free(caCert);
+    BIO_free(caBio);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Detached content must be accepted through any BIO type, not just a
+ * memory BIO. */
+int test_wolfSSL_PKCS7_verify_detached_bio(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    const char* signerCertFile = "./certs/server-cert.pem";
+    const char* signerKeyFile  = "./certs/server-key.pem";
+    const char* caFile         = "./certs/ca-cert.pem";
+    char  contentFile[64];
+    byte  content[] = "Detached content to verify.";
+
+    WOLFSSL_BIO* certBio = NULL;
+    WOLFSSL_BIO* keyBio = NULL;
+    WOLFSSL_BIO* caBio = NULL;
+    WOLFSSL_BIO* signBio = NULL;
+    WOLFSSL_BIO* inBio = NULL;
+    X509* signCert = NULL;
+    EVP_PKEY* signKey = NULL;
+    X509* caCert = NULL;
+    X509_STORE* store = NULL;
+    PKCS7* p7 = NULL;
+    WOLFSSL_PKCS7* p7Ver = NULL;
+    byte* der = NULL;
+    int derSz = 0;
+    XFILE fp = XBADFILE;
+
+    /* per-process name so parallel test runs do not share the file */
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
+    (void)XSNPRINTF(contentFile, sizeof(contentFile),
+        "./test_pkcs7_detached_%d.bin", (int)getpid());
+#else
+    (void)XSNPRINTF(contentFile, sizeof(contentFile),
+        "./test_pkcs7_detached.bin");
+#endif
+
+    ExpectNotNull(certBio = BIO_new_file(signerCertFile, "r"));
+    ExpectNotNull(keyBio = BIO_new_file(signerKeyFile, "r"));
+    ExpectNotNull(caBio = BIO_new_file(caFile, "r"));
+    ExpectNotNull(signCert = PEM_read_bio_X509(certBio, NULL, 0, NULL));
+    ExpectNotNull(signKey = PEM_read_bio_PrivateKey(keyBio, NULL, 0, NULL));
+    ExpectNotNull(caCert = PEM_read_bio_X509(caBio, NULL, 0, NULL));
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, caCert), 1);
+
+    /* create a detached signature over 'content' */
+    ExpectNotNull(signBio = BIO_new(BIO_s_mem()));
+    ExpectIntGT(BIO_write(signBio, content, sizeof(content)), 0);
+    ExpectNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, signBio,
+                                  PKCS7_BINARY | PKCS7_DETACHED));
+    ExpectIntGT((derSz = i2d_PKCS7(p7, &der)), 0);
+    ExpectNotNull(der);
+
+    /* write the detached content out so it can be fed back as a file BIO */
+    ExpectTrue((fp = XFOPEN(contentFile, "wb")) != XBADFILE);
+    ExpectIntEQ(XFWRITE(content, 1, sizeof(content), fp), sizeof(content));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* d2i_PKCS7() cannot be used here: it verifies while decoding and has no
+     * way to be handed the detached content, so load the bundle directly. */
+    if (EXPECT_SUCCESS()) {
+        ExpectNotNull(p7Ver = (WOLFSSL_PKCS7*)PKCS7_new());
+        if (p7Ver != NULL) {
+            ExpectNotNull(p7Ver->data = (byte*)XMALLOC((size_t)derSz, NULL,
+                                                       DYNAMIC_TYPE_PKCS7));
+            if (p7Ver->data != NULL) {
+                XMEMCPY(p7Ver->data, der, (size_t)derSz);
+                p7Ver->len = derSz;
+            }
+        }
+    }
+
+    /* a file BIO must work just like a memory BIO */
+    ExpectNotNull(inBio = BIO_new_file(contentFile, "rb"));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY), 1);
+    BIO_free(inBio);
+    inBio = NULL;
+
+    /* the memory BIO path must keep working */
+    ExpectNotNull(inBio = BIO_new_mem_buf(content, sizeof(content)));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY), 1);
+    BIO_free(inBio);
+    inBio = NULL;
+
+    /* wrong content must still fail, from a file BIO too */
+    ExpectTrue((fp = XFOPEN(contentFile, "wb")) != XBADFILE);
+    ExpectIntEQ(XFWRITE("bogus content", 1, 13, fp), 13);
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectNotNull(inBio = BIO_new_file(contentFile, "rb"));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    BIO_free(inBio);
+    inBio = NULL;
+
+    /* an empty file BIO is empty detached content, not a read error: it is
+     * handed to the verify (and fails there, as the signature is over
+     * non-empty content) without being rejected up front */
+    ExpectTrue((fp = XFOPEN(contentFile, "wb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectNotNull(inBio = BIO_new_file(contentFile, "rb"));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY),
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+    BIO_free(inBio);
+    inBio = NULL;
+
+    /* the detached content must not be left pointing into the freed BIO */
+    if (p7Ver != NULL) {
+        ExpectNull(p7Ver->pkcs7.content);
+        ExpectIntEQ(p7Ver->pkcs7.contentSz, 0);
+    }
+
+    /* ...and verifying again after that still works */
+    ExpectNotNull(inBio = BIO_new_mem_buf(content, sizeof(content)));
+    ExpectIntEQ(PKCS7_verify((PKCS7*)p7Ver, NULL, store, inBio, NULL,
+                             PKCS7_BINARY), 1);
+    BIO_free(inBio);
+    inBio = NULL;
+    if (p7Ver != NULL) {
+        ExpectNull(p7Ver->pkcs7.content);
+    }
+
+    /* Expect*() never returns early, so this runs on failure too */
+    (void)remove(contentFile);
+
+    PKCS7_free((PKCS7*)p7Ver);
+    PKCS7_free(p7);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_STORE_free(store);
+    X509_free(caCert);
+    X509_free(signCert);
+    EVP_PKEY_free(signKey);
+    BIO_free(signBio);
+    BIO_free(certBio);
+    BIO_free(keyBio);
     BIO_free(caBio);
 #endif
     return EXPECT_RESULT();

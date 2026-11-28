@@ -814,11 +814,90 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
     return ret;
 }
 
+/* Read all remaining data from a BIO of any type into a new buffer.
+ *
+ * BIO_read() may return less than asked for, and not every BIO type knows its
+ * length up front, so keep reading until the BIO has no more data. Like
+ * OpenSSL's PKCS7_verify(), a read returning <= 0 ends the data. A BIO that
+ * asks to be retried has not delivered all of its data, so that is an error.
+ * Zero bytes is a valid (empty) result.
+ *
+ * @param [in, out] bio   BIO to read from.
+ * @param [in]      heap  Heap hint for allocation.
+ * @param [out]     data  New buffer holding the data. NULL when empty.
+ * @param [out]     sz    Number of bytes read.
+ * @return  0 on success.
+ * @return  Negative on error.
+ */
+static int wolfssl_pkcs7_read_bio(WOLFSSL_BIO* bio, void* heap, byte** data,
+    int* sz)
+{
+    int ret = 0;
+    byte* buf = NULL;
+    int bufSz = 0;
+    int total = 0;
+    int rd;
+
+    (void)heap;
+
+    for (;;) {
+        if (total == bufSz) {
+            byte* tmp;
+            int newSz;
+
+            if (bufSz > (INT_MAX / 2)) {
+                ret = BUFFER_E;
+                break;
+            }
+            newSz = (bufSz == 0) ? 1024 : bufSz * 2;
+        #ifdef WOLFSSL_NO_REALLOC
+            tmp = (byte*)XMALLOC((size_t)newSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp != NULL && buf != NULL) {
+                XMEMCPY(tmp, buf, (size_t)total);
+                XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                buf = NULL;
+            }
+        #else
+            tmp = (byte*)XREALLOC(buf, (size_t)newSz, heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+            if (tmp == NULL) {
+                ret = MEMORY_E;
+                break;
+            }
+            buf = tmp;
+            bufSz = newSz;
+        }
+
+        rd = wolfSSL_BIO_read(bio, buf + total, bufSz - total);
+        if (rd <= 0) {
+            if (wolfSSL_BIO_should_retry(bio)) {
+                WOLFSSL_MSG("BIO wants retry, detached content incomplete");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            break;
+        }
+        total += rd;
+    }
+
+    if (ret != 0 || total == 0) {
+        XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        buf = NULL;
+        total = 0;
+    }
+
+    *data = buf;
+    *sz = total;
+    return ret;
+}
+
 int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         WOLFSSL_X509_STORE* store, WOLFSSL_BIO* in, WOLFSSL_BIO* out, int flags)
 {
     int i, ret = 0;
+    int retVal = WOLFSSL_FAILURE;
     unsigned char* mem = NULL;
+    unsigned char* inBuf = NULL;
     int memSz = 0;
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
     int contTypeLen;
@@ -833,8 +912,20 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return WOLFSSL_FAILURE;
 
     if (in != NULL) {
-        if ((memSz = wolfSSL_BIO_get_mem_data(in, &mem)) < 0)
-            return WOLFSSL_FAILURE;
+        /* Use a memory BIO in place; read any other BIO type into a
+         * temporary buffer, as wolfSSL_d2i_PKCS7_bio() does. */
+        if (wolfSSL_BIO_method_type(in) == WOLFSSL_BIO_MEMORY) {
+            if ((memSz = wolfSSL_BIO_get_mem_data(in, &mem)) < 0)
+                goto cleanup;
+        }
+        else {
+            if (wolfssl_pkcs7_read_bio(in, p7->pkcs7.heap, &inBuf,
+                                       &memSz) != 0) {
+                WOLFSSL_MSG("Error reading from input BIO");
+                goto cleanup;
+            }
+            mem = inBuf;
+        }
 
         p7->pkcs7.content = mem;
         p7->pkcs7.contentSz = (word32)memSz;
@@ -850,7 +941,7 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 
     ret = wc_PKCS7_VerifySignedData(&p7->pkcs7, p7->data, p7->len);
     if (ret != 0)
-        return WOLFSSL_FAILURE;
+        goto cleanup;
 
     /* Reject a degenerate (certs-only) PKCS#7 with no verified signer. Such an
      * object has empty signerInfos, so wc_PKCS7_VerifySignedData() succeeds
@@ -862,7 +953,7 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
      */
     if (p7->pkcs7.verifyCert == NULL) {
         WOLFSSL_MSG("PKCS7 has no verified signer (degenerate/certs-only)");
-        return WOLFSSL_FAILURE;
+        goto cleanup;
     }
 
     /* A signer lookup happens regardless of PKCS7_NOVERIFY. With PKCS7_NOINTERN
@@ -871,27 +962,27 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
             !wolfSSL_PKCS7_CertInStack(certs, p7->pkcs7.verifyCert,
                                        p7->pkcs7.verifyCertSz)) {
         WOLFSSL_MSG("PKCS7_NOINTERN: verified signer not in certs");
-        return WOLFSSL_FAILURE;
+        goto cleanup;
     }
 
     if ((flags & PKCS7_NOVERIFY) != PKCS7_NOVERIFY) {
         /* Verify signer certificates */
         if (store == NULL || store->cm == NULL) {
             WOLFSSL_MSG("No store or store certs, but PKCS7_NOVERIFY not set");
-            return WOLFSSL_FAILURE;
+            goto cleanup;
         }
 
         ctx = X509_STORE_CTX_new();
         if (ctx == NULL) {
             WOLFSSL_MSG("Error allocating X509 Store Context");
-            return WOLFSSL_FAILURE;
+            goto cleanup;
         }
 
         signers = wolfSSL_PKCS7_get0_signers(pkcs7, certs, flags);
         if (signers == NULL) {
             WOLFSSL_MSG("No signers found to verify");
             wolfSSL_X509_STORE_CTX_free(ctx);
-            return WOLFSSL_FAILURE;
+            goto cleanup;
         }
 
         for (i = 0; i < wolfSSL_sk_X509_num(signers); i++) {
@@ -904,13 +995,13 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                 WOLFSSL_MSG("Failed to initialize X509 STORE CTX");
                 wolfSSL_sk_X509_pop_free(signers, NULL);
                 wolfSSL_X509_STORE_CTX_free(ctx);
-                return WOLFSSL_FAILURE;
+                goto cleanup;
             }
             if (wolfSSL_X509_verify_cert(ctx) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Failed to verify signer certificate");
                 wolfSSL_sk_X509_pop_free(signers, NULL);
                 wolfSSL_X509_STORE_CTX_free(ctx);
-                return WOLFSSL_FAILURE;
+                goto cleanup;
             }
         }
         wolfSSL_sk_X509_pop_free(signers, NULL);
@@ -923,7 +1014,7 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         if ((p7->pkcs7.contentSz < (word32)contTypeLen) ||
             (XMEMCMP(p7->pkcs7.content, contTypeText, contTypeLen) != 0)) {
             WOLFSSL_MSG("Error PKCS7 Content-Type not found with PKCS7_TEXT");
-            return WOLFSSL_FAILURE;
+            goto cleanup;
         }
         p7->pkcs7.content += contTypeLen;
         p7->pkcs7.contentSz -= contTypeLen;
@@ -935,7 +1026,18 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 
     WOLFSSL_LEAVE("wolfSSL_PKCS7_verify", WOLFSSL_SUCCESS);
 
-    return WOLFSSL_SUCCESS;
+    retVal = WOLFSSL_SUCCESS;
+
+cleanup:
+    if (in != NULL) {
+        /* content points into the caller's BIO or into inBuf, neither of
+         * which outlives this call, so do not leave it behind in p7 */
+        p7->pkcs7.content = NULL;
+        p7->pkcs7.contentSz = 0;
+    }
+    XFREE(inBuf, p7->pkcs7.heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return retVal;
 }
 
 /**
