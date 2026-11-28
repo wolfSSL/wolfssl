@@ -810,6 +810,9 @@
                 #undef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
             #endif
             #include <crypto/internal/skcipher.h>
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
+                #include <crypto/internal/cipher.h>
+            #endif
             #include <crypto/internal/akcipher.h>
             #include <crypto/internal/kpp.h>
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
