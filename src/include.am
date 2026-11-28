@@ -2473,6 +2473,10 @@ if BUILD_SRP
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/srp.c
 endif
 
+if BUILD_ECJPAKE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ecjpake.c
+endif
+
 if BUILD_AFALG
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/af_alg/wc_afalg.c
 endif

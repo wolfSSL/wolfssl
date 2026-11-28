@@ -68,6 +68,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/blake2-impl.h \
                          wolfssl/wolfcrypt/tfm.h \
                          wolfssl/wolfcrypt/srp.h \
+                         wolfssl/wolfcrypt/ecjpake.h \
                          wolfssl/wolfcrypt/types.h \
                          wolfssl/wolfcrypt/visibility.h \
                          wolfssl/wolfcrypt/logging.h \
