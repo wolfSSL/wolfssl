@@ -921,6 +921,7 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     int retVal = WOLFSSL_FAILURE;
     unsigned char* mem = NULL;
     unsigned char* inBuf = NULL;
+    unsigned char emptyContent[1];
     int memSz = 0;
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
     int contTypeLen;
@@ -948,6 +949,13 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                 goto cleanup;
             }
             mem = inBuf;
+        }
+
+        /* Empty content was still supplied: keep it non-NULL so wolfCrypt
+         * does not treat it as absent. */
+        if (mem == NULL || memSz == 0) {
+            mem = emptyContent;
+            memSz = 0;
         }
 
         p7->pkcs7.content = mem;

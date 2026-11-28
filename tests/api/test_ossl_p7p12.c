@@ -759,6 +759,40 @@ int test_wolfSSL_PKCS7_verify_signer_forgery(void)
 
 /* Detached content must be accepted through any BIO type, not just a
  * memory BIO. */
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+/* Load a DER PKCS#7 bundle without d2i_PKCS7(), which verifies while decoding
+ * and cannot be handed detached content. */
+static WOLFSSL_PKCS7* test_pkcs7_load_der(const byte* der, int derSz)
+{
+    WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)PKCS7_new();
+
+    if (p7 != NULL) {
+        p7->data = (byte*)XMALLOC((size_t)derSz, NULL, DYNAMIC_TYPE_PKCS7);
+        if (p7->data == NULL) {
+            PKCS7_free((PKCS7*)p7);
+            return NULL;
+        }
+        XMEMCPY(p7->data, der, (size_t)derSz);
+        p7->len = derSz;
+    }
+    return p7;
+}
+
+/* Write sz bytes of data (none when sz is 0) to file. */
+static int test_pkcs7_write_file(const char* file, const void* data, size_t sz)
+{
+    XFILE fp = XFOPEN(file, "wb");
+    int ok;
+
+    if (fp == XBADFILE)
+        return 0;
+    ok = (sz == 0) || (XFWRITE(data, 1, sz, fp) == sz);
+    XFCLOSE(fp);
+    return ok;
+}
+#endif
+
 int test_wolfSSL_PKCS7_verify_detached_bio(void)
 {
     EXPECT_DECLS;
@@ -927,6 +961,100 @@ int test_wolfSSL_PKCS7_verify_detached_bio(void)
             BIO_free(pairR);
         }
         BIO_free(pairW);
+    }
+
+    /* An empty BIO is empty content, not absent content: a bundle with
+     * non-empty embedded content must not verify against it. */
+    {
+        WOLFSSL_BIO* embBio = NULL;
+        PKCS7* embP7 = NULL;
+        WOLFSSL_PKCS7* embVer = NULL;
+        byte* embDer = NULL;
+        int embDerSz = 0;
+
+        ExpectNotNull(embBio = BIO_new_mem_buf(content, sizeof(content)));
+        ExpectNotNull(embP7 = PKCS7_sign(signCert, signKey, NULL, embBio,
+                                         PKCS7_BINARY));
+        ExpectIntGT((embDerSz = i2d_PKCS7(embP7, &embDer)), 0);
+        if (EXPECT_SUCCESS()) {
+            ExpectNotNull(embVer = test_pkcs7_load_der(embDer, embDerSz));
+        }
+        /* sanity: the bundle verifies on its own */
+        ExpectIntEQ(PKCS7_verify((PKCS7*)embVer, NULL, store, NULL, NULL,
+                                 PKCS7_BINARY), 1);
+
+        ExpectTrue(test_pkcs7_write_file(contentFile, NULL, 0));
+        ExpectNotNull(inBio = BIO_new_file(contentFile, "rb"));
+        ExpectIntNE(PKCS7_verify((PKCS7*)embVer, NULL, store, inBio, NULL,
+                                 PKCS7_BINARY), 1);
+        BIO_free(inBio);
+        inBio = NULL;
+
+        ExpectNotNull(inBio = BIO_new(BIO_s_mem()));
+        ExpectIntNE(PKCS7_verify((PKCS7*)embVer, NULL, store, inBio, NULL,
+                                 PKCS7_BINARY), 1);
+        BIO_free(inBio);
+        inBio = NULL;
+
+        PKCS7_free((PKCS7*)embVer);
+        PKCS7_free(embP7);
+        XFREE(embDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        BIO_free(embBio);
+    }
+
+    /* A valid detached signature over empty content, without signed
+     * attributes, must verify against an empty BIO. */
+    {
+        WOLFSSL_BIO* emptyBio = NULL;
+        PKCS7* emptyP7 = NULL;
+        WOLFSSL_PKCS7* emptyVer = NULL;
+        byte* emptyDer = NULL;
+        int emptyDerSz = 0;
+        int sFlags = PKCS7_BINARY | PKCS7_DETACHED;
+
+        ExpectNotNull(emptyBio = BIO_new(BIO_s_mem()));
+        ExpectNotNull(emptyP7 = PKCS7_sign(signCert, signKey, NULL, emptyBio,
+                                           sFlags | PKCS7_STREAM));
+        /* PKCS7_final() rejects empty input, so set the content directly */
+        if (emptyP7 != NULL) {
+            ExpectIntEQ(wc_PKCS7_NoDefaultSignedAttribs(
+                            &((WOLFSSL_PKCS7*)emptyP7)->pkcs7), 0);
+            ((WOLFSSL_PKCS7*)emptyP7)->pkcs7.content = content;
+            ((WOLFSSL_PKCS7*)emptyP7)->pkcs7.contentSz = 0;
+        }
+        ExpectIntGT((emptyDerSz = i2d_PKCS7(emptyP7, &emptyDer)), 0);
+        if (EXPECT_SUCCESS()) {
+            ExpectNotNull(emptyVer = test_pkcs7_load_der(emptyDer,
+                                                         emptyDerSz));
+        }
+
+        ExpectTrue(test_pkcs7_write_file(contentFile, NULL, 0));
+        ExpectNotNull(inBio = BIO_new_file(contentFile, "rb"));
+        ExpectIntEQ(PKCS7_verify((PKCS7*)emptyVer, NULL, store, inBio, NULL,
+                                 PKCS7_BINARY), 1);
+        BIO_free(inBio);
+        inBio = NULL;
+
+        ExpectNotNull(inBio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(PKCS7_verify((PKCS7*)emptyVer, NULL, store, inBio, NULL,
+                                 PKCS7_BINARY), 1);
+        BIO_free(inBio);
+        inBio = NULL;
+
+        /* ...and non-empty content still fails */
+        ExpectNotNull(inBio = BIO_new_mem_buf(content, sizeof(content)));
+        ExpectIntNE(PKCS7_verify((PKCS7*)emptyVer, NULL, store, inBio, NULL,
+                                 PKCS7_BINARY), 1);
+        BIO_free(inBio);
+        inBio = NULL;
+        if (emptyVer != NULL) {
+            ExpectNull(emptyVer->pkcs7.content);
+        }
+
+        PKCS7_free((PKCS7*)emptyVer);
+        PKCS7_free(emptyP7);
+        XFREE(emptyDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        BIO_free(emptyBio);
     }
 
     /* Expect*() never returns early, so this runs on failure too */
