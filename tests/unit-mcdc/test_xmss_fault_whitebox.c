@@ -104,6 +104,21 @@ static int wb_make_parmset_key(XmssKey* key)
     return ret;
 }
 
+/* The export guards accept nothing below VERIFYONLY; poke the state rather
+ * than paying for a real keygen, as the other state rows here do. */
+static int wb_make_verifyonly_key(XmssKey* key)
+{
+    int ret;
+
+    ret = wb_make_parmset_key(key);
+    if (ret == 0) {
+        key->state = WC_XMSS_STATE_VERIFYONLY;
+        key->pubSet = 1;
+    }
+
+    return ret;
+}
+
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
 /* Never actually invoked in the rows that use it (the alloc-fault bailout
  * runs first); present only so the write-callback guard sees non-NULL. */
@@ -734,18 +749,37 @@ static void wb_get_pub_len_guard(void)
 }
 
 /********************************************
- * 1611: wc_XmssKey_ExportPub_ex()'s
+ * 1640: wc_XmssKey_ExportPub_ex()'s
  *   "if ((keyDst == NULL) || (keySrc == NULL))"
+ * 1645-1647: same function's three-operand source-state guard.
  * Struct copy only - no crypto.
  ********************************************/
 static void wb_export_pub_guard(void)
 {
     XmssKey src;
     XmssKey dst;
+    XmssKey parmsetOnly;
     int     ret;
 
-    if (wb_make_parmset_key(&src) != 0) {
+    /* A failed export leaves keyDst untouched, so zero it before the rows
+     * that expect failure reach the Free below. */
+    XMEMSET(&dst, 0, sizeof(dst));
+
+    if (wb_make_verifyonly_key(&src) != 0) {
         return;
+    }
+
+    /* State guard true: params set, but no public key yet. The pubSet operand
+     * is covered by test_wc_XmssKey_reload_no_pub; hold it true so this row
+     * isolates the state chain. */
+    if (wb_make_parmset_key(&parmsetOnly) == 0) {
+        parmsetOnly.pubSet = 1;
+        ret = wc_XmssKey_ExportPub_ex(&dst, &parmsetOnly, NULL, INVALID_DEVID);
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+            WB_NOTE("ExportPub_ex params-only row did not report BAD_STATE_E");
+            wb_fail = 1;
+        }
+        wc_XmssKey_Free(&parmsetOnly);
     }
 
     ret = wc_XmssKey_ExportPub_ex(NULL, &src, NULL, INVALID_DEVID);
@@ -760,9 +794,24 @@ static void wb_export_pub_guard(void)
         wb_fail = 1;
     }
 
+    /* Each accepted source state independently turns the guard false. */
     ret = wc_XmssKey_ExportPub_ex(&dst, &src, NULL, INVALID_DEVID);
     if (ret != 0) {
-        WB_NOTE("ExportPub_ex valid-args row failed");
+        WB_NOTE("ExportPub_ex state==VERIFYONLY row failed");
+        wb_fail = 1;
+    }
+
+    src.state = WC_XMSS_STATE_OK;
+    ret = wc_XmssKey_ExportPub_ex(&dst, &src, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        WB_NOTE("ExportPub_ex state==OK row failed");
+        wb_fail = 1;
+    }
+
+    src.state = WC_XMSS_STATE_NOSIGS;
+    ret = wc_XmssKey_ExportPub_ex(&dst, &src, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        WB_NOTE("ExportPub_ex state==NOSIGS row failed");
         wb_fail = 1;
     }
 
@@ -771,20 +820,36 @@ static void wb_export_pub_guard(void)
 }
 
 /********************************************
- * 1665: wc_XmssKey_ExportPubRaw()'s
+ * 1703: wc_XmssKey_ExportPubRaw()'s
  *   "if ((key == NULL) || (out == NULL) || (outLen == NULL))"
- * 1674: same function's "if ((ret == 0) && (*outLen < pubLen))"
+ * 1708-1710: same function's three-operand state guard.
+ * 1720: same function's "if ((ret == 0) && (*outLen < pubLen))"
  * Buffer-size arithmetic and a memcpy - no crypto.
  ********************************************/
 static void wb_export_pub_raw_guard(void)
 {
     XmssKey key;
+    XmssKey parmsetOnly;
     byte    buf[512];
     word32  outLen;
     int     ret;
 
-    if (wb_make_parmset_key(&key) != 0) {
+    if (wb_make_verifyonly_key(&key) != 0) {
         return;
+    }
+
+    /* State guard true: params set, but no public key yet. As in
+     * wb_export_pub_guard, hold pubSet true so this row isolates the state
+     * chain. */
+    if (wb_make_parmset_key(&parmsetOnly) == 0) {
+        parmsetOnly.pubSet = 1;
+        outLen = (word32)sizeof(buf);
+        ret = wc_XmssKey_ExportPubRaw(&parmsetOnly, buf, &outLen);
+        if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+            WB_NOTE("ExportPubRaw params-only row did not report BAD_STATE_E");
+            wb_fail = 1;
+        }
+        wc_XmssKey_Free(&parmsetOnly);
     }
 
     outLen = (word32)sizeof(buf);
@@ -806,15 +871,34 @@ static void wb_export_pub_raw_guard(void)
         wb_fail = 1;
     }
 
-    /* 1674 false: buffer big enough. */
+    /* 1720 false: buffer big enough. Each accepted state independently
+     * turns the state guard false. */
     outLen = (word32)sizeof(buf);
     ret = wc_XmssKey_ExportPubRaw(&key, buf, &outLen);
     if (ret != 0) {
-        WB_NOTE("ExportPubRaw baseline row failed");
+        WB_NOTE("ExportPubRaw state==VERIFYONLY row failed");
         wb_fail = 1;
     }
 
-    /* 1674 true: buffer too small. */
+    key.state = WC_XMSS_STATE_OK;
+    outLen = (word32)sizeof(buf);
+    ret = wc_XmssKey_ExportPubRaw(&key, buf, &outLen);
+    if (ret != 0) {
+        WB_NOTE("ExportPubRaw state==OK row failed");
+        wb_fail = 1;
+    }
+
+    key.state = WC_XMSS_STATE_NOSIGS;
+    outLen = (word32)sizeof(buf);
+    ret = wc_XmssKey_ExportPubRaw(&key, buf, &outLen);
+    if (ret != 0) {
+        WB_NOTE("ExportPubRaw state==NOSIGS row failed");
+        wb_fail = 1;
+    }
+
+    key.state = WC_XMSS_STATE_VERIFYONLY;
+
+    /* 1720 true: buffer too small. */
     outLen = 1;
     ret = wc_XmssKey_ExportPubRaw(&key, buf, &outLen);
     if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
@@ -841,7 +925,7 @@ static void wb_import_pub_raw_guard(void)
     word32  outLen;
     int     ret;
 
-    if (wb_make_parmset_key(&src) != 0) {
+    if (wb_make_verifyonly_key(&src) != 0) {
         return;
     }
     outLen = (word32)sizeof(buf);
@@ -900,10 +984,12 @@ static void wb_import_pub_raw_guard(void)
 
 #ifdef WOLF_PRIVATE_KEY_ID
 /********************************************
- * 874: wc_XmssKey_InitId()'s
+ * 871: wc_XmssKey_InitId()'s "if (key == NULL || (id == NULL && len > 0))"
+ * 874: same function's
  *   "if (ret == 0 && (len < 0 || len > XMSS_MAX_ID_LEN))"
  * 878: same function's
- *   "if (ret == 0 && id != NULL && len != 0)"
+ *   "if (ret == 0 && id != NULL && len != 0)"; its "id == NULL" half is
+ *   unreachable, since 871 has already rejected that with a positive len.
  * 903: wc_XmssKey_InitLabel()'s "if (key == NULL || label == NULL)"
  * 907: same function's
  *   "if (labelLen == 0 || labelLen > XMSS_MAX_LABEL_LEN)"
@@ -958,11 +1044,27 @@ static void wb_init_id_label(void)
         wb_fail = 1;
     }
 
-    /* 878 false: id == NULL (len != 0 held true). */
+    /* 871 true: id == NULL with a positive len. */
     XMEMSET(&key, 0, sizeof(key));
     ret = wc_XmssKey_InitId(&key, NULL, 4, NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        WB_NOTE("InitId(id==NULL,len>0) did not fail");
+        wb_fail = 1;
+    }
+
+    /* 871 false + 874 true: a negative len is a length error either way. */
+    XMEMSET(&key, 0, sizeof(key));
+    ret = wc_XmssKey_InitId(&key, NULL, -1, NULL, INVALID_DEVID);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
+        WB_NOTE("InitId(id==NULL,len<0) did not report BUFFER_E");
+        wb_fail = 1;
+    }
+
+    /* 871 false + 878 false: id == NULL is only accepted with len == 0. */
+    XMEMSET(&key, 0, sizeof(key));
+    ret = wc_XmssKey_InitId(&key, NULL, 0, NULL, INVALID_DEVID);
     if (ret != 0 || key.idLen != 0) {
-        WB_NOTE("InitId id==NULL row unexpectedly copied an id");
+        WB_NOTE("InitId(id==NULL,len=0) unexpectedly failed");
         wb_fail = 1;
     }
 

@@ -69,6 +69,12 @@
 /* both private and public key */
 #define ED448_PRV_KEY_SIZE (ED448_PUB_KEY_SIZE+ED448_KEY_SIZE)
 
+/* Consumers test ED448_MAX_ID_LEN: FIPS v6 pins an ed448.h without it. */
+#ifdef WOLF_PRIVATE_KEY_ID
+#define ED448_MAX_ID_LEN    32
+#define ED448_MAX_LABEL_LEN 32
+#endif
+
 #define ED448_PREHASH_SIZE 64
 
 enum {
@@ -98,6 +104,12 @@ struct ed448_key {
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     wc_Shake sha;
     unsigned int sha_clean_flag : 1;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[ED448_MAX_ID_LEN];
+    int  idLen;
+    char label[ED448_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 };
 
@@ -159,6 +171,14 @@ int wc_ed448ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 #endif /* HAVE_ED448_VERIFY */
 WOLFSSL_API
 int wc_ed448_init_ex(ed448_key* key, void *heap, int devId);
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API
+int wc_ed448_init_id(ed448_key* key, const unsigned char* id, int len,
+                     void* heap, int devId);
+WOLFSSL_API
+int wc_ed448_init_label(ed448_key* key, const char* label, void* heap,
+                        int devId);
+#endif
 WOLFSSL_API
 int wc_ed448_init(ed448_key* key);
 WOLFSSL_API

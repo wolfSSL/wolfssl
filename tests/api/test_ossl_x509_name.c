@@ -124,7 +124,7 @@ int test_wolfSSL_X509_NAME(void)
         0x01, 0x16, 0x00
     };
 #endif
-#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
+#ifdef OPENSSL_EXTRA
     byte   digest[64]; /* max digest size */
     word32 digestSz;
 #endif
@@ -181,7 +181,6 @@ int test_wolfSSL_X509_NAME(void)
     ExpectIntEQ(X509_NAME_cmp(a, NULL), -2);
     ExpectIntEQ(X509_NAME_cmp(a, b), 0); /* self signed should be 0 */
 
-#if !defined(NO_PWDBASED)
     ExpectIntEQ(wolfSSL_X509_NAME_digest(NULL, NULL, NULL, NULL), 0);
     ExpectIntEQ(wolfSSL_X509_NAME_digest(a, NULL, NULL, NULL), 0);
 #ifndef NO_SHA256
@@ -202,10 +201,6 @@ int test_wolfSSL_X509_NAME(void)
     ExpectIntEQ(wolfSSL_X509_NAME_digest(a, wolfSSL_EVP_sha256(), digest,
         &digestSz), 1);
     ExpectTrue(digestSz == 32);
-#endif
-#else
-    ExpectIntEQ(wolfSSL_X509_NAME_digest(NULL, NULL, NULL, NULL),
-        NOT_COMPILED_IN);
 #endif
 #endif /* OPENSSL_EXTRA */
 
@@ -361,11 +356,35 @@ int test_wolfSSL_X509_NAME_print_ex(void)
     const char* expNormal  = "C=US, CN=wolfssl.com";
     const char* expEqSpace = "C = US, CN = wolfssl.com";
     const char* expReverse = "CN=wolfssl.com, C=US";
+    const char* expRFC2253 = "CN=wolfssl.com,C=US";
+    const char* expMultiline =
+        "countryName               = US\n"
+        "commonName                = wolfssl.com";
+    const char* expMultilineInd =
+        "  countryName               = US\n"
+        "  commonName                = wolfssl.com";
+    const char* expSemi = "C=US; CN=wolfssl.com";
+    const char* expNoName = "US, wolfssl.com";
+    const char* expLongName = "countryName=US, commonName=wolfssl.com";
+    const char* expAligned = "C         =US, CN        =wolfssl.com";
+    const char* expIndent = "   C=US, CN=wolfssl.com";
 
     const char* expNotEscaped = "C= US,+\"\\ , CN=#wolfssl.com<>;";
     const char* expNotEscapedRev = "CN=#wolfssl.com<>;, C= US,+\"\\ ";
-    const char* expRFC5523 =
-        "CN=\\#wolfssl.com\\<\\>\\;, C=\\ US\\,\\+\\\"\\\\\\ ";
+    const char* expRFC2253Esc =
+        "CN=\\#wolfssl.com\\<\\>\\;,C=\\ US\\,\\+\\\"\\\\\\ ";
+    const char* expEscaped =
+        "C=\\ US\\,\\+\\\"\\\\\\ , CN=\\#wolfssl.com\\<\\>\\;";
+    const char* expEscapedComma =
+        "C=\\ US\\,\\+\\\"\\\\\\ ,CN=\\#wolfssl.com\\<\\>\\;";
+    const unsigned char valNul[] = "with\0null";
+    const unsigned char expNul[] = "CN=with\0null";
+    const char* expNulCtrl = "CN=with\\00null";
+    const unsigned char valBs[] = "a\\b";
+    const char* expBsCtrl = "CN=a\\\\b";
+    const unsigned char valMsb[] = "\xC3\xA9";
+    const char* expMsb = "CN=\\C3\\A9";
+    const char* expSpace = "CN=\\ ";
 
     /* Test with real cert (svrCertFile) first */
     ExpectNotNull(bio = BIO_new(BIO_s_file()));
@@ -452,12 +471,92 @@ int test_wolfSSL_X509_NAME_print_ex(void)
         BIO_free(membio);
         membio = NULL;
 
-        /* Test flags: XN_FLAG_RFC2253 - should be reversed */
+        /* Test flags: XN_FLAG_RFC2253 - reversed, comma separated */
         ExpectNotNull(membio = BIO_new(BIO_s_mem()));
         ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
         ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        ExpectIntEQ(memSz, XSTRLEN(expReverse));
+        ExpectIntEQ(memSz, XSTRLEN(expRFC2253));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC2253, XSTRLEN(expRFC2253)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_MULTILINE - one entry per line, long names
+         * aligned, spaces around '=' */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, XN_FLAG_MULTILINE),
+            WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMultiline));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMultiline, XSTRLEN(expMultiline)),
+            0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_MULTILINE with indent - every line indented */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 2, XN_FLAG_MULTILINE),
+            WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMultilineInd));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMultilineInd,
+            XSTRLEN(expMultilineInd)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_SEP_SPLUS_SPC */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_SPLUS_SPC | ASN1_STRFLGS_ESC_2253 |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expSemi));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expSemi, XSTRLEN(expSemi)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_FN_NONE */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_NONE |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expNoName));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expNoName, XSTRLEN(expNoName)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_FN_LN */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_LN |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expLongName));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expLongName, XSTRLEN(expLongName)),
+            0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_FN_SN | XN_FLAG_FN_ALIGN */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_SN | XN_FLAG_FN_ALIGN |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expAligned));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expAligned, XSTRLEN(expAligned)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test indent without XN_FLAG_SEP_MULTILINE - only the first line */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 3,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_UTF8_CONVERT),
+                    WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expIndent));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expIndent, XSTRLEN(expIndent)), 0);
         BIO_free(membio);
         membio = NULL;
 
@@ -496,13 +595,14 @@ int test_wolfSSL_X509_NAME_print_ex(void)
         BIO_free(membio);
         membio = NULL;
 
-        /* Test flags: XN_FLAG_RFC5523 - should be reversed and escaped */
+        /* Test flags: XN_FLAG_RFC2253 - reversed, escaped, comma separated */
         ExpectNotNull(membio = BIO_new(BIO_s_mem()));
         ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
         ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        ExpectIntEQ(memSz, XSTRLEN(expRFC5523));
-        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC5523, XSTRLEN(expRFC5523)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expRFC2253Esc));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expRFC2253Esc,
+            XSTRLEN(expRFC2253Esc)), 0);
         BIO_free(membio);
         membio = NULL;
 
@@ -514,6 +614,147 @@ int test_wolfSSL_X509_NAME_print_ex(void)
         ExpectIntEQ(memSz, XSTRLEN(expNotEscapedRev));
         ExpectIntEQ(XSTRNCMP((char*)mem, expNotEscapedRev,
                     XSTRLEN(expNotEscapedRev)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_2253 - escaped but not reversed.
+         * Flags as used by OpenVPN. */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_SN |
+                    ASN1_STRFLGS_ESC_2253 | ASN1_STRFLGS_UTF8_CONVERT),
+                    WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expEscaped));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expEscaped, XSTRLEN(expEscaped)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_RFC2253 without XN_FLAG_DN_REV - escaped but
+         * not reversed */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expEscapedComma));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expEscapedComma,
+            XSTRLEN(expEscapedComma)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        X509_NAME_free(name);
+        name = NULL;
+    }
+
+    /* Test NUL, control and non-ASCII bytes in values */
+    {
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, valNul, sizeof(valNul) - 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+
+        /* Test without flags - NUL byte is written as is. OpenSSL falls
+         * back to X509_NAME_print() here and escapes it. */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, sizeof(expNul) - 1);
+        ExpectIntEQ(XMEMCMP(mem, expNul, sizeof(expNul) - 1), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_2253 - NUL byte is written as is */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_FN_SN |
+                    ASN1_STRFLGS_ESC_2253 | ASN1_STRFLGS_UTF8_CONVERT),
+                    WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, sizeof(expNul) - 1);
+        ExpectIntEQ(XMEMCMP(mem, expNul, sizeof(expNul) - 1), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_CTRL - NUL byte is escaped */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_CTRL |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expNulCtrl));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expNulCtrl, XSTRLEN(expNulCtrl)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        X509_NAME_free(name);
+        name = NULL;
+
+        /* Backslash is escaped whenever any escaping is done */
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, valBs, sizeof(valBs) - 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_CTRL |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expBsCtrl));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expBsCtrl, XSTRLEN(expBsCtrl)), 0);
+        BIO_free(membio);
+        membio = NULL;
+        X509_NAME_free(name);
+        name = NULL;
+
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, valMsb, sizeof(valMsb) - 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+
+        /* Test without flags - non-ASCII bytes are written as is */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, 3 + sizeof(valMsb) - 1);
+        ExpectIntEQ(XMEMCMP(mem + 3, valMsb, sizeof(valMsb) - 1), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: ASN1_STRFLGS_ESC_MSB - non-ASCII bytes are escaped */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_MSB |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMsb));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMsb, XSTRLEN(expMsb)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test flags: XN_FLAG_RFC2253 - includes ASN1_STRFLGS_ESC_MSB */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expMsb));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expMsb, XSTRLEN(expMsb)), 0);
+        BIO_free(membio);
+        membio = NULL;
+        X509_NAME_free(name);
+        name = NULL;
+
+        /* A lone space is both a leading and a trailing space */
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)" ", 1, -1, 0),
+                    WOLFSSL_SUCCESS);
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_SEP_CPLUS_SPC | ASN1_STRFLGS_ESC_2253 |
+                    ASN1_STRFLGS_UTF8_CONVERT), WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expSpace));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expSpace, XSTRLEN(expSpace)), 0);
         BIO_free(membio);
 
         X509_NAME_free(name);
@@ -551,6 +792,21 @@ int test_wolfSSL_X509_NAME_ENTRY(void)
     ExpectIntEQ(PEM_write_bio_X509_AUX(NULL, x509), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_write_bio_X509_AUX(bio, empty), WOLFSSL_FAILURE);
     ExpectIntEQ(PEM_write_bio_X509_AUX(bio, x509), SSL_SUCCESS);
+    {
+        /* X509_AUX PEM uses the TRUSTED CERTIFICATE armor and round-trips */
+        static const char trustedHdr[] =
+            "-----BEGIN TRUSTED CERTIFICATE-----";
+        char* pemData = NULL;
+        long  pemSz = 0;
+        X509* rt = NULL;
+
+        ExpectIntGT(pemSz = BIO_get_mem_data(bio, &pemData), 0);
+        ExpectNotNull(pemData);
+        ExpectIntGT(pemSz, (long)XSTR_SIZEOF(trustedHdr));
+        ExpectIntEQ(XMEMCMP(pemData, trustedHdr, XSTR_SIZEOF(trustedHdr)), 0);
+        ExpectNotNull(rt = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
+        X509_free(rt);
+    }
     wolfSSL_X509_free(empty);
 #endif
 
@@ -715,3 +971,616 @@ int test_wolfSSL_X509_NAME_ENTRY_get_object(void)
     return EXPECT_RESULT();
 }
 
+/* Test the name entries of the common attributes share read-only objects that
+ * are the same as the objects made for their NIDs.
+ */
+int test_wolfSSL_X509_NAME_ENTRY_shared_object(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(NO_CERTS) && !defined(NO_ASN)
+    static const int nids[] = {
+        WC_NID_commonName, WC_NID_organizationName,
+        WC_NID_organizationalUnitName, WC_NID_countryName,
+        WC_NID_stateOrProvinceName, WC_NID_localityName, WC_NID_emailAddress,
+        WC_NID_serialNumber, WC_NID_domainComponent
+    };
+    static const byte val[] = "wolfSSL";
+    int valSz = (int)sizeof(val) - 1;
+    WOLFSSL_X509_NAME* name = NULL;
+    WOLFSSL_X509_NAME* name2 = NULL;
+    WOLFSSL_X509_NAME_ENTRY* ne = NULL;
+    WOLFSSL_ASN1_OBJECT* shared = NULL;
+    WOLFSSL_ASN1_OBJECT* cn = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    char txt[2][64];
+    size_t i;
+
+    ExpectNotNull(name = wolfSSL_X509_NAME_new());
+    ExpectNotNull(name2 = wolfSSL_X509_NAME_new());
+    for (i = 0; EXPECT_SUCCESS() && (i < XELEM_CNT(nids)); i++) {
+        ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name, nids[i],
+            WOLFSSL_MBSTRING_UTF8, val, valSz, -1, 0), 1);
+        ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name2, nids[i],
+            WOLFSSL_MBSTRING_UTF8, val, valSz, -1, 0), 1);
+        ExpectNotNull(shared = wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(name, (int)i)));
+        /* The entries of all names share the attribute's object. */
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(name2, (int)i)), shared);
+        /* It is not freed with an entry. */
+        ExpectIntEQ(shared->dynamic, 0);
+
+        /* It is the same as the object made for the NID. */
+        ExpectNotNull(obj = wolfSSL_OBJ_nid2obj(nids[i]));
+        ExpectIntEQ(shared->nid, obj->nid);
+        ExpectIntEQ(shared->type, obj->type);
+        ExpectIntEQ(shared->grp, obj->grp);
+        ExpectStrEQ(shared->sName, obj->sName);
+        ExpectIntEQ(shared->objSz, obj->objSz);
+        ExpectBufEQ(shared->obj, obj->obj, obj->objSz);
+        /* The fields before d are set by position: one out of place shows
+         * here. */
+        ExpectPtrEq(shared->heap, obj->heap);
+    #ifdef OPENSSL_EXTRA
+        ExpectIntEQ(shared->ca, obj->ca);
+        ExpectPtrEq(shared->pathlen, obj->pathlen);
+    #endif
+    #ifdef WOLFSSL_APACHE_HTTPD
+        ExpectPtrEq(shared->gn, obj->gn);
+    #endif
+    #ifdef OPENSSL_EXTRA
+        ExpectIntEQ(wolfSSL_OBJ_cmp(shared, obj), 0);
+    #endif
+        ExpectIntEQ(wolfSSL_OBJ_obj2txt(txt[0], sizeof(txt[0]), shared, 0),
+            wolfSSL_OBJ_obj2txt(txt[1], sizeof(txt[1]), obj, 0));
+        ExpectStrEQ(txt[0], txt[1]);
+        wolfSSL_ASN1_OBJECT_free(obj);
+        obj = NULL;
+    }
+    ExpectNotNull(cn = wolfSSL_X509_NAME_ENTRY_get_object(
+        wolfSSL_X509_NAME_get_entry(name2, 0)));
+
+    /* Freeing a shared object leaves it as it is. */
+    wolfSSL_ASN1_OBJECT_free(shared);
+    ExpectIntEQ(shared->nid, WC_NID_domainComponent);
+    /* A copy of it is dynamic. */
+    ExpectNotNull(obj = wolfSSL_ASN1_OBJECT_dup(cn));
+    ExpectIntNE(obj->dynamic & WOLFSSL_ASN1_DYNAMIC, 0);
+    ExpectIntEQ(obj->nid, WC_NID_commonName);
+#ifdef OPENSSL_EXTRA
+    ExpectIntEQ(wolfSSL_OBJ_cmp(obj, cn), 0);
+#endif
+    wolfSSL_ASN1_OBJECT_free(obj);
+    obj = NULL;
+
+    /* Setting an entry to an attribute with no shared object gives the entry
+     * an object of its own, rather than writing to the shared one. */
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name, WC_NID_title,
+        WOLFSSL_MBSTRING_UTF8, val, valSz, 0, 0), 1);
+    ExpectNotNull(obj = wolfSSL_X509_NAME_ENTRY_get_object(
+        wolfSSL_X509_NAME_get_entry(name, 0)));
+    ExpectIntEQ(obj->nid, WC_NID_title);
+    ExpectIntNE(obj->dynamic & WOLFSSL_ASN1_DYNAMIC, 0);
+    ExpectIntEQ(cn->nid, WC_NID_commonName);
+    ExpectStrEQ(cn->sName, "CN");
+    /* And back to the shared one, freeing the entry's own. */
+    ExpectIntEQ(wolfSSL_X509_NAME_add_entry_by_NID(name, WC_NID_commonName,
+        WOLFSSL_MBSTRING_UTF8, val, valSz, 0, 0), 1);
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+        wolfSSL_X509_NAME_get_entry(name, 0)), cn);
+    obj = NULL;
+
+    /* The same when reusing an entry that is not in a name. */
+    ExpectNotNull(ne = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL,
+        WC_NID_commonName, WOLFSSL_MBSTRING_UTF8, val, valSz));
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(ne), cn);
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_create_by_NID(&ne, WC_NID_title,
+        WOLFSSL_MBSTRING_UTF8, val, valSz), ne);
+    ExpectNotNull(obj = wolfSSL_X509_NAME_ENTRY_get_object(ne));
+    ExpectIntEQ(obj->nid, WC_NID_title);
+    ExpectIntEQ(cn->nid, WC_NID_commonName);
+    ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_create_by_NID(&ne, WC_NID_countryName,
+        WOLFSSL_MBSTRING_UTF8, (const byte*)"US", 2), ne);
+    ExpectIntEQ(wolfSSL_X509_NAME_ENTRY_get_object(ne)->nid,
+        WC_NID_countryName);
+    wolfSSL_X509_NAME_ENTRY_free(ne);
+    ne = NULL;
+    obj = NULL;
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    {
+        WOLFSSL_X509* x509 = NULL;
+        WOLFSSL_X509_NAME* subject = NULL;
+        WOLFSSL_X509_NAME* dup = NULL;
+        int idx = -1;
+
+        /* A certificate's names use the shared objects too. The CA is
+         * self-signed so its issuer and subject have the same attributes. */
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(caCertFile,
+            WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(subject = wolfSSL_X509_get_subject_name(x509));
+        ExpectIntGE(idx = wolfSSL_X509_NAME_get_index_by_NID(subject,
+            WC_NID_commonName, -1), 0);
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(subject, idx)), cn);
+        ExpectIntEQ(wolfSSL_X509_NAME_get_index_by_OBJ(subject, cn, -1), idx);
+        ExpectIntGE(idx = wolfSSL_X509_NAME_get_index_by_NID(
+            wolfSSL_X509_get_issuer_name(x509), WC_NID_commonName, -1), 0);
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(wolfSSL_X509_get_issuer_name(x509),
+            idx)), cn);
+        ExpectNotNull(dup = wolfSSL_X509_NAME_dup(subject));
+        ExpectIntGE(idx = wolfSSL_X509_NAME_get_index_by_NID(dup,
+            WC_NID_commonName, -1), 0);
+        ExpectPtrEq(wolfSSL_X509_NAME_ENTRY_get_object(
+            wolfSSL_X509_NAME_get_entry(dup, idx)), cn);
+        wolfSSL_X509_NAME_free(dup);
+        wolfSSL_X509_free(x509);
+    }
+#endif
+
+    wolfSSL_X509_NAME_free(name2);
+    wolfSSL_X509_NAME_free(name);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* X509_NAME_oneline() must escape the '/' RDN separator and the '+'
+ * multi-valued RDN separator when they appear inside an attribute value,
+ * similar to OpenSSL 3 (wolfSSL also escapes '\' itself).
+ *
+ * Otherwise a single attribute whose value contains them (CN="foo/O=bar")
+ * renders byte-identical to a name made of several attributes (CN=foo, O=bar)
+ * and the two are indistinguishable to callers that compare the one-line form
+ * (wolfSSL/wolfssl#11392).
+ */
+int test_wolfSSL_X509_NAME_oneline_escape(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+    X509_NAME* nameA = NULL;    /* one RDN:  CN="foo/O=bar"           */
+    X509_NAME* nameB = NULL;    /* two RDNs: CN=foo, O=bar            */
+    X509_NAME* namePlus = NULL; /* one RDN:  CN="a+b"                 */
+    X509_NAME* nameBackslash = NULL; /* one RDN:  CN="a\+b"           */
+    X509_NAME* nameTrail = NULL; /* two RDNs: CN="foo\", O=bar        */
+    X509_NAME* nameLong = NULL; /* one RDN:  CN=<399 +'s>             */
+    static byte longName[400];
+    char* onelineA = NULL;
+    char* onelineB = NULL;
+    char* onelinePlus = NULL;
+    char* onelineBackslash = NULL;
+    char* onelineTrail = NULL;
+    char* onelineLong = NULL;
+    const char* expA = "/CN=foo\\/O=bar";
+    const char* expB = "/CN=foo/O=bar";
+    const char* expPlus = "/CN=a\\+b";
+    const char* expBackslash = "/CN=a\\\\\\+b";
+    const char* expTrail = "/CN=foo\\\\/O=bar";
+
+    /* load characters into long name */
+    XMEMSET((char*)longName, '+', sizeof(longName) - 1);
+
+    ExpectNotNull(nameA = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameA, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"foo/O=bar", 9, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameB = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameB, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"foo", 3, -1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameB, NID_organizationName,
+        MBSTRING_UTF8, (const byte*)"bar", 3, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(namePlus = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(namePlus, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"a+b", 3, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameBackslash = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameBackslash,
+                NID_commonName, MBSTRING_UTF8,
+                (const byte*)"a\\+b", 4, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameTrail = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameTrail, NID_commonName,
+        MBSTRING_UTF8, (const byte*)"foo\\", 4, -1, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameTrail, NID_organizationName,
+        MBSTRING_UTF8, (const byte*)"bar", 3, -1, 0), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(nameLong = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(nameLong, NID_commonName,
+                MBSTRING_UTF8, longName, sizeof(longName) - 1, -1, 0),
+                WOLFSSL_SUCCESS);
+
+    /* Names built from entries. Sanity check first: a name without special
+     * characters in its values is rendered as before. */
+    ExpectNotNull(onelineB = X509_NAME_oneline(nameB, NULL, 0));
+    ExpectStrEQ(onelineB, expB);
+
+    /* A '/' inside a value is escaped and the two names differ. */
+    ExpectNotNull(onelineA = X509_NAME_oneline(nameA, NULL, 0));
+    ExpectStrEQ(onelineA, expA);
+    ExpectIntNE(X509_NAME_cmp(nameA, nameB), 0);
+
+    /* A '+' inside a value is escaped. */
+    ExpectNotNull(onelinePlus = X509_NAME_oneline(namePlus, NULL, 0));
+    ExpectStrEQ(onelinePlus, expPlus);
+
+    /* A backslash in a value is data, not an escape: CN="a\+b" must not
+     * render or compare the same as CN="a+b". */
+    ExpectNotNull(onelineBackslash =
+            X509_NAME_oneline(nameBackslash, NULL, 0));
+    ExpectStrEQ(onelineBackslash, expBackslash);
+    ExpectIntNE(X509_NAME_cmp(namePlus, nameBackslash), 0);
+
+    /* A trailing backslash must not escape the following separator. */
+    ExpectNotNull(onelineTrail = X509_NAME_oneline(nameTrail, NULL, 0));
+    ExpectStrEQ(onelineTrail, expTrail);
+    ExpectIntNE(X509_NAME_cmp(nameA, nameTrail), 0);
+
+    /* Every character of the long value is escaped. */
+    ExpectNotNull(onelineLong = X509_NAME_oneline(nameLong, NULL, 0));
+    if (EXPECT_SUCCESS()) {
+        int i;
+        int len;
+        const char* val = onelineLong + XSTRLEN("/CN=");
+
+        ExpectIntEQ(XSTRNCMP(onelineLong, "/CN=", XSTRLEN("/CN=")), 0);
+        len = (int)XSTRLEN(val);
+        ExpectIntEQ(len, (int)(sizeof(longName) - 1) * 2);
+        for (i = 0; EXPECT_SUCCESS() && (i + 1 < len); i += 2) {
+            ExpectIntEQ(val[i], '\\');
+            ExpectIntEQ(val[i + 1], '+');
+        }
+    }
+
+    /* A duplicated name has its one-line form rebuilt from the raw entry
+     * values, so it must come out identical and not be escaped twice. */
+    {
+        X509_NAME* orig[] = {
+            nameA,
+            nameB,
+            namePlus,
+            nameBackslash,
+            nameTrail,
+            nameLong,
+        };
+        int origSz = (int)(sizeof(orig) / sizeof(orig[0]));
+        int i;
+
+        for (i = 0; i < origSz; i++) {
+            X509_NAME* dup = NULL;
+            X509_NAME* dupDup = NULL;
+            char* origLine = NULL;
+            char* dupLine = NULL;
+
+            ExpectNotNull(dup = X509_NAME_dup(orig[i]));
+            ExpectNotNull(dupDup = X509_NAME_dup(dup));
+            ExpectNotNull(origLine = X509_NAME_oneline(orig[i], NULL, 0));
+            ExpectNotNull(dupLine = X509_NAME_oneline(dupDup, NULL, 0));
+            ExpectStrEQ(dupLine, origLine);
+            ExpectIntEQ(X509_NAME_cmp(orig[i], dup), 0);
+            ExpectIntEQ(X509_NAME_cmp(orig[i], dupDup), 0);
+
+            XFREE(dupLine, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(origLine, NULL, DYNAMIC_TYPE_OPENSSL);
+            X509_NAME_free(dupDup);
+            X509_NAME_free(dup);
+        }
+    }
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(NO_ASN_TIME) && defined(USE_CERT_BUFFERS_2048)
+    /* Names parsed from a certificate, as in the report: the flat string is
+     * produced by the certificate parser, not by the entry functions. */
+    {
+        X509_NAME* names[4];
+        const char* exp[4];
+        char* certOneline[4] = { NULL, NULL, NULL, NULL };
+        EVP_PKEY* priv = NULL;
+        EVP_PKEY* pub = NULL;
+        const unsigned char* keyPt = client_key_der_2048;
+        const unsigned char* pubPt = client_keypub_der_2048;
+        int i;
+
+        names[0] = nameA;
+        names[1] = nameB;
+        names[2] = nameBackslash;
+        names[3] = nameTrail;
+        exp[0] = expA;
+        exp[1] = expB;
+        exp[2] = expBackslash;
+        exp[3] = expTrail;
+
+        ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &keyPt,
+            (long)sizeof_client_key_der_2048));
+        ExpectNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &pubPt,
+            (long)sizeof_client_keypub_der_2048));
+
+        for (i = 0; i < 4; i++) {
+            X509* x509 = NULL;
+            X509* parsed = NULL;
+            const unsigned char* der = NULL;
+            int derSz = 0;
+            DecodedCert dCert;
+
+            ExpectNotNull(x509 = X509_new());
+            ExpectIntNE(X509_set_version(x509, 2L), 0);
+            ExpectIntEQ(X509_set_subject_name(x509, names[i]),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(X509_set_issuer_name(x509, names[i]),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(X509_set_pubkey(x509, pub), WOLFSSL_SUCCESS);
+            ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+
+            ExpectNotNull(der = wolfSSL_X509_get_der(x509, &derSz));
+
+            /* The parser's own flat subject string. This is what a build
+             * without OPENSSL_EXTRA hands to X509_NAME_oneline(); with
+             * OPENSSL_EXTRA the X509's copy is rebuilt from the entries. */
+            if ((der != NULL) && (derSz > 0)) {
+                wc_InitDecodedCert(&dCert, der, (word32)derSz, NULL);
+                ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL),
+                    0);
+                ExpectStrEQ(dCert.subject, exp[i]);
+                ExpectStrEQ(dCert.issuer, exp[i]);
+                wc_FreeDecodedCert(&dCert);
+            }
+
+            /* Re-parse the signed encoding so the subject comes from the
+             * certificate parser rather than from the entries set above. */
+            ExpectNotNull(parsed = d2i_X509(NULL, &der, derSz));
+            ExpectNotNull(certOneline[i] = X509_NAME_oneline(
+                X509_get_subject_name(parsed), NULL, 0));
+            ExpectStrEQ(certOneline[i], exp[i]);
+
+            X509_free(parsed);
+            X509_free(x509);
+        }
+
+        /* The structurally different subjects must not collide with the
+         * single RDN CN="foo/O=bar". */
+        if (certOneline[0] != NULL && certOneline[1] != NULL) {
+            ExpectIntNE(XSTRCMP(certOneline[0], certOneline[1]), 0);
+        }
+        if (certOneline[0] != NULL && certOneline[3] != NULL) {
+            ExpectIntNE(XSTRCMP(certOneline[0], certOneline[3]), 0);
+        }
+
+        for (i = 0; i < 4; i++) {
+            XFREE(certOneline[i], NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        EVP_PKEY_free(pub);
+        EVP_PKEY_free(priv);
+    }
+#endif
+
+    XFREE(onelinePlus, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineBackslash, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineTrail, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineA, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineB, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(onelineLong, NULL, DYNAMIC_TYPE_OPENSSL);
+    X509_NAME_free(namePlus);
+    X509_NAME_free(nameBackslash);
+    X509_NAME_free(nameTrail);
+    X509_NAME_free(nameLong);
+    X509_NAME_free(nameA);
+    X509_NAME_free(nameB);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Embedded NUL in a name entry value is escaped by X509_NAME_oneline(). */
+int test_wolfSSL_X509_NAME_oneline_embedded_nul(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    static const unsigned char nulCn[] = {
+        'a', 'd', 'm', 'i', 'n', 0x00, '.', 'e', 'v', 'i', 'l', '.', 'c', 'o',
+        'm'
+    };
+    static const unsigned char plainCn[] = "admin";
+    /* Literal "\x00", not a NUL. */
+    static const unsigned char litCn[] = "admin\\x00.evil.com";
+    static const unsigned char country[] = "US";
+    static const unsigned char org[] = "Corp";
+    X509_NAME* legit = NULL;
+    X509_NAME* spoof = NULL;
+    X509_NAME* escaped = NULL;
+    /* oneline() does not allocate under WOLFSSL_STATIC_MEMORY. */
+    char legitBuf[64];
+    char spoofBuf[64];
+    char escapedBuf[64];
+    char* legitLine = NULL;
+    char* spoofLine = NULL;
+    char* escapedLine = NULL;
+
+    ExpectNotNull(legit = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_commonName,
+        V_ASN1_UTF8STRING, plainCn, 5, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(legit, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(spoof = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_commonName,
+        V_ASN1_UTF8STRING, nulCn, (int)sizeof(nulCn), -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(spoof, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(legitLine = X509_NAME_oneline(legit, legitBuf,
+        (int)sizeof(legitBuf)));
+    ExpectNotNull(spoofLine = X509_NAME_oneline(spoof, spoofBuf,
+        (int)sizeof(spoofBuf)));
+    ExpectStrEQ(legitLine, "/C=US/CN=admin/O=Corp");
+    ExpectStrNE(spoofLine, legitLine);
+    ExpectStrEQ(spoofLine, "/C=US/CN=admin\\x00.evil.com/O=Corp");
+    ExpectNotNull(XSTRSTR(spoofLine, ".evil.com"));
+    ExpectIntNE(X509_NAME_cmp(legit, spoof), 0);
+
+    /* Backslash is escaped, so a literal "\x00" differs from a NUL. */
+    ExpectNotNull(escaped = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_countryName,
+        V_ASN1_PRINTABLESTRING, country, 2, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_commonName,
+        V_ASN1_UTF8STRING, litCn, (int)sizeof(litCn) - 1, -1, 0), 1);
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(escaped, NID_organizationName,
+        V_ASN1_UTF8STRING, org, 4, -1, 0), 1);
+
+    ExpectNotNull(escapedLine = X509_NAME_oneline(escaped, escapedBuf,
+        (int)sizeof(escapedBuf)));
+    ExpectStrNE(escapedLine, spoofLine);
+    ExpectStrEQ(escapedLine, "/C=US/CN=admin\\\\x00.evil.com/O=Corp");
+    ExpectIntNE(X509_NAME_cmp(escaped, spoof), 0);
+
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    /* The certificate parser's flat subject escapes the NUL too. The subject
+     * CN "www.wolfssl.com" is overwritten in place with a value of the same
+     * length; the signature is not checked. */
+    {
+        static const byte cnHdr[] = {
+            0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0f
+        };
+        byte der[sizeof_server_cert_der_2048];
+        DecodedCert dCert;
+        word32 i;
+        int seen = 0;
+
+        XMEMCPY(der, server_cert_der_2048, sizeof(der));
+        /* Issuer CN first, subject CN second. */
+        for (i = 0; i + sizeof(cnHdr) + sizeof(nulCn) <= sizeof(der); i++) {
+            if ((XMEMCMP(der + i, cnHdr, sizeof(cnHdr)) == 0) &&
+                    (++seen == 2)) {
+                XMEMCPY(der + i + sizeof(cnHdr), nulCn, sizeof(nulCn));
+                break;
+            }
+        }
+        ExpectIntEQ(seen, 2);
+
+        wc_InitDecodedCert(&dCert, der, (word32)sizeof(der), NULL);
+        ExpectIntEQ(wc_ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+        ExpectNotNull(XSTRSTR(dCert.subject, "/CN=admin\\x00.evil.com/"));
+        wc_FreeDecodedCert(&dCert);
+    }
+#endif
+
+    X509_NAME_free(legit);
+    X509_NAME_free(spoof);
+    X509_NAME_free(escaped);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_CERTS)
+/* Return the string tag following the attribute OID 2.5.4.<attr>. */
+static int test_x509_name_attr_tag(const byte* der, int sz, byte attr)
+{
+    int i;
+
+    for (i = 0; i + 5 < sz; i++) {
+        if ((der[i] == ASN_OBJECT_ID) && (der[i + 1] == 3) &&
+                (der[i + 2] == 0x55) && (der[i + 3] == 0x04) &&
+                (der[i + 4] == attr)) {
+            return der[i + 5];
+        }
+    }
+    return -1;
+}
+
+static int test_x509_name_der(const char* serial, byte* der, int derSz)
+{
+    X509_NAME* name;
+    unsigned char* p = der;
+    int sz = -1;
+
+    name = X509_NAME_new();
+    if ((name != NULL) &&
+        (X509_NAME_add_entry_by_NID(name, NID_countryName, MBSTRING_UTF8,
+            (const unsigned char*)"US", -1, -1, 0) == 1) &&
+        (X509_NAME_add_entry_by_NID(name, NID_organizationName,
+            MBSTRING_UTF8, (const unsigned char*)"Example", -1, -1, 0) == 1) &&
+        (X509_NAME_add_entry_by_NID(name, NID_serialNumber, MBSTRING_UTF8,
+            (const unsigned char*)serial, -1, -1, 0) == 1) &&
+    #ifdef WOLFSSL_CERT_NAME_ALL
+        (X509_NAME_add_entry_by_NID(name, NID_dnQualifier, MBSTRING_UTF8,
+            (const unsigned char*)"dq-1", -1, -1, 0) == 1) &&
+    #endif
+        (i2d_X509_NAME(name, NULL) <= derSz)) {
+        sz = i2d_X509_NAME(name, &p);
+    }
+    X509_NAME_free(name);
+    return sz;
+}
+#endif
+
+int test_wolfSSL_X509_NAME_printable_attrs(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_CERTS)
+    static const byte utf8Name[] = {
+        0x30, 0x1E, 0x31, 0x0B, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06,
+        0x0C, 0x02, 'U', 'S', 0x31, 0x0F, 0x30, 0x0D, 0x06, 0x03, 0x55,
+        0x04, 0x05, 0x0C, 0x06, 'S', 'N', '-', '0', '0', '1'
+    };
+    byte der[256];
+    byte in[sizeof(utf8Name)];
+    unsigned char* p = in;
+    unsigned char* out = der;
+    X509_NAME* name = NULL;
+    X509_NAME* copy = NULL;
+    int sz = 0;
+
+    /* MBSTRING_UTF8 still gives PrintableString where RFC 5280 requires it. */
+    ExpectIntGT(sz = test_x509_name_der("SN-0001", der, (int)sizeof(der)), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_COUNTRY_NAME),
+        ASN_PRINTABLE_STRING);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_SERIAL_NUMBER),
+        ASN_PRINTABLE_STRING);
+#ifdef WOLFSSL_CERT_NAME_ALL
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_DNQUALIFIER),
+        ASN_PRINTABLE_STRING);
+#endif
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_ORG_NAME),
+        ASN_UTF8STRING);
+
+    /* '_' is outside the PrintableString set, so the value stays UTF8. */
+    ExpectIntGT(sz = test_x509_name_der("SN_0001", der, (int)sizeof(der)), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_SERIAL_NUMBER),
+        ASN_UTF8STRING);
+
+    /* add_entry_by_txt, then a UTF8 CN reusing the deleted C slot. */
+    ExpectNotNull(name = X509_NAME_new());
+    ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "C", MBSTRING_UTF8,
+        (const unsigned char*)"DE", -1, -1, 0), 1);
+    ExpectIntGT(sz = i2d_X509_NAME(name, &out), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_COUNTRY_NAME),
+        ASN_PRINTABLE_STRING);
+    ExpectNotNull(X509_NAME_delete_entry(name, 0));
+    ExpectIntEQ(X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_UTF8,
+        (const unsigned char*)"M\xC3\xBCller", -1, -1, 0), 1);
+    out = der;
+    ExpectIntGT(sz = i2d_X509_NAME(name, &out), 0);
+    ExpectIntEQ(test_x509_name_attr_tag(der, sz, ASN_COMMON_NAME),
+        ASN_UTF8STRING);
+    X509_NAME_free(name);
+    name = NULL;
+
+    /* A decoded or copied name keeps its UTF8String C and serialNumber. */
+    XMEMCPY(in, utf8Name, sizeof(utf8Name));
+    ExpectNotNull(name = d2i_X509_NAME(NULL, &p, sizeof(utf8Name)));
+    out = der;
+    ExpectIntEQ(i2d_X509_NAME(name, &out), (int)sizeof(utf8Name));
+    ExpectBufEQ(der, utf8Name, sizeof(utf8Name));
+    ExpectNotNull(copy = X509_NAME_dup(name));
+    out = der;
+    ExpectIntEQ(i2d_X509_NAME(copy, &out), (int)sizeof(utf8Name));
+    ExpectBufEQ(der, utf8Name, sizeof(utf8Name));
+    X509_NAME_free(copy);
+    X509_NAME_free(name);
+#endif
+    return EXPECT_RESULT();
+}

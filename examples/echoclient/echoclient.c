@@ -134,7 +134,8 @@ void echoclient_test(void* args)
 #endif
 
 #if !defined(NO_TLS)
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER) && \
+        !defined(WOLFSSL_NO_TLS12)
     method = wolfTLSv1_2_client_method();
     #else
     method = wolfSSLv23_client_method();
@@ -174,10 +175,13 @@ void echoclient_test(void* args)
             err_sys("can't load ca buffer");
 #endif
 
-#if defined(WOLFSSL_SNIFFER)
+#if defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_NO_TLS12)
     /* Only set if not running testsuite */
     if (XSTRSTR(argv[0], "testsuite") == NULL) {
-        /* don't use EDH, can't sniff tmp keys */
+        /* don't use EDH, can't sniff tmp keys. A TLS 1.3 sniffer needs a key
+         * log file or static ephemeral keys instead, so this static RSA suite
+         * is only pinned where TLS 1.2 exists. Advisory: a build without the
+         * suite's ciphers keeps the default list. */
         SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
     }
 #endif
@@ -312,11 +316,6 @@ void echoclient_test(void* args)
     {
         func_args args;
 
-#ifdef HAVE_WNR
-        if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
-            err_sys("Whitewood netRandom global config failed");
-#endif
-
         StartTCP();
 
         args.argc = argc;
@@ -335,11 +334,6 @@ void echoclient_test(void* args)
 #endif
 
         wolfSSL_Cleanup();
-
-#ifdef HAVE_WNR
-        if (wc_FreeNetRandom() < 0)
-            err_sys("Failed to free netRandom context");
-#endif /* HAVE_WNR */
 
         return args.return_code;
     }

@@ -12,11 +12,27 @@
 #define TI_C2000_CI_USER_SETTINGS_H
 
 #define WOLFCRYPT_ONLY              /* crypto only - no TLS (no MD5/SHA1 dep) */
+/* The C28x has a 16-bit int as well as a 16-bit char, so this models the real
+ * target rather than a half-configured one.  It is a broad switch, not just an
+ * OID knob: settings.h and types.h key several decisions off it - the old
+ * 16-bit-safe OID sums (without which the 32-bit sums in wc_OidGetHash()
+ * collide once truncated to int and hash.c will not compile), MP_16BIT for the
+ * big-int backends, the small GCM tables, WORD64_AVAILABLE handling, and the
+ * ML-DSA cl2000 codegen workarounds in dilithium.h.  The reference example
+ * defines it too; keep the two in step. */
+#define WC_16BIT_CPU
 #define WOLFSSL_GENERAL_ALIGNMENT 2
 #define HAVE_LIMITS_H
 #define WOLFSSL_NO_ASM
 #define NO_INLINE
 #define SINGLE_THREADED
+
+/* C28x has a 16-bit int.  Without this word32 is `unsigned int` (16 bits) and
+ * every 32-bit crypto value silently truncates.  long is 32-bit and long long
+ * 64-bit on this toolchain. */
+#define WC_16BIT_CPU
+#define SIZEOF_LONG       4
+#define SIZEOF_LONG_LONG  8
 #define NO_FILESYSTEM
 #define NO_WOLFSSL_DIR
 #define NO_MAIN_DRIVER
@@ -24,7 +40,9 @@
 #define WOLFSSL_IGNORE_FILE_WARN
 #define BENCH_EMBEDDED
 #define NO_WOLFSSL_MEMORY
-#define WOLFSSL_GENSEED_FORTEST     /* dev-only seed; no TRNG on this part */
+/* Use the DCC oscillator-noise source for wc_GenerateSeed(). Hardware builds
+ * must also compile rng_noisesrc.c and port/ti/ti-c2000-entropy.c. */
+#define WOLFSSL_C2000_ENTROPY
 
 /* Hashes (SHA-1 is on by default - NO_SHA is not set) */
 #define WOLFSSL_SHA512
@@ -47,6 +65,15 @@
 #define WOLFSSL_AES_SIV
 #define WOLFSSL_AES_EAX
 #define WOLFSSL_AES_DIRECT
+#define HAVE_AES_ECB
+
+/* Crypto callbacks, so cryptocb.c is compile-guarded here too.  This is what
+ * the AESA hardware-AES port (WOLFSSL_C2000_AES, wolfcrypt/src/port/ti/
+ * ti-c2000-aes.c) plugs into.  WOLFSSL_C2000_AES itself is deliberately NOT
+ * set: it needs C2000Ware driverlib headers, which this hardware-free guard
+ * does not have.  compile.sh builds that file as a separate opt-in leg when
+ * C2000WARE is set in the environment. */
+#define WOLF_CRYPTO_CB
 
 /* ChaCha20-Poly1305 (chunk size, keystream and Poly1305 length octet I/O) */
 #define HAVE_CHACHA
@@ -61,10 +88,11 @@
 #define HAVE_ED448
 #define ED448_SMALL
 
-/* ML-DSA-87 verify (smallest-mem streaming verifier) */
+/* ML-DSA verify, all three parameter sets (smallest-mem streaming) */
 #define WOLFSSL_HAVE_MLDSA
-#define WOLFSSL_NO_ML_DSA_44
-#define WOLFSSL_NO_ML_DSA_65
+/* All three parameter sets: level 44 is the only one whose w1 commitment
+ * encoder packs 6-bit values (mldsa_encode_w1_88_c), so without it this guard
+ * would not compile the very code the CHAR_BIT != 8 masking protects. */
 #define WOLFSSL_MLDSA_NO_ASN1
 #define WOLFSSL_MLDSA_VERIFY_ONLY
 #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM

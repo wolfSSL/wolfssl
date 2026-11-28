@@ -25,6 +25,7 @@
 #include <tests/api/api_decl.h>
 
 int test_wc_slhdsa(void);
+int test_wc_SlhDsaKey_seed_service_indicator(void);
 int test_wc_slhdsa_sizes(void);
 int test_wc_slhdsa_make_key(void);
 int test_wc_slhdsa_sign(void);
@@ -32,6 +33,8 @@ int test_wc_slhdsa_verify(void);
 int test_wc_slhdsa_sign_vfy(void);
 int test_wc_slhdsa_sign_hash(void);
 int test_wc_slhdsa_sign_msg(void);
+int test_wc_slhdsa_sign_addrnd(void);
+int test_wc_slhdsa_dev_only_key(void);
 int test_wc_slhdsa_export_import(void);
 int test_wc_slhdsa_check_key(void);
 int test_wc_slhdsa_der_roundtrip(void);
@@ -50,9 +53,12 @@ int test_mldsa_tls13_certverify_maxfrag_stream(void);
 int test_slhdsa_dev_private_key(void);
 int test_slhdsa_tls13_certverify_bad_signature(void);
 int test_slhdsa_cb_free(void);
+int test_wc_slhdsa_sign_refused_save_clears_sig(void);
+int test_wc_slhdsa_make_key_id_dev(void);
 
 #define TEST_SLHDSA_DECLS                                                      \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa),                                 \
+    TEST_DECL_GROUP("slhdsa", test_wc_SlhDsaKey_seed_service_indicator),       \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sizes),                           \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_make_key),                        \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign),                            \
@@ -60,6 +66,8 @@ int test_slhdsa_cb_free(void);
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_vfy),                        \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_hash),                       \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_msg),                        \
+    TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_addrnd),                     \
+    TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_dev_only_key),                    \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_export_import),                   \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_check_key),                       \
     TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_der_roundtrip),                   \
@@ -77,6 +85,8 @@ int test_slhdsa_cb_free(void);
     TEST_DECL_GROUP("slhdsa", test_mldsa_tls13_certverify_maxfrag_stream),   \
     TEST_DECL_GROUP("slhdsa", test_slhdsa_dev_private_key),                   \
     TEST_DECL_GROUP("slhdsa", test_slhdsa_tls13_certverify_bad_signature),     \
-    TEST_DECL_GROUP("slhdsa", test_slhdsa_cb_free)
+    TEST_DECL_GROUP("slhdsa", test_slhdsa_cb_free),                        \
+    TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_sign_refused_save_clears_sig),    \
+    TEST_DECL_GROUP("slhdsa", test_wc_slhdsa_make_key_id_dev)
 
 #endif /* WOLFCRYPT_TEST_SLHDSA_H */

@@ -243,16 +243,69 @@ mv tmp extra-crls/large_crlnum2.pem
 
 # OCSP root-ca CRL (empty, no revocations)
 cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
 
-echo "Step 31"
+echo "Step 32a OCSP root-ca CRL"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/root-ca-crl.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
 check_result $?
 
 # metadata
-echo "Step 32"
+echo "Step 32a OCSP root-ca CRL metadata"
 openssl crl -in ../ocsp/root-ca-crl.pem -text > tmp
 check_result $?
 mv tmp ../ocsp/root-ca-crl.pem
+
+# OCSP root-ca CRL revoking intermediate1
+cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
+
+echo "Step 32b OCSP root-ca CRL revoking intermediate1"
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../ocsp/intermediate1-ca-cert.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
+check_result $?
+
+echo "Step 32b OCSP root-ca CRL revoking intermediate1, gencrl"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/root-ca-crl-revoked.pem -keyfile ../ocsp/root-ca-key.pem -cert ../ocsp/root-ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 32b OCSP root-ca CRL revoking intermediate1, metadata"
+openssl crl -in ../ocsp/root-ca-crl-revoked.pem -text > tmp
+check_result $?
+mv tmp ../ocsp/root-ca-crl-revoked.pem
+
+# OCSP intermediate1-ca CRL (empty, no revocations)
+cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
+
+echo "Step 32c OCSP intermediate1-ca CRL"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/intermediate1-ca-crl.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 32c OCSP intermediate1-ca CRL metadata"
+openssl crl -in ../ocsp/intermediate1-ca-crl.pem -text > tmp
+check_result $?
+mv tmp ../ocsp/intermediate1-ca-crl.pem
+
+# OCSP intermediate1-ca CRL revoking server1
+cp blank.index.txt demoCA/index.txt
+echo "01" > crlnumber
+
+echo "Step 32d OCSP intermediate1-ca CRL revoking server1"
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../ocsp/server1-cert.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
+check_result $?
+
+echo "Step 32d OCSP intermediate1-ca CRL revoking server1, gencrl"
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out ../ocsp/intermediate1-ca-crl-revoked.pem -keyfile ../ocsp/intermediate1-ca-key.pem -cert ../ocsp/intermediate1-ca-cert.pem
+check_result $?
+
+# metadata
+echo "Step 32d OCSP intermediate1-ca CRL revoking server1, metadata"
+openssl crl -in ../ocsp/intermediate1-ca-crl-revoked.pem -text > tmp
+check_result $?
+mv tmp ../ocsp/intermediate1-ca-crl-revoked.pem
+
+cp blank.index.txt demoCA/index.txt
 
 echo "Step 33 larger CRL number( 57 octets )"
 python3 -c "print('4' * 114)" > crlnumber # 0x41 * 57 = 114 hex chars crlnumber
@@ -296,6 +349,44 @@ echo "Step 39"
 openssl crl -in crl_reason.pem -text > tmp
 check_result $?
 mv tmp crl_reason.pem
+cp blank.index.txt demoCA/index.txt
+
+# CRL whose 8 octet authority key id has leading, interior and trailing zeros
+echo "Step 40 zero octet authority key id CRL"
+cat > akid.cnf <<'EOF'
+[ ca ]
+default_ca = CA_default
+[ CA_default ]
+database = ./demoCA/index.txt
+crlnumber = ./crlnumber
+default_md = sha256
+crl_extensions = crl_ext
+[ crl_ext ]
+authorityKeyIdentifier = keyid:always
+[ req ]
+distinguished_name = dn
+prompt = no
+[ dn ]
+CN = wolfSSL AKID Zero Octets CA
+[ akid_ca ]
+basicConstraints = critical,CA:true
+keyUsage = critical,cRLSign,keyCertSign
+subjectKeyIdentifier = 00:01:00:03:04:05:06:00
+EOF
+echo "01" > crlnumber
+openssl req -new -x509 -config akid.cnf -extensions akid_ca \
+    -key ../ca-key.pem -days 3650 -out akid-ca.pem
+check_result $?
+openssl ca -config akid.cnf -gencrl -crldays 3650 -keyfile ../ca-key.pem \
+    -cert akid-ca.pem -out extra-crls/akid_zero_octets.pem
+check_result $?
+
+# metadata
+echo "Step 41"
+openssl crl -in extra-crls/akid_zero_octets.pem -text > tmp
+check_result $?
+mv tmp extra-crls/akid_zero_octets.pem
+rm -f akid.cnf akid-ca.pem
 cp blank.index.txt demoCA/index.txt
 
 exit 0

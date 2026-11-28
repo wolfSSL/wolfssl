@@ -886,8 +886,11 @@ static int SetupSocketAndConnect(info_t* info, const char* host,
     /* Resolve host */
     entry = gethostbyname(host);
     if (entry) {
-        XMEMCPY(&servAddr.sin_addr.s_addr, entry->h_addr_list[0],
-            (size_t)entry->h_length);
+        char* hAddr;
+
+        /* macOS does not align h_addr_list, so copy the pointer out. */
+        XMEMCPY(&hAddr, entry->h_addr_list, sizeof(hAddr));
+        XMEMCPY(&servAddr.sin_addr.s_addr, hAddr, (size_t)entry->h_length);
     }
     else {
         servAddr.sin_addr.s_addr = inet_addr(host);
@@ -2191,8 +2194,11 @@ int bench_tls(void* args)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         for (group_index = 0; groups[group_index].name != NULL; group_index++) {
-            const char *gname = theadInfo[0].group == 0 ? "N/A"
-                : groups[group_index].name;
+            /* Same condition used below to set info->group: theadInfo is not
+             * set up for this run yet, so it cannot be used here. */
+            const char *gname = (argDoGroups &&
+                                 XSTRNCMP(cipher, "TLS13", 5) == 0) ?
+                                groups[group_index].name : "N/A";
 
             if (argDoGroups && groups[group_index].group == 0) {
                 /* Skip unsupported group. */

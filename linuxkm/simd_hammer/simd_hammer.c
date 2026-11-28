@@ -94,6 +94,10 @@
     #define wc_simd_timer_container_of(var, t, field) from_timer(var, t, field)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 5, 0)
+    #define HAVE_STDRNG
+#endif
+
 /* sidestep "flush-left function calls" warnings from check-source-text: */
 #define MODULE_PARAM module_param
 
@@ -130,10 +134,16 @@ MODULE_PARM_DESC(probe_alg, "sync shash driver name for the probe");
 
 static char *probe_kind = "shash";
 MODULE_PARAM(probe_kind, charp, 0444);
+#ifdef HAVE_STDRNG
 MODULE_PARM_DESC(probe_kind,
                  "\"shash\" (probe_alg digest), \"rng\" (crypto_rng_get_bytes "
                  "on probe_alg, e.g. probe_alg=stdrng), or \"grb\" "
                  "(get_random_bytes, the kernel randomness path)");
+#else
+MODULE_PARM_DESC(probe_kind,
+                 "\"shash\" (probe_alg digest) or \"grb\" "
+                 "(get_random_bytes, the kernel randomness path)");
+#endif
 
 static unsigned int probe_bytes = 4096;
 MODULE_PARAM(probe_bytes, uint, 0444);
@@ -179,14 +189,18 @@ struct wc_simd_pcpu {
 
 static struct wc_simd_pcpu     *wc_simd_pc;
 static struct crypto_shash *wc_simd_probe_tfm;
+#ifdef HAVE_STDRNG
 static struct crypto_rng   *wc_simd_probe_rng;
+#endif
 static struct task_struct  *wc_simd_report_task;
 static bool                 wc_simd_raw_mode;
 static bool                 wc_simd_hardirq_probe;
 
 enum wc_simd_probe_kind {
     WC_SIMD_PROBE_SHASH = 0,
+#ifdef HAVE_STDRNG
     WC_SIMD_PROBE_RNG,
+#endif
     WC_SIMD_PROBE_GRB
 };
 static enum wc_simd_probe_kind wc_simd_probe_kind;
@@ -212,11 +226,13 @@ static void wc_simd_probe_once(struct wc_simd_pcpu *c, u64 late_us)
         u64 t0 = ktime_get_ns(), dur;
 
         switch (wc_simd_probe_kind) {
+#ifdef HAVE_STDRNG
         case WC_SIMD_PROBE_RNG:
             /* Exercises the registered stdrng, i.e. wolfCrypt's DRBG when
              * the module is loaded at higher cra_priority. */
             ret = crypto_rng_get_bytes(wc_simd_probe_rng, c->pbuf, probe_bytes);
             break;
+#endif
         case WC_SIMD_PROBE_GRB:
             /* Exercises the kernel randomness path itself, including any
              * get_random_bytes hook the module under test installs. */
@@ -536,10 +552,12 @@ static void wc_simd_teardown(void)
         wc_simd_probe_tfm = NULL;
     }
 
+#ifdef HAVE_STDRNG
     if (wc_simd_probe_rng) {
         crypto_free_rng(wc_simd_probe_rng);
         wc_simd_probe_rng = NULL;
     }
+#endif
 }
 
 static int __init wc_simd_init(void)
@@ -578,13 +596,20 @@ static int __init wc_simd_init(void)
 
     if (!strcmp(probe_kind, "shash"))
         wc_simd_probe_kind = WC_SIMD_PROBE_SHASH;
+#ifdef HAVE_STDRNG
     else if (!strcmp(probe_kind, "rng"))
         wc_simd_probe_kind = WC_SIMD_PROBE_RNG;
+#endif
     else if (!strcmp(probe_kind, "grb"))
         wc_simd_probe_kind = WC_SIMD_PROBE_GRB;
     else {
+#ifdef HAVE_STDRNG
         pr_err("ERROR: %s: probe_kind must be \"shash\", \"rng\" or \"grb\"\n",
                __func__);
+#else
+        pr_err("ERROR: %s: probe_kind must be \"shash\" or \"grb\"\n",
+               __func__);
+#endif
         return -EINVAL;
     }
 
@@ -602,7 +627,9 @@ static int __init wc_simd_init(void)
             ret = -EINVAL;
             goto err;
         }
-    } else if (wc_simd_probe_kind == WC_SIMD_PROBE_RNG) {
+    }
+#ifdef HAVE_STDRNG
+    else if (wc_simd_probe_kind == WC_SIMD_PROBE_RNG) {
         /* ONE shared tfm for every CPU, deliberately.  A tfm per CPU would
          * hand each probe its own private DRBG and measure nothing about
          * the shared path under test. */
@@ -615,7 +642,18 @@ static int __init wc_simd_init(void)
                    __func__, probe_alg, ret);
             return ret;
         }
+        {
+            const char *drv = crypto_tfm_alg_driver_name(
+                crypto_rng_tfm(wc_simd_probe_rng));
+            pr_info("%s: probe rng \"%s\" bound to driver \"%s\".\n",
+                    __func__, probe_alg, drv);
+            if (! strstr(drv, "wolfcrypt"))
+                pr_warn("%s: driver \"%s\" is not wolfCrypt -- the rng "
+                        "probe will measure the stock DRBG.\n",
+                        __func__, drv);
+        }
     }
+#endif
 
     wc_simd_pc = kcalloc(nr_cpu_ids, sizeof(*wc_simd_pc), GFP_KERNEL);
     if (!wc_simd_pc) {

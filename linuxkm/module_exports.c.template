@@ -20,6 +20,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#define WC_NO_COMPAT_H_REMAPS
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_FIPS
@@ -65,7 +67,7 @@
         #include <wolfssl/wolfcrypt/wolfentropy.h>
     #endif
     #include <wolfssl/wolfcrypt/random.h>
-    #ifdef WC_RNG_BANK_SUPPORT
+    #ifdef HAVE_WC_RNG_BANK
         #include <wolfssl/wolfcrypt/rng_bank.h>
     #endif
 #endif
@@ -170,6 +172,12 @@
 #endif
 #ifdef WOLFSSL_HAVE_SLHDSA
     #include <wolfssl/wolfcrypt/wc_slhdsa.h>
+#endif
+#ifdef HAVE_FALCON
+    #include <wolfssl/wolfcrypt/falcon.h>
+#endif
+#ifdef WOLFSSL_HAVE_FRODOKEM
+    #include <wolfssl/wolfcrypt/wc_frodokem.h>
 #endif
 
 #ifdef OPENSSL_EXTRA

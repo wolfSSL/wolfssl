@@ -480,10 +480,16 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 
 /* Seed Source */
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "GCC ARM example counter seed is predictable: provide a secure custom seed; test only: define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
 /* Size of returned HW RNG value */
 #define CUSTOM_RAND_TYPE      unsigned int
 extern unsigned int my_rng_seed_gen(void);
-#undef  CUSTOM_RAND_GENERATE
 #define CUSTOM_RAND_GENERATE  my_rng_seed_gen
 
 /* Choose RNG method */
@@ -501,6 +507,7 @@ extern unsigned int my_rng_seed_gen(void);
     #undef  CUSTOM_RAND_GENERATE_BLOCK
     #define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
 #endif
+#endif /* no application seed source */
 
 
 /* ------------------------------------------------------------------------- */
@@ -537,6 +544,9 @@ extern unsigned int my_rng_seed_gen(void);
     #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
 
     #define XSNPRINTF snprintf
+
+    #include <stdlib.h>
+    #define XATOI(s)          atoi((s))
 #endif
 
 

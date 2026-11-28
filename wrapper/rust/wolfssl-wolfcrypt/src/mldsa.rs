@@ -29,16 +29,20 @@ deallocation.
 Three security parameter sets are supported, selected via
 [`MlDsa::set_level()`]:
 
-| Constant        | Level | NIST PQC Level |
-|-----------------|-------|----------------|
-| [`MlDsa::LEVEL_44`] | 2 | 2 (ML-DSA-44) |
-| [`MlDsa::LEVEL_65`] | 3 | 3 (ML-DSA-65) |
-| [`MlDsa::LEVEL_87`] | 5 | 5 (ML-DSA-87) |
+| Constant        | Level | NIST PQC Level | Build cfg |
+|-----------------|-------|----------------|-----------|
+| [`MlDsa::LEVEL_44`] | 2 | 2 (ML-DSA-44) | `mldsa_level2` |
+| [`MlDsa::LEVEL_65`] | 3 | 3 (ML-DSA-65) | `mldsa_level3` |
+| [`MlDsa::LEVEL_87`] | 5 | 5 (ML-DSA-87) | `mldsa_level5` |
+
+A parameter set that the library was not built with has no level constant,
+so selecting it is a compile-time error rather than a runtime
+`NOT_COMPILED_IN`.
 
 # Examples
 
 ```rust
-#[cfg(all(mldsa, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
+#[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
 {
 use wolfssl_wolfcrypt::random::RNG;
 use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -76,10 +80,22 @@ pub struct MlDsa {
 
 impl MlDsa {
     /// ML-DSA-44 security parameter set (NIST Level 2).
+    ///
+    /// Only present when the library was built with ML-DSA-44 support
+    /// (i.e. without `WOLFSSL_NO_ML_DSA_44`).
+    #[cfg(mldsa_level2)]
     pub const LEVEL_44: u8 = sys::WC_ML_DSA_44 as u8;
     /// ML-DSA-65 security parameter set (NIST Level 3).
+    ///
+    /// Only present when the library was built with ML-DSA-65 support
+    /// (i.e. without `WOLFSSL_NO_ML_DSA_65`).
+    #[cfg(mldsa_level3)]
     pub const LEVEL_65: u8 = sys::WC_ML_DSA_65 as u8;
     /// ML-DSA-87 security parameter set (NIST Level 5).
+    ///
+    /// Only present when the library was built with ML-DSA-87 support
+    /// (i.e. without `WOLFSSL_NO_ML_DSA_87`).
+    #[cfg(mldsa_level5)]
     pub const LEVEL_87: u8 = sys::WC_ML_DSA_87 as u8;
 
     /// Required size in bytes of the seed passed to
@@ -149,7 +165,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -181,7 +197,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -228,7 +244,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key_from_seed))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key_from_seed))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let seed = [0x42u8; 32];
@@ -260,7 +276,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key_from_seed))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key_from_seed))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let seed = [0x42u8; 32];
@@ -376,7 +392,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(mldsa)]
+    /// #[cfg(all(mldsa, mldsa_level3))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let mut key = MlDsa::new().expect("Error with new()");
@@ -401,7 +417,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(mldsa)]
+    /// #[cfg(all(mldsa, mldsa_level5))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let mut key = MlDsa::new().expect("Error with new()");
@@ -429,7 +445,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -440,6 +456,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_KEY_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_size)]
     pub fn size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_Size(&mut self.ws_key) };
         if rc < 0 {
@@ -459,7 +476,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_priv_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -470,6 +487,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_PRV_KEY_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_priv_size)]
     pub fn priv_size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_PrivSize(&mut self.ws_key) };
         if rc < 0 {
@@ -488,7 +506,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_pub_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -499,6 +517,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_PUB_KEY_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_pub_size)]
     pub fn pub_size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_PubSize(&mut self.ws_key) };
         if rc < 0 {
@@ -517,7 +536,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sig_size, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -528,6 +547,7 @@ impl MlDsa {
     /// assert_eq!(sz, MlDsa::LEVEL2_SIG_SIZE);
     /// }
     /// ```
+    #[cfg(mldsa_sig_size)]
     pub fn sig_size(&mut self) -> Result<usize, i32> {
         let rc = unsafe { sys::wc_MlDsaKey_SigSize(&mut self.ws_key) };
         if rc < 0 {
@@ -546,7 +566,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_check_key, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_check_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -579,7 +599,8 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_import, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_pub_size, mldsa_export_public,
+    ///           mldsa_import_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -593,7 +614,7 @@ impl MlDsa {
     /// key2.import_public(&pub_buf).expect("Error with import_public()");
     /// }
     /// ```
-    #[cfg(mldsa_import)]
+    #[cfg(mldsa_import_public)]
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
         let public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -622,7 +643,13 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_import, mldsa_export, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_export_private,
+    ///           mldsa_import_private, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -636,7 +663,7 @@ impl MlDsa {
     /// key2.import_private(&priv_buf).expect("Error with import_private()");
     /// }
     /// ```
-    #[cfg(mldsa_import)]
+    #[cfg(mldsa_import_private)]
     pub fn import_private(&mut self, private: &[u8]) -> Result<(), i32> {
         let private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
@@ -663,7 +690,14 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_import, mldsa_export, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_pub_size,
+    ///           mldsa_export_private, mldsa_import_private,
+    ///           mldsa_import_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -678,7 +712,7 @@ impl MlDsa {
     /// key2.import_key(&priv_buf, &pub_buf).expect("Error with import_key()");
     /// }
     /// ```
-    #[cfg(mldsa_import)]
+    #[cfg(all(mldsa_import_private, mldsa_import_public))]
     pub fn import_key(&mut self, private: &[u8], public: &[u8]) -> Result<(), i32> {
         let private_size = crate::buffer_len_to_u32(private.len())?;
         let public_size = crate::buffer_len_to_u32(public.len())?;
@@ -710,7 +744,8 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_export, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_pub_size,
+    ///           mldsa_export_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -722,7 +757,7 @@ impl MlDsa {
     /// assert_eq!(written, MlDsa::LEVEL2_PUB_KEY_SIZE);
     /// }
     /// ```
-    #[cfg(mldsa_export)]
+    #[cfg(mldsa_export_public)]
     pub fn export_public(&mut self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -749,7 +784,13 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_export, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size,
+    ///           mldsa_export_private, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -761,7 +802,7 @@ impl MlDsa {
     /// assert_eq!(written, MlDsa::LEVEL2_KEY_SIZE);
     /// }
     /// ```
-    #[cfg(mldsa_export)]
+    #[cfg(mldsa_export_private)]
     pub fn export_private(&mut self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let rc = unsafe {
@@ -787,13 +828,20 @@ impl MlDsa {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     ///
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_export, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_size, mldsa_pub_size,
+    ///           mldsa_export_private, mldsa_export_public, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -805,8 +853,8 @@ impl MlDsa {
     /// key.export_key(&mut priv_buf, &mut pub_buf).expect("Error with export_key()");
     /// }
     /// ```
-    #[cfg(mldsa_export)]
-    pub fn export_key(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
+    #[cfg(all(mldsa_export_private, mldsa_export_public))]
+    pub fn export_key(&mut self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
         let rc = unsafe {
@@ -819,7 +867,7 @@ impl MlDsa {
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Sign a message and write the signature to `sig`.
@@ -840,7 +888,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -897,7 +945,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -1009,7 +1057,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key_from_seed, mldsa_sign_with_seed))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key_from_seed, mldsa_sign_with_seed))]
     /// {
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
     /// let key_seed = [0x42u8; 32];
@@ -1158,7 +1206,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;
@@ -1210,7 +1258,7 @@ impl MlDsa {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(mldsa, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
+    /// #[cfg(all(mldsa, mldsa_level2, mldsa_make_key, mldsa_sign, mldsa_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::mldsa::MlDsa;

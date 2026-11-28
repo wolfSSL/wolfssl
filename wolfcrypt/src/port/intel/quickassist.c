@@ -1158,13 +1158,14 @@ int IntelQaGenPrime(WC_ASYNC_DEV* dev, WC_RNG* rng, byte* primeBuf,
                 /* if rollover occurred increment high order bytes */
                 /* increment by 1 does not affect odd/even */
                 int j;
+                primeData[byteCheck] = 0x01;
                 for (j = primeSz - 2; j >= 0; j--) {
-                    if (primeData[i] != 0xFF) {
-                        primeData[i] += 1;
+                    if (primeData[j] != 0xFF) {
+                        primeData[j] += 1;
                         break;
                     }
                     else {
-                        primeData[i] = 0;
+                        primeData[j] = 0;
                     }
                 }
             }
@@ -2295,6 +2296,13 @@ static void IntelQaSymCipherFree(WC_ASYNC_DEV* dev)
     dev->qat.op.cipher.authTag = NULL;
     dev->qat.op.cipher.authTagSz = 0;
 #endif
+    /* clear next IV state, otherwise a later operation that does not set it
+     * (decrypt or AES-GCM) would have the callback write into the IV buffer
+     * of this one */
+    dev->qat.op.cipher.iv = NULL;
+    dev->qat.op.cipher.ivSz = 0;
+    ForceZero(dev->qat.op.cipher.ivTmp, sizeof(dev->qat.op.cipher.ivTmp));
+    dev->qat.op.cipher.ivTmpSz = 0;
 }
 
 static void IntelQaSymCipherCallback(void *pCallbackTag, CpaStatus status,
@@ -2332,12 +2340,23 @@ static void IntelQaSymCipherCallback(void *pCallbackTag, CpaStatus status,
             /* capture IV for next call */
             if (dev->qat.op.cipher.iv && dev->qat.op.cipher.ivSz > 0) {
                 word32 ivSz = dev->qat.op.cipher.ivSz;
-                if (ivSz > outLen)
-                    ivSz = outLen;
-                /* copy last block */
-                XMEMCPY(dev->qat.op.cipher.iv,
-                        &pDstBuffer->pBuffers->pData[outLen - ivSz],
+                if (dev->qat.op.cipher.ivTmpSz > 0) {
+                    /* decrypt: next IV was staged from the input before the
+                     * operation, commit it now that it has succeeded */
+                    if (ivSz > dev->qat.op.cipher.ivTmpSz)
+                        ivSz = dev->qat.op.cipher.ivTmpSz;
+                    XMEMCPY(dev->qat.op.cipher.iv, dev->qat.op.cipher.ivTmp,
                         ivSz);
+                }
+                else {
+                    /* encrypt: next IV is the last block of the output */
+                    if (ivSz > outLen)
+                        ivSz = outLen;
+                    /* copy last block */
+                    XMEMCPY(dev->qat.op.cipher.iv,
+                            &pDstBuffer->pBuffers->pData[outLen - ivSz],
+                            ivSz);
+                }
             }
 
         #ifndef NO_AES
@@ -2533,17 +2552,24 @@ static int IntelQaSymCipher(WC_ASYNC_DEV* dev, byte* out, const byte* in,
     dev->qat.out = out;
     dev->qat.outLen = inOutSz;
     /* optional return of next IV */
+    /* always set, the op union is shared with the other algorithms */
+    dev->qat.op.cipher.iv = NULL;
+    dev->qat.op.cipher.ivSz = 0;
+    dev->qat.op.cipher.ivTmpSz = 0;
     if (cipherAlgorithm != CPA_CY_SYM_CIPHER_AES_GCM && iv) {
         if (ivSz > inOutSz)
             ivSz = inOutSz;
-        if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
-            /* capture this on the callback */
-            dev->qat.op.cipher.iv = iv;
-            dev->qat.op.cipher.ivSz = ivSz;
-        }
-        else {
-            /* capture last block of input as next IV */
-            XMEMCPY(iv, &in[inOutSz - ivSz], ivSz);
+        if (ivSz > (word32)sizeof(dev->qat.op.cipher.ivTmp))
+            ivSz = (word32)sizeof(dev->qat.op.cipher.ivTmp);
+        /* the callback updates the IV once the operation has succeeded */
+        dev->qat.op.cipher.iv = iv;
+        dev->qat.op.cipher.ivSz = ivSz;
+        if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT) {
+            /* stage last block of input as next IV. It has to be captured
+             * now because the operation can be in-place, but it is only
+             * committed to the caller's IV on successful completion. */
+            XMEMCPY(dev->qat.op.cipher.ivTmp, &dataBuf[inOutSz - ivSz], ivSz);
+            dev->qat.op.cipher.ivTmpSz = ivSz;
         }
     }
     if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
@@ -3425,6 +3451,29 @@ static int IntelQaSymHash(WC_ASYNC_DEV* dev, byte* out, const byte* in,
 #endif
     return IntelQaSymHashCache(dev, out, in, inOutSz, hashMode,
         hashAlgorithm, authKey, authKeyLenInBytes);
+}
+
+/* Discard cached input and any open session so a hash context can be restarted
+ * in place, keeping its device association. A context that is not bound to QAT
+ * has nothing to discard. */
+int IntelQaSymHashReset(WC_ASYNC_DEV* dev)
+{
+    word32 marker;
+    void* heap;
+    int devId;
+
+    if (dev == NULL || !IntelQaDevIsHash(dev)) {
+        return 0;
+    }
+
+    marker = dev->marker;
+    heap = dev->heap;
+    devId = dev->qat.devId;
+
+    /* IntelQaSymClose() leaves tmpIn dangling, so the re-init must follow to
+     * clear it along with the session state. */
+    wolfAsync_DevCtxFree(dev, marker);
+    return wolfAsync_DevCtxInit(dev, marker, heap, devId);
 }
 
 #ifdef WOLFSSL_SHA512
@@ -4418,23 +4467,31 @@ static void IntelQaDhAgreeCallback(void *pCallbackTag, CpaStatus status,
         }
 
         /* count leading zeros */
-        while (out[idxTrim] == 0 && idxTrim < pOut->dataLenInBytes) {
+        while (idxTrim < pOut->dataLenInBytes && out[idxTrim] == 0) {
             idxTrim++;
         }
         pOut->dataLenInBytes -= idxTrim;
 
-        /* return data and trim leading zeros */
-        if (dev->qat.out && (dev->qat.out != pOut->pData || idxTrim > 0)) {
-            XMEMMOVE(dev->qat.out, &out[idxTrim], pOut->dataLenInBytes);
+        /* The shared secret must not be 0 or 1 (SP 800-56A 5.7.1.1). */
+        if (pOut->dataLenInBytes == 0 ||
+                (pOut->dataLenInBytes == 1 && out[idxTrim] == 1)) {
+            WOLFSSL_MSG("IntelQaDhAgreeCallback: invalid shared secret");
+            ret = MP_VAL;
         }
+        else {
+            /* return data and trim leading zeros */
+            if (dev->qat.out && (dev->qat.out != pOut->pData || idxTrim > 0)) {
+                XMEMMOVE(dev->qat.out, &out[idxTrim], pOut->dataLenInBytes);
+            }
 
-        /* return final length */
-        if (dev->qat.outLenPtr) {
-            *dev->qat.outLenPtr = pOut->dataLenInBytes;
+            /* return final length */
+            if (dev->qat.outLenPtr) {
+                *dev->qat.outLenPtr = pOut->dataLenInBytes;
+            }
+
+            /* mark event result */
+            ret = 0; /* success */
         }
-
-        /* mark event result */
-        ret = 0; /* success */
     }
     (void)opData;
 
@@ -4752,20 +4809,18 @@ int IntelQaDrbg(WC_ASYNC_DEV* dev, byte* rngBuf, word32 rngSz)
     /* chunk into LAC_DRBG_MAX_NUM_OF_BYTES (0xFFFF) */
     while (ret == 0 && idx < rngSz) {
         /* setup operation data */
-        gen = rngSz - gen;
+        gen = rngSz - idx;
         if (gen > 0xFFFF)
             gen = 0xFFFF;
 
+        /* the buffer is freed when the previous chunk completes */
         pOut->dataLenInBytes = gen;
-        if (idx == 0 && pOut->pData == NULL) {
-            pOut->pData = XREALLOC(rngBuf, gen, dev->heap,
+        if (pOut->pData == NULL) {
+            pOut->pData = (Cpa8U*)XMALLOC(gen, dev->heap,
                 DYNAMIC_TYPE_ASYNC_NUMA);
             if (pOut->pData == NULL) {
                 ret = MEMORY_E; goto exit;
             }
-        }
-        else {
-            XMEMCPY(pOut->pData, &rngBuf[idx], gen);
         }
 
         opData->sessionHandle = dev->qat.op.drbg.handle;

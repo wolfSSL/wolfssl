@@ -27,7 +27,7 @@
 #ifndef NO_KDF
 
 #if FIPS_VERSION3_GE(5,0,0)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$h")
         #pragma const_seg(".fipsB$h")
     #endif
@@ -206,6 +206,10 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
             }
         }
         wc_HmacFree(hmac);
+    }
+    if (ret != 0) {
+        /* Partial PRF output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(result, resLen);
     }
 
     ForceZero(current, P_HASH_MAX_SIZE);
@@ -621,6 +625,59 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 #endif /* HAVE_HKDF && !NO_HMAC */
 
+#ifdef WOLFSSL_HAVE_MLKEM
+/* Puts the ML-KEM secret after the ECDH secret in ss, or before it if kemFirst.
+ * FIPS builds allow only the groups, orders and sizes of
+ * draft-ietf-tls-ecdhe-mlkem-03 sec 4.3. */
+int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst, byte* ss,
+    word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz)
+{
+#ifdef HAVE_FIPS
+    /* TLS code point, ML-KEM first, ECDH size; ML-KEM is 32 (FIPS 203). */
+    static const word16 hybrid[][3] = {
+        { 4587, 0, 32 },  /* SecP256r1MLKEM768 */
+        { 4588, 1, 32 },  /* X25519MLKEM768 */
+        { 4589, 0, 48 }   /* SecP384r1MLKEM1024 */
+    };
+    word32 i;
+#endif
+    word32 ecSz;
+
+    if ((ss == NULL) || (ssSz == NULL) || (kemSs == NULL) || (*ssSz == 0) ||
+            (kemSsSz == 0))
+        return BAD_FUNC_ARG;
+    kemFirst = (kemFirst != 0);
+
+#ifdef HAVE_FIPS
+    for (i = 0; i < sizeof(hybrid) / sizeof(hybrid[0]); i++) {
+        if (hybrid[i][0] == group)
+            break;
+    }
+    if ((i == sizeof(hybrid) / sizeof(hybrid[0])) ||
+            (hybrid[i][1] != kemFirst) || (hybrid[i][2] != *ssSz) ||
+            (kemSsSz != 32))
+        return BAD_FUNC_ARG;
+#else
+    (void)group;
+#endif
+
+    ecSz = *ssSz;
+    if ((ecSz > ssMax) || (kemSsSz > ssMax - ecSz))
+        return BUFFER_E;
+
+    if (kemFirst) {
+        XMEMMOVE(ss + kemSsSz, ss, ecSz);
+        XMEMCPY(ss, kemSs, kemSsSz);
+    }
+    else {
+        XMEMCPY(ss + ecSz, kemSs, kemSsSz);
+    }
+    *ssSz = ecSz + kemSsSz;
+
+    return 0;
+}
+#endif /* WOLFSSL_HAVE_MLKEM */
+
 
 #ifdef WOLFSSL_WOLFSSH
 
@@ -790,8 +847,10 @@ void _HashFree(byte hashId, _hash* hash)
 
 #define LENGTH_SZ 4
 
-int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
-        const byte* k, word32 kSz, const byte* h, word32 hSz,
+/* SP 800-135r1 sec 5.2 SSH KDF; K is an RFC 4251 sec 5 mpint (RFC 4253) or
+ * string (RFC 10042 sec 2.5), as kEncoding says. */
+int wc_SSH_KDF_ex(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, int kEncoding, const byte* h, word32 hSz,
         const byte* sessionId, word32 sessionIdSz)
 {
     word32 blocks, remainder;
@@ -806,7 +865,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     if (key == NULL || keySz == 0 ||
         k == NULL || kSz == 0 ||
         h == NULL || hSz == 0 ||
-        sessionId == NULL || sessionIdSz == 0) {
+        sessionId == NULL || sessionIdSz == 0 ||
+        (kEncoding != WC_SSH_KDF_K_MPINT &&
+         kEncoding != WC_SSH_KDF_K_STRING)) {
 
         return BAD_FUNC_ARG;
     }
@@ -817,7 +878,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     }
     digestSz = (word32)ret;
 
-    if (k[0] & 0x80) kPad = 1;
+    /* An mpint gets a zero byte when its top bit is set; a string never. */
+    if ((kEncoding == WC_SSH_KDF_K_MPINT) && (k[0] & 0x80))
+        kPad = 1;
     c32toa(kSz + kPad, kSzFlat);
 
     blocks = keySz / digestSz;
@@ -826,6 +889,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     ret = _HashInit(enmhashId, &hash);
     if (ret != 0)
         return ret;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_SSH_KDF hash", &hash, sizeof(hash));
+#endif
 
     ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
     if (ret == 0 && kPad)
@@ -843,9 +909,18 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
         if (blocks == 0) {
             if (remainder > 0) {
                 byte lastBlock[WC_MAX_DIGEST_SIZE];
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Add("wc_SSH_KDF lastBlock", lastBlock,
+                    sizeof(lastBlock));
+            #endif
                 ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(lastBlock, sizeof(lastBlock));
+            #endif
             }
         }
         else {
@@ -854,9 +929,9 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
             runningKeySz = digestSz;
             ret = _HashFinal(enmhashId, &hash, key);
 
-            for (curBlock = 1; curBlock < blocks; curBlock++) {
-                ret = _HashInit(enmhashId, &hash);
-                if (ret != 0) break;
+            for (curBlock = 1; (ret == 0) && (curBlock < blocks); curBlock++) {
+                /* Final resets the hash for reuse. Reinitializing here would
+                 * lose owned resources such as the cached SHA-256 schedule. */
                 ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
                 if (ret != 0) break;
                 if (kPad)
@@ -875,8 +950,11 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
 
             if (remainder > 0) {
                 byte lastBlock[WC_MAX_DIGEST_SIZE];
-                if (ret == 0)
-                    ret = _HashInit(enmhashId, &hash);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Add("wc_SSH_KDF lastBlock", lastBlock,
+                    sizeof(lastBlock));
+            #endif
+                /* Reuse the reset context from the preceding Final. */
                 if (ret == 0)
                     ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
                 if (ret == 0 && kPad)
@@ -891,13 +969,34 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                     ret = _HashFinal(enmhashId, &hash, lastBlock);
                 if (ret == 0)
                     XMEMCPY(key + runningKeySz, lastBlock, remainder);
+                /* lastBlock held derived key material (ISO/IEC 19790 7.9). */
+                ForceZero(lastBlock, sizeof(lastBlock));
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(lastBlock, sizeof(lastBlock));
+            #endif
             }
         }
     }
 
     _HashFree(enmhashId, &hash);
+    /* hash absorbed the shared secret K (ISO/IEC 19790:2012 7.9.7). */
+    ForceZero(&hash, sizeof(hash));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(&hash, sizeof(hash));
+#endif
+    if (ret != 0) {
+        ForceZero(key, keySz);
+    }
 
     return ret;
+}
+
+int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz)
+{
+    return wc_SSH_KDF_ex(hashId, keyId, key, keySz, k, kSz,
+        WC_SSH_KDF_K_MPINT, h, hSz, sessionId, sessionIdSz);
 }
 
 #endif /* WOLFSSL_WOLFSSH */
@@ -994,6 +1093,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
             /* Copy into key required amount. */
             XMEMCPY(key, enc, keySz);
         }
+        ForceZero(enc, sizeof(enc));
     }
     /* XOR out label. */
     block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;
@@ -1043,7 +1143,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1080,10 +1180,21 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         ret = wc_srtp_kdf_derive_key(block, WC_SRTP_INDEX_LEN,
             WC_SRTP_LABEL_SALT, key3, key3Sz, aes);
     }
+    if ((ret != 0) && aes_inited) {
+        /* Derived keys are not released (ISO/IEC 19790 7.9.7). */
+        if (key1 != NULL)
+            ForceZero(key1, key1Sz);
+        if (key2 != NULL)
+            ForceZero(key2, key2Sz);
+        if (key3 != NULL)
+            ForceZero(key3, key3Sz);
+    }
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 }
 
@@ -1138,7 +1249,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1174,10 +1285,21 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
         ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_SALT, key3, key3Sz, aes);
     }
+    if ((ret != 0) && aes_inited) {
+        /* Derived keys are not released (ISO/IEC 19790 7.9.7). */
+        if (key1 != NULL)
+            ForceZero(key1, key1Sz);
+        if (key2 != NULL)
+            ForceZero(key2, key2Sz);
+        if (key3 != NULL)
+            ForceZero(key3, key3Sz);
+    }
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 }
 
@@ -1229,7 +1351,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1255,10 +1377,15 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         ret = wc_srtp_kdf_derive_key(block, WC_SRTP_INDEX_LEN, label, outKey,
             outKeySz, aes);
     }
+    if ((ret != 0) && aes_inited) {
+        ForceZero(outKey, outKeySz);
+    }
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 
 }
@@ -1302,7 +1429,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_CIPHER);
+        aes = WC_ALLOC_AES(NULL);
         if (aes == NULL) {
             ret = MEMORY_E;
         }
@@ -1328,10 +1455,15 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN, label, outKey,
             outKeySz, aes);
     }
+    if ((ret != 0) && aes_inited) {
+        ForceZero(outKey, outKeySz);
+    }
 
     if (aes_inited)
         wc_AesFree(aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
     return ret;
 
 }
@@ -1560,13 +1692,18 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
 #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-    cmac = (Cmac*)XMALLOC(sizeof(Cmac), heap, DYNAMIC_TYPE_CMAC);
+    cmac = WC_ALLOC_CMAC(heap);
     if (cmac == NULL) {
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(Key_kdk, sizeof(Key_kdk));
     #endif
         return MEMORY_E;
     }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Aes part is checked by wc_AesFree. */
+    wc_MemZero_Add("wc_KDA_KDF_twostep_cmac cmac",
+        ((unsigned char *)cmac) + sizeof(Aes), sizeof(Cmac) - sizeof(Aes));
+    #endif
     #endif
 
     /* step 1: cmac extract */
@@ -1583,7 +1720,8 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
 
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
-        XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
+        ForceZero(cmac, sizeof(Cmac));
+        WC_FREE_CMAC(cmac, heap);
         cmac = NULL;
     }
     #endif /* WOLFSSL_SMALL_STACK */
@@ -1641,6 +1779,7 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #endif /* WOLFSSL_SMALL_STACK */
     byte   counterBuf[4];
     int    ret = 0;
+    int    freeRet;
 
     /* screen out bad args. */
     if (Kin == NULL || Kout == NULL) {
@@ -1661,10 +1800,15 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     }
 
     #ifdef WOLFSSL_SMALL_STACK
-    cmac = (Cmac*)XMALLOC(sizeof(Cmac), heap, DYNAMIC_TYPE_CMAC);
+    cmac = WC_ALLOC_CMAC(heap);
     if (cmac == NULL) {
         return MEMORY_E;
     }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Aes part is checked by wc_AesFree. */
+    wc_MemZero_Add("wc_KDA_KDF_PRF_cmac cmac",
+        ((unsigned char *)cmac) + sizeof(Aes), sizeof(Cmac) - sizeof(Aes));
+    #endif
     #endif
 
     while (len_rem >= WC_AES_BLOCK_SIZE) {
@@ -1697,8 +1841,12 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
             }
         }
 
-        if (cmac_inited)
-            (void)wc_CmacFree(cmac);
+        /* A failed wipe outranks an earlier error. */
+        if (cmac_inited) {
+            freeRet = wc_CmacFree(cmac);
+            if (freeRet != 0)
+                ret = freeRet;
+        }
 
         if (ret != 0) { break; }
 
@@ -1750,13 +1898,17 @@ int wc_KDA_KDF_PRF_cmac(const byte* Kin, word32 KinSz,
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(rem, sizeof(rem));
     #endif
-        if (cmac_inited)
-            (void)wc_CmacFree(cmac);
+        if (cmac_inited) {
+            freeRet = wc_CmacFree(cmac);
+            if (freeRet != 0)
+                ret = freeRet;
+        }
     }
 
     #ifdef WOLFSSL_SMALL_STACK
     if (cmac) {
-        XFREE(cmac, heap, DYNAMIC_TYPE_CMAC);
+        ForceZero(cmac, sizeof(Cmac));
+        WC_FREE_CMAC(cmac, heap);
         cmac = NULL;
     }
     #endif /* WOLFSSL_SMALL_STACK */

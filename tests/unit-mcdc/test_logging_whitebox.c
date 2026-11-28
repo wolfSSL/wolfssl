@@ -57,6 +57,9 @@
  *                            no heap allocation, no mutex needed), which is
  *                            the simpler of logging.c's two error-queue
  *                            implementations to drive crash-safely here.
+ *   HAVE_THREAD_LS          - makes THREAD_LS_T real thread-local storage;
+ *                            without it types.h drops ERROR_QUEUE_PER_THREAD
+ *                            in threaded builds.
  *
  * Targeted core decisions, by logging.c line (as reviewed during authoring;
  * line numbers may drift slightly with unrelated edits):
@@ -118,6 +121,11 @@
 #endif
 #ifndef ERROR_QUEUE_PER_THREAD
     #define ERROR_QUEUE_PER_THREAD
+#endif
+/* types.h drops ERROR_QUEUE_PER_THREAD in threaded builds unless THREAD_LS_T
+ * is real thread-local storage. */
+#ifndef HAVE_THREAD_LS
+    #define HAVE_THREAD_LS
 #endif
 
 /* Pull logging.c in verbatim so its file-static state (loggingCertEnabled,

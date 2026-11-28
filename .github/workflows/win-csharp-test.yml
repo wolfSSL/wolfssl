@@ -7,6 +7,10 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

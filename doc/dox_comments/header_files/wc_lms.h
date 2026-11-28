@@ -319,6 +319,10 @@ int wc_LmsKey_SetContext(LmsKey* key, void* context);
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return MEMORY_E on allocation failure.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in,out] key Pointer to an LmsKey in state
     WC_LMS_STATE_PARMSET with callbacks set.
@@ -363,10 +367,20 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng);
     taken to be device-backed and Reload is a no-op. With a read
     callback the software reload runs as usual.
 
+    WOLF_CRYPTO_CB_ONLY_LMS removes the software reload, so the read
+    callback is never called and only the device-backed no-op
+    succeeds.
+
+    A reloaded key holds no public key: neither arm populates it.
+    Call wc_LmsKey_ImportPubRaw() on a separate key to verify, or keep
+    the public key exported at generation time.
+
     \return 0 on success, including the device-backed no-op.
     \return BAD_FUNC_ARG if any required pointer is NULL.
     \return WC_LMS_RC_* mapped error if the read callback fails.
     \return IO_FAILED_E if the private key could not be read.
+    \return NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_LMS when the key is
+    not device-backed.
 
     \param [in,out] key Pointer to an LmsKey with parameters and read
     callback set.
@@ -463,13 +477,14 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
 /*!
     \ingroup LMS
 
-    \brief Returns the number of one-time signatures still available
-    from this key. When the count reaches zero the key can no longer
-    sign and should be retired.
+    \brief Reports whether this key can create another signature. It
+    does not return a count. A key whose one-time keys are used up
+    returns 0 and should be retired.
 
-    \return Non-negative number of remaining signatures on success.
-    \return Negative error code on failure (e.g. BAD_FUNC_ARG if key
-    is NULL).
+    \return 1 if at least one signature remains.
+    \return 0 if the one-time keys are exhausted, if key is NULL, has no
+    parameters set or is verify-only, or if a crypto callback device
+    returns an error.
 
     \param [in,out] key Pointer to an LmsKey in state WC_LMS_STATE_OK.
 
@@ -500,6 +515,7 @@ void wc_LmsKey_Free(LmsKey* key);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if keyDst or keySrc is NULL.
+    \return BAD_STATE_E if keySrc holds no public key.
 
     \param [in,out] keyDst Pointer to an initialized destination
     LmsKey.
@@ -518,6 +534,7 @@ int wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if keyDst or keySrc is NULL.
+    \return BAD_STATE_E if keySrc holds no public key.
 
     \param [in,out] keyDst Pointer to an LmsKey to populate.
     \param [in] keySrc Pointer to an LmsKey with the public key.
@@ -538,6 +555,7 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc, void* heap,
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if key holds no public key.
     \return BUFFER_E if *outLen is smaller than the public key size.
 
     \param [in] key Pointer to an LmsKey.
@@ -579,6 +597,7 @@ int wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in, word32 inLen);
 
     \return 0 on a valid signature.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if key holds no public key.
     \return SIG_VERIFY_E (or similar) if the signature is invalid or
     malformed.
 
@@ -619,6 +638,8 @@ const char* wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
 
     \return 0 on success.
     \return BAD_FUNC_ARG if any required pointer is NULL.
+    \return BAD_STATE_E if the private key is not in memory, such as
+    when a device keeps it.
 
     \param [in,out] key Pointer to an LmsKey with a private key.
     \param [out] kid Receives a pointer to the I bytes.

@@ -106,6 +106,19 @@ typedef word32 cpuid_flags_t;
      * (vpshufb, vpaddw, vpmulhw, vpackusdw, ... on zmm). */
     #define CPUID_AVX512_BW 0x80000
     #define CPUID_SSSE3  0x100000     /* SSSE3 (pshufb etc.) */
+    /* Tuning bits.  These are not instruction-set features: they mark a CPU
+     * on which an implementation that the feature bits allow is measured to
+     * be slower than a narrower one.  Set from the family/model in cpuid.c
+     * (none are set when WC_CPUID_NO_TUNING is defined) and can be changed
+     * with cpuid_set_flag()/cpuid_clear_flag().
+     *   CPUID_SLOW_VAES:      AES using VAES (ymm) is no faster than the
+     *                         AVX2/AES-NI code, so AES (and AES-GCM-SIV's
+     *                         POLYVAL) does not pick it.
+     *   CPUID_SLOW_AVX2_SHA3: the single-stream AVX2 Keccak-f[1600] block is
+     *                         slower than BMI2 and C, so SHA-3 and ML-DSA do
+     *                         not pick it. */
+    #define CPUID_SLOW_VAES      0x200000
+    #define CPUID_SLOW_AVX2_SHA3 0x400000
 
     #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
@@ -131,16 +144,25 @@ typedef word32 cpuid_flags_t;
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_DQ)
     #define IS_INTEL_AVX512_BW(f) \
         (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX512_BW)
-    /* Safe to dispatch to wolfSSL's AVX512 assembly: every algorithm using it
-     * (ML-DSA, ML-KEM, FrodoKEM) works on 8- or 16-bit lanes at 512-bit width
-     * - vpshufb, vpaddw, vpsubw, vpmulhw, vpmullw, vpackusdw, vpmaddwd, ... -
-     * which are AVX512BW, not AVX512F. IS_INTEL_AVX512() is the F bit alone
-     * and is not sufficient on its own. */
+    /* Safe to dispatch to wolfSSL's AVX512 assembly that works on 8- or 16-bit
+     * lanes at 512-bit width - vpshufb, vpaddw, vpsubw, vpmulhw, vpmullw,
+     * vpackusdw, vpmaddwd, ... - which are AVX512BW, not AVX512F, so
+     * IS_INTEL_AVX512() (the F bit alone) is not sufficient. ML-DSA, ML-KEM
+     * and FrodoKEM are all of that shape.
+     *
+     * The multi-buffer hash kernels LMS, XMSS and SLH-DSA drive are not: they
+     * are written to stay inside AVX512F and test IS_INTEL_AVX512() directly.
+     * See ci/check_avx512_isa.rb in the scripts repo, which holds them to
+     * it. */
     #define USE_INTEL_AVX512(f) \
         (IS_INTEL_AVX512(f) && IS_INTEL_AVX512_BW(f))
     #define IS_CPU_INTEL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_INTEL)
     #define IS_CPU_AMD(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AMD)
     #define IS_INTEL_SSSE3(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SSSE3)
+    #define IS_CPU_SLOW_VAES(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SLOW_VAES)
+    #define IS_CPU_SLOW_AVX2_SHA3(f) \
+        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SLOW_AVX2_SHA3)
 
 #elif defined(HAVE_CPUID_AARCH64)
 
@@ -156,9 +178,11 @@ typedef word32 cpuid_flags_t;
     #define CPUID_ASIMD       0x0200    /* ASIMD - NEON */
     #define CPUID_SVE         0x0400    /* Scalable Vector Extension */
     #define CPUID_SME         0x0800    /* Scalable Matrix Extension */
+    #define CPUID_SHA1        0x1000    /* SHA-1 digest */
 
     #define IS_AARCH64_AES(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AES)
     #define IS_AARCH64_PMULL(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_PMULL)
+    #define IS_AARCH64_SHA1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA1)
     #define IS_AARCH64_SHA256(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA256)
     #define IS_AARCH64_SHA512(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA512)
     #define IS_AARCH64_RDM(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_RDM)
@@ -233,11 +257,7 @@ typedef word32 cpuid_flags_t;
      * accurate.
      */
     static WC_INLINE int cpuid_get_flags_atomic(cpuid_flags_atomic_t *flags) {
-        #ifdef WOLFSSL_BSDKM
-        if (WOLFSSL_ATOMIC_LOAD_UINT(*flags) == WC_CPUID_INITIALIZER) {
-        #else
         if (WOLFSSL_ATOMIC_LOAD(*flags) == WC_CPUID_INITIALIZER) {
-        #endif /* WOLFSSL_BSDKM */
             cpuid_flags_t old_cpuid_flags = WC_CPUID_INITIALIZER;
             return wolfSSL_Atomic_Uint_CompareExchange
                 (flags, &old_cpuid_flags, cpuid_get_flags());
@@ -246,7 +266,7 @@ typedef word32 cpuid_flags_t;
             return 0;
     }
 
-    /* Public APIs to modify flags. */
+    /* Public APIs to modify flags.  FIPS v7 ignores them, see cpuid.c. */
 
     #ifdef WOLFSSL_API_PREFIX_MAP
         #define cpuid_select_flags wc_cpuid_select_flags

@@ -254,7 +254,12 @@
 	#define CUSTOM_RAND_GENERATE_BLOCK wc_tsip_GenerateRandBlock
 #else
     #define OPENSSL_EXTRA
-    #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+    #if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+        !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+        !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+        !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+        #error "Renesas TSIP disabled: provide a real custom seed; test only: define WOLFSSL_GENSEED_FORTEST and WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
     #if !defined(min)
     	#define min(data1, data2)    _builtin_min(data1, data2)
 	#endif

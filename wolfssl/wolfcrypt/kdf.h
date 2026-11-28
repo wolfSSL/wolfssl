@@ -115,8 +115,26 @@ WOLFSSL_API int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
 
 #endif /* HAVE_HKDF */
 
+#ifdef WOLFSSL_HAVE_MLKEM
+/* Set when wc_Tls13_HybridSharedSecret() is available. */
+#define WOLFSSL_HAVE_TLS13_HYBRID_SECRET
+WOLFSSL_API int wc_Tls13_HybridSharedSecret(word16 group, int kemFirst,
+    byte* ss, word32 ssMax, word32* ssSz, const byte* kemSs, word32 kemSsSz);
+#endif
+
 #ifdef WOLFSSL_WOLFSSH
 
+/* How wc_SSH_KDF_ex() encodes K: RFC 4251 sec 5 mpint or string. */
+enum {
+    WC_SSH_KDF_K_MPINT  = 0,
+    WC_SSH_KDF_K_STRING = 1
+};
+
+WOLFSSL_API int wc_SSH_KDF_ex(byte hashId, byte keyId,
+        byte* key, word32 keySz,
+        const byte* k, word32 kSz, int kEncoding,
+        const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz);
 WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
         byte* key, word32 keySz,
         const byte* k, word32 kSz,

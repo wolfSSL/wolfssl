@@ -10,6 +10,7 @@
 
     \return On successfully compressing the input data, returns the number
     of bytes stored in the output buffer
+    \return BAD_FUNC_ARG Returned if out or in is NULL
     \return COMPRESS_INIT_E Returned if there is an error initializing the
     stream for compression
     \return COMPRESS_E Returned if an error occurs during compression
@@ -20,7 +21,7 @@
     \param in pointer to the buffer containing the message to compress
     \param inSz size of the input message to compress
     \param flags flags to control how compression operates. Use 0 for normal
-    decompression
+    compression
 
     _Example_
     \code
@@ -29,7 +30,7 @@
     // Recommends at least srcSz + .1% + 12
 
     if( wc_Compress(compressed, sizeof(compressed), message, sizeof(message),
-    0) != 0){
+    0) < 0){
     	// error compressing data
     }
     \endcode
@@ -46,9 +47,10 @@ int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 fla
 
     \return Success On successfully decompressing the input data, returns the
     number of bytes stored in the output buffer
-    \return COMPRESS_INIT_E: Returned if there is an error initializing the
-    stream for compression
-    \return COMPRESS_E: Returned if an error occurs during compression
+    \return BAD_FUNC_ARG Returned if out or in is NULL
+    \return DECOMPRESS_INIT_E Returned if there is an error initializing the
+    stream for decompression
+    \return DECOMPRESS_E Returned if an error occurs during decompression
 
     \param out pointer to the output buffer in which to store the decompressed
     data
@@ -62,7 +64,7 @@ int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 fla
     byte decompressed[MAX_MESSAGE_SIZE];
 
     if( wc_DeCompress(decompressed, sizeof(decompressed),
-    compressed, sizeof(compressed)) != 0 ) {
+    compressed, sizeof(compressed)) < 0 ) {
     	// error decompressing data
     }
     \endcode
@@ -80,6 +82,7 @@ int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz);
 
     \return On successfully compressing the input data, returns the
     number of bytes stored in the output buffer
+    \return BAD_FUNC_ARG Returned if out or in is NULL
     \return COMPRESS_INIT_E Returned if there is an error initializing
     the stream for compression
     \return COMPRESS_E Returned if an error occurs during compression
@@ -90,14 +93,15 @@ int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz);
     \param in pointer to the buffer containing the message to compress
     \param inSz size of the input message to compress
     \param flags flags to control how compression operates
-    \param windowBits the base two logarithm of the window size (8..15)
+    \param windowBits format flag OR'd with the default window bits:
+    0 for zlib-wrapped data, LIBZ_WINBITS_GZIP for gzip-wrapped data
 
     _Example_
     \code
     byte message[] = { // initialize text to compress };
     byte compressed[(sizeof(message) + sizeof(message) * .001 + 12)];
     word32 flags = 0;
-    word32 windowBits = 15; // 32KB window
+    word32 windowBits = 0;
 
     int ret = wc_Compress_ex(compressed, sizeof(compressed), message,
                              sizeof(message), flags, windowBits);
@@ -121,22 +125,24 @@ int wc_Compress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
 
     \return On successfully decompressing the input data, returns the
     number of bytes stored in the output buffer
-    \return COMPRESS_INIT_E Returned if there is an error initializing
+    \return BAD_FUNC_ARG Returned if out or in is NULL
+    \return DECOMPRESS_INIT_E Returned if there is an error initializing
     the stream for decompression
-    \return COMPRESS_E Returned if an error occurs during decompression
+    \return DECOMPRESS_E Returned if an error occurs during decompression
 
     \param out pointer to the output buffer in which to store the
     decompressed data
     \param outSz size available in the output buffer for storage
     \param in pointer to the buffer containing the message to decompress
     \param inSz size of the input message to decompress
-    \param windowBits the base two logarithm of the window size (8..15)
+    \param windowBits format flag OR'd with the default window bits:
+    0 for zlib-wrapped data, LIBZ_WINBITS_GZIP for gzip-wrapped data
 
     _Example_
     \code
     byte compressed[] = { // initialize compressed message };
     byte decompressed[MAX_MESSAGE_SIZE];
-    int windowBits = 15;
+    int windowBits = 0;
 
     int ret = wc_DeCompress_ex(decompressed, sizeof(decompressed),
                                compressed, sizeof(compressed),
@@ -160,29 +166,35 @@ int wc_DeCompress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
 
     \return On successfully decompressing the input data, returns the
     number of bytes stored in the output buffer
-    \return COMPRESS_INIT_E Returned if there is an error initializing
+    \return BAD_FUNC_ARG Returned if out or in is NULL, inSz is 0 or too
+    large, or max is 0 or a negative value other than -1
+    \return DECOMPRESS_INIT_E Returned if there is an error initializing
     the stream for decompression
-    \return COMPRESS_E Returned if an error occurs during decompression
+    \return DECOMPRESS_E Returned if an error occurs during decompression,
+    including when the output would exceed the limit set by max
     \return MEMORY_E Returned if memory allocation fails
 
     \param out pointer to pointer that will be set to the allocated
     output buffer
-    \param max maximum size to allocate for output buffer
+    \param max maximum decompression ratio: the output buffer is limited
+    to inSz * max bytes (capped at INT_MAX). Use -1 for no limit (up to
+    INT_MAX bytes). 0 and other negative values are rejected.
     \param memoryType type of memory to allocate (DYNAMIC_TYPE_TMP_BUFFER)
     \param in pointer to the buffer containing the message to decompress
     \param inSz size of the input message to decompress
-    \param windowBits the base two logarithm of the window size (8..15)
+    \param windowBits format flag OR'd with the default window bits:
+    0 for zlib-wrapped data, LIBZ_WINBITS_GZIP for gzip-wrapped data
     \param heap heap hint for memory allocation (can be NULL)
 
     _Example_
     \code
     byte compressed[] = { // initialize compressed message };
     byte* decompressed = NULL;
-    int max = 1024 * 1024; // 1MB max
+    int max = 4; // allow output up to 4 times the input size
 
     int ret = wc_DeCompressDynamic(&decompressed, max,
                                    DYNAMIC_TYPE_TMP_BUFFER, compressed,
-                                   sizeof(compressed), 15, NULL);
+                                   sizeof(compressed), 0, NULL);
     if (ret < 0) {
         // error decompressing data
     }

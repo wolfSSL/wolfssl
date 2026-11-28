@@ -1,11 +1,13 @@
 #![cfg(all(curve25519, random))]
 
-#[cfg(feature = "alloc")]
+/* Rc is only used by tests that also need key export. */
+#[cfg(all(feature = "alloc", curve25519_export))]
 use std::rc::Rc;
 use wolfssl_wolfcrypt::curve25519::*;
 use wolfssl_wolfcrypt::random::RNG;
 
 #[test]
+#[cfg(curve25519_import)]
 fn test_check_pub() {
     let rng = RNG::new().expect("Error with new()");
     let mut private_buffer = [0u8; Curve25519Key::KEYSIZE];
@@ -31,7 +33,7 @@ fn test_generate() {
 }
 
 #[test]
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", curve25519_export))]
 fn test_generate_shared_rng() {
     let rng = Rc::new(RNG::new().expect("Error with new()"));
     let mut key1 = Curve25519Key::generate_shared_rng(Rc::clone(&rng)).expect("Error with generate_shared_rng()");
@@ -55,6 +57,7 @@ fn test_generate_shared_rng() {
 }
 
 #[test]
+#[cfg(all(curve25519_import, curve25519_export))]
 fn test_import_no_rng() {
     let rng = RNG::new().expect("Error with new()");
     let mut key = Curve25519Key::generate(rng).expect("Error with generate()");
@@ -66,6 +69,7 @@ fn test_import_no_rng() {
 }
 
 #[test]
+#[cfg(all(curve25519_import, curve25519_export))]
 fn test_import_export_private() {
     let rng = RNG::new().expect("Error with new()");
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
@@ -75,6 +79,7 @@ fn test_import_export_private() {
 }
 
 #[test]
+#[cfg(all(curve25519_import, curve25519_export))]
 fn test_import_export_private_ex() {
     let rng = RNG::new().expect("Error with new()");
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
@@ -84,26 +89,47 @@ fn test_import_export_private_ex() {
 }
 
 #[test]
+#[cfg(all(curve25519_import, curve25519_export))]
 fn test_import_export_raw() {
     let rng = RNG::new().expect("Error with new()");
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
     let mut private_buffer = [0u8; Curve25519Key::KEYSIZE];
     let mut public_buffer = [0u8; Curve25519Key::KEYSIZE];
-    curve25519key.export_key_raw(&mut private_buffer, &mut public_buffer).expect("Error with export_key_raw()");
+    let (private_size, public_size) = curve25519key.export_key_raw(&mut private_buffer, &mut public_buffer).expect("Error with export_key_raw()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    let mut big_private = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let mut big_public = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let (private_size, public_size) = curve25519key.export_key_raw(&mut big_private, &mut big_public).expect("Error with export_key_raw()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    assert_eq!(&big_private[..private_size], &private_buffer[..]);
+    assert_eq!(&big_public[..public_size], &public_buffer[..]);
     Curve25519Key::import_private_raw(&private_buffer, &public_buffer).expect("Error with import_private_raw()");
 }
 
 #[test]
+#[cfg(all(curve25519_import, curve25519_export))]
 fn test_import_export_raw_ex() {
     let rng = RNG::new().expect("Error with new()");
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
     let mut private_buffer = [0u8; Curve25519Key::KEYSIZE];
     let mut public_buffer = [0u8; Curve25519Key::KEYSIZE];
-    curve25519key.export_key_raw_ex(&mut private_buffer, &mut public_buffer, false).expect("Error with export_key_raw_ex()");
+    let (private_size, public_size) = curve25519key.export_key_raw_ex(&mut private_buffer, &mut public_buffer, false).expect("Error with export_key_raw_ex()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    let mut big_private = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let mut big_public = [0xAAu8; Curve25519Key::KEYSIZE + 16];
+    let (private_size, public_size) = curve25519key.export_key_raw_ex(&mut big_private, &mut big_public, false).expect("Error with export_key_raw_ex()");
+    assert_eq!(private_size, Curve25519Key::KEYSIZE);
+    assert_eq!(public_size, Curve25519Key::KEYSIZE);
+    assert_eq!(&big_private[..private_size], &private_buffer[..]);
+    assert_eq!(&big_public[..public_size], &public_buffer[..]);
     Curve25519Key::import_private_raw_ex(&private_buffer, &public_buffer, false).expect("Error with import_private_raw_ex()");
 }
 
 #[test]
+#[cfg(all(curve25519_import, curve25519_export))]
 fn test_import_export_public() {
     let rng = RNG::new().expect("Error with new()");
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
@@ -113,6 +139,7 @@ fn test_import_export_public() {
 }
 
 #[test]
+#[cfg(all(curve25519_import, curve25519_export))]
 fn test_import_export_public_ex() {
     let rng = RNG::new().expect("Error with new()");
     let mut curve25519key = Curve25519Key::generate(rng).expect("Error with generate()");
@@ -141,6 +168,7 @@ fn test_make_pub_blind() {
 }
 
 #[test]
+#[cfg(all(curve25519_shared_secret, curve25519_import, curve25519_export))]
 fn test_shared_secret() {
     /* With the alloc feature the two keys can share a single RNG. */
     #[cfg(feature = "alloc")]
@@ -170,6 +198,7 @@ fn test_shared_secret() {
 }
 
 #[test]
+#[cfg(all(curve25519_shared_secret, curve25519_import, curve25519_export))]
 fn test_shared_secret_ex() {
     /* With the alloc feature the two keys can share a single RNG. */
     #[cfg(feature = "alloc")]

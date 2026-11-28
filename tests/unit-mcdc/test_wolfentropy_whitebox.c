@@ -47,14 +47,15 @@
  * setup failure is reported as a skip (return 0), never a test failure, so
  * the harness never discards the variant's coverage.
  *
- * wc_Entropy_Get() itself has two decisions whose operands reference the
+ * wc_Entropy_Get() has two decisions (the first in Entropy_HealthTest_Passed(),
+ * shared with Entropy_Init()) whose operands reference the
  * SAME file-static health-test state, but are not independently selectable
  * from tests/api because Entropy_Init() (run once by test setup) already
  * leaves that state primed:
  *
- *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
- *     - "prop_total == 0"   startup-retrigger via the first OR operand
- *     - "!rep_have_prev"    startup-retrigger via the second OR operand
+ *   "return (prop_total != 0) && rep_have_prev;"  (Entropy_HealthTest_Passed)
+ *     - "prop_total != 0"   startup-retrigger via the first operand
+ *     - "rep_have_prev"     startup-retrigger via the second operand
  *   "while ((ret == 0) && (len > 0))"
  *   "for (i = 0; (ret == 0) && (i < noise_len); i++)"
  *     - "ret == 0"          both loops only ever end via their *other*
@@ -68,8 +69,6 @@
  * visible to this TU) immediately before calling the public entry point.
  */
 
-#include "mcdc_fault_mutex.h"
-
 /* ---- SHA3-256 interposer, for the startup health test's noise fill -------
  *
  * Entropy_GetNoise() is a file-static in wolfentropy.c itself, so it cannot be
@@ -81,23 +80,42 @@
  * those DO come from sha3.o in the archive. Refusing one of them is therefore
  * the reachable equivalent: Entropy_MemUse() -> Entropy_GetNoise() ->
  * Entropy_HealthTest_Startup() propagates it into `ret` before the sample
- * loop at :781 is ever evaluated. mcdc_fault_hash.h does not carry SHA-3 (no
+ * loop at :871 is ever evaluated. mcdc_fault_hash.h does not carry SHA-3 (no
  * white-box has needed it before), so the wrapper is local to this TU.
  *
  * The wrapper is defined BEFORE the macro exists, so it still reaches the
  * real primitive; ordering is load-bearing, exactly as in mcdc_fault_hash.h.
  *
- * libwolfssl_sources.h has to come first (mcdc_fault_mutex.h deliberately
- * includes nothing, so no configuration has been read yet): without it
- * WOLFSSL_SHA3 is undefined at this point, the whole interposer is
- * preprocessed away, and wb_startup_noise_fail() below -- which is guarded on
- * the same macro but sits AFTER wolfentropy.c has pulled settings.h in --
- * refers to a wb_sha3_refuse that does not exist. That is a compile failure,
- * which the harness scores as a SILENT SKIP.
+ * libwolfssl_sources.h has to come first, so the configuration has been read
+ * before either injector looks at it:
+ *   - without it WOLFSSL_SHA3 is undefined at this point, the whole interposer
+ *     is preprocessed away, and wb_startup_noise_fail() below -- which is
+ *     guarded on the same macro but sits AFTER wolfentropy.c has pulled
+ *     settings.h in -- refers to a wb_sha3_refuse that does not exist;
+ *   - mcdc_fault_mutex.h decides MCDC_FM_UNAVAILABLE from the configuration
+ *     (HAVE_THREAD_LS, SINGLE_THREADED, ...). Included ahead of it, its first
+ *     phase redirects wc_LockMutex() while its second phase, after
+ *     wolfentropy.c, sees the real configuration and leaves mcdc_fm_lock()
+ *     undefined.
+ * Both are compile or link failures, which the harness scores as a SILENT
+ * SKIP. The price of this order is that wc_port.h's prototypes are parsed
+ * before mcdc_fault_mutex.h's redirect exists, so they no longer double as
+ * declarations of mcdc_fm_init()/mcdc_fm_lock(); those are declared
+ * explicitly below.
  */
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+#include "mcdc_fault_mutex.h"
+
+#ifndef MCDC_FM_UNAVAILABLE
+/* wc_port.h was parsed (via libwolfssl_sources.h) before the redirect above,
+ * so its prototypes did not become the hooks' declarations. Declare them here
+ * so the redirected calls in wolfentropy.c are not implicit. */
+int mcdc_fm_init(wolfSSL_Mutex* m);
+int mcdc_fm_lock(wolfSSL_Mutex* m);
+#endif
 
 #ifdef WOLFSSL_SHA3
 #include <wolfssl/wolfcrypt/sha3.h>
@@ -113,6 +131,20 @@ static int wb_Sha3_256_Update(wc_Sha3* sha3, const byte* data, word32 len)
 }
 
 #define wc_Sha3_256_Update(s, d, l) wb_Sha3_256_Update((s), (d), (l))
+
+/* One-shot: refuse the next conditioner init. */
+static int wb_sha3_init_refuse_once = 0;
+
+static int wb_InitSha3_256(wc_Sha3* sha3, void* heap, int devId)
+{
+    if (wb_sha3_init_refuse_once) {
+        wb_sha3_init_refuse_once = 0;
+        return WC_NO_ERR_TRACE(MEMORY_E);
+    }
+    return wc_InitSha3_256(sha3, heap, devId);
+}
+
+#define wc_InitSha3_256(s, h, d) wb_InitSha3_256((s), (h), (d))
 #endif /* WOLFSSL_SHA3 */
 
 #include <wolfcrypt/src/wolfentropy.c>
@@ -230,13 +262,14 @@ static void wb_collect_path(void)
 }
 
 /* wc_Entropy_Get()'s startup-retrigger guard:
- *   "if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))"
+ *   "if ((ret == 0) && (!Entropy_HealthTest_Passed()))"
+ *   "return (prop_total != 0) && rep_have_prev;"
  * On any live process, Entropy_Init() (already run by test setup and by
  * wb_collect_path() above) leaves prop_total != 0 and rep_have_prev == 1, so
- * this guard's *true* side -- and each of its two OR operands individually
+ * this guard's *true* side -- and each of its two operands individually
  * -- is never shown from tests/api. Both globals are file-static: drive
  * each operand's independence pair directly, holding the other operand
- * false (the "both false" side is already exercised by every other
+ * true (the "both true" side is already exercised by every other
  * steady-state call in this suite, e.g. wb_collect_path() above). */
 static void wb_startup_retrigger(void)
 {
@@ -249,8 +282,8 @@ static void wb_startup_retrigger(void)
         return;
     }
 
-    /* "prop_total == 0" true, "!rep_have_prev" false: retrigger via the
-     * first OR operand alone. */
+    /* "prop_total != 0" false, "rep_have_prev" true: retrigger via the
+     * first operand alone. */
     prop_total = 0;
     rep_have_prev = 1;
     XMEMSET(out, 0, sizeof(out));
@@ -260,8 +293,8 @@ static void wb_startup_retrigger(void)
         wb_fail = 1;
     }
 
-    /* "prop_total == 0" false, "!rep_have_prev" true: retrigger via the
-     * second OR operand alone. */
+    /* "prop_total != 0" true, "rep_have_prev" false: retrigger via the
+     * second operand alone. */
     prop_total = 1;
     rep_have_prev = 0;
     XMEMSET(out, 0, sizeof(out));
@@ -329,12 +362,12 @@ static void wb_get_loop_early_exit(void)
  *   "for (i = 0; (ret == 0) && (i < ENTROPY_INITIAL_COUNT); i++)"
  * On a healthy host the loop always runs to completion, so idx0 ("ret == 0")
  * only ever shows TRUE and the loop is only ever left through idx1. `ret` is
- * assignable inside the loop (the two health tests at :782-:786), but real
+ * assignable inside the loop (the two health tests at :872-:875), but real
  * MemUse jitter never trips REP_CUTOFF/PROP_CUTOFF, and the noise buffer is
  * filled by the file-static Entropy_GetNoise() which cannot be rigged
  * directly. The reachable lever is the one thing Entropy_GetNoise() depends on
  * from outside this file: refuse the conditioner's SHA3-256 update, so
- * Entropy_MemUse() fails, Entropy_GetNoise() returns that error at :779, and
+ * Entropy_MemUse() fails, Entropy_GetNoise() returns that error at :869, and
  * the loop condition is evaluated once with ret != 0 -- idx0 FALSE, the
  * missing half. The healthy call immediately before it (same binary) supplies
  * (T,T) and, at i == ENTROPY_INITIAL_COUNT, (T,F). */
@@ -373,6 +406,52 @@ static void wb_startup_noise_fail(void)
 { WB_NOTE("WOLFSSL_SHA3 off; startup noise-failure vector skipped"); }
 #endif /* WOLFSSL_SHA3 */
 
+/* Entropy_Init() skips the startup test once one has passed. A rerun would
+ * zero prop_samples[], so a non-byte sentinel survives only a skip. */
+static void wb_init_skips_after_pass(void)
+{
+    word16 saved;
+
+    if (Entropy_Init() != 0) {
+        WB_NOTE("Entropy_Init failed; skipping init-skip vector");
+        return;
+    }
+    saved = prop_samples[0];
+    prop_samples[0] = 0x100;
+    if ((Entropy_Init() != 0) || (prop_samples[0] != 0x100)) {
+        WB_NOTE("Entropy_Init after a pass reran the startup health test");
+        wb_fail = 1;
+    }
+    prop_samples[0] = saved;
+    Entropy_Final();
+}
+
+/* A refused SHA-3 init leaves the source unset, so the next call retries. */
+#ifdef WOLFSSL_SHA3
+static void wb_sha3_init_fail_retries(void)
+{
+    byte out[32];
+
+    Entropy_Final();
+    wb_sha3_init_refuse_once = 1;
+    if ((wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out)) !=
+            WC_NO_ERR_TRACE(MEMORY_E)) || entropy_memuse_initialized) {
+        WB_NOTE("refused SHA-3 init did not fail and leave the source unset");
+        wb_fail = 1;
+    }
+    wb_sha3_init_refuse_once = 0;
+    (void)wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
+    if (!entropy_memuse_initialized) {
+        WB_NOTE("wc_Entropy_Get did not retry SHA-3 setup");
+        wb_fail = 1;
+    }
+    Entropy_Final();
+}
+#else
+static void wb_sha3_init_fail_retries(void)
+{ WB_NOTE("WOLFSSL_SHA3 off; SHA-3 init failure vector skipped"); }
+#endif /* WOLFSSL_SHA3 */
+
 #else /* !HAVE_ENTROPY_MEMUSE */
 
 static void wb_repetition(void)
@@ -387,29 +466,35 @@ static void wb_get_loop_early_exit(void)
 { WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped loop early exit"); }
 static void wb_startup_noise_fail(void)
 { WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped startup noise fail"); }
+static void wb_init_skips_after_pass(void)
+{ WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped init skip"); }
+static void wb_sha3_init_fail_retries(void)
+{ WB_NOTE("HAVE_ENTROPY_MEMUSE not compiled in; skipped SHA-3 init fail"); }
 
 #endif /* HAVE_ENTROPY_MEMUSE */
 
 /* ---- wc_Entropy_Get() mutex-failure vectors ------------------------------ *
  *
- *   881: if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0))
- *   893: if ((ret == 0) && ((prop_total == 0) || (!rep_have_prev)))
+ *   LOCK: if (wc_LockMutex(&entropy_mutex) != 0)   (Entropy_SetupAndLock)
+ *   PROP: if ((ret == 0) && (!Entropy_HealthTest_Passed()))
  *
- * A live, correctly initialised mutex always locks, so 881 only ever shows
- * (T,F) and 893 only ever shows its idx0 TRUE half. mcdc_fault_mutex.h
- * redirects this TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes
- * the NEXT lock -- and only that one -- refuse:
+ * A live, correctly initialised mutex always locks, so the wc_LockMutex()
+ * decision only ever goes FALSE, locked is always 1, and the health check's
+ * ret == 0 operand only ever shows TRUE. mcdc_fault_mutex.h redirects this
+ * TU's wc_LockMutex() through a hook; mcdc_fm_lock_once makes the NEXT lock
+ * -- and only that one -- refuse:
  *
- *   armed   -> 881 (T,T) -> ret = BAD_MUTEX_E, which then makes 893's idx0
- *              FALSE at the very next decision (same call, same binary)
- *   unarmed -> 881 (T,F) and 893 idx0 TRUE
+ *   armed   -> LOCK TRUE -> ret = BAD_MUTEX_E, which also makes idx0 of
+ *              Entropy_SetupAndLock()'s SHA-3 setup guard FALSE and later
+ *              PROP's idx0 FALSE (same call, same binary)
+ *   unarmed -> LOCK FALSE and PROP idx0 TRUE
  *
  * A refused lock is the one path wc_Entropy_Get() must NOT unlock on, and it
- * doesn't: the tail is guarded on the mutex error code, so no unlock of an
- * unheld mutex happens and no global state is touched. The idx0 operand of
- * 881 itself stays a justified residual: outside HAVE_FIPS builds nothing
- * runs between "ret = 0" and this test, so ret is 0 by construction and the
- * operand has no independence pair here.
+ * doesn't: the tail is guarded on `locked`, so no unlock of an
+ * unheld mutex happens and no global state is touched. In builds without a
+ * static mutex initializer, the "ret == 0" guard around LOCK has its FALSE
+ * half unexercised: it needs wc_local_InitMutexOnce() to fail, which is not
+ * hooked.
  * ------------------------------------------------------------------------ */
 #if defined(HAVE_ENTROPY_MEMUSE) && !defined(MCDC_FM_UNAVAILABLE)
 static void wb_entropy_get_mutex(void)
@@ -419,8 +504,8 @@ static void wb_entropy_get_mutex(void)
 
     XMEMSET(out, 0, sizeof(out));
 
-    /* Warm-up while unarmed so lazy initialisation (which locks the same
-     * mutex) is done before the one-shot fault is armed. */
+    /* Warm-up while unarmed to set up SHA-3 and health test state again
+     * after the earlier Entropy_Final(). */
     (void)wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out));
 
     /* Armed: the collection lock is refused exactly once. */
@@ -435,6 +520,15 @@ static void wb_entropy_get_mutex(void)
     /* Unarmed baseline in the same binary. */
     if (wc_Entropy_Get(MAX_ENTROPY_BITS, out, (word32)sizeof(out)) != 0) {
         WB_NOTE("wc_Entropy_Get unarmed baseline failed");
+        wb_fail = 1;
+    }
+
+    /* Entropy_Init() on a refused lock. */
+    mcdc_fm_lock_once = 1;
+    ret = Entropy_Init();
+    mcdc_fm_lock_once = 0;
+    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
+        WB_NOTE("Entropy_Init did not report BAD_MUTEX_E on refused lock");
         wb_fail = 1;
     }
 
@@ -461,6 +555,8 @@ int main(void)
     wb_get_loop_early_exit();
     wb_startup_noise_fail();
     wb_entropy_get_mutex();
+    wb_init_skips_after_pass();
+    wb_sha3_init_fail_retries();
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup issues are surfaced as skips; a nonzero exit would make the
      * suite discard this variant's coverage. */

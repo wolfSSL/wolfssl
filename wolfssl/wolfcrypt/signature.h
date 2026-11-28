@@ -35,6 +35,13 @@
     extern "C" {
 #endif
 
+/* If ECC and RSA are disabled then disable signature wrapper */
+#if (!defined(HAVE_ECC) || (defined(HAVE_ECC) && !defined(HAVE_ECC_SIGN) \
+    && !defined(HAVE_ECC_VERIFY))) && defined(NO_RSA)
+    #undef NO_SIG_WRAPPER
+    #define NO_SIG_WRAPPER
+#endif
+
 /* Minimum hash strength accepted by the wc_SignatureVerify/Generate
  * convenience APIs. Default is SHA-256 to keep MD5 and SHA-1 (both with
  * known collision attacks) out of new code. Define WC_SIG_MIN_HASH_TYPE
@@ -51,6 +58,9 @@ enum wc_SignatureType {
     WC_SIGNATURE_TYPE_RSA = 2,
     WC_SIGNATURE_TYPE_RSA_W_ENC = 3 /* Adds DER header via wc_EncodeSignature */
 };
+
+/* Signature wrapper disabled check */
+#ifndef NO_SIG_WRAPPER
 
 WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len);
@@ -89,6 +99,8 @@ WOLFSSL_API int wc_SignatureGenerate_ex(
     byte* sig, word32 *sig_len,
     void* key, word32 key_len,
     WC_RNG* rng, int verify);
+
+#endif /* !NO_SIG_WRAPPER */
 
 #ifdef __cplusplus
     } /* extern "C" */

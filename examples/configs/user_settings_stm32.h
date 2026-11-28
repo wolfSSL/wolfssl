@@ -125,6 +125,9 @@ extern "C" {
 /*---------- WOLF_CONF_KYBER -----------*/
 #define WOLF_CONF_KYBER      0
 
+/*---------- WOLF_CONF_MLDSA -----------*/
+#define WOLF_CONF_MLDSA      0
+
 /*---------- WOLF_CONF_ARMASM -----------*/
 #define WOLF_CONF_ARMASM      1
 
@@ -227,12 +230,10 @@ extern "C" {
     #define WOLFSSL_STM32F4
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
 #elif defined(STM32G491xx)
     #define WOLFSSL_STM32G4
     #define HAL_CONSOLE_UART hlpuart1
@@ -278,9 +279,19 @@ extern "C" {
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    /* if no HW RNG is available use test seed */
-    //#define WOLFSSL_GENSEED_FORTEST
+    /* If the device has no RNG, provide CUSTOM_RAND_GENERATE_SEED. */
     //#define STM32_HAL_V2
+#endif
+
+/* These devices have no on-chip RNG. Supply a real seed source or explicitly
+ * configure a test-only seed in your project. */
+#if (!defined(WOLF_CONF_RNG) || WOLF_CONF_RNG != 0) && \
+    defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST) && \
+    !defined(WOLFSSL_ACCEPT_WEAK_ENTROPY)
+    #error "STM32 device has no RNG: provide CUSTOM_RAND_GENERATE_SEED or another real seed source"
 #endif
 
 
@@ -665,9 +676,6 @@ extern "C" {
 /* NOTE: this is after the hashing section to override the potential SHA3 undef
  * above. */
 #if defined(WOLF_CONF_KYBER) && WOLF_CONF_KYBER == 1
-    #undef  WOLFSSL_EXPERIMENTAL_SETTINGS
-    #define WOLFSSL_EXPERIMENTAL_SETTINGS
-
     #undef  WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_HAVE_MLKEM
 
@@ -682,6 +690,22 @@ extern "C" {
     #undef  WOLFSSL_SHA3
     #define WOLFSSL_SHA3
 #endif /* WOLF_CONF_KYBER */
+
+#if defined(WOLF_CONF_MLDSA) && WOLF_CONF_MLDSA == 1
+    #undef  WOLFSSL_HAVE_MLDSA
+    #define WOLFSSL_HAVE_MLDSA
+
+    #undef  WOLFSSL_NO_SHAKE128
+    #undef  WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE128
+
+    #undef  WOLFSSL_NO_SHAKE256
+    #undef  WOLFSSL_SHAKE256
+    #define WOLFSSL_SHAKE256
+
+    #undef  WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
+#endif /* WOLF_CONF_MLDSA */
 
 /* ------------------------------------------------------------------------- */
 /* Crypto Acceleration */
@@ -782,8 +806,14 @@ extern "C" {
 #define NO_RC4
 #define NO_MD4
 #define NO_DES3
+
+#ifndef WOLFSSL_SHAKE128
 #define WOLFSSL_NO_SHAKE128
+#endif
+
+#ifndef WOLFSSL_SHAKE256
 #define WOLFSSL_NO_SHAKE256
+#endif
 
 /* In-lining of misc.c functions */
 /* If defined, must include wolfcrypt/src/misc.c in build */

@@ -28,6 +28,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/internal.h>
 #include <wolfssl/openssl/bio.h>
 #include <wolfssl/openssl/buffer.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -180,6 +181,21 @@ int test_wolfSSL_BIO_gets(void)
 
         BIO_free(f_bio);
         f_bio = NULL;
+
+        /* BIO_read_filename must not close a BIO_NOCLOSE fp the caller
+         * still owns */
+        f = XBADFILE;
+        ExpectNotNull(f_bio = BIO_new(BIO_s_file()));
+        ExpectTrue((f = XFOPEN(svrCertFile, "rb")) != XBADFILE);
+        ExpectIntEQ((int)BIO_set_fp(f_bio, f, BIO_NOCLOSE), SSL_SUCCESS);
+        ExpectIntEQ(BIO_read_filename(f_bio, svrCertFile), SSL_SUCCESS);
+        ExpectIntGT((int)XFREAD(bio_buffer, 1, 2, f), 0);
+        ExpectIntGT(BIO_gets(f_bio, bio_buffer, bufferSz), 0);
+        BIO_free(f_bio);
+        f_bio = NULL;
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+        }
     }
 #endif /* NO_FILESYSTEM */
 
@@ -838,43 +854,95 @@ static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
 int test_wolfSSL_BIO_accept(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
-    defined(HAVE_HTTP_CLIENT)
+#if defined(OPENSSL_ALL)
     BIO* serverBindBio = NULL;
-    BIO* serverAcceptBio = NULL;
-    SSL* sslServer = NULL;
-    SSL_CTX* ctx = NULL;
-    func_args args;
-    THREAD_TYPE thread;
-    char port[10]; /* 10 bytes should be enough to store the string
-                    * representation of the port */
 
-    ExpectIntGT(snprintf(port, sizeof(port), "%d", wolfSSLPort), 0);
-    ExpectNotNull(serverBindBio = BIO_new_accept(port));
-
-    /* First BIO_do_accept binds the port */
-    ExpectIntEQ(BIO_do_accept(serverBindBio), 1);
-
-    XMEMSET(&args, 0, sizeof(func_args));
-    start_thread(test_wolfSSL_BIO_accept_client, &args, &thread);
-
-    ExpectIntEQ(BIO_do_accept(serverBindBio), 1);
-    /* Let's plug it into SSL to test */
-    ExpectNotNull(ctx = SSL_CTX_new(SSLv23_method()));
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-        SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-        SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    ExpectNotNull(sslServer = SSL_new(ctx));
-    ExpectNotNull(serverAcceptBio = BIO_pop(serverBindBio));
-    SSL_set_bio(sslServer, serverAcceptBio, serverAcceptBio);
-    ExpectIntEQ(SSL_accept(sslServer), 1);
-
-    join_thread(thread);
-
+    /* port string parsing */
+    ExpectNotNull(serverBindBio = BIO_new_accept("[::1]:4321"));
+    ExpectIntEQ(serverBindBio->port, 4321);
     BIO_free(serverBindBio);
-    SSL_free(sslServer);
-    SSL_CTX_free(ctx);
+    serverBindBio = NULL;
+    ExpectNotNull(serverBindBio = BIO_new_accept("127.0.0.1:4321"));
+    ExpectIntEQ(serverBindBio->port, 4321);
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNotNull(serverBindBio = BIO_new_accept("*:4321"));
+    ExpectIntEQ(serverBindBio->port, 4321);
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNotNull(serverBindBio = BIO_new_accept("4321"));
+    ExpectIntEQ(serverBindBio->port, 4321);
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNotNull(serverBindBio = BIO_new_accept(":4321"));
+    ExpectIntEQ(serverBindBio->port, 4321);
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNotNull(serverBindBio = BIO_new_accept("*:04321"));
+    ExpectIntEQ(serverBindBio->port, 4321);
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNotNull(serverBindBio = BIO_new_accept("0"));
+    ExpectIntEQ(serverBindBio->port, 0);
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNotNull(serverBindBio = BIO_new_accept("65535"));
+    ExpectIntEQ(serverBindBio->port, 65535);
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNull(serverBindBio = BIO_new_accept("[::1]"));
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNull(serverBindBio = BIO_new_accept("[::1]:"));
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNull(serverBindBio = BIO_new_accept("127.0.0.1:"));
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNull(serverBindBio = BIO_new_accept("[::1]:abs"));
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+    ExpectNull(serverBindBio = BIO_new_accept("[::1]:70000"));
+    BIO_free(serverBindBio);
+    serverBindBio = NULL;
+
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_HTTP_CLIENT)
+    if (EXPECT_SUCCESS()) {
+        BIO* serverAcceptBio = NULL;
+        SSL* sslServer = NULL;
+        SSL_CTX* ctx = NULL;
+        func_args args;
+        THREAD_TYPE thread;
+        char port[10]; /* 10 bytes should be enough to store the string
+                        * representation of the port */
+        ExpectIntGT(snprintf(port, sizeof(port), "%d", wolfSSLPort), 0);
+        ExpectNotNull(serverBindBio = BIO_new_accept(port));
+
+        /* First BIO_do_accept binds the port */
+        ExpectIntEQ(BIO_do_accept(serverBindBio), 1);
+
+        XMEMSET(&args, 0, sizeof(func_args));
+        start_thread(test_wolfSSL_BIO_accept_client, &args, &thread);
+
+        ExpectIntEQ(BIO_do_accept(serverBindBio), 1);
+        /* Let's plug it into SSL to test */
+        ExpectNotNull(ctx = SSL_CTX_new(SSLv23_method()));
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+            SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+            SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectNotNull(sslServer = SSL_new(ctx));
+        ExpectNotNull(serverAcceptBio = BIO_pop(serverBindBio));
+        SSL_set_bio(sslServer, serverAcceptBio, serverAcceptBio);
+        ExpectIntEQ(SSL_accept(sslServer), 1);
+
+        join_thread(thread);
+
+        BIO_free(serverBindBio);
+        SSL_free(sslServer);
+        SSL_CTX_free(ctx);
+    }
+#endif
 
 #if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
     wc_ecc_fp_free();  /* free per thread cache */
@@ -1244,6 +1312,42 @@ int test_wolfSSL_BIO_get_len(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_BIO_read_filename(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && !defined(NO_FILESYSTEM)
+    const char* missing = "./certs/does-not-exist.pem";
+    BIO* bio = NULL;
+    XFILE f = XBADFILE;
+    XFILE fp = XBADFILE;
+    byte buf[16];
+
+    /* The old file is dropped even when the new one can't be opened. */
+    ExpectNotNull(bio = BIO_new_file(svrCertFile, "rb"));
+    ExpectIntLE(BIO_read_filename(bio, missing), 0);
+    ExpectIntEQ((int)BIO_get_fp(bio, &fp), WOLFSSL_SUCCESS);
+    ExpectTrue(fp == XBADFILE);
+    ExpectIntEQ(BIO_read_filename(bio, caCertFile), WOLFSSL_SUCCESS);
+    ExpectIntEQ(BIO_read(bio, buf, sizeof(buf)), sizeof(buf));
+    BIO_free(bio);
+    bio = NULL;
+
+    /* A BIO_NOCLOSE file is not closed. */
+    ExpectTrue((f = XFOPEN(svrCertFile, "rb")) != XBADFILE);
+    ExpectNotNull(bio = BIO_new_fp(f, BIO_NOCLOSE));
+    ExpectIntEQ(BIO_read_filename(bio, caCertFile), WOLFSSL_SUCCESS);
+    BIO_free(bio);
+    bio = NULL;
+    ExpectNotNull(bio = BIO_new_fp(f, BIO_NOCLOSE));
+    ExpectIntLE(BIO_read_filename(bio, missing), 0);
+    BIO_free(bio);
+    ExpectIntEQ(XFREAD(buf, 1, sizeof(buf), f), sizeof(buf));
+    if (f != XBADFILE)
+        XFCLOSE(f);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
 static long bioCallback(BIO *bio, int cmd, const char* argp, int argi,
                  long argl, long ret)
@@ -1519,6 +1623,15 @@ int test_wolfSSL_BIO_BIO_ring_read(void)
     ExpectIntEQ(BIO_write(bio1, data, 20), 20);
     ExpectIntEQ(BIO_read(bio2, tmp, 40), 40);
     ExpectBufEQ(tmp, data, 40);
+
+    /* write exactly to the end of the ring with a non-zero read index. The
+     * write index must not eagerly wrap to 0 or the unread data is lost. */
+    ExpectIntEQ(BIO_write(bio1, data, 40), 40);
+    ExpectIntEQ(BIO_read(bio2, tmp, 20), 20);
+    ExpectIntEQ(BIO_write(bio1, data, 10), 10);
+    ExpectIntEQ((int)BIO_ctrl_pending(bio2), 30);
+    ExpectIntEQ(BIO_read(bio2, tmp, 30), 30);
+    ExpectBufEQ(tmp, data, 30);
 
     BIO_free(bio1);
     BIO_free(bio2);
@@ -1827,7 +1940,17 @@ int test_wolfSSL_BIO_ctrl_pending_chain(void)
     ExpectNotNull(b64 = BIO_new(BIO_f_base64()));
     ExpectNotNull(mem = BIO_new(BIO_s_mem()));
     ExpectNotNull(BIO_push(md, b64));
-    ExpectNotNull(BIO_push(b64, mem));
+    /* pushing onto a multi-node chain appends at the tail and returns the
+     * head */
+    ExpectPtrEq(BIO_push(md, mem), md);
+    ExpectPtrEq(BIO_next(b64), mem);
+    ExpectPtrEq(mem == NULL ? NULL : mem->prev, b64);
+    /* pushing a BIO already in the chain must not create a cycle */
+    ExpectPtrEq(BIO_push(md, b64), md);
+    ExpectPtrEq(BIO_push(md, mem), md);
+    ExpectPtrEq(BIO_push(mem, md), mem);
+    ExpectPtrEq(BIO_next(b64), mem);
+    ExpectNull(BIO_next(mem));
 
     /* Write directly to mem so wrSz is set */
     ExpectIntEQ(BIO_write(mem, msg, sizeof(msg)), (int)sizeof(msg));

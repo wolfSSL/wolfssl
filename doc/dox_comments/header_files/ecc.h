@@ -31,6 +31,10 @@
     ecc key
     \return MP_MEM may be returned if there is an error while computing the
     ecc key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param rng pointer to an initialized RNG object with which to generate
     the key
@@ -85,6 +89,10 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
     ecc key
     \return MP_MEM may be returned if there is an error while computing the
     ecc key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param key Pointer to store the created key.
     \param keysize size of key to be created in bytes, set based on curveId
@@ -359,6 +367,9 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     \ingroup ECC
 
     \brief Create an ECC shared secret between private key and public point.
+    The point is first given full public key validation on the private key's
+    curve with wc_ecc_check_key() (SP 800-56Ar3 5.6.2.3.3). A build without
+    the order check (NO_ECC_CHECK_PUBKEY_ORDER) still checks range and curve.
 
     \return MP_OKAY Indicates success.
     \return BAD_FUNC_ARG Error returned when any arguments are null.
@@ -368,6 +379,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     \return MEMORY_E Error to create a new point.
     \return MP_VAL possible when an initialization failure occurs.
     \return MP_MEM possible when an initialization failure occurs.
+    \return IS_POINT_E, ECC_OUT_OF_RANGE_E, ECC_INF_E or MP_VAL when the point
+    fails validation (not on the curve, out of range, or the identity).
 
     \param private_key The private ECC key.
     \param point The point to use (public key).
@@ -1014,6 +1027,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     \return MP_OKAY Returns on successful operation.
     \return MP_INIT_E Returned if there is an error initializing an integer
     for use with the multiple precision integer (mp_int) library.
+    \return ECC_OUT_OF_RANGE_E Returned if k is negative or too large.
 
     \param k The multiplicand.
     \param G Base point to multiply.
@@ -1326,31 +1340,35 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     a chip-bound wrapped blob together with the 256-bit derivation seed; the
     plaintext scalar is never imported. The key must be bound to the STM32 DHUK
     crypto-callback device (init with wc_ecc_init_ex(&key, heap, WC_DHUK_DEVID)
-    after registering the device with wc_Stm32_DhukRegister). Available only on
+    after registering the device with wc_Stm32_DhukRegister). The curve is set
+    from curve_id, so the key is ready to sign on return. Available only on
     STM32 builds with WOLFSSL_DHUK and a DHUK-capable SAES (WC_STM32_HAS_DHUK).
 
     \return 0 Returned on success.
     \return BAD_FUNC_ARG Returned if key, seed, or wrapped is NULL; if seedSz is
     not 32; if wrappedLen is zero or not a multiple of the AES block size; if
     wrappedLen exceeds the on-key blob buffer; if plainLen is zero or larger
-    than wrappedLen; or if wrappedLen is larger than plainLen padded to a full
-    AES block.
+    than wrappedLen; if wrappedLen is larger than plainLen padded to a full
+    AES block; or if plainLen does not match the scalar size of curve_id.
+    \return <0 An error from the curve lookup if curve_id is not supported.
 
     \param key pointer to the ecc_key (bound to WC_DHUK_DEVID) to import into.
+    \param curve_id curve the scalar belongs to, e.g. ECC_SECP256R1.
     \param seed pointer to the 256-bit (32-byte) per-key DHUK derivation seed.
     \param seedSz length of seed in bytes; must be 32.
     \param wrapped pointer to the DHUK-wrapped private scalar blob.
     \param wrappedLen length of the wrapped blob; a non-zero multiple of the AES
     block size, no larger than the on-key buffer.
-    \param plainLen length in bytes of the plaintext scalar inside the blob.
+    \param plainLen length in bytes of the plaintext scalar inside the blob;
+    must equal the scalar size of curve_id (32 for P-256, 48 for P-384).
 
     _Example_
     \code
     ecc_key key;
     wc_Stm32_DhukRegister(WC_DHUK_DEVID);
     wc_ecc_init_ex(&key, NULL, WC_DHUK_DEVID);
-    if (wc_ecc_import_wrapped_private(&key, seed, 32, wrapped, wrappedLen,
-            plainLen) == 0) {
+    if (wc_ecc_import_wrapped_private(&key, ECC_SECP256R1, seed, 32, wrapped,
+            wrappedLen, plainLen) == 0) {
         wc_ecc_sign_hash(hash, hashLen, sig, &sigLen, &rng, &key);
     }
     wc_ecc_free(&key);
@@ -1360,7 +1378,8 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     \sa wc_ecc_sign_hash
     \sa wc_ecc_init_ex
 */
-int wc_ecc_import_wrapped_private(ecc_key* key, const byte* seed, word32 seedSz,
+int wc_ecc_import_wrapped_private(ecc_key* key, int curve_id,
+                                  const byte* seed, word32 seedSz,
                                   const byte* wrapped, word32 wrappedLen,
                                   word32 plainLen);
 
@@ -1851,7 +1870,11 @@ void wc_ecc_ctx_free(ecEncCtx* ctx);
     // do more secure communication
     \endcode
 
+    \note The device id set with wc_ecc_ctx_set_dev_id() (WOLF_CRYPTO_CB
+    builds) is kept across the reset, like the heap hint.
+
     \sa wc_ecc_ctx_new
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o alloc/free */
@@ -1887,6 +1910,70 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o al
 
 int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     byte macAlgo);
+
+/*!
+    \ingroup ECC
+
+    \brief This function picks the device that ECIES operations using this
+    context run on. Only available when WOLF_CRYPTO_CB is defined. A context
+    starts at INVALID_DEVID, meaning software: ECIES does not copy the
+    device from the private key, so this must be called for a crypto
+    callback to be reached. The value is used both for the whole-operation
+    ECIES callback and for the KDF, AES and HMAC steps of the software path.
+    Passing a NULL context to wc_ecc_encrypt() or wc_ecc_decrypt() always
+    means software. When WOLF_CRYPTO_CB_FIND is defined, an unset device id
+    still goes through the registered finder, as it does for every other
+    wolfCrypt operation. The setting is kept across wc_ecc_ctx_reset().
+
+    \return 0 Returned upon successfully setting the device id.
+    \return BAD_FUNC_ARG Returned if the given context is NULL.
+
+    \param ctx pointer to the ecEncCtx for which to set the device id
+    \param devId device id to use, or INVALID_DEVID for software
+
+    _Example_
+    \code
+    ecEncCtx* ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+    if (wc_ecc_ctx_set_dev_id(ctx, myDevId) != 0) {
+	    // error setting device id
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_get_dev_id
+    \sa wc_ecc_ctx_new
+    \sa wc_ecc_ctx_reset
+*/
+
+int wc_ecc_ctx_set_dev_id(ecEncCtx* ctx, int devId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function reads back the device id set with
+    wc_ecc_ctx_set_dev_id(). Crypto callback code can use it to learn which
+    device it was called for. Only available when WOLF_CRYPTO_CB is defined.
+    A context that was never given a device reads back INVALID_DEVID.
+
+    \return 0 Returned upon successfully reading the device id.
+    \return BAD_FUNC_ARG Returned if the given context or output pointer
+    is NULL.
+
+    \param ctx pointer to the ecEncCtx to read the device id from
+    \param devId pointer that receives the device id
+
+    _Example_
+    \code
+    int devId;
+    if (wc_ecc_ctx_get_dev_id(ctx, &devId) != 0) {
+	    // error reading device id
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_set_dev_id
+    \sa wc_ecc_ctx_new
+*/
+
+int wc_ecc_ctx_get_dev_id(ecEncCtx* ctx, int* devId);
 
 /*!
     \ingroup ECC
@@ -2088,8 +2175,13 @@ int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
     }
     \endcode
 
+    \note The device this runs on comes from the context
+    (wc_ecc_ctx_set_dev_id), not from privKey->devId. A NULL context, or one
+    that was never given a device, runs in software.
+
     \sa wc_ecc_encrypt_ex
     \sa wc_ecc_decrypt
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
@@ -2165,8 +2257,13 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 
+    \note The device this runs on comes from the context
+    (wc_ecc_ctx_set_dev_id), not from privKey->devId. A NULL context, or one
+    that was never given a device, runs in software.
+
     \sa wc_ecc_encrypt
     \sa wc_ecc_decrypt
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
@@ -2184,9 +2281,9 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     the encryption type specified by ctx.
 
     \return 0 Returned upon successfully decrypting the input message
-    \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
-    or outSz are NULL, or the ctx object specifies an unsupported
-    encryption type
+    \return BAD_FUNC_ARG Returned if privKey, msg, msgSz, out, or outSz
+    are NULL (or pubKey is NULL when built with WOLFSSL_ECIES_OLD), or
+    the ctx object specifies an unsupported encryption type
     \return BAD_ENC_STATE_E Returned if the ctx object given is in
     a state that is not appropriate for decryption
     \return BUFFER_E Returned if the supplied output buffer is too
@@ -2199,8 +2296,11 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     \param privKey pointer to the ecc_key object containing the private
     key to use for decryption
-    \param pubKey pointer to the ecc_key object containing the public
-    key of the peer with whom one wishes to communicate
+    \param pubKey only used when built with WOLFSSL_ECIES_OLD: pointer to
+    the ecc_key object containing the public key of the peer with whom one
+    wishes to communicate. In the default message format the sender's
+    ephemeral public key is read from the start of msg instead and pubKey
+    is ignored (it may be NULL and is left unmodified)
     \param msg pointer to the buffer holding the ciphertext to decrypt
     \param msgSz size of the buffer to decrypt
     \param out pointer to the buffer in which to store the decrypted plaintext
@@ -2236,8 +2336,13 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 
+    \note The device this runs on comes from the context
+    (wc_ecc_ctx_set_dev_id), not from privKey->devId. A NULL context, or one
+    that was never given a device, runs in software.
+
     \sa wc_ecc_encrypt
     \sa wc_ecc_encrypt_ex
+    \sa wc_ecc_ctx_set_dev_id
 */
 
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
@@ -2369,13 +2474,26 @@ const char* wc_ecc_get_name(int curve_id);
     \brief Makes ECC key with extended options.
 
     \return 0 on success
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
+    \return BAD_STATE_E when the key has an id or label and its PKCS#11 token
+    has no session from wc_Pkcs11Token_Open; a key with neither is generated
+    in software instead
+    \return WC_HW_E when a PKCS#11 token cannot give a key with an id or label
+    the usages its flags ask for
     \return negative on error
 
     \param rng Random number generator
     \param keysize Key size in bytes
     \param key ECC key structure
     \param curve_id Curve identifier
-    \param flags Additional flags
+    \param flags WC_ECC_FLAG_* flags. For a key generated on a PKCS#11 token,
+    WC_ECC_FLAG_DEC_SIGN asks for sign and WC_ECC_FLAG_DERIVE for derive. With
+    neither it gets derive, plus sign when the key has an id or label, or only
+    sign when PKCS#11 ECDH is not compiled in, as far as the token supports
+    them.
 
     _Example_
     \code
@@ -2482,11 +2600,14 @@ int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag,
     \brief Generates deterministic k value for signing.
 
     \return 0 on success
+    \return BAD_FUNC_ARG when hashSz is not the digest size of hashType
     \return negative on error
 
     \param hash Hash value
-    \param hashSz Hash size
-    \param hashType Hash algorithm type
+    \param hashSz Hash size, must be the digest size of hashType, or 32, 48
+    or 64 when hashType is WC_HASH_TYPE_NONE
+    \param hashType Hash algorithm type, or WC_HASH_TYPE_NONE to select
+    SHA-256, SHA-384 or SHA-512 from hashSz
     \param priv Private key
     \param k Output k value
     \param order Curve order
@@ -2756,7 +2877,7 @@ int wc_ecc_get_curve_id_from_name(const char* curveName);
     \return Curve ID on success
     \return negative on error
 
-    \param fieldSize Field size
+    \param fieldSize Field size in bits
     \param prime Prime modulus
     \param primeSz Prime size
     \param Af Curve parameter A
@@ -3297,13 +3418,14 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp);
     \return ecEncCtx pointer on success
     \return NULL on failure
 
-    \param flags Context flags
+    \param flags Either REQ_RESP_CLIENT or REQ_RESP_SERVER; any other
+    value fails and NULL is returned
     \param rng Random number generator
 
     _Example_
     \code
     WC_RNG rng;
-    ecEncCtx* ctx = wc_ecc_ctx_new(0, &rng);
+    ecEncCtx* ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
     \endcode
 
     \sa wc_ecc_ctx_free
@@ -3317,14 +3439,15 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
     \return ecEncCtx pointer on success
     \return NULL on failure
 
-    \param flags Context flags
+    \param flags Either REQ_RESP_CLIENT or REQ_RESP_SERVER; any other
+    value fails and NULL is returned
     \param rng Random number generator
     \param heap Heap hint
 
     _Example_
     \code
     WC_RNG rng;
-    ecEncCtx* ctx = wc_ecc_ctx_new_ex(0, &rng, NULL);
+    ecEncCtx* ctx = wc_ecc_ctx_new_ex(REQ_RESP_CLIENT, &rng, NULL);
     \endcode
 
     \sa wc_ecc_ctx_new

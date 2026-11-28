@@ -31,7 +31,7 @@ fn test_rng_new_with_nonce_ex_and_drop() {
 }
 
 #[test]
-#[cfg(random_hashdrbg)]
+#[cfg(random_health_test)]
 fn test_health_test() {
     let nonce = [99u8, 88, 77, 66];
     let seed_a = [42u8, 33, 55, 88];
@@ -90,19 +90,47 @@ fn test_rng_generate_block_u32() {
     assert_ne!(buffer[buffer.len() - 1], 0xFFFF_FFFFu32);
 }
 
+// Test that generate_block fills buffers larger than a single DRBG request.
 #[test]
-#[cfg(random_hashdrbg)]
+fn test_rng_generate_block_large() {
+    let rng = RNG::new().expect("Failed to create RNG");
+    let max = wolfssl_wolfcrypt::sys::RNG_MAX_BLOCK_LEN as usize;
+    let mut buffer = vec![0u8; max * 3 + 17];
+    rng.generate_block(&mut buffer).expect("Failed to generate a large block");
+
+    // Check that the tail of each chunk was written.
+    for end in [max, max * 2, max * 3, buffer.len()] {
+        assert_ne!(&buffer[end - 16..end], &[0u8; 16]);
+    }
+
+    let mut buffer = vec![0u64; max / 8 * 2 + 1];
+    rng.generate_block(&mut buffer).expect("Failed to generate a large block of u64");
+    assert_ne!(buffer[buffer.len() - 1], 0u64);
+}
+
+#[test]
+#[cfg(all(random_hashdrbg, not(fips_v5)))]
 fn test_rng_reseed() {
     let rng = RNG::new().expect("Failed to create RNG");
     let seed = [1u8, 2, 3, 4];
-    rng.reseed(&seed).expect("Error with reseed()");
+    if cfg!(all(fips, not(fips_v6))) {
+        // Newer FIPS modules refuse a caller supplied seed on an RNG seeded
+        // from the approved entropy source, FIPS v6 accepts it.
+        assert_eq!(
+            rng.reseed(&seed),
+
+            Err(wolfssl_wolfcrypt::sys::wolfCrypt_ErrorCodes_WRONG_TYPE_OBJECT_E)
+        );
+    } else {
+        rng.reseed(&seed).expect("Error with reseed()");
+    }
 }
 
 #[test]
 #[cfg(feature = "rand_core")]
 fn test_rng_rand_core_fill_bytes() {
-    use rand_core::Rng;
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    use rand_core::{Rng, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     let mut buf = [0u8; 32];
     rng.fill_bytes(&mut buf);
     assert_ne!(buf, [0u8; 32]);
@@ -121,8 +149,8 @@ fn test_rng_rand_core_try_fill_bytes() {
 #[test]
 #[cfg(feature = "rand_core")]
 fn test_rng_rand_core_next_u32() {
-    use rand_core::Rng;
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    use rand_core::{Rng, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     // Generate several values and verify they aren't all zero
     let v: u64 = (0..4).map(|_| rng.next_u32() as u64).sum();
     assert_ne!(v, 0);
@@ -131,8 +159,8 @@ fn test_rng_rand_core_next_u32() {
 #[test]
 #[cfg(feature = "rand_core")]
 fn test_rng_rand_core_next_u64() {
-    use rand_core::Rng;
-    let mut rng = RNG::new().expect("Failed to create RNG");
+    use rand_core::{Rng, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     // Generate two values and verify they aren't all ones
     let v1 = rng.next_u64();
     let v2 = rng.next_u64();
@@ -141,9 +169,95 @@ fn test_rng_rand_core_next_u64() {
 
 #[test]
 #[cfg(feature = "rand_core")]
-fn test_rng_is_crypto_rng() {
-    use rand_core::CryptoRng;
-    fn requires_crypto_rng<R: CryptoRng>(_: &R) {}
+fn test_rng_is_try_crypto_rng() {
+    use rand_core::TryCryptoRng;
+    fn requires_try_crypto_rng<R: TryCryptoRng>(_: &R) {}
     let rng = RNG::new().expect("Failed to create RNG");
+    requires_try_crypto_rng(&rng);
+}
+
+/// Wrapped in `UnwrapErr`, the RNG satisfies the infallible `CryptoRng`
+/// contract as well.
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_unwrap_err_is_crypto_rng() {
+    use rand_core::{CryptoRng, UnwrapErr};
+    fn requires_crypto_rng<R: CryptoRng>(_: &R) {}
+    let rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
     requires_crypto_rng(&rng);
+}
+
+/// `TryRng` must stay fallible: the associated error type has to be the
+/// wolfSSL error-code-carrying `RngError`, not `Infallible`.
+#[test]
+#[cfg(feature = "rand_core")]
+fn test_rng_try_rng_error_type() {
+    use rand_core::TryRng;
+    use wolfssl_wolfcrypt::random::RngError;
+    fn requires_rng_error<R: TryRng<Error = RngError>>(_: &R) {}
+    let rng = RNG::new().expect("Failed to create RNG");
+    requires_rng_error(&rng);
+}
+
+#[test]
+#[cfg(feature = "rand_core_0_9")]
+fn test_rng_rand_core_0_9_fill_bytes() {
+    use rand_core_0_9::{RngCore, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+    let mut buf = [0u8; 32];
+    rng.fill_bytes(&mut buf);
+    assert_ne!(buf, [0u8; 32]);
+}
+
+#[test]
+#[cfg(feature = "rand_core_0_9")]
+fn test_rng_rand_core_0_9_try_fill_bytes() {
+    use rand_core_0_9::TryRngCore;
+    let mut rng = RNG::new().expect("Failed to create RNG");
+    let mut buf = [0u8; 32];
+    rng.try_fill_bytes(&mut buf).expect("Failed to try_fill_bytes");
+    assert_ne!(buf, [0u8; 32]);
+}
+
+#[test]
+#[cfg(feature = "rand_core_0_9")]
+fn test_rng_rand_core_0_9_next_u32() {
+    use rand_core_0_9::{RngCore, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+    // Generate several values and verify they aren't all zero.
+    let v: u64 = (0..4).map(|_| rng.next_u32() as u64).sum();
+    assert_ne!(v, 0);
+}
+
+#[test]
+#[cfg(feature = "rand_core_0_9")]
+fn test_rng_rand_core_0_9_next_u64() {
+    use rand_core_0_9::{RngCore, UnwrapErr};
+    let mut rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+    // Generate two values and verify they aren't all ones.
+    let v1 = rng.next_u64();
+    let v2 = rng.next_u64();
+    assert_ne!(v1 & v2, u64::MAX);
+}
+
+/// Wrapped in the 0.9 `UnwrapErr`, the RNG satisfies the 0.9 `CryptoRng`
+/// contract, which is what `rand` 0.9 APIs require.
+#[test]
+#[cfg(feature = "rand_core_0_9")]
+fn test_rng_rand_core_0_9_unwrap_err_is_crypto_rng() {
+    use rand_core_0_9::{CryptoRng, UnwrapErr};
+    fn requires_crypto_rng<R: CryptoRng>(_: &R) {}
+    let rng = UnwrapErr(RNG::new().expect("Failed to create RNG"));
+    requires_crypto_rng(&rng);
+}
+
+/// The 0.9 `TryRngCore` must stay fallible, like the 0.10 `TryRng`.
+#[test]
+#[cfg(feature = "rand_core_0_9")]
+fn test_rng_rand_core_0_9_error_type() {
+    use rand_core_0_9::{TryCryptoRng, TryRngCore};
+    use wolfssl_wolfcrypt::random::RngError;
+    fn requires_rng_error<R: TryCryptoRng + TryRngCore<Error = RngError>>(_: &R) {}
+    let rng = RNG::new().expect("Failed to create RNG");
+    requires_rng_error(&rng);
 }

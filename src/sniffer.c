@@ -542,7 +542,7 @@ typedef struct Flags {
 #endif
     byte           gotFinished;     /* processed finished */
     byte           secRenegEn;      /* secure renegotiation enabled */
-#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+#if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     byte           etmUnsupported;  /* peer negotiated RFC 7366, we cannot */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -621,6 +621,7 @@ typedef struct SnifferSession {
     byte*          tlsFragBuf;
     word32         tlsFragOffset;
     word32         tlsFragSize;
+    word32         tlsFragCapacity;
 #endif
 #ifdef HAVE_SNI
     const char*    sni;             /* server name indication */
@@ -767,6 +768,10 @@ static int addKeyLogSnifferServerHelper(const char* address,
                                         int port,
                                         char* error);
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
+#ifdef HAVE_EXTENDED_MASTER
+static void HashFree(HsHashes* hash);
+#endif
 
 
 /* Initialize overall Sniffer */
@@ -947,6 +952,7 @@ static void FreeSnifferSession(SnifferSession* session)
 
         XFREE(session->ticketID, NULL, DYNAMIC_TYPE_SNIFFER_TICKET_ID);
 #ifdef HAVE_EXTENDED_MASTER
+        HashFree(session->hash);
         XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
 #ifdef WOLFSSL_TLS13
@@ -1089,6 +1095,26 @@ static int HashInit(HsHashes* hash)
     return ret;
 }
 
+static void HashFree(HsHashes* hash)
+{
+    if (hash != NULL) {
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+        wc_ShaFree(&hash->hashSha);
+#endif
+#ifndef NO_MD5
+        wc_Md5Free(&hash->hashMd5);
+#endif
+#endif /* !NO_OLD_TLS */
+#ifndef NO_SHA256
+        wc_Sha256Free(&hash->hashSha256);
+#endif
+#ifdef WOLFSSL_SHA384
+        wc_Sha384Free(&hash->hashSha384);
+#endif
+    }
+}
+
 static int HashUpdate(HsHashes* hash, const byte* input, int sz)
 {
     int ret = 0;
@@ -1120,22 +1146,28 @@ static int HashUpdate(HsHashes* hash, const byte* input, int sz)
 
 static int HashCopy(HS_Hashes* d, HsHashes* s)
 {
+    int ret = 0;
+
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    XMEMCPY(&d->hashSha, &s->hashSha, sizeof(wc_Sha));
+    if (ret == 0)
+        ret = wc_ShaCopy(&s->hashSha, &d->hashSha);
 #endif
 #ifndef NO_MD5
-    XMEMCPY(&d->hashMd5, &s->hashMd5, sizeof(wc_Md5));
+    if (ret == 0)
+        ret = wc_Md5Copy(&s->hashMd5, &d->hashMd5);
 #endif
 #endif /* !NO_OLD_TLS */
 #ifndef NO_SHA256
-    XMEMCPY(&d->hashSha256, &s->hashSha256, sizeof(wc_Sha256));
+    if (ret == 0)
+        ret = wc_Sha256Copy(&s->hashSha256, &d->hashSha256);
 #endif
 #ifdef WOLFSSL_SHA384
-    XMEMCPY(&d->hashSha384, &s->hashSha384, sizeof(wc_Sha384));
+    if (ret == 0)
+        ret = wc_Sha384Copy(&s->hashSha384, &d->hashSha384);
 #endif
 
-    return 0;
+    return ret;
 }
 
 #endif
@@ -2606,8 +2638,24 @@ static void FreeSetupKeysArgs(WOLFSSL* ssl, void* pArgs)
     }
 }
 
+/* The sniffer never calls CleanPreMaster(), so both copies would otherwise
+ * stay resident in the session table for the life of the session. */
+static void CleanSnifferPreMaster(SnifferSession* session)
+{
+    if (session->sslServer != NULL && session->sslServer->arrays != NULL) {
+        ForceZero(session->sslServer->arrays->preMasterSecret,
+                  MAX_PREMASTER_SZ);
+        session->sslServer->arrays->preMasterSz = 0;
+    }
+    if (session->sslClient != NULL && session->sslClient->arrays != NULL) {
+        ForceZero(session->sslClient->arrays->preMasterSecret,
+                  MAX_PREMASTER_SZ);
+        session->sslClient->arrays->preMasterSz = 0;
+    }
+}
+
 /* Process Keys */
-#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+#if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
 /* RFC 7366 only covers block ciphers and a peer must not negotiate it for an
  * AEAD or stream suite, so a session that asked for it is still readable here
  * unless the negotiated suite turns out to be a block cipher.
@@ -3012,7 +3060,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 /* Length is in bytes. Subtract 1 for the ECC key type. Divide
                 * by two as the key is in (x,y) coordinates, where x and y are
                 * the same size, the key size. Convert from bytes to bits. */
-                session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+                session->sslServer->arrays->preMasterSz = MAX_PREMASTER_SZ;
             }
         }
     #endif /* HAVE_ECC */
@@ -3104,7 +3152,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             if (ret == 0) {
                 /* For Curve25519 length is always 32 */
                 session->keySz = CURVE25519_KEYSIZE;
-                session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+                session->sslServer->arrays->preMasterSz = MAX_PREMASTER_SZ;
             }
         }
     #endif /* HAVE_CURVE25519 */
@@ -3186,7 +3234,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
             if (ret == 0) {
                 session->keySz = CURVE448_KEY_SIZE;
-                session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+                session->sslServer->arrays->preMasterSz = MAX_PREMASTER_SZ;
             }
         }
     #endif /* HAVE_CURVE448 */
@@ -3365,7 +3413,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             ret = WOLFSSL_FATAL_ERROR; break;
         }
 
-    #if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+    #if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (CheckEncryptThenMac(session, error) != 0) {
             ret = WOLFSSL_FATAL_ERROR; break;
         }
@@ -3393,11 +3441,25 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         else
     #endif /* WOLFSSL_TLS13 */
         {
+#ifndef WOLFSSL_NO_TLS12
             ret  = MakeMasterSecret(session->sslServer);
             ret += MakeMasterSecret(session->sslClient);
             ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
             ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+            /* Last reader below TLS 1.3, so both copies can go. TLS 1.3
+             * keeps the buffer until ProcessFinished() wipes it. */
+            CleanSnifferPreMaster(session);
+#else
+            /* No master secret is computed here, so installing cipher state
+             * would be wrong. */
+            SetError(UNSUPPORTED_TLS_VER_STR, error, session,
+                     FATAL_ERROR_STATE);
+            session->verboseErr = 1;
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+#endif
         }
+
         if (ret != 0) {
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
             ret = WOLFSSL_FATAL_ERROR; break;
@@ -3444,6 +3506,12 @@ exit_sk:
         return ret;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+    /* An error above may have left a secret in the arrays until the session
+     * is evicted. The async pending path returned already; it needs the
+     * buffer to resume. */
+    if (ret < 0)
+        CleanSnifferPreMaster(session);
 
 #ifdef WOLFSSL_SNIFFER_STATS
     if (ret < 0)
@@ -3819,7 +3887,7 @@ static int DoResume(SnifferSession* session, char* error)
         return WOLFSSL_FATAL_ERROR;
     }
 
-#if !defined(HAVE_ENCRYPT_THEN_MAC) || defined(WOLFSSL_AEAD_ONLY)
+#if !defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     if (CheckEncryptThenMac(session, error) != 0)
         return WOLFSSL_FATAL_ERROR;
 #endif
@@ -3844,6 +3912,7 @@ static int DoResume(SnifferSession* session, char* error)
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         if (IsTLS(session->sslServer)) {
             ret =  DeriveTlsKeys(session->sslServer);
             ret += DeriveTlsKeys(session->sslClient);
@@ -3856,6 +3925,12 @@ static int DoResume(SnifferSession* session, char* error)
         }
         ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
         ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+#else
+        /* No keys were derived, so installing cipher state would be wrong. */
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+#endif
     }
 
     if (ret != 0) {
@@ -3916,17 +3991,17 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return WOLFSSL_FATAL_ERROR;
     }
+    if (b > ID_LEN) {
+        SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (b) {
-        if (ID_LEN > *sslBytes) {
-            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
     #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslServer->session->sessionID, input, ID_LEN);
-        session->sslServer->session->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->session->sessionID, input, b);
+        session->sslServer->session->sessionIDSz = b;
     #endif
-        XMEMCPY(session->sslServer->arrays->sessionID, input, ID_LEN);
-        session->sslServer->arrays->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslServer->arrays->sessionID, input, b);
+        session->sslServer->arrays->sessionIDSz = b;
         session->sslServer->options.haveSessionId = 1;
     }
     input     += b;
@@ -3979,7 +4054,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     session->sslServer->options.encThenMac = 0;
     session->sslClient->options.encThenMac = 0;
-#else
+#elif !defined(WOLFSSL_AEAD_ONLY)
     session->flags.etmUnsupported = 0;
 #endif
 
@@ -4107,7 +4182,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->sslServer->options.encThenMac = 1;
                 session->sslClient->options.encThenMac = 1;
                 break;
-        #else
+        #elif !defined(WOLFSSL_AEAD_ONLY)
             case EXT_ENCRYPT_THEN_MAC:
                 /* The session negotiated RFC 7366, but this build cannot
                  * strip the MAC ahead of decryption. Only a block cipher
@@ -4156,12 +4231,15 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 
 #ifdef HAVE_EXTENDED_MASTER
     if (!session->flags.expectEms) {
+        HashFree(session->hash);
         XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
         session->hash = NULL;
     }
 #endif
 
     if (session->sslServer->options.haveSessionId) {
+        /* Resume only on a full length session id, the only length the
+         * session cache matches. */
         if (session->sslServer->arrays->sessionIDSz == ID_LEN &&
                 session->sslClient->arrays->sessionIDSz == ID_LEN &&
                 XMEMCMP(session->sslServer->arrays->sessionID,
@@ -4338,19 +4416,24 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     /* store session in case trying to resume */
     bLen = *input++;
     *sslBytes -= ENUM_LEN;
+    if (bLen > ID_LEN) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* make sure can read through session id */
+    if (bLen > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
     if (bLen) {
-        if (ID_LEN > *sslBytes) {
-            SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
         Trace(CLIENT_RESUME_TRY_STR);
 #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslClient->session->sessionID, input, ID_LEN);
-        session->sslClient->session->sessionIDSz = ID_LEN;
+        XMEMCPY(session->sslClient->session->sessionID, input, bLen);
+        session->sslClient->session->sessionIDSz = bLen;
 #endif
         if (session->sslClient->arrays) {
-            XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
-            session->sslClient->arrays->sessionIDSz = ID_LEN;
+            XMEMCPY(session->sslClient->arrays->sessionID, input, bLen);
+            session->sslClient->arrays->sessionIDSz = bLen;
         }
         session->sslClient->options.haveSessionId = 1;
     }
@@ -4754,12 +4837,20 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     else
 #endif
     {
+#ifndef WOLFSSL_NO_TLS12
         ret = DoFinished(ssl, input, &inOutIdx, (word32)size,
             (word32)*sslBytes, SNIFF);
+#else
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return WOLFSSL_FATAL_ERROR;
+#endif
     }
     *sslBytes -= (int)inOutIdx;
 
     if (ret < 0) {
+        /* The handshake secret may already be here; wipe on the way out. */
+        CleanSnifferPreMaster(session);
         SetError(BAD_FINISHED_MSG, error, session, FATAL_ERROR_STATE);
         return ret;
     }
@@ -4800,6 +4891,8 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
             ret += DeriveTls13Keys(session->sslServer, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
             ret += DeriveTls13Keys(session->sslClient, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
         #endif
+            /* The handshake secret is spent, derivation succeeded or not. */
+            CleanSnifferPreMaster(session);
 
             if (ret != 0) {
                 SetError(BAD_FINISHED_MSG, error, session, FATAL_ERROR_STATE);
@@ -4860,7 +4953,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
 /* Process HandShake input */
 static int DoHandShake(const byte* input, int* sslBytes,
-                       SnifferSession* session, char* error, word16 rhSize)
+                       SnifferSession* session, char* error, word32 rhSize)
 {
     byte type;
     int  size;
@@ -4872,9 +4965,30 @@ static int DoHandShake(const byte* input, int* sslBytes,
 
 #ifdef HAVE_MAX_FRAGMENT
     if (session->tlsFragBuf) {
-        if (session->tlsFragOffset + rhSize > session->tlsFragSize) {
+        word32 needed;
+
+        if (session->tlsFragOffset > session->tlsFragSize ||
+            rhSize > session->tlsFragSize - session->tlsFragOffset) {
             SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
+        }
+        needed = session->tlsFragOffset + rhSize;
+        if (needed > session->tlsFragCapacity) {
+            byte* fragment;
+            word32 capacity = session->tlsFragSize;
+
+            /* Grow with the bytes received, not the peer's claimed length,
+             * doubling so many small records do not realloc every time. */
+            if (needed < session->tlsFragSize / 2)
+                capacity = needed * 2;
+            fragment = (byte*)XREALLOC(session->tlsFragBuf, capacity, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (fragment == NULL) {
+                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            session->tlsFragBuf = fragment;
+            session->tlsFragCapacity = capacity;
         }
         XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
         session->tlsFragOffset += rhSize;
@@ -4902,6 +5016,32 @@ static int DoHandShake(const byte* input, int* sslBytes,
     *sslBytes -= HANDSHAKE_HEADER_SZ;
     startBytes = *sslBytes;
 
+    if (size > MAX_HANDSHAKE_SZ) {
+        SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+#ifdef HAVE_MAX_FRAGMENT
+    if (rhSize < (word32)size + HANDSHAKE_HEADER_SZ) {
+        /* partial fragment, let's reassemble */
+        if (session->tlsFragBuf == NULL) {
+            session->tlsFragSize = size + HANDSHAKE_HEADER_SZ;
+            session->tlsFragBuf = (byte*)XMALLOC(rhSize, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (session->tlsFragBuf == NULL) {
+                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            session->tlsFragCapacity = rhSize;
+        }
+
+        XMEMCPY(session->tlsFragBuf, input - HANDSHAKE_HEADER_SZ, rhSize);
+        session->tlsFragOffset = rhSize;
+        *sslBytes = 0;
+        return 0;
+    }
+#endif
+
     if (*sslBytes < size) {
         Trace(SPLIT_HANDSHAKE_MSG_STR);
         *sslBytes = 0;
@@ -4912,34 +5052,6 @@ static int DoHandShake(const byte* input, int* sslBytes,
         ssl = session->sslServer;
     else
         ssl = session->sslClient;
-
-#ifdef HAVE_MAX_FRAGMENT
-    if (rhSize < size) {
-        /* partial fragment, let's reassemble */
-        if (session->tlsFragBuf == NULL) {
-            session->tlsFragOffset = 0;
-            session->tlsFragSize = size + HANDSHAKE_HEADER_SZ;
-            session->tlsFragBuf = (byte*)XMALLOC(session->tlsFragSize, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (session->tlsFragBuf == NULL) {
-                SetError(MEMORY_STR, error, NULL, 0);
-                return 0;
-            }
-
-            /* include the handshake header */
-            input -= HANDSHAKE_HEADER_SZ;
-            *sslBytes += HANDSHAKE_HEADER_SZ;
-        }
-
-        if (session->tlsFragOffset + rhSize > session->tlsFragSize) {
-            SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            return WOLFSSL_FATAL_ERROR;
-        }
-        XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
-        session->tlsFragOffset += rhSize;
-        *sslBytes -= rhSize;
-        return 0;
-    }
-#endif
 
 #ifdef WOLFSSL_TLS13
     if (type != client_hello && type != server_hello
@@ -5050,6 +5162,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
                                 session, FATAL_ERROR_STATE);
                         ret = WOLFSSL_FATAL_ERROR;
                     }
+                    HashFree(session->hash);
                     XMEMSET(session->hash, 0, sizeof(HsHashes));
                     XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
                     session->hash = NULL;
@@ -5090,6 +5203,7 @@ exit:
 #ifdef HAVE_MAX_FRAGMENT
     XFREE(session->tlsFragBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     session->tlsFragBuf = NULL;
+    session->tlsFragCapacity = 0;
 #endif
 
     *sslBytes = startBytes - size;  /* actual bytes of full process */
@@ -5099,6 +5213,9 @@ exit:
 
 /* For ciphers that use AEAD use the encrypt routine to
  * bypass the auth tag checking */
+/* The record layout below TLS 1.3 carries an explicit IV and its own
+ * additional data, so this path exists only where TLS 1.2 does. */
+#ifndef WOLFSSL_NO_TLS12
 static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
@@ -5160,6 +5277,7 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             /* For ciphers that use AEAD use the encrypt routine to
              * bypass the auth tag checking */
             wc_AesAuthEncryptFunc aes_auth_fn;
+            word16 plainSz;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
@@ -5178,22 +5296,24 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             aes_auth_fn = wc_AesCcmEncrypt;
         #endif
 
-            XMEMSET(ssl->decrypt.additional, 0, AEAD_AUTH_DATA_SZ);
-
-            XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
-            XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
-
             if (sz < AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size) {
                 ret = BUFFER_ERROR;
             }
 
             if (ret == 0) {
+                XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
+                        AESGCM_IMP_IV_SZ);
+                XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input,
+                        AESGCM_EXP_IV_SZ);
+                plainSz = (word16)(sz - AESGCM_EXP_IV_SZ -
+                                   ssl->specs.aead_mac_size);
+                /* The unused tag goes in the tag space after the plaintext. */
                 ret = aes_auth_fn(ssl->decrypt.aes,
                        plain,
                        input + AESGCM_EXP_IV_SZ,
-                       sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                       plainSz,
                        ssl->decrypt.nonce, AESGCM_NONCE_SZ,
-                       ssl->decrypt.additional, AEAD_AUTH_DATA_SZ,
+                       plain + plainSz, ssl->specs.aead_mac_size,
                        NULL, 0);
                 if (ret < 0) {
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5293,15 +5413,10 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
             /* free for these happens in FreeCiphers */
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
-                /* make sure auth iv and auth are allocated */
-                if (ssl->decrypt.additional == NULL)
-                    ssl->decrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
                 if (ssl->decrypt.nonce == NULL)
                     ssl->decrypt.nonce = (byte*)XMALLOC(AESGCM_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-                if (ssl->decrypt.additional == NULL ||
-                         ssl->decrypt.nonce == NULL) {
+                if (ssl->decrypt.nonce == NULL) {
                     return MEMORY_E;
                 }
             }
@@ -5334,6 +5449,10 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
                 if (ssl->decrypt.nonce)
                     ForceZero(ssl->decrypt.nonce, AESGCM_NONCE_SZ);
+                if (sz >= AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size) {
+                    ForceZero(plain + sz - AESGCM_EXP_IV_SZ -
+                        ssl->specs.aead_mac_size, ssl->specs.aead_mac_size);
+                }
 
                 if (ret < 0)
                     ret = VERIFY_MAC_ERROR;
@@ -5351,13 +5470,38 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
 
     return ret;
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 
+static int DecryptRecord(WOLFSSL* ssl, const byte* input, word32 sz,
+                         byte* output, RecordLayerHeader* rh)
+{
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (sz <= ssl->specs.aead_mac_size)
+            return BUFFER_ERROR;
+        return DecryptTls13(ssl, output, input, sz, (byte*)rh,
+                            RECORD_HEADER_SZ);
+    }
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
+    return DecryptTls(ssl, output, input, sz);
+#else
+    (void)input;
+    (void)sz;
+    (void)output;
+    (void)rh;
+    return VERSION_ERROR;
+#endif
+}
 
 /* Decrypt input message into output, adjust output steam if needed */
 static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
                 byte* output, int* error, int* advance, RecordLayerHeader* rh)
 {
+#ifndef WOLFSSL_AEAD_ONLY
     int ivExtra = 0;
+#endif
     int ret;
     word32 macExtra = 0;
 
@@ -5372,30 +5516,15 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     }
 #endif
 
-#ifdef WOLFSSL_TLS13
-    if (IsAtLeastTLSv1_3(ssl->version)) {
-        if (sz <= ssl->specs.aead_mac_size) {
-            *error = BUFFER_ERROR;
-            return NULL;
-        }
-        ret = DecryptTls13(ssl, output, input, sz, (byte*)rh, RECORD_HEADER_SZ);
-    }
-    else
-#endif
-    {
-        XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
-        ret = DecryptTls(ssl, output, input, sz - macExtra);
-    }
+    ret = DecryptRecord(ssl, input, sz - macExtra, output, rh);
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
-    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+    while (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         do {
             ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
         } while (ret == 0);
-        if (ret >= 0) {
-            /* remove from event queue list */
-            ret = wolfSSL_AsyncPop(ssl, NULL);
-        }
+        if (ret > 0)
+            ret = DecryptRecord(ssl, input, sz - macExtra, output, rh);
     }
 #endif
     if (ret != 0) {
@@ -5405,11 +5534,13 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 
     ssl->curSize = sz;
     ssl->keys.encryptSz = sz;
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
         output += ssl->specs.block_size; /* go past TLSv1.1 IV */
         ivExtra = ssl->specs.block_size;
         *advance = ssl->specs.block_size;
     }
+#endif
 
     if (ssl->specs.cipher_type == aead) {
         *advance = ssl->specs.aead_mac_size;
@@ -5420,6 +5551,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
         ssl->keys.padSz = ssl->specs.hash_size;
 
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block) {
         /* last pad bytes indicates length */
         word32 pad = 0;
@@ -5429,6 +5561,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         }
         ssl->keys.padSz += pad;
     }
+#endif
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -5558,6 +5691,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
         if (HashInit(newHash) != 0) {
             SetError(EXTENDED_MASTER_HASH_STR, error, NULL, 0);
+            HashFree(newHash);
             XFREE(newHash, NULL, DYNAMIC_TYPE_HASHES);
             XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
             return NULL;
@@ -5582,23 +5716,20 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->context = GetSnifferServer(ipInfo, tcpInfo);
     if (session->context == NULL) {
         SetError(SERVER_NOT_REG_STR, error, NULL, 0);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
 
     session->sslServer = wolfSSL_new(session->context->ctx);
     if (session->sslServer == NULL) {
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
     session->sslClient = wolfSSL_new(session->context->ctx);
     if (session->sslClient == NULL) {
-        wolfSSL_free(session->sslServer);
-        session->sslServer = 0;
-
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
+        FreeSnifferSession(session);
         return NULL;
     }
     /* put server back into server mode */
@@ -6040,6 +6171,44 @@ static int AddFinCapture(SnifferSession* session, word32 sequence)
     return 1;
 }
 
+/* Trim an in-order frame against the head of the reassembly list and queue
+ * anything that reaches past it.
+ * On entry *sslFrame is positioned at 'expected' and holds *sslBytes bytes. */
+static void TrimAgainstReassembly(SnifferSession* session,
+                                  PacketBuffer* reassemblyList, word32 expected,
+                                  int* sslBytes, const byte** sslFrame,
+                                  char* error)
+{
+    word32 newEnd;
+
+    if (*sslBytes <= 0)
+        return;
+    /* newEnd is one past the frame's last byte, while a list entry's begin and
+     * end are both inclusive. */
+    newEnd = expected + (word32)*sslBytes;
+
+    if (newEnd > reassemblyList->begin) {
+        Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
+
+        /* keep only what comes before the list entry, the rest is already
+           held */
+        *sslBytes = (reassemblyList->begin > expected) ?
+                        (int)(reassemblyList->begin - expected) : 0;
+    }
+    if ((reassemblyList->end >= expected) &&
+            (newEnd - 1 > reassemblyList->end)) {
+        /* may be past reassembly list end (could have more on list)
+           so try to add what's past the front->end */
+        word32 offset = reassemblyList->end - expected + 1;
+
+        Trace(OVERLAP_REASSEMBLY_END_STR);
+
+        AddToReassembly(session->flags.side, reassemblyList->end + 1,
+                        *sslFrame + offset,
+                        (int)(newEnd - reassemblyList->end - 1), session, error);
+    }
+}
+
 /* Adjust incoming sequence based on side */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
@@ -6083,37 +6252,13 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 Trace(OVERLAP_DUPLICATE_STR);
             }
 
-            /* The following conditional block is duplicated below. It is the
-             * same action but for a different setup case. If changing this
-             * block be sure to also update the block below. */
             if (reassemblyList) {
-                word32 newEnd;
-
                 /* adjust to expected, remove duplicate */
                 *sslFrame += overlap;
                 *sslBytes = (*sslBytes > overlap) ? *sslBytes - overlap : 0;
 
-                newEnd = *expected + *sslBytes;
-                if (newEnd > reassemblyList->begin) {
-                    int covered_data_len;
-
-                    Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
-
-                    /* remove bytes already on reassembly list */
-                    covered_data_len = newEnd - reassemblyList->begin;
-                    *sslFrame += covered_data_len;
-                    *sslBytes = (*sslBytes > covered_data_len) ?
-                                 *sslBytes - covered_data_len : 0;
-                }
-                if ((*sslBytes  > 0) && (newEnd > reassemblyList->end)) {
-                    Trace(OVERLAP_REASSEMBLY_END_STR);
-
-                    /* may be past reassembly list end (could have more on list)
-                       so try to add what's past the front->end */
-                    AddToReassembly(session->flags.side, reassemblyList->end + 1,
-                             *sslFrame + (reassemblyList->end - *expected + 1),
-                                 newEnd - reassemblyList->end, session, error);
-                }
+                TrimAgainstReassembly(session, reassemblyList, *expected,
+                                      sslBytes, sslFrame, error);
             }
             else if (*sslBytes > 0) {
                 if ((sword32)(real + (word32)*sslBytes - 1 - *seqLast) > 0) {
@@ -6179,32 +6324,9 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                           *sslFrame, *sslBytes, session, error);
             ret = 0;
         }
-        /* The following conditional block is duplicated above. It is the
-         * same action but for a different setup case. If changing this
-         * block be sure to also update the block above. */
         else if (reassemblyList) {
-            word32 newEnd = *expected + *sslBytes;
-
-            if (newEnd > reassemblyList->begin) {
-                int covered_data_len;
-
-                Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
-
-                /* remove bytes already on reassembly list */
-                covered_data_len = newEnd - reassemblyList->begin;
-                *sslFrame += covered_data_len;
-                *sslBytes = (*sslBytes > covered_data_len) ?
-                             *sslBytes - covered_data_len : 0;
-            }
-            if ((*sslBytes > 0) && (newEnd > reassemblyList->end)) {
-                Trace(OVERLAP_REASSEMBLY_END_STR);
-
-                /* may be past reassembly list end (could have more on list)
-                   so try to add what's past the front->end */
-                AddToReassembly(session->flags.side, reassemblyList->end + 1,
-                         *sslFrame + (reassemblyList->end - *expected + 1),
-                             newEnd - reassemblyList->end, session, error);
-            }
+            TrimAgainstReassembly(session, reassemblyList, *expected, sslBytes,
+                                  sslFrame, error);
         }
     }
     else {
@@ -6254,7 +6376,8 @@ static int FindNextRecordInAssembly(SnifferSession* session,
     while (curr != NULL) {
         *expected = curr->end + 1;
 
-        if (curr->data[0] == application_data &&
+        if ((curr->end - curr->begin + 1) >= (word32)(ENUM_LEN + VERSION_SZ) &&
+            curr->data[0] == application_data &&
             curr->data[1] == pv.major &&
             curr->data[2] == pv.minor) {
 
@@ -6282,6 +6405,7 @@ static int FindNextRecordInAssembly(SnifferSession* session,
 
             return 0;
         }
+#ifndef WOLFSSL_AEAD_ONLY
         else if (ssl->specs.cipher_type == block) {
             int ivPos = (int)(curr->end - curr->begin -
                                                      ssl->specs.block_size + 1);
@@ -6298,6 +6422,7 @@ static int FindNextRecordInAssembly(SnifferSession* session,
 #endif
             }
         }
+#endif /* !WOLFSSL_AEAD_ONLY */
 
         Trace(DROPPING_LOST_FRAG_STR);
 #ifdef WOLFSSL_SNIFFER_STATS
@@ -6720,8 +6845,34 @@ doMessage:
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance, &rh);
         if (sslFrame != NULL) {
-            /* sslFrame moved so should recordEnd */
-            recordEnd = sslFrame - ivAdvance + rhSize;
+            /* The decrypted handshake ends before the record MAC, block
+             * padding, and TLS 1.3 inner content type. TLS 1.2 AEAD also
+             * carries an explicit IV that is not written to output. */
+            if ((enum ContentType)rh.type == handshake) {
+                const byte* out = ssl->buffers.outputBuffer.buffer;
+                word32 overhead;
+
+                if (sslFrame < out || sslFrame > out + rhSize) {
+                    SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                overhead = (word32)(sslFrame - out);
+                if (!ssl->options.tls1_3 && ssl->specs.cipher_type == aead &&
+                    ssl->specs.bulk_cipher_algorithm != wolfssl_chacha) {
+                    overhead += AESGCM_EXP_IV_SZ;
+                }
+                if (overhead > (word32)rhSize ||
+                    ssl->keys.padSz > (word32)rhSize - overhead) {
+                    SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                recordEnd = sslFrame + ((word32)rhSize - overhead -
+                    ssl->keys.padSz);
+            }
+            else {
+                /* sslFrame moved so should recordEnd */
+                recordEnd = sslFrame - ivAdvance + rhSize;
+            }
         }
         decrypted = 1;
 
@@ -6751,27 +6902,34 @@ doPart:
     switch ((enum ContentType)rh.type) {
         case handshake:
             {
-                int startIdx = sslBytes;
+                int startIdx;
+                int handshakeBytes;
                 int used;
 
+                if (recordEnd < sslFrame || recordEnd - sslFrame > rhSize) {
+                    SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+                startIdx = (int)(recordEnd - sslFrame);
+                handshakeBytes = startIdx;
                 Trace(GOT_HANDSHAKE_STR);
-                ret = DoHandShake(sslFrame, &sslBytes, session, error, rhSize);
+                ret = DoHandShake(sslFrame, &handshakeBytes, session, error,
+                    (word32)startIdx);
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return ret;
             #endif
-                if (ret != 0 || sslBytes > startIdx) {
+                if (ret != 0 || handshakeBytes < 0 ||
+                    handshakeBytes > startIdx) {
                     if (session->flags.fatalError == 0)
                         SetError(BAD_HANDSHAKE_STR, error, session,
                                  FATAL_ERROR_STATE);
                     return WOLFSSL_FATAL_ERROR;
                 }
 
-                /* DoHandShake now fully decrements sslBytes to remaining */
-                used = startIdx - sslBytes;
+                used = startIdx - handshakeBytes;
                 sslFrame += used;
-                if (decrypted)
-                    sslFrame += ssl->keys.padSz;
+                sslBytes = handshakeBytes;
             }
             break;
         case change_cipher_spec:
@@ -7709,13 +7867,13 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
 
 /* Maximum length of the NSS Keylog prefix string */
-#define MAX_PREFIX_LENGTH (31)
+#define MAX_PREFIX_LENGTH 31
 /* Maximum length (in bytes) required to store the binary representation of
  * the "client random" value parsed from keylog file */
-#define CLIENT_RANDOM_LENGTH (32)
+#define CLIENT_RANDOM_LENGTH 32
 /* Maximum length (in bytes) required to store the binary representation of the
  * "secret" value parsed from keylog file */
-#define SECRET_LENGTH (48)
+#define SECRET_LENGTH 48
 
 typedef struct SecretNode {
     unsigned char clientRandom[CLIENT_RANDOM_LENGTH];

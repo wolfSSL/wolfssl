@@ -33,8 +33,11 @@
  *   Sha3Update multi-block fast path (line ~874):
  *       (sha3_block_n != NULL) && (blocks > 0)
  *
- * On a capable host cpuid reports AVX2, so the runtime always takes the AVX2
- * branch: the "cached", BMI, and non-fast-path conditions are unreachable from
+ * On a capable host the runtime now takes the BMI2 branch, because sha3.c
+ * prefers the BMI2 block (it needs no vector-register claim) and only puts
+ * AVX2 first when WOLFSSL_SHA3_AVX2 is defined, which no configure- or
+ * CMake-reachable build defines. So the AVX2 selection, the "cached"
+ * condition and the non-fast-path condition are the ones unreachable from
  * tests/api. This TU #includes sha3.c so those static items are in scope and drives
  * InitSha3 / Update with cpuid_flags and the block pointers forced.
  *
@@ -105,13 +108,17 @@ static void wb_sha3_dispatch(void)
     wb_init_with(CPUID_BMI1,              NULL);   /* [T,F] */
     wb_init_with(0,                       NULL);   /* [F,-] -> C block */
 
-    /* SHA3_USE_AVX2(f) = IS_INTEL_AVX2(f) && IS_CPU_INTEL(f).
+    /* SHA3_USE_AVX2(f) = IS_INTEL_AVX2(f) && IS_CPU_INTEL(f) &&
+     *                    !IS_CPU_SLOW_AVX2_SHA3(f).
      *   The [T,T] row cannot come from real cpuid on a non-Intel host, so
      *   neither operand's pair completes without forcing the vendor bit:
      *   AVX2-capable AMD reports [T,F], the same row as the AVX2-only call
      *   above. Supply [T,T]; it pairs with CPUID_AVX2 ([T,F]) for operand 1
      *   and with the BMI rows ([F,-]) for operand 0. */
     wb_init_with(CPUID_AVX2 | CPUID_INTEL, NULL);
+    /* Third operand, !IS_CPU_SLOW_AVX2_SHA3(f): [T,T,T] pairs with the row
+     *   above for its independence (Arrow Lake: AVX2 Keccak skipped). */
+    wb_init_with(CPUID_AVX2 | CPUID_INTEL | CPUID_SLOW_AVX2_SHA3, NULL);
 
     /* 874: (sha3_block_n != NULL) && (blocks > 0), in Sha3Update. MC/DC needs
      *   cond0's independence pair -- both the NULL and non-NULL multi-block

@@ -27,15 +27,16 @@ Encryption Standard (AES) functionality.
 
 use crate::sys;
 use core::mem::MaybeUninit;
+#[cfg(all(feature = "aead", any(aes_ccm, aes_gcm)))]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[cfg(feature = "aead")]
+#[cfg(all(feature = "aead", any(aes_ccm, aes_gcm)))]
 use aead::{AeadCore, AeadInPlace, KeyInit, KeySizeUser};
 
-#[cfg(feature = "aead")]
+#[cfg(all(feature = "aead", any(aes_ccm, aes_gcm)))]
 use aead::generic_array::typenum::{U0, U12, U16, U24, U32};
 
-#[cfg(all(feature = "cipher", not(feature = "aead")))]
+#[cfg(all(feature = "cipher", not(all(feature = "aead", any(aes_ccm, aes_gcm)))))]
 use cipher::typenum::consts::{U16, U24, U32};
 
 #[cfg(feature = "cipher")]
@@ -524,9 +525,9 @@ impl AeadCore for Aes128Ccm {
 #[cfg(all(aes_ccm, feature = "aead"))]
 impl KeyInit for Aes128Ccm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 16];
-        k.copy_from_slice(key.as_ref());
-        Aes128Ccm { key: k }
+        let mut out = Aes128Ccm { key: [0u8; 16] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -576,9 +577,9 @@ impl AeadCore for Aes192Ccm {
 #[cfg(all(aes_ccm, feature = "aead"))]
 impl KeyInit for Aes192Ccm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 24];
-        k.copy_from_slice(key.as_ref());
-        Aes192Ccm { key: k }
+        let mut out = Aes192Ccm { key: [0u8; 24] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -628,9 +629,9 @@ impl AeadCore for Aes256Ccm {
 #[cfg(all(aes_ccm, feature = "aead"))]
 impl KeyInit for Aes256Ccm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 32];
-        k.copy_from_slice(key.as_ref());
-        Aes256Ccm { key: k }
+        let mut out = Aes256Ccm { key: [0u8; 32] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -1585,7 +1586,7 @@ impl GCM {
             return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
         }
         let rc = unsafe {
-            sys::wc_AesGcmEncrypt(&mut self.ws_aes, dout.as_mut_ptr(), din.as_ptr(), in_size,
+            gcm_encrypt_ext_iv(&mut self.ws_aes, dout.as_mut_ptr(), din.as_ptr(), in_size,
                 iv.as_ptr(), iv_size, auth_tag.as_mut_ptr(), auth_tag_size,
                 auth.as_ptr(), auth_size)
         };
@@ -1633,6 +1634,69 @@ impl GCM {
         Ok(())
     }
 }
+/// One-shot AES-GCM encryption with a caller-supplied IV.
+///
+/// FIPS builds don't export `wc_AesGcmEncrypt()`, since it isn't approved
+/// there. They do the same with approved calls instead, as wolfSSL's
+/// `wc_compat.h` does for C callers. As specified in:
+/// https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/wolfcrypt/wc_compat.h#L61-L64
+///
+/// # Safety
+///
+/// The pointers and sizes must be valid as for `wc_AesGcmEncrypt()`, and the
+/// key must already be set on `aes`.
+#[cfg(aes_gcm)]
+#[allow(clippy::too_many_arguments)]
+unsafe fn gcm_encrypt_ext_iv(aes: *mut sys::Aes, out: *mut u8, inp: *const u8,
+        sz: u32, iv: *const u8, iv_sz: u32, auth_tag: *mut u8,
+        auth_tag_sz: u32, auth_in: *const u8, auth_in_sz: u32) -> i32 {
+    #[cfg(not(fips))]
+    {
+        unsafe {
+            sys::wc_AesGcmEncrypt(aes, out, inp, sz, iv, iv_sz, auth_tag,
+                auth_tag_sz, auth_in, auth_in_sz)
+        }
+    }
+    #[cfg(all(fips, aes_gcm_stream))]
+    {
+        // A null key keeps the key already set on aes.
+        let rc = unsafe {
+            sys::wc_AesGcmInit(aes, core::ptr::null(), 0, iv, iv_sz)
+        };
+        if rc != 0 {
+            return rc;
+        }
+        let rc = unsafe {
+            sys::wc_AesGcmEncryptUpdate(aes, out, inp, sz, auth_in, auth_in_sz)
+        };
+        if rc != 0 {
+            return rc;
+        }
+        unsafe { sys::wc_AesGcmEncryptFinal(aes, auth_tag, auth_tag_sz) }
+    }
+    #[cfg(all(fips, not(aes_gcm_stream)))]
+    {
+        // wc_AesGcmEncrypt_ex() writes the IV it used and then advances the
+        // one held in aes, so set it back afterwards, as wc_compat.h does.
+        let mut iv_out = [0u8; 16];
+        if iv_sz as usize > iv_out.len() {
+            return sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E;
+        }
+        let rc = unsafe { sys::wc_AesGcmSetExtIV(aes, iv, iv_sz) };
+        if rc != 0 {
+            return rc;
+        }
+        let rc = unsafe {
+            sys::wc_AesGcmEncrypt_ex(aes, out, inp, sz, iv_out.as_mut_ptr(),
+                iv_sz, auth_tag, auth_tag_sz, auth_in, auth_in_sz)
+        };
+        if rc != 0 {
+            return rc;
+        }
+        unsafe { sys::wc_AesGcmSetExtIV(aes, iv, iv_sz) }
+    }
+}
+
 #[cfg(aes_gcm)]
 impl GCM {
     fn zeroize(&mut self) {
@@ -1672,7 +1736,7 @@ fn gcm_encrypt_in_place(
     let buf_ptr = buffer.as_mut_ptr();
     let in_ptr = buf_ptr as *const u8;
     let rc = unsafe {
-        sys::wc_AesGcmEncrypt(
+        gcm_encrypt_ext_iv(
             &mut gcm.ws_aes,
             buf_ptr, in_ptr, buffer.len() as u32,
             nonce.as_ptr(), nonce.len() as u32,
@@ -1740,9 +1804,9 @@ impl AeadCore for Aes128Gcm {
 #[cfg(all(aes_gcm, feature = "aead"))]
 impl KeyInit for Aes128Gcm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 16];
-        k.copy_from_slice(key.as_ref());
-        Aes128Gcm { key: k }
+        let mut out = Aes128Gcm { key: [0u8; 16] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -1792,9 +1856,9 @@ impl AeadCore for Aes192Gcm {
 #[cfg(all(aes_gcm, feature = "aead"))]
 impl KeyInit for Aes192Gcm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 24];
-        k.copy_from_slice(key.as_ref());
-        Aes192Gcm { key: k }
+        let mut out = Aes192Gcm { key: [0u8; 24] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -1844,9 +1908,9 @@ impl AeadCore for Aes256Gcm {
 #[cfg(all(aes_gcm, feature = "aead"))]
 impl KeyInit for Aes256Gcm {
     fn new(key: &aead::Key<Self>) -> Self {
-        let mut k = [0u8; 32];
-        k.copy_from_slice(key.as_ref());
-        Aes256Gcm { key: k }
+        let mut out = Aes256Gcm { key: [0u8; 32] };
+        out.key.copy_from_slice(key.as_ref());
+        out
     }
 }
 
@@ -2091,7 +2155,7 @@ impl GCMStream {
     ///
     /// # Parameters
     ///
-    /// * `din`: Data to encrypt.
+    /// * `din`: Data to decrypt.
     /// * `dout`: Buffer in which to store the decrypted data. The size of
     ///   the buffer must match that of the `din` buffer.
     /// * `auth`: Authentication data input.
@@ -2455,8 +2519,10 @@ impl XTS {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the encryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the encryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     ///
     /// # Returns
     ///
@@ -2472,8 +2538,10 @@ impl XTS {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the decryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the decryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     ///
     /// # Returns
     ///
@@ -2802,8 +2870,10 @@ impl XTSStream {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the encryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the encryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     /// * `tweak`: Tweak value to use for the encryption operation.
     ///
     /// # Returns
@@ -2836,8 +2906,10 @@ impl XTSStream {
     ///
     /// # Parameters
     ///
-    /// * `key`: A slice containing the decryption key to use. The key must be
-    ///   16, 24, or 32 bytes in length.
+    /// * `key`: A slice containing the decryption key to use. This is the
+    ///   concatenation of two AES keys (data key followed by tweak key)
+    ///   and must be 32 or 64 bytes in length (or 48 bytes in non-FIPS
+    ///   builds).
     /// * `tweak`: Tweak value to use for the decryption operation.
     ///
     /// # Returns
@@ -3351,6 +3423,41 @@ impl BlockModeDecrypt for Aes256EcbDec {
 }
 
 // ---------------------------------------------------------------------------
+// Shared stream cipher helper
+// ---------------------------------------------------------------------------
+
+/// Apply a wolfCrypt stream mode (CTR or OFB) to `buf`, splitting the call
+/// into chunks that fit in the `word32` length accepted by wolfCrypt.
+///
+/// wolfCrypt tracks the unused keystream bytes of a partial block across
+/// calls, so chunking produces the same output as a single call. Chunks are
+/// kept block-aligned regardless.
+#[cfg(all(any(aes_ctr, aes_ofb), feature = "cipher"))]
+fn apply_stream_chunked(
+    ws_aes: &mut sys::Aes,
+    buf: cipher::InOutBuf<'_, '_, u8>,
+    f: unsafe extern "C" fn(*mut sys::Aes, *mut u8, *const u8, u32) -> core::ffi::c_int,
+    name: &str,
+) {
+    const MAX_CHUNK: usize = (u32::MAX as usize) & !(AES_BLOCK_SIZE - 1);
+    let len = buf.len();
+    // Take the raw pointers directly rather than going through get_in() and
+    // get_out(): for in-place buffers those would create a & and &mut slice
+    // over the same memory, invalidating the input pointer.
+    let (in_ptr, out_ptr) = buf.into_raw();
+    let mut off = 0usize;
+    while off < len {
+        let chunk = core::cmp::min(len - off, MAX_CHUNK);
+        // SAFETY: in-place operation is valid for CTR/OFB; the C function is
+        // called directly on raw pointers to avoid creating aliasing slices.
+        // off + chunk <= len, so both pointers stay within the buffer.
+        let rc = unsafe { f(ws_aes, out_ptr.add(off), in_ptr.add(off), chunk as u32) };
+        assert_eq!(rc, 0, "{} failed", name);
+        off += chunk;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // AES-CTR cipher trait implementations
 // ---------------------------------------------------------------------------
 
@@ -3388,17 +3495,8 @@ impl StreamCipher for Aes128Ctr {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesCtrEncrypt");
-        // wolfCrypt AES-CTR supports in-place operation (out == in).
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesCtrEncrypt, "wc_AesCtrEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3438,16 +3536,8 @@ impl StreamCipher for Aes192Ctr {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesCtrEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesCtrEncrypt, "wc_AesCtrEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3487,16 +3577,8 @@ impl StreamCipher for Aes256Ctr {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesCtrEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: CTR in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesCtrEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesCtrEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesCtrEncrypt, "wc_AesCtrEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3544,17 +3626,8 @@ impl StreamCipher for Aes128Ofb {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesOfbEncrypt");
-        // wolfCrypt AES-OFB supports in-place operation (out == in).
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesOfbEncrypt, "wc_AesOfbEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3594,16 +3667,8 @@ impl StreamCipher for Aes192Ofb {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesOfbEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesOfbEncrypt, "wc_AesOfbEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {
@@ -3643,16 +3708,8 @@ impl StreamCipher for Aes256Ofb {
         Ok(())
     }
 
-    fn unchecked_apply_keystream_inout(&mut self, mut buf: cipher::InOutBuf<'_, '_, u8>) {
-        let len = buf.len();
-        if len == 0 { return; }
-        assert!(len <= u32::MAX as usize, "buffer too large for wc_AesOfbEncrypt");
-        let in_ptr = buf.get_in().as_ptr();
-        let out_ptr = buf.get_out().as_mut_ptr();
-        // SAFETY: OFB in-place is valid; C function called directly to avoid
-        // creating aliasing slices.
-        let rc = unsafe { sys::wc_AesOfbEncrypt(&mut self.inner.ws_aes, out_ptr, in_ptr, len as u32) };
-        assert_eq!(rc, 0, "wc_AesOfbEncrypt failed");
+    fn unchecked_apply_keystream_inout(&mut self, buf: cipher::InOutBuf<'_, '_, u8>) {
+        apply_stream_chunked(&mut self.inner.ws_aes, buf, sys::wc_AesOfbEncrypt, "wc_AesOfbEncrypt");
     }
 
     fn unchecked_write_keystream(&mut self, buf: &mut [u8]) {

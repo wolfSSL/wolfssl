@@ -34,7 +34,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential bubblewrap
+          packages: autoconf automake libtool build-essential bubblewrap libpcap-dev
           ghcr-debs-tag: ubuntu-24.04-minimal
 
       # ccache via the cross-platform composite; the script passes the
@@ -71,7 +71,7 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/async-configs.json" <<'EOF'
           [
-          {"comment": "The only entry that pairs the software async simulator with --enable-all. --enable-all turns on cryptocb, which stops configure.ac from auto-enabling the simulator, so the asynccrypt-all entries below define WOLFSSL_ASYNC_CRYPT but never actually return WC_PENDING_E. Without this one nothing exercises TLS 1.3 post-handshake auth or DTLS writes against a pending crypto op. The minutes value is a projection, not a CI measurement: this config takes 1.6 min locally where the asynccrypt-all entries below take 1.4 against their declared 3. Refresh it from the first real run.",
+          {"comment": "The only entry that pairs the software async simulator with --enable-all. --enable-all turns on cryptocb, which stops configure.ac from auto-enabling the simulator, so the asynccrypt-all entries below define WOLFSSL_ASYNC_CRYPT but their built-in devices never return WC_PENDING_E; pending is exercised there by the tests that register their own pending callback (hkdf_cryptocb_async_test() in wolfCrypt, test_tls13_cryptocb_async in the api suite). Without this one nothing exercises TLS 1.3 post-handshake auth or DTLS writes against a pending crypto op. The minutes value is a projection, not a CI measurement: this config takes 1.6 min locally where the asynccrypt-all entries below take 1.4 against their declared 3. Refresh it from the first real run.",
            "name": "asynccrypt-sw-all-dtls13", "minutes": 3,
            "configure": ["--enable-asynccrypt-sw", "--enable-all",
             "--enable-dtls13",
@@ -92,12 +92,22 @@ jobs:
            "configure": ["--enable-asynccrypt-sw", "--enable-ocspstapling",
             "--enable-ocspstapling2",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]},
+          {"comment": "The API tests do not finish with WC_ASYNC_THRESH_NONE, so only the sniffer suite runs.",
+           "name": "asynccrypt-sw-sniffer",
+           "configure": ["--enable-asynccrypt-sw", "--enable-sniffer",
+            "--enable-aesccm", "--enable-session-ticket",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWC_ASYNC_THRESH_NONE -DWOLFSSL_SNIFFER_KEYLOGFILE"],
+           "check": false,
+           "run": [["test", "-x", "sslSniffer/sslSnifferTest/snifftest"],
+                   ["../scripts/sniffer-testsuite.test"]]},
           {"name": "ocsp-nonblock-certs", "minutes": 1.5,
            "configure": ["--enable-ocsp",
             "CFLAGS=-DTEST_NONBLOCK_CERTS -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=18 \
+            --deadline=20 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
             "$RUNNER_TEMP/async-configs.json"

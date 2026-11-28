@@ -100,6 +100,9 @@
 #elif defined(WOLFSSL_STM32N6)
 #include <stm32n6xx_hal_conf.h>
 #include <stm32n6xx_hal_pka.h>
+#elif defined(WOLFSSL_STM32V8)
+#include <stm32v8xx_hal_conf.h>
+#include <stm32v8xx_hal_pka.h>
 #elif defined(WOLFSSL_STM32H5)
 #include <stm32h5xx_hal_conf.h>
 #include <stm32h5xx_hal_pka.h>
@@ -135,6 +138,9 @@ typedef struct {
      * (in bytes) at sign-setup time so GetResult can use it. V1 HAL
      * reads from RAM and works fine; V2 HAL keeps it on the handle. */
     uint32_t primeordersize;
+    /* Same for RAM[PKA_ECC_SCALAR_MUL_IN_OP_NB_BITS] and the scalar
+     * multiply: saved at ECCMul-setup time for ECCMul_GetResult. */
+    uint32_t modulussize;
 } PKA_HandleTypeDef;
 
 typedef struct {
@@ -242,6 +248,12 @@ static void Stm32Pka_EnsureInit(void)
     }
 #endif
     if (needInit) {
+#ifdef PKA_SR_INITOK
+        /* INITOK needs the RNG clock. Set EN first: Zephyr's entropy driver
+         * stops gating the RNG clock once the PKA is enabled. */
+        hpka.Instance->CR = PKA_CR_EN;
+        __HAL_RCC_RNG_CLK_ENABLE();
+#endif
         (void)HAL_PKA_Init(&hpka);
     }
 }
@@ -515,7 +527,19 @@ static HAL_StatusTypeDef HAL_PKA_Init(PKA_HandleTypeDef *hpkah)
      * wait, an immediate ECDSA SIGN can race the init and silently
      * fail with OUT_ERROR = 0xCBC9 (PKA_FAILED_COMPUTATION) on U5 / H5
      * / WBA / N6 / C5 / H7S. V1 PKA does not have INITOK and the bit
-     * is undefined there. */
+     * is undefined there.
+     *
+     * The V2 PKA draws on the RNG during that self-check: with the RNG
+     * IP unclocked, INITOK never asserts (CR.EN sticks at 1, SR stays
+     * 0) and every PKA operation afterwards fails with WC_HW_E. Bring
+     * the RNG up first -- ST's own C5 PKA sequence does the same.
+     * wc_stm32_rng_ensure_ready() is the mutex-free bring-up already
+     * shared with the SAES self-init path. */
+#ifdef WC_STM32_HAS_RNG_READY
+    (void)wc_stm32_rng_ensure_ready();
+#elif defined(WC_STM32_RNG_CLK_ENABLE)
+    WC_STM32_RNG_CLK_ENABLE();
+#endif
     t = 0;
     while ((hpkah->Instance->SR & PKA_SR_INITOK) == 0U) {
         if (++t >= WC_STM32_PKA_INIT_TIMEOUT) {
@@ -765,6 +789,8 @@ static HAL_StatusTypeDef HAL_PKA_ECCMul(PKA_HandleTypeDef *hpkah,
     }
 #endif /* WOLFSSL_STM32_PKA_V2 */
 
+    hpkah->modulussize = in->modulusSize;
+
     return wc_stm32_pka_process(hpkah, PKA_MODE_ECC_MUL);
 }
 
@@ -778,9 +804,15 @@ static void HAL_PKA_ECCMul_GetResult(PKA_HandleTypeDef *hpkah,
     /* Word view: STM32C5 types PKA RAM as uint8_t[]; others as uint32_t[]. */
     RAM = (volatile const uint32_t*)(void*)hpkah->Instance->RAM;
 
-    /* The HAL recomputes the byte size from the saved IN_OP_NB_BITS
-     * slot. We do the same. */
+    /* V2 PKA clobbers RAM[IN_OP_NB_BITS] during compute, leaving a size
+     * of zero and a result read of nothing -- the caller then sees its
+     * own input point handed back. Use the size saved on the handle, as
+     * the V2 HAL does. V1 still reads from RAM. */
+#ifdef WOLFSSL_STM32_PKA_V2
+    size = hpkah->modulussize;
+#else
     size = (RAM[PKA_ECC_SCALAR_MUL_IN_OP_NB_BITS] + 7U) / 8U;
+#endif
 
     if (out->ptX != NULL) {
         wc_stm32_pka_read_be(out->ptX,
@@ -1027,7 +1059,7 @@ static void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
     ctx->HASH_IMR = HASH->IMR;
     ctx->HASH_STR = HASH->STR;
     ctx->HASH_CR  = HASH->CR;
-#ifdef STM32_HASH_SHA3
+#ifdef WC_STM32_HASH_HAS_SHA3CFGR
     ctx->SHA3CFGR  = HASH->SHA3CFGR;
 #endif
     for (i=0; i<HASH_CR_SIZE; i++) {
@@ -1072,7 +1104,7 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, word32 algo,
         /* restore context registers */
         HASH->IMR = ctx->HASH_IMR;
         HASH->STR = ctx->HASH_STR;
-#ifdef STM32_HASH_SHA3
+#ifdef WC_STM32_HASH_HAS_SHA3CFGR
         HASH->SHA3CFGR = ctx->SHA3CFGR;
 #endif
 
@@ -1351,14 +1383,14 @@ int wc_Stm32_Hmac_GetAlgoInfo(int macType, word32* algo, word32* blockSize,
             if (digestSize) *digestSize = WC_SHA_DIGEST_SIZE;
             break;
     #endif
-    #ifdef WOLFSSL_SHA224
+    #if defined(WOLFSSL_SHA224) && defined(STM32_HASH_SHA2)
         case WC_SHA224:
             if (algo)       *algo = HASH_AlgoSelection_SHA224;
             if (blockSize)  *blockSize = WC_SHA224_BLOCK_SIZE;
             if (digestSize) *digestSize = WC_SHA224_DIGEST_SIZE;
             break;
     #endif
-    #ifndef NO_SHA256
+    #if !defined(NO_SHA256) && defined(STM32_HASH_SHA2)
         case WC_SHA256:
             if (algo)       *algo = HASH_AlgoSelection_SHA256;
             if (blockSize)  *blockSize = WC_SHA256_BLOCK_SIZE;
@@ -1618,7 +1650,8 @@ static int Stm32SaesLoadKey(const word32* key, word32 keyLen)
 
 /* Poll CCF -- the completion signal for SAES *data* passes (and for the
  * normal-mode decrypt key-schedule prep). The wrapped-key / DHUK key-path
- * passes do NOT raise CCF; those use Stm32SaesWaitBusy() below. The __DMB()
+ * passes DO raise CCF, provided SR.BUSY was waited out after KEYSEL latched
+ * (see Stm32SaesDeriveKeyFromSeed). The __DMB()
  * forces prior config / DINR writes to retire before polling: without it the
  * write buffer can defer the last DINR write past the first CCF read. */
 static int Stm32SaesWaitCCF(void)
@@ -1639,9 +1672,9 @@ static int Stm32SaesWaitCCF(void)
 
 #endif /* WOLFSSL_DHUK */
 
-/* Spin until SR.BUSY clears. This is the completion signal for the SAES
- * key-path passes (KEYDERIVATION / wrapped-key DECRYPT): those do not
- * raise CCF -- CCF is only asserted for data-output passes. */
+/* Spin until SR.BUSY clears. Used to wait out the SAES self-init and the DHUK
+ * load that latching KEYSEL=HW starts -- CR writes made while BUSY is high are
+ * dropped. Compute passes signal completion via CCF, not this. */
 static int Stm32SaesWaitBusy(void)
 {
     int t = 0;
@@ -1770,39 +1803,71 @@ static int Stm32SaesEcbBlock(word32 buf[4])
  *   (1) KMOD=WRAPPED, KEYSEL=HW(DHUK), MODE=KEYDERIVATION; enable.
  *   (2) MODE=DECRYPT; re-enable EN (auto-cleared after pass 1); push the seed.
  * Completion of the key-path passes is signalled by SR.BUSY clearing plus
- * SR.KEYVALID, NOT by CCF (CCF is only raised for data-output passes). */
+ * CCF, with SR.KEYVALID confirming the loaded key. CR writes made while
+ * SR.BUSY is high are dropped, so BUSY is waited out before CR.EN is set. */
 static int Stm32SaesDeriveKeyFromSeed(const byte* seed, word32 seedSz)
 {
     word32 seedWords[8];
-    word32 i;
     word32 cr;
+    word32 i;
     int    ret = 0;
 
     if (seed == NULL || seedSz != 32u) {
         return BAD_FUNC_ARG;
     }
-    XMEMCPY(seedWords, seed, 32);
+    /* SAES consumes the blob as 32-bit words in the order ST's
+     * HAL_CRYPEx_UnwrapKey pushes them -- the byte-reverse of how it sits in a
+     * wolfCrypt byte buffer. CR.DATATYPE swapping applies to DINR but NOT to
+     * the key deposited in KEYR, so the swap happens here and DATATYPE stays
+     * 00 on this path. */
+    XMEMCPY(seedWords, seed, seedSz);
+    ByteReverseWords(seedWords, seedWords, seedSz);
 
-    Stm32SaesClearCCF();
-    cr = AES_CR_DATATYPE_1 | AES_CR_KEYSIZE | AES_CR_KMOD_0 |
-         AES_CR_KEYSEL_0 | AES_CR_MODE_0;   /* MODE = KEYDERIVATION */
-    SAES->CR = cr;
-    SAES->CR |= AES_CR_EN;
-    ret = Stm32SaesWaitBusy();
+    /* Full reset first: the key-derivation pass silently produces a wrong key
+     * if the IP carries state from a previous operation. */
+    SAES->CR = 0u;
+    __DSB();
+#ifdef AES_CR_IPRST
+    SAES->CR = AES_CR_IPRST;
+    __DSB();
+    SAES->CR = 0u;
+    __DSB();
+#endif
+    ret = Stm32SaesWaitInit();
     if (ret != 0) {
         goto done;
     }
     Stm32SaesClearCCF();
 
-    cr = (SAES->CR & ~AES_CR_MODE) | AES_CR_MODE_1; /* MODE = DECRYPT */
+    /* Program the whole key path in one write, MODE included. Latching
+     * KEYSEL = HW starts the DHUK load and raises SR.BUSY, and CR writes made
+     * while BUSY are dropped -- a MODE written separately after this point
+     * reads back as 0 and the derivation pass then never runs. */
+    cr = AES_CR_KEYSIZE | AES_CR_KMOD_0 | AES_CR_KEYSEL_0 | AES_CR_MODE_0;
     SAES->CR = cr;
-    SAES->CR |= AES_CR_EN;  /* re-enable (auto-cleared) */
+    __DSB();
+    /* Wait out that DHUK load before enabling, or the derivation pass runs
+     * against an incomplete key and quietly yields the wrong result. */
+    ret = Stm32SaesWaitBusy();
+    if (ret != 0) {
+        goto done;
+    }
+    SAES->CR |= AES_CR_EN;
+    ret = Stm32SaesWaitCCF();
+    if (ret != 0) {
+        goto done;
+    }
+    Stm32SaesClearCCF();
+
+    /* Decryption pass -- blob in via DINR, key lands in KEYR. */
+    SAES->CR = (SAES->CR & ~(word32)AES_CR_MODE) | AES_CR_MODE_1;
+    SAES->CR |= AES_CR_EN;
     for (i = 0; i < 8u; i += 4u) {
         SAES->DINR = seedWords[i + 0u];
         SAES->DINR = seedWords[i + 1u];
         SAES->DINR = seedWords[i + 2u];
         SAES->DINR = seedWords[i + 3u];
-        ret = Stm32SaesWaitBusy();
+        ret = Stm32SaesWaitCCF();
         if (ret != 0) {
             goto done;
         }
@@ -1841,7 +1906,8 @@ static void Stm32SaesLoadIv(const byte* iv, int reverse)
 }
 #endif /* WOLFSSL_DHUK */
 
-#endif /* (WOLFSSL_DHUK || WOLFSSL_STM32_USE_SAES) && WOLFSSL_STM32_BARE */
+#endif /* (WOLFSSL_DHUK || WOLFSSL_STM32_USE_SAES) &&
+          (WOLFSSL_STM32_BARE || WOLFSSL_STM32_CUBEMX) */
 
 /* ---------------------------------------------------------------------------
  * DHUK / SAES key wrap and the explicit KEK primitive -- shared by the
@@ -1877,8 +1943,8 @@ static void Stm32SaesLoadIv(const byte* iv, int reverse)
  *        HAL_CRYPEx_WrapKey) produced in wolfSSL 5.9.0 - 5.9.2. Use this to
  *        read or regenerate blobs provisioned by those releases.
  *
- * wc_Stm32_Aes_Wrap() below passes each build path its own historical default,
- * so neither path's stored blobs change meaning. */
+ * wc_Stm32_Aes_Wrap() below passes WC_STM32_WRAP_DEFAULT_RAW_ORDER, which is
+ * the raw order on both build paths. */
 int wc_Stm32_Aes_Wrap_ex(struct Aes* aes, const byte* in, word32 inSz,
     byte* out, word32* outSz, const byte* iv, int ivSz, int rawOrder)
 {
@@ -2020,14 +2086,11 @@ exit:
     return ret;
 }
 
-/* Wrap with this build path's established blob word order, so key material
- * already provisioned by a released wolfSSL keeps unwrapping:
- *   CubeMX/HAL -- byte-reversed, as the HAL_CRYPEx_WrapKey implementation in
- *                 wolfSSL 5.9.0 - 5.9.2 produced.
- *   bare-metal -- raw, the only order this path has ever produced.
- * Call wc_Stm32_Aes_Wrap_ex() directly to pick the order explicitly; rawOrder
- * = 1 gives one blob format that both build paths (and wc_Stm32_Aes_DhukOp_ex
- * and the DHUK crypto-callback derive path) agree on. */
+/* Wrap in the raw blob word order on both build paths -- the only order that
+ * unwraps back to the key it wrapped, and the one wc_Stm32_Aes_DhukOp_ex() and
+ * the DHUK crypto-callback derive path consume. Call wc_Stm32_Aes_Wrap_ex()
+ * with WC_STM32_WRAP_ORDER_LEGACY to regenerate the byte-reversed blobs the
+ * CubeMX build produced in wolfSSL 5.9.0 - 5.9.2. */
 int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz,
     byte* out, word32* outSz, const byte* iv, int ivSz)
 {
@@ -2043,7 +2106,7 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz,
  *
  * The earlier hang on U3 / WBA52 (SR.KEYVALID=1 but CCF never asserts)
  * was this driver waiting on the wrong flag: the key-path passes signal
- * completion via SR.BUSY clearing plus SR.KEYVALID, not via CCF, and
+ * completion via CCF plus SR.KEYVALID, and
  * AES_CR_EN auto-clears after the KEYDERIVATION pass so it must be
  * re-asserted before the wrapped-key words are pushed. Both are fixed
  * below; this is now the same sequence as Stm32SaesDeriveKeyFromSeed,
@@ -2053,16 +2116,17 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz,
  * the same primitive Stm32SaesDeriveKeyFromSeed provides (validated on
  * U385: both produce byte-identical output for the same input, so blobs
  * are interchangeable between this API and the crypto-callback device).
- * It is NOT the inverse of wc_Stm32_Aes_Wrap: unwrapping a blob that
- * wc_Stm32_Aes_Wrap produced from K does not put K in KEYR (measured on
- * U385 -- the recovered key matches K under no word or byte permutation).
- * Callers wrap and unwrap their own key material *with* the KEK; they must
- * not expect wc_Stm32_Aes_Wrap output to decrypt back to its input here.
+ * It IS the inverse of wc_Stm32_Aes_Wrap: unwrapping a blob that
+ * wc_Stm32_Aes_Wrap produced from K in WC_STM32_WRAP_ORDER_RAW puts K back
+ * in KEYR (verified on U385 and U545 against ST's HAL_CRYPEx_WrapKey).
  *
  * The gate stays default-off for one release cycle while the fix is
  * exercised across the SAES families. Define WOLFSSL_STM32_DHUK_UNWRAP
  * to opt in. */
-#ifndef WOLFSSL_STM32_DHUK_UNWRAP
+/* The real implementation shares Stm32SaesDeriveKeyFromSeed(), which is gated
+ * on WC_STM32_HAS_DHUK, so require that here too rather than break the build
+ * on a WOLFSSL_DHUK config for a family without a DHUK. */
+#if !defined(WOLFSSL_STM32_DHUK_UNWRAP) || !defined(WC_STM32_HAS_DHUK)
 int wc_Stm32_Aes_DhukOp_ex(struct Aes* aes, byte* out, const byte* in,
     word32 sz, int isEnc, int isCbc)
 {
@@ -2075,11 +2139,9 @@ int wc_Stm32_Aes_DhukOp_ex(struct Aes* aes, byte* out, const byte* in,
 {
     int ret;
     word32 cr;
-    word32 cr2;
     word32 chmod;
     word32 i;
     word32 blocks;
-    word32 wrappedKey[8];
     byte   prevCt[WC_AES_BLOCK_SIZE];
 
     if (aes == NULL || out == NULL || in == NULL) {
@@ -2113,73 +2175,13 @@ int wc_Stm32_Aes_DhukOp_ex(struct Aes* aes, byte* out, const byte* in,
         return ret;
     }
 
-    /* Stage the wrapped key (256-bit) for DINR push. The blob words go to
-     * DINR exactly as they sit in memory -- neither build path byte-
-     * reverses here, matching wc_Stm32_Aes_Wrap and the DHUK
-     * crypto-callback derive path so blobs are interchangeable. */
-    XMEMCPY(wrappedKey, aes->key, 32);
-
-    /* Step 1: unwrap the 256-bit blob under the silicon DHUK. The result
-     * is deposited straight into KEYR and never enters software:
-     *
-     *   (1a) CR = KMOD=WRAPPED + KEYSEL=HW + KEYSIZE=256 + CHMOD=ECB
-     *        + DATATYPE=byte + MODE=KEYDERIVATION. EN=0 initially.
-     *   (1b) Set EN. Wait for SR.BUSY to clear. Clear CCF.
-     *   (2a) MODIFY MODE -> DECRYPT, then re-assert EN.
-     *   (2b) Push 8 wrapped-key words via DINR in 2 four-word blocks,
-     *        waiting for SR.BUSY between blocks. No DOUTR read on unwrap
-     *        -- the result is moved internally to KEYR.
-     *   (2c) Check SR.KEYVALID, then clear EN.
-     *
-     * The key-path passes complete via SR.BUSY clearing plus SR.KEYVALID,
-     * NOT via CCF (CCF is only raised for data-output passes). Waiting on
-     * CCF here is what previously hung this function -- and is what ST's
-     * HAL_CRYPEx_UnwrapKey does. EN also auto-clears after the
-     * KEYDERIVATION pass, so step 2a has to set it again. */
-    Stm32SaesClearCCF();
-
-    /* Step 1a: full CR setup with MODE=KEYDERIVATION, EN=0. */
-    cr = AES_CR_DATATYPE_1 | AES_CR_KEYSIZE | AES_CR_KMOD_0 |
-         AES_CR_KEYSEL_0 |   /* KEYSEL = HW (DHUK) */
-         AES_CR_MODE_0;      /* MODE = KEYDERIVATION */
-    SAES->CR = cr;
-
-    /* Step 1b: enable, wait for the prep pass, clear CCF. */
-    SAES->CR |= AES_CR_EN;
-    ret = Stm32SaesWaitBusy();
+    /* Step 1: unwrap the 256-bit blob under the silicon DHUK, straight into
+     * KEYR. Shared with the crypto-callback device so the two APIs cannot
+     * drift apart again. */
+    ret = Stm32SaesDeriveKeyFromSeed((const byte*)aes->key, 32);
     if (ret != 0) {
         goto exit;
     }
-    Stm32SaesClearCCF();
-
-    /* Step 2a: switch MODE to DECRYPT via a read-modify-write that
-     * preserves KMOD / KEYSEL, then re-assert EN (it auto-cleared). */
-    cr2 = SAES->CR;
-    cr2 = (cr2 & ~AES_CR_MODE) | AES_CR_MODE_1; /* DECRYPT */
-    SAES->CR = cr2;
-    SAES->CR |= AES_CR_EN;
-
-    /* Step 2b: push 8 wrapped-key words via DINR in 2 four-word blocks. */
-    for (i = 0; i < 8u; i += 4u) {
-        SAES->DINR = wrappedKey[i + 0u];
-        SAES->DINR = wrappedKey[i + 1u];
-        SAES->DINR = wrappedKey[i + 2u];
-        SAES->DINR = wrappedKey[i + 3u];
-        ret = Stm32SaesWaitBusy();
-        if (ret != 0) {
-            goto exit;
-        }
-        Stm32SaesClearCCF();
-    }
-
-    /* Step 2c: KEYR now holds the unwrapped key -- confirm the IP agrees
-     * before using it, then disable EN. */
-    if ((SAES->SR & AES_SR_KEYVALID) == 0U) {
-        ret = WC_HW_E;
-        goto exit;
-    }
-    SAES->CR &= ~AES_CR_EN;
-    ForceZero(wrappedKey, sizeof(wrappedKey));
 
     /* Step 2: ECB/CBC with the unwrapped key now in KEYR. KMOD and
      * KEYSEL go back to NORMAL; decrypt needs a key-derivation prep
@@ -2265,7 +2267,6 @@ exit:
 #endif
     /* CCF clear after IP reset; harmless if IPRST already cleared CCF. */
     Stm32SaesClearCCF();
-    ForceZero(wrappedKey, sizeof(wrappedKey));
     ForceZero(prevCt, sizeof(prevCt));
     wolfSSL_CryptHwMutexUnLock();
     return ret;
@@ -2295,7 +2296,7 @@ int wc_Stm32_Aes_DhukOp(struct Aes* aes, byte* out, const byte* in,
 
 /* ===== Bare-metal direct-register AES driver =====
  * No HAL or StdPeriph. Two IP variants:
- *   - CRYP (FIFO-based):  F2/F4/F7/H7/MP13
+ *   - CRYP (FIFO-based):  F2/F4/F7/H7/MP13/V8
  *   - AES/SAES (TinyAES): L4/L5/U5/H573/G0/G4/WB/WL/WBA/H7S(via SAES)
  *
  * H7S3 has both a "fat" CRYP (same register shape as H753) AND a
@@ -2303,11 +2304,17 @@ int wc_Stm32_Aes_DhukOp(struct Aes* aes, byte* out, const byte* in,
  * SAES -- the plain CRYP is gated behind the security domain. The H7S
  * arm therefore goes through the TinyAES branch with WC_STM32_AES_INST
  * = SAES (forced via WOLFSSL_STM32_USE_SAES in the per-board settings).
+ *
+ * V8 also carries both IPs, but the part always runs Secure and its fat
+ * CRYP is reachable (unlike N6/H7S), so V8 defaults to the CRYP branch
+ * (AES-192 capable); WOLFSSL_STM32_USE_SAES routes it through the
+ * TinyAES branch on the SAES instance instead.
  * Variant selected via family ifdefs below. */
 
 #if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32H7) || \
-    defined(WOLFSSL_STM32MP13)
+    defined(WOLFSSL_STM32MP13) || \
+    (defined(WOLFSSL_STM32V8) && !defined(WOLFSSL_STM32_USE_SAES))
 /* ----- CRYP IP (FIFO-based) ----- */
 
 #ifndef STM32_BARE_AES_TIMEOUT
@@ -2428,18 +2435,63 @@ static int Stm32AesXferBlock(const byte* in, byte* out)
     return 0;
 }
 
-/* CBC/ECB decrypt requires a key-prep pass first (per F4/H7 reference manual:
- * load key, run ALGOMODE=AES_KEY, wait BUSY=0, then start the actual op). */
-static int Stm32AesPrepareKey(word32 keyLen)
+#ifdef CRYP_SR_KEYVALID
+/* Key-management CRYP variant (e.g. STM32V8): the engine refuses to
+ * process data until the loaded key validates (SR.KEYVALID). */
+static int Stm32AesWaitKeyValid(void)
 {
-    int ret;
+    int t = 0;
+    while ((CRYP->SR & CRYP_SR_KEYVALID) == 0) {
+        if (++t >= STM32_BARE_AES_TIMEOUT) {
+            return WC_TIMEOUT_E;
+        }
+    }
+    return 0;
+}
+#endif
 
-    CRYP->CR = CRYP_CR_ALGOMODE_AES_KEY |
-               STM32_CRYP_DATATYPE_BYTE |
-               Stm32AesKeySizeBits(keyLen);
-    CRYP->CR |= CRYP_CR_CRYPEN;
-    ret = Stm32AesWaitBusy();
-    CRYP->CR &= ~CRYP_CR_CRYPEN;
+/* Program the CR configuration, load the key, and (for decrypt) run the
+ * AES key-derivation pass (per F4/H7 reference manual: run ALGOMODE=AES_KEY,
+ * wait BUSY=0, then start the actual op).
+ *
+ * The CR write deliberately happens BEFORE the key registers: on the
+ * key-management CRYP variant (STM32V8, SR.KEYVALID/KERF) the key is
+ * latched against the already-programmed KEYSIZE/KMOD and never validates
+ * -- stalling the engine with a FIFO-wait timeout -- if the key registers
+ * are written first. The order is harmless on the classic CRYP
+ * (F2/F4/F7/H7/MP13). Verified on V873 silicon: KEYVALID sets with this
+ * order and survives both the key-derivation pass and the ALGOMODE-only
+ * rewrite to the final operating mode. */
+static int Stm32AesSetupKey(const word32* key, word32 keyLen, word32 cr,
+    int isEnc)
+{
+    int ret = 0;
+
+    if (!isEnc) {
+        CRYP->CR = CRYP_CR_ALGOMODE_AES_KEY |
+                   STM32_CRYP_DATATYPE_BYTE |
+                   Stm32AesKeySizeBits(keyLen);
+        Stm32AesLoadKey(key, keyLen);
+    #ifdef CRYP_SR_KEYVALID
+        ret = Stm32AesWaitKeyValid();
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+        CRYP->CR |= CRYP_CR_CRYPEN;
+        ret = Stm32AesWaitBusy();
+        CRYP->CR &= ~CRYP_CR_CRYPEN;
+        if (ret == 0) {
+            CRYP->CR = cr;
+        }
+    }
+    else {
+        CRYP->CR = cr;
+        Stm32AesLoadKey(key, keyLen);
+    #ifdef CRYP_SR_KEYVALID
+        ret = Stm32AesWaitKeyValid();
+    #endif
+    }
     return ret;
 }
 
@@ -2469,21 +2521,16 @@ int wc_Stm32_Aes_Ecb(struct Aes* aes, byte* out, const byte* in,
 
     WC_STM32_AES_CLK_ENABLE();
 
-    Stm32AesLoadKey(aes->key, keyLen);
-    if (!isEnc) {
-        ret = Stm32AesPrepareKey(keyLen);
-        if (ret != 0) {
-            goto exit;
-        }
-    }
-
     cr = CRYP_CR_ALGOMODE_AES_ECB |
          STM32_CRYP_DATATYPE_BYTE |
          Stm32AesKeySizeBits(keyLen);
     if (!isEnc) {
         cr |= CRYP_CR_ALGODIR;
     }
-    CRYP->CR = cr;
+    ret = Stm32AesSetupKey(aes->key, keyLen, cr, isEnc);
+    if (ret != 0) {
+        goto exit;
+    }
     CRYP->CR |= CRYP_CR_FFLUSH;
     CRYP->CR |= CRYP_CR_CRYPEN;
 
@@ -2533,22 +2580,17 @@ int wc_Stm32_Aes_Cbc(struct Aes* aes, byte* out, const byte* in,
 
     WC_STM32_AES_CLK_ENABLE();
 
-    Stm32AesLoadKey(aes->key, keyLen);
-    if (!isEnc) {
-        ret = Stm32AesPrepareKey(keyLen);
-        if (ret != 0) {
-            goto exit;
-        }
-    }
-    Stm32AesLoadIV((const byte*)aes->reg, WC_AES_BLOCK_SIZE);
-
     cr = CRYP_CR_ALGOMODE_AES_CBC |
          STM32_CRYP_DATATYPE_BYTE |
          Stm32AesKeySizeBits(keyLen);
     if (!isEnc) {
         cr |= CRYP_CR_ALGODIR;
     }
-    CRYP->CR = cr;
+    ret = Stm32AesSetupKey(aes->key, keyLen, cr, isEnc);
+    if (ret != 0) {
+        goto exit;
+    }
+    Stm32AesLoadIV((const byte*)aes->reg, WC_AES_BLOCK_SIZE);
     CRYP->CR |= CRYP_CR_FFLUSH;
     CRYP->CR |= CRYP_CR_CRYPEN;
 
@@ -2591,6 +2633,9 @@ exit:
  * Each per-block ECB call comes through wc_Stm32_Aes_Ecb above; aes.c manages
  * the counter and the XOR with plaintext. */
 
+/* F415/F417 headers declare the GCM phase field but that silicon has no GCM */
+#if defined(CRYP_CR_GCM_CCMPH_Pos) && !defined(STM32F415xx) && \
+    !defined(STM32F417xx)
 /* === HW GCM (CRYP IP phase machine) ==========================================
  * Native HW GCM for the case the CRYP IP supports directly:
  *   - IV is 96 bits (12 bytes) -- the standard GCM IV
@@ -2782,6 +2827,14 @@ int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
     CRYP->CR = cr_base | (0u << CRYP_CR_GCM_CCMPH_Pos);
 
     Stm32AesLoadKey(aes->key, keyLen);
+#ifdef CRYP_SR_KEYVALID
+    /* Key-management CRYP (STM32V8): key latches against the CR config
+     * written above; wait for it to validate before the init phase. */
+    ret = Stm32AesWaitKeyValid();
+    if (ret != 0) {
+        goto exit;
+    }
+#endif
 
     /* 12-byte IV || counter=0x00000002 (HW pre-increments to 2 for the
      * first payload block; init phase sets up J0). */
@@ -2823,6 +2876,19 @@ exit:
     wolfSSL_CryptHwMutexUnLock();
     return ret;
 }
+#else /* CRYP without GCM (F2, F415/F417): software GCM over HW AES blocks */
+int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
+                     const byte* iv, word32 ivSz,
+                     byte* tag, word32 tagSz,
+                     const byte* aad, word32 aadSz, int isEnc)
+{
+    (void)aes; (void)out; (void)in; (void)sz;
+    (void)iv;  (void)ivSz;
+    (void)tag; (void)tagSz;
+    (void)aad; (void)aadSz; (void)isEnc;
+    return CRYPTOCB_UNAVAILABLE;
+}
+#endif /* CRYP_CR_GCM_CCMPH_Pos */
 
 #else /* TinyAES IP (L4/L5/U5/H5/H573/G0/G4/WB/WL/WBA) */
 
@@ -3404,7 +3470,7 @@ exit:
     return ret;
 }
 
-#else /* AES peripheral without GCM mode (older TinyAES: WB/WL/G0/...) */
+#else /* AES peripheral without GCM mode (e.g. TinyAES on STM32L0) */
 /* No HW GCM on this AES IP variant -- fall back to software GCM (its AES blocks
  * still run on HW via wc_AesEncrypt -> wc_Stm32_Aes_Ecb). */
 int wc_Stm32_Aes_Gcm(struct Aes* aes, byte* out, const byte* in, word32 sz,
@@ -4270,11 +4336,10 @@ done:
 /* wc_Stm32_Aes_Wrap had a separate HAL implementation here, built on
  * HAL_CRYPEx_WrapKey and byte-reversing its input and output. It now shares the
  * register implementation above with the bare build -- same silicon-validated
- * code on both paths instead of two drivers. The blob format is unchanged:
- * wc_Stm32_Aes_Wrap() on CubeMX still byte-reverses (rawOrder =
- * WC_STM32_WRAP_ORDER_LEGACY), so key material provisioned by wolfSSL
- * 5.9.0 - 5.9.2 still unwraps. Pass WC_STM32_WRAP_ORDER_RAW to
- * wc_Stm32_Aes_Wrap_ex() for the format both build paths share. */
+ * code on both paths instead of two drivers -- and produces the raw blob order
+ * on both. Pass WC_STM32_WRAP_ORDER_LEGACY to wc_Stm32_Aes_Wrap_ex() to
+ * regenerate the byte-reversed blobs this path produced in wolfSSL
+ * 5.9.0 - 5.9.2. */
 
 int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp, int useSaes)
 {
@@ -5008,9 +5073,9 @@ int wc_Stm32_Ccb_EccSign(int curveId, const byte* iv, const byte* tag,
  * stays valid between them.
  *
  * Validated on STM32U385 (TZEN=0): GMAC is deterministic and round-trip
- * verifies. The key-derivation/decrypt passes complete via SR.BUSY clearing
- * plus SR.KEYVALID, NOT via CCF (CCF is only raised for data-output passes);
- * waiting on CCF for the key path is what previously caused WC_TIMEOUT_E. */
+ * verifies. The key-derivation/decrypt passes signal completion via CCF, with
+ * SR.KEYVALID confirming the loaded key; SR.BUSY must be waited out after the
+ * KEYSEL=HW latch first, since CR writes made while BUSY are dropped. */
 
 /* AES modes for Stm32Dhuk_Aes (was in the removed dhuk.h). */
 #define WC_DHUK_MODE_ECB 0
@@ -5436,13 +5501,12 @@ static int Stm32Dhuk_Aes(const byte* seed, word32 seedSz,
 
     /* ECB/CBC with the derived key now in KEYR (KMOD=NORMAL, KEYSEL=NORMAL).
      * Decrypt needs a KEYDERIVATION prep pass first (last-round-first key
-     * schedule); that prep is a key-path pass -> wait BUSY, not CCF. */
+     * schedule); that prep is a compute pass and signals via CCF. */
     cr = AES_CR_DATATYPE_1 | AES_CR_KEYSIZE | chmod;
     if (!enc) {
-        /* Normal-mode (KMOD=NORMAL) decrypt key-schedule prep: this IS a
-         * data/compute pass and raises CCF (unlike the wrapped-key DHUK derive,
-         * which signals via BUSY/KEYVALID). Waiting on BUSY here clears too
-         * early and yields an incomplete inverse schedule. */
+        /* Normal-mode (KMOD=NORMAL) decrypt key-schedule prep: a data/compute
+         * pass, so it raises CCF. Waiting on BUSY here clears too early and
+         * yields an incomplete inverse schedule. */
         SAES->CR = cr | AES_CR_MODE_0;     /* MODE = KEYDERIVATION */
         SAES->CR |= AES_CR_EN;
         ret = Stm32SaesWaitCCF();
@@ -6365,6 +6429,9 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
         return ECC_BAD_ARG_E;
     }
+    if (mp_isneg(k) || (mp_count_bits(k) > mp_count_bits(modulus))) {
+        return ECC_OUT_OF_RANGE_E;
+    }
 
     szModulus = mp_unsigned_bin_size(modulus);
 
@@ -6426,14 +6493,10 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     res = mp_read_unsigned_bin(R->x, Gxbin, szModulus);
     if (res == MP_OKAY) {
         res = mp_read_unsigned_bin(R->y, Gybin, szModulus);
-
 #if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
     ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
         defined(WOLFSSL_SP_INT_NEGATIVE))
-        /* if k is negative, we compute the multiplication with abs(-k)
-         * with result (x, y) and modify the result to (x, -y)
-         */
-        R->y->sign = k->sign;
+        R->y->sign = MP_ZPOS;
 #endif
     }
     if (res == MP_OKAY)

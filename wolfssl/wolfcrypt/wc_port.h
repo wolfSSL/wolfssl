@@ -146,6 +146,30 @@
 #endif
 #endif
 
+/* Restrict-qualified pointer parameter: a promise to the compiler that, within
+ * the callee, no object modified through this pointer is accessed through any
+ * other pointer.  Lets the callee keep values loaded through other pointers in
+ * registers across stores through this one, recovering the codegen of a local
+ * array for caller-supplied scratch.  On compilers with no restrict support it
+ * expands to nothing, which only forfeits the optimization. */
+#ifndef WC_RESTRICT
+    #ifdef __cplusplus
+        /* C++ has no standard restrict; the major compilers accept
+         * __restrict. */
+        #if defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+            #define WC_RESTRICT __restrict
+        #else
+            #define WC_RESTRICT
+        #endif
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+        #define WC_RESTRICT restrict
+    #elif defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+        #define WC_RESTRICT __restrict
+    #else
+        #define WC_RESTRICT
+    #endif
+#endif
+
 #if (defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)) || defined(HAVE_SELFTEST)
     #define INLINE WC_INLINE
     #if defined(__GNUC__) || defined(__clang__)
@@ -168,7 +192,7 @@
 #endif
 
 #ifndef WC_OMIT_FRAME_POINTER
-    #if defined(__GNUC__)
+    #if defined(__GNUC__) && !defined(__clang__)
         #define WC_OMIT_FRAME_POINTER  \
             __attribute__((optimize("-fomit-frame-pointer")))
     #else
@@ -237,22 +261,18 @@
     #if defined(WOLFSSL_PTHREADS)
         #include <pthread.h>
     #endif
-    #ifdef WOLFSSL_GAME_BUILD
-        #include "system/xtl.h"
-    #else
-        #ifndef WIN32_LEAN_AND_MEAN
-            #define WIN32_LEAN_AND_MEAN
-        #endif
-        #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
-            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
-            #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
-            #ifndef WOLFSSL_USER_IO
-                #include <winsock2.h>
-                #include <ws2tcpip.h> /* required for InetPton */
-            #endif
-        #endif /* WOLFSSL_SGX */
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
     #endif
+    #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
+        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
+        #include <windows.h>
+        #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
+        #ifndef WOLFSSL_USER_IO
+            #include <winsock2.h>
+            #include <ws2tcpip.h> /* required for InetPton */
+        #endif
+    #endif /* WOLFSSL_SGX */
     #if !defined(SINGLE_THREADED) && !defined(_WIN32_WCE)
         #include <process.h>
     #endif
@@ -317,8 +337,6 @@
     #define NU_DEBUG
     #include "plus/nucleus.h"
     #include "nucleus.h"
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
         }  /* extern "C" */
@@ -570,24 +588,46 @@
      * should not be included. Use FreeBSD <machine/atomic.h> instead.
      * definitions are in bsdkm/bsdkm_wc_port.h */
     #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
-        !defined(__cplusplus)
+        !defined(__cplusplus) && !defined(NO_STDATOMIC_H)
         /* Default C Implementation */
         #include <stdatomic.h>
         typedef atomic_int wolfSSL_Atomic_Int;
         typedef atomic_uint wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-        #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+        /* atomic_load() through a const-qualified object -- a getter taking a
+         * const WC_RNG * and reading an atomic member -- is well-formed as of
+         * C17 (DR 459: the parameter became const volatile A *).  C11
+         * specified volatile A * only, and GCC's pre-C17 <stdatomic.h> can
+         * reject the const pointer; clang's expands to __c11_atomic_load(),
+         * which has always accepted it.  A read is the one atomic operation
+         * that is legitimate on a const view of an object, so for GCC in a
+         * pre-C17 dialect, call the builtin that GCC's own atomic_load()
+         * wraps: __atomic_load_n() accepts a const pointer and an _Atomic
+         * operand, with the same seq_cst semantics -- and it is guaranteed
+         * present here, since this arm is conditioned on HAVE_C___ATOMIC.
+         * No cast anywhere: the qualifier is honored, not discarded, so this
+         * is clean under -Wcast-qual in every dialect. */
+        #if (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201710L)) || \
+            defined(__clang__)
+            #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+        #elif defined(__GNUC__)
+            #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
+                                                           __ATOMIC_SEQ_CST)
+        #else
+            #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+        #endif
         #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
         #define WOLFSSL_ATOMIC_OPS
-    #elif defined(__GNUC__) && defined(__ATOMIC_CONSUME)
-        /* direct calls using gcc-style compiler built-ins */
+    #elif defined(__GNUC__) && defined(__ATOMIC_SEQ_CST)
+        /* direct calls using gcc-style compiler built-ins, matching the
+         * implicit semantics of atomic_load() and atomic_store() */
         typedef volatile int wolfSSL_Atomic_Int;
         typedef volatile unsigned int wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
         #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
-                                                       __ATOMIC_CONSUME)
+                                                       __ATOMIC_SEQ_CST)
         #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), \
-                                                  val, __ATOMIC_RELEASE)
+                                                  val, __ATOMIC_SEQ_CST)
         #define WOLFSSL_ATOMIC_OPS
     #elif defined(_MSC_VER) && defined(USE_WINDOWS_API) && \
             !defined(WOLFSSL_NOT_WINDOWS_API)
@@ -603,10 +643,12 @@
         /* Acquire-ordered load via idempotent RMW: OR-with-0 leaves the value
          * unchanged but provides atomicity + acquire ordering. On cl.exe this
          * is a locked RMW; LLVM (clang-cl) may lower it to a plain acquire
-         * load.
+         * load.  The ternary construct is a C90-compatible trick to make the
+         * type of the expression follow the type of the operand (only the false
+         * arm of the expression is evaluated).
          */
-        #define WOLFSSL_ATOMIC_LOAD(x) \
-            InterlockedOrAcquire((volatile long *)&(x), 0)
+        #define WOLFSSL_ATOMIC_LOAD(x) ( 0 ? (x) : \
+            InterlockedOrAcquire((volatile long *)&(x), 0))
         #define WOLFSSL_ATOMIC_STORE(x, val) \
             (void)InterlockedExchange((volatile long *)&(x), (long)(val))
         #define WOLFSSL_ATOMIC_OPS
@@ -619,8 +661,11 @@
 #endif /* !WOLFSSL_NO_ATOMICS */
 
 #ifdef WOLFSSL_NO_ATOMICS
-    typedef volatile int wolfSSL_Atomic_Int;
-    typedef volatile unsigned int wolfSSL_Atomic_Uint;
+    /* Note, not volatile.  _NO_ATOMICS configs promise no concurrent mutation
+     * (single-threaded, or externally serialized); volatile would imply
+     * protection these types do not and cannot provide here. */
+    typedef int wolfSSL_Atomic_Int;
+    typedef unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_LOAD(x) (x)
     #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
@@ -786,6 +831,94 @@
     }
 #endif
 
+#define wolfSSL_Atomic_Func_Ptr_CompareExchange(c, expected_ptr, new_ptr) \
+        wolfSSL_Atomic_Ptr_CompareExchange(                               \
+            (void * volatile *)(c),                                       \
+            (void **)(expected_ptr),                                      \
+            (void *)(wc_ptr_t)(new_ptr))
+
+/*** Macro abstractions for compare-and-exchange retry loops, allowing ***/
+/*** platform-specific instrumentation and failure paths.              ***/
+
+/* WC_CAS_WITH_RETRY_EXTRA_DECLS allows declaration and initialization of
+ * variables (e.g. a counter) just above the retry loop in
+ * WC_CAS_WITH_RETRY_BEGIN().
+ */
+#ifndef WC_CAS_WITH_RETRY_EXTRA_DECLS
+    #define WC_CAS_WITH_RETRY_EXTRA_DECLS \
+        struct wc_cas_with_retry_dummy_struct
+#endif
+
+/* Note that freeform code after WC_CAS_WITH_RETRY_BEGIN() and before
+ * WC_CAS_WITH_RETRY_LOOP_UNTIL() sits inside the loop -- continue
+ * in that span omits the refresh of cur_var by the CAS (potentially inducing an
+ * infinite loop), and break in that span without setting result_var leaves it
+ * at WC_FAILURE.  return and goto both behave normally in the freeform span.
+ */
+#define WC_CAS_WITH_RETRY_BEGIN(targetvar_p, cur_var, result_var)              \
+    do {                                                                       \
+        int WC_CAS_WITH_RETRY_keep_looping = 1;                                \
+        WC_CAS_WITH_RETRY_EXTRA_DECLS;                                         \
+                                                                               \
+        (result_var) = WC_NO_ERR_TRACE(WC_FAILURE);                            \
+                                                                               \
+        while (WC_CAS_WITH_RETRY_keep_looping)
+
+#define WC_CAS_WITH_RETRY_BEGIN_INIT_CUR(targetvar_p, cur_var, result_var)     \
+    do {                                                                       \
+        int WC_CAS_WITH_RETRY_keep_looping = 1;                                \
+        WC_CAS_WITH_RETRY_EXTRA_DECLS;                                         \
+                                                                               \
+        (cur_var) = WOLFSSL_ATOMIC_LOAD(*(targetvar_p));                       \
+        (result_var) = WC_NO_ERR_TRACE(WC_FAILURE);                            \
+                                                                               \
+        while (WC_CAS_WITH_RETRY_keep_looping)
+
+#ifndef WC_CAS_WITH_RETRY_ITER_CLAUSE
+    #define WC_CAS_WITH_RETRY_ITER_CLAUSE(targetvar_p, cur_var,                \
+                                         want_val, result_var) WC_DO_NOTHING
+#endif
+
+/* The "until_clause" should be portable logic of overriding salience, used in
+ * situ by the direct (portable) user code.  The _ITER_CLAUSE is for
+ * non-portable logic, such as CPU/scheduler relaxation/yield or deadlock
+ * detection, and is free to set result_var and break as it sees fit.
+ *
+ * Freeform code can appear between WC_CAS_WITH_RETRY_LOOP_UNTIL() and
+ * WC_CAS_WITH_RETRY_END(), and will be evaluated iff the CAS succeeds.
+ */
+#define WC_CAS_WITH_RETRY_LOOP_UNTIL(cmpxchg_method, targetvar_p, cur_var,     \
+                                         want_val, result_var, until_clause)   \
+            if (! cmpxchg_method(targetvar_p, &(cur_var), want_val)) {         \
+                (result_var) = (until_clause);                                 \
+                if ((result_var) != 0)                                         \
+                    break;                                                     \
+                {                                                              \
+                    WC_CAS_WITH_RETRY_ITER_CLAUSE(targetvar_p, cur_var,        \
+                                             want_val, result_var);            \
+                }                                                              \
+                continue;                                                      \
+            }                                                                  \
+            else {                                                             \
+                (result_var) = 0;                                              \
+                WC_CAS_WITH_RETRY_keep_looping = 0;                            \
+            }                                                                  \
+            WC_DO_NOTHING
+
+#ifndef WC_CAS_WITH_RETRY_FOREVER_CLAUSE
+    #define WC_CAS_WITH_RETRY_FOREVER_CLAUSE 0
+#endif
+
+#define WC_CAS_WITH_RETRY_LOOP_FOREVER(cmpxchg_method, targetvar_p,            \
+                                       cur_var, want_val, result_var)          \
+    WC_CAS_WITH_RETRY_LOOP_UNTIL(cmpxchg_method, targetvar_p, cur_var,         \
+                                 want_val, result_var,                         \
+                                 WC_CAS_WITH_RETRY_FOREVER_CLAUSE)
+
+/* Note, WC_CAS_WITH_RETRY_END() has no side effects -- it's just the success
+ * arm that ends the loop. */
+#define WC_CAS_WITH_RETRY_END } while (0)
+
 /* Reference counting. */
 typedef struct wolfSSL_RefWithMutex {
 #if !defined(SINGLE_THREADED)
@@ -931,12 +1064,13 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 #endif
 
 
-/* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ, STM32, MAX3266X or
- * RTL8735B */
+/* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ, STM32, MAX3266X,
+ * RTL8735B, NXP CASPER or NXP HashCrypt */
 #if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
     defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG) || \
     defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD) || \
-    defined(WOLFSSL_RTL8735B_HUK)
+    defined(WOLFSSL_RTL8735B_HUK) || defined(WOLFSSL_SEC_QORIQ) || \
+    defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -944,6 +1078,11 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
 
 #ifndef WOLFSSL_CRYPT_HW_MUTEX
     #define WOLFSSL_CRYPT_HW_MUTEX  0
+#endif
+
+#if (defined(WOLFSSL_NXP_CASPER) || defined(WOLFSSL_NXP_HASHCRYPT)) && \
+    !defined(SINGLE_THREADED) && (WOLFSSL_CRYPT_HW_MUTEX == 0)
+    #error "NXP CASPER/HashCrypt require WOLFSSL_CRYPT_HW_MUTEX unless SINGLE_THREADED"
 #endif
 
 #if WOLFSSL_CRYPT_HW_MUTEX
@@ -1035,9 +1174,42 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec_IfEquals(wolfSSL_RefWithMutex* ref,
     WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex* m);
     WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
     WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
-#endif
+
+#endif /* !WC_MUTEX_OPS_INLINE */
+
+/* A lock that survives fork().  It is held with a POSIX unnamed semaphore
+ * because sem_post() is the only unlock a fork child may legally call
+ * (signal-safety(7); fork(2) limits the child to async-signal-safe calls).
+ * The object is opaque: callers hold only a pointer. */
+typedef struct wc_ForkLock wc_ForkLock;
+/* What the prepare handler did with a lock, so parent and child finish
+ * exactly that. */
+enum {
+    WC_FORK_LOCK_UNTAKEN = 0,   /* prepare left it alone */
+    WC_FORK_LOCK_TAKEN   = 1,   /* prepare took it, so give it back */
+    WC_FORK_LOCK_OWNED   = 2    /* the forking thread was already holding it */
+};
+WOLFSSL_LOCAL int  wc_ForkLockInit(void);          /* from wolfCrypt_Init */
+WOLFSSL_LOCAL int  wc_ForkLock_New(wc_ForkLock** lock, void* heap);
+WOLFSSL_LOCAL void wc_ForkLock_Free(wc_ForkLock** lock);
+/* Exit() is for a caller whose Enter() returned 0, once.  Calling it after a
+ * failed Enter() posts a lock this caller never took, so two threads could
+ * then hold it at the same time. */
+WOLFSSL_API   int  wc_ForkLock_Enter(wc_ForkLock* lock);
+WOLFSSL_API   void wc_ForkLock_Exit(wc_ForkLock* lock);
+/* For tests: force the lock to fail closed. */
+WOLFSSL_API   void wc_ForkLock_SetBroken(wc_ForkLock* lock, int broken);
+WOLFSSL_LOCAL void wc_PinImage(void* fn);          /* keeps fn's image mapped */
+/* Cancellation off while a lock is held: a reseed reads a device, which is a
+ * cancellation point.  Both are no-ops where the platform has no cancel. */
+WOLFSSL_LOCAL int  wc_CancelDisable(void);         /* returns the old state */
+WOLFSSL_LOCAL void wc_CancelRestore(int state);
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
+    /* wc_MutexOnceFlag states: not created, being created, created. */
+    #define WC_MUTEX_UNINIT_ONCE 0U
+    #define WC_MUTEX_BUSY_ONCE   1U
+    #define WC_MUTEX_READY_ONCE  2U
     /* Election state for wc_local_InitMutexOnce(). Define objects with
      * WOLFSSL_ATOMIC_INITIALIZER(0) and only touch them through
      * WOLFSSL_ATOMIC_LOAD/STORE. */
@@ -1147,20 +1319,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSNPRINTF rtp_snprintf
     #define XFPRINTF fprintf
 
-#elif defined(LSR_FS)
-    #include <fs.h>
-    #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME)
-    #define XFSEEK(F, O, W)         (void)F
-    #define XFTELL(F)               (F)->len
-    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, (char*)BUF, SZ*AMT)
-    #define XFWRITE(BUF, SZ, AMT, F) fs_write(F, (char*)BUF, SZ*AMT)
-    #define XFCLOSE                 fs_close
-    #define XSEEK_SET               0
-    #define XSEEK_END               0
-    #define XBADFILE                NULL
-    #define XFGETS(b,s,f)           -2 /* Not ported yet */
-
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XFILE                   MQX_FILE_PTR
     #define XFOPEN                  fopen
@@ -1204,21 +1362,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_SET  PSEEK_SET
     #define XSEEK_END  PSEEK_END
     #define XBADFILE   NULL
-
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include <fs/fs.h>
-    #define XFILE  struct fs_file*
-
-    #define XFOPEN     mynewt_fopen
-    #define XFSEEK     mynewt_fseek
-    #define XFTELL     mynewt_ftell
-    #define XFREAD     mynewt_fread
-    #define XFWRITE    mynewt_fwrite
-    #define XFCLOSE    mynewt_fclose
-    #define XSEEK_SET  0
-    #define XSEEK_END  2
-    #define XBADFILE   NULL
-    #define XFGETS(b,s,f) -2 /* Not ported yet */
 
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
@@ -1581,11 +1724,18 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 
 #elif defined(TIME_OVERRIDES)
-    /* Override XTIME() and XGMTIME() functionality.
-       Requires user to provide these functions:
-        time_t XTIME(time_t * timer) {}
-        struct tm* XGMTIME(const time_t* timer, struct tm* tmp) {}
-    */
+    /* User-supplied override XTIME() and XGMTIME() functionality.
+     *
+     * Requires user-supplied macro definitions for XTIME() and XGMTIME(),
+     * mapping to function with signatures time_t time_f(time_t * timer) and
+     * struct tm* gmtime_f(const time_t* timer, struct tm* tmp) respectively.
+     */
+    #ifndef XTIME
+            #error TIME_OVERRIDES requires a user-supplied XTIME definition.
+    #endif
+    #ifndef XGMTIME
+            #error TIME_OVERRIDES requires a user-supplied XGMTIME definition.
+    #endif
     #ifndef HAVE_TIME_T_TYPE
         #define USE_WOLF_TIME_T
     #endif
@@ -1606,7 +1756,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #include "dc_rtc_api.h"   /* to get current time */
 
     /* uses partial <time.h> structures */
-    #define XTIME(tl)       (0)
+    #define XTIME(tl)       0
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
 #elif defined(WOLFSSL_DEOS) || defined(WOLFSSL_DEOS_RTEMS)
@@ -1615,6 +1765,20 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             extern time_t deos_time(time_t* timer);
             #define XTIME(t1) deos_time((t1))
         #endif
+#elif defined(WOLFSSL_OPTEE)
+    /* The TA is built -nostdinc, so this is libutils' time.h: time_t only,
+     * no struct tm. */
+    #include <time.h>
+    /* The normal world owns this clock, so it is attacker influenced: fit
+     * for freshness, not for certificate validity. Hence NO_ASN_TIME in the
+     * WOLFSSL_OPTEE settings block. */
+    #ifndef XTIME
+        extern time_t optee_time(time_t* timer);
+        #define XTIME(t1)   optee_time((t1))
+    #endif
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+
 #elif defined(MICRIUM)
     #include <clk.h>
     #include <time.h>
@@ -1706,15 +1870,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             #define _TM_DEFINED
     #endif
 
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include "os/os_time.h"
-    typedef long time_t;
-    extern time_t mynewt_time(time_t* timer);
-    #define XTIME(t1)       mynewt_time((t1))
-    #define WOLFSSL_GMTIME
-    #define USE_WOLF_TM
-    #define USE_WOLF_TIME_T
-
 #elif defined(WOLFSSL_ZEPHYR)
     #ifdef __cplusplus
         }  /* extern "C" */
@@ -1726,14 +1881,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #include <zephyr/posix/time.h>
     #else
         #include <posix/time.h>
-    #endif
-
-    #ifndef CLOCK_REALTIME
-        #ifdef SYS_CLOCK_REALTIME
-            #define CLOCK_REALTIME  SYS_CLOCK_REALTIME
-            #define clock_gettime   sys_clock_gettime
-            #define clock_settime   sys_clock_settime
-        #endif
     #endif
 
     #if defined(CONFIG_RTC)
@@ -1816,7 +1963,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 /* Map default time functions */
 #if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)
     #ifdef TEST_BEFORE_DATE
-    #define XTIME(tl)       (946681200UL) /* Jan 1, 2000 */
+    #define XTIME(tl)       946681200UL /* Jan 1, 2000 */
     #else
     #define XTIME(tl)       time((tl))
     #endif
@@ -1941,13 +2088,15 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
-#ifdef WOLF_C99
+/* Checked before WOLF_C99, which follows __STDC_VERSION__ and so is set on
+ * IAR by default: IAR and Keil's AC5 armcc reject __asm__.  __asm works on
+ * IAR, including under --strict where plain asm does not, and on AC5 and
+ * AC6 alike. */
+#if defined(__IAR_SYSTEMS_ICC__) || defined(__KEIL__)
+    #define XASM_VOLATILE(a) __asm volatile(a)
+#elif defined(WOLF_C99)
     /* use alternate keyword for compatibility with -std=c99 */
     #define XASM_VOLATILE(a) __asm__ volatile(a)
-#elif defined(__IAR_SYSTEMS_ICC__)
-    #define XASM_VOLATILE(a) asm volatile(a)
-#elif defined(__KEIL__)
-    #define XASM_VOLATILE(a) __asm volatile(a)
 #else
     #define XASM_VOLATILE(a) __asm__ __volatile__(a)
 #endif
@@ -2007,6 +2156,11 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #ifdef WC_BARRIER
     /* use user-supplied WC_BARRIER() definition. */
+#elif defined(__CC_ARM)
+    /* __CC_ARM is defined by AC5-era armcc, which doesn't recognize gcc-style
+     * __asm__ constructs.  armclang (AC6) does not define it, and does handle
+     * the gcc-style extended __asm__ constructs. */
+    #define WC_BARRIER() __memory_changed()
 #elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
     #define WC_BARRIER() __asm__ __volatile__("" ::: "memory")
 #else
@@ -2015,6 +2169,28 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
      */
     #define WC_BARRIER() do { volatile byte _xfence = 0; (void)_xfence; XFENCE(); \
         } while(0)
+#endif
+
+/* Compiler barrier that also treats the memory at ptr as read, so a wipe of
+ * that memory cannot be dropped as a dead store. The GNU form emits no CPU
+ * fence; cross-thread ordering is the caller's job. Without GNU asm (other
+ * compilers, or WOLFSSL_NO_ASM) ptr escapes to an out-of-line call in
+ * wc_port.c, since a bare compiler barrier does not cover a local whose
+ * address never escaped. */
+#ifdef WC_BARRIER_DATA
+    /* use user-supplied WC_BARRIER_DATA() definition. */
+#elif defined(__CC_ARM)
+    /* see above, re AC5-era armcc. */
+    #define WC_BARRIER_DATA(ptr) do { (void)(ptr); __memory_changed(); } \
+            while (0)
+#elif defined(__GNUC__) && !defined(WOLFSSL_NO_ASM)
+    #define WC_BARRIER_DATA(ptr) \
+        __asm__ __volatile__("" : : "r"(ptr) : "memory")
+#else
+    #define WC_BARRIER_DATA_USES_SINK
+    /* Internal to WC_BARRIER_DATA(). ptr is never dereferenced. */
+    WOLFSSL_API void wc_BarrierDataSink(void* ptr);
+    #define WC_BARRIER_DATA(ptr) do { wc_BarrierDataSink((ptr)); } while (0)
 #endif
 
 
@@ -2065,10 +2241,19 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #if !defined(NO_FILESYSTEM)
     #define wc_fopen_owner_only(path) XFOPEN((path), "w+b")
 #endif
+#if defined(WOLFSSL_ZEPHYR) && KERNEL_VERSION_NUMBER >= 0x40100
+    /* Zephyr offers these under their zsock_ names in every configuration;
+     * the POSIX aliases need the compat mode from 4.4 on. */
+    #define wc_socket_cloexec(domain, type, protocol) \
+        zsock_socket((domain), (type), (protocol))
+    #define wc_accept_cloexec(sockfd, addr, addrlen) \
+        zsock_accept((sockfd), (addr), (addrlen))
+#else
     #define wc_socket_cloexec(domain, type, protocol) \
         socket((domain), (type), (protocol))
     #define wc_accept_cloexec(sockfd, addr, addrlen) \
         accept((sockfd), (addr), (addrlen))
+#endif
 #endif
 
 #ifdef __cplusplus

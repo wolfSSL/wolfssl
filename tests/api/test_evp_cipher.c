@@ -53,6 +53,11 @@ int test_wolfSSL_EVP_CIPHER_CTX(void)
     test = EVP_CIPHER_CTX_cipher(ctx);
     ExpectTrue(init == test);
     ExpectIntEQ(EVP_CIPHER_nid(test), NID_aes_128_cbc);
+    ExpectIntEQ(EVP_CIPHER_CTX_is_encrypting(ctx), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_encrypting(ctx), 1);
+    ExpectIntEQ(EVP_CipherInit(ctx, NULL, key, iv, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_CIPHER_CTX_is_encrypting(ctx), 0);
+    ExpectIntEQ(EVP_CIPHER_CTX_is_encrypting(NULL), 0);
 
     ExpectIntEQ(EVP_CIPHER_CTX_reset(ctx), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_CIPHER_CTX_reset(NULL), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
@@ -677,7 +682,8 @@ int test_wolfSSL_EVP_CIPHER_type_string(void)
 int test_wolfSSL_EVP_BytesToKey(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_ALL)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_ALL) && \
+    defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
     byte                key[AES_BLOCK_SIZE] = {0};
     byte                iv[AES_BLOCK_SIZE] = {0};
     int                 count = 0;
@@ -688,6 +694,14 @@ int test_wolfSSL_EVP_BytesToKey(void)
     const byte data[] = {
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
+    };
+    const byte expKeyNoSalt[AES_BLOCK_SIZE] = {
+        0x18,0x5f,0x8d,0xb3,0x22,0x71,0xfe,0x25,
+        0xf5,0x61,0xa6,0xfc,0x93,0x8b,0x2e,0x26
+    };
+    const byte expIvNoSalt[AES_BLOCK_SIZE] = {
+        0x43,0x06,0xec,0x30,0x4e,0xda,0x51,0x80,
+        0x07,0xd1,0x76,0x48,0x26,0x38,0x19,0x69
     };
 
     type = wolfSSL_EVP_get_cipherbynid(NID_aes_128_cbc);
@@ -705,6 +719,14 @@ int test_wolfSSL_EVP_BytesToKey(void)
     md = EVP_sha256();
     ExpectIntEQ(EVP_BytesToKey(type, md, salt, data, sz, count, key, iv),
                  16);
+
+    /* NULL salt: key || IV is SHA-256("Hello") */
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+    ExpectIntEQ(EVP_BytesToKey(type, md, NULL, data, sz, count, key, iv),
+                 16);
+    ExpectBufEQ(key, expKeyNoSalt, sizeof(expKeyNoSalt));
+    ExpectBufEQ(iv, expIvNoSalt, sizeof(expIvNoSalt));
 #endif
     return EXPECT_RESULT();
 }
@@ -1333,6 +1355,83 @@ int test_evp_cipher_aes_gcm(void)
         EVP_CIPHER_CTX_free(decCtx);
         decCtx = NULL;
     }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* One key carries one tag length, per SP 800-38D section 5.2.1.2, and a
+ * reused EVP context is held to it on verify. A new key clears it.
+ */
+int test_evp_cipher_aes_gcm_tag_len(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AESGCM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_128) && !defined(HAVE_SELFTEST) && \
+    WOLFSSL_MIN_AUTH_TAG_SZ <= 12 && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte key[16];
+    byte iv1[GCM_NONCE_MID_SZ];
+    byte iv2[GCM_NONCE_MID_SZ];
+    byte plain[16];
+    byte ct1[16];
+    byte ct2[16];
+    byte tag1[16];
+    byte tag2[16];
+    byte out[16];
+    int len = 0;
+    /* allowed by RFC 5084 section 3.2, but not once 16 is associated */
+    const int shortTagSz = 12;
+
+    XMEMSET(key, 0xa5, sizeof(key));
+    XMEMSET(iv1, 0x01, sizeof(iv1));
+    XMEMSET(iv2, 0x02, sizeof(iv2));
+    XMEMSET(plain, 0x5a, sizeof(plain));
+
+    /* two messages under one key */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv1), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, ct1, &len, plain, sizeof(plain)), 1);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, ct1 + len, &len), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG,
+        (int)sizeof(tag1), tag1), 1);
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv2), 1);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, ct2, &len, plain, sizeof(plain)), 1);
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, ct2 + len, &len), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG,
+        (int)sizeof(tag2), tag2), 1);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* the first verify associates 16, a shorter one is then refused */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv1), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        (int)sizeof(tag1), tag1), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct1, sizeof(ct1)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 1);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, NULL, iv2), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        shortTagSz, tag2), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct2, sizeof(ct2)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* handing in the key again clears it, so the shorter one is allowed */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, key, iv1), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        (int)sizeof(tag1), tag1), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct1, sizeof(ct1)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 1);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv2), 1);
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+        shortTagSz, tag2), 1);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &len, ct2, sizeof(ct2)), 1);
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out + len, &len), 1);
+    EVP_CIPHER_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }
@@ -2064,6 +2163,102 @@ int test_wolfssl_EVP_chacha20_poly1305(void)
             WOLFSSL_SUCCESS);
     ExpectIntEQ(outSz, 0);
     EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_evp_cipher_aria_gcm_iv_required(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    byte key[ARIA_128_KEY_SIZE] = {0};
+    byte iv[GCM_NONCE_MID_SZ] = {0};
+    byte input[4] = {1, 2, 3, 4};
+    byte output[WC_ARIA_GCM_GET_CIPHERTEXT_SIZE(sizeof(input))] = {0};
+    int len = 0;
+
+    ExpectNotNull(ctx);
+    if (ctx != NULL) {
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aria_128_gcm(), NULL,
+                                      NULL, NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+        ExpectIntLT(EVP_Cipher(ctx, output, input, sizeof(input)), 0);
+
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+        ExpectIntLT(EVP_Cipher(ctx, output, input, sizeof(input)), 0);
+
+        iv[0] = 1;
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_SUCCESS);
+        EVP_CIPHER_CTX_free(ctx);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_evp_cipher_aria_gcm_message_iv(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ARIA) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    byte key[ARIA_128_KEY_SIZE] = {0};
+    byte iv[GCM_NONCE_MID_SZ] = {0};
+    byte input[4] = {1, 2, 3, 4};
+    byte output[WC_ARIA_GCM_GET_CIPHERTEXT_SIZE(sizeof(input))] = {0};
+    int len = 0;
+
+    iv[sizeof(iv) - 1] = 1;
+    ExpectNotNull(ctx);
+    if (ctx != NULL) {
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_aria_128_gcm(), NULL,
+                                      key, iv), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_FAILURE);
+
+        iv[0]++;
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptUpdate(ctx, output, &len, input,
+                                     sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_EncryptFinal_ex(ctx, output, &len),
+                    WOLFSSL_SUCCESS);
+
+        iv[0]++;
+        ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv),
+                    WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_Cipher(ctx, output, input, sizeof(input)),
+                    0);
+        ExpectBufNE(output, input, sizeof(input));
+        ExpectIntLT(EVP_Cipher(ctx, output, input, sizeof(input)), 0);
+        EVP_CIPHER_CTX_free(ctx);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -2818,6 +3013,57 @@ int test_wolfSSL_EVP_des_ede3_ecb_no_key(void)
     return EXPECT_RESULT();
 }
 
+/*
+ * The DES-CBC branch of wolfSSL_EVP_Cipher used to discard the return value of
+ * wc_Des_CbcEncrypt / wc_Des_CbcDecrypt. Because ret starts at WOLFSSL_FAILURE
+ * (numerically zero), the "if (ret == 0)" success path then ran unconditionally
+ * and a rounded byte count was reported even when the DES call had rejected the
+ * request. A length that is not a multiple of DES_BLOCK_SIZE makes the software
+ * DES path return BAD_LENGTH_E, so the one-shot EVP_Cipher call must now fail
+ * rather than return a positive length. A block-multiple length still succeeds.
+ *
+ * FIPS builds use the FIPS-certified DES3 implementation for 3DES, but single
+ * DES is not a FIPS algorithm, so skip the test for FIPS.
+ */
+int test_wolfSSL_EVP_Cipher_des_cbc_error(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DES3) && !defined(HAVE_FIPS) && defined(OPENSSL_EXTRA)
+    EVP_CIPHER_CTX* ctx = NULL;
+    const byte key[8] = { 0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef };
+    const byte iv[8]  = { 0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef };
+    const byte in[16] = {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20
+    };
+    byte out[16];
+
+    XMEMSET(out, 0, sizeof(out));
+
+    /* Not a multiple of DES_BLOCK_SIZE: the DES call fails and EVP_Cipher must
+     * report the failure, not a rounded byte count. Both the encrypt and the
+     * decrypt arm of the switch must propagate the error. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_cbc(), key, iv, 1), 1);
+    ExpectIntLT(EVP_Cipher(ctx, out, in, 15), 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_cbc(), key, iv, 0), 1);
+    ExpectIntLT(EVP_Cipher(ctx, out, in, 15), 0);
+    EVP_CIPHER_CTX_free(ctx);
+    ctx = NULL;
+
+    /* A block-multiple length still succeeds and reports the full length. */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_CipherInit(ctx, EVP_des_cbc(), key, iv, 1), 1);
+    ExpectIntEQ(EVP_Cipher(ctx, out, in, (word32)sizeof(in)), (int)sizeof(in));
+    EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test for integer overflow in EVP AEAD AAD accumulation.
  *
  * wolfSSL_EVP_CipherUpdate_GCM_AAD (and the CCM/ARIA variants) compute
@@ -2957,3 +3203,279 @@ int test_evp_cipher_aead_aad_overflow(void)
 }
 
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
+
+#define EVP_CHUNK_CANARY_SZ 32
+
+/* Decrypt with EVP_DecryptUpdate in the given chunk sizes, giving every call
+ * its own buffer of exactly inl + block size followed by a canary. */
+static int evp_chunked_decrypt(const byte* key, const byte* iv,
+    const byte* cipher, const int* chunks, int nchunks, int padding,
+    byte* plain, int* plainSz)
+{
+    EVP_CIPHER_CTX* ctx = NULL;
+    byte* out = NULL;
+    byte final[AES_BLOCK_SIZE];
+    int ret = 0;
+    int offset = 0;
+    int total = 0;
+    int bound = 0;
+    int outl = 0;
+    int i = 0;
+    int j = 0;
+
+    ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL)
+        return -1;
+
+    if (EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv) !=
+            WOLFSSL_SUCCESS) {
+        ret = -1;
+    }
+    if ((ret == 0) && (padding == 0) &&
+            (EVP_CIPHER_CTX_set_padding(ctx, 0) != WOLFSSL_SUCCESS)) {
+        ret = -1;
+    }
+
+    for (i = 0; (ret == 0) && (i < nchunks); i++) {
+        bound = chunks[i] + AES_BLOCK_SIZE;
+        out = (byte*)XMALLOC((size_t)(bound + EVP_CHUNK_CANARY_SZ), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (out == NULL) {
+            ret = -1;
+            break;
+        }
+        XMEMSET(out, 0xA5, (size_t)(bound + EVP_CHUNK_CANARY_SZ));
+
+        outl = 0;
+        if (EVP_DecryptUpdate(ctx, out, &outl, cipher + offset, chunks[i]) !=
+                WOLFSSL_SUCCESS) {
+            ret = -1;
+        }
+        else if ((outl < 0) || (outl > bound)) {
+            ret = -2;
+        }
+        else {
+            for (j = bound; j < bound + EVP_CHUNK_CANARY_SZ; j++) {
+                if (out[j] != 0xA5)
+                    ret = -3;
+            }
+        }
+        if (ret == 0) {
+            XMEMCPY(plain + total, out, (size_t)outl);
+            total += outl;
+            offset += chunks[i];
+        }
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
+    }
+
+    if (ret == 0) {
+        outl = 0;
+        if (EVP_DecryptFinal_ex(ctx, final, &outl) != WOLFSSL_SUCCESS) {
+            ret = -1;
+        }
+        else {
+            XMEMCPY(plain + total, final, (size_t)outl);
+            total += outl;
+        }
+    }
+
+    *plainSz = total;
+    EVP_CIPHER_CTX_free(ctx);
+    return ret;
+}
+
+/* Encrypt 48 bytes of known plaintext into a 64 byte PKCS#7 padded
+ * ciphertext. */
+static int evp_chunked_setup(const byte* key, const byte* iv, byte* plain,
+    int plainSz, byte* cipher, int* cipherSz)
+{
+    EVP_CIPHER_CTX* ctx = NULL;
+    int ret = 0;
+    int outl = 0;
+    int total = 0;
+    int i = 0;
+
+    for (i = 0; i < plainSz; i++)
+        plain[i] = (byte)i;
+
+    ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL)
+        return -1;
+
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv) !=
+            WOLFSSL_SUCCESS) {
+        ret = -1;
+    }
+    if ((ret == 0) && (EVP_EncryptUpdate(ctx, cipher, &outl, plain, plainSz) !=
+            WOLFSSL_SUCCESS)) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        total = outl;
+        if (EVP_EncryptFinal_ex(ctx, cipher + total, &outl) !=
+                WOLFSSL_SUCCESS) {
+            ret = -1;
+        }
+        else {
+            total += outl;
+        }
+    }
+
+    *cipherSz = total;
+    EVP_CIPHER_CTX_free(ctx);
+    return ret;
+}
+
+#endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_128 */
+
+int test_evp_cipher_update_chunked_bound(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
+    byte key[AES_BLOCK_SIZE];
+    byte iv[AES_BLOCK_SIZE];
+    byte plain[AES_BLOCK_SIZE * 3];
+    byte cipher[AES_BLOCK_SIZE * 4];
+    byte out[AES_BLOCK_SIZE * 4];
+    int chunks[3];
+    int cipherSz = 0;
+    int outSz = 0;
+    int i;
+    int j;
+
+    XMEMSET(key, 0x0b, sizeof(key));
+    XMEMSET(iv, 0x0c, sizeof(iv));
+
+    ExpectIntEQ(evp_chunked_setup(key, iv, plain, (int)sizeof(plain), cipher,
+        &cipherSz), 0);
+    ExpectIntEQ(cipherSz, (int)sizeof(cipher));
+
+    /* EVP_DecryptUpdate must never write more than inl + block size,
+     * whatever the input is split into */
+    for (i = 1; EXPECT_SUCCESS() && (i < cipherSz); i++) {
+        for (j = i + 1; EXPECT_SUCCESS() && (j < cipherSz); j++) {
+            chunks[0] = i;
+            chunks[1] = j - i;
+            chunks[2] = cipherSz - j;
+            ExpectIntEQ(evp_chunked_decrypt(key, iv, cipher, chunks, 3, 1, out,
+                &outSz), 0);
+            ExpectIntEQ(outSz, (int)sizeof(plain));
+            ExpectBufEQ(out, plain, sizeof(plain));
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_evp_cipher_update_no_padding_buffered(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
+    byte key[AES_BLOCK_SIZE];
+    byte iv[AES_BLOCK_SIZE];
+    byte plain[AES_BLOCK_SIZE * 3];
+    byte cipher[AES_BLOCK_SIZE * 4];
+    byte out[AES_BLOCK_SIZE * 4];
+    EVP_CIPHER_CTX* ctx = NULL;
+    int chunks[2];
+    int cipherSz = 0;
+    int outSz = 0;
+
+    XMEMSET(key, 0x0b, sizeof(key));
+    XMEMSET(iv, 0x0c, sizeof(iv));
+
+    ExpectIntEQ(evp_chunked_setup(key, iv, plain, (int)sizeof(plain), cipher,
+        &cipherSz), 0);
+
+    /* with padding disabled EVP_CipherFinal only checks that nothing is
+     * buffered, so a block completed from the buffer has to be returned here */
+    chunks[0] = 6;
+    chunks[1] = AES_BLOCK_SIZE - 6;
+    ExpectIntEQ(evp_chunked_decrypt(key, iv, cipher, chunks, 2, 0, out,
+        &outSz), 0);
+    ExpectIntEQ(outSz, AES_BLOCK_SIZE);
+    ExpectBufEQ(out, plain, AES_BLOCK_SIZE);
+
+    /* padding turned off after Update stored the block must not drop it */
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv),
+        WOLFSSL_SUCCESS);
+    outSz = -1;
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, out, &outSz, cipher, AES_BLOCK_SIZE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+    ExpectIntEQ(EVP_CIPHER_CTX_set_padding(ctx, 0), WOLFSSL_SUCCESS);
+    outSz = -1;
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, out, &outSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, AES_BLOCK_SIZE);
+    ExpectBufEQ(out, plain, AES_BLOCK_SIZE);
+    EVP_CIPHER_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_evp_cipher_cfb1_length_overflow(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_AES_CFB) && !defined(WOLFSSL_NO_AES_CFB_1_8) && \
+    defined(HAVE_AES_DECRYPT) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+    const int boundary = 0x20000000;
+    byte key[AES_BLOCK_SIZE] = {0};
+    byte iv[AES_BLOCK_SIZE] = {0};
+    byte input[2] = {0x12, 0x34};
+    byte output[2];
+    byte expected[2];
+    byte* large = NULL;
+    EVP_CIPHER_CTX* ctx = NULL;
+    EVP_CIPHER_CTX* reference = NULL;
+    int direction;
+    int size;
+    int outSz;
+    int refSz;
+
+    /* The API requires a buffer as large as the supplied length, even though
+     * the overflow check must reject the call before accessing it. */
+    ExpectNotNull(large = (byte*)XMALLOC((size_t)boundary + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(ctx = EVP_CIPHER_CTX_new());
+    ExpectNotNull(reference = EVP_CIPHER_CTX_new());
+
+    for (direction = 0; EXPECT_SUCCESS() && direction <= 1; direction++) {
+        ExpectIntEQ(EVP_CipherInit(ctx, EVP_aes_128_cfb1(), key, iv,
+            direction), WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherInit(reference, EVP_aes_128_cfb1(), key, iv,
+            direction), WOLFSSL_SUCCESS);
+        for (size = boundary; EXPECT_SUCCESS() && size <= boundary + 1;
+                size++) {
+            large[0] = 0x5a;
+            large[size - 1] = 0xa5;
+            outSz = -1;
+            ExpectIntEQ(EVP_CipherUpdate(ctx, large, &outSz, large, size),
+                WOLFSSL_FAILURE);
+            ExpectIntEQ(outSz, 0);
+            ExpectIntEQ(large[0], 0x5a);
+            ExpectIntEQ(large[size - 1], 0xa5);
+        }
+        /* A rejected update must not advance the CFB feedback state. */
+        outSz = refSz = -1;
+        ExpectIntEQ(EVP_CipherUpdate(ctx, output, &outSz, input, sizeof(input)),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(EVP_CipherUpdate(reference, expected, &refSz, input,
+            sizeof(input)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(outSz, (int)sizeof(input));
+        ExpectIntEQ(refSz, outSz);
+        ExpectBufEQ(output, expected, sizeof(output));
+    }
+    EVP_CIPHER_CTX_free(reference);
+    EVP_CIPHER_CTX_free(ctx);
+    XFREE(large, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}

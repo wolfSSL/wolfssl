@@ -50,13 +50,21 @@ fi
 
 echo "WOLFSSL_EXTERNAL_TEST set, running test..."
 
+# The CDN in front of $server answers a request without SNI using its own
+# default certificate, whose chain needs a larger RSA key than some builds
+# support, so name the host wherever the build can.
+sni=""
+if ./examples/client/client -S check | grep -q 'SNI is: ON'; then
+    sni="-S $server"
+fi
+
 # is our desired server there?
 "${SCRIPT_DIR}"/ping.test $server 2
 RESULT=$?
 [ $RESULT -ne 0 ] && exit 0
 
 # client test against the server
-$TIMEOUT_KILL_2M ./examples/client/client -X -C -h $server -p 443 -g -A $ca
+$TIMEOUT_KILL_2M ./examples/client/client -X -C -h $server $sni -p 443 -g -A $ca
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
@@ -66,7 +74,7 @@ RESULT=$?
 BUILD_FLAGS="$(./examples/client/client '-#')"
 if echo "$BUILD_FLAGS" | grep -q "WOLFSSL_SYS_CA_CERTS" && ! echo "$BUILD_FLAGS" | grep -q "WOLFSSL_STATIC_MEMORY"; then
     echo -e "\nConnecting using WOLFSSL_SYS_CA_CERTS..."
-    ./examples/client/client -X -C -h $server -p 443 -g --sys-ca-certs
+    ./examples/client/client -X -C -h $server $sni -p 443 -g --sys-ca-certs
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed when using WOLFSSL_SYS_CA_CERTS" && exit 1
 fi

@@ -279,8 +279,11 @@ static word32 wb_build_signed(byte* out, word32 outSz, int sidType,
         attrib[0].value   = wbSaVal;
         attrib[0].valueSz = (word32)sizeof(wbSaVal);
 
-        p->content      = wbSignContent;
-        p->contentSz    = (word32)sizeof(wbSignContent);
+        /* a degenerate (certs-only) bundle carries no content */
+        if (sidType != DEGENERATE_SID) {
+            p->content   = wbSignContent;
+            p->contentSz = (word32)sizeof(wbSignContent);
+        }
         p->contentOID   = DATA;
         p->hashOID      = SHA256h;
         p->privateKey   = (byte*)client_key_der_2048;

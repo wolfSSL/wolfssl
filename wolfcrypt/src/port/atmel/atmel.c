@@ -2037,7 +2037,7 @@ static int wc_Microchip_AesGcmCommon(Aes* aes, byte* out, const byte* in,
                                            in, sz, out, tag_buf);
             if (status == ATCA_SUCCESS) {
                 copy_sz = authTagSz;
-                if (XMEMCMP(tag_buf, authTag, copy_sz) != 0) {
+                if (ConstantCompare(tag_buf, authTag, (int)copy_sz) != 0) {
                     return AES_GCM_AUTH_E;
                 }
             }

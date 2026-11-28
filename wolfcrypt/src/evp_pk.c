@@ -301,6 +301,8 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     if (*out != NULL) {
         heap = (*out)->heap;
+    } else if (prePopulated) {
+        return 0;
     }
 
     edKey = wolfSSL_ED25519_new(heap, INVALID_DEVID);
@@ -323,6 +325,22 @@ static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         wolfSSL_ED25519_free(edKey);
         return WOLFSSL_FATAL_ERROR;
     }
+
+#ifdef HAVE_ED25519_MAKE_KEY
+    /* A PKCS#8 v1 PrivateKeyInfo carries only the private seed, so the
+     * decoded key has no public part.  Derive it (deterministic from the
+     * seed; wc_ed25519_make_public also stores it in the key) so the
+     * resulting EVP_PKEY is complete and callers can later export/embed the
+     * public key.  Best-effort: on failure the key is left private-only. */
+    if (priv && !edKey->pubKeySet) {
+        byte pub[ED25519_PUB_KEY_SIZE];
+
+        if (wc_ed25519_make_public(edKey, pub, sizeof(pub)) != 0) {
+            WOLFSSL_MSG("wc_ed25519_make_public failed; "
+                        "EVP_PKEY has no public part");
+        }
+    }
+#endif /* HAVE_ED25519_MAKE_KEY */
 
     /* Copy the consumed DER into pkey->pkey.ptr, unless the caller
      * pre-filled the EVP PKEY with the input bytes (d2i_evp_pkey()).
@@ -369,6 +387,10 @@ static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     if (*out != NULL) {
         heap = (*out)->heap;
+    }
+    else if (prePopulated) {
+        /* Caller promised a pre-populated object but supplied none. */
+        return 0;
     }
 
     edKey = wolfSSL_ED448_new(heap, INVALID_DEVID);
@@ -588,6 +610,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
     #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
         case WC_EVP_PKEY_ED25519: {
             ed25519_key* edKey;
+        #ifdef HAVE_ED25519_MAKE_KEY
+            byte edPub[ED25519_PUB_KEY_SIZE];
+        #endif
             if (len != ED25519_KEY_SIZE) {
                 break;
             }
@@ -600,6 +625,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_raw_private_key(int type,
                 wolfSSL_ED25519_free(edKey);
                 break;
             }
+        #ifdef HAVE_ED25519_MAKE_KEY
+            /* The raw input is the seed alone, so the imported key has no
+             * public half.  Derive it (wc_ed25519_make_public stores it in the
+             * key) so a key built this way is interchangeable with one decoded
+             * from PKCS#8: i2d_PUBKEY, EVP_PKEY_cmp and signing all need it. */
+            if (wc_ed25519_make_public(edKey, edPub, sizeof(edPub)) != 0) {
+                wolfSSL_ED25519_free(edKey);
+                break;
+            }
+        #endif
             pkey->type       = WC_EVP_PKEY_ED25519;
             pkey->ed25519    = edKey;
             pkey->ownEd25519 = 1;
@@ -930,13 +965,20 @@ static int d2iTryAltDhKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * @param [in] mem     Memory containing key data.
  * @param [in] memSz   Size of key data in bytes.
  * @return  1 on success.
+ * @return  -1 when out of memory.
  * @return  0 otherwise.
  */
 static int d2i_falcon_priv_key_level(falcon_key* falcon, byte level,
     const unsigned char* mem, long memSz)
 {
     word32 idx = 0;
-    return (wc_falcon_set_level(falcon, level) == 0) &&
+    int lvlRet = wc_falcon_set_level(falcon, level);
+
+    if (lvlRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+        WOLFSSL_MSG("Falcon set level out of memory");
+        return -1;
+    }
+    return (lvlRet == 0) &&
            (wc_Falcon_PrivateKeyDecode(mem, &idx, falcon,
                                         (word32)memSz) == 0);
 }
@@ -949,12 +991,19 @@ static int d2i_falcon_priv_key_level(falcon_key* falcon, byte level,
  * @param [in] mem     Memory containing key data.
  * @param [in] memSz   Size of key data in bytes.
  * @return  1 on success.
+ * @return  -1 when out of memory.
  * @return  0 otherwise.
  */
 static int d2i_falcon_pub_key_level(falcon_key* falcon, byte level,
     const unsigned char* mem, long memSz)
 {
-    return (wc_falcon_set_level(falcon, level) == 0) &&
+    int lvlRet = wc_falcon_set_level(falcon, level);
+
+    if (lvlRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+        WOLFSSL_MSG("Falcon set level out of memory");
+        return -1;
+    }
+    return (lvlRet == 0) &&
            (wc_falcon_import_public(mem, (word32)memSz, falcon) == 0);
 }
 
@@ -989,7 +1038,7 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     if (priv) {
         /* Try level 1 */
         isFalcon = d2i_falcon_priv_key_level(falcon, 1, mem, memSz);
-        if (!isFalcon) {
+        if (isFalcon == 0) {
             /* Try level 5 */
             isFalcon = d2i_falcon_priv_key_level(falcon, 5, mem, memSz);
         }
@@ -997,7 +1046,7 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     else {
         /* Try level 1 */
         isFalcon = d2i_falcon_pub_key_level(falcon, 1, mem, memSz);
-        if (!isFalcon) {
+        if (isFalcon == 0) {
             /* Try level 5 */
             isFalcon = d2i_falcon_pub_key_level(falcon, 5, mem, memSz);
         }
@@ -1006,6 +1055,9 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     wc_falcon_free(falcon);
     WC_FREE_VAR_EX(falcon, NULL, DYNAMIC_TYPE_FALCON);
 
+    if (isFalcon < 0) {
+        return 0;
+    }
     if (!isFalcon) {
         return WOLFSSL_FATAL_ERROR;
     }
@@ -1016,6 +1068,152 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 #endif /* HAVE_FALCON */
 
 #ifdef WOLFSSL_HAVE_MLDSA
+/* Free the DER encoding built by wolfssl_i_mldsa_raw_to_der() */
+static void wolfssl_i_mldsa_free_der(byte* der, word32 derSz, int priv,
+    void* heap)
+{
+    if (der == NULL) {
+        return;
+    }
+    if (priv) {
+        ForceZero(der, derSz);
+        XFREE(der, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    }
+    else {
+        XFREE(der, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+}
+
+#ifndef WOLFSSL_MLDSA_NO_ASN1
+/* Encode a raw-imported ML-DSA key as DER
+ *
+ * @param [in]  key    ML-DSA key holding the imported raw bytes
+ * @param [in]  priv   1 denotes private, 0 denotes public
+ * @param [out] der    Allocated buffer holding the DER encoding
+ * @param [out] derSz  Size of the DER encoding in bytes
+ * @param [in]  heap   Heap hint for the allocation
+ * @return  0 on success.
+ * @return  NOT_COMPILED_IN when no encoder is available for the key type.
+ * @return  WOLFSSL_FATAL_ERROR when encoding fails.
+ */
+static int wolfssl_i_mldsa_raw_to_der(wc_MlDsaKey* key, int priv, byte** der,
+    word32* derSz, void* heap)
+{
+    int sz = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    int memType = priv ? DYNAMIC_TYPE_PRIVATE_KEY : DYNAMIC_TYPE_PUBLIC_KEY;
+
+#ifndef WOLFSSL_MLDSA_PRIVATE_KEY
+    if (priv) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+#if !defined(WOLFSSL_MLDSA_PUBLIC_KEY) || !defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    if (!priv) {
+        return NOT_COMPILED_IN;
+    }
+#endif
+
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    if (priv) {
+        sz = wc_MlDsaKey_PrivateKeyToDer(key, NULL, 0);
+    }
+#endif
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    if (!priv) {
+        sz = wc_MlDsaKey_PublicKeyToDer(key, NULL, 0, 1);
+    }
+#endif
+    if (sz <= 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    *derSz = (word32)sz;
+    *der = (byte*)XMALLOC(*derSz, heap, memType);
+    if (*der == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    if (priv) {
+        sz = wc_MlDsaKey_PrivateKeyToDer(key, *der, *derSz);
+    }
+#endif
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+    if (!priv) {
+        sz = wc_MlDsaKey_PublicKeyToDer(key, *der, *derSz, 1);
+    }
+#endif
+    if (sz <= 0) {
+        wolfssl_i_mldsa_free_der(*der, *derSz, priv, heap);
+        *der = NULL;
+        *derSz = 0;
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return 0;
+}
+
+#if defined(WOLFSSL_MLDSA_PUBLIC_KEY) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+/* Encode raw ML-DSA public key bytes as SubjectPublicKeyInfo
+ *
+ * @param [in]  raw    Raw public key bytes.
+ * @param [in]  rawSz  Number of raw bytes.
+ * @param [in]  oid    Key OID sum giving the parameter set.
+ * @param [out] der    Allocated buffer holding the DER encoding.
+ * @param [out] derSz  Size of the DER encoding in bytes.
+ * @param [in]  heap   Heap hint for the allocation.
+ * @return  0 on success.
+ * @return  WOLFSSL_FATAL_ERROR on failure.
+ */
+static int wolfssl_i_mldsa_raw_pub_to_der(const byte* raw, word32 rawSz,
+    int oid, byte** der, word32* derSz, void* heap)
+{
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    byte level;
+    WC_DECLARE_VAR(mldsa, wc_MlDsaKey, 1, heap);
+
+    switch (oid) {
+    #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+            level = WC_ML_DSA_44_DRAFT;
+            break;
+        case DILITHIUM_LEVEL3k:
+            level = WC_ML_DSA_65_DRAFT;
+            break;
+        case DILITHIUM_LEVEL5k:
+            level = WC_ML_DSA_87_DRAFT;
+            break;
+    #endif
+        case ML_DSA_44k:
+            level = WC_ML_DSA_44;
+            break;
+        case ML_DSA_65k:
+            level = WC_ML_DSA_65;
+            break;
+        case ML_DSA_87k:
+            level = WC_ML_DSA_87;
+            break;
+        default:
+            return WOLFSSL_FATAL_ERROR;
+    }
+
+    WC_ALLOC_VAR_EX(mldsa, wc_MlDsaKey, 1, heap, DYNAMIC_TYPE_MLDSA,
+        return WOLFSSL_FATAL_ERROR);
+
+    if (wc_MlDsaKey_Init(mldsa, heap, INVALID_DEVID) == 0) {
+        if ((wc_MlDsaKey_SetParams(mldsa, level) == 0) &&
+                (wc_MlDsaKey_ImportPubRaw(mldsa, raw, rawSz) == 0)) {
+            ret = wolfssl_i_mldsa_raw_to_der(mldsa, 0, der, derSz, heap);
+        }
+        wc_MlDsaKey_Free(mldsa);
+    }
+    WC_FREE_VAR_EX(mldsa, heap, DYNAMIC_TYPE_MLDSA);
+
+    return ret;
+}
+#endif /* WOLFSSL_MLDSA_PUBLIC_KEY && WC_ENABLE_ASYM_KEY_EXPORT */
+#endif /* !WOLFSSL_MLDSA_NO_ASN1 */
+
 /**
  * Try to make an ML-DSA EVP PKEY from data.
  *
@@ -1024,7 +1222,8 @@ static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
  * letting the decoder auto-detect the level from the OID.
  *
  * Under WOLFSSL_MLDSA_NO_ASN1 there is no PKCS#8 decoder, so a DER private
- * key is always treated as not this key type; only raw bytes are accepted.
+ * key is always treated as not this key type. Raw bytes cannot be encoded to
+ * DER either, so they yield an EVP PKEY with no cached key encoding.
  *
  * @param [in, out] out    On in, an EVP PKEY or NULL.
  *                         On out, an EVP PKEY or NULL.
@@ -1050,6 +1249,8 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     int i, numLevels, rc;
     int oidSum = 0;
     int ret;
+    byte* keyDer = NULL;
+    word32 keyDerSz = 0;
     WC_DECLARE_VAR(mldsa, wc_MlDsaKey, 1, NULL);
 
 #if !defined(WOLFSSL_MLDSA_PRIVATE_KEY)
@@ -1124,6 +1325,25 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
         }
     }
 
+    /* Raw bytes were imported iff keyIdx == 0
+     * Encode the raw data so pkey.ptr always holds DER */
+    if (isMlDsa && (keyIdx == 0) && !prePopulated) {
+    #ifndef WOLFSSL_MLDSA_NO_ASN1
+        rc = wolfssl_i_mldsa_raw_to_der(mldsa, priv, &keyDer, &keyDerSz, NULL);
+    #else
+        rc = NOT_COMPILED_IN;
+    #endif
+        /* if no encoder, then EVP PKEY will be made with no cached key below */
+        if ((rc != 0) && (rc != WC_NO_ERR_TRACE(NOT_COMPILED_IN))) {
+            wc_MlDsaKey_Free(mldsa);
+            WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
+            if (out != NULL) {
+                *out = NULL;
+            }
+            return 0;
+        }
+    }
+
     wc_MlDsaKey_Free(mldsa);
     WC_FREE_VAR_EX(mldsa, NULL, DYNAMIC_TYPE_MLDSA);
 
@@ -1133,11 +1353,20 @@ static int d2iTryMlDsaKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 
     /* Copy the consumed DER into pkey->pkey.ptr, unless the caller
      * pre-filled the EVP PKEY with the input bytes (d2i_evp_pkey()).
-     * A reused key must be re-populated here. */
+     * A reused key must be re-populated here.
+     * If no encoder is available and keyIdx == 0 the PKEY will be created with
+     * no cached key. */
     ret = 1;
     if (!prePopulated) {
-        ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
+        if (keyDer != NULL) {
+            ret = d2i_make_pkey(out, keyDer, keyDerSz, priv,
+                WC_EVP_PKEY_DILITHIUM);
+        }
+        else {
+            ret = d2i_make_pkey(out, mem, keyIdx, priv, WC_EVP_PKEY_DILITHIUM);
+        }
     }
+    wolfssl_i_mldsa_free_der(keyDer, keyDerSz, priv, NULL);
     if ((ret == 1) && (out != NULL) && (*out != NULL) && (oidSum != 0)) {
         WOLFSSL_ATOMIC_STORE((*out)->mldsaOID, oidSum);
     }
@@ -1703,6 +1932,29 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 
     /* Take off PKCS#8 wrapper if found. */
     if ((len = ToTraditionalInline_ex(der, &idx, keyLen, &algId)) >= 0) {
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        if (algId == ED25519k) {
+            word32 seqIdx = 0;
+            int seqLen = 0;
+
+            /* Ed25519's inner key is an OCTET STRING, not a SEQUENCE, so the
+             * RSA/ECC element-count heuristic below cannot classify it.
+             * Decode the full PKCS#8 PrivateKeyInfo directly (keeps the
+             * cached DER complete so the key can be re-loaded later).  Pass
+             * the size of the whole PrivateKeyInfo, taken from its outer
+             * SEQUENCE header: ToTraditionalInline_ex() reports the offset and
+             * length of the inner privateKey OCTET STRING only, and RFC 5958
+             * allows optional attributes and a publicKey to follow it - the
+             * form wolfSSL's own wc_Ed25519KeyToDer() emits - which that offset
+             * would cut off.  With the object size, *pp advances by exactly one
+             * object and no trailing bytes are cached. */
+            if (GetSequence(der, &seqIdx, &seqLen, keyLen) < 0) {
+                return NULL;
+            }
+            return wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_ED25519, pkey, pp,
+                (long)seqIdx + (long)seqLen);
+        }
+    #endif
         der += idx;
         keyLen = (word32)len;
     }
@@ -1824,6 +2076,18 @@ static int wolfssl_i_alg_id_to_key_type(word32 algId)
             type = WC_EVP_PKEY_DH;
             break;
     #endif
+    #ifdef WOLFSSL_HAVE_MLDSA
+        case ML_DSA_44k:
+        case ML_DSA_65k:
+        case ML_DSA_87k:
+        #ifdef WOLFSSL_MLDSA_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+        case DILITHIUM_LEVEL3k:
+        case DILITHIUM_LEVEL5k:
+        #endif
+            type = WC_EVP_PKEY_DILITHIUM;
+            break;
+    #endif
         default:
             WOLFSSL_MSG("PKEY algorithm, from PKCS#8 header, not supported");
             type = WC_EVP_PKEY_NONE;
@@ -1852,6 +2116,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
     byte* der = NULL;
     int len;
     word32 algId;
+    word32 idx;
     WOLFSSL_EVP_PKEY* key;
     int type;
     char password[NAME_SZ];
@@ -1877,12 +2142,21 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
 #endif
 
     /* Decrypt the PKCS#8 encrypted private key and get algorithm. */
-    ret = ToTraditionalEnc(der, (word32)len, password, passwordSz, &algId);
+    ret = wc_DecryptPKCS8Key(der, (word32)len, password, passwordSz);
     ForceZero(password, (word32)passwordSz);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(password, passwordSz);
 #endif
     if (ret < 0) {
+        XFREE(der, bio->heap, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    len = ret;
+
+    /* Read the algorithm id without stripping the header. */
+    idx = 0;
+    if (((ret = ToTraditionalInline_ex(der, &idx, (word32)len, &algId)) < 0) ||
+            ((word32)ret + idx > (word32)len)) {
         XFREE(der, bio->heap, DYNAMIC_TYPE_OPENSSL);
         return NULL;
     }
@@ -1893,8 +2167,14 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
         return NULL;
     }
 
-    /* Decode private key with the known type. */
+    /* preserve the PKCS#8 wrapper for ML-DSA. */
     p = der;
+    if (type != WC_EVP_PKEY_DILITHIUM) {
+        p += idx;
+        len = ret;
+    }
+
+    /* Decode private key with the known type. */
     key = d2i_evp_pkey(type, pkey, &p, len, 1);
 
     /* Dispose of memory holding BIO data. */
@@ -2195,7 +2475,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_id(int type, WOLFSSL_EVP_PKEY** out,
  * START OF i2d APIs
  ******************************************************************************/
 
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS8)
 /* Encode PKCS#8 key as DER data.
  *
  * @param [in]  key  PKCS#8 private key to encode.
@@ -2257,11 +2537,11 @@ int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key, unsigned char** pp)
 
     return len;
 }
-#endif
+#endif /* OPENSSL_ALL && HAVE_PKCS8 */
 
 #ifdef OPENSSL_EXTRA
 
-#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if !defined(NO_ASN)
 /* Get raw pointer to DER buffer from WOLFSSL_EVP_PKEY.
  *
  * Assumes der is large enough if passed in.
@@ -2425,7 +2705,7 @@ static int wolfssl_i_i2d_ecpublickey(const WOLFSSL_EVP_PKEY* key,
         /* Get the size of the encoding of the public key DER. */
         pub_derSz = (word32)wc_EccPublicKeyDerSize(eccKey, 1);
         if ((int)pub_derSz <= 0) {
-            ret = WOLFSSL_FAILURE;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -2480,19 +2760,197 @@ static int wolfssl_i_i2d_ecpublickey(const WOLFSSL_EVP_PKEY* key,
 }
 #endif
 
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+/* Encode an Ed25519 public key as DER SubjectPublicKeyInfo.  Follows the
+ * i2d output convention: der == NULL returns the size only; *der == NULL
+ * allocates the buffer (caller frees); otherwise writes into *der and
+ * advances it.  Returns the DER size or WOLFSSL_FATAL_ERROR. */
+static int wolfssl_i_i2d_ed25519_pubkey(const ed25519_key* key,
+    unsigned char **der)
+{
+    int derSz;
+    unsigned char* buf;
+
+    if (key == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* withAlg = 1 -> wrap the raw key in a SubjectPublicKeyInfo. */
+    derSz = wc_Ed25519PublicKeyToDer(key, NULL, 0, 1);
+    if (derSz <= 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    if (der == NULL) {
+        return derSz;
+    }
+
+    if (*der != NULL) {
+        /* Caller supplied the buffer: the size is known up front, so encode
+         * straight into it and advance past the encoding. */
+        if (wc_Ed25519PublicKeyToDer(key, *der, (word32)derSz, 1) != derSz) {
+            return WOLFSSL_FATAL_ERROR;
+        }
+        *der += derSz;
+        return derSz;
+    }
+
+    buf = (unsigned char*)XMALLOC((size_t)derSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (buf == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    if (wc_Ed25519PublicKeyToDer(key, buf, (word32)derSz, 1)
+            != derSz) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* Hand the buffer to the caller (no advance, per the i2d convention). */
+    *der = buf;
+
+    return derSz;
+}
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
+
+#if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+/* Encode ML-DSA key as public key DER.
+ *
+ * @param [in]  key  WOLFSSL_EVP_PKEY object to encode.
+ * @param [out] der  Buffer with DER encoding of public key. May be NULL.
+ * @return  Public key DER encoding size on success.
+ * @return  WOLFSSL_FATAL_ERROR when key does not hold a public key.
+ * @return  WOLFSSL_FATAL_ERROR when dynamic memory allocation fails.
+ * @return  WOLFSSL_FATAL_ERROR when encoding fails.
+ */
+static int wolfssl_i_i2d_mldsapublickey(const WOLFSSL_EVP_PKEY* key,
+    unsigned char** der)
+{
+    word32 pub_derSz = 0;
+    int ret;
+    unsigned char *local_der = NULL;
+    word32 local_derSz = 0;
+    unsigned char *pub_der = NULL;
+    wc_MlDsaKey *mldsaKey = NULL;
+    word32 inOutIdx = 0;
+    int decodeOk = 0;
+
+    /* Get the DER, then convert it to a public key. */
+    ret = wolfssl_i_evp_pkey_get_der(key, &local_der);
+    if (ret <= 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    else {
+        local_derSz = (word32)ret;
+        ret = 0;
+    }
+
+    if (ret == 0) {
+        mldsaKey = (wc_MlDsaKey *)XMALLOC(sizeof(*mldsaKey), NULL,
+            DYNAMIC_TYPE_MLDSA);
+        if (mldsaKey == NULL) {
+            WOLFSSL_MSG("Failed to allocate key buffer.");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    /* Initialize a wolfCrypt ML-DSA key. */
+    if (ret == 0) {
+        ret = wc_MlDsaKey_Init(mldsaKey, NULL, INVALID_DEVID);
+    }
+#ifdef WOLFSSL_MLDSA_PRIVATE_KEY
+    if (ret == 0) {
+        /* The cached DER may hold a private key */
+        PRIVATE_KEY_UNLOCK();
+        if (wc_MlDsaKey_PrivateKeyDecode(mldsaKey, local_der, local_derSz,
+                &inOutIdx) == 0) {
+            decodeOk = 1;
+        }
+        PRIVATE_KEY_LOCK();
+        if (!decodeOk) {
+            /* A failed PrivateKeyDecode may leave the level pinned, reset the
+             * key so PublicKeyDecode auto-detects it from the SPKI OID. */
+            wc_MlDsaKey_Free(mldsaKey);
+            ret = wc_MlDsaKey_Init(mldsaKey, NULL, INVALID_DEVID);
+            inOutIdx = 0;
+        }
+    }
+#endif
+    if ((ret == 0) && (!decodeOk)) {
+        /* Decode the DER data with wolfCrypt ML-DSA key. */
+        ret = wc_MlDsaKey_PublicKeyDecode(mldsaKey, local_der, local_derSz,
+            &inOutIdx);
+    }
+
+    if (ret == 0) {
+        /* Get the size of the encoding of the public key DER. */
+        pub_derSz = (word32)wc_MlDsaKey_PublicKeyToDer(mldsaKey, NULL, 0, 1);
+        if ((int)pub_derSz <= 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        /* Allocate memory for public key DER encoding. */
+        pub_der = (unsigned char*)XMALLOC(pub_derSz, NULL,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pub_der == NULL) {
+            WOLFSSL_MSG("Failed to allocate output buffer.");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        /* Encode public key as DER. */
+        pub_derSz = (word32)wc_MlDsaKey_PublicKeyToDer(mldsaKey, pub_der,
+            pub_derSz, 1);
+        if ((int)pub_derSz <= 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    /* This block is for actually returning the DER of the public key */
+    if ((ret == 0) && (der != NULL)) {
+        int bufferPassedIn = ((*der) != NULL);
+        if (!bufferPassedIn) {
+            *der = (unsigned char*)XMALLOC(pub_derSz, NULL,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+            if (*der == NULL) {
+                WOLFSSL_MSG("Failed to allocate output buffer.");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        if (ret == 0) {
+            XMEMCPY(*der, pub_der, pub_derSz);
+            if (bufferPassedIn) {
+                *der += pub_derSz;
+            }
+        }
+    }
+
+    /* Dispose of allocated objects. */
+    XFREE(pub_der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    ForceZero(local_der, local_derSz);
+    XFREE(local_der, NULL, DYNAMIC_TYPE_OPENSSL);
+    wc_MlDsaKey_Free(mldsaKey);
+    XFREE(mldsaKey, NULL, DYNAMIC_TYPE_MLDSA);
+
+    /* Return error or the size of the DER encoded public key. */
+    if (ret == 0) {
+        ret = (int)pub_derSz;
+    }
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_MLDSA && WOLFSSL_MLDSA_PUBLIC_KEY &&
+        * !WOLFSSL_MLDSA_NO_ASN1 && WC_ENABLE_ASYM_KEY_EXPORT */
+
 /* Encode the WOLFSSL_EVP_PKEY object as public key DER.
  *
- * @param [in]  key  WOLFSLS_EVP_PKEY object to encode.
+ * @param [in]  key  WOLFSSL_EVP_PKEY object to encode.
  * @param [out] der  Buffer with DER encoding of public key.
  * @return  Public key DER encoding size on success.
- * @return  WOLFSSL_FATAL_ERROR when key is NULL.
- * @return  WOLFSSL_FATAL_ERROR when key type not supported.
- * @return  WOLFSSL_FATAL_ERROR when dynamic memory allocation fails.
+ * @return  Negative value on error.
  */
 int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 {
-    int ret;
-
     /* Validate parameters. */
     if (key == NULL) {
         return WOLFSSL_FATAL_ERROR;
@@ -2508,26 +2966,46 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
         case WC_EVP_PKEY_EC:
             return wolfssl_i_i2d_ecpublickey(key, key->ecc, der);
     #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+        /* Emit a SubjectPublicKeyInfo (withAlg=1) rather than the bare key:
+         * wolfSSL_i2d_PUBKEY aliases to this function (below), so the SPKI is
+         * what wolfSSL_d2i_PUBKEY has to be able to read back.  Matches the
+         * adjacent EC case, which encodes with withAlg=1 for the same reason.
+         * (Note this differs from OpenSSL, where i2d_PublicKey emits the raw
+         * key for Ed25519 and only i2d_PUBKEY emits the SPKI.) */
+        case WC_EVP_PKEY_ED25519:
+            return wolfssl_i_i2d_ed25519_pubkey(key->ed25519, der);
+    #endif
         default:
-            ret = WOLFSSL_FATAL_ERROR;
-            break;
+            return WOLFSSL_FATAL_ERROR;
     }
-
-    return ret;
 }
 
-/* Encode the WOLFSSL_EVP_PKEY object as public key DER.
+/* Encode the WOLFSSL_EVP_PKEY object as SubjectPublicKeyInfo DER.
  *
- * @param [in]  key  WOLFSLS_EVP_PKEY object to encode.
+ * @param [in]  key  WOLFSSL_EVP_PKEY object to encode.
  * @param [out] der  Buffer with DER encoding of public key.
  * @return  Public key DER encoding size on success.
- * @return  WOLFSSL_FATAL_ERROR when key is NULL.
- * @return  WOLFSSL_FATAL_ERROR when key type not supported.
- * @return  WOLFSSL_FATAL_ERROR when dynamic memory allocation fails.
+ * @return  Negative value on error.
  */
 int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 {
-    return wolfSSL_i2d_PublicKey(key, der);
+    /* Validate parameters. */
+    if (key == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* Encode based on key type. */
+    switch (key->type) {
+    #if defined(WOLFSSL_HAVE_MLDSA) && defined(WOLFSSL_MLDSA_PUBLIC_KEY) && \
+        !defined(WOLFSSL_MLDSA_NO_ASN1) && defined(WC_ENABLE_ASYM_KEY_EXPORT)
+        /* ML-DSA should not be supported by i2d_PublicKey */
+        case WC_EVP_PKEY_DILITHIUM:
+            return wolfssl_i_i2d_mldsapublickey(key, der);
+    #endif
+        default:
+            return wolfSSL_i2d_PublicKey(key, der);
+    }
 }
 
 #ifndef NO_BIO
@@ -2585,7 +3063,7 @@ cleanup:
 }
 #endif /* !NO_BIO */
 
-#endif /* !NO_ASN && !NO_PWDBASED */
+#endif /* !NO_ASN */
 
 #endif /* OPENSSL_EXTRA */
 

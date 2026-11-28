@@ -760,9 +760,10 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
  * @param [in]      serverRandom     Server random data (RAN_LEN bytes).
  * @param [in]      suite            Cipher suite bytes (2).
  * @return  WOLFSSL_SUCCESS on success.
- * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments and a
- *          failure to allocate the pre-master secret. The specific code is
- *          recorded in ssl->error and can be read with wolfSSL_get_error().
+ * @return  WOLFSSL_FATAL_ERROR on error, including invalid arguments, a
+ *          secret longer than MAX_PREMASTER_SZ, and handshake arrays that
+ *          have already been released. The specific code is recorded in
+ *          ssl->error and can be read with wolfSSL_get_error().
  */
 int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
                        const byte* preMasterSecret, word32 preMasterSz,
@@ -774,7 +775,7 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
     WOLFSSL_ENTER("wolfSSL_set_secret");
 
     if (ssl == NULL || preMasterSecret == NULL ||
-        preMasterSz == 0 || preMasterSz > ENCRYPT_LEN ||
+        preMasterSz == 0 || preMasterSz > MAX_PREMASTER_SZ ||
         clientRandom == NULL || serverRandom == NULL || suite == NULL) {
 
         ret = BAD_FUNC_ARG;
@@ -787,19 +788,12 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
         ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0 && ssl->arrays->preMasterSecret == NULL) {
-        ssl->arrays->preMasterSz = ENCRYPT_LEN;
-        ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
-            DYNAMIC_TYPE_SECRET);
-        if (ssl->arrays->preMasterSecret == NULL) {
-            ret = MEMORY_E;
-        }
-    }
-
     if (ret == 0) {
         XMEMCPY(ssl->arrays->preMasterSecret, preMasterSecret, preMasterSz);
-        XMEMSET(ssl->arrays->preMasterSecret + preMasterSz, 0,
-            ENCRYPT_LEN - preMasterSz);
+        if (preMasterSz < MAX_PREMASTER_SZ) {
+            XMEMSET(ssl->arrays->preMasterSecret + preMasterSz, 0,
+                MAX_PREMASTER_SZ - preMasterSz);
+        }
         ssl->arrays->preMasterSz = preMasterSz;
         XMEMCPY(ssl->arrays->clientRandom, clientRandom, RAN_LEN);
         XMEMCPY(ssl->arrays->serverRandom, serverRandom, RAN_LEN);
@@ -811,6 +805,14 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
 
     if (ret == 0)
         ret = MakeTlsMasterSecret(ssl);
+
+    /* MakeTlsMasterSecret() does not clean it and the buffer now lives as
+     * long as the object. This is the multicast entry point, so what was
+     * copied in is a long-lived group secret. */
+    if (ssl != NULL && ssl->arrays != NULL) {
+        ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
+        ssl->arrays->preMasterSz = 0;
+    }
 
     if (ret == 0) {
         ssl->keys.encryptionOn = 1;
@@ -878,7 +880,7 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int sub)
         return BAD_FUNC_ARG;
 
     if (!sub) {
-        /* Make sure it isn't already present, while keeping the first
+        /* Make sure it isn't already present, while keeping the last
          * open spot. */
         for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
             if (ssl->keys.peerSeq[i].peerId == INVALID_PEER_ID)
@@ -1195,36 +1197,136 @@ void wolfSSL_dtls13_set_send_more_acks(WOLFSSL* ssl, int value)
 }
 #endif /* WOLFSSL_DTLS13 */
 
-/* Get the time left until the next DTLS timeout.
+#ifndef NO_ASN_TIME
+/* Check whether a sent flight waits for the peer's reply.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  1 when a flight waits.
+ * @return  0 otherwise.
+ */
+static int DtlsFlightWaits(WOLFSSL* ssl)
+{
+    if (!IsDtlsNotSctpMode(ssl) || ssl->dtls_timeout <= 0 ||
+            ssl->options.isClosed || ssl->options.connReset ||
+            ssl->options.sentNotify || ssl->options.closeNotify ||
+            ssl->buffers.outputBuffer.length > 0)
+        return 0;
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite != NULL)
+        return 0;
+#endif
+#ifdef WOLFSSL_HAVE_HS_SUSPEND
+    if (IsHsSuspendErr(ssl->error))
+        return 0;
+#endif
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version))
+        return ssl->dtls13Rtx.rtxRecords != NULL;
+#endif
+    return ssl->options.handShakeState != HANDSHAKE_DONE &&
+        (ssl->dtls_tx_msg_list != NULL || ssl->dtls_tx_msg != NULL);
+}
+
+/* Start the retransmission timer for the current flight.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ */
+static void DtlsTimerRestart(WOLFSSL* ssl)
+{
+    ssl->dtls_timer_start = LowResTimer();
+    /* Round up a second so a whole-second clock never expires it early. */
+    ssl->dtls_timer_len = (word32)ssl->dtls_timeout + 1;
+    ssl->dtls_timer_seq = ssl->keys.dtls_handshake_number;
+}
+#endif /* !NO_ASN_TIME */
+
+/* Get the seconds left until the retransmission timer expires.
+ *
+ * @param [in]  ssl   SSL/TLS object.
+ * @param [out] left  Seconds left, 0 once the timer expired.
+ * @return  1 when the timer runs.
+ * @return  0 when no timer runs.
+ */
+static int DtlsTimerLeft(WOLFSSL* ssl, word32* left)
+{
+#ifndef NO_ASN_TIME
+    word32 elapsed;
+
+    if (!DtlsFlightWaits(ssl)) {
+        ssl->dtls_timer_len = 0;
+        return 0;
+    }
+    if (ssl->dtls_timer_len == 0 ||
+            ssl->dtls_timer_seq != ssl->keys.dtls_handshake_number)
+        DtlsTimerRestart(ssl);
+
+    elapsed = LowResTimer() - ssl->dtls_timer_start;
+    *left = (elapsed < ssl->dtls_timer_len) ?
+        ssl->dtls_timer_len - elapsed : 0;
+    return 1;
+#else
+    (void)ssl;
+    (void)left;
+    return 0;
+#endif
+}
+
+/* Get the time left until the DTLS retransmission timer expires.
+ *
+ * The timer starts on the first call after a flight was sent.
  *
  * @param [in]  ssl       SSL/TLS object.
- * @param [out] timeleft  Time left until the next timeout.
- * @return  0 always.
+ * @param [out] timeleft  Time left, zero once the timer expired.
+ * @return  1 when the timer runs.
+ * @return  0 when no timer runs, or ssl or timeleft is NULL.
  */
 int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, WOLFSSL_TIMEVAL* timeleft)
 {
-    if (ssl && timeleft) {
-        XMEMSET(timeleft, 0, sizeof(WOLFSSL_TIMEVAL));
-        timeleft->tv_sec = ssl->dtls_timeout;
-    }
-    return 0;
+    word32 left = 0;
+
+    if (ssl == NULL || timeleft == NULL)
+        return 0;
+
+    XMEMSET(timeleft, 0, sizeof(WOLFSSL_TIMEVAL));
+    if (!DtlsTimerLeft(ssl, &left))
+        return 0;
+
+    timeleft->tv_sec = left;
+    return 1;
 }
 
-#ifndef NO_WOLFSSL_STUB
-/* Handle a DTLS timeout.
- *
- * Not implemented - stub for OpenSSL compatibility.
+/* Retransmit the last flight when the DTLS retransmission timer expired.
  *
  * @param [in] ssl  SSL/TLS object.
- * @return  0 always.
+ * @return  1 when the timer expired and the flight was retransmitted.
+ * @return  0 when no timer runs or it has not expired yet.
+ * @return  WOLFSSL_FATAL_ERROR when ssl is NULL or retransmitting failed.
  */
 int wolfSSL_DTLSv1_handle_timeout(WOLFSSL* ssl)
 {
-    WOLFSSL_STUB("SSL_DTLSv1_handle_timeout");
-    (void)ssl;
-    return 0;
+    word32 left = 0;
+
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+    if (!DtlsTimerLeft(ssl, &left) || left > 0)
+        return 0;
+#ifdef WOLFSSL_DTLS13
+    ssl->dtls13FastTimeout = 0;
+#endif
+    if (wolfSSL_dtls_got_timeout(ssl) != WOLFSSL_SUCCESS) {
+#ifndef NO_ASN_TIME
+        ssl->dtls_timer_len = 0;
+#endif
+        return WOLFSSL_FATAL_ERROR;
+    }
+#ifndef NO_ASN_TIME
+    DtlsTimerRestart(ssl);
+#endif
+
+    return 1;
 }
 
+#ifndef NO_WOLFSSL_STUB
 /* Set the initial DTLS timeout duration.
  *
  * Not implemented - stub for OpenSSL compatibility.
@@ -1448,7 +1550,7 @@ int wolfSSL_dtls13_pending_work(WOLFSSL* ssl)
     /* dtls13WaitKeyUpdateAck deliberately does not count as work: it says we
      * are waiting on the peer, not that we have anything to send. */
     if (!pending && (ssl->dtls13DoKeyUpdate || ssl->options.sendKeyUpdate) &&
-            Dtls13CanSendKeyUpdate(ssl)) {
+            !IsWriteClosed(ssl) && Dtls13CanSendKeyUpdate(ssl)) {
         pending = 1;
     }
 
@@ -1557,6 +1659,9 @@ int wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl)
         return WOLFSSL_FATAL_ERROR;
     }
 
+    if (IsWriteClosed(ssl))
+        ssl->options.sendKeyUpdate = 0;
+
     /* Answer a KeyUpdate the peer requested. The read path defers this the
      * same way, and SendData() is otherwise the only thing that clears it.
      * Skip it while one of ours is still unacknowledged: DTLS must not have
@@ -1595,6 +1700,134 @@ int wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl)
 #endif /* DTLS */
 #endif /* LEANPSK */
 
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER)
+
+/* Securely erase and free a cookie secret.
+ *
+ * @param [in]      ssl     SSL/TLS object.
+ * @param [in, out] secret  Cookie secret buffer, left empty.
+ */
+void FreeCookieSecret(WOLFSSL* ssl, buffer* secret)
+{
+    if (secret->buffer != NULL) {
+        ForceZero(secret->buffer, secret->length);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Drop the entry InstallCookieSecret() added */
+        wc_MemZero_Check(secret->buffer, secret->length);
+#endif
+        XFREE(secret->buffer, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+        secret->buffer = NULL;
+        secret->length = 0;
+    }
+}
+
+/* Build a cookie secret in a buffer the SSL object does not own yet.
+ *
+ * @param [in]  ssl       SSL/TLS object.
+ * @param [out] out       New secret. Left empty on failure.
+ * @param [in]  secret    Secret data to copy, or NULL to generate one.
+ * @param [in]  secretSz  Length of the secret in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when secretSz is 0.
+ * @return  MEMORY_ERROR on allocation failure.
+ * @return  BAD_STATE_E when a secret must be generated without an RNG.
+ * @return  A negative error code when the RNG fails.
+ */
+static int NewCookieSecret(WOLFSSL* ssl, buffer* out, const byte* secret,
+                           word32 secretSz)
+{
+    int ret;
+
+    out->buffer = NULL;
+    out->length = 0;
+
+    if (secretSz == 0) {
+        WOLFSSL_MSG("Cookie secret must not be empty");
+        return BAD_FUNC_ARG;
+    }
+
+    if (secret == NULL && ssl->rng == NULL) {
+        WOLFSSL_MSG("Cookie secret generation requires an initialized RNG");
+        return BAD_STATE_E;
+    }
+
+    out->buffer = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+    if (out->buffer == NULL) {
+        WOLFSSL_MSG("couldn't allocate new cookie secret");
+        return MEMORY_ERROR;
+    }
+    out->length = secretSz;
+
+    /* If the supplied secret is NULL, randomly generate a new secret. */
+    if (secret != NULL)
+        XMEMCPY(out->buffer, secret, secretSz);
+    else {
+        ret = wc_RNG_GenerateBlock(ssl->rng, out->buffer, secretSz);
+        if (ret != 0) {
+            FreeCookieSecret(ssl, out);
+            return ret;
+        }
+    }
+    return 0;
+}
+
+/* Install a secret built by NewCookieSecret(), freeing the one it replaces.
+ * Cannot fail.
+ *
+ * @param [in]      ssl   SSL/TLS object.
+ * @param [in, out] dst   Secret in the SSL object to replace.
+ * @param [in, out] src   New secret. Left empty.
+ * @param [in]      name  Name of dst, for the memory-zero check.
+ */
+static void InstallCookieSecret(WOLFSSL* ssl, buffer* dst, buffer* src,
+                                const char* name)
+{
+    FreeCookieSecret(ssl, dst);
+    dst->buffer = src->buffer;
+    dst->length = src->length;
+    src->buffer = NULL;
+    src->length = 0;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add(name, dst->buffer, dst->length);
+#else
+    (void)name;
+#endif
+}
+
+/* Atomically replace one cookie secret.
+ *
+ * The replacement is built in its own allocation and only swapped in once it
+ * holds the new secret, so a failure leaves the secret the object already had
+ * in place rather than none at all.
+ *
+ * @param [in]      ssl       SSL/TLS object.
+ * @param [in, out] dst       Secret in the SSL object to replace.
+ * @param [in]      secret    Secret data to copy, or NULL to generate one.
+ * @param [in]      secretSz  Length of the secret in bytes. Never 0.
+ * @param [in]      name      Name of dst, for the memory-zero check.
+ * @return  0 on success.
+ * @return  MEMORY_ERROR on allocation failure.
+ * @return  A negative error code when the RNG fails. The object is left as it
+ *          was found.
+ */
+int SetCookieSecret(WOLFSSL* ssl, buffer* dst, const byte* secret,
+                    word32 secretSz, const char* name)
+{
+    buffer newSecret;
+    int    ret;
+
+    ret = NewCookieSecret(ssl, &newSecret, secret, secretSz);
+    if (ret != 0)
+        return ret;
+
+    /* Swap: the old secret is only dropped once the new one is ready. */
+    InstallCookieSecret(ssl, dst, &newSecret, name);
+    return 0;
+}
+
+#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER */
+
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 
 /* Set the DTLS cookie secret used to generate HelloVerifyRequest cookies.
@@ -1607,12 +1840,14 @@ int wolfSSL_dtls13_do_scheduled_work(WOLFSSL* ssl)
  * @param [in] secretSz  Length of secret in bytes, 0 to use the default.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or secret is set with size 0.
- * @return  MEMORY_ERROR on allocation failure.
+ * @return  BAD_STATE_E when a secret must be generated and the RNG has been
+ *          released. The secret in use is unchanged.
+ * @return  MEMORY_ERROR on allocation failure. The secret in use is unchanged.
  */
 int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                                  const byte* secret, word32 secretSz)
 {
-    int ret = 0;
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_DTLS_SetCookieSecret");
 
@@ -1630,41 +1865,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     if (secretSz == 0)
         secretSz = COOKIE_SECRET_SZ;
 
-    if (secretSz != ssl->buffers.dtlsCookieSecret.length) {
-        byte* newSecret;
+    ret = SetCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret, secret, secretSz,
+                          "wolfSSL_DTLS_SetCookieSecret secret");
 
-        if (ssl->buffers.dtlsCookieSecret.buffer != NULL) {
-            ForceZero(ssl->buffers.dtlsCookieSecret.buffer,
-                      ssl->buffers.dtlsCookieSecret.length);
-            XFREE(ssl->buffers.dtlsCookieSecret.buffer,
-                  ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-        }
-
-        newSecret = (byte*)XMALLOC(secretSz, ssl->heap,DYNAMIC_TYPE_COOKIE_PWD);
-        if (newSecret == NULL) {
-            ssl->buffers.dtlsCookieSecret.buffer = NULL;
-            ssl->buffers.dtlsCookieSecret.length = 0;
-            WOLFSSL_MSG("couldn't allocate new cookie secret");
-            return MEMORY_ERROR;
-        }
-        ssl->buffers.dtlsCookieSecret.buffer = newSecret;
-        ssl->buffers.dtlsCookieSecret.length = secretSz;
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("wolfSSL_DTLS_SetCookieSecret secret",
-            ssl->buffers.dtlsCookieSecret.buffer,
-            ssl->buffers.dtlsCookieSecret.length);
-    #endif
-    }
-
-    /* If the supplied secret is NULL, randomly generate a new secret. */
-    if (secret == NULL) {
-        ret = wc_RNG_GenerateBlock(ssl->rng,
-                             ssl->buffers.dtlsCookieSecret.buffer, secretSz);
-    }
-    else
-        XMEMCPY(ssl->buffers.dtlsCookieSecret.buffer, secret, secretSz);
-
-    WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecret", 0);
+    WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecret", ret);
     return ret;
 }
 
@@ -1719,6 +1923,24 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
+    /* A general-purpose object is promoted by the wolfSSL_accept() below, as
+     * it has always been; only a client is rejected here. That is what
+     * wolfSSL_accept() itself does with one, so the outcome is unchanged. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        WOLFSSL_MSG("wolfDTLS_accept_stateless cannot be used on a client");
+        ssl->error = SIDE_ERROR;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (ssl->options.dtls && !ssl->options.sendCookie) {
+        WOLFSSL_MSG("wolfDTLS_accept_stateless requires cookies enabled; "
+                    "use wolfSSL_accept");
+        ssl->error = BAD_STATE_E;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     /* Save this to restore it later */
     disableRead = (byte)ssl->options.disableRead;
     cb.userCb = ssl->chGoodCb;
@@ -1752,7 +1974,10 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
     return ret;
 }
 
-/* Set the callback to call when a ClientHello with a valid cookie is received.
+/* Notify after cookie verification, or, with cookies disabled, after complete
+ * successful ClientHello processing (once per connection). When the cookie
+ * exchange is skipped on resumption, notify without cookie verification. For
+ * DTLS 1.3 this is before the PSK binder is checked.
  *
  * WC_NO_INLINE: wolfDTLS_accept_stateless passes the address of a stack-local
  * context here; the restore call before return clears it again. Preventing
@@ -1779,6 +2004,31 @@ int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
     return WOLFSSL_SUCCESS;
 }
 
+/* Notify the ClientHello good callback when cookies are disabled.
+ *
+ * Called by the accept functions once a complete first ClientHello has been
+ * processed. With cookies enabled the stateless ClientHello processing calls
+ * it instead. A negative return stops the accept call before its state
+ * advances, so the next accept call asks again.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  0 when the callback is not called or succeeds.
+ * @return  The callback's negative error code otherwise.
+ */
+int DtlsNoCookieChGood(WOLFSSL* ssl)
+{
+    int ret = 0;
+
+    if (ssl->options.dtls && !ssl->options.sendCookie &&
+            ssl->chGoodCb != NULL) {
+        ret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
+        if (ret > 0)
+            ret = 0;
+    }
+
+    return ret;
+}
+
 /* Set a secondary DTLS 1.2 cookie secret used only when verifying a received
  * HelloVerifyRequest cookie, and only if the primary secret (set by
  * wolfSSL_DTLS_SetCookieSecret()) fails to verify it.
@@ -1800,12 +2050,13 @@ int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
  * @param [in] secretSz  Size of secret data in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when ssl is NULL.
- * @return  MEMORY_ERROR on allocation failure.
+ * @return  MEMORY_ERROR on allocation failure. The secondary secret in use is
+ *          unchanged.
  */
 int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
                                           const byte* secret, word32 secretSz)
 {
-    byte* newSecret;
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_DTLS_SetCookieSecretSecondary");
 
@@ -1814,41 +2065,233 @@ int wolfSSL_DTLS_SetCookieSecretSecondary(WOLFSSL* ssl,
         return BAD_FUNC_ARG;
     }
 
-    /* Clear any existing secondary secret. */
-    if (ssl->buffers.dtlsCookieSecretSecondary.buffer != NULL) {
-        ForceZero(ssl->buffers.dtlsCookieSecretSecondary.buffer,
-                  ssl->buffers.dtlsCookieSecretSecondary.length);
-        XFREE(ssl->buffers.dtlsCookieSecretSecondary.buffer,
-              ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-        ssl->buffers.dtlsCookieSecretSecondary.buffer = NULL;
-        ssl->buffers.dtlsCookieSecretSecondary.length = 0;
-    }
-
     /* A NULL/empty secret just clears the secondary secret. */
     if (secret == NULL || secretSz == 0) {
+        FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecretSecondary);
         WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", 0);
         return 0;
     }
 
-    newSecret = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
-    if (newSecret == NULL) {
-        WOLFSSL_MSG("couldn't allocate secondary cookie secret");
-        return MEMORY_ERROR;
-    }
-    XMEMCPY(newSecret, secret, secretSz);
-    ssl->buffers.dtlsCookieSecretSecondary.buffer = newSecret;
-    ssl->buffers.dtlsCookieSecretSecondary.length = secretSz;
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("wolfSSL_DTLS_SetCookieSecretSecondary secret",
-        ssl->buffers.dtlsCookieSecretSecondary.buffer,
-        ssl->buffers.dtlsCookieSecretSecondary.length);
-#endif
+    ret = SetCookieSecret(ssl, &ssl->buffers.dtlsCookieSecretSecondary, secret,
+                          secretSz, "wolfSSL_DTLS_SetCookieSecretSecondary "
+                          "secret");
 
-    WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", 0);
-    return 0;
+    WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecretSecondary", ret);
+    return ret;
 }
 
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
+
+#if (defined(WOLFSSL_DTLS) || defined(WOLFSSL_SEND_HRR_COOKIE)) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
+static int CheckCookieSide(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLFSSL_DTLS
+    if (!ssl->options.dtls)
+#endif
+    {
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+        if (!IsAtLeastTLSv1_3(ssl->version))
+#endif
+            return BAD_FUNC_ARG;
+    }
+    /* A general-purpose object from DTLS_method()/TLS_method() has not chosen
+     * a side yet. The policy it is given here survives the promotion to the
+     * server side - see InitSSL() - so only a client is rejected, which is
+     * what wolfSSL_send_hrr_cookie() and wolfSSL_disable_hrr_cookie() have
+     * always done. */
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Reject a cookie policy change once the DTLS handshake has committed to
+ * stateful processing, when it can no longer take effect.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  WOLFSSL_SUCCESS when the policy can still be changed.
+ * @return  BAD_STATE_E when the handshake has already committed.
+ */
+int CheckCookieState(WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls && ssl->options.dtlsStateful) {
+        WOLFSSL_MSG("Cookie policy is fixed once the handshake starts");
+        return BAD_STATE_E;
+    }
+#else
+    (void)ssl;
+#endif
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_disable_cookie(WOLFSSL* ssl)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_disable_cookie");
+
+    ret = CheckCookieSide(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+    ret = CheckCookieState(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret);
+        FreeCookieSecret(ssl, &ssl->buffers.dtlsCookieSecretSecondary);
+    }
+#endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecret);
+    FreeCookieSecret(ssl, &ssl->buffers.tls13CookieSecretSecondary);
+#endif
+    ssl->options.sendCookie = 0;
+    return WOLFSSL_SUCCESS;
+}
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+/* Default HelloRetryRequest cookie secret size: the digest the cookie MAC is
+ * built with. */
+#ifndef NO_SHA256
+    #define TLS13_COOKIE_SECRET_SZ WC_SHA256_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA384)
+    #define TLS13_COOKIE_SECRET_SZ WC_SHA384_DIGEST_SIZE
+#elif defined(WOLFSSL_TLS13_SHA512)
+    #define TLS13_COOKIE_SECRET_SZ WC_SHA512_DIGEST_SIZE
+#elif defined(WOLFSSL_SM3)
+    #define TLS13_COOKIE_SECRET_SZ WC_SM3_DIGEST_SIZE
+#else
+    #error "No digest to available to use with HMAC for cookies."
+#endif
+#endif /* WOLFSSL_SEND_HRR_COOKIE */
+
+/* Turn the cookie policy on, optionally replacing the HelloRetryRequest
+ * cookie secret.
+ *
+ * Every secret the policy needs, including the DTLS 1.2 fallback secret of a
+ * DTLS 1.3 server, is built before any is installed, so a failure leaves the
+ * object as it was found. The handshake state is not checked here: the public
+ * entry points check it, and InitSSL_DtlsServer() runs before it matters.
+ *
+ * @param [in, out] ssl          SSL/TLS object.
+ * @param [in]      hrrSecret    HRR cookie secret to install, or NULL to
+ *                               generate one.
+ * @param [in]      hrrSecretSz  Length of hrrSecret in bytes, 0 for the
+ *                               default size.
+ * @param [in]      replaceHrr   Replace an HRR secret that is already set.
+ *                               When 0, only missing secrets are generated and
+ *                               application-supplied secrets are kept.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when ssl is NULL or the protocol has no cookie.
+ * @return  SIDE_ERROR when called on a client.
+ * @return  A negative error code when a secret cannot be generated. The
+ *          object is left as it was found.
+ */
+int CookiePolicySet(WOLFSSL* ssl, const byte* hrrSecret, word32 hrrSecretSz,
+                    int replaceHrr)
+{
+    int ret;
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    buffer newTls13Secret;
+#endif
+#ifdef WOLFSSL_DTLS
+    buffer newDtlsSecret;
+#endif
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    XMEMSET(&newTls13Secret, 0, sizeof(newTls13Secret));
+#endif
+#ifdef WOLFSSL_DTLS
+    XMEMSET(&newDtlsSecret, 0, sizeof(newDtlsSecret));
+#endif
+
+    ret = CheckCookieSide(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+
+    /* Prepare. Every step that can fail runs here. */
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (IsAtLeastTLSv1_3(ssl->version) &&
+            (replaceHrr || ssl->buffers.tls13CookieSecret.buffer == NULL)) {
+        ret = NewCookieSecret(ssl, &newTls13Secret, hrrSecret,
+                              (hrrSecretSz != 0) ? hrrSecretSz
+                                  : (word32)TLS13_COOKIE_SECRET_SZ);
+        if (ret != 0)
+            goto cleanup;
+    }
+#endif
+#ifdef WOLFSSL_DTLS
+    /* DTLS 1.3 also needs this secret for DTLS 1.2 fallback. */
+    if (ssl->options.dtls && ssl->buffers.dtlsCookieSecret.buffer == NULL) {
+        ret = NewCookieSecret(ssl, &newDtlsSecret, NULL, COOKIE_SECRET_SZ);
+        if (ret != 0)
+            goto cleanup;
+    }
+#endif
+
+    /* Install. Nothing below this point can fail. */
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (newTls13Secret.buffer != NULL) {
+        InstallCookieSecret(ssl, &ssl->buffers.tls13CookieSecret,
+                            &newTls13Secret, "tls13CookieSecret");
+    }
+#endif
+#ifdef WOLFSSL_DTLS
+    if (newDtlsSecret.buffer != NULL) {
+        InstallCookieSecret(ssl, &ssl->buffers.dtlsCookieSecret,
+                            &newDtlsSecret, "dtlsCookieSecret");
+    }
+#endif
+    ssl->options.sendCookie = 1;
+
+    (void)hrrSecret;
+    (void)hrrSecretSz;
+    (void)replaceHrr;
+    return WOLFSSL_SUCCESS;
+
+cleanup:
+    /* Only the secrets this call built are dropped. */
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    FreeCookieSecret(ssl, &newTls13Secret);
+#endif
+#ifdef WOLFSSL_DTLS
+    FreeCookieSecret(ssl, &newDtlsSecret);
+#endif
+    return ret;
+}
+
+/* Prepare missing secrets without replacing application-supplied secrets.
+ *
+ * @param [in, out] ssl  SSL/TLS object.
+ * @return  The result of CookiePolicySet().
+ */
+int CookiePolicyEnable(WOLFSSL* ssl)
+{
+    return CookiePolicySet(ssl, NULL, 0, 0);
+}
+
+int wolfSSL_enable_cookie(WOLFSSL* ssl)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_enable_cookie");
+
+    ret = CheckCookieSide(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+    ret = CheckCookieState(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+
+    return CookiePolicyEnable(ssl);
+}
+#endif /* (WOLFSSL_DTLS || WOLFSSL_SEND_HRR_COOKIE) && !NO_WOLFSSL_SERVER && */
+       /* !NO_TLS                                                            */
 
 #endif /* !WOLFCRYPT_ONLY */
 

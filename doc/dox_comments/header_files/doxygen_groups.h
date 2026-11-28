@@ -3,6 +3,7 @@
     \defgroup AES Algorithms - AES
     \defgroup ARC4 Algorithms - ARC4
     \defgroup ARGON2 Algorithms - Argon2
+    \defgroup ASCON Algorithms - Ascon
     \defgroup BLAKE2 Algorithms - BLAKE2
     \defgroup Camellia Algorithms - Camellia
     \defgroup ChaCha Algorithms - ChaCha
@@ -25,6 +26,18 @@
     name once it is final. Two parameter sets are supported, selected with
     wc_falcon_set_level(): level 1 (Falcon-512) and level 5 (Falcon-1024).
     See <wolfssl/wolfcrypt/falcon.h>.
+    \defgroup HPKE Algorithms - HPKE (RFC 9180)
+    HPKE (Hybrid Public Key Encryption) is a single-shot public key
+    encryption scheme built from a KEM, a KDF and an AEAD. wolfCrypt
+    implements the RFC 9180 base mode (no pre-shared key, no sender
+    authentication) and is enabled with --enable-hpke; it is also pulled in
+    by the TLS 1.3 Encrypted Client Hello (ECH) support, its main in-tree
+    consumer. Supported ciphersuites are the DHKEM P-256/P-384/P-521 and
+    X25519 KEMs, HKDF-SHA256/384/512 and AES-128-GCM / AES-256-GCM. An Hpke
+    structure is bound to one ciphersuite triple with wc_HpkeInit(); a
+    one-shot wc_HpkeSealBase() / wc_HpkeOpenBase() pair and a streaming
+    context API (wc_HpkeInitSealContext() / wc_HpkeContextSealBase() and the
+    matching open calls) are provided. See <wolfssl/wolfcrypt/hpke.h>.
     \defgroup ML_DSA Algorithms - ML-DSA (FIPS 204)
     ML-DSA (Module-Lattice-based Digital Signature Algorithm) is a
     quantum-resistant digital signature scheme standardized by NIST as
@@ -85,7 +98,7 @@
     one-time key destroys the security of the scheme.
 
     The number of signatures available from a key is bounded by the
-    parameter set; query the remaining count with
+    parameter set; check whether any remain with
     wc_LmsKey_SigsLeft().
 
     \defgroup XMSS Algorithms - XMSS / XMSS^MT (RFC 8391)
@@ -98,7 +111,7 @@
     one-time key destroys the security of the scheme.
 
     The number of signatures available from a key is bounded by the
-    parameter set; query the remaining count with
+    parameter set; check whether any remain with
     wc_XmssKey_SigsLeft().
 
     \defgroup ECCSI_Overview Overview of ECCSI
@@ -198,7 +211,7 @@
         -# wc_MakeSakkeKey(), wc_ExportSakkeKey(), wc_ExportSakkePublicKey() or
         -# wc_ImportSakkeKey()
       -# Wait for request:
-        -# Make an RSK base on ID for the client: wc_MakeSakkeRsk()
+        -# Make an RSK base on ID for the client: wc_MakeSakkeRsk_ex()
         -# Encode RSK for transfer to client: wc_EncodeSakkeRsk()
       -# Free SAKKE Key: wc_FreeSakkeKey()
 
@@ -259,7 +272,7 @@
     These operations make, validate, encode and decode a Receiver Secret Key (RSK).
 
     An RSK is required to derive an SSV (see wc_DeriveSakkeSSV()).\n
-    On the KMS, make an RSK (wc_MakeSakkeRsk()) from the client's ID.\n
+    On the KMS, make an RSK (wc_MakeSakkeRsk_ex()) from the client's ID.\n
     On the client, validate the RSK (wc_ValidateSakkeRsk()) with the ID.\n
     Encode the RSK (wc_EncodeSakkeRsk()) to pass to client or for storage.\n
     Decode the RSK (wc_DecodeSakkeRsk()) on the client when needed.\n
@@ -287,6 +300,22 @@
     \defgroup PKCS7 Algorithms - PKCS7
     \defgroup TSP Time-Stamp Protocol (RFC 3161)
     \defgroup PKCS11 Algorithms - PKCS11
+    \defgroup PKCS12 Algorithms - PKCS12
+    PKCS #12 (RFC 7292) defines the PFX bundle format, a single password
+    protected file that carries a private key together with its
+    certificate and any CA certificates in the chain. It is the format
+    behind the common .p12 and .pfx files. wolfCrypt support is enabled
+    with --enable-pkcs12 or by defining HAVE_PKCS12, and also requires
+    password based key derivation (--enable-pwdbased).
+
+    A bundle is read by allocating a WC_PKCS12 structure
+    (wc_PKCS12_new() or wc_PKCS12_new_ex()), decoding the DER into it
+    (wc_d2i_PKCS12() or wc_d2i_PKCS12_fp()), then verifying the MAC and
+    decrypting the contents with wc_PKCS12_parse(), which returns the
+    DER private key, the certificate, and optionally the CA chain.\n
+    A bundle is written by building the structure with
+    wc_PKCS12_create() and encoding it with wc_i2d_PKCS12().\n
+    See <wolfssl/wolfcrypt/pkcs12.h>.
     \defgroup Password Algorithms - Password Based
     \defgroup Poly1305 Algorithms - Poly1305
     \defgroup PUF Algorithms - PUF
@@ -302,6 +331,7 @@
     \defgroup Base_Encoding Base Encoding
     \defgroup CertManager CertManager API
     \defgroup Compression Compression
+    \defgroup DSP Hexagon DSP Offload
     \defgroup Error Error Reporting
     \defgroup IoTSafe IoT-Safe Module
     IoT-Safe (IoT-SIM Applet For Secure End-2-End Communication) is a technology that leverage the SIM as robust,
@@ -320,9 +350,32 @@
     \defgroup PSA Platform Security Architecture (PSA) API
     \defgroup Keys Key and Cert Conversion
     \defgroup Logging Logging
+    \defgroup OCSP OCSP API
     \defgroup Math Math API
     \defgroup Memory Memory Handling
+    \defgroup Atomic Atomic Operations
+    \defgroup Mutex Mutexes
+    \defgroup RwLock Read/Write Locks
+    \defgroup Threading Threads and Condition Variables
+    \defgroup String String Functions
+    \defgroup File File System Helpers
     \defgroup Random Random Number Generation
+    Makes the unguessable numbers used for keys and other secrets.  It
+    takes a little true randomness from an entropy source and stretches
+    it into as much output as you ask for.
+
+    When that source is wolfEntropy, see \ref wolfEntropy.
+
+    \defgroup wolfEntropy Entropy Source - wolfEntropy (MemUse)
+    Randomness has to start somewhere.  wolfEntropy gets it by timing
+    memory reads: each one takes a slightly different, unpredictable
+    amount of time, and those tiny differences are the raw material.
+    It watches its own output and returns an error rather than hand
+    back randomness that looks broken.
+
+    Turn it on with --enable-wolfEntropy.  Most code never calls these
+    functions; the random number generator (\ref Random) does it for
+    you.
     \defgroup Signature Signature API
     \defgroup openSSL OpenSSL API
     \defgroup wolfCrypt wolfCrypt Init and Cleanup
@@ -331,5 +384,6 @@
     \defgroup Setup wolfSSL Context and Session Set Up
     \defgroup IO wolfSSL Connection, Session, and I/O
     \defgroup Debug wolfSSL Error Handling and Reporting
+    \defgroup QUIC wolfSSL QUIC Support
     \defgroup STM32 STM32 Hardware Crypto Port
 */

@@ -351,6 +351,9 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
 #endif
     int           ret;
     int           validated      = 0;    /* ocsp validation flag */
+#ifndef NO_CERTS
+    Signer*       waivedTail     = NULL;
+#endif
 
     (void)heap;
 
@@ -377,9 +380,12 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     if (ssl != NULL && TLSX_CSR2_IsMulti(ssl->extensions)) {
         ocspResponse->pendingCAs = TLSX_CSR2_GetPendingSigners(ssl->extensions);
     }
-#else
-    (void)ssl;
 #endif
+#ifndef NO_CERTS
+    ocspResponse->pendingCAs = SslWaivedCAsJoin(ssl, ocspResponse->pendingCAs,
+                                                &waivedTail);
+#endif
+    (void)ssl;
     ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0, 0);
     if (ret != 0) {
         ocsp->error = ret;
@@ -414,6 +420,17 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     if (ret == 0) {
         validated = 1;
     }
+
+#ifndef NO_CERTS
+    /* A status reached through a signer only this connection trusts must not
+     * get into the manager-wide cache, otherwise later connections reuse it
+     * without trusting the signer. */
+    if (ocspResponse->pendingSigner) {
+        WOLFSSL_MSG("OCSP status not cached, signer is connection local");
+        status = NULL;
+        entry = NULL;
+    }
+#endif
 
     if (wc_LockMutex(&ocsp->ocspLock) != 0) {
         ret = BAD_MUTEX_E;
@@ -455,6 +472,9 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     wc_UnLockMutex(&ocsp->ocspLock);
 
 end:
+#ifndef NO_CERTS
+    SslWaivedCAsSplit(waivedTail);
+#endif
     if (ret == 0 && validated == 1) {
         WOLFSSL_MSG("New OcspResponse validated");
     }
@@ -730,10 +750,15 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     if (status != NULL)
         *status = single->status->status;
 #ifdef WOLFSSL_OCSP_PARSE_STATUS
-    if (thisupd != NULL)
-        *thisupd = &single->status->thisDateParsed;
-    if (nextupd != NULL)
-        *nextupd = &single->status->nextDateParsed;
+    /* NULL when the response has no such field, as with OpenSSL. */
+    if (thisupd != NULL) {
+        *thisupd = (single->status->thisDateParsed.length > 0) ?
+            &single->status->thisDateParsed : NULL;
+    }
+    if (nextupd != NULL) {
+        *nextupd = (single->status->nextDateParsed.length > 0) ?
+            &single->status->nextDateParsed : NULL;
+    }
 #else
     if (thisupd != NULL)
         *thisupd = NULL;
@@ -767,12 +792,50 @@ const char *wolfSSL_OCSP_cert_status_str(long s)
 int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
     WOLFSSL_ASN1_TIME* nextupd, long sec, long maxsec)
 {
+#ifndef NO_ASN_TIME
+    int ret = WOLFSSL_SUCCESS;
+    time_t now = wc_Time(0);
+    time_t cmp;
+
+    /* Same semantics as OpenSSL's OCSP_check_validity: sec is the allowed
+     * clock skew and maxsec, when non-negative, the maximum age of thisUpdate.
+     * wolfSSL_X509_cmp_time() returns 0 for a NULL or malformed time. */
+    if (sec < 0)
+        sec = 0;
+
+    cmp = now + sec;
+    if (wolfSSL_X509_cmp_time(thisupd, &cmp) != -1) {
+        WOLFSSL_MSG("OCSP thisUpdate missing, malformed or in the future");
+        ret = WOLFSSL_FAILURE;
+    }
+    else if (maxsec >= 0) {
+        cmp = now - maxsec;
+        if (wolfSSL_X509_cmp_time(thisupd, &cmp) != 1) {
+            WOLFSSL_MSG("OCSP thisUpdate is too old");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if ((ret == WOLFSSL_SUCCESS) && (nextupd != NULL)) {
+        cmp = now - sec;
+        if (wolfSSL_X509_cmp_time(nextupd, &cmp) != 1) {
+            WOLFSSL_MSG("OCSP nextUpdate has passed or is malformed");
+            ret = WOLFSSL_FAILURE;
+        }
+        else if (wolfSSL_ASN1_TIME_compare(nextupd, thisupd) < 0) {
+            WOLFSSL_MSG("OCSP nextUpdate precedes thisUpdate");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    return ret;
+#else
     (void)thisupd;
     (void)nextupd;
     (void)sec;
     (void)maxsec;
-    /* Dates validated in DecodeSingleResponse. */
     return WOLFSSL_SUCCESS;
+#endif /* !NO_ASN_TIME */
 }
 
 void wolfSSL_OCSP_CERTID_free(WOLFSSL_OCSP_CERTID* certId)
@@ -1228,22 +1291,37 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         goto error;
 
     if (resp->single != NULL) {
-        FreeOcspEntry(resp->single, NULL);
-        XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        OcspEntry* s = resp->single;
+
+        /* Release the whole SingleResponse chain, as
+         * wolfSSL_OCSP_RESPONSE_free() does. Every entry after the first was
+         * allocated by the previous decode and FreeOcspEntry() on its own
+         * only reaches the head. */
+        while (s != NULL) {
+            OcspEntry* sNext = s->next;
+
+            FreeOcspEntry(s, NULL);
+            XFREE(s, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+            s = sNext;
+        }
     }
     resp->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
                                       DYNAMIC_TYPE_OCSP_ENTRY);
     if (resp->single == NULL)
         goto error;
+    /* Zeroed before the next allocation can fail: the error path walks it. */
     XMEMSET(resp->single, 0, sizeof(OcspEntry));
     resp->single->status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
                                       DYNAMIC_TYPE_OCSP_STATUS);
     if (resp->single->status == NULL)
         goto error;
+    /* Leave the object in the state a fresh one is in. On reuse the response,
+     * cert, sig, sigParams and nonce references all pointed into the source
+     * buffer released above, and the new encoding need not set them again. */
+    InitOcspResponse(resp, resp->single, resp->single->status, resp->source,
+                     (word32)len, resp->heap);
     resp->single->ownStatus = 1;
-    XMEMSET(resp->single->status, 0, sizeof(CertStatus));
     XMEMCPY(resp->source, *data, (size_t)len);
-    resp->maxIdx = (word32)len;
 
     ret = OcspResponseDecode(resp, NULL, NULL, 1, 1);
     if (ret != 0 && ret != WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E)) {
@@ -1373,8 +1451,24 @@ int wolfSSL_i2d_OCSP_REQUEST(OcspRequest* request, unsigned char** data)
 WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     WOLFSSL_OCSP_CERTID *cid)
 {
+    byte* serial = NULL;
+
     if (req == NULL || cid == NULL || cid->status == NULL)
         return NULL;
+
+    /* Allocate before changing req so that it is unchanged on failure and the
+     * caller still owns cid. */
+    if (cid->status->serialSz > req->serialSz) {
+        serial = (byte*)XMALLOC((size_t)cid->status->serialSz,
+                req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        if (serial == NULL)
+            return NULL;
+    }
+
+    if (serial != NULL) {
+        XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        req->serial = serial;
+    }
 
     if (req->cid != NULL)
         wolfSSL_OCSP_CERTID_free((WOLFSSL_OCSP_CERTID*)req->cid);
@@ -1384,13 +1478,6 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     XMEMCPY(req->issuerHash, cid->issuerHash, WC_MAX_DIGEST_SIZE);
     XMEMCPY(req->issuerKeyHash, cid->issuerKeyHash, WC_MAX_DIGEST_SIZE);
     req->hashAlg = (int)cid->hashAlgoOID;
-    if (cid->status->serialSz > req->serialSz) {
-        XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
-        req->serial = (byte*)XMALLOC((size_t)cid->status->serialSz,
-                req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
-        if (req->serial == NULL)
-            return NULL;
-    }
     XMEMCPY(req->serial, cid->status->serial, (size_t)cid->status->serialSz);
     req->serialSz = cid->status->serialSz;
 
@@ -1636,10 +1723,15 @@ int wolfSSL_OCSP_single_get0_status(WOLFSSL_OCSP_SINGLERESP *single,
         return -1;
 
 #ifdef WOLFSSL_OCSP_PARSE_STATUS
-    if (thisupd != NULL)
-        *thisupd = &single->status->thisDateParsed;
-    if (nextupd != NULL)
-        *nextupd = &single->status->nextDateParsed;
+    /* NULL when the response has no such field, as with OpenSSL. */
+    if (thisupd != NULL) {
+        *thisupd = (single->status->thisDateParsed.length > 0) ?
+            &single->status->thisDateParsed : NULL;
+    }
+    if (nextupd != NULL) {
+        *nextupd = (single->status->nextDateParsed.length > 0) ?
+            &single->status->nextDateParsed : NULL;
+    }
 #else
     if (thisupd != NULL)
         *thisupd = NULL;
@@ -2085,44 +2177,20 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
 
     /* build up ASN1_INTEGER for serial */
     if (serial != NULL) {
-        int i = 0;
-        WOLFSSL_ASN1_INTEGER* ser;
-
-        ser = wolfSSL_ASN1_INTEGER_new();
-        if (ser == NULL)
-            return 0;
-
-        if (cid->status->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
-            /* allocate data buffer, +2 for type and length */
-            ser->data = (unsigned char*)XMALLOC((size_t)cid->status->serialSz + 2, NULL,
-                DYNAMIC_TYPE_OPENSSL);
-            if (ser->data == NULL) {
-                wolfSSL_ASN1_INTEGER_free(ser);
-                return 0;
-            }
-            ser->dataMax = (unsigned int)cid->status->serialSz + 2;
-            ser->isDynamic = 1;
+        if (cid->status->serialInt != NULL) {
+            *serial = cid->status->serialInt;
         } else {
-            /* Use array instead of dynamic memory */
-            ser->data    = ser->intData;
-            ser->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
+            WOLFSSL_ASN1_INTEGER* ser;
+
+            /* Same as wolfSSL_X509_get_serialNumber(): positive value. */
+            ser = wolfssl_asn1_integer_new_mag(cid->status->serial,
+                cid->status->serialSz);
+            if (ser == NULL)
+                return 0;
+
+            cid->status->serialInt = ser;
+            *serial = ser;
         }
-
-        #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-            /* Serial number starts at 0 index of ser->data */
-            XMEMCPY(&ser->data[i], cid->status->serial,
-                (size_t)cid->status->serialSz);
-            ser->length = cid->status->serialSz;
-        #else
-            ser->data[i++] = ASN_INTEGER;
-            i += SetLength(cid->status->serialSz, ser->data + i);
-            XMEMCPY(&ser->data[i], cid->status->serial,
-                (size_t)cid->status->serialSz);
-            ser->length = i + cid->status->serialSz;
-        #endif
-
-        cid->status->serialInt = ser;
-        *serial = ser;
     }
 
     /* Not needed for Apache, return error if user is requesting */
@@ -2187,7 +2255,7 @@ int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,
  *  2 - both nonces are absent
  *  3 - nonce only present in response
  * -1 - nonce only present in request
- *  0 - both nonces present and equal
+ *  0 - both nonces present and not equal
  */
 int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 {
@@ -2198,12 +2266,13 @@ int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 
     WOLFSSL_ENTER("wolfSSL_OCSP_check_nonce");
 
-    if (req != NULL) {
+    /* req->nonce is an array: presence is given by the size. */
+    if (req != NULL && req->nonceSz > 0) {
         reqNonce = req->nonce;
         reqNonceSz = req->nonceSz;
     }
 
-    if (bs != NULL) {
+    if (bs != NULL && bs->nonce != NULL && bs->nonceSz > 0) {
         rspNonce = bs->nonce;
         rspNonceSz = bs->nonceSz;
     }

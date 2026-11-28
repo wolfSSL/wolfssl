@@ -69,11 +69,12 @@ unsigned char get_byte_from_pool(void)
 int my_rng_generate_seed(unsigned char* output, int sz)
 {
     int i;
-    srand(get_byte_from_pool());
 
+    /* Use the pool bytes directly: the pool is the entropy source, and a
+     * libc PRNG stage would add nothing while risking entropy loss through
+     * non-random low-order bits. */
     for (i = 0; i < sz; i++) {
-        output[i] = (unsigned char) rand();
-        srand(get_byte_from_pool());
+        output[i] = get_byte_from_pool();
     }
 
     return 0;

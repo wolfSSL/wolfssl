@@ -229,7 +229,8 @@ int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     \return SSL_FAILURE If not successful.
 
     \param ctx structure to get cipher type from.
-    \param out buffer to hold output.
+    \param out buffer to hold output, at least inl plus the cipher block size
+    bytes. It must not overlap in.
     \param outl adjusted to be size of output.
     \param in buffer to perform operation on.
     \param inl length of input buffer.
@@ -237,7 +238,7 @@ int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     _Example_
     \code
     WOLFSSL_EVP_CIPHER_CTX* ctx = NULL;
-    unsigned char out[100];
+    unsigned char out[100 + EVP_MAX_BLOCK_LENGTH];
     int outl;
     unsigned char in[100];
     int inl = 100;

@@ -27,7 +27,7 @@
 #ifndef NO_PWDBASED
 
 #if FIPS_VERSION3_GE(6,0,0)
-       #ifdef USE_WINDOWS_API
+       #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
                #pragma code_seg(".fipsA$h")
                #pragma const_seg(".fipsB$h")
        #endif
@@ -37,6 +37,9 @@
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -80,6 +83,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     int iterations, int hashType, void* heap)
 {
     int  err;
+    int  freeErr;
     int  keyLeft, ivLeft, i;
     int  store;
     int  keyOutput = 0;
@@ -90,7 +94,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
     (void)heap;
 
-    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 || ivLen < 0){
+    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 ||
+        ivLen < 0 || (salt == NULL && saltLen > 0)){
         return BAD_FUNC_ARG;
     }
 
@@ -180,7 +185,10 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         }
     }
 
-    wc_HashFree(hash, hashT);
+    /* A failed wipe outranks an earlier error. */
+    freeErr = wc_HashFree(hash, hashT);
+    if (freeErr != 0)
+        err = freeErr;
 
     WC_FREE_VAR_EX(hash, heap, DYNAMIC_TYPE_HASHCTX);
 
@@ -224,6 +232,8 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     Hmac   hmac[1];
 #endif
     enum wc_HashType hashT;
+    byte*  outStart = output;
+    int    outLen = kLen;
 
     if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
@@ -254,6 +264,24 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
         WOLFSSL_MSG("PBKDF2 iteration count exceeds current_wc_pbkdf_max_iterations");
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    /* Validate the pointer/length pairs before dispatching so a registered
+     * device sees the same contract the software path enforces later via
+     * wc_HmacSetKey_ex()/wc_HmacUpdate(). NULL is allowed only for a
+     * zero-length input. */
+    if (output == NULL || (passwd == NULL && pLen > 0) ||
+            (salt == NULL && sLen > 0) || pLen < 0 || sLen < 0 || kLen < 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_Pbkdf2(output, passwd, pLen, salt, sLen, iterations,
+            kLen, hashType, devId);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     hashT = wc_HashTypeConvert(hashType);
     hLen = wc_HashGetDigestSize(hashT);
@@ -341,6 +369,10 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
         }
         wc_HmacFree(hmac);
     }
+    if (ret != 0) {
+        /* Partial output is not released (ISO/IEC 19790 7.9.7). */
+        ForceZero(outStart, (word32)outLen);
+    }
 
     ForceZero(buffer, (word32)hLen);
 #if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -371,6 +403,7 @@ static int DoPKCS12Hash(enum wc_HashType hashT, byte* buffer, word32 totalLen,
 {
     int i;
     int ret = 0;
+    int freeRet;
     WC_DECLARE_VAR(hash, wc_HashAlg, 1, 0);
 
     /* initialize hash */
@@ -390,7 +423,9 @@ static int DoPKCS12Hash(enum wc_HashType hashT, byte* buffer, word32 totalLen,
                 ret = wc_HashFinal(hash, hashT, Ai);
         }
 
-        wc_HashFree(hash, hashT);
+        freeRet = wc_HashFree(hash, hashT);
+        if (freeRet != 0)
+            ret = freeRet;
     }
 
     WC_FREE_VAR_EX(hash, NULL, DYNAMIC_TYPE_HASHCTX);
@@ -668,7 +703,9 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
                        const byte* salt, int saltLen, int iterations, int kLen,
                        int hashType, int id, void* heap)
 {
-    word32 u, v, pLen, iLen, sLen, totalLen;
+    word32 u, v, pLen, sLen;
+    word32 iLen = 0;
+    word32 totalLen = 0;
     /* nwc:     v / sizeof(PKCS12_WORD) - words per v-byte block
      *          (v is always a multiple of sizeof(PKCS12_WORD))
      * nBlocks: iLen / v - number of v-byte blocks in I */
@@ -908,6 +945,7 @@ static void scryptBlockMix(byte* b, byte* y, int r)
 {
 #ifdef WORD64_AVAILABLE
     word64  x[8];
+    word32  x32[16];
     word64* b64 = (word64*)b;
     word64* y64 = (word64*)y;
 #else
@@ -926,12 +964,15 @@ static void scryptBlockMix(byte* b, byte* y, int r)
 #ifdef WORD64_AVAILABLE
         for (j = 0; j < 8; j++)
             x[j] ^= b64[i * 8 + j];
-
+        /* C11 6.5p7: x is word64, so run the word32 Salsa on a word32 copy. */
+        XMEMCPY(x32, x, sizeof(x32));
+        scryptSalsa(x32, x32);
+        XMEMCPY(x, x32, sizeof(x));
 #else
         for (j = 0; j < 16; j++)
             x[j] ^= b32[i * 16 + j];
+        scryptSalsa(x, x);
 #endif
-        scryptSalsa((word32*)x, (word32*)x);
         XMEMCPY(y + i * 64, x, sizeof(x));
     }
     /* Step 3. */

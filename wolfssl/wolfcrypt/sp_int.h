@@ -291,8 +291,14 @@ extern "C" {
     #endif
 #endif
 
+/* SP_WORD_OCTETS: number of octets (8-bit units) in an SP digit.
+ * Use for counts of octets in encoded data (e.g. sp_read_unsigned_bin()),
+ * XALIGNED() and preprocessor conditionals - must be an integer literal.
+ * Not the size of a digit in memory where CHAR_BIT != 8 (e.g. TI C28x) - use
+ * sizeof(sp_int_digit) for memory operations (XMEMCPY, XMEMSET, ForceZero).
+ */
 #if SP_WORD_SIZE == 8
-    #define SP_WORD_SIZEOF 1
+    #define SP_WORD_OCTETS 1
 
     typedef   sp_uint8 sp_int_digit;
     typedef    sp_int8 sp_int_sdigit;
@@ -301,7 +307,7 @@ extern "C" {
 
     #define SP_MASK         0xffU
 #elif SP_WORD_SIZE == 16
-    #define SP_WORD_SIZEOF 2
+    #define SP_WORD_OCTETS 2
 
     typedef  sp_uint16 sp_int_digit;
     typedef   sp_int16 sp_int_sdigit;
@@ -310,7 +316,7 @@ extern "C" {
 
     #define SP_MASK         0xffffU
 #elif SP_WORD_SIZE == 32
-    #define SP_WORD_SIZEOF 4
+    #define SP_WORD_OCTETS 4
 
     typedef  sp_uint32 sp_int_digit;
     typedef   sp_int32 sp_int_sdigit;
@@ -319,7 +325,7 @@ extern "C" {
 
     #define SP_MASK         0xffffffffU
 #elif SP_WORD_SIZE == 64
-    #define SP_WORD_SIZEOF 8
+    #define SP_WORD_OCTETS 8
 
     typedef  sp_uint64 sp_int_digit;
     typedef   sp_int64 sp_int_sdigit;
@@ -332,6 +338,19 @@ extern "C" {
     #define SP_MASK         0xffffffffffffffffUL
 #else
     #error Word size not defined
+#endif
+
+/* SP_WORD_SIZEOF: deprecated, same as SP_WORD_OCTETS. Kept mainly for FIPS
+ * test code that is maintained outside of the wolfSSL repository and still uses
+ * it, and also for any user code that uses it.
+ * Only defined where a char is 8 bits, which means SP_WORD_OCTETS and
+ * sizeof(sp_int_digit) are the same. Not available when building wolfSSL
+ * itself - use SP_WORD_OCTETS for octet counts and sizeof(sp_int_digit) for
+ * memory operations.
+ */
+#if !defined(BUILDING_WOLFSSL) && (SP_UCHAR_BITS == 8) && \
+    !defined(SP_WORD_SIZEOF)
+    #define SP_WORD_SIZEOF SP_WORD_OCTETS
 #endif
 
 /* Define an SP digit. */
@@ -401,7 +420,16 @@ extern "C" {
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
 /* Non-blocking ECC operation context. */
 typedef struct sp_ecc_ctx {
+    #ifndef WOLFSSL_SP_SMALL
+    /* Large implementation: verify keeps a table of 33 points. */
     #ifdef WOLFSSL_SP_521
+    XALIGNED(4) byte data[66*340]; /* stack data */
+    #elif defined(WOLFSSL_SP_384)
+    XALIGNED(4) byte data[48*330]; /* stack data */
+    #else
+    XALIGNED(4) byte data[32*340]; /* stack data */
+    #endif
+    #elif defined(WOLFSSL_SP_521)
     XALIGNED(4) byte data[66*80]; /* stack data */
     #elif defined(WOLFSSL_SP_384)
     XALIGNED(4) byte data[48*80]; /* stack data */
@@ -522,6 +550,11 @@ typedef struct sp_dh_ctx {
             #define SP_INT_BITS     2048
         #endif
     #endif
+#endif
+/* settings.h cannot check a default chosen here. */
+#if defined(HAVE_FFDHE) && defined(MIN_FFDHE_BITS) && \
+    (MIN_FFDHE_BITS > SP_INT_BITS)
+    #error "FFDHE parameters are too large for SP_INT_BITS"
 #endif
 
 #ifndef SP_INT_DIGITS
@@ -735,7 +768,7 @@ typedef struct sp_dh_ctx {
  * @param  [in]  d  SP integer digit.
  * @return 0 indicating not negative always.
  */
-#define sp_isneg(a)      (0)
+#define sp_isneg(a)      0
 /* Sets the multi-precision number negative.
  *
  * Negative support not compiled in, so does nothing. */
@@ -962,7 +995,7 @@ while (0)
     #define WOLF_BIGINT_DEFINED
 #endif
 
-#if SP_INT_DIGITS < (65536 / SP_WORD_SIZEOF)
+#if SP_INT_DIGITS < (65536 / SP_WORD_OCTETS)
 /* Type for number of digits. */
 typedef word16       sp_size_t;
 #else
@@ -996,7 +1029,7 @@ typedef struct sp_int {
     struct WC_BIGINT raw;
 #endif
     /** Data of number.  */
-    XALIGNED(SP_WORD_SIZEOF) sp_int_digit dp[SP_INT_DIGITS];
+    XALIGNED(SP_WORD_OCTETS) sp_int_digit dp[SP_INT_DIGITS];
 } sp_int;
 
 typedef struct sp_int_minimal {
@@ -1013,7 +1046,7 @@ typedef struct sp_int_minimal {
     struct WC_BIGINT raw;
 #endif
     /** First digit of number.  */
-    XALIGNED(SP_WORD_SIZEOF) sp_int_digit dp[1];
+    XALIGNED(SP_WORD_OCTETS) sp_int_digit dp[1];
 } sp_int_minimal;
 
 /* MP_INT_SIZEOF_DIGITS() requires that sizeof(sp_int) is a multiple of
@@ -1119,7 +1152,7 @@ typedef sp_int_digit mp_digit;
 
     #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
         (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-         !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+         !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
         #define sp_div wc_sp_div
     #endif
     #define sp_mod wc_sp_mod
@@ -1130,6 +1163,7 @@ typedef sp_int_digit mp_digit;
     #define sp_invmod wc_sp_invmod
     #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
         #define sp_invmod_mont_ct wc_sp_invmod_mont_ct
+        #define sp_mont_mul_ct wc_sp_mont_mul_ct
     #endif
 
     #define sp_exptmod_ex wc_sp_exptmod_ex
@@ -1273,7 +1307,7 @@ MP_API int sp_rshb(const sp_int* a, int n, sp_int* r);
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_SP_INVMOD)
 MP_API int sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem);
 #endif
 MP_API int sp_mod(const sp_int* a, const sp_int* m, sp_int* r);
@@ -1286,6 +1320,8 @@ MP_API int sp_invmod(const sp_int* a, const sp_int* m, sp_int* r);
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 MP_API int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
     sp_int_digit mp);
+WOLFSSL_LOCAL int sp_mont_mul_ct(const sp_int* a, const sp_int* b,
+    const sp_int* m, sp_int_digit mp, sp_int* r);
 #endif
 
 MP_API int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits,
@@ -1418,6 +1454,7 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_mul                              sp_mul
 #define mp_invmod                           sp_invmod
 #define mp_invmod_mont_ct                   sp_invmod_mont_ct
+#define mp_mont_mul_ct                      sp_mont_mul_ct
 #define mp_exptmod_ex                       sp_exptmod_ex
 #define mp_exptmod_nct                      sp_exptmod_nct
 #define mp_div_2d                           sp_div_2d

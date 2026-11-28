@@ -55,7 +55,7 @@ WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
 {
     WOLFSSL_STACK* node;
 
-    WOLFSSL_ENTER("wolfSSL_sk_new_node");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_new_node");
 
     node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
         DYNAMIC_TYPE_OPENSSL);
@@ -85,7 +85,7 @@ void wolfSSL_sk_free_node(WOLFSSL_STACK* node)
 }
 #endif
 
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
 /* Gets the node from stack at the index.
  *
  * @param [in] stack  Stack of nodes.
@@ -110,11 +110,10 @@ WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* stack, int idx)
 
     return ret;
 }
-#endif /* !NO_CERT && OPENSSL_EXTRA*/
+#endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
-#ifndef NO_CERTS
 /* Get data pointer from node.
  *
  * @param [in] node       Node to get data from.
@@ -166,6 +165,7 @@ static void* wolfssl_sk_node_get_data(WOLFSSL_STACK* node, int no_static)
  * @param [in]      type  Type of data.
  * @param [in]      data  Data to set.
  */
+WC_NO_SANITIZE_FUNCTION
 static void wolfssl_sk_node_set_data(WOLFSSL_STACK* node, WOLF_STACK_TYPE type,
     const void* data)
 {
@@ -337,7 +337,6 @@ void* wolfSSL_sk_pop_node(WOLFSSL_STACK* stack, int idx)
 
     return ret;
 }
-#endif /* NO_CERTS */
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 /*******************************************************************************
@@ -596,7 +595,7 @@ WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* stack)
  */
 void wolfSSL_sk_free(WOLFSSL_STACK* stack)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_free");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_free");
 
     while (stack != NULL) {
         WOLFSSL_STACK* next = stack->next;
@@ -689,9 +688,8 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
 }
 #endif
 
-#if (!defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
-     defined(WOLFSSL_WPAS_SMALL))) || defined(WOLFSSL_QT) || \
-     defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 /* Put the data into a node at the end of the list.
  *
  * @param [in, out] stack  Stack of objects.
@@ -702,7 +700,7 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
  */
 int wolfSSL_sk_push(WOLFSSL_STACK* stack, const void *data)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_push");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_push");
 
     return wolfSSL_sk_insert(stack, data, -1);
 }
@@ -719,7 +717,7 @@ int wolfSSL_sk_insert(WOLFSSL_STACK *stack, const void *data, int idx)
 {
     int ret;
     WOLFSSL_STACK* node;
-    WOLFSSL_ENTER("wolfSSL_sk_insert");
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_sk_insert");
 
     /* Validate parameters. */
     if (stack == NULL) {
@@ -787,8 +785,7 @@ int wolfSSL_sk_insert(WOLFSSL_STACK *stack, const void *data, int idx)
 }
 #endif
 
-#if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
-    defined(WOLFSSL_WPAS_SMALL))
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Remove the top node from the stack and return its data.
  *
  * @param [in, out] stack  Stack of nodes with data.
@@ -802,9 +799,23 @@ void* wolfSSL_sk_pop(WOLFSSL_STACK* stack)
     return wolfSSL_sk_pop_node(stack, -1);
 }
 
-#endif /* !NO_CERTS && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
+/* Remove the node at an index from the stack and return its data.
+ *
+ * @param [in, out] stack  Stack of nodes with data.
+ * @param [in]      idx    Index of node to remove.
+ * @return  Data in removed node on success.
+ * @return  NULL when stack is NULL or index is out of range.
+ */
+void* wolfSSL_sk_delete(WOLFSSL_STACK* stack, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_delete");
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+    if ((stack == NULL) || (idx < 0) || ((unsigned long)idx >= stack->num))
+        return NULL;
+
+    return wolfSSL_sk_pop_node(stack, idx);
+}
+
 /* Pop off data from the stack. Checks that the type matches the stack type.
  *
  * This is an internal API.
@@ -952,6 +963,7 @@ static wolfSSL_sk_freefunc wolfssl_sk_get_free_func(WOLF_STACK_TYPE type)
  * @param [in, out] sk    Stack of objects.
  * @param [in]      func  Function to use to free objects.
  */
+WC_NO_SANITIZE_FUNCTION
 void wolfSSL_sk_pop_free(WOLFSSL_STACK* stack, wolfSSL_sk_freefunc func)
 {
     WOLFSSL_ENTER("wolfSSL_sk_pop_free");
@@ -1206,8 +1218,6 @@ void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
     wolfSSL_sk_free(sk);
 }
 
-/* Guard matches wolfSSL_sk_pop_node and wolfSSL_sk_SSL_CIPHER_num/_value. */
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
 /* Remove the cipher at the given index from the stack.
  *
  * Ownership differs from OpenSSL. A cipher stack node stores the cipher by
@@ -1252,7 +1262,6 @@ WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_delete(
 
     return ret;
 }
-#endif /* OPENSSL_EXTRA && !NO_CERTS */
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 /*******************************************************************************
@@ -1313,7 +1322,7 @@ int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
  * Stack - Linear Hash
  ******************************************************************************/
 
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL)
 /* Retrieve data from the stack by comparing with hash.
  *
  * @param [in] stack  Stack of data.
@@ -1321,6 +1330,7 @@ int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
  * @return  Data of node with the same hash as data passed in.
  * @return  NULL when no match found.
  */
+WC_NO_SANITIZE_FUNCTION
 void *wolfSSL_lh_retrieve(WOLFSSL_STACK *stack, void *data)
 {
     unsigned long hash;
@@ -1361,6 +1371,6 @@ void *wolfSSL_lh_retrieve(WOLFSSL_STACK *stack, void *data)
 
     return sk_data;
 }
-#endif /* !NO_CERTS && OPENSSL_EXTRA && OPENSSL_ALL */
+#endif /* OPENSSL_EXTRA && OPENSSL_ALL */
 
 #endif /* !WOLFSSL_SSL_SK_INCLUDED */

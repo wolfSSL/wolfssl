@@ -34,6 +34,7 @@
 #include <tests/api/api.h>
 #include <tests/api/test_certman.h>
 #include <tests/utils.h>
+#include <testsuite/utils.h>
 
 int test_wolfSSL_CertManagerAPI(void)
 {
@@ -441,11 +442,9 @@ int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 #elif defined(NO_RSA)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E));
-#elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS && \
-        WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && !defined(NO_ASN_TIME) && \
-      defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
-    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
 #else
+    /* The flag applies to the trusted-peer copy loaded for OpenSSL
+     * compatibility too: no date re-check. */
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
 
@@ -1645,9 +1644,15 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
      * constraint, so these names are themselves unconstrained. */
     static const byte rid_dummy[] = { 0x2A, 0x03, 0x04 };  /* OID 1.2.3.4 */
     static const byte ip_dummy[]  = { 203, 0, 113, 7 };
+    /* CNs that hostname verification can match although they hold no '.'
+     * or are IP literals; each is outside the permitted dNSName subtrees. */
+    static const char* const hostCns[] = {
+        "localhost", "intranet", "2001:db8::1", "*"
+    };
 
     byte    *der = NULL;
     int     derSz;
+    int     i;
     byte    *pt;
     WOLFSSL_X509 *x509 = NULL;
     WOLFSSL_X509 *ca = NULL;
@@ -1739,6 +1744,36 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
                 WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
     wolfSSL_X509_free(x509);
     x509 = NULL;
+
+    /* Negative cases: leaf with no SAN and a single-label, IPv6 or lone
+     * wildcard CN. Each stays subject to the DNS constraints. */
+    for (i = 0; i < (int)(sizeof(hostCns) / sizeof(hostCns[0])); i++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                    WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+        ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        name = NULL;
+
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName",
+                    MBSTRING_UTF8, (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)hostCns[i],
+                    (int)XSTRLEN(hostCns[i]), -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        X509_NAME_free(name);
+        name = NULL;
+
+        ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+        ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                    WOLFSSL_FILETYPE_ASN1),
+                    WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
 
     /* Positive case: leaf with an in-scope CN and no SAN. */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
@@ -1839,6 +1874,98 @@ int test_wolfSSL_CertManagerNameConstraint_DNS_CN(void)
 
     wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(ca);
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wolfSSL_CertManagerNameConstraint_EmptyDNS(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* CA (cert-ext-nc-empty-dns.der) has excluded;DNS: with a zero-length
+     * base, which covers every DNS name (RFC 5280 4.2.1.10). */
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_EVP_PKEY *priv = NULL;
+    WOLFSSL_X509_NAME* name = NULL;
+    const char* ca_cert = "./certs/test/cert-ext-nc-empty-dns.der";
+    const char* server_cert = "./certs/test/server-goodcn.pem";
+    /* Leaf subject CN, SAN to add (NULL for none), SAN type and result. */
+    static const struct {
+        const char* cn;
+        const char* san;
+        int         sanType;
+        int         expect;
+    } cases[] = {
+        { "John Doe",        "user@wolfssl.com", ASN_RFC822_TYPE,
+          WOLFSSL_SUCCESS },
+        { "John Doe",        NULL,               0,
+          WOLFSSL_SUCCESS },
+        { "John Doe",        "www.wolfssl.com",  ASN_DNS_TYPE,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) },
+        { "www.wolfssl.com", NULL,               0,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) },
+        { "localhost",       NULL,               0,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) },
+        { "2001:db8::1",     NULL,               0,
+          WC_NO_ERR_TRACE(ASN_NAME_INVALID_E) }
+    };
+    byte    *der = NULL;
+    int     derSz;
+    int     i;
+    byte    *pt;
+    WOLFSSL_X509 *x509 = NULL;
+    WOLFSSL_X509 *ca = NULL;
+
+    pt = (byte*)server_key_der_2048;
+    ExpectNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    /* The CA itself must load in both ASN decoders. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
+                WOLFSSL_FILETYPE_ASN1));
+    ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                    WOLFSSL_FILETYPE_PEM));
+        ExpectNotNull(name = wolfSSL_X509_get_subject_name(ca));
+        ExpectIntEQ(wolfSSL_X509_set_issuer_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        name = NULL;
+
+        ExpectNotNull(name = X509_NAME_new());
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "countryName",
+                    MBSTRING_UTF8, (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (const byte*)cases[i].cn,
+                    (int)XSTRLEN(cases[i].cn), -1, 0), SSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_set_subject_name(x509, name),
+                    WOLFSSL_SUCCESS);
+        X509_NAME_free(name);
+        name = NULL;
+
+        if (cases[i].san != NULL) {
+            ExpectIntEQ(wolfSSL_X509_add_altname(x509, cases[i].san,
+                        cases[i].sanType), WOLFSSL_SUCCESS);
+        }
+        ExpectIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+        ExpectNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+        ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                    WOLFSSL_FILETYPE_ASN1), cases[i].expect);
+        wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
+
+    wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(ca);
     wolfSSL_EVP_PKEY_free(priv);
 #endif
@@ -2515,6 +2642,272 @@ int test_wolfSSL_CertManagerCRL(void)
     return EXPECT_RESULT();
 }
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+/* 2021-01-01, before the test certs are valid, before the CRL expires. */
+#define TEST_CM_CRL_BEFORE_NOTBEFORE 1609459200L
+
+/* 2037-12-31, after the test certs and the CRL expire, and before a 32-bit
+ * time_t runs out. */
+#define TEST_CM_CRL_AFTER_NEXTUPDATE 2145830400L
+
+static time_t test_cm_crl_out_of_date_now;
+
+static time_t test_cm_crl_out_of_date_time_cb(time_t* t)
+{
+    if (t != NULL)
+        *t = test_cm_crl_out_of_date_now;
+    return test_cm_crl_out_of_date_now;
+}
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+static int test_cm_crl_error_queued(int err)
+{
+    unsigned long e;
+    int found = 0;
+
+    while ((e = wolfSSL_ERR_get_error()) != 0) {
+        if (e == (unsigned long)-err)
+            found = 1;
+    }
+    return found;
+}
+#endif
+#endif
+
+int test_wolfSSL_CertManagerCheckCRL_out_of_date(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* crl_revoked = "./certs/crl/crl.revoked";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl_revoked,
+        WOLFSSL_FILETYPE_PEM), 1);
+
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    /* Backwards, so the cert is not yet valid but the CRL is still current. */
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+    /* A revocation question must not be answered with a date error. */
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    /* Forwards, so the CRL has expired too and must not hide behind the
+     * waivable date error. */
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_AFTER_NEXTUPDATE;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    wolfSSL_ERR_clear_error();
+#endif
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    ExpectIntEQ(test_cm_crl_error_queued(WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)),
+        1);
+#endif
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR));
+    wc_SetTimeCb(NULL);
+
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+    /* With no CRL loaded the date error stays, as CRL_MISSING may be waived
+     * as well. */
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    wolfSSL_ERR_clear_error();
+#endif
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E));
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
+    ExpectIntEQ(test_cm_crl_error_queued(WC_NO_ERR_TRACE(CRL_MISSING)), 1);
+#endif
+    wc_SetTimeCb(NULL);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    defined(HAVE_CRL_IO) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+static int test_cm_crl_would_block_err_calls;
+
+static int test_cm_crl_would_block_io_cb(WOLFSSL_CRL* crl, const char* url,
+    int urlSz)
+{
+    (void)crl;
+    (void)url;
+    (void)urlSz;
+    return WOLFSSL_CBIO_ERR_WANT_READ;
+}
+
+static int test_cm_crl_would_block_err_cb(int ret, WOLFSSL_CRL* crl,
+    WOLFSSL_CERT_MANAGER* cm, void* ctx)
+{
+    (void)crl;
+    (void)cm;
+    (void)ctx;
+    test_cm_crl_would_block_err_calls++;
+    return ret == WC_NO_ERR_TRACE(CRL_MISSING);
+}
+#endif
+
+/* A synchronous check cannot retry a fetch that would block, so it treats the
+ * CRL as missing, which the CRL error callback may waive. */
+int test_wolfSSL_CertManagerCheckCRL_would_block(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    defined(HAVE_CRL_IO) && defined(WOLFSSL_NONBLOCK_OCSP) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, "./certs/ca-cert.pem", NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_IOCb(cm,
+        test_cm_crl_would_block_io_cb), 1);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(CRL_MISSING));
+
+    test_cm_crl_would_block_err_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerSetCRL_ErrorCb(cm,
+        test_cm_crl_would_block_err_cb, NULL), 1);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), 1);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), 1);
+    ExpectIntEQ(test_cm_crl_would_block_err_calls, 2);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+static int test_cm_crl_date_cb_waive;
+static int test_cm_crl_date_cb_seen[2];
+static int test_cm_crl_date_cb_calls;
+
+static int test_cm_crl_date_verify_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+    if (preverify)
+        return preverify;
+    if (test_cm_crl_date_cb_calls < 2)
+        test_cm_crl_date_cb_seen[test_cm_crl_date_cb_calls] = store->error;
+    test_cm_crl_date_cb_calls++;
+    return test_cm_crl_date_cb_calls <= test_cm_crl_date_cb_waive;
+}
+#endif
+
+int test_wolfSSL_CertManagerVerify_crl_date_callback(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, "./certs/ca-cert.pem", NULL),
+        1);
+    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK), 1);
+    wolfSSL_CertManagerSetVerify(cm, test_cm_crl_date_verify_cb);
+    test_cm_crl_out_of_date_now = (time_t)TEST_CM_CRL_BEFORE_NOTBEFORE;
+    ExpectIntEQ(wc_SetTimeCb(test_cm_crl_out_of_date_time_cb), 0);
+
+    /* Waiving the date error leaves the missing CRL for the callback. */
+    test_cm_crl_date_cb_waive = 1;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_MISSING));
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 2);
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+    ExpectIntEQ(test_cm_crl_date_cb_seen[0],
+        WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E));
+    ExpectIntEQ(test_cm_crl_date_cb_seen[1], WC_NO_ERR_TRACE(CRL_MISSING));
+#endif
+
+    test_cm_crl_date_cb_waive = 2;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 2);
+
+    /* Rejecting the date error returns the revocation, as without a
+     * callback. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, "./certs/crl/crl.revoked",
+        WOLFSSL_FILETYPE_PEM), 1);
+    test_cm_crl_date_cb_waive = 0;
+    test_cm_crl_date_cb_calls = 0;
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    ExpectIntEQ(test_cm_crl_date_cb_calls, 1);
+    wolfSSL_CertManagerSetVerify(cm, NULL);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+
+    wc_SetTimeCb(NULL);
+    wolfSSL_CertManagerFree(cm);
+    cm = NULL;
+
+#if !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(WOLFSSL_PEM_TO_DER)
+    {
+        WOLFSSL_CTX* ctx = NULL;
+
+        /* A certificate whose load error the callback waives is not
+         * checked against a CRL, like any other certificate load. */
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx,
+            "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 4096), WOLFSSL_SUCCESS);
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+        if (ctx != NULL) {
+            wolfSSL_CertManagerSetVerify(wolfSSL_CTX_GetCertManager(ctx),
+                test_cm_crl_date_verify_cb);
+        }
+        test_cm_crl_date_cb_waive = 1;
+        test_cm_crl_date_cb_calls = 0;
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx,
+            "./certs/server-cert.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_cm_crl_date_cb_calls, 1);
+        wolfSSL_CTX_free(ctx);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_CRL_reason_extensions_cleanup(void)
 {
     EXPECT_DECLS;
@@ -2702,6 +3095,170 @@ int test_wolfSSL_CRL_static_revoked_list_dup(void)
 
     wolfSSL_X509_CRL_free(dupl);
     wolfSSL_X509_CRL_free(crl);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(CRL_STATIC_REVOKED_LIST) && defined(HAVE_CRL) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_BIO)
+/* Length of the revoked cert chain, or -1 if it leaves the used part of the
+ * CRL's own array or visits it out of order. */
+static int crl_static_chain_len(const WOLFSSL_X509_CRL* crl)
+{
+    const CRL_Entry* entry;
+    const RevokedCert* rc;
+    int n = 0;
+
+    if (crl == NULL || crl->crlList == NULL) {
+        return -1;
+    }
+    entry = crl->crlList;
+
+    for (rc = (entry->totalCerts > 0) ? entry->certs : NULL; rc != NULL;
+            rc = rc->next) {
+        if (n >= entry->totalCerts || rc != &entry->certs[n]) {
+            return -1;
+        }
+        n++;
+    }
+
+    return n;
+}
+#endif
+
+int test_wolfSSL_CRL_static_revoked_list_add(void)
+{
+    EXPECT_DECLS;
+#if defined(CRL_STATIC_REVOKED_LIST) && defined(HAVE_CRL) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && !defined(NO_BIO)
+    XFILE fp = XBADFILE;
+    WOLFSSL_X509_CRL* crl = NULL;
+    WOLFSSL_X509_CRL* decoded = NULL;
+    WOLFSSL_X509_CRL* empty = NULL;
+    WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_X509_CRL* copy = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_REVOKED)* sk = NULL;
+    WOLFSSL_X509_REVOKED rev;
+    WOLFSSL_ASN1_INTEGER sn;
+    unsigned char* der = NULL;
+    byte serial[1];
+    int derSz = 0;
+    int base = 0;
+    int i;
+
+    XMEMSET(&rev, 0, sizeof(rev));
+    XMEMSET(&sn, 0, sizeof(sn));
+    sn.data = serial;
+    sn.dataMax = sizeof(serial);
+    sn.length = sizeof(serial);
+    rev.serialNumber = &sn;
+
+    ExpectTrue((fp = XFOPEN("./certs/ca-key.pem", "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectNotNull(pkey = wolfSSL_PEM_read_PrivateKey(fp, NULL, NULL, NULL));
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    /* Start from a parsed CRL since only those carry the issuer hash that
+     * the revocation lookup below matches on. */
+    ExpectTrue((fp = XFOPEN("./certs/crl/crl.pem", "rb")) != XBADFILE);
+    if (fp != XBADFILE) {
+        ExpectNotNull(crl = wolfSSL_PEM_read_X509_CRL(fp, NULL, NULL, NULL));
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+    ExpectNotNull(crl != NULL ? crl->crlList : NULL);
+    if (crl != NULL && crl->crlList != NULL) {
+        base = crl->crlList->totalCerts;
+    }
+    ExpectIntLE(base + 2, CRL_MAX_REVOKED_CERTS);
+    ExpectIntEQ(crl_static_chain_len(crl), base);
+
+    /* Add out of order. server-cert.pem has serial 01, which binary search
+     * misses when it is left after 05 in an unsorted array. */
+    serial[0] = 0x05;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev), WOLFSSL_SUCCESS);
+    serial[0] = 0x01;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev), WOLFSSL_SUCCESS);
+    ExpectIntEQ(crl_static_chain_len(crl), base + 2);
+
+    /* A copy has to be chained through its own array. */
+    ExpectNotNull(copy = wolfSSL_X509_CRL_dup(crl));
+    ExpectIntEQ(crl_static_chain_len(copy), base + 2);
+    wolfSSL_X509_CRL_free(copy);
+
+    /* Every entry of the array is visible through the accessors. */
+    ExpectNotNull(sk = wolfSSL_X509_CRL_get_REVOKED(crl));
+    ExpectIntEQ(wolfSSL_sk_num(sk), base + 2);
+
+    ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_CRL_print(bio, crl), WOLFSSL_SUCCESS);
+    wolfSSL_BIO_free(bio);
+
+    /* Signing must encode every entry of the array, not just the first. */
+    ExpectIntEQ(wolfSSL_X509_CRL_sign(crl, pkey, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_CRL(crl, &der), 0);
+    ExpectNotNull(decoded = wolfSSL_d2i_X509_CRL(NULL, der, derSz));
+    ExpectIntEQ((decoded != NULL && decoded->crlList != NULL) ?
+        decoded->crlList->totalCerts : 0, base + 2);
+    wolfSSL_X509_CRL_free(decoded);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+
+    /* The store copies the entry as is, so this exercises the array built by
+     * wolfSSL_X509_CRL_add_revoked rather than a re-parsed and sorted one. */
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(store != NULL ? store->cm : NULL,
+        "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_add_crl(store, crl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(store != NULL ? store->cm : NULL,
+        server_cert_der_2048, sizeof_server_cert_der_2048),
+        WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+    wolfSSL_X509_STORE_free(store);
+
+    /* Fill the array, then one more must fail. Run under ASan or valgrind
+     * to catch the entry being leaked on that path. */
+    for (i = base + 2; i < CRL_MAX_REVOKED_CERTS; i++) {
+        serial[0] = (byte)(0x10 + (i % 0xF0));
+        ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev), WOLFSSL_SUCCESS);
+    }
+    serial[0] = 0x0F;
+    ExpectIntEQ(wolfSSL_X509_CRL_add_revoked(crl, &rev),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ((crl != NULL && crl->crlList != NULL) ?
+        crl->crlList->totalCerts : 0, CRL_MAX_REVOKED_CERTS);
+
+    /* An empty array must not be encoded as one zeroed entry. */
+    ExpectNotNull(empty = wolfSSL_X509_CRL_new());
+    /* Nor walked as one zeroed entry by the accessor. The stack is cached in
+     * the CRL and released with it. */
+    ExpectNotNull(sk = wolfSSL_X509_CRL_get_REVOKED(empty));
+    ExpectIntEQ(wolfSSL_sk_num(sk), 0);
+    ExpectIntEQ(wolfSSL_X509_CRL_set_issuer_name(empty,
+        wolfSSL_X509_CRL_get_issuer_name(crl)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_CRL_sign(empty, pkey, wolfSSL_EVP_sha256()),
+        WOLFSSL_SUCCESS);
+    ExpectIntGT(derSz = wolfSSL_i2d_X509_CRL(empty, &der), 0);
+    decoded = NULL;
+    ExpectNotNull(decoded = wolfSSL_d2i_X509_CRL(NULL, der, derSz));
+    ExpectIntEQ((decoded != NULL && decoded->crlList != NULL) ?
+        decoded->crlList->totalCerts : -1, 0);
+    wolfSSL_X509_CRL_free(decoded);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    wolfSSL_X509_CRL_free(empty);
+    wolfSSL_X509_CRL_free(crl);
+    wolfSSL_EVP_PKEY_free(pkey);
 #endif
     return EXPECT_RESULT();
 }
@@ -2946,6 +3503,511 @@ int test_wolfSSL_CRL_critical_idp(void)
         sizeof(crl_caonly_idp), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_CRL) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(OPENSSL_EXTRA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    #ifndef NO_SKID
+        #define TEST_CRL_CROSS_CA_AKID
+    #endif
+    #if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+        !defined(NO_WOLFSSL_DIR)
+        #define TEST_CRL_UNVERIFIED_NO_EVICT
+    #endif
+#endif
+
+#if defined(TEST_CRL_CROSS_CA_AKID) || defined(TEST_CRL_UNVERIFIED_NO_EVICT)
+/* Trusted CA "crl-test-ca-a", self-signed, keyCertSign + cRLSign. */
+static const unsigned char crl_test_ca_a[] = {
+        0x30, 0x82, 0x03, 0x21, 0x30, 0x82, 0x02, 0x09, 0xa0, 0x03, 0x02,
+        0x01, 0x02, 0x02, 0x14, 0x7e, 0xad, 0x8c, 0x50, 0xec, 0xd2, 0x0e,
+        0xe3, 0xcf, 0x15, 0x6f, 0x48, 0x89, 0x19, 0xba, 0xe5, 0x46, 0x13,
+        0xec, 0xc6, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
+        0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00, 0x30, 0x18, 0x31, 0x16, 0x30,
+        0x14, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0d, 0x63, 0x72, 0x6c,
+        0x2d, 0x74, 0x65, 0x73, 0x74, 0x2d, 0x63, 0x61, 0x2d, 0x61, 0x30,
+        0x1e, 0x17, 0x0d, 0x32, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x30, 0x5a, 0x17, 0x0d, 0x34, 0x36, 0x30, 0x31,
+        0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a, 0x30, 0x18,
+        0x31, 0x16, 0x30, 0x14, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0d,
+        0x63, 0x72, 0x6c, 0x2d, 0x74, 0x65, 0x73, 0x74, 0x2d, 0x63, 0x61,
+        0x2d, 0x61, 0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a,
+        0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03,
+        0x82, 0x01, 0x0f, 0x00, 0x30, 0x82, 0x01, 0x0a, 0x02, 0x82, 0x01,
+        0x01, 0x00, 0xc0, 0x6b, 0x66, 0x66, 0x08, 0x4a, 0x0a, 0xec, 0x0c,
+        0x04, 0xcb, 0x7b, 0x7b, 0x81, 0xef, 0xdb, 0x0c, 0xab, 0x23, 0x24,
+        0xa6, 0xdb, 0x72, 0xb2, 0xad, 0xa9, 0x59, 0x0e, 0x40, 0x87, 0x6e,
+        0x9a, 0x0f, 0xa3, 0xf6, 0x3d, 0x56, 0x7a, 0x30, 0x3a, 0x01, 0xe3,
+        0x95, 0x3f, 0x36, 0x83, 0x0d, 0xb7, 0x35, 0xde, 0xcf, 0xcb, 0x34,
+        0x5b, 0x3d, 0x69, 0xbc, 0xde, 0x56, 0x0c, 0x2e, 0x76, 0x18, 0xc0,
+        0xee, 0xfb, 0x74, 0x2d, 0x4b, 0xd7, 0x7d, 0x6b, 0xd7, 0x14, 0x02,
+        0xda, 0xe6, 0x73, 0x65, 0x6f, 0xfb, 0x4a, 0x3a, 0xa1, 0x76, 0xb5,
+        0x22, 0xcf, 0x44, 0x4c, 0x51, 0x70, 0x9e, 0x3c, 0x43, 0xcb, 0xaf,
+        0xb5, 0x7a, 0x0f, 0xa2, 0x29, 0x5f, 0xaf, 0x56, 0x9c, 0x5b, 0xa3,
+        0x80, 0x27, 0x7d, 0x31, 0x68, 0x13, 0x5b, 0x80, 0x4a, 0x67, 0x87,
+        0xd6, 0xa3, 0x3f, 0x3d, 0x58, 0x58, 0x1c, 0x90, 0xa2, 0xa3, 0x8b,
+        0x80, 0xf9, 0xdc, 0x63, 0x98, 0x69, 0x1f, 0x5b, 0xb3, 0xb5, 0x05,
+        0x69, 0xe0, 0x0e, 0x7d, 0xbc, 0xb4, 0x40, 0x57, 0xb2, 0x4f, 0x5f,
+        0x1d, 0x2d, 0x46, 0xc1, 0x95, 0xd7, 0x5d, 0x21, 0xd9, 0x35, 0xa7,
+        0xed, 0xa7, 0x07, 0x54, 0x7d, 0xf7, 0x8f, 0x56, 0x0d, 0x59, 0x09,
+        0xc1, 0x25, 0x43, 0xa8, 0x49, 0x49, 0xa8, 0x54, 0x71, 0xe6, 0xb0,
+        0x46, 0x9e, 0x20, 0x77, 0x37, 0x8d, 0x2d, 0x5d, 0x0a, 0x9d, 0x39,
+        0x82, 0x47, 0x68, 0x17, 0x7a, 0x87, 0xd9, 0x57, 0xb4, 0xa1, 0x2b,
+        0xbd, 0xb7, 0x3b, 0xa8, 0x32, 0x73, 0xa1, 0x6b, 0xc4, 0xbe, 0x6e,
+        0xee, 0xc3, 0xc0, 0xde, 0x2c, 0x09, 0xd0, 0x40, 0xff, 0x0b, 0x87,
+        0xd8, 0x9e, 0x9d, 0x72, 0xc9, 0x3a, 0x91, 0x1d, 0x3c, 0xcc, 0x31,
+        0x8b, 0x50, 0x5c, 0x10, 0xbf, 0xa1, 0x97, 0xc0, 0x65, 0x9c, 0xae,
+        0xd0, 0xd9, 0x20, 0x2b, 0xc3, 0x02, 0x03, 0x01, 0x00, 0x01, 0xa3,
+        0x63, 0x30, 0x61, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04,
+        0x18, 0x30, 0x16, 0x80, 0x14, 0x16, 0x20, 0x5d, 0x43, 0x64, 0x9c,
+        0xed, 0xc6, 0x95, 0x92, 0xa4, 0xc6, 0x28, 0xdc, 0x1a, 0x06, 0x7f,
+        0x01, 0x84, 0x0e, 0x30, 0x0f, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x01,
+        0x01, 0xff, 0x04, 0x05, 0x30, 0x03, 0x01, 0x01, 0xff, 0x30, 0x0e,
+        0x06, 0x03, 0x55, 0x1d, 0x0f, 0x01, 0x01, 0xff, 0x04, 0x04, 0x03,
+        0x02, 0x01, 0x06, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04,
+        0x16, 0x04, 0x14, 0x16, 0x20, 0x5d, 0x43, 0x64, 0x9c, 0xed, 0xc6,
+        0x95, 0x92, 0xa4, 0xc6, 0x28, 0xdc, 0x1a, 0x06, 0x7f, 0x01, 0x84,
+        0x0e, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x01, 0x0b, 0x05, 0x00, 0x03, 0x82, 0x01, 0x01, 0x00, 0xb9,
+        0xed, 0xac, 0x74, 0x75, 0x54, 0xf8, 0x51, 0xca, 0xdb, 0x48, 0xfd,
+        0x68, 0xff, 0x97, 0x6e, 0x49, 0x6e, 0x4c, 0xd0, 0x7a, 0xaa, 0x7a,
+        0xb2, 0x6c, 0x5a, 0x5c, 0xf9, 0x2b, 0x41, 0xfc, 0xcf, 0x30, 0xe5,
+        0xc5, 0x81, 0x6e, 0x27, 0xd7, 0x37, 0x59, 0xc1, 0x89, 0x10, 0x12,
+        0x4f, 0x48, 0x8f, 0x2b, 0xf6, 0xf6, 0x39, 0x00, 0x7e, 0x9e, 0x8e,
+        0x10, 0xcf, 0xff, 0x79, 0x63, 0x4d, 0x94, 0x81, 0x25, 0xff, 0x88,
+        0x42, 0x30, 0x3b, 0xfd, 0x9d, 0x98, 0x7e, 0x06, 0x75, 0xb3, 0x28,
+        0x36, 0xc2, 0xda, 0x4e, 0xbc, 0xb6, 0x63, 0xf4, 0x69, 0x12, 0x80,
+        0x75, 0xc3, 0x36, 0xfe, 0xcd, 0xa1, 0x4b, 0xfb, 0x37, 0xa5, 0xf8,
+        0xdb, 0x4f, 0x53, 0xdd, 0xeb, 0x31, 0x08, 0xaf, 0xc5, 0x3b, 0x4f,
+        0x11, 0x9e, 0x0c, 0xd4, 0xe9, 0xd6, 0xb9, 0x9b, 0xac, 0x29, 0x0e,
+        0xa9, 0x9e, 0xd4, 0x2d, 0xfe, 0x5b, 0x68, 0x7a, 0x23, 0x5e, 0x83,
+        0x72, 0x7f, 0xdc, 0x5e, 0xc5, 0x08, 0x2d, 0x61, 0x07, 0xf5, 0xa8,
+        0x08, 0x1d, 0x92, 0x15, 0x6f, 0x15, 0xb7, 0xce, 0xf2, 0x57, 0x68,
+        0xcd, 0x04, 0x35, 0x30, 0x69, 0x85, 0x48, 0x84, 0x48, 0x44, 0x6e,
+        0xb8, 0x3e, 0x3c, 0xd3, 0xa5, 0x05, 0x0d, 0x45, 0x1a, 0xd7, 0xac,
+        0xcc, 0xb1, 0x02, 0x21, 0xe3, 0x00, 0x1f, 0x7f, 0xc8, 0x1f, 0x60,
+        0xee, 0x95, 0xb3, 0xd8, 0x7e, 0x3c, 0x82, 0x98, 0xa5, 0xae, 0x86,
+        0x49, 0x55, 0x09, 0xbd, 0xa1, 0xc3, 0x98, 0xd1, 0xb2, 0x8b, 0xc1,
+        0xb3, 0xba, 0xcb, 0x41, 0x4d, 0xb1, 0xe7, 0x94, 0x0e, 0xbc, 0x22,
+        0xe3, 0x36, 0x21, 0x6b, 0xe3, 0x08, 0xdc, 0x82, 0x62, 0x4d, 0x4c,
+        0xd5, 0xbc, 0xfe, 0x95, 0x37, 0xd2, 0x97, 0x5d, 0xe6, 0xc4, 0x6f,
+        0xc6, 0xd3, 0x39, 0x8d, 0xec, 0xb1, 0xf1, 0x7d, 0x96, 0xed, 0x7c,
+        0x8d, 0xea
+};
+
+/* Leaf issued by CA A, serial 0x2a. */
+static const unsigned char crl_test_leaf_a[] = {
+        0x30, 0x82, 0x03, 0x0b, 0x30, 0x82, 0x01, 0xf3, 0xa0, 0x03, 0x02,
+        0x01, 0x02, 0x02, 0x01, 0x2a, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86,
+        0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00, 0x30, 0x18,
+        0x31, 0x16, 0x30, 0x14, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0d,
+        0x63, 0x72, 0x6c, 0x2d, 0x74, 0x65, 0x73, 0x74, 0x2d, 0x63, 0x61,
+        0x2d, 0x61, 0x30, 0x1e, 0x17, 0x0d, 0x32, 0x36, 0x30, 0x31, 0x30,
+        0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a, 0x17, 0x0d, 0x34,
+        0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30,
+        0x5a, 0x30, 0x18, 0x31, 0x16, 0x30, 0x14, 0x06, 0x03, 0x55, 0x04,
+        0x03, 0x0c, 0x0d, 0x63, 0x72, 0x6c, 0x2d, 0x74, 0x65, 0x73, 0x74,
+        0x2d, 0x6c, 0x65, 0x61, 0x66, 0x30, 0x82, 0x01, 0x22, 0x30, 0x0d,
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
+        0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00, 0x30, 0x82, 0x01, 0x0a,
+        0x02, 0x82, 0x01, 0x01, 0x00, 0xd5, 0xb1, 0x3f, 0x7e, 0xe3, 0xc9,
+        0x6a, 0xe5, 0xed, 0xc2, 0x24, 0xdd, 0x3f, 0x31, 0x19, 0xd4, 0xc7,
+        0xea, 0xad, 0x58, 0x5f, 0xd6, 0x51, 0xec, 0x27, 0x28, 0x8a, 0xee,
+        0x54, 0x03, 0x2c, 0x58, 0x36, 0x2e, 0xc7, 0x06, 0x17, 0x66, 0xf2,
+        0x80, 0x3a, 0x6c, 0x9e, 0x1b, 0xf8, 0x40, 0x9d, 0x21, 0x61, 0xf4,
+        0x44, 0x16, 0x29, 0xc5, 0x5d, 0x0e, 0xf8, 0x67, 0x41, 0x12, 0x29,
+        0x8c, 0x9f, 0x7f, 0x85, 0x24, 0x51, 0x90, 0x7e, 0x9a, 0xc7, 0x4c,
+        0x45, 0x6c, 0x8c, 0x0c, 0xbe, 0x3f, 0xdb, 0x3d, 0xd6, 0x4d, 0x24,
+        0x74, 0xd4, 0x90, 0xb5, 0xfe, 0xcf, 0x24, 0xdf, 0xfa, 0xf5, 0x2e,
+        0x1e, 0xbe, 0x48, 0xe3, 0xe6, 0xc2, 0x22, 0x59, 0xe9, 0x18, 0x72,
+        0xd1, 0xe5, 0x0a, 0xce, 0xcb, 0xa7, 0x3c, 0xde, 0x1a, 0xc7, 0xdd,
+        0x95, 0xcf, 0x97, 0xf6, 0xe0, 0x37, 0xbc, 0x24, 0xf0, 0xdf, 0x1b,
+        0x3f, 0x21, 0x49, 0xc6, 0x7c, 0x1a, 0x68, 0x58, 0x82, 0x5c, 0xe2,
+        0xc6, 0x2d, 0x9e, 0x3c, 0x44, 0x19, 0x24, 0x90, 0x96, 0xa5, 0x01,
+        0x7e, 0xc3, 0xac, 0x70, 0x8b, 0x8f, 0x71, 0xe2, 0x73, 0x1c, 0x46,
+        0xa6, 0x50, 0x93, 0x4a, 0xa2, 0x6d, 0x41, 0xab, 0x83, 0xb0, 0x91,
+        0x7a, 0x38, 0x78, 0x8d, 0x51, 0x8c, 0xd0, 0x3e, 0xb6, 0xa6, 0xaf,
+        0x02, 0x10, 0xfb, 0x1f, 0x6e, 0x50, 0x60, 0x75, 0xef, 0x84, 0xc8,
+        0x6d, 0x69, 0xa2, 0x38, 0x61, 0xc8, 0xb6, 0x2f, 0xc6, 0x55, 0x1b,
+        0x19, 0x86, 0xd3, 0x44, 0xbb, 0x55, 0x76, 0xfb, 0xac, 0x5f, 0x34,
+        0x2b, 0x2d, 0x84, 0x22, 0x6c, 0x6d, 0x5f, 0x57, 0xcc, 0x4f, 0x67,
+        0x12, 0x09, 0x44, 0xaf, 0xe4, 0x26, 0x5d, 0xb1, 0x14, 0xdb, 0xbc,
+        0xa9, 0xbb, 0x4b, 0xcf, 0x65, 0xe4, 0xc0, 0x1f, 0x1d, 0xc4, 0xfe,
+        0xe8, 0xe0, 0xa3, 0x4a, 0x3e, 0xd0, 0xe2, 0xe7, 0x02, 0x03, 0x01,
+        0x00, 0x01, 0xa3, 0x60, 0x30, 0x5e, 0x30, 0x0c, 0x06, 0x03, 0x55,
+        0x1d, 0x13, 0x01, 0x01, 0xff, 0x04, 0x02, 0x30, 0x00, 0x30, 0x0e,
+        0x06, 0x03, 0x55, 0x1d, 0x0f, 0x01, 0x01, 0xff, 0x04, 0x04, 0x03,
+        0x02, 0x07, 0x80, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04,
+        0x16, 0x04, 0x14, 0x85, 0x8d, 0x21, 0x83, 0xd0, 0xf2, 0x31, 0x12,
+        0x35, 0x96, 0x85, 0xcf, 0x0e, 0xa3, 0xf8, 0x25, 0xfa, 0x52, 0x35,
+        0xa1, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30,
+        0x16, 0x80, 0x14, 0x16, 0x20, 0x5d, 0x43, 0x64, 0x9c, 0xed, 0xc6,
+        0x95, 0x92, 0xa4, 0xc6, 0x28, 0xdc, 0x1a, 0x06, 0x7f, 0x01, 0x84,
+        0x0e, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x01, 0x0b, 0x05, 0x00, 0x03, 0x82, 0x01, 0x01, 0x00, 0x29,
+        0xbf, 0x18, 0xcd, 0xc7, 0xef, 0x17, 0x13, 0xf0, 0x87, 0x9c, 0x50,
+        0xbc, 0x60, 0x54, 0x2e, 0xdb, 0x42, 0xd3, 0xc5, 0x2c, 0x3a, 0xb1,
+        0x4f, 0xd9, 0xc0, 0x23, 0x69, 0xab, 0x06, 0xda, 0x2b, 0x0c, 0x55,
+        0xc7, 0x78, 0x0c, 0xae, 0x34, 0xb9, 0x82, 0x17, 0x0c, 0x13, 0x8a,
+        0x87, 0xde, 0x82, 0x7e, 0x3a, 0x6a, 0x60, 0x38, 0xd7, 0xc4, 0x2c,
+        0x96, 0x2c, 0x64, 0xfe, 0x72, 0x9c, 0x91, 0x85, 0x1d, 0x7f, 0xd5,
+        0xb5, 0xa8, 0x53, 0xc1, 0x75, 0x99, 0x2d, 0xae, 0x7c, 0xa7, 0xb6,
+        0x1a, 0x7e, 0x74, 0x46, 0xff, 0x77, 0xcc, 0xec, 0x12, 0x3d, 0x9a,
+        0x6f, 0x7d, 0x6e, 0x6d, 0x9b, 0x0f, 0x27, 0x96, 0x25, 0x31, 0x9d,
+        0xc4, 0x92, 0x03, 0x13, 0x04, 0xd7, 0x4f, 0xb1, 0x24, 0x31, 0x13,
+        0x42, 0x58, 0x95, 0xef, 0x01, 0x65, 0x7c, 0x57, 0x90, 0x71, 0xf6,
+        0xc8, 0x7b, 0x74, 0xdd, 0x4d, 0x42, 0x0d, 0x99, 0x5c, 0x09, 0x55,
+        0x2a, 0xbf, 0x24, 0xbe, 0x9b, 0x74, 0xd8, 0x7c, 0x37, 0xc1, 0xd0,
+        0x0f, 0xc0, 0x2a, 0x4d, 0x93, 0x5b, 0x3d, 0x1e, 0x9d, 0xd9, 0x2f,
+        0x2d, 0x6a, 0xeb, 0x43, 0x2c, 0x75, 0xc7, 0xbd, 0xd0, 0xf7, 0xe4,
+        0x0d, 0xc1, 0xe0, 0xea, 0x93, 0x81, 0x54, 0xf2, 0xe1, 0xd6, 0x70,
+        0x0c, 0x16, 0xf1, 0x75, 0x92, 0xdf, 0xd5, 0x63, 0x0f, 0x0f, 0x04,
+        0x07, 0x14, 0xbb, 0x3e, 0xbb, 0x21, 0xa5, 0xbb, 0xb1, 0xe5, 0x8d,
+        0xe2, 0xcc, 0x66, 0xd1, 0x52, 0xb0, 0xbc, 0x77, 0x04, 0x21, 0x9e,
+        0x19, 0xda, 0xb9, 0x94, 0x27, 0x35, 0x88, 0xb5, 0x0d, 0x52, 0x46,
+        0x0b, 0x17, 0xf1, 0x06, 0x3c, 0xb3, 0xd3, 0xd9, 0x28, 0x97, 0x04,
+        0x14, 0xba, 0x12, 0x28, 0xd4, 0x66, 0x36, 0x76, 0x9e, 0x77, 0x90,
+        0x19, 0xc0, 0x8b, 0x57, 0x83, 0x00, 0xf5, 0xb7, 0xb6, 0xc5, 0x2d,
+        0x83, 0x59
+};
+#endif
+
+/* A CRL names its issuer, and the AKID only says which of that issuer's keys
+ * signed it. Any other trusted CA that happens to match the AKID must not be
+ * accepted as the signer, or one CA could revoke another CA's certificates. */
+int test_wolfSSL_CRL_cross_ca_akid(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_CRL_CROSS_CA_AKID
+    /* A second, unrelated trusted CA "crl-test-ca-b". Stands in
+     * for any other CA in the store whose key an attacker holds.
+     */
+    static const unsigned char caCertB[] = {
+        0x30, 0x82, 0x03, 0x21, 0x30, 0x82, 0x02, 0x09, 0xa0, 0x03, 0x02,
+        0x01, 0x02, 0x02, 0x14, 0x48, 0x74, 0xf5, 0x40, 0x37, 0x08, 0xa7,
+        0xda, 0xf2, 0xb5, 0xc1, 0x8e, 0x0b, 0xac, 0x8c, 0xec, 0x5b, 0x75,
+        0x95, 0xd5, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
+        0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00, 0x30, 0x18, 0x31, 0x16, 0x30,
+        0x14, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0d, 0x63, 0x72, 0x6c,
+        0x2d, 0x74, 0x65, 0x73, 0x74, 0x2d, 0x63, 0x61, 0x2d, 0x62, 0x30,
+        0x1e, 0x17, 0x0d, 0x32, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x30, 0x5a, 0x17, 0x0d, 0x34, 0x36, 0x30, 0x31,
+        0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a, 0x30, 0x18,
+        0x31, 0x16, 0x30, 0x14, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x0d,
+        0x63, 0x72, 0x6c, 0x2d, 0x74, 0x65, 0x73, 0x74, 0x2d, 0x63, 0x61,
+        0x2d, 0x62, 0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a,
+        0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03,
+        0x82, 0x01, 0x0f, 0x00, 0x30, 0x82, 0x01, 0x0a, 0x02, 0x82, 0x01,
+        0x01, 0x00, 0xca, 0xb2, 0xb9, 0xea, 0x1a, 0xc3, 0x46, 0x20, 0x89,
+        0x69, 0xdf, 0x77, 0x65, 0xe6, 0x8d, 0x25, 0x14, 0x35, 0x82, 0x48,
+        0x5a, 0xce, 0xdc, 0xbc, 0x61, 0x6f, 0xa2, 0x78, 0xce, 0x0c, 0xee,
+        0x2f, 0x56, 0x05, 0x7a, 0x04, 0xfd, 0x99, 0x91, 0xe9, 0x84, 0x50,
+        0x42, 0x8f, 0x9b, 0x4f, 0x91, 0x77, 0xd4, 0x54, 0xbb, 0x70, 0xca,
+        0x5a, 0x46, 0x9d, 0x03, 0x55, 0xcd, 0xcb, 0x0e, 0x3e, 0xee, 0x37,
+        0x66, 0x98, 0xad, 0x54, 0x39, 0x5d, 0xf6, 0x9d, 0x7a, 0x2d, 0xed,
+        0x1c, 0x5f, 0xc5, 0x76, 0x2c, 0x87, 0xd9, 0xf5, 0xcf, 0x50, 0xea,
+        0xc7, 0xec, 0xad, 0x45, 0xf3, 0x99, 0x3d, 0xa6, 0xab, 0xd9, 0xe2,
+        0xbf, 0x5a, 0x00, 0x1f, 0xf4, 0x70, 0x94, 0x8a, 0x2b, 0x4a, 0xff,
+        0xb5, 0x5c, 0x6b, 0xe0, 0xbc, 0x4c, 0x34, 0x00, 0xfe, 0xbb, 0xba,
+        0x15, 0x12, 0xa5, 0x21, 0x6d, 0xc1, 0xe9, 0x8d, 0x48, 0x78, 0xd6,
+        0x7f, 0xac, 0x1e, 0xf5, 0x61, 0x88, 0x49, 0xe1, 0xee, 0xe4, 0x39,
+        0xa9, 0x07, 0xd5, 0x11, 0x93, 0xbd, 0xba, 0x25, 0x3b, 0xe7, 0x8c,
+        0x9a, 0x23, 0x02, 0x32, 0x29, 0x00, 0xf4, 0xe3, 0x55, 0xea, 0x96,
+        0x8c, 0x56, 0x61, 0x1d, 0x39, 0x98, 0x36, 0xa9, 0xbd, 0x8b, 0x62,
+        0x6e, 0x35, 0x60, 0x8f, 0x97, 0xc0, 0x57, 0x08, 0x88, 0x6e, 0x7f,
+        0x86, 0x2f, 0xe9, 0xf7, 0xb8, 0xfc, 0x87, 0xed, 0x1c, 0x09, 0x17,
+        0x28, 0xd4, 0xdb, 0x21, 0x1e, 0xe6, 0x8e, 0xd9, 0xf8, 0x2c, 0x80,
+        0x45, 0x7d, 0x5f, 0x7d, 0x58, 0xa6, 0x8f, 0x40, 0x44, 0x3d, 0x79,
+        0x0a, 0x38, 0x3d, 0x12, 0xcd, 0x51, 0xa1, 0xd0, 0x38, 0x62, 0x1f,
+        0xb8, 0x75, 0x55, 0xd1, 0x87, 0x10, 0x50, 0x82, 0x56, 0xb4, 0x51,
+        0x3c, 0xe7, 0xc5, 0x03, 0xd0, 0x4b, 0x21, 0xfa, 0x60, 0x7c, 0x55,
+        0x42, 0xc4, 0x09, 0x98, 0x35, 0x02, 0x03, 0x01, 0x00, 0x01, 0xa3,
+        0x63, 0x30, 0x61, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04,
+        0x18, 0x30, 0x16, 0x80, 0x14, 0x3c, 0x46, 0x2a, 0x19, 0xfe, 0x92,
+        0x81, 0x75, 0x77, 0x3b, 0xee, 0xb9, 0xa4, 0xbb, 0xcf, 0x98, 0x54,
+        0x40, 0xc9, 0x88, 0x30, 0x0f, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x01,
+        0x01, 0xff, 0x04, 0x05, 0x30, 0x03, 0x01, 0x01, 0xff, 0x30, 0x0e,
+        0x06, 0x03, 0x55, 0x1d, 0x0f, 0x01, 0x01, 0xff, 0x04, 0x04, 0x03,
+        0x02, 0x01, 0x06, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04,
+        0x16, 0x04, 0x14, 0x3c, 0x46, 0x2a, 0x19, 0xfe, 0x92, 0x81, 0x75,
+        0x77, 0x3b, 0xee, 0xb9, 0xa4, 0xbb, 0xcf, 0x98, 0x54, 0x40, 0xc9,
+        0x88, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x01, 0x0b, 0x05, 0x00, 0x03, 0x82, 0x01, 0x01, 0x00, 0x16,
+        0x85, 0x0f, 0x8d, 0xe0, 0x3a, 0x77, 0x9a, 0x1f, 0xa0, 0xe6, 0xcd,
+        0x2a, 0x2c, 0x9f, 0x11, 0x42, 0xde, 0xee, 0x15, 0x6e, 0x04, 0x6a,
+        0x97, 0x8c, 0xb9, 0x99, 0xd7, 0xc6, 0x03, 0x95, 0xa3, 0x43, 0xc1,
+        0x4c, 0xe5, 0x1f, 0x29, 0x79, 0xa1, 0xe3, 0xb6, 0x75, 0x78, 0x9b,
+        0xd0, 0xd2, 0xe0, 0xaa, 0x21, 0x8e, 0xb2, 0x23, 0xc2, 0xe5, 0x96,
+        0xe1, 0xf2, 0x1d, 0x12, 0xbe, 0xa7, 0xda, 0x88, 0x8c, 0x69, 0x1a,
+        0xcb, 0xa6, 0x3d, 0x06, 0x8d, 0x35, 0x69, 0xc5, 0xca, 0x1d, 0xb0,
+        0x5d, 0x5d, 0xf3, 0xaa, 0x6b, 0x01, 0xb4, 0x85, 0x9c, 0x00, 0xa9,
+        0x54, 0x4e, 0x1c, 0xc5, 0xfd, 0xce, 0x87, 0x02, 0xb0, 0xec, 0x33,
+        0xc5, 0xfe, 0x03, 0x10, 0x55, 0x53, 0x96, 0x69, 0x87, 0x28, 0xe3,
+        0xe4, 0xdb, 0x57, 0x0d, 0x84, 0x4d, 0xf8, 0x41, 0xf9, 0x21, 0xb0,
+        0x12, 0x69, 0xc1, 0x62, 0x65, 0x57, 0xfc, 0x8d, 0x53, 0x35, 0xb0,
+        0xfe, 0x55, 0xde, 0x84, 0xa9, 0x95, 0x01, 0x6c, 0x3f, 0x34, 0x03,
+        0x85, 0x5f, 0xab, 0x10, 0x08, 0xad, 0x9f, 0xd5, 0x68, 0x65, 0xb5,
+        0xa6, 0x74, 0xa4, 0x35, 0x19, 0xfd, 0x02, 0x36, 0x2a, 0xa4, 0xbd,
+        0xbc, 0x00, 0xbf, 0xf9, 0x5b, 0xfe, 0x29, 0x7e, 0x6f, 0x1d, 0xbf,
+        0xc8, 0xaa, 0x88, 0x04, 0x33, 0xd9, 0x62, 0xb2, 0x43, 0xdb, 0xa2,
+        0x73, 0x6b, 0xbb, 0x72, 0xe4, 0x55, 0x60, 0xe4, 0x2f, 0x24, 0xbe,
+        0x00, 0xc2, 0x08, 0x6c, 0x54, 0x55, 0xea, 0x03, 0x55, 0x83, 0x6a,
+        0x4c, 0x9f, 0xc7, 0xc9, 0xaa, 0x92, 0xfa, 0x28, 0xc9, 0x85, 0x6a,
+        0xbb, 0xdf, 0x77, 0x24, 0x88, 0x1d, 0x8c, 0xdc, 0x2e, 0x74, 0x43,
+        0x3a, 0xd8, 0x52, 0xcc, 0x62, 0xdd, 0x5b, 0x1f, 0x29, 0x18, 0xae,
+        0x3e, 0x81, 0x74, 0xbf, 0x67, 0xef, 0xe7, 0x72, 0xa1, 0x1d, 0x65,
+        0x2c, 0x4f
+    };
+
+    /* CRL naming CA A as its issuer and revoking serial 0x2a, but
+     * carrying CA B's key id in its AKID and signed by CA B. */
+    static const unsigned char crlForged[] = {
+        0x30, 0x82, 0x01, 0xa8, 0x30, 0x81, 0x91, 0x02, 0x01, 0x01, 0x30,
+        0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+        0x0b, 0x05, 0x00, 0x30, 0x18, 0x31, 0x16, 0x30, 0x14, 0x06, 0x03,
+        0x55, 0x04, 0x03, 0x0c, 0x0d, 0x63, 0x72, 0x6c, 0x2d, 0x74, 0x65,
+        0x73, 0x74, 0x2d, 0x63, 0x61, 0x2d, 0x61, 0x17, 0x0d, 0x32, 0x36,
+        0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a,
+        0x17, 0x0d, 0x34, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x5a, 0x30, 0x14, 0x30, 0x12, 0x02, 0x01, 0x2a,
+        0x17, 0x0d, 0x32, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x5a, 0xa0, 0x2f, 0x30, 0x2d, 0x30, 0x1f, 0x06,
+        0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80, 0x14, 0x3c,
+        0x46, 0x2a, 0x19, 0xfe, 0x92, 0x81, 0x75, 0x77, 0x3b, 0xee, 0xb9,
+        0xa4, 0xbb, 0xcf, 0x98, 0x54, 0x40, 0xc9, 0x88, 0x30, 0x0a, 0x06,
+        0x03, 0x55, 0x1d, 0x14, 0x04, 0x03, 0x02, 0x01, 0x02, 0x30, 0x0d,
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b,
+        0x05, 0x00, 0x03, 0x82, 0x01, 0x01, 0x00, 0x16, 0x3a, 0xf8, 0x7c,
+        0x2c, 0x9c, 0xdd, 0x50, 0x91, 0x28, 0x5e, 0xbd, 0x4e, 0xb9, 0x47,
+        0x05, 0x84, 0x47, 0xab, 0x13, 0x9c, 0x94, 0xaf, 0x02, 0x06, 0x3f,
+        0x64, 0xda, 0x9e, 0x18, 0x25, 0x90, 0x68, 0x82, 0x72, 0x28, 0x0e,
+        0xb6, 0x77, 0x5e, 0x3d, 0x04, 0xfd, 0xec, 0x00, 0x5a, 0x24, 0x1b,
+        0x43, 0xa9, 0xcc, 0x90, 0xef, 0xa3, 0x9e, 0x79, 0xc0, 0xc3, 0x8d,
+        0x23, 0x96, 0xcc, 0x0d, 0xe8, 0xba, 0x26, 0x66, 0x43, 0x5a, 0x24,
+        0x56, 0x78, 0xe5, 0x9c, 0xbb, 0x27, 0x0f, 0x46, 0x83, 0x98, 0x63,
+        0x50, 0xab, 0x9e, 0x4d, 0x4b, 0x6d, 0x87, 0x5d, 0x81, 0x84, 0xc0,
+        0x2f, 0xb9, 0x70, 0x84, 0x6d, 0xe9, 0xec, 0xde, 0x53, 0xd6, 0x47,
+        0x27, 0x2e, 0xdf, 0xcc, 0x2c, 0xea, 0x1d, 0x43, 0xd6, 0xda, 0x55,
+        0x5b, 0x00, 0xe2, 0x77, 0x0b, 0xac, 0xfe, 0xc9, 0x01, 0x6f, 0x56,
+        0x2e, 0x42, 0xc1, 0x1e, 0x81, 0xc6, 0x18, 0x07, 0xf5, 0x09, 0x90,
+        0x75, 0x83, 0xfb, 0x83, 0xab, 0xa6, 0xf5, 0x28, 0x6d, 0x40, 0xb6,
+        0x5c, 0x99, 0x48, 0xc2, 0x05, 0x95, 0x9b, 0x56, 0x42, 0xee, 0x81,
+        0x01, 0xa7, 0xbd, 0x79, 0xd3, 0x9b, 0x87, 0x89, 0x7d, 0x74, 0xb2,
+        0x32, 0x80, 0xcc, 0x7e, 0x24, 0x88, 0x3c, 0xa0, 0xf8, 0x75, 0x70,
+        0x64, 0x97, 0x42, 0xef, 0x31, 0x51, 0x15, 0x92, 0x15, 0xad, 0x5e,
+        0xb8, 0x2b, 0xa6, 0x10, 0xac, 0x35, 0xa2, 0x5b, 0x5d, 0x21, 0x9d,
+        0x1c, 0xa4, 0x18, 0xe8, 0xde, 0x5a, 0x84, 0xa1, 0x20, 0x05, 0x90,
+        0xba, 0x94, 0xd1, 0xdf, 0x48, 0xf1, 0x17, 0x60, 0x3b, 0x20, 0x23,
+        0x0c, 0xd3, 0x47, 0x98, 0x0a, 0x52, 0xb1, 0xfd, 0xa0, 0xfc, 0x10,
+        0x51, 0x1a, 0xdd, 0x42, 0x84, 0x4b, 0x01, 0xb5, 0x0e, 0xf2, 0xed,
+        0x77, 0xa9, 0x55, 0x1e, 0xa1, 0x01, 0x64, 0x9c, 0x32, 0xc6
+    };
+
+    /* The same CRL as CA A really issues it: AKID and signature
+     * both CA A. */
+    static const unsigned char crlLegit[] = {
+        0x30, 0x82, 0x01, 0xa8, 0x30, 0x81, 0x91, 0x02, 0x01, 0x01, 0x30,
+        0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+        0x0b, 0x05, 0x00, 0x30, 0x18, 0x31, 0x16, 0x30, 0x14, 0x06, 0x03,
+        0x55, 0x04, 0x03, 0x0c, 0x0d, 0x63, 0x72, 0x6c, 0x2d, 0x74, 0x65,
+        0x73, 0x74, 0x2d, 0x63, 0x61, 0x2d, 0x61, 0x17, 0x0d, 0x32, 0x36,
+        0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a,
+        0x17, 0x0d, 0x34, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x5a, 0x30, 0x14, 0x30, 0x12, 0x02, 0x01, 0x2a,
+        0x17, 0x0d, 0x32, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x30, 0x5a, 0xa0, 0x2f, 0x30, 0x2d, 0x30, 0x1f, 0x06,
+        0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80, 0x14, 0x16,
+        0x20, 0x5d, 0x43, 0x64, 0x9c, 0xed, 0xc6, 0x95, 0x92, 0xa4, 0xc6,
+        0x28, 0xdc, 0x1a, 0x06, 0x7f, 0x01, 0x84, 0x0e, 0x30, 0x0a, 0x06,
+        0x03, 0x55, 0x1d, 0x14, 0x04, 0x03, 0x02, 0x01, 0x01, 0x30, 0x0d,
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b,
+        0x05, 0x00, 0x03, 0x82, 0x01, 0x01, 0x00, 0x90, 0x8e, 0x52, 0x57,
+        0x62, 0xdd, 0x0d, 0xfb, 0x3c, 0x1b, 0xe2, 0x08, 0x43, 0x7a, 0x31,
+        0xad, 0x9d, 0x99, 0x9d, 0x9f, 0x72, 0xdc, 0x42, 0xf2, 0xdd, 0x5b,
+        0x52, 0x41, 0x3c, 0x6c, 0xaf, 0x07, 0xb2, 0x2c, 0x2f, 0xc2, 0x84,
+        0x19, 0xea, 0xda, 0x2f, 0x17, 0x34, 0x35, 0x28, 0x24, 0x54, 0x4c,
+        0xb8, 0xa3, 0x20, 0x77, 0x09, 0x8c, 0x37, 0x0e, 0xf5, 0xe5, 0xca,
+        0xca, 0x64, 0xb8, 0x3a, 0x04, 0xca, 0x20, 0xbf, 0xc0, 0x23, 0x14,
+        0xb7, 0x4e, 0x51, 0x81, 0xb8, 0x18, 0xe3, 0x8e, 0x8f, 0xee, 0xc0,
+        0xdb, 0x76, 0x2d, 0xee, 0x5e, 0xfa, 0xf7, 0x12, 0x2a, 0xa8, 0xf1,
+        0xa2, 0xcb, 0xab, 0xce, 0x11, 0x62, 0x67, 0x6f, 0x3f, 0x15, 0x06,
+        0xde, 0xf9, 0x1c, 0x8e, 0xde, 0x48, 0xe6, 0xfe, 0xa5, 0x56, 0x18,
+        0xca, 0x23, 0xfa, 0x3b, 0xad, 0xd4, 0x80, 0x19, 0x38, 0x80, 0x80,
+        0xb4, 0xdb, 0x2c, 0x6c, 0x20, 0x41, 0xe3, 0x6f, 0x99, 0x8a, 0x81,
+        0x68, 0xa8, 0xc6, 0x6a, 0x53, 0xbf, 0xba, 0xde, 0x90, 0xd9, 0x32,
+        0xe5, 0xdc, 0x3b, 0x7c, 0x63, 0x59, 0xfd, 0x6a, 0xfc, 0x0e, 0x99,
+        0x21, 0x8e, 0x5a, 0xc9, 0x17, 0xfc, 0xe7, 0x73, 0x61, 0xf2, 0x6a,
+        0xc9, 0x48, 0x19, 0x26, 0x62, 0x29, 0xa9, 0xec, 0xbc, 0x8a, 0x27,
+        0x91, 0xb3, 0x62, 0xa4, 0x5a, 0xf9, 0x23, 0x61, 0x97, 0x0d, 0xe5,
+        0x48, 0x3c, 0xfb, 0xfe, 0x2d, 0x85, 0xef, 0x80, 0xf1, 0x1d, 0x95,
+        0xe6, 0xd1, 0xcf, 0xdf, 0x8f, 0xc9, 0x01, 0x22, 0xc0, 0xe6, 0x7a,
+        0xfd, 0x83, 0xb5, 0x8d, 0x96, 0x57, 0xf5, 0x91, 0x00, 0x3a, 0x4b,
+        0xa4, 0x73, 0x1c, 0x27, 0x47, 0x79, 0xc6, 0x92, 0x74, 0x47, 0xb9,
+        0x51, 0x5a, 0xe5, 0x25, 0xd1, 0xba, 0x39, 0x1c, 0x0e, 0xf1, 0x82,
+        0x64, 0x6c, 0x98, 0x49, 0xff, 0x5e, 0xed, 0x5f, 0x93, 0x8a
+    };
+    const unsigned char* const crlDer[2] = { crlForged, crlLegit };
+    const int crlSz[2] = { (int)sizeof(crlForged), (int)sizeof(crlLegit) };
+    /* The forged CRL must leave the check with no usable CRL for CA A. The
+     * real one revokes the leaf. */
+    const int expect[2] = { WC_NO_ERR_TRACE(CRL_MISSING),
+                            WC_NO_ERR_TRACE(CRL_CERT_REVOKED) };
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        WOLFSSL_X509_STORE* store = NULL;
+        WOLFSSL_X509_CRL* crl = NULL;
+
+        ExpectNotNull(store = wolfSSL_X509_STORE_new());
+        if (store != NULL)
+            cm = store->cm;
+        /* Both CAs are trusted. Only CA A issued the leaf. */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_test_ca_a,
+            sizeof(crl_test_ca_a), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, caCertB,
+            sizeof(caCertB), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK),
+            WOLFSSL_SUCCESS);
+
+        /* d2i has no certificate manager to check the signature against, so
+         * the entry lands on the list unverified and is checked on use. */
+        ExpectNotNull(crl = wolfSSL_d2i_X509_CRL(NULL, crlDer[i], crlSz[i]));
+        ExpectIntEQ(wolfSSL_X509_STORE_add_crl(store, crl), WOLFSSL_SUCCESS);
+        wolfSSL_X509_CRL_free(crl);
+
+        ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, crl_test_leaf_a,
+            (int)sizeof(crl_test_leaf_a)), expect[i]);
+
+        wolfSSL_X509_STORE_free(store);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A CRL read from a distribution point, or from anywhere else that does not
+ * check its signature, is stored unverified. Such an entry must not be able
+ * to push out the CRL whose signature the certificate manager has already
+ * checked. */
+int test_wolfSSL_CRL_unverified_no_evict(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_CRL_UNVERIFIED_NO_EVICT) && !defined(NO_FILESYSTEM)
+    /* CRL number 1 from CA A, revoking nothing, correctly signed. */
+    static const unsigned char crlGood[] = {
+        0x30, 0x82, 0x01, 0x91, 0x30, 0x7b, 0x02, 0x01, 0x01, 0x30, 0x0d,
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b,
+        0x05, 0x00, 0x30, 0x18, 0x31, 0x16, 0x30, 0x14, 0x06, 0x03, 0x55,
+        0x04, 0x03, 0x0c, 0x0d, 0x63, 0x72, 0x6c, 0x2d, 0x74, 0x65, 0x73,
+        0x74, 0x2d, 0x63, 0x61, 0x2d, 0x61, 0x17, 0x0d, 0x32, 0x36, 0x30,
+        0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a, 0x17,
+        0x0d, 0x34, 0x36, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
+        0x30, 0x30, 0x5a, 0xa0, 0x2f, 0x30, 0x2d, 0x30, 0x1f, 0x06, 0x03,
+        0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80, 0x14, 0x16, 0x20,
+        0x5d, 0x43, 0x64, 0x9c, 0xed, 0xc6, 0x95, 0x92, 0xa4, 0xc6, 0x28,
+        0xdc, 0x1a, 0x06, 0x7f, 0x01, 0x84, 0x0e, 0x30, 0x0a, 0x06, 0x03,
+        0x55, 0x1d, 0x14, 0x04, 0x03, 0x02, 0x01, 0x01, 0x30, 0x0d, 0x06,
+        0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05,
+        0x00, 0x03, 0x82, 0x01, 0x01, 0x00, 0x92, 0x93, 0x4b, 0x3a, 0x31,
+        0x0b, 0x72, 0x28, 0x6c, 0x25, 0xb3, 0x36, 0xc4, 0x69, 0xcb, 0x9f,
+        0xee, 0x3c, 0x2a, 0x31, 0xd0, 0xed, 0x1f, 0xed, 0xb8, 0x77, 0x0e,
+        0x57, 0x78, 0xde, 0x75, 0xb9, 0xb8, 0x87, 0x7e, 0x8e, 0x75, 0xd6,
+        0xd7, 0xe2, 0x7a, 0xc2, 0x5b, 0x5f, 0x69, 0x1d, 0x74, 0x42, 0xcd,
+        0x35, 0x72, 0x08, 0xef, 0xd8, 0x25, 0x1d, 0x11, 0x70, 0x41, 0xa8,
+        0xfe, 0xaf, 0xcc, 0xbf, 0x98, 0xfe, 0x4c, 0xed, 0xf8, 0xe1, 0x6e,
+        0x70, 0x50, 0x48, 0x15, 0x82, 0x04, 0xda, 0x14, 0x63, 0xd4, 0x16,
+        0x83, 0x1b, 0xb0, 0xb7, 0x62, 0x53, 0x3c, 0xca, 0xda, 0xab, 0x73,
+        0x03, 0x0c, 0x7e, 0xd2, 0x34, 0xd3, 0x1e, 0x0e, 0x7a, 0xc8, 0xa9,
+        0x40, 0xa2, 0xd3, 0x1d, 0x1a, 0x6e, 0x8a, 0x65, 0xe8, 0x16, 0x14,
+        0x72, 0x4e, 0xfc, 0xd3, 0x31, 0xa4, 0xe9, 0x0c, 0x4d, 0x27, 0x7e,
+        0xb1, 0xde, 0x31, 0xcb, 0x87, 0xf3, 0xd8, 0xa0, 0x78, 0x50, 0x5f,
+        0x91, 0xac, 0x09, 0x35, 0x6b, 0xe0, 0xf7, 0x22, 0xde, 0xba, 0x52,
+        0x84, 0x16, 0xc4, 0xbe, 0x2d, 0xb4, 0x09, 0x94, 0x86, 0x55, 0x8c,
+        0x36, 0xf4, 0xbe, 0xc9, 0x99, 0x0a, 0x5e, 0x34, 0xae, 0xd3, 0x78,
+        0x1c, 0x2a, 0xc9, 0xcb, 0xd5, 0x8e, 0x79, 0x88, 0x7c, 0xc0, 0xfe,
+        0xd4, 0x95, 0xb9, 0xcc, 0xe2, 0x4a, 0x63, 0x8f, 0x21, 0x09, 0xa6,
+        0xd5, 0xa2, 0xcd, 0xe9, 0x7f, 0x1e, 0xa9, 0xa4, 0xeb, 0xfd, 0x33,
+        0x95, 0x36, 0x24, 0x51, 0x4d, 0xc2, 0x31, 0x11, 0x8e, 0x15, 0x6a,
+        0x27, 0x8c, 0xf9, 0x8a, 0x61, 0xfb, 0xf9, 0x95, 0xaf, 0x1e, 0x8f,
+        0xa2, 0x2d, 0xa9, 0xae, 0x7b, 0x6c, 0xc0, 0xe1, 0x90, 0xd7, 0xdf,
+        0x9f, 0x39, 0xd7, 0x07, 0x33, 0xa0, 0xd4, 0x7a, 0xc0, 0xa5, 0x8f,
+        0x8f, 0x6d, 0x9e, 0x72, 0xc4, 0xea, 0x4d, 0xba, 0x3f
+    };
+
+    /* CRL number 2, also naming CA A as issuer, with an AKID no CA
+     * in the store matches and a corrupted signature. */
+    static const char crlBogusPem[] =
+        "-----BEGIN X509 CRL-----\n"
+        "MIIBqDCBkQIBATANBgkqhkiG9w0BAQsFADAYMRYwFAYDVQQDDA1jcmwtdGVzdC1j\n"
+        "YS1hFw0yNjAxMDEwMDAwMDBaFw00NjAxMDEwMDAwMDBaMBQwEgIBKhcNMjYwMTAx\n"
+        "MDAwMDAwWqAvMC0wHwYDVR0jBBgwFoAUq6urq6urq6urq6urq6urq6urq6swCgYD\n"
+        "VR0UBAMCAQIwDQYJKoZIhvcNAQELBQADggEBAJtS0Cryy1LKrfHLgv3Cpf4r7kh1\n"
+        "Oj+1TGmrDq+C//nzuzbJqXFdkqZ1dH/+s5I57rsMMFdy8t2+1nMvT8RFn6cu3rP7\n"
+        "9EehFJugBURpAevcwnrEl4Ts1XhFoLVSe6Cbx8BXzuSixEx1CPgLNg5Ab6E68+so\n"
+        "GfSKQuTWCTHjLZiUj3VUMRBv4OruqBFZ2bC1CZ2MAgsQPEXA4teGHvsrangAdoA1\n"
+        "a7ghS2jBOgihsn+XyzYgK1b9ITYlSh7Ys0SDkGn3MJDhYB91wFsgr3yF5MgR3s88\n"
+        "0LuVjJtXPDC2px+otou+4DlmT+SibAjz5TbHgxba/bZZD/2N4Rtfnv1Np3s=\n"
+        "-----END X509 CRL-----\n";
+    const int bogusSz = (int)sizeof(crlBogusPem) - 1;
+    char tmpDir[16];
+    char bogusFile[64];
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_X509_STORE* store = NULL;
+    XFILE f = XBADFILE;
+
+    XMEMSET(tmpDir, 0, sizeof(tmpDir));
+    XMEMSET(bogusFile, 0, sizeof(bogusFile));
+
+    /* Own directory per run, so unit.test runs sharing a working directory
+     * do not write over each other's fixture. */
+    ExpectNotNull(create_tmp_dir(tmpDir, (int)sizeof(tmpDir) - 1));
+    ExpectIntGT(XSNPRINTF(bogusFile, sizeof(bogusFile), "%s/crl.pem", tmpDir),
+        0);
+
+    ExpectNotNull(store = wolfSSL_X509_STORE_new());
+    if (store != NULL)
+        cm = store->cm;
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_test_ca_a,
+        sizeof(crl_test_ca_a), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* The CA is in place, so this entry is verified as it is loaded. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crlGood, sizeof(crlGood),
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, crl_test_leaf_a,
+        (int)sizeof(crl_test_leaf_a)), WOLFSSL_SUCCESS);
+
+    ExpectTrue((f = XFOPEN(bogusFile, "wb")) != XBADFILE);
+    ExpectIntEQ((int)XFWRITE(crlBogusPem, 1, (size_t)bogusSz, f), bogusSz);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* Reading a store location does not check signatures, so the newer CRL
+     * number alone must not be enough to take the entry's place. */
+    ExpectIntNE(wolfSSL_X509_STORE_load_locations(store, bogusFile, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, crl_test_leaf_a,
+        (int)sizeof(crl_test_leaf_a)), WOLFSSL_SUCCESS);
+
+    /* A newer CRL whose signer is loaded is verified as it is read, so the
+     * same path still replaces a verified entry. crl_reason.pem is CRL
+     * number 1 and revokes serial 01, crl.pem is number 2 and does not. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, ca_cert_der_2048,
+        sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+        "./certs/crl/crl_reason.pem", WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_STORE_load_locations(store,
+        "./certs/crl/crl.pem", NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerCheckCRL(cm, server_cert_der_2048,
+        sizeof_server_cert_der_2048), WOLFSSL_SUCCESS);
+
+    if (bogusFile[0] != '\0')
+        (void)rem_file(bogusFile);
+    if (tmpDir[0] != '\0')
+        (void)rem_dir(tmpDir);
+    wolfSSL_X509_STORE_free(store);
 #endif
     return EXPECT_RESULT();
 }
@@ -3234,7 +4296,26 @@ static int crl_unk_ext_cb_accept(const word16* oid, word32 oidSz,
     if (ctx != NULL) {
         ctx->calls++;
         if (crit)
-            ctx->sawCritical = 1;
+            ctx->sawCritical = crit;
+        /* Expect OID arc starts at {2, 5, 29, ...}. */
+        if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
+            ctx->oidMatched = 1;
+    }
+    return 0; /* accept */
+}
+
+/* CRL Reason OID 2.5.29.21 (last component for the entry-ext test) and
+ * obsolete X.509v2 AKI 2.5.29.1 (last component for the CRL-level test). */
+static int crl_unk_ext_cb_accept32(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    CRLUnkExtCtx* ctx = (CRLUnkExtCtx*)ctxIn;
+    (void)der;
+    (void)derSz;
+    if (ctx != NULL) {
+        ctx->calls++;
+        if (crit)
+            ctx->sawCritical = crit;
         /* Expect OID arc starts at {2, 5, 29, ...}. */
         if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
             ctx->oidMatched = 1;
@@ -3251,7 +4332,25 @@ static int crl_unk_ext_cb_reject(const word16* oid, word32 oidSz,
     return ASN_PARSE_E;
 }
 
+static int crl_unk_ext_cb_reject32(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    if (ctxIn != NULL)
+        ((CRLUnkExtCtx*)ctxIn)->calls++;
+    return ASN_PARSE_E;
+}
+
 static int crl_unk_ext_cb_reject_positive(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    if (ctxIn != NULL)
+        ((CRLUnkExtCtx*)ctxIn)->calls++;
+    return 1;
+}
+
+static int crl_unk_ext_cb_reject_positive32(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz, void* ctxIn)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
@@ -3275,7 +4374,21 @@ static int crl_unk_ext_cb_noctx_accept(const word16* oid, word32 oidSz,
     (void)derSz;
     crl_unk_ext_noctx_calls++;
     if (crit)
-        crl_unk_ext_noctx_sawCritical = 1;
+        crl_unk_ext_noctx_sawCritical = crit;
+    /* Expect OID arc starts at {2, 5, 29, ...}. */
+    if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
+        crl_unk_ext_noctx_oidMatched = 1;
+    return 0; /* accept */
+}
+
+static int crl_unk_ext_cb_noctx_accept32(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz)
+{
+    (void)der;
+    (void)derSz;
+    crl_unk_ext_noctx_calls++;
+    if (crit)
+        crl_unk_ext_noctx_sawCritical = crit;
     /* Expect OID arc starts at {2, 5, 29, ...}. */
     if (oidSz >= 4 && oid[0] == 2 && oid[1] == 5 && oid[2] == 29)
         crl_unk_ext_noctx_oidMatched = 1;
@@ -3283,6 +4396,14 @@ static int crl_unk_ext_cb_noctx_accept(const word16* oid, word32 oidSz,
 }
 
 static int crl_unk_ext_cb_noctx_reject(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz)
+{
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    crl_unk_ext_noctx_calls++;
+    return ASN_PARSE_E;
+}
+
+static int crl_unk_ext_cb_noctx_reject32(const word32* oid, word32 oidSz,
         int crit, const unsigned char* der, word32 derSz)
 {
     (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
@@ -3300,31 +4421,62 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_entry_ext(void)
 #if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
-    CRLUnkExtCtx ctx = { 0, 0, 0 };
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
+    CRLUnkExtCtx ctx;
 
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
-        "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+            "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
 
-    /* Register a callback that accepts any unknown extension. */
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+        /* Register a callback that accepts any unknown extension. */
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    /* Without the callback, this load fails (see
-     * test_wolfSSL_CRL_unknown_critical_entry_ext above).  With an
-     * accepting callback registered, the load must succeed. */
-    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
-        "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM),
-        WOLFSSL_SUCCESS);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_accept32, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    /* Callback must have fired at least once on the unknown critical OID. */
-    ExpectIntGT(ctx.calls, 0);
-    ExpectIntEQ(ctx.sawCritical, 1);
-    ExpectIntEQ(ctx.oidMatched, 1);
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
 
-    wolfSSL_CertManagerFree(cm);
+        /* Without the callback, this load fails (see
+         * test_wolfSSL_CRL_unknown_critical_entry_ext above).  With an
+         * accepting callback registered, the load must succeed. */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+            "./certs/crl/extra-crls/crl_critical_entry.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        /* Callback must have fired at least once on the unknown critical
+         * OID. */
+        ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(ctx.sawCritical, 1);
+        ExpectIntEQ(ctx.oidMatched, 1);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -3340,41 +4492,93 @@ int test_wolfSSL_CRL_unknown_ext_cb_rescues_critical_crl_ext(void)
 #if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
     CRLUnkExtCtx ctx = { 0, 0, 0 };
 
     /* Accepting callback: the load must succeed and the callback must have
      * seen the critical unknown OID. */
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(ctx.calls, 0);
-    ExpectIntEQ(ctx.sawCritical, 1);
-    ExpectIntEQ(ctx.oidMatched, 1);
-    wolfSSL_CertManagerFree(cm);
-    cm = NULL;
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_accept, &ctx), WOLFSSL_SUCCESS);
+                break;
+
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_accept32, &ctx), WOLFSSL_SUCCESS);
+                break;
+
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(ctx.sawCritical, 1);
+        ExpectIntEQ(ctx.oidMatched, 1);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 
     /* Rejecting callback: the same CRL must fail to load. */
-    ctx.calls = 0;
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_reject, &ctx), WOLFSSL_SUCCESS);
-    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(ctx.calls, 0);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_reject, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    wolfSSL_CertManagerFree(cm);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_reject32, &ctx), WOLFSSL_SUCCESS);
+                break;
+
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+        ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(ctx.calls, 0);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -3391,24 +4595,53 @@ int test_wolfSSL_CRL_unknown_ext_cb_positive_return_fails_load(void)
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     CRLUnkExtCtx ctx = { 0, 0, 0 };
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
     int rc;
 
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
-        "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        XMEMSET(&ctx, 0, sizeof(ctx));
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+            "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                    crl_unk_ext_cb_reject_positive, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
-        crl_unk_ext_cb_reject_positive, &ctx), WOLFSSL_SUCCESS);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                    crl_unk_ext_cb_reject_positive32, &ctx), WOLFSSL_SUCCESS);
+                break;
 
-    rc = wolfSSL_CertManagerLoadCRLFile(cm,
-        "./certs/crl/extra-crls/crl_critical_entry.pem", WOLFSSL_FILETYPE_PEM);
-    ExpectIntNE(rc, WOLFSSL_SUCCESS);
-    ExpectIntLT(rc, 0);
-    ExpectIntGT(ctx.calls, 0);
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
 
-    wolfSSL_CertManagerFree(cm);
+        rc = wolfSSL_CertManagerLoadCRLFile(cm,
+            "./certs/crl/extra-crls/crl_critical_entry.pem",
+            WOLFSSL_FILETYPE_PEM);
+        ExpectIntNE(rc, WOLFSSL_SUCCESS);
+        ExpectIntLT(rc, 0);
+        ExpectIntGT(ctx.calls, 0);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -3424,50 +4657,202 @@ int test_wolfSSL_CRL_unknown_ext_cb_noctx(void)
 #if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
     !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
     WOLFSSL_CERT_MANAGER* cm = NULL;
+    enum {
+        Bit16Callback,
+        Bit32Callback,
+        CallbackTypeEnd
+    };
+    int CallbackType = Bit16Callback;
 
     /* A NULL cert manager is rejected by both registration entry points. */
     ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(NULL,
         crl_unk_ext_cb_noctx_accept), BAD_FUNC_ARG);
     ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(NULL,
         crl_unk_ext_cb_accept, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32(NULL,
+        crl_unk_ext_cb_noctx_accept32), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(NULL,
+        crl_unk_ext_cb_accept32, NULL), BAD_FUNC_ARG);
 
     /* Accepting callback: the critical unknown CRL-level extension in the
      * crl_obsolete_critical fixture is rescued and the load succeeds.  The
      * callback must have seen the critical unknown OID. */
-    crl_unk_ext_noctx_calls = 0;
-    crl_unk_ext_noctx_sawCritical = 0;
-    crl_unk_ext_noctx_oidMatched = 0;
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
-        crl_unk_ext_cb_noctx_accept), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(crl_unk_ext_noctx_calls, 0);
-    ExpectIntEQ(crl_unk_ext_noctx_sawCritical, 1);
-    ExpectIntEQ(crl_unk_ext_noctx_oidMatched, 1);
-    wolfSSL_CertManagerFree(cm);
-    cm = NULL;
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        crl_unk_ext_noctx_calls = 0;
+        crl_unk_ext_noctx_sawCritical = 0;
+        crl_unk_ext_noctx_oidMatched = 0;
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch(CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
+                    crl_unk_ext_cb_noctx_accept), WOLFSSL_SUCCESS);
+                break;
+
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32(cm,
+                    crl_unk_ext_cb_noctx_accept32), WOLFSSL_SUCCESS);
+                break;
+
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(crl_unk_ext_noctx_calls, 0);
+        ExpectIntEQ(crl_unk_ext_noctx_sawCritical, 1);
+        ExpectIntEQ(crl_unk_ext_noctx_oidMatched, 1);
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
 
     /* Rejecting callback: the same CRL must fail to load. */
-    crl_unk_ext_noctx_calls = 0;
-    ExpectNotNull(cm = wolfSSL_CertManagerNew());
-    ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
-        sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
-        WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
-        crl_unk_ext_cb_noctx_reject), WOLFSSL_SUCCESS);
-    ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
-        sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
-        WOLFSSL_SUCCESS);
-    ExpectIntGT(crl_unk_ext_noctx_calls, 0);
+    for (CallbackType = Bit16Callback; CallbackType < CallbackTypeEnd;
+            CallbackType++) {
+        crl_unk_ext_noctx_calls = 0;
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, crl_unk_ca_der,
+            sizeof(crl_unk_ca_der), WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        switch (CallbackType) {
+            case Bit16Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback(cm,
+                    crl_unk_ext_cb_noctx_reject), WOLFSSL_SUCCESS);
+                break;
 
-    wolfSSL_CertManagerFree(cm);
+            case Bit32Callback:
+                ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32(cm,
+                    crl_unk_ext_cb_noctx_reject32), WOLFSSL_SUCCESS);
+                break;
+
+            default:
+                /* Not reachable: the loop bound excludes CallbackTypeEnd. */
+                ExpectFail();
+                break;
+        }
+        ExpectIntNE(wolfSSL_CertManagerLoadCRLBuffer(cm, crl_obsolete_critical,
+            sizeof(crl_obsolete_critical), WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
+        ExpectIntGT(crl_unk_ext_noctx_calls, 0);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s unknown extension callback)\n",
+                (CallbackType == Bit16Callback) ? "16-bit" : "32-bit");
+            break;
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+/* Which unknown-extension callback the parser last invoked:
+ * -1 = neither, 0 = the word16 one, 1 = the word32 one. */
+static int crl_unk_ext_last_cb = -1;
+
+/* When both a word16 and a word32 unknown-extension callback are registered,
+ * only the word32 one may run.  The word16 callback here rejects the CRL and
+ * the word32 callback accepts it, so a successful load proves the word32
+ * callback took precedence. */
+static int crl_unk_ext_cb_16_reject(const word16* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    if (ctxIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    ((CRLUnkExtCtx*)ctxIn)->calls++;
+    crl_unk_ext_last_cb = 0;
+    return 1;
+}
+
+static int crl_unk_ext_cb_32_accept(const word32* oid, word32 oidSz,
+        int crit, const unsigned char* der, word32 derSz, void* ctxIn)
+{
+    if (ctxIn == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)oid; (void)oidSz; (void)crit; (void)der; (void)derSz;
+    ((CRLUnkExtCtx*)ctxIn)->calls++;
+    crl_unk_ext_last_cb = 1;
+    return 0;
+}
+#endif
+
+int test_wolfSSL_CRL_unknown_ext_cb_32_preferred(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_CERTS) && defined(HAVE_CRL) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(WC_ASN_UNKNOWN_EXT_CB)
+    int reg32First;
+
+    /* Precedence must not depend on registration order, so run it both
+     * ways. */
+    for (reg32First = 0; reg32First < 2; reg32First++) {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        /* Separate contexts: each Ex callback must receive its own. */
+        CRLUnkExtCtx ctx = { 0, 0, 0 };
+        CRLUnkExtCtx ctx16 = { 0, 0, 0 };
+
+        crl_unk_ext_last_cb = -1;
+
+        ExpectNotNull(cm = wolfSSL_CertManagerNew());
+        ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+            "./certs/crl/extra-crls/claim-root.pem", NULL), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+        if (reg32First) {
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                crl_unk_ext_cb_16_reject, &ctx16), WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(cm,
+                crl_unk_ext_cb_16_reject, &ctx16), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(cm,
+                crl_unk_ext_cb_32_accept, &ctx), WOLFSSL_SUCCESS);
+        }
+
+        /* This CRL carries an unknown critical entry extension, so it only
+         * loads when a callback accepts it (see
+         * test_wolfSSL_CRL_unknown_critical_entry_ext above).  The word16
+         * callback rejects, so success means the word32 callback ran. */
+        ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm,
+            "./certs/crl/extra-crls/crl_critical_entry.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+        ExpectIntGT(ctx.calls, 0);
+        ExpectIntEQ(ctx16.calls, 0);
+        ExpectIntEQ(crl_unk_ext_last_cb, 1);
+
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+        if (EXPECT_FAIL()) {
+            printf("    (failed with the %s callback registered first; "
+                "last callback invoked: %s)\n",
+                reg32First ? "word32" : "word16",
+                (crl_unk_ext_last_cb < 0) ? "none" :
+                    (crl_unk_ext_last_cb == 0) ? "word16" : "word32");
+            break;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -4061,6 +5446,43 @@ cleanup:
     return EXPECT_RESULT();
 }
 
+/* Regression: a Raw Public Key (RFC 7250), a bare SubjectPublicKeyInfo, has no
+ * issuer and no signature, so it can never chain to a CA. With HAVE_RPK the
+ * parser recognises it as a certificate form; it must not be reported as
+ * verified by wolfSSL_CertManagerVerify(), whether or not a CA is loaded.
+ * (RPK trust is established out of band in the TLS handshake only.) */
+int test_wolfSSL_CertManagerRejectRPK(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_RPK) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+#ifdef WOLFSSL_PEM_TO_DER
+    const char* caCert  = "./certs/ca-cert.pem";
+#else
+    const char* caCert  = "./certs/ca-cert.der";
+#endif
+    const char* rpkCert = "./certs/rpk/server-cert-rpk.der";
+    const char* svrCert = "./certs/server-cert.der";
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    /* No trust anchor loaded. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, rpkCert, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+
+    /* The CA that issued the X.509 form of the same key. */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, caCert, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, svrCert, WOLFSSL_FILETYPE_ASN1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, rpkCert, WOLFSSL_FILETYPE_ASN1),
+        WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_V_ERR_strings(void)
 {
     EXPECT_DECLS;
@@ -4163,6 +5585,417 @@ int test_wolfSSL_CertManagerNameConstraint_skid_disambiguates(void)
                 WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
 
     wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A self-issued CA delivered in the peer's chain is not a trust anchor, so
+ * the walk continues to the constrained CA that signed it. */
+int test_wolfSSL_CertManagerNameConstraint_selfissued_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* strict_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* selfissued_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-selfissued-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfissued-valid-leaf-cert.pem";
+    const char* attacker_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfissued-leaf-cert.pem";
+    byte* selfissued_buf = NULL;
+    size_t selfissued_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, strict_cert, NULL),
+                WOLFSSL_SUCCESS);
+
+    /* Cached from a peer's chain rather than loaded by the application. */
+    ExpectIntEQ(load_file(selfissued_cert, &selfissued_buf, &selfissued_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, selfissued_buf,
+                (sword32)selfissued_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    /* Positive: leaf satisfies the constrained CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    /* Negative: leaf violates the constrained CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(selfissued_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
+    ((defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE)) || \
+     defined(WOLFSSL_ALLOW_AKID_SKID_MATCH))
+/* Peer-chain CA issued by the strict CA; leaves must meet its constraints. */
+static int test_nc_chain_ca_under_strict(const char* chain_ca_cert,
+    const char* valid_leaf_cert, const char* attacker_leaf_cert)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte* chain_ca_buf = NULL;
+    size_t chain_ca_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+                "./certs/test/nc-ancestor/00-root-cert.pem", NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm,
+                "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem", NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file(chain_ca_cert, &chain_ca_buf, &chain_ca_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, chain_ca_buf,
+                (sword32)chain_ca_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(chain_ca_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* Chain CA whose AKID keyIdentifier matches no CA; its issuer is found only
+ * by AKID issuer and serial. */
+int test_wolfSSL_CertManagerNameConstraint_akid_name_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
+    defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_ASN_TEMPLATE)
+    ExpectIntEQ(test_nc_chain_ca_under_strict(
+                "./certs/test/nc-ancestor/02-akid-name-ca-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-name-valid-leaf-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-name-leaf-cert.pem"),
+                TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Chain CA whose AKID matches its issuer's SKID but whose issuer name does
+ * not match the issuer's subject. */
+int test_wolfSSL_CertManagerNameConstraint_akid_skid_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA)) && \
+    defined(WOLFSSL_ALLOW_AKID_SKID_MATCH)
+    ExpectIntEQ(test_nc_chain_ca_under_strict(
+                "./certs/test/nc-ancestor/02-akid-skid-ca-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-skid-valid-leaf-cert.pem",
+                "./certs/test/nc-ancestor/03-akid-skid-leaf-cert.pem"),
+                TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A peer-supplied CA carrying the constrained CA's name, with no AKID key
+ * identifier, resolves to itself by name. The walk must go on to the CA
+ * that issued it. */
+int test_wolfSSL_CertManagerNameConstraint_selfloop_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* strict_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* selfloop_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-selfloop-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfloop-valid-leaf-cert.pem";
+    const char* attacker_leaf_cert =
+        "./certs/test/nc-ancestor/03-selfloop-leaf-cert.pem";
+    byte* selfloop_buf = NULL;
+    size_t selfloop_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, strict_cert, NULL),
+                WOLFSSL_SUCCESS);
+
+    /* Shares the strict CA's name and table row, so a name lookup finds
+     * it first. */
+    ExpectIntEQ(load_file(selfloop_cert, &selfloop_buf, &selfloop_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, selfloop_buf,
+                (sword32)selfloop_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    /* Positive: leaf within the strict CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    /* Negative: leaf violates the strict CA's permit. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, attacker_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NAME_INVALID_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(selfloop_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Peer-chain CAs left cached after their root is unloaded. */
+int test_wolfSSL_CertManagerNameConstraint_orphan_chain_ca(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && defined(HAVE_ECC) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && !defined(NO_SHA256) && \
+    !defined(NO_SKID) && defined(WOLFSSL_ALT_NAMES) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(OPENSSL_EXTRA))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* root_cert =
+        "./certs/test/nc-ancestor/00-root-cert.pem";
+    const char* strict_cert =
+        "./certs/test/nc-ancestor/01-uri-permit-ca-cert.pem";
+    const char* benign_sub_ca_cert =
+        "./certs/test/nc-ancestor/02-benign-sub-ca-cert.pem";
+    const char* valid_leaf_cert =
+        "./certs/test/nc-ancestor/03-valid-leaf-cert.pem";
+    byte* strict_buf = NULL;
+    size_t strict_sz = 0;
+    byte* sub_ca_buf = NULL;
+    size_t sub_ca_sz = 0;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, root_cert, NULL),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file(strict_cert, &strict_buf, &strict_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, strict_buf,
+                (sword32)strict_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+    ExpectIntEQ(load_file(benign_sub_ca_cert, &sub_ca_buf, &sub_ca_sz), 0);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, sub_ca_buf,
+                (sword32)sub_ca_sz, WOLFSSL_FILETYPE_PEM, 0,
+                WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_USER_CA),
+                WOLFSSL_SUCCESS);
+
+    /* Issuer missing one level up, then two. */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, benign_sub_ca_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, valid_leaf_cert,
+                WOLFSSL_FILETYPE_PEM),
+                WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
+
+    wolfSSL_CertManagerFree(cm);
+    XFREE(strict_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sub_ca_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+/* Before the validity period of certs/test/expired/expired-cert.pem */
+static time_t test_trust_peer_early_time(time_t* t)
+{
+    time_t early = (time_t)1514764800; /* 2018-01-01 00:00:00 UTC */
+
+    if (t != NULL)
+        *t = early;
+
+    return early;
+}
+
+static int test_trust_peer_date_cb(int preverify,
+    WOLFSSL_X509_STORE_CTX* store)
+{
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    if (store->error == WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED)
+#else
+    if (store->error == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))
+#endif
+        return 1;
+
+    return preverify;
+}
+#endif
+
+/* The validity period of a trusted peer cert is checked in the handshake */
+int test_wolfSSL_trust_peer_cert_dates(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_ASN_TIME_CHECK) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+    static const char* expiredCert = "certs/test/expired/expired-cert.pem";
+    static const struct {
+        int mode;
+        VerifyCallback verifyCb;
+        wc_time_cb timeCb;
+        int err;
+    } cases[] = {
+        { WOLFSSL_VERIFY_PEER, NULL, NULL,
+          WC_NO_ERR_TRACE(ASN_AFTER_DATE_E) },
+        { WOLFSSL_VERIFY_PEER, NULL, test_trust_peer_early_time,
+          WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) },
+        { WOLFSSL_VERIFY_NONE, NULL, NULL, 0 },
+        { WOLFSSL_VERIFY_PEER, test_trust_peer_date_cb, NULL, 0 },
+    };
+    test_ssl_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    size_t i;
+    int ret;
+
+    for (i = 0; i < XELEM_CNT(cases); i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        XMEMSET(&h, 0, sizeof(h));
+        ret = TEST_FAIL;
+
+        /* the client loads no CA, only the pinned cert */
+        test_ctx.c_cb.caPemFile = "";
+        test_ctx.s_cb.certPemFile = expiredCert;
+        test_ctx.s_cb.keyPemFile = "certs/server-key.pem";
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+        /* VERIFY_NONE so the load does not reject the cert dates */
+        wolfSSL_CTX_set_verify(test_ctx.c_ctx, WOLFSSL_VERIFY_NONE, NULL);
+        ExpectIntEQ(wolfSSL_CTX_trust_peer_cert(test_ctx.c_ctx, expiredCert,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        wolfSSL_set_verify(test_ctx.c_ssl, cases[i].mode, cases[i].verifyCb);
+
+        if (EXPECT_SUCCESS()) {
+            (void)wc_SetTimeCb(cases[i].timeCb);
+            ret = test_ssl_memio_do_handshake(&test_ctx, 10, NULL);
+            (void)wc_SetTimeCb(NULL);
+        }
+
+        if (cases[i].err == 0) {
+            ExpectIntEQ(ret, TEST_SUCCESS);
+        }
+        else {
+            ExpectIntNE(ret, TEST_SUCCESS);
+            ExpectIntEQ(wolfSSL_get_error(test_ctx.c_ssl, 0), cases[i].err);
+            ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                WOLFSSL_SUCCESS);
+            ExpectIntEQ(h.last_rx.code, certificate_expired);
+        }
+
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Decision-coverage drivers for the ssl_certman.c argument guards left
+ * unpaired by the functional tests. The cert-manager helpers are
+ * WOLFSSL_LOCAL, so this white-box test calls them directly. Each block
+ * names the source line:condition it closes. */
+int test_certman_decision_coverage(void)
+{
+    EXPECT_DECLS;
+    /* Refs WOLFSSL_LOCAL certman fns, hidden from the .so - shared builds
+     * compile this out; WOLFSSL_TEST_STATIC_BUILD is set for static-only
+     * builds (configure) and by the MC/DC variant. */
+#if defined(WOLFSSL_TEST_STATIC_BUILD) && !defined(WOLFCRYPT_ONLY) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    byte hash[SIGNER_DIGEST_SIZE];
+    Signer signer;
+    Signer* hs = NULL;
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(&signer, 0, sizeof(signer));
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    if (EXPECT_SUCCESS())
+        cm = ctx->cm;
+    ExpectNotNull(cm);
+
+    /* --- 2700:0/1 AlreadySigner: cm==NULL || hash==NULL ------------------ */
+    (void)AlreadySigner(NULL, hash);
+    (void)AlreadySigner(cm, NULL);
+    (void)AlreadySigner(cm, hash);
+
+    /* --- 2812:0/1 GetCA: cm==NULL || hash==NULL -------------------------- */
+    (void)GetCA(NULL, hash);
+    (void)GetCA(cm, NULL);
+    (void)GetCA(cm, hash);
+
+    /* --- 3037:0/1 AddSigner: cm==NULL || s==NULL ------------------------- */
+    (void)AddSigner(NULL, &signer);
+    (void)AddSigner(cm, NULL);
+    /* The all-valid case inserts the Signer into the cm's CA table, which the
+     * cm then owns and frees on ctx-free; use a heap Signer and remove it
+     * before freeing so ownership stays clean. */
+    if (EXPECT_SUCCESS())
+        hs = (Signer*)XMALLOC(sizeof(Signer), cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (hs != NULL) {
+        XMEMSET(hs, 0, sizeof(Signer));
+        hs->type = WOLFSSL_USER_CA;
+        (void)AddSigner(cm, hs);
+        /* RemoveCA frees the signer it removes; no XFREE after it. */
+        (void)RemoveCA(cm, hash, WOLFSSL_USER_CA);
+    }
+
+    /* --- 3352/3372:0/1 RemoveCA: cm==NULL || hash==NULL ------------------ */
+    (void)RemoveCA(NULL, hash, WOLFSSL_USER_CA);
+    (void)RemoveCA(cm, NULL, WOLFSSL_USER_CA);
+    (void)RemoveCA(cm, hash, WOLFSSL_USER_CA);
+
+    /* --- 3399:0/1/2 SetCAType: cm==NULL || hash==NULL || type range ------ */
+    (void)SetCAType(NULL, hash, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, NULL, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, hash, WOLFSSL_USER_CA);
+    (void)SetCAType(cm, hash, 0);
+
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

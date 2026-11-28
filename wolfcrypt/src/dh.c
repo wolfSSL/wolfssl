@@ -29,13 +29,16 @@
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
 
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$e")
         #pragma const_seg(".fipsB$e")
     #endif
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #include <wolfssl/wolfcrypt/sp.h>
@@ -973,6 +976,9 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 
     key->heap = heap; /* for XMALLOC/XFREE in future */
     key->trustedGroup = 0;
+#ifdef WOLF_CRYPTO_CB
+    key->devId = devId;
+#endif
 
 #ifdef WC_DH_INITIAL_RUNTIME_ENABLEMENT
     if (! wc_dh_enabled)
@@ -990,7 +996,9 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
     /* handle as async */
     ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_DH,
         key->heap, devId);
-#else
+#endif
+#if !defined(WOLF_CRYPTO_CB) && \
+    !(defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH))
     (void)devId;
 #endif
 
@@ -1762,6 +1770,8 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
  *   - Public key not equal to prime or prime - 1
  *   - Public key not bigger than prime.
  *
+ * Leading zero bytes in either prime or pub are ignored.
+ *
  * prime    Big-endian encoding of prime in bytes.
  * primeSz  Size of prime in bytes.
  * pub      Big-endian encoding of public key in bytes.
@@ -1775,6 +1785,12 @@ int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
 
     if (prime == NULL || pub == NULL)
         return BAD_FUNC_ARG;
+
+    /* Strip leading zeros from both so the length comparison is valid. */
+    for (i = 0; i < primeSz && prime[i] == 0; i++) {
+    }
+    primeSz -= i;
+    prime += i;
 
     for (i = 0; i < pubSz && pub[i] == 0; i++) {
     }
@@ -2137,6 +2153,55 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
     }
 
+#ifdef WOLF_CRYPTO_CB
+    /* Dispatched here, after the checks above, so a device gets validated
+     * inputs and the SP 800-56A guarantees do not depend on each driver
+     * reimplementing them. Placing it here rather than at the top of
+     * wc_DhAgree() also means the validation runs once, not twice, when a
+     * callback declines and software takes over.
+     *
+     * Never on the ct path: wc_DhAgree_ct() exists to give the caller a
+     * constant-time agreement, and a callback makes no such promise. Offload
+     * there would silently drop the guarantee the caller asked for, so that
+     * entry point stays in software. */
+    if (ct == 0)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Dh(key, priv, privSz, otherPub, pubSz, agree,
+                             agreeSz);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+        #ifdef WC_DH_NONBLOCK
+            /* The device completes the op in one call, so the cached
+             * validation is single-use. Clear it so the next agree on
+             * this DhNb re-runs the SP 800-56A peer-key check. */
+            if (key->nb != NULL) {
+                key->nb->pubKeyValidated = 0;
+            }
+        #endif
+            /* The shared secret must not be 1 (SP 800-56A 5.7.1.1). The
+             * software path below checks the mp_int; the device has already
+             * produced bytes, so check those. */
+            if (ret == 0) {
+                word32 i;
+                byte acc = 0;
+
+                for (i = 0; (i + 1) < *agreeSz; i++) {
+                    acc |= agree[i];
+                }
+                if ((acc == 0) && (*agreeSz > 0) &&
+                        (agree[*agreeSz - 1] == 1)) {
+                    WOLFSSL_MSG("wc_DhAgree shared secret is one");
+                    return MP_VAL;
+                }
+            }
+            return ret;
+        }
+        ret = 0; /* fall through to software */
+    }
+#endif
+
 #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_HAVE_SP_DH) && \
     defined(WOLFSSL_SP_NONBLOCK) && defined(WOLFSSL_SP_SMALL) && \
     !defined(WOLFSSL_SP_FAST_MODEXP)
@@ -2389,6 +2454,26 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
     pBits = mp_unsigned_bin_size(&key->p) * 8;
     if (pBits == 768 ||  pBits == 1024 || pBits == 1536 ||
         pBits == 2048 || pBits == 3072 || pBits == 4096) {
+        /* same checks as wc_DhAgree_Sync */
+        if (mp_count_bits(&key->p) < DH_MIN_SIZE) {
+            WOLFSSL_MSG("DH prime smaller than DH_MIN_SIZE");
+            return WC_KEY_SIZE_E;
+        }
+        if (mp_iseven(&key->p) == MP_YES) {
+            return MP_VAL;
+        }
+    #ifdef WOLFSSL_VALIDATE_FFC_IMPORT
+        if (wc_DhCheckPrivKey(key, priv, privSz) != 0) {
+            WOLFSSL_MSG("wc_DhAgree wc_DhCheckPrivKey failed");
+            return DH_CHECK_PRIV_E;
+        }
+    #endif
+        /* Always validate peer public key (2 <= y <= p-2) per SP 800-56A */
+        if (wc_DhCheckPubKey_ex(key, otherPub, pubSz, NULL, 0) != 0) {
+            WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
+            return DH_CHECK_PUB_E;
+        }
+
         ret = wc_mp_to_bigint(&key->p, &key->p.raw);
         if (ret == MP_OKAY)
             ret = IntelQaDhAgree(&key->asyncDev, &key->p.raw,
@@ -2563,6 +2648,8 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
         if (priv[0] == 0) {
             privSz--; priv++;
         }
+        /* Wipe and free an earlier private key before re-init. */
+        mp_forcezero(&key->priv);
         if (mp_init(&key->priv) != MP_OKAY)
             havePriv = 0;
     }
@@ -2584,6 +2671,8 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
         if (pub[0] == 0) {
             pubSz--; pub++;
         }
+        /* Free an earlier public key before re-init. */
+        mp_clear(&key->pub);
         if (mp_init(&key->pub) != MP_OKAY)
             havePub = 0;
     }
@@ -2676,6 +2765,10 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
             }
         }
 
+        /* Free p and g from wc_InitDhKey() or an earlier load before
+         * re-init; q is freed below only when a new q is set. */
+        mp_clear(&key->p);
+        mp_clear(&key->g);
         if (mp_init(&key->p) != MP_OKAY)
             ret = MP_INIT_E;
     }
@@ -2781,6 +2874,7 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     }
 
     if (ret == 0 && q != NULL) {
+        mp_clear(&key->q);
         if (mp_init(&key->q) != MP_OKAY)
             ret = MP_INIT_E;
     }
@@ -3181,7 +3275,7 @@ int wc_DhCopyNamedKey(int name,
 }
 
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DH_GEN_PARAMS)
 
 /* modulus_size in bits */
 int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
@@ -3297,6 +3391,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         /* force even */
         buf[bufSz - 1] &= 0xfe;
 
+        /* Free p, q and g from wc_InitDhKey() or an earlier load before
+         * re-init. */
+        mp_clear(&dh->p);
+        mp_clear(&dh->q);
+        mp_clear(&dh->g);
         if (mp_init_multi(tmp, tmp2, &dh->p, &dh->q, &dh->g, 0)
                 != MP_OKAY) {
             ret = MP_INIT_E;

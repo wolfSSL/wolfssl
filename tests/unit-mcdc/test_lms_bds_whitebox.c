@@ -614,6 +614,17 @@ static void wb_treehash_update_roots(const WbFam* f)
         }
     }
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    /* A full cache can be copied into the work stack, but another leaf may
+     * only be pushed after a combine frees space. Leaf zero never combines. */
+    priv.stack.offset = LMS_STACK_CACHE_LEN(params.height, params.hash_len);
+    ret = wc_lms_treehash_update(&state, &priv, wb_id, wb_seed, 0, 0, 0, 0);
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E)) {
+        WB_NOTE("treehash_update accepted a push onto a full stack");
+        wb_fail = 1;
+    }
+#endif
+
     wb_state_free(&state);
     WB_NOTE("2397/2414 treehash_update useRoot + over-long climb rows issued");
 }

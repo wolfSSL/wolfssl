@@ -52,13 +52,17 @@ enum wc_reloc_type {
     WC_R_AARCH64_LDST64_ABS_LO12_NC,
     WC_R_AARCH64_PREL32,
     WC_R_ARM_ABS32,
+    WC_R_ARM_CALL,
+    WC_R_ARM_JUMP24,
     WC_R_ARM_PREL31,
     WC_R_ARM_REL32,
     WC_R_ARM_THM_CALL,
     WC_R_ARM_THM_JUMP11,
     WC_R_ARM_THM_JUMP24,
     WC_R_ARM_THM_MOVT_ABS,
-    WC_R_ARM_THM_MOVW_ABS_NC
+    WC_R_ARM_THM_MOVW_ABS_NC,
+    WC_R_386_32,
+    WC_R_386_PC32
 };
 
 /* This structure is accessed natively by kernel module glue logic, and also

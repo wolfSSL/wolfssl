@@ -36,12 +36,6 @@
 #include "nrf_drv_rng.h"
 #include "nrf_drv_rtc.h"
 #include "nrf_drv_clock.h"
-#include "nrf_ecb.h"
-
-#ifdef SOFTDEVICE_PRESENT
-    #include "softdevice_handler.h"
-    #include "nrf_soc.h"
-#endif /* SOFTDEVICE_PRESENT */
 
 /* RTC */
 #ifndef NO_CRYPT_BENCHMARK
@@ -49,11 +43,6 @@ static volatile byte mRtcInitDone = 0;
 static volatile int mRtcSec = 0;
 const nrf_drv_rtc_t rtc = NRF_DRV_RTC_INSTANCE(0); /**< Declaring an instance of nrf_drv_rtc for RTC0. */
 #endif /* !NO_CRYPT_BENCHMARK */
-
-/* AES */
-#if !defined(NO_AES) && defined(WOLFSSL_NRF51_AES) && !defined(SOFTDEVICE_PRESENT)
-    static volatile byte mAesInitDone = 0;
-#endif
 
 /** @brief Function for getting vector of random numbers.
  *
@@ -97,70 +86,6 @@ int nrf51_random_generate(byte* output, word32 size)
 
     return (err_code == NRF_SUCCESS) ? 0 : -1;
 }
-
-#if !defined(NO_AES) && defined(WOLFSSL_NRF51_AES)
-
-#ifdef SOFTDEVICE_PRESENT
-static const byte* nRF51AesKey = NULL;
-#endif
-int nrf51_aes_set_key(const byte* key)
-{
-#ifdef SOFTDEVICE_PRESENT
-    nRF51AesKey = key;
-#else
-    if (!mAesInitDone) {
-        nrf_ecb_init();
-        mAesInitDone = 1;
-    }
-    nrf_ecb_set_key(key);
-#endif
-    return 0;
-}
-
-/* returns 0 on success and -1 on failure. */
-int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out)
-{
-    int ret;
-#ifdef SOFTDEVICE_PRESENT
-    uint32_t err_code = 0;
-    nrf_ecb_hal_data_t ecb_hal_data;
-#endif
-
-    (void)rounds;
-
-    /* Set key */
-    ret = nrf51_aes_set_key(key);
-    if (ret != 0) {
-        return ret;
-    }
-
-#ifdef SOFTDEVICE_PRESENT
-    /* Define ECB record */
-    XMEMCPY(ecb_hal_data.key, nRF51AesKey, SOC_ECB_KEY_LENGTH);
-    XMEMCPY(ecb_hal_data.cleartext, in, SOC_ECB_CLEARTEXT_LENGTH);
-    XMEMSET(ecb_hal_data.ciphertext, 0, SOC_ECB_CIPHERTEXT_LENGTH);
-
-    /* Perform block encrypt */
-    err_code = sd_ecb_block_encrypt(&ecb_hal_data);
-    if (err_code != NRF_SUCCESS) {
-        return -1;
-    }
-
-    /* Grab result */
-    XMEMCPY(out, ecb_hal_data.ciphertext, SOC_ECB_CIPHERTEXT_LENGTH);
-#else
-    /* Returns true or false depending on operation success. */
-    if (nrf_ecb_crypt(out, in))
-        ret = 0;
-    else
-        ret = -1;
-#endif
-
-    return ret;
-}
-
-#endif /* !NO_AES && WOLFSSL_NRF51_AES */
-
 
 #ifndef NO_CRYPT_BENCHMARK
 static void rtc_handler(nrf_drv_rtc_int_type_t int_type)

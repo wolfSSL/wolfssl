@@ -23,7 +23,7 @@ jobs:
     # Just to keep it the same as the testing target
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 4
+    timeout-minutes: 8
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -70,7 +70,11 @@ jobs:
         uses: ./.github/actions/install-apt-deps
         with:
           packages: build-essential autoconf libldb-dev libldb2 python3-ldb bc libcap-dev
-          ghcr-debs-tag: ubuntu-24.04-full
+          # Not -full: that bundle is resolved on the runner, so it carries
+          # neither bc nor libcap-dev's libcap2 (both preinstalled there), and
+          # this job fell back to the apt mirror every run. -sssd is resolved
+          # inside the container image below.
+          ghcr-debs-tag: ubuntu-24.04-sssd
 
       - name: Setup env
         run: |

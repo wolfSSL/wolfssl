@@ -144,6 +144,10 @@
 #define MCDC_FH_NO_AES
 #define MCDC_FH_NO_HMAC
 
+/* Keep misc.c's ForceZero() out of this TU so the definition below (with the
+ * Uninstantiate-fault gate) is the one random.c's calls bind to. */
+#define WOLFSSL_NO_FORCE_ZERO
+
 #include "mcdc_fault_hash.h"
 
 /* random.c is #included AFTER the interposers are installed. */
@@ -155,6 +159,53 @@ static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 /* --------------------------------------------------------------------------
+ * Faultable ForceZero (the WOLFSSL_NO_FORCE_ZERO above keeps misc.c's copy
+ * out of this TU). When armed for a specific size the wipe is skipped, so
+ * the zero-check in Hash_DRBG_Uninstantiate() / Hash512_DRBG_Uninstantiate()
+ * deterministically reports DRBG_FAILURE. The size match keeps every other
+ * wipe in this TU (digests, V/C, output buffers) intact. Same body as
+ * misc.c's, gate first.
+ * ----------------------------------------------------------------------- */
+static size_t mcdc_fz_arm_len = 0;
+
+MCDC_FH_MAYBE_UNUSED static void mcdc_fz_arm(size_t len)
+{
+    mcdc_fz_arm_len = len;
+}
+
+MCDC_FH_MAYBE_UNUSED static void mcdc_fz_disarm(void)
+{
+    mcdc_fz_arm_len = 0;
+}
+
+void ForceZero(void *mem, size_t len)
+{
+    byte *zb = (byte *)mem;
+    unsigned long *zl;
+
+    if (mcdc_fz_arm_len != 0 && len == mcdc_fz_arm_len)
+        return;
+
+    WC_BARRIER_DATA(mem);
+    while ((len != 0) &&
+            ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U))) {
+        *zb++ = 0;
+        --len;
+    }
+    zl = (unsigned long *)zb;
+    while (len >= sizeof(unsigned long)) {
+        *zl++ = 0;
+        len -= sizeof(unsigned long);
+    }
+    zb = (byte *)zl;
+    while (len) {
+        *zb++ = 0;
+        --len;
+    }
+    WC_BARRIER_DATA(mem);
+}
+
+/* --------------------------------------------------------------------------
  * 1. Hash_DRBG_Init(): "Hash_df(V) == DRBG_SUCCESS && Hash_df(C) ==
  *    DRBG_SUCCESS" (~1077). Both operands paired in this binary.
  * ----------------------------------------------------------------------- */
@@ -163,6 +214,7 @@ static int wb_fail = 0;
 static void wb_hash_drbg_init_df_chain(void)
 {
     DRBG_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte   seed[48];
     byte   nonce[16];
     word32 i;
@@ -177,7 +229,7 @@ static void wb_hash_drbg_init_df_chain(void)
     /* Vector (T, T): unarmed instantiate, in the SAME binary as the two
      * rejection vectors below. */
     mcdc_fh_disarm();
-    ret = Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("unarmed Hash_DRBG_Instantiate failed; df-chain skipped");
@@ -204,16 +256,24 @@ static void wb_hash_drbg_init_df_chain(void)
     /* Vector (F, -): the first Hash_df fails on its very first primitive
      * call, so the && short-circuits and never calls the second one. */
     mcdc_fh_arm(1);
-    (void)Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash_DRBG_Uninstantiate(&drbg);
 
     /* Vector (T, F): the first Hash_df's n1 primitive calls all succeed;
      * every call from n1+1 on -- the whole second Hash_df -- fails. */
     mcdc_fh_arm(n1 + 1);
-    (void)Hash_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash_DRBG_Uninstantiate(&drbg);
 
@@ -234,6 +294,7 @@ static void wb_hash_drbg_init_df_chain(void)
 static void wb_hash512_drbg_init_df_chain(void)
 {
     DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
     byte   seed[48];
     byte   nonce[16];
     word32 i;
@@ -247,7 +308,7 @@ static void wb_hash512_drbg_init_df_chain(void)
 
     /* Vector (T, T). */
     mcdc_fh_disarm();
-    ret = Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
     if (ret != DRBG_SUCCESS) {
         WB_NOTE("unarmed Hash512_DRBG_Instantiate failed; df-chain skipped");
@@ -270,15 +331,23 @@ static void wb_hash512_drbg_init_df_chain(void)
 
     /* Vector (F, -). */
     mcdc_fh_arm(1);
-    (void)Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash512_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash512_DRBG_Uninstantiate(&drbg);
 
     /* Vector (T, F). */
     mcdc_fh_arm(n1 + 1);
-    (void)Hash512_DRBG_Instantiate(&drbg, seed, (word32)sizeof(seed),
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
             nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret == DRBG_SUCCESS) {
+        WB_NOTE("armed Hash512_DRBG_Instantiate unexpectedly succeeded");
+        wb_fail = 1;
+    }
     mcdc_fh_disarm();
     (void)Hash512_DRBG_Uninstantiate(&drbg);
 
@@ -291,7 +360,593 @@ static void wb_hash512_drbg_init_df_chain(void)
 #endif
 
 /* --------------------------------------------------------------------------
- * 3. Entropy-source failure through the documented WC_RNG_SEED_CB hook.
+ * 3. Hash256_DRBG_Reseed(): the "Hash_df(newV)" then "Hash_df(newC)" chain
+ *    (~747), plus the function's atomic-commit contract ("No state mutation
+ *    on failure").  Both faulted vectors assert that V, C and reseedCtr are
+ *    byte-identical afterwards and that the same reseed retried disarmed
+ *    succeeds in place.  Vector (T, F) is the historical seam: the
+ *    pre-atomic code had already committed V before deriving C, so a fault
+ *    there left a half-applied transition.
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    defined(MCDC_FH_HAVE_SHA256)
+static void wb_hash_drbg_reseed_df_chain(void)
+{
+    DRBG_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
+    byte   seed[48];
+    byte   nonce[16];
+    byte   seed2[48];
+    byte   v0[DRBG_SEED_LEN];
+    byte   c0[DRBG_SEED_LEN];
+    byte   dfout[DRBG_SEED_LEN];
+    byte   out[32];
+    unsigned long long rctr0;
+    word32 i;
+    long   n1;
+    int    ret;
+
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)((i * 17u) + 5u);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)((i * 19u) + 6u);
+    for (i = 0; i < (word32)sizeof(seed2); i++)
+        seed2[i] = (byte)((i * 23u) + 7u);
+
+    mcdc_fh_disarm();
+    ret = Hash_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
+            nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("unarmed Hash_DRBG_Instantiate failed; reseed chain skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    XMEMCPY(v0, drbg.V, sizeof(v0));
+    XMEMCPY(c0, drbg.C, sizeof(c0));
+    rctr0 = (unsigned long long)drbg_ctr;
+
+    /* Size the FIRST Hash_df of Hash256_DRBG_Reseed: same out size, same
+     * type byte (drbgReseed), same present/absent operands as the reseed
+     * calls below.  Written to a local, so the instance is untouched. */
+    mcdc_fh_disarm();
+    ret = Hash_df(&drbg, dfout, DRBG_SEED_LEN, drbgReseed,
+            drbg.V, (word32)sizeof(drbg.V), seed2, (word32)sizeof(seed2),
+            NULL, 0);
+    n1 = mcdc_fh_seen();
+    if (ret != DRBG_SUCCESS || n1 <= 0) {
+        WB_NOTE("could not size the reseed Hash_df; fault vectors skipped");
+        wb_fail = 1;
+        (void)Hash_DRBG_Uninstantiate(&drbg);
+        return;
+    }
+
+    /* Vector (F, -): the newV derivation fails on its first primitive. */
+    mcdc_fh_arm(1);
+    ret = Hash256_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("armed reseed (F,-) did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)drbg_ctr != rctr0)) {
+        WB_NOTE("reseed (F,-) mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Vector (T, F): the newV derivation's n1 calls all succeed and the newC
+     * derivation fails -- the seam case. */
+    mcdc_fh_arm(n1 + 1);
+    ret = Hash256_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("armed reseed (T,F) did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)drbg_ctr != rctr0)) {
+        WB_NOTE("reseed (T,F) mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Retryability: the same reseed, disarmed, succeeds in place, and the
+     * instance is operational. */
+    ret = Hash256_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    if ((ret != DRBG_SUCCESS) || (drbg_ctr != 1)) {
+        WB_NOTE("disarmed reseed retry did not succeed cleanly");
+        wb_fail = 1;
+    }
+    else {
+        ret = Hash_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
+        if (ret != DRBG_SUCCESS) {
+            WB_NOTE("generate after retried reseed failed");
+            wb_fail = 1;
+        }
+    }
+    (void)Hash_DRBG_Uninstantiate(&drbg);
+
+    WB_NOTE("Hash256_DRBG_Reseed (F,-)/(T,F): no-mutation + retry driven");
+}
+#else
+static void wb_hash_drbg_reseed_df_chain(void)
+{ WB_NOTE("HAVE_HASHDRBG/!NO_SHA256 off (or no SHA-256 interposer); "
+          "Hash256_DRBG_Reseed chain skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 4. Hash512_DRBG_Reseed(): the SHA-512 counterpart (~1915).
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    defined(MCDC_FH_HAVE_SHA512)
+static void wb_hash512_drbg_reseed_df_chain(void)
+{
+    DRBG_SHA512_internal drbg;
+    wc_drbg_reseed_ctr_t drbg_ctr = 0;
+    byte   seed[48];
+    byte   nonce[16];
+    byte   seed2[48];
+    byte   v0[DRBG_SHA512_SEED_LEN];
+    byte   c0[DRBG_SHA512_SEED_LEN];
+    byte   dfout[DRBG_SHA512_SEED_LEN];
+    byte   out[32];
+    unsigned long long rctr0;
+    word32 i;
+    long   n1;
+    int    ret;
+
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)((i * 41u) + 11u);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)((i * 43u) + 12u);
+    for (i = 0; i < (word32)sizeof(seed2); i++)
+        seed2[i] = (byte)((i * 47u) + 13u);
+
+    mcdc_fh_disarm();
+    ret = Hash512_DRBG_Instantiate(&drbg, &drbg_ctr, seed, (word32)sizeof(seed),
+            nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("unarmed Hash512_DRBG_Instantiate failed; "
+                "reseed chain skipped");
+        wb_fail = 1;
+        return;
+    }
+
+    XMEMCPY(v0, drbg.V, sizeof(v0));
+    XMEMCPY(c0, drbg.C, sizeof(c0));
+    rctr0 = (unsigned long long)drbg_ctr;
+
+    /* Size the first Hash512_df of Hash512_DRBG_Reseed. */
+    mcdc_fh_disarm();
+    ret = Hash512_df(&drbg, dfout, DRBG_SHA512_SEED_LEN, drbgReseed,
+            drbg.V, (word32)sizeof(drbg.V), seed2, (word32)sizeof(seed2),
+            NULL, 0);
+    n1 = mcdc_fh_seen();
+    if (ret != DRBG_SUCCESS || n1 <= 0) {
+        WB_NOTE("could not size the reseed Hash512_df; "
+                "fault vectors skipped");
+        wb_fail = 1;
+        (void)Hash512_DRBG_Uninstantiate(&drbg);
+        return;
+    }
+
+    /* Vector (F, -). */
+    mcdc_fh_arm(1);
+    ret = Hash512_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("armed 512 reseed (F,-) did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)drbg_ctr != rctr0)) {
+        WB_NOTE("512 reseed (F,-) mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Vector (T, F): the seam case. */
+    mcdc_fh_arm(n1 + 1);
+    ret = Hash512_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("armed 512 reseed (T,F) did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(drbg.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(drbg.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)drbg_ctr != rctr0)) {
+        WB_NOTE("512 reseed (T,F) mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Retryability. */
+    ret = Hash512_DRBG_Reseed(&drbg, &drbg_ctr, seed2, (word32)sizeof(seed2), NULL, 0);
+    if ((ret != DRBG_SUCCESS) || (drbg_ctr != 1)) {
+        WB_NOTE("disarmed 512 reseed retry did not succeed cleanly");
+        wb_fail = 1;
+    }
+    else {
+        ret = Hash512_DRBG_Generate(&drbg, &drbg_ctr, out, (word32)sizeof(out), NULL, 0);
+        if (ret != DRBG_SUCCESS) {
+            WB_NOTE("generate after retried 512 reseed failed");
+            wb_fail = 1;
+        }
+    }
+    (void)Hash512_DRBG_Uninstantiate(&drbg);
+
+    WB_NOTE("Hash512_DRBG_Reseed (F,-)/(T,F): no-mutation + retry driven");
+}
+#else
+static void wb_hash512_drbg_reseed_df_chain(void)
+{ WB_NOTE("WOLFSSL_DRBG_SHA512 off (or no SHA-512 interposer); "
+          "Hash512_DRBG_Reseed chain skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 5. Hash_DRBG_Generate(): failure atomicity ("DRBG state is always
+ *    consistent upon return").  Two fault positions bracket Hash_gen():
+ *
+ *      pre-Hash_gen  -- the additional-input (0x02) hash fails; nothing has
+ *                       been derived yet.
+ *      post-Hash_gen -- the output block is already produced and the 0x03
+ *                       V-update hash fails; the shadow-V commit must not
+ *                       have happened.
+ *
+ *    Both assert V/C/reseedCtr byte-identical, and the disarmed retry must
+ *    produce output byte-identical to an identically-instantiated control
+ *    (no stream position consumed).  The identical retry bytes are also the
+ *    executable witness that Hash_gen() banks nothing across a failed
+ *    attempt: a banked block would make this exact retry a stuck-output
+ *    false positive.
+ *
+ *    Arm indices are measured, never hard-coded: n_a by replicating the
+ *    additional-input hash's call shape on a local context (the interposer
+ *    counts this TU's own calls too), n_gen by calling Hash_gen() directly
+ *    with the same outSz (it reads V and writes only the caller's buffer).
+ *
+ *    NOT CHASED HERE -- mid-phase faults under WOLFSSL_SMALL_STACK_CACHE.
+ *    Both positions above fault a phase's FIRST primitive call, where the
+ *    persistent drbg->sha256 is clean (each preceding phase ended with a
+ *    Final, which resets the context; the interposer fails without calling
+ *    the real primitive).  A fault in the MIDDLE of a phase would leave
+ *    absorbed-but-unfinalized data in the cached context -- V/C/reseedCtr
+ *    still unmutated, but the next hash over that context diverges, so
+ *    retry-byte-identity would not hold.  Software wc_Sha*Update cannot
+ *    fail mid-stream, so the exposure is confined to async/devId cache
+ *    builds; recorded rather than asserted.
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    defined(MCDC_FH_HAVE_SHA256)
+static void wb_hash_drbg_generate_atomicity(void)
+{
+    DRBG_internal ctrl;
+    wc_drbg_reseed_ctr_t ctrl_ctr = 0;
+    DRBG_internal probe;
+    wc_drbg_reseed_ctr_t probe_ctr = 0;
+    wc_Sha256 addsha[1];
+    byte   seed[48];
+    byte   nonce[16];
+    byte   add[24];
+    byte   exp1[64];
+    byte   out[64];
+    byte   out2[64];
+    byte   tmp[64];
+    byte   v0[DRBG_SEED_LEN];
+    byte   c0[DRBG_SEED_LEN];
+    unsigned long long rctr0;
+    word32 i;
+    long   t_add;
+    long   n_a;
+    long   n_gen;
+    int    ret;
+
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)((i * 29u) + 8u);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)((i * 31u) + 9u);
+    for (i = 0; i < (word32)sizeof(add); i++)
+        add[i] = (byte)((i * 37u) + 10u);
+
+    /* Control: one disarmed generate; its output is the expected block for
+     * every retry below, and its end state the expected end state. */
+    mcdc_fh_disarm();
+    ret = Hash_DRBG_Instantiate(&ctrl, &ctrl_ctr, seed, (word32)sizeof(seed),
+            nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("control Hash_DRBG_Instantiate failed; atomicity skipped");
+        wb_fail = 1;
+        return;
+    }
+    mcdc_fh_disarm();
+    ret = Hash_DRBG_Generate(&ctrl, &ctrl_ctr, exp1, (word32)sizeof(exp1),
+                             add, (word32)sizeof(add));
+    t_add = mcdc_fh_seen();
+    if (ret != DRBG_SUCCESS || t_add <= 0) {
+        WB_NOTE("control generate failed; atomicity skipped");
+        wb_fail = 1;
+        (void)Hash_DRBG_Uninstantiate(&ctrl);
+        return;
+    }
+
+    /* Probe: identical instantiation, so identical state. */
+    ret = Hash_DRBG_Instantiate(&probe, &probe_ctr, seed, (word32)sizeof(seed),
+            nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("probe Hash_DRBG_Instantiate failed; atomicity skipped");
+        wb_fail = 1;
+        (void)Hash_DRBG_Uninstantiate(&ctrl);
+        return;
+    }
+    XMEMCPY(v0, probe.V, sizeof(v0));
+    XMEMCPY(c0, probe.C, sizeof(c0));
+    rctr0 = (unsigned long long)probe_ctr;
+
+    /* n_a: the additional-input hash is Update(type) + Update(V) +
+     * Update(additional) + Final; sizes do not change the call count. */
+    ret = wc_InitSha256(addsha);
+    mcdc_fh_disarm();
+    if (ret == 0)
+        ret = wc_Sha256Update(addsha, add, 1);
+    if (ret == 0)
+        ret = wc_Sha256Update(addsha, probe.V, (word32)sizeof(probe.V));
+    if (ret == 0)
+        ret = wc_Sha256Update(addsha, add, (word32)sizeof(add));
+    if (ret == 0)
+        ret = wc_Sha256Final(addsha, tmp);
+    n_a = mcdc_fh_seen();
+    wc_Sha256Free(addsha);
+    if (ret != 0 || n_a <= 0) {
+        WB_NOTE("could not size the additional-input hash; "
+                "atomicity skipped");
+        wb_fail = 1;
+        goto out_uninst;
+    }
+
+    /* n_gen: direct Hash_gen of the same outSz. */
+    mcdc_fh_disarm();
+    ret = Hash_gen(&probe, tmp, (word32)sizeof(tmp), probe.V);
+    n_gen = mcdc_fh_seen();
+    if (ret != DRBG_SUCCESS || n_gen <= 0) {
+        WB_NOTE("could not size Hash_gen; atomicity skipped");
+        wb_fail = 1;
+        goto out_uninst;
+    }
+    if (t_add <= n_a + n_gen) {
+        WB_NOTE("generate call-count structure drifted; atomicity skipped");
+        wb_fail = 1;
+        goto out_uninst;
+    }
+
+    /* Pre-Hash_gen fault: first primitive of the additional-input hash. */
+    mcdc_fh_arm(1);
+    ret = Hash_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
+                             add, (word32)sizeof(add));
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("pre-Hash_gen fault did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)probe_ctr != rctr0)) {
+        WB_NOTE("pre-Hash_gen fault mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Post-Hash_gen fault: first primitive after Hash_gen's last. */
+    mcdc_fh_arm(n_a + n_gen + 1);
+    ret = Hash_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
+                             add, (word32)sizeof(add));
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("post-Hash_gen fault did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)probe_ctr != rctr0)) {
+        WB_NOTE("post-Hash_gen fault mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Retry: byte-identical output, end state equal to the control's. */
+    ret = Hash_DRBG_Generate(&probe, &probe_ctr, out2, (word32)sizeof(out2),
+                             add, (word32)sizeof(add));
+    if ((ret != DRBG_SUCCESS) ||
+        (XMEMCMP(out2, exp1, sizeof(exp1)) != 0)) {
+        WB_NOTE("retried generate not byte-identical to control");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(probe.V, ctrl.V, sizeof(v0)) != 0) ||
+        (XMEMCMP(probe.C, ctrl.C, sizeof(c0)) != 0) ||
+        (probe_ctr != ctrl_ctr)) {
+        WB_NOTE("retried generate end-state differs from control");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("Hash_DRBG_Generate pre/post-Hash_gen faults: "
+            "no-mutation + byte-identical retry driven");
+
+out_uninst:
+    (void)Hash_DRBG_Uninstantiate(&probe);
+    (void)Hash_DRBG_Uninstantiate(&ctrl);
+}
+#else
+static void wb_hash_drbg_generate_atomicity(void)
+{ WB_NOTE("HAVE_HASHDRBG/!NO_SHA256 off (or no SHA-256 interposer); "
+          "Hash_DRBG_Generate atomicity skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 6. Hash512_DRBG_Generate(): the SHA-512 counterpart.
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    defined(MCDC_FH_HAVE_SHA512)
+static void wb_hash512_drbg_generate_atomicity(void)
+{
+    DRBG_SHA512_internal ctrl;
+    wc_drbg_reseed_ctr_t ctrl_ctr = 0;
+    DRBG_SHA512_internal probe;
+    wc_drbg_reseed_ctr_t probe_ctr = 0;
+    wc_Sha512 addsha[1];
+    byte   seed[48];
+    byte   nonce[16];
+    byte   add[24];
+    byte   exp1[64];
+    byte   out[64];
+    byte   out2[64];
+    byte   tmp[64];
+    byte   v0[DRBG_SHA512_SEED_LEN];
+    byte   c0[DRBG_SHA512_SEED_LEN];
+    unsigned long long rctr0;
+    word32 i;
+    long   t_add;
+    long   n_a;
+    long   n_gen;
+    int    ret;
+
+    for (i = 0; i < (word32)sizeof(seed); i++)
+        seed[i] = (byte)((i * 53u) + 14u);
+    for (i = 0; i < (word32)sizeof(nonce); i++)
+        nonce[i] = (byte)((i * 59u) + 15u);
+    for (i = 0; i < (word32)sizeof(add); i++)
+        add[i] = (byte)((i * 61u) + 16u);
+
+    /* Control. */
+    mcdc_fh_disarm();
+    ret = Hash512_DRBG_Instantiate(&ctrl, &ctrl_ctr, seed, (word32)sizeof(seed),
+            nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("control Hash512_DRBG_Instantiate failed; "
+                "atomicity skipped");
+        wb_fail = 1;
+        return;
+    }
+    mcdc_fh_disarm();
+    ret = Hash512_DRBG_Generate(&ctrl, &ctrl_ctr, exp1, (word32)sizeof(exp1),
+                                add, (word32)sizeof(add));
+    t_add = mcdc_fh_seen();
+    if (ret != DRBG_SUCCESS || t_add <= 0) {
+        WB_NOTE("control 512 generate failed; atomicity skipped");
+        wb_fail = 1;
+        (void)Hash512_DRBG_Uninstantiate(&ctrl);
+        return;
+    }
+
+    /* Probe. */
+    ret = Hash512_DRBG_Instantiate(&probe, &probe_ctr, seed, (word32)sizeof(seed),
+            nonce, (word32)sizeof(nonce), NULL, 0, NULL, INVALID_DEVID);
+    if (ret != DRBG_SUCCESS) {
+        WB_NOTE("probe Hash512_DRBG_Instantiate failed; atomicity skipped");
+        wb_fail = 1;
+        (void)Hash512_DRBG_Uninstantiate(&ctrl);
+        return;
+    }
+    XMEMCPY(v0, probe.V, sizeof(v0));
+    XMEMCPY(c0, probe.C, sizeof(c0));
+    rctr0 = (unsigned long long)probe_ctr;
+
+    /* n_a. */
+    ret = wc_InitSha512(addsha);
+    mcdc_fh_disarm();
+    if (ret == 0)
+        ret = wc_Sha512Update(addsha, add, 1);
+    if (ret == 0)
+        ret = wc_Sha512Update(addsha, probe.V, (word32)sizeof(probe.V));
+    if (ret == 0)
+        ret = wc_Sha512Update(addsha, add, (word32)sizeof(add));
+    if (ret == 0)
+        ret = wc_Sha512Final(addsha, tmp);
+    n_a = mcdc_fh_seen();
+    wc_Sha512Free(addsha);
+    if (ret != 0 || n_a <= 0) {
+        WB_NOTE("could not size the 512 additional-input hash; "
+                "atomicity skipped");
+        wb_fail = 1;
+        goto out_uninst;
+    }
+
+    /* n_gen. */
+    mcdc_fh_disarm();
+    ret = Hash512_gen(&probe, tmp, (word32)sizeof(tmp), probe.V);
+    n_gen = mcdc_fh_seen();
+    if (ret != DRBG_SUCCESS || n_gen <= 0) {
+        WB_NOTE("could not size Hash512_gen; atomicity skipped");
+        wb_fail = 1;
+        goto out_uninst;
+    }
+    if (t_add <= n_a + n_gen) {
+        WB_NOTE("512 generate call-count structure drifted; "
+                "atomicity skipped");
+        wb_fail = 1;
+        goto out_uninst;
+    }
+
+    /* Pre-Hash512_gen fault. */
+    mcdc_fh_arm(1);
+    ret = Hash512_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
+                                add, (word32)sizeof(add));
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("pre-Hash512_gen fault did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)probe_ctr != rctr0)) {
+        WB_NOTE("pre-Hash512_gen fault mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Post-Hash512_gen fault. */
+    mcdc_fh_arm(n_a + n_gen + 1);
+    ret = Hash512_DRBG_Generate(&probe, &probe_ctr, out, (word32)sizeof(out),
+                                add, (word32)sizeof(add));
+    mcdc_fh_disarm();
+    if (ret != WC_NO_ERR_TRACE(DRBG_FAILURE)) {
+        WB_NOTE("post-Hash512_gen fault did not return DRBG_FAILURE");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(probe.V, v0, sizeof(v0)) != 0) ||
+        (XMEMCMP(probe.C, c0, sizeof(c0)) != 0) ||
+        ((unsigned long long)probe_ctr != rctr0)) {
+        WB_NOTE("post-Hash512_gen fault mutated DRBG state");
+        wb_fail = 1;
+    }
+
+    /* Retry. */
+    ret = Hash512_DRBG_Generate(&probe, &probe_ctr, out2, (word32)sizeof(out2),
+                                add, (word32)sizeof(add));
+    if ((ret != DRBG_SUCCESS) ||
+        (XMEMCMP(out2, exp1, sizeof(exp1)) != 0)) {
+        WB_NOTE("retried 512 generate not byte-identical to control");
+        wb_fail = 1;
+    }
+    if ((XMEMCMP(probe.V, ctrl.V, sizeof(v0)) != 0) ||
+        (XMEMCMP(probe.C, ctrl.C, sizeof(c0)) != 0) ||
+        (probe_ctr != ctrl_ctr)) {
+        WB_NOTE("retried 512 generate end-state differs from control");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("Hash512_DRBG_Generate pre/post-Hash512_gen faults: "
+            "no-mutation + byte-identical retry driven");
+
+out_uninst:
+    (void)Hash512_DRBG_Uninstantiate(&probe);
+    (void)Hash512_DRBG_Uninstantiate(&ctrl);
+}
+#else
+static void wb_hash512_drbg_generate_atomicity(void)
+{ WB_NOTE("WOLFSSL_DRBG_SHA512 off (or no SHA-512 interposer); "
+          "Hash512_DRBG_Generate atomicity skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 7. Entropy-source failure through the documented WC_RNG_SEED_CB hook.
  *    seed_cb variant only; the macro comes from the variant's cppflags and is
  *    deliberately NOT defined here.
  * ----------------------------------------------------------------------- */
@@ -364,6 +1019,24 @@ static void wb_seed_cb_entropy_failure(void)
         (void)wc_FreeRng(&rng);
     }
 
+    /* Vector D: the same failing entropy source with the full-mutex flag
+     * set, pairing the (false, true) row of _InitRng()'s
+     * "ret==0 && (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)" guard (~3366).
+     * Without WC_RNG_HAVE_LOCK_FULL_MUTEX the flag is refused at the entry
+     * (NOT_COMPILED_IN) before the guard, so the row is a build-config
+     * residual there. */
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    XMEMSET(&rng, 0, sizeof(rng));
+    wb_seed_broken = 1;
+    ret = wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                         WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
+    wb_seed_broken = 0;
+    if (ret == 0) {
+        WB_NOTE("wc_InitRng_ex2 USE_FULL_MUTEX succeeded with failing entropy");
+        wb_fail = 1;
+    }
+#endif
+
     /* Put the library default back, so nothing later in this binary runs on
      * the test callback. Mirrors random.c's own seedCb initialiser. */
 #ifndef HAVE_FIPS
@@ -380,6 +1053,389 @@ static void wb_seed_cb_entropy_failure(void)
           "failure vectors skipped"); }
 #endif
 
+/* --------------------------------------------------------------------------
+ * 8. _InitRng() flag guards:
+ *      :3366  ret==0 && (flags & WC_RNG_INIT_FLAG_USE_FULL_MUTEX)
+ *             (the (false, true) row is Vector D above)
+ *      :3443  ret==0 && !(flags & NO_AUTO_LOCK) &&
+ *             (WC_RNG_AUTO_LOCK_DEFAULT ||
+ *              (flags & WC_RNG_INIT_FLAG_USE_AUTO_LOCK))   (cond 3)
+ * ----------------------------------------------------------------------- */
+#if !defined(WC_NO_RNG)
+static void wb_init_flags(void)
+{
+    WC_RNG rng;
+    int    ret;
+
+#ifdef WC_RNG_HAVE_LOCK_FULL_MUTEX
+    /* :3366 (true, true): full-mutex flag, init succeeds. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ret = wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                         WC_RNG_INIT_FLAG_USE_FULL_MUTEX);
+    if (ret != 0) {
+        WB_NOTE("wc_InitRng_ex2 USE_FULL_MUTEX failed");
+        wb_fail = 1;
+    }
+    else {
+        (void)wc_FreeRng(&rng);
+    }
+#else
+    /* Without WC_RNG_HAVE_LOCK_FULL_MUTEX the flag is refused at the entry
+     * with NOT_COMPILED_IN, before the ~3366 guard: the guard's flag-true
+     * rows are a build-config residual in this variant. */
+#if !defined(WC_RNG_HAVE_AUTO_LOCK)
+    (void)rng;
+    (void)ret;
+#endif
+#endif
+
+#ifdef WC_RNG_HAVE_AUTO_LOCK
+    /* :3443 cond 3 (flags & USE_AUTO_LOCK) true row: auto-lock flag, init
+     * succeeds. The (false) row is every plain init in this suite. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    ret = wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                         WC_RNG_INIT_FLAG_USE_AUTO_LOCK);
+    if (ret != 0) {
+        WB_NOTE("wc_InitRng_ex2 USE_AUTO_LOCK failed");
+        wb_fail = 1;
+    }
+    else {
+        (void)wc_FreeRng(&rng);
+    }
+#endif
+
+    WB_NOTE("_InitRng flag-guard rows driven");
+}
+#else
+static void wb_init_flags(void) { WB_NOTE("WC_NO_RNG; flag vectors skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 9. wc_RNG_HealthTest() / wc_RNG_HealthTest_SHA512():
+ *      :6273  (Hash_DRBG_Uninstantiate(drbg) != 0) && (ret == 0)
+ *      :6765  (Hash512_DRBG_Uninstantiate(drbg) != 0) && (ret == 0)
+ *
+ * The Uninstantiate return is the zero-check of ForceZero(); the faultable
+ * ForceZero above skips exactly the DRBG-struct wipe when armed, so
+ * Uninstantiate reports DRBG_FAILURE deterministically. Rows:
+ *   (F, T)  baseline: everything succeeds, uninstantiate clean
+ *   (T, T)  valid test, wipe faulted: ret==0, Uninstantiate fails
+ *   (T, F)  first Hash_df faulted by mcdc_fault_hash.h so Instantiate fails
+ *           (ret=DRBG_FAILURE) AND the wipe is faulted
+ * The public boundary translates the positive DRBG code to WC_FAILURE, so
+ * the checks assert nonzero, not the DRBG code itself.
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && \
+    defined(MCDC_FH_HAVE_SHA256)
+static void wb_healthtest_uninstantiate_fault(void)
+{
+    byte   seedA[48];
+    byte   out[RNG_HEALTH_TEST_CHECK_SIZE];
+    word32 i;
+    int    ret;
+
+    for (i = 0; i < sizeof(seedA); i++)
+        seedA[i] = (byte)((i * 13u) + 3u);
+
+    /* (F, T) baseline. */
+    mcdc_fh_disarm();
+    mcdc_fz_disarm();
+    ret = wc_RNG_HealthTest(0, seedA, sizeof(seedA), NULL, 0,
+                            out, sizeof(out));
+    if (ret != 0) {
+        WB_NOTE("HealthTest baseline failed");
+        wb_fail = 1;
+    }
+
+    /* (T, T): valid test, the struct wipe is faulted. */
+    mcdc_fz_arm(sizeof(DRBG_internal));
+    ret = wc_RNG_HealthTest(0, seedA, sizeof(seedA), NULL, 0,
+                            out, sizeof(out));
+    mcdc_fz_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest survived the faulted uninstantiate");
+        wb_fail = 1;
+    }
+
+    /* (T, F): Instantiate fails on its first Hash_df, wipe faulted too. */
+    mcdc_fh_arm(1);
+    mcdc_fz_arm(sizeof(DRBG_internal));
+    ret = wc_RNG_HealthTest(0, seedA, sizeof(seedA), NULL, 0,
+                            out, sizeof(out));
+    mcdc_fz_disarm();
+    mcdc_fh_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest survived the faulted instantiate");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("HealthTest uninstantiate-fault rows driven");
+}
+#else
+static void wb_healthtest_uninstantiate_fault(void)
+{ WB_NOTE("SHA-256 Hash_DRBG not compiled in this variant; skipped"); }
+#endif
+
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    defined(MCDC_FH_HAVE_SHA512)
+static void wb_healthtest512_uninstantiate_fault(void)
+{
+    byte   seedA[48];
+    byte   out[RNG_HEALTH_TEST_CHECK_SIZE_SHA512];
+    word32 i;
+    int    ret;
+
+    for (i = 0; i < sizeof(seedA); i++)
+        seedA[i] = (byte)((i * 17u) + 5u);
+
+    /* (F, T) baseline. */
+    mcdc_fh_disarm();
+    mcdc_fz_disarm();
+    ret = wc_RNG_HealthTest_SHA512(0, seedA, sizeof(seedA), NULL, 0,
+                                   out, sizeof(out));
+    if (ret != 0) {
+        WB_NOTE("HealthTest_SHA512 baseline failed");
+        wb_fail = 1;
+    }
+
+    /* (T, T): valid test, the struct wipe is faulted. */
+    mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
+    ret = wc_RNG_HealthTest_SHA512(0, seedA, sizeof(seedA), NULL, 0,
+                                   out, sizeof(out));
+    mcdc_fz_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest_SHA512 survived the faulted uninstantiate");
+        wb_fail = 1;
+    }
+
+    /* (T, F): Instantiate fails on its first Hash512_df, wipe faulted too. */
+    mcdc_fh_arm(1);
+    mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
+    ret = wc_RNG_HealthTest_SHA512(0, seedA, sizeof(seedA), NULL, 0,
+                                   out, sizeof(out));
+    mcdc_fz_disarm();
+    mcdc_fh_disarm();
+    if (ret == 0) {
+        WB_NOTE("HealthTest_SHA512 survived the faulted instantiate");
+        wb_fail = 1;
+    }
+
+    WB_NOTE("HealthTest_SHA512 uninstantiate-fault rows driven");
+}
+#else
+static void wb_healthtest512_uninstantiate_fault(void)
+{ WB_NOTE("SHA-512 Hash_DRBG not compiled in this variant; skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 9b. wc_FreeRng() / RngInitWipe() uninstantiate-fault chains:
+ *      :8139  (ret == 0) && (uninst_ret != 0)   and the sibling (uninst_ret
+ *             != 0) && (ret == 0) forms across the SHA-256 / SHA-512 DRBG
+ *             and scratch-buffer free paths.
+ *
+ * The public boundary always succeeds on the non-DRBG steps of a free, so
+ * ret == 0 there; the only way uninst_ret goes nonzero is a failed
+ * Uninstantiate, whose single cause is the ForceZero() zero-check. The
+ * faultable ForceZero armed for the DRBG-struct size skips exactly that
+ * wipe, so Uninstantiate reports DRBG_FAILURE deterministically. The false
+ * side (uninst_ret == 0) is driven by every clean free elsewhere in this
+ * whitebox; this drives the true side.
+ * ----------------------------------------------------------------------- */
+static void wb_free_uninstantiate_fault(void)
+{
+#if defined(HAVE_HASHDRBG) && !defined(WC_NO_RNG)
+#ifndef NO_SHA256
+    {
+        WC_RNG rng;
+        int ret;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        if (wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                          WC_RNG_INIT_FLAG_DRBG_SHA256) != 0) {
+            WB_NOTE("free-uninst: SHA-256 init failed");
+            wb_fail = 1;
+            return;
+        }
+        mcdc_fz_arm(sizeof(DRBG_internal));
+        ret = wc_FreeRng(&rng);
+        mcdc_fz_disarm();
+        if (ret != WC_NO_ERR_TRACE(RNG_FAILURE_E)) {
+            WB_NOTE("free-uninst: SHA-256 wipe fault did not return RNG_FAILURE_E");
+            wb_fail = 1;
+        }
+    }
+#endif
+#ifdef WOLFSSL_DRBG_SHA512
+    {
+        WC_RNG rng;
+        int ret;
+
+        XMEMSET(&rng, 0, sizeof(rng));
+        if (wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                          WC_RNG_INIT_FLAG_DRBG_SHA512) != 0) {
+            WB_NOTE("free-uninst: SHA-512 init failed");
+            wb_fail = 1;
+            return;
+        }
+        mcdc_fz_arm(sizeof(DRBG_SHA512_internal));
+        ret = wc_FreeRng(&rng);
+        mcdc_fz_disarm();
+        if (ret != WC_NO_ERR_TRACE(RNG_FAILURE_E)) {
+            WB_NOTE("free-uninst: SHA-512 wipe fault did not return RNG_FAILURE_E");
+            wb_fail = 1;
+        }
+    }
+#endif
+#endif
+}
+
+/* --------------------------------------------------------------------------
+ * 9c. Recovery reseed fault rows: wc_RNG_DRBG_Reseed_Now() on an
+ *     entropy-invalidated instance with the reseed hash faulted, so the
+ *     recovery path reports a nonzero verdict (the (ret != 0) && (ret !=
+ *     NEEDS_RECOVERY_E) / (ret != 0) && (rng->status == DRBG_OK) rows).
+ * ----------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && !defined(NO_SHA256) && !defined(WC_NO_RNG) \
+    && defined(MCDC_FH_HAVE_SHA256)
+static void wb_recovery_reseed_fault(void)
+{
+    WC_RNG rng;
+    int ret;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng_ex2(&rng, NULL, INVALID_DEVID,
+                      WC_RNG_INIT_FLAG_DRBG_SHA256) != 0) {
+        WB_NOTE("recovery-reseed: init failed");
+        wb_fail = 1;
+        return;
+    }
+    /* Invalidate the entropy so the next reseed takes the recovery path. */
+    (void)wc_RNG_invalidate_entropy(&rng);
+    mcdc_fh_arm(1);
+    ret = wc_RNG_DRBG_Reseed_Now(&rng, NULL, 0);
+    if (ret == 0 || mcdc_fh_seen() == 0) {
+        WB_NOTE("recovery-reseed: expected a faulted hash to fail");
+        wb_fail = 1;
+    }
+    mcdc_fh_disarm();
+    (void)wc_FreeRng(&rng);
+    WB_NOTE("recovery reseed-fault rows driven");
+}
+#else
+static void wb_recovery_reseed_fault(void)
+{ WB_NOTE("recovery reseed fault: not compiled in this variant; skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 10. wc_RNG_DRBG_GetReseedCtr() DRBG-type rows:
+ *      :1354  (rng->drbgType == WC_DRBG_SHA256) && (rng->drbg != NULL)
+ *      :1360  (rng->drbgType == WC_DRBG_SHA512) && (rng->drbg512 != NULL)
+ *
+ * GetReseedCtr is the first gate on the Stir path, so both operands of both
+ * checks are independently flippable here: the StirGenerate copies at
+ * :2522/:2528 only run after GetReseedCtr has already proven the pointer
+ * non-NULL, so their pointer operand is a constant-true residual there.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_HASHDRBG) && defined(WOLFSSL_DRBG_SHA512) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && !defined(WC_NO_RNG)
+static void wb_drbg_reseedctr_type_rows(void)
+{
+    WC_RNG               rng;
+    wc_drbg_reseed_ctr_t ctr;
+
+    /* The base defaults to SHA-512 (WOLFSSL_DRBG_SHA512), so a plain
+     * wc_InitRng builds a SHA-512 DRBG; disable SHA-512 for the SHA-256
+     * section. Each section drives the non-NULL row (operand T) and the
+     * NULL row (operand F).
+     *
+     * COVERED (operand T rows): 1354 c0 T+F, 1354 c1-T, 1360 c0-T, 1360
+     * c1-T.
+     * RESIDUAL (coverage runtime): the NULL-pointer rows' branch
+     * evaluations are not recorded by the coverage runtime (a NULL call
+     * increments no branch count - verified: 1354 c0 stays T=1 across
+     * two SHA-256 calls), so 1354 c1-F, 1360 c0-F and 1360 c1-F cannot
+     * be shown by any white-box row. */
+
+    /* SHA-512, drbg512 != NULL: 1354 c0-F, 1360 c0-T + c1-T. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) != 0) {
+        WB_NOTE("wc_InitRng (SHA-512) failed (GetReseedCtr rows skipped)");
+        wb_fail = 1;
+        return;
+    }
+    (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+
+    /* SHA-512, drbg512 == NULL: 1360 c1-F (residual row, see above). */
+    {
+        void* savedDrbg = rng.drbg512;
+        rng.drbg512 = NULL;
+        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        rng.drbg512 = savedDrbg;
+    }
+    (void)wc_FreeRng(&rng);
+
+#ifndef NO_SHA256
+    /* SHA-256, drbg != NULL: 1354 c0-T + c1-T. */
+    (void)wc_Sha512Drbg_Disable();
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) == 0) {
+        (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+        /* SHA-256, drbg == NULL: 1354 c1-F, 1360 c0-F (residual rows). */
+        {
+            void* savedDrbg = rng.drbg;
+            rng.drbg = NULL;
+            (void)wc_RNG_DRBG_GetReseedCtr(&rng, &ctr);
+            rng.drbg = savedDrbg;
+        }
+        (void)wc_FreeRng(&rng);
+    }
+    (void)wc_Sha512Drbg_Enable();
+#endif
+
+    WB_NOTE("GetReseedCtr DRBG-type rows driven");
+}
+#else
+static void wb_drbg_reseedctr_type_rows(void)
+{ WB_NOTE("Hash DRBG reseed-counter rows unavailable; skipped"); }
+#endif
+
+/* --------------------------------------------------------------------------
+ * 11. wc_RNG_DRBG_Stir_AddIn() argument guard:
+ *      :2550  (rng == NULL) || (seed == NULL)
+ *
+ * c0 (rng == NULL) is the open operand. c0-T is a structural residual: the
+ * public wc_RNG_DRBG_Stir_AddIn wrapper guards rng == NULL before calling the
+ * _local function, so the _local guard never sees a NULL rng. The reachable
+ * row is c0-F + c1-T (valid rng, seed == NULL).
+ * ------------------------------------------------------------------------- */
+#if !defined(CUSTOM_RAND_GENERATE_BLOCK)
+static void wb_stir_nonce_null_rng(void)
+{
+    WC_RNG rng;
+    byte   seed[16];
+    byte   nonce[16];
+
+    XMEMSET(seed,  0xAA, sizeof(seed));
+    XMEMSET(nonce, 0xBB, sizeof(nonce));
+
+    /* 2550 c0-T: rng == NULL (seed present, so the row is c0's). */
+    (void)wc_RNG_DRBG_Stir_AddIn(NULL, seed, sizeof(seed), nonce,
+                                 sizeof(nonce));
+
+    /* 2550 c0-F: valid rng, seed == NULL (decision true via the seed arm). */
+    XMEMSET(&rng, 0, sizeof(rng));
+    if (wc_InitRng(&rng) == 0) {
+        (void)wc_RNG_DRBG_Stir_AddIn(&rng, NULL, 0, nonce, sizeof(nonce));
+        (void)wc_FreeRng(&rng);
+    }
+
+    WB_NOTE("Stir_Nonce argument-guard rows driven");
+}
+#else
+static void wb_stir_nonce_null_rng(void)
+{ WB_NOTE("Stir_Nonce unavailable with custom RNG; skipped"); }
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -389,8 +1445,19 @@ int main(void)
 #else
     wb_hash_drbg_init_df_chain();
     wb_hash512_drbg_init_df_chain();
+    wb_hash_drbg_reseed_df_chain();
+    wb_hash512_drbg_reseed_df_chain();
+    wb_hash_drbg_generate_atomicity();
+    wb_hash512_drbg_generate_atomicity();
     wb_seed_cb_entropy_failure();
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    wb_init_flags();
+    wb_healthtest_uninstantiate_fault();
+    wb_healthtest512_uninstantiate_fault();
+    wb_free_uninstantiate_fault();
+    wb_recovery_reseed_fault();
+    wb_drbg_reseedctr_type_rows();
+    wb_stir_nonce_null_rng();
+    printf("done (%s)\n", wb_fail ? "with failures" : "ok");
 #endif
     /* Always 0: a nonzero exit discards this variant's whole coverage. */
     (void)wb_fail;

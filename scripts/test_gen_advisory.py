@@ -165,7 +165,25 @@ class TestCpePurl(unittest.TestCase):
 
     def test_purl(self):
         self.assertEqual(ga.purl_for('wolfSSL', '5.9.1'),
-                         'pkg:github/wolfSSL/wolfssl@v5.9.1')
+                         'pkg:github/wolfssl/wolfssl@v5.9.1-stable')
+        self.assertEqual(ga.purl_for('wolfcrypt', '5.9.1'),
+                         'pkg:github/wolfssl/wolfcrypt@v5.9.1')
+
+    def test_purl_matches_the_sbom(self):
+        # A scanner matches the VEX to the SBOM by an equal purl string.
+        target = (pathlib.Path(__file__).resolve().parent.parent
+                  / 'tools' / 'sbom' / 'gen-sbom')
+        loader = SourceFileLoader('gen_sbom_for_purl', str(target))
+        gs = importlib.util.module_from_spec(
+            importlib.util.spec_from_loader('gen_sbom_for_purl', loader))
+        loader.exec_module(gs)
+        self.assertEqual(ga.GITHUB_TAG_FORMS, gs.GITHUB_TAG_FORMS)
+        for product in ('wolfssl', 'wolfSSL', 'wolfssh', 'wolfhsm',
+                        'wolfcrypt'):
+            self.assertEqual(
+                ga.purl_for(product, '5.9.1'),
+                gs.github_purl('wolfSSL', product,
+                               gs.github_release_tag(product, '5.9.1')))
 
 
 class TestBestCvss(unittest.TestCase):

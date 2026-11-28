@@ -38,6 +38,12 @@ use core::mem::MaybeUninit;
 /// An instance can be created with `generate()` or `new()`.
 pub struct Ed448 {
     ws_key: sys::ed448_key,
+    /// Number of bytes passed to `verify_msg_update()` so far when a
+    /// streaming verification was initialized with the prehash variant, or
+    /// `None` otherwise. Used to enforce that exactly one prehash of
+    /// `PREHASH_SIZE` bytes is verified.
+    #[cfg(ed448_streaming_verify)]
+    ph_stream_len: Option<usize>,
 }
 
 impl Ed448 {
@@ -52,6 +58,32 @@ impl Ed448 {
 
     pub const ED448: u8 = sys::Ed448 as u8;
     pub const ED448PH: u8 = sys::Ed448ph as u8;
+
+    /** Size of the prehashed message for the prehash variant. */
+    pub const PREHASH_SIZE: usize = sys::ED448_PREHASH_SIZE as usize;
+
+    /// Validate an Ed448 variant and optional context, returning the
+    /// context pointer and length to pass to wolfCrypt.
+    ///
+    /// Unknown variant values are rejected rather than being passed through
+    /// to wolfCrypt.
+    #[cfg(any(ed448_sign, ed448_verify, ed448_streaming_verify))]
+    fn check_variant_context(typ: u8, context: Option<&[u8]>) -> Result<(*const u8, u8), i32> {
+        let context = context.unwrap_or(&[]);
+        if context.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        match typ {
+            Self::ED448 | Self::ED448PH => {}
+            _ => return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+        }
+        let context_ptr = if context.is_empty() {
+            core::ptr::null()
+        } else {
+            context.as_ptr()
+        };
+        Ok((context_ptr, context.len() as u8))
+    }
 
     /// Generate a new Ed448 key.
     ///
@@ -120,7 +152,11 @@ impl Ed448 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let mut ed448 = Ed448 { ws_key };
+        let mut ed448 = Ed448 {
+            ws_key,
+            #[cfg(ed448_streaming_verify)]
+            ph_stream_len: None,
+        };
         let rc = unsafe {
             sys::wc_ed448_make_key(rng.wc_rng,
                 sys::ED448_KEY_SIZE as i32, &mut ed448.ws_key)
@@ -188,7 +224,11 @@ impl Ed448 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let ed448 = Ed448 { ws_key };
+        let ed448 = Ed448 {
+            ws_key,
+            #[cfg(ed448_streaming_verify)]
+            ph_stream_len: None,
+        };
         Ok(ed448)
     }
 
@@ -234,12 +274,18 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     ///
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -252,18 +298,26 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does, private first.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        if self.ws_key.pubKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_PUBLIC_KEY_E);
+        }
         let rc = unsafe {
-            sys::wc_ed448_export_key(&self.ws_key,
+            sys::wc_ed448_export_key(crate::ptr_for_read(&self.ws_key),
                 private.as_mut_ptr(), &mut private_size,
                 public.as_mut_ptr(), &mut public_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Export public key to buffer.
@@ -275,8 +329,9 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok(size) containing the number of bytes written to
+    /// `public` on success or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
@@ -292,16 +347,21 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_public(&self, public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_public(&self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.pubKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_PUBLIC_KEY_E);
+        }
         let rc = unsafe {
-            sys::wc_ed448_export_public(&self.ws_key, public.as_mut_ptr(),
+            sys::wc_ed448_export_public(crate::ptr_for_read(&self.ws_key), public.as_mut_ptr(),
                 &mut public_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(public_size as usize)
     }
 
     /// Export public/private key pair to buffer.
@@ -313,12 +373,18 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok(size) containing the number of bytes written to
+    /// `keyout` on success or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -330,16 +396,21 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_private(&self, keyout: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private(&self, keyout: &mut [u8]) -> Result<usize, i32> {
         let mut keyout_size = crate::buffer_len_to_u32(keyout.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let rc = unsafe {
-            sys::wc_ed448_export_private(&self.ws_key, keyout.as_mut_ptr(),
+            sys::wc_ed448_export_private(crate::ptr_for_read(&self.ws_key), keyout.as_mut_ptr(),
                 &mut keyout_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(keyout_size as usize)
     }
 
     /// Export private key only to buffer.
@@ -351,12 +422,18 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok(size) containing the number of bytes written to
+    /// `private` on success or Err(e) containing the wolfSSL library error
+    /// code value.
     ///
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -368,16 +445,21 @@ impl Ed448 {
     /// }
     /// ```
     #[cfg(ed448_export)]
-    pub fn export_private_only(&self, private: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private_only(&self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let rc = unsafe {
-            sys::wc_ed448_export_private_only(&self.ws_key,
+            sys::wc_ed448_export_private_only(crate::ptr_for_read(&self.ws_key),
                 private.as_mut_ptr(), &mut private_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(private_size as usize)
     }
 
     /// Import a public Ed448 key from buffer.
@@ -398,6 +480,11 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -442,6 +529,11 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -482,6 +574,11 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -526,6 +623,11 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -566,7 +668,7 @@ impl Ed448 {
     /// # Parameters
     ///
     /// * `private`: Input buffer containing private key.
-    /// * `public`: Optional input buffer containing private key.
+    /// * `public`: Optional input buffer containing public key.
     /// * `trusted`: Whether the public key buffer is trusted.
     ///
     /// # Returns
@@ -577,6 +679,11 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -626,6 +733,11 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ed448_export, ed448_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -642,12 +754,23 @@ impl Ed448 {
     /// ```
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
         let pubkey_size = crate::buffer_len_to_u32(pubkey.len())?;
+        // The C code keeps a public half that is already set, so a later
+        // check_key can still catch a mismatched pair. Remember it here.
+        let had_public = self.ws_key.pubKeySet() != 0;
         let rc = unsafe {
             sys::wc_ed448_make_public(&mut self.ws_key,
                 pubkey.as_mut_ptr(), pubkey_size)
         };
         if rc != 0 {
             return Err(rc);
+        }
+        // Older modules such as FIPS v6 return the public key without storing
+        // it in the key, so store it here like newer wolfSSL does, but only
+        // when the key had no public half before.
+        if !had_public {
+            let public = &pubkey[..Self::PUB_KEY_SIZE];
+            self.ws_key.p.copy_from_slice(public);
+            self.ws_key.k[Self::KEY_SIZE..].copy_from_slice(public);
         }
         Ok(())
     }
@@ -710,11 +833,12 @@ impl Ed448 {
     /// Sign a message digest with optional context using Ed448 key.
     ///
     /// The context is part of the data signed.
-    /// The message is pre-hashed before signature calculation.
+    /// For Ed448ph interoperability, `hash` must be the 64-byte SHAKE256
+    /// prehash of the message (as computed by `sign_msg_ph()`).
     ///
     /// # Parameters
     ///
-    /// * `hash`: Message digest to sign.
+    /// * `hash`: 64-byte SHAKE256 message digest to sign.
     /// * `context`: Optional buffer containing context for which hash is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -733,15 +857,16 @@ impl Ed448 {
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    /// // 64-byte SHAKE256 digest of "abc"
     /// let hash = [
-    ///     0xddu8,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
-    ///     0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
-    ///     0x12,0xe6,0xfa,0x4e,0x89,0xa9,0x7e,0xa2,
-    ///     0x0a,0x9e,0xee,0xe6,0x4b,0x55,0xd3,0x9a,
-    ///     0x21,0x92,0x99,0x2a,0x27,0x4f,0xc1,0xa8,
-    ///     0x36,0xba,0x3c,0x23,0xa3,0xfe,0xeb,0xbd,
-    ///     0x45,0x4d,0x44,0x23,0x64,0x3c,0xe8,0x0e,
-    ///     0x2a,0x9a,0xc9,0x4f,0xa5,0x4c,0xa4,0x9f
+    ///     0x48u8,0x33,0x66,0x60,0x13,0x60,0xa8,0x77,
+    ///     0x1c,0x68,0x63,0x08,0x0c,0xc4,0x11,0x4d,
+    ///     0x8d,0xb4,0x45,0x30,0xf8,0xf1,0xe1,0xee,
+    ///     0x4f,0x94,0xea,0x37,0xe7,0x8b,0x57,0x39,
+    ///     0xd5,0xa1,0x5b,0xef,0x18,0x6a,0x53,0x86,
+    ///     0xc7,0x57,0x44,0xc0,0x52,0x7e,0x1f,0xaa,
+    ///     0x9f,0x87,0x26,0xe4,0x62,0xa1,0x2a,0x4f,
+    ///     0xeb,0x06,0xbd,0x88,0x01,0xe7,0x51,0xe4
     /// ];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -779,7 +904,7 @@ impl Ed448 {
     ///
     /// # Parameters
     ///
-    /// * `message`: Message digest to sign.
+    /// * `message`: Message to prehash and sign; this method hashes it internally.
     /// * `context`: Optional buffer containing context for which message is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -837,6 +962,7 @@ impl Ed448 {
     /// * `din`: Data to sign.
     /// * `context`: Optional buffer containing context for which `din` is being signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     /// * `signature`: Output buffer to hold signature.
     ///
     /// # Returns
@@ -863,14 +989,10 @@ impl Ed448 {
     #[cfg(ed448_sign)]
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
+        // Older modules such as FIPS v6 take a prehash of any length.
+        if typ == Self::ED448PH && din.len() != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E);
         }
         let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
@@ -949,13 +1071,13 @@ impl Ed448 {
     /// Verify the Ed448 signature of a message digest and optional context to ensure authenticity.
     ///
     /// The context is included as part of the data verified.
-    /// The hash algorithm used to create message digest must be SHA-512.
-    /// The message is pre-hashed before verification.
+    /// For Ed448ph interoperability, `hash` must be the 64-byte SHAKE256
+    /// prehash of the message (as computed by `verify_msg_ph()`).
     ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
-    /// * `hash`: Message to verify the signature of.
+    /// * `hash`: 64-byte SHAKE256 message digest to verify the signature of.
     /// * `context`: Optional buffer containing context for which the hash was signed.
     ///
     /// # Returns
@@ -972,15 +1094,16 @@ impl Ed448 {
     /// use wolfssl_wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    /// // 64-byte SHAKE256 digest of "abc"
     /// let hash = [
-    ///     0xddu8,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
-    ///     0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
-    ///     0x12,0xe6,0xfa,0x4e,0x89,0xa9,0x7e,0xa2,
-    ///     0x0a,0x9e,0xee,0xe6,0x4b,0x55,0xd3,0x9a,
-    ///     0x21,0x92,0x99,0x2a,0x27,0x4f,0xc1,0xa8,
-    ///     0x36,0xba,0x3c,0x23,0xa3,0xfe,0xeb,0xbd,
-    ///     0x45,0x4d,0x44,0x23,0x64,0x3c,0xe8,0x0e,
-    ///     0x2a,0x9a,0xc9,0x4f,0xa5,0x4c,0xa4,0x9f
+    ///     0x48u8,0x33,0x66,0x60,0x13,0x60,0xa8,0x77,
+    ///     0x1c,0x68,0x63,0x08,0x0c,0xc4,0x11,0x4d,
+    ///     0x8d,0xb4,0x45,0x30,0xf8,0xf1,0xe1,0xee,
+    ///     0x4f,0x94,0xea,0x37,0xe7,0x8b,0x57,0x39,
+    ///     0xd5,0xa1,0x5b,0xef,0x18,0x6a,0x53,0x86,
+    ///     0xc7,0x57,0x44,0xc0,0x52,0x7e,0x1f,0xaa,
+    ///     0x9f,0x87,0x26,0xe4,0x62,0xa1,0x2a,0x4f,
+    ///     0xeb,0x06,0xbd,0x88,0x01,0xe7,0x51,0xe4
     /// ];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -1092,6 +1215,7 @@ impl Ed448 {
     /// * `din`: Message to verify the signature of.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     ///
     /// # Returns
     ///
@@ -1119,14 +1243,10 @@ impl Ed448 {
     pub fn verify_msg_ex(&mut self, signature: &[u8], din: &[u8], context: Option<&[u8]>, typ: u8) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
+        // Older modules such as FIPS v6 take a prehash of any length.
+        if typ == Self::ED448PH && din.len() != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E);
         }
         let mut res = 0i32;
         let rc = unsafe {
@@ -1147,11 +1267,17 @@ impl Ed448 {
 
     /// Initialize Ed448 key to perform streaming verification.
     ///
+    /// When `typ` is `Ed448::ED448PH`, the data passed to `verify_msg_update()`
+    /// must total exactly `Ed448::PREHASH_SIZE` bytes (the prehashed
+    /// message); otherwise `verify_msg_update()` or `verify_msg_final()`
+    /// returns `BAD_FUNC_ARG`.
+    ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed448::ED448` or `Ed448::ED448PH`.
+    ///   An unknown variant value returns `BAD_FUNC_ARG`.
     ///
     /// # Returns
     ///
@@ -1181,26 +1307,24 @@ impl Ed448 {
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_init(&mut self, signature: &[u8], context: Option<&[u8]>, typ: u8) -> Result<(), i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_init(signature.as_ptr(), signature_size,
                 &mut self.ws_key, typ, context_ptr, context_size)
         };
         if rc != 0 {
+            self.ph_stream_len = None;
             return Err(rc);
         }
+        self.ph_stream_len = if typ == Self::ED448PH { Some(0) } else { None };
         Ok(())
     }
 
     /// Add input data to Ed448 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed448::ED448PH`, a
+    /// segment that would bring the total input beyond
+    /// `Ed448::PREHASH_SIZE` bytes is rejected with `BAD_FUNC_ARG`.
     ///
     /// # Parameters
     ///
@@ -1234,6 +1358,19 @@ impl Ed448 {
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_update(&mut self, din: &[u8]) -> Result<(), i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
+        // For the prehash variant, the total input must be exactly one
+        // prehash. Reject any segment that would exceed it.
+        let new_ph_len = match self.ph_stream_len {
+            Some(len) => {
+                let new_len = len.checked_add(din.len())
+                    .ok_or(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
+                if new_len > Self::PREHASH_SIZE {
+                    return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+                }
+                Some(new_len)
+            }
+            None => None,
+        };
         let rc = unsafe {
             sys::wc_ed448_verify_msg_update(din.as_ptr(), din_size,
                 &mut self.ws_key)
@@ -1241,10 +1378,15 @@ impl Ed448 {
         if rc != 0 {
             return Err(rc);
         }
+        self.ph_stream_len = new_ph_len;
         Ok(())
     }
 
     /// Finalize Ed448 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed448::ED448PH` and
+    /// the total input was not exactly `Ed448::PREHASH_SIZE` bytes,
+    /// `BAD_FUNC_ARG` is returned.
     ///
     /// # Parameters
     ///
@@ -1278,6 +1420,12 @@ impl Ed448 {
     #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_final(&mut self, signature: &[u8]) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        // For the prehash variant, the input must have been exactly one
+        // prehash. The streaming state is consumed either way.
+        if let Some(len) = self.ph_stream_len && len != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        self.ph_stream_len = None;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed448_verify_msg_final(signature.as_ptr(), signature_size,
@@ -1315,7 +1463,7 @@ impl Ed448 {
     /// }
     /// ```
     pub fn size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed448_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1343,7 +1491,7 @@ impl Ed448 {
     /// }
     /// ```
     pub fn priv_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed448_priv_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_priv_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1371,7 +1519,7 @@ impl Ed448 {
     /// }
     /// ```
     pub fn pub_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed448_pub_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_pub_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1399,7 +1547,7 @@ impl Ed448 {
     /// }
     /// ```
     pub fn sig_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed448_sig_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_sig_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1423,9 +1571,9 @@ impl Drop for Ed448 {
 
 /// RustCrypto `signature` crate trait implementations.
 ///
-/// Provides a fixed-size [`Signature`] and a [`VerifyingKey`] type so that
-/// [`Ed448`] can be used wherever the `signature` crate's
-/// [`signature::SignerMut`], [`signature::Keypair`], and
+/// Provides a fixed-size [`Signature`], a [`VerifyingKey`] and a
+/// [`SigningKey`] type so that Ed448 keys can be used wherever the
+/// `signature` crate's [`signature::SignerMut`], [`signature::Keypair`], and
 /// [`signature::Verifier`] traits are accepted.
 ///
 /// These impls use the plain Ed448 (pure) signature variant with no context;
@@ -1434,6 +1582,10 @@ impl Drop for Ed448 {
 #[cfg(feature = "signature")]
 mod signature_impl {
     use super::Ed448;
+    #[cfg(all(ed448_sign, ed448_export))]
+    use zeroize::Zeroize;
+    #[cfg(all(ed448_sign, ed448_export, random))]
+    use crate::random::RNG;
     use signature::Error;
 
     /// Ed448 signature in its standard 114-byte encoded form.
@@ -1510,13 +1662,211 @@ mod signature_impl {
         }
     }
 
+    /// Ed448 signing (private) key that is guaranteed to carry a public key.
+    ///
+    /// An [`Ed448`] on its own may hold no public key: `Ed448::new()` leaves
+    /// the key empty and `Ed448::import_private_only()` loads only the
+    /// private scalar. [`signature::Keypair::verifying_key()`] cannot fail,
+    /// so it is implemented for this type rather than for [`Ed448`]. Every
+    /// constructor here derives or validates the public key and caches it,
+    /// which makes handing out a [`VerifyingKey`] infallible.
     #[cfg(all(ed448_sign, ed448_export))]
-    impl signature::Keypair for Ed448 {
+    pub struct SigningKey {
+        inner: Ed448,
+        public: [u8; Ed448::PUB_KEY_SIZE],
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl SigningKey {
+        /// Generate a new Ed448 signing key.
+        ///
+        /// # Parameters
+        ///
+        /// * `rng`: Random number generator to use.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed448_sign, ed448_export, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::SigningKey;
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let sk = SigningKey::generate(&rng).expect("Error with generate()");
+        /// }
+        /// ```
+        #[cfg(random)]
+        pub fn generate(rng: &RNG) -> Result<Self, i32> {
+            Self::from_key(Ed448::generate(rng)?)
+        }
+
+        /// Create a signing key from a private key, deriving its public key.
+        ///
+        /// # Parameters
+        ///
+        /// * `private`: Input buffer containing the private key.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed448_import, ed448_export, ed448_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::{Ed448, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed448::generate(&rng).expect("Error with generate()");
+        /// let mut private = [0u8; Ed448::KEY_SIZE];
+        /// ed.export_private_only(&mut private).expect("Error with export_private_only()");
+        /// let sk = SigningKey::from_private_only(&private).expect("Error with from_private_only()");
+        /// }
+        /// ```
+        #[cfg(ed448_import)]
+        pub fn from_private_only(private: &[u8; Ed448::KEY_SIZE]) -> Result<Self, i32> {
+            let mut key = Ed448::new()?;
+            key.import_private_only(private)?;
+            let mut public = [0u8; Ed448::PUB_KEY_SIZE];
+            key.make_public(&mut public)?;
+            Ok(Self { inner: key, public })
+        }
+
+        /// Create a signing key from a private key and its public key.
+        ///
+        /// The public key is untrusted and is checked against the private key.
+        ///
+        /// # Parameters
+        ///
+        /// * `private`: Input buffer containing the private key.
+        /// * `public`: Input buffer containing the public key.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed448_import, ed448_export, ed448_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::{Ed448, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed448::generate(&rng).expect("Error with generate()");
+        /// let mut private = [0u8; Ed448::KEY_SIZE];
+        /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
+        /// ed.export_private_only(&mut private).expect("Error with export_private_only()");
+        /// ed.export_public(&mut public).expect("Error with export_public()");
+        /// let sk = SigningKey::from_keypair(&private, &public).expect("Error with from_keypair()");
+        /// }
+        /// ```
+        #[cfg(ed448_import)]
+        pub fn from_keypair(private: &[u8; Ed448::KEY_SIZE],
+            public: &[u8; Ed448::PUB_KEY_SIZE]) -> Result<Self, i32>
+        {
+            let mut key = Ed448::new()?;
+            key.import_private_key(private, Some(public))?;
+            Ok(Self { inner: key, public: *public })
+        }
+
+        /// Create a signing key from an existing [`Ed448`] key.
+        ///
+        /// Both key components must be present. Fails with the wolfSSL error
+        /// code `PUBLIC_KEY_E` when `key` holds no public key, for instance
+        /// after `Ed448::new()` or `Ed448::import_private_only()`, and with
+        /// `BAD_FUNC_ARG` when it holds no private key, for instance after
+        /// `Ed448::import_public()`.
+        ///
+        /// # Parameters
+        ///
+        /// * `key`: The Ed448 key to wrap.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed448_export, ed448_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed448::{Ed448, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed448::generate(&rng).expect("Error with generate()");
+        /// let sk = SigningKey::from_key(ed).expect("Error with from_key()");
+        /// }
+        /// ```
+        pub fn from_key(key: Ed448) -> Result<Self, i32> {
+            let mut public = [0u8; Ed448::PUB_KEY_SIZE];
+            key.export_public(&mut public)?;
+            /* A key carrying only a public component would build a SigningKey
+             * that cannot sign, so require the private component too.
+             * Exporting it is the only way to ask wolfCrypt whether it is
+             * there; the copy is wiped again right away. */
+            let mut private = [0u8; Ed448::KEY_SIZE];
+            let ret = key.export_private_only(&mut private);
+            private.zeroize();
+            ret?;
+            Ok(Self { inner: key, public })
+        }
+
+        /// Borrow the wrapped [`Ed448`] key for operations that are not
+        /// covered by the signature traits.
+        pub fn as_key(&self) -> &Ed448 {
+            &self.inner
+        }
+
+        /// Consume the signing key and return the wrapped [`Ed448`] key.
+        pub fn into_key(self) -> Ed448 {
+            self.inner
+        }
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl signature::Keypair for SigningKey {
         type VerifyingKey = VerifyingKey;
         fn verifying_key(&self) -> Self::VerifyingKey {
-            let mut pub_key = [0u8; Ed448::PUB_KEY_SIZE];
-            self.export_public(&mut pub_key).expect("ed448 export_public failed");
-            VerifyingKey(pub_key)
+            VerifyingKey(self.public)
+        }
+    }
+
+    #[cfg(all(ed448_sign, ed448_export))]
+    impl signature::SignerMut<Signature> for SigningKey {
+        fn try_sign(&mut self, msg: &[u8]) -> Result<Signature, Error> {
+            let mut sig = [0u8; Ed448::SIG_SIZE];
+            self.inner.sign_msg(msg, None, &mut sig).map_err(|_| Error::new())?;
+            Ok(Signature(sig))
         }
     }
 
@@ -1544,3 +1894,5 @@ mod signature_impl {
 
 #[cfg(feature = "signature")]
 pub use signature_impl::{Signature, VerifyingKey};
+#[cfg(all(feature = "signature", ed448_sign, ed448_export))]
+pub use signature_impl::SigningKey;

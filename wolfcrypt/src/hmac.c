@@ -43,7 +43,7 @@
 #ifndef NO_HMAC
 
 #if FIPS_VERSION3_GE(2,0,0)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$g")
         #pragma const_seg(".fipsB$g")
     #endif
@@ -53,6 +53,14 @@
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+
+    /* Is this HMAC a cryptocb candidate? WOLF_CRYPTO_CB_FIND can map any id
+     * (INVALID_DEVID included) to a device, so every HMAC qualifies there. */
+    #ifdef WOLF_CRYPTO_CB_FIND
+        #define WC_HMAC_USE_CRYPTOCB(hmac)  1
+    #else
+        #define WC_HMAC_USE_CRYPTOCB(hmac)  ((hmac)->devId != INVALID_DEVID)
+    #endif
 #endif
 
 #ifdef NO_INLINE
@@ -67,6 +75,7 @@
 
     /* map the _Software calls used by kcapi_hmac.c */
     #define wc_HmacSetKey  wc_HmacSetKey_Software
+    #define wc_HmacSetKey_ex wc_HmacSetKey_ex_Software
     #define wc_HmacUpdate  wc_HmacUpdate_Software
     #define wc_HmacFinal   wc_HmacFinal_Software
 #endif
@@ -375,25 +384,138 @@ static int HmacKeyCopyHash(byte macType, wc_HmacHash* src, wc_HmacHash* dst)
     return ret;
 }
 
+/* Free a hash context of the given macType.  Tolerates zeroed,
+ * never-initialized contexts, matching wc_HmacFree()'s existing contract
+ * (e.g. i_hash/o_hash on device-keyed paths).
+ */
+static void HmacKeyFreeHash(byte macType, wc_HmacHash* hash)
+{
+    switch (macType) {
+    #ifndef NO_MD5
+        case WC_MD5:
+            wc_Md5Free(&hash->md5);
+            break;
+    #endif /* !NO_MD5 */
+
+    #ifndef NO_SHA
+        case WC_SHA:
+            wc_ShaFree(&hash->sha);
+            break;
+    #endif /* !NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
+            wc_Sha224Free(&hash->sha224);
+            break;
+    #endif /* WOLFSSL_SHA224 */
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            wc_Sha256Free(&hash->sha256);
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            wc_Sha384Free(&hash->sha384);
+            break;
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            wc_Sha512Free(&hash->sha512);
+            break;
+    #ifndef WOLFSSL_NOSHA512_224
+        case WC_SHA512_224:
+            wc_Sha512_224Free(&hash->sha512);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA512_256
+        case WC_SHA512_256:
+            wc_Sha512_256Free(&hash->sha512);
+            break;
+    #endif
+    #endif /* WOLFSSL_SHA512 */
+
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        case WC_SHA3_224:
+            wc_Sha3_224_Free(&hash->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_SHA3_256:
+            wc_Sha3_256_Free(&hash->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        case WC_SHA3_384:
+            wc_Sha3_384_Free(&hash->sha3);
+            break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_SHA3_512:
+            wc_Sha3_512_Free(&hash->sha3);
+            break;
+    #endif
+    #endif /* WOLFSSL_SHA3 */
+
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            wc_Sm3Free(&hash->sm3);
+            break;
+    #endif
+
+        default:
+            break;
+    }
+}
+
 int wc_HmacCopy(Hmac* src, Hmac* dst) {
     int ret;
+    int hashes_copied = 0;
 
     if ((src == NULL) || (dst == NULL))
         return BAD_FUNC_ARG;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(dst, Hmac))
+        return BAD_ALIGN_E;
+#endif
 
     XMEMCPY(dst, src, sizeof(*dst));
 
-    /* Zero hash context after shallow copy to prevent shared sub-pointers
-     * (e.g., msg, W buffers) with src. The hash Copy function will perform
-     * the proper deep copy. */
+    /* Zero the hash contexts after the shallow copy to prevent shared
+     * sub-pointers (e.g., msg, W buffers) with src.  Each corresponding hash
+     * Copy call below then performs the proper deep copy.  Under
+     * WOLFSSL_HMAC_COPY_HASH, i_hash and o_hash own state of their own and
+     * need the same treatment as hash (freeing both src and a shallow-aliased
+     * dst would otherwise double-free their sub-objects).
+     */
     XMEMSET(&dst->hash, 0, sizeof(wc_HmacHash));
+#ifdef WOLFSSL_HMAC_COPY_HASH
+    XMEMSET(&dst->i_hash, 0, sizeof(wc_HmacHash));
+    XMEMSET(&dst->o_hash, 0, sizeof(wc_HmacHash));
+#endif
 
     ret = HmacKeyCopyHash(src->macType, &src->hash, &dst->hash);
+    if (ret == 0)
+        hashes_copied++;
+#ifdef WOLFSSL_HMAC_COPY_HASH
+    if (ret == 0) {
+        ret = HmacKeyCopyHash(src->macType, &src->i_hash, &dst->i_hash);
+        if (ret == 0)
+            hashes_copied++;
+    }
+    if (ret == 0) {
+        ret = HmacKeyCopyHash(src->macType, &src->o_hash, &dst->o_hash);
+        if (ret == 0)
+            hashes_copied++;
+    }
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_COPY)
     /* The shallow copy above left dst sharing any per-context state a device
      * hung off devCtx; let the device give dst its own copy. The struct and the
-     * hash context are already copied, so the callback only fixes up devCtx. */
+     * hash contexts are already copied, so the callback only fixes up devCtx.
+     */
     #ifndef WOLF_CRYPTO_CB_FIND
     if ((ret == 0) && (src->devId != INVALID_DEVID))
     #else
@@ -407,8 +529,20 @@ int wc_HmacCopy(Hmac* src, Hmac* dst) {
     }
 #endif
 
-    if (ret != 0)
-        XMEMSET(dst, 0, sizeof(*dst));
+    if (ret != 0) {
+        /* Release whichever deep copies succeeded before zeroing dst, lest
+         * their owned sub-objects leak.
+         */
+        if (hashes_copied >= 1)
+            HmacKeyFreeHash(src->macType, &dst->hash);
+#ifdef WOLFSSL_HMAC_COPY_HASH
+        if (hashes_copied >= 2)
+            HmacKeyFreeHash(src->macType, &dst->i_hash);
+        if (hashes_copied >= 3)
+            HmacKeyFreeHash(src->macType, &dst->o_hash);
+#endif
+        ForceZero(dst, sizeof(*dst));
+    }
     return ret;
 }
 
@@ -575,15 +709,33 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     #ifdef WOLF_CRYPTO_CB
         int devId = hmac->devId;
     #endif
+    #ifdef WOLF_PRIVATE_KEY_ID
+        byte id[HMAC_MAX_ID_LEN];
+        int idLen = hmac->idLen;
+        char label[HMAC_MAX_LABEL_LEN];
+        int labelLen = hmac->labelLen;
+
+        XMEMCPY(id, hmac->id, sizeof(id));
+        XMEMCPY(label, hmac->label, sizeof(label));
+    #endif
         wc_HmacFree(hmac);
     #ifdef WOLF_CRYPTO_CB
         hmac->devId = devId;
+    #endif
+    #ifdef WOLF_PRIVATE_KEY_ID
+        XMEMCPY(hmac->id, id, sizeof(id));
+        hmac->idLen = idLen;
+        XMEMCPY(hmac->label, label, sizeof(label));
+        hmac->labelLen = labelLen;
     #endif
     }
 #endif
 
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+    hmac->keyLocation = WC_KEY_SW_STORED;
+#endif
 
     ret = _InitHmac(hmac, type, heap);
     if (ret != 0)
@@ -1012,6 +1164,20 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     }
 #endif
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+    if (ret != 0) {
+    #ifdef WOLF_CRYPTO_CB
+        int devId = hmac->devId;
+    #endif
+        /* The key entered the object; clear it (ISO/IEC 19790 7.9.7). */
+        wc_HmacFree(hmac);
+        hmac->heap = heap;
+    #ifdef WOLF_CRYPTO_CB
+        hmac->devId = devId;
+    #endif
+    }
+#endif
+
     return ret;
 #endif /* WOLFSSL_MAXQ108X */
 }
@@ -1027,6 +1193,29 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     return wc_HmacSetKey_ex(hmac, type, key, length, allowFlag);
 }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+/* A key named by id or label has no key bytes for software to use. */
+static int HmacKeyNotInSoftware(const Hmac* hmac)
+{
+    return ((hmac->idLen > 0) || (hmac->labelLen > 0)) &&
+           (hmac->keyRaw == NULL);
+}
+#endif
+
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+/* Records where the key is kept, for wc_CryptoCb_SetKeyLocation().
+ * WC_KEY_HW_STORED makes software Update and Final fail with MISSING_KEY.
+ * Returns 0, or BAD_FUNC_ARG for an unknown location. */
+int wc_HmacSetKeyLocation(Hmac* hmac, int location)
+{
+    if (location != WC_KEY_SW_STORED && location != WC_KEY_HW_STORED) {
+        return BAD_FUNC_ARG;
+    }
+    hmac->keyLocation = (byte)location;
+    return 0;
+}
+#endif
+
 int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
@@ -1039,11 +1228,21 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (hmac->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, msg, length, NULL);
+    if (WC_HMAC_USE_CRYPTOCB(hmac)) {
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, msg, length, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
+    }
+#endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    if (HmacKeyNotInSoftware(hmac))
+        return MISSING_KEY;
+#endif
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+    /* The key is on the device only: software has no ipad/opad to use. */
+    if (hmac->keyLocation == WC_KEY_HW_STORED) {
+        return MISSING_KEY;
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
@@ -1175,11 +1374,21 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if (hmac->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, hash);
+    if (WC_HMAC_USE_CRYPTOCB(hmac)) {
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, NULL, 0, hash);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
+    }
+#endif
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    if (HmacKeyNotInSoftware(hmac))
+        return MISSING_KEY;
+#endif
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+    /* The key is on the device only: software has no ipad/opad to use. */
+    if (hmac->keyLocation == WC_KEY_HW_STORED) {
+        return MISSING_KEY;
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
@@ -1519,6 +1728,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 
     /* unmap the _Software calls used by kcapi_hmac.c */
     #undef wc_HmacSetKey
+    #undef wc_HmacSetKey_ex
     #undef wc_HmacUpdate
     #undef wc_HmacFinal
 
@@ -1530,6 +1740,10 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 
     if (hmac == NULL)
         return BAD_FUNC_ARG;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(hmac, Hmac))
+        return BAD_ALIGN_E;
+#endif
 
     XMEMSET(hmac, 0, sizeof(Hmac));
     hmac->macType = WC_HASH_TYPE_NONE;
@@ -1559,7 +1773,7 @@ int  wc_HmacInit_Id(Hmac* hmac, unsigned char* id, int len, void* heap,
 {
     int ret = 0;
 
-    if (hmac == NULL)
+    if (hmac == NULL || (id == NULL && len > 0))
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > HMAC_MAX_ID_LEN))
         ret = BUFFER_E;
@@ -1603,6 +1817,12 @@ void wc_HmacFree(Hmac* hmac)
 {
     if (hmac == NULL)
         return;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(hmac, Hmac)) {
+        ForceZero(hmac, sizeof(*hmac));
+        return;
+    }
+#endif
 
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     /* Let a device release any per-context state it hung off devCtx directly. If
@@ -1620,11 +1840,13 @@ void wc_HmacFree(Hmac* hmac)
 #endif
 
 #ifdef WOLF_CRYPTO_CB
-    /* handle cleanup case where final is not called */
-    if (hmac->devId != INVALID_DEVID && hmac->devCtx != NULL) {
+    /* cleanup when final was not called; devCtx is set only by a device, so
+     * under WOLF_CRYPTO_CB_FIND it alone marks an op still owned by one. */
+    if (WC_HMAC_USE_CRYPTOCB(hmac) && hmac->devCtx != NULL) {
         int  ret;
         byte finalHash[WC_HMAC_BLOCK_SIZE];
-        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, NULL, 0,
+                               finalHash);
         (void)ret; /* must ignore return code here */
         (void)finalHash;
     }
@@ -1634,135 +1856,11 @@ void wc_HmacFree(Hmac* hmac)
     wolfAsync_DevCtxFree(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    switch (hmac->macType) {
-    #ifndef NO_MD5
-        case WC_MD5:
-            wc_Md5Free(&hmac->hash.md5);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Md5Free(&hmac->i_hash.md5);
-            wc_Md5Free(&hmac->o_hash.md5);
-        #endif
-            break;
-    #endif /* !NO_MD5 */
-
-    #ifndef NO_SHA
-        case WC_SHA:
-            wc_ShaFree(&hmac->hash.sha);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_ShaFree(&hmac->i_hash.sha);
-            wc_ShaFree(&hmac->o_hash.sha);
-        #endif
-            break;
-    #endif /* !NO_SHA */
-
-    #ifdef WOLFSSL_SHA224
-        case WC_SHA224:
-            wc_Sha224Free(&hmac->hash.sha224);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha224Free(&hmac->i_hash.sha224);
-            wc_Sha224Free(&hmac->o_hash.sha224);
-        #endif
-            break;
-    #endif /* WOLFSSL_SHA224 */
-    #ifndef NO_SHA256
-        case WC_SHA256:
-            wc_Sha256Free(&hmac->hash.sha256);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha256Free(&hmac->i_hash.sha256);
-            wc_Sha256Free(&hmac->o_hash.sha256);
-        #endif
-            break;
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            wc_Sha384Free(&hmac->hash.sha384);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha384Free(&hmac->i_hash.sha384);
-            wc_Sha384Free(&hmac->o_hash.sha384);
-        #endif
-            break;
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-            wc_Sha512Free(&hmac->hash.sha512);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha512Free(&hmac->i_hash.sha512);
-            wc_Sha512Free(&hmac->o_hash.sha512);
-        #endif
-            break;
-    #ifndef WOLFSSL_NOSHA512_224
-        case WC_SHA512_224:
-            wc_Sha512_224Free(&hmac->hash.sha512);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha512_224Free(&hmac->i_hash.sha512);
-            wc_Sha512_224Free(&hmac->o_hash.sha512);
-        #endif
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA512_256
-        case WC_SHA512_256:
-            wc_Sha512_256Free(&hmac->hash.sha512);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha512_256Free(&hmac->i_hash.sha512);
-            wc_Sha512_256Free(&hmac->o_hash.sha512);
-        #endif
-            break;
-    #endif
-    #endif /* WOLFSSL_SHA512 */
-
-    #ifdef WOLFSSL_SHA3
-    #ifndef WOLFSSL_NOSHA3_224
-        case WC_SHA3_224:
-            wc_Sha3_224_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_224_Free(&hmac->i_hash.sha3);
-            wc_Sha3_224_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_256
-        case WC_SHA3_256:
-            wc_Sha3_256_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_256_Free(&hmac->i_hash.sha3);
-            wc_Sha3_256_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_384
-        case WC_SHA3_384:
-            wc_Sha3_384_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_384_Free(&hmac->i_hash.sha3);
-            wc_Sha3_384_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_512
-        case WC_SHA3_512:
-            wc_Sha3_512_Free(&hmac->hash.sha3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sha3_512_Free(&hmac->i_hash.sha3);
-            wc_Sha3_512_Free(&hmac->o_hash.sha3);
-        #endif
-            break;
-    #endif
-    #endif /* WOLFSSL_SHA3 */
-
-    #ifdef WOLFSSL_SM3
-        case WC_SM3:
-            wc_Sm3Free(&hmac->hash.sm3);
-        #ifdef WOLFSSL_HMAC_COPY_HASH
-            wc_Sm3Free(&hmac->i_hash.sm3);
-            wc_Sm3Free(&hmac->o_hash.sm3);
-        #endif
-            break;
-    #endif
-
-        default:
-            break;
-    }
+    HmacKeyFreeHash(hmac->macType, &hmac->hash);
+#ifdef WOLFSSL_HMAC_COPY_HASH
+    HmacKeyFreeHash(hmac->macType, &hmac->i_hash);
+    HmacKeyFreeHash(hmac->macType, &hmac->o_hash);
+#endif
 
     ForceZero(hmac, sizeof(*hmac));
 }
@@ -1773,7 +1871,238 @@ int wolfSSL_GetHmacMaxSize(void)
     return WC_MAX_DIGEST_SIZE;
 }
 
+/* Wait out an async HMAC sub-op: the one-shot and HKDF callers cannot resume
+ * mid-chain. QAT/Cavium only (not covered by CI); a crypto callback pending
+ * must instead propagate so the caller can re-invoke. */
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+    (defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM))
+    /* QAT/Cavium only: WOLFSSL_ASYNC_REINVOKE is never defined for these
+     * backends (see internal.h), so an HMAC sub-op can only pend on the
+     * hardware device, never on a re-invokable crypto callback. Wait
+     * unconditionally: the callers cannot resume mid-chain. */
+    #define HMAC_SUBOP_WAIT(ret, hmac)                                     \
+        do {                                                               \
+            (ret) = wc_AsyncWait((ret), &(hmac)->asyncDev,                 \
+                                 WC_ASYNC_FLAG_NONE);                      \
+        } while (0)
+#else
+    /* No HMAC device to wait on, or the pending must reach the caller
+     * (crypto callback re-invocation); hmac is unevaluated. */
+    #define HMAC_SUBOP_WAIT(ret, hmac) WC_DO_NOTHING
+#endif
+
+/* One-shot HMAC for use with a crypto callback device. Without one, use
+ * wc_HmacGenerate().
+ *
+ * The device is offered the whole operation in one call, with the key in the
+ * call. If it declines, the key is set and the device gets the update and
+ * final calls.
+ *
+ * With a NULL key, hmac must be initialized by the caller. A NULL key is only
+ * for a key on the device, which hmac then names, see wc_HmacInit_Id() and
+ * wc_HmacInit_Label(). If no device computes the tag, the call fails with
+ * MISSING_KEY. A NULL key is never used as a key of zero length.
+ *
+ * hmac     Storage for the HMAC context. Initialized and freed here, unless
+ *          key is NULL. Then the caller initializes it and frees it.
+ * type     The hash algorithm type.
+ * out      Buffer to hold the tag.
+ * outSz    On input, the size of out (at least the digest size). On output,
+ *          the digest size.
+ * in       The message.
+ * inSz     The size of the message.
+ * key      The HMAC key, or NULL to use the key on the device. For a key of
+ *          zero length, give a key pointer and a keySz of 0.
+ * keySz    The size of the key.
+ * heap     The heap hint.
+ * devId    The device ID.
+ * returns 0 on success, BUFFER_E when out is too small, otherwise failure.
+ */
+int wc_HmacGenerate_ex(Hmac* hmac, int type, byte* out, word32* outSz,
+                       const byte* in, word32 inSz,
+                       const byte* key, word32 keySz,
+                       void* heap, int devId)
+{
+    int    ret;
+    word32 digestSz;
+    /* With no key, the caller initialized the context. */
+    int    callerCtx = (key == NULL);
+#ifdef WOLF_CRYPTO_CB
+    const byte noInput = 0;
+#endif
+
+    if (hmac == NULL || out == NULL || outSz == NULL ||
+            (in == NULL && inSz != 0) || (key == NULL && keySz != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_HmacSizeByType(type);
+    if (ret < 0) {
+        return ret;
+    }
+    digestSz = (word32)ret;
+    if (*outSz < digestSz) {
+        return BUFFER_E;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    /* The device ID of the call is used, not the one of the context. */
+    hmac->devId = devId;
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (devId != INVALID_DEVID)
+    #endif
+    {
+        /* Offer the whole operation before the context is set up. The call
+         * always has an input pointer, so that it differs from a final. */
+        ret = wc_CryptoCb_Hmac(hmac, type, key, keySz,
+                               (in != NULL) ? in : &noInput, inSz, out);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (ret == 0) {
+                *outSz = digestSz;
+            }
+            return ret;
+        }
+        /* fall-through when unavailable */
+    }
+#endif
+
+    if (callerCtx) {
+        /* No device computed the tag. Without a key named by id or label,
+         * fail here so that an empty key is never set. */
+    #if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+        if ((hmac->idLen <= 0) && (hmac->labelLen <= 0))
+    #endif
+        {
+            return MISSING_KEY;
+        }
+    }
+
+    ret = 0;
+    if (!callerCtx) {
+        ret = wc_HmacInit(hmac, heap, devId);
+    }
+    if (ret == 0) {
+        ret = wc_HmacSetKey(hmac, type, key, keySz);
+        if (ret == 0) {
+            ret = wc_HmacUpdate(hmac, in, inSz);
+            HMAC_SUBOP_WAIT(ret, hmac);
+        }
+        if (ret == 0) {
+            ret = wc_HmacFinal(hmac, out);
+            HMAC_SUBOP_WAIT(ret, hmac);
+        }
+        /* The caller frees a context that it initialized. */
+        if (!callerCtx) {
+            wc_HmacFree(hmac);
+        }
+    }
+    if (ret == 0) {
+        *outSz = digestSz;
+    }
+
+    return ret;
+}
+
+int wc_HmacGenerate(int type, byte* out, word32* outSz,
+                    const byte* in, word32 inSz,
+                    const byte* key, word32 keySz)
+{
+    int ret;
+    const byte emptyKey = 0;
+    WC_DECLARE_VAR(hmac, Hmac, 1, 0);
+
+    /* No context from the caller here, so a NULL key is a key of zero
+     * length. */
+    if (key == NULL && keySz == 0) {
+        key = &emptyKey;
+    }
+
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
+        return MEMORY_E);
+
+    ret = wc_HmacGenerate_ex(hmac, type, out, outSz, in, inSz, key, keySz,
+                             NULL, INVALID_DEVID);
+
+    WC_FREE_VAR_EX(hmac, NULL, DYNAMIC_TYPE_HMAC);
+
+    return ret;
+}
+
+/* One-shot HMAC verify for use with a crypto callback device. Without one, use
+ * wc_HmacVerify(). hmac and key are used as in wc_HmacGenerate_ex(): with a
+ * NULL key, hmac must be initialized by the caller.
+ * checkSz must be the digest size of type.
+ *
+ * returns 0 when the tag matches, MAC_CMP_FAILED_E when it does not,
+ * otherwise failure.
+ */
+int wc_HmacVerify_ex(Hmac* hmac, int type, const byte* check, word32 checkSz,
+                     const byte* in, word32 inSz,
+                     const byte* key, word32 keySz,
+                     void* heap, int devId)
+{
+    int    ret;
+    byte   tag[WC_MAX_DIGEST_SIZE];
+    word32 tagSz = sizeof(tag);
+
+    if (check == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_HmacSizeByType(type);
+    if (ret < 0) {
+        return ret;
+    }
+    if (checkSz != (word32)ret) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(tag, 0, sizeof(tag));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_HmacVerify_ex tag", tag, sizeof(tag));
+#endif
+
+    ret = wc_HmacGenerate_ex(hmac, type, tag, &tagSz, in, inSz, key, keySz,
+                             heap, devId);
+    if (ret == 0 && ConstantCompare(check, tag, (int)checkSz) != 0) {
+        ret = MAC_CMP_FAILED_E;
+    }
+
+    ForceZero(tag, sizeof(tag));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(tag, sizeof(tag));
+#endif
+
+    return ret;
+}
+
+int wc_HmacVerify(int type, const byte* check, word32 checkSz,
+                  const byte* in, word32 inSz,
+                  const byte* key, word32 keySz)
+{
+    int ret;
+    const byte emptyKey = 0;
+    WC_DECLARE_VAR(hmac, Hmac, 1, 0);
+
+    /* No context from the caller here, so a NULL key is a key of zero
+     * length. */
+    if (key == NULL && keySz == 0) {
+        key = &emptyKey;
+    }
+
+    WC_ALLOC_VAR_EX(hmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
+        return MEMORY_E);
+
+    ret = wc_HmacVerify_ex(hmac, type, check, checkSz, in, inSz, key, keySz,
+                           NULL, INVALID_DEVID);
+
+    WC_FREE_VAR_EX(hmac, NULL, DYNAMIC_TYPE_HMAC);
+
+    return ret;
+}
+
 #ifdef HAVE_HKDF
+
     /* HMAC-KDF-Extract.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
      *
@@ -1799,7 +2128,9 @@ int wolfSSL_GetHmacMaxSize(void)
         }
 
 #ifdef WOLF_CRYPTO_CB
-        /* Try crypto callback first */
+        /* Try crypto callback first. Only CRYPTOCB_UNAVAILABLE falls back
+         * to software. WC_PENDING_E is returned as-is: the caller polls,
+         * re-invoking with identical arguments until it clears. */
         if (devId != INVALID_DEVID) {
             ret = wc_CryptoCb_Hkdf_Extract(type, salt, saltSz, inKey, inKeySz,
                                            out, devId);
@@ -1832,10 +2163,14 @@ int wolfSSL_GetHmacMaxSize(void)
         #else
             ret = wc_HmacSetKey(myHmac, type, localSalt, saltSz);
         #endif
-            if (ret == 0)
+            if (ret == 0) {
                 ret = wc_HmacUpdate(myHmac, inKey, inKeySz);
-            if (ret == 0)
+                HMAC_SUBOP_WAIT(ret, myHmac);
+            }
+            if (ret == 0) {
                 ret = wc_HmacFinal(myHmac,  out);
+                HMAC_SUBOP_WAIT(ret, myHmac);
+            }
             wc_HmacFree(myHmac);
         }
         WC_FREE_VAR_EX(myHmac, NULL, DYNAMIC_TYPE_HMAC);
@@ -1891,7 +2226,8 @@ int wolfSSL_GetHmacMaxSize(void)
             return BAD_FUNC_ARG;
 
 #ifdef WOLF_CRYPTO_CB
-        /* Try crypto callback first for complete operation */
+        /* Try crypto callback first. WC_PENDING_E is returned to the
+         * caller to poll, as in wc_HKDF_Extract_ex(). */
         if (devId != INVALID_DEVID) {
             ret = wc_CryptoCb_Hkdf_Expand(type, inKey, inKeySz, info, infoSz,
                                            out, outSz, devId);
@@ -1927,15 +2263,19 @@ int wolfSSL_GetHmacMaxSize(void)
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, tmp, tmpSz);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, info, infoSz);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, &n, 1);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
             ret = wc_HmacFinal(myHmac, tmp);
+            HMAC_SUBOP_WAIT(ret, myHmac);
             if (ret != 0)
                 break;
 
@@ -1944,6 +2284,10 @@ int wolfSSL_GetHmacMaxSize(void)
 
             outIdx += left;
             n++;
+        }
+        if (ret != 0) {
+            /* Partial OKM is not released (ISO/IEC 19790 7.9.7). */
+            ForceZero(out, outSz);
         }
 
         ForceZero(tmp, WC_MAX_DIGEST_SIZE);
@@ -1988,7 +2332,8 @@ int wolfSSL_GetHmacMaxSize(void)
         (void)devId; /* suppress unused parameter warning */
 
 #ifdef WOLF_CRYPTO_CB
-        /* Try crypto callback first for complete operation */
+        /* Try crypto callback first. WC_PENDING_E is returned to the
+         * caller to poll, as in wc_HKDF_Extract_ex(). */
         if (devId != INVALID_DEVID) {
              ret = wc_CryptoCb_Hkdf(type, inKey, inKeySz, salt, saltSz, info,
                                    infoSz, out, outSz, devId);
@@ -2006,6 +2351,8 @@ int wolfSSL_GetHmacMaxSize(void)
         XMEMSET(prk, 0, WC_MAX_DIGEST_SIZE);
         wc_MemZero_Add("wc_HKDF_ex prk", prk, WC_MAX_DIGEST_SIZE);
 #endif
+        /* Restartable, not resumable: the retry redoes extract, so a
+         * device that pends must serve the repeat from its result. */
         ret = wc_HKDF_Extract_ex(type, salt, saltSz, inKey, inKeySz, prk, heap,
                                  devId);
         if (ret == 0) {
@@ -2028,5 +2375,7 @@ int wolfSSL_GetHmacMaxSize(void)
     }
 
 #endif /* HAVE_HKDF */
+
+#undef HMAC_SUBOP_WAIT
 
 #endif /* NO_HMAC */

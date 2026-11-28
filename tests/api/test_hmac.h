@@ -46,8 +46,15 @@ int test_wc_HmacCopy(void);
 int test_wc_HmacInit_Id(void);
 int test_wc_HmacInit_Label(void);
 int test_wc_HmacFree_CryptoCb(void);
+int test_wc_HmacId_CryptoCb(void);
+int test_wc_HmacId_NoDevice(void);
+int test_wc_HmacNoSwKey_CryptoCb(void);
 int test_wc_HKDF_NullKeyEdgeCases(void);
 int test_wc_Tls13_HKDF_Extract_ZeroLenIkm(void);
+int test_wc_HmacGenerate(void);
+int test_wc_HmacGenerate_HashTypes(void);
+int test_wc_HmacGenerate_CryptoCb(void);
+int test_wc_HmacGenerate_CryptoCb_OneShot(void);
 
 #define TEST_HMAC_DECLS                                 \
     TEST_DECL_GROUP("hmac", test_wc_Md5HmacSetKey),     \
@@ -72,7 +79,14 @@ int test_wc_Tls13_HKDF_Extract_ZeroLenIkm(void);
     TEST_DECL_GROUP("hmac", test_wc_HmacInit_Id),       \
     TEST_DECL_GROUP("hmac", test_wc_HmacInit_Label),    \
     TEST_DECL_GROUP("hmac", test_wc_HmacFree_CryptoCb), \
+    TEST_DECL_GROUP("hmac", test_wc_HmacId_CryptoCb),   \
+    TEST_DECL_GROUP("hmac", test_wc_HmacId_NoDevice),   \
+    TEST_DECL_GROUP("hmac", test_wc_HmacNoSwKey_CryptoCb), \
     TEST_DECL_GROUP("hmac", test_wc_HKDF_NullKeyEdgeCases), \
-    TEST_DECL_GROUP("hmac", test_wc_Tls13_HKDF_Extract_ZeroLenIkm)
+    TEST_DECL_GROUP("hmac", test_wc_Tls13_HKDF_Extract_ZeroLenIkm), \
+    TEST_DECL_GROUP("hmac", test_wc_HmacGenerate),          \
+    TEST_DECL_GROUP("hmac", test_wc_HmacGenerate_HashTypes), \
+    TEST_DECL_GROUP("hmac", test_wc_HmacGenerate_CryptoCb), \
+    TEST_DECL_GROUP("hmac", test_wc_HmacGenerate_CryptoCb_OneShot)
 
 #endif /* WOLFCRYPT_TEST_HMAC_H */

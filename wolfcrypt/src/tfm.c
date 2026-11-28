@@ -46,6 +46,14 @@
 #include <wolfssl/wolfcrypt/wolfmath.h> /* common functions */
 #include <wolfssl/wolfcrypt/logging.h>
 
+/* Constant time Montgomery reduction and multiplication - for exponentiation
+ * with timing resistance, when requested and for ECC with timing resistance as
+ * point arithmetic operates on secret values. */
+#if defined(TFM_TIMING_RESISTANT) || defined(WOLFSSL_MONT_RED_CT) || \
+    (defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT))
+    #define TFM_MONT_RED_CT_AVAILABLE
+#endif
+
 #ifdef WOLFSSL_ESPIDF
     #include <esp_log.h>
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
@@ -571,7 +579,8 @@ int fp_mul_2d(fp_int *a, int b, fp_int *c)
 /* generic PxQ multiplier */
 #if defined(HAVE_INTEL_MULX)
 
-WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
+WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C,
+    int clamp)
 
 {
    int       ix, iy, iz, pa;
@@ -585,9 +594,9 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
    WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
        return FP_MEM);
 
-   /* get size of output and trim */
+   /* get size of output and trim - unclamped result may use all digits */
    pa = A->used + B->used;
-   if (pa >= FP_SIZE) {
+   if (pa >= FP_SIZE + (clamp == 0)) {
       pa = FP_SIZE-1;
    }
 
@@ -602,7 +611,9 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 
   dst->used = pa;
   dst->sign = A->sign ^ B->sign;
-  fp_clamp(dst);
+  if (clamp) {
+    fp_clamp(dst);
+  }
   fp_copy(dst, C);
 
   WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
@@ -611,8 +622,12 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 }
 #endif
 
-/*  C = (A * B)   */
-int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
+/*  C = (A * B)
+ *
+ * When clamp is zero, the result has used set to A->used + B->used and is not
+ * clamped. The number of operations then doesn't depend on the value.
+ */
+static WC_INLINE int _fp_mul_comba(fp_int *A, fp_int *B, fp_int *C, int clamp)
 {
    int       ret = 0;
    int       ix, iy, iz, tx, ty, pa;
@@ -620,9 +635,14 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
    fp_int    *dst;
    WC_DECLARE_VAR(tmp, fp_int, 1, 0);
 
-   if (A->used + B->used >= FP_SIZE) return FP_VAL;
+   /* Unclamped result, used in exponentiation, may use all digits. */
+   if (A->used + B->used >= FP_SIZE + (clamp == 0)) return FP_VAL;
 
-   IF_HAVE_INTEL_MULX(ret = fp_mul_comba_mulx(A, B, C), return ret) ;
+   /* MULX processes B in groups of four digits and writes a carry after each
+    * row - only use when the rounded up product fits. Lengths are public. */
+   if (A->used + ((B->used + 3) & ~3) <= FP_SIZE) {
+      IF_HAVE_INTEL_MULX(ret = fp_mul_comba_mulx(A, B, C, clamp), return ret) ;
+   }
 
    WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
        return FP_MEM);
@@ -632,7 +652,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 
    /* get size of output and trim */
    pa = A->used + B->used;
-   if (pa >= FP_SIZE) {
+   if (pa >= FP_SIZE + (clamp == 0)) {
       pa = FP_SIZE-1;
    }
 
@@ -674,7 +694,9 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 
   /* warning: WOLFSSL_SP_INT_NEGATIVE may disable negative numbers */
   dst->sign = A->sign ^ B->sign;
-  fp_clamp(dst);
+  if (clamp) {
+    fp_clamp(dst);
+  }
   fp_copy(dst, C);
 
   /* Variables used but not seen by cppcheck. */
@@ -682,6 +704,120 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 
   WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
   return ret;
+}
+
+#if defined(HAVE_ECC) && defined(TFM_MONT_RED_CT_AVAILABLE)
+/* r = a * b where a and b have n digits - r has 2 * n digits.
+ *
+ * Number of operations depends only on n. r must not overlap a or b.
+ *
+ * @param [in]  a  First operand of n digits.
+ * @param [in]  b  Second operand of n digits.
+ * @param [in]  n  Number of digits in operands. Must be at least 1.
+ * @param [out] r  Product of 2 * n digits.
+ */
+static void fp_mul_comba_n(const fp_digit* a, const fp_digit* b, int n,
+                           fp_digit* r)
+{
+  int       ix, iy, iz, tx, ty;
+  fp_digit  c0, c1, c2;
+  const fp_digit *tmpx, *tmpy;
+
+  COMBA_START;
+  COMBA_CLEAR;
+
+  for (ix = 0; ix < 2 * n; ix++) {
+    /* get offsets into the two bignums */
+    ty = MIN(ix, n - 1);
+    tx = ix - ty;
+
+    /* setup temp aliases */
+    tmpx = a + tx;
+    tmpy = b + ty;
+
+    /* number of products in this column */
+    iy = MIN(n - tx, ty + 1);
+
+    /* execute loop */
+    COMBA_FORWARD;
+    for (iz = 0; iz < iy; ++iz) {
+      fp_digit _tmpx = *tmpx++;
+      fp_digit _tmpy = *tmpy--;
+      MULADD(_tmpx, _tmpy);
+    }
+
+    /* store term */
+    COMBA_STORE(r[ix]);
+  }
+  COMBA_FINI;
+
+  /* Variables used but not seen by cppcheck. */
+  (void)c0; (void)c1; (void)c2;
+}
+
+/* r = a * a where a has n digits - r has 2 * n digits.
+ *
+ * Number of operations depends only on n. r must not overlap a.
+ *
+ * @param [in]  a  Operand of n digits.
+ * @param [in]  n  Number of digits in operand. Must be at least 1.
+ * @param [out] r  Square of 2 * n digits.
+ */
+static void fp_sqr_comba_n(const fp_digit* a, int n, fp_digit* r)
+{
+  int       ix, iy, iz, tx, ty;
+  fp_digit  c0, c1, c2;
+#ifdef TFM_ISO
+  fp_word   tt = 0;
+#endif
+  const fp_digit *tmpx, *tmpy;
+
+  COMBA_START;
+  COMBA_CLEAR;
+
+  for (ix = 0; ix < 2 * n; ix++) {
+    /* get offsets into the two bignums */
+    ty = MIN(n - 1, ix);
+    tx = ix - ty;
+
+    /* setup temp aliases */
+    tmpx = a + tx;
+    tmpy = a + ty;
+
+    /* number of products in this column, each doubled */
+    iy = MIN(n - tx, ty + 1);
+    iy = MIN(iy, (ty - tx + 1) >> 1);
+
+    /* forward carries */
+    COMBA_FORWARD;
+
+    /* execute loop */
+    for (iz = 0; iz < iy; iz++) {
+      SQRADD2(*tmpx++, *tmpy--);
+    }
+
+    /* even columns have the square term in them */
+    if ((ix & 1) == 0) {
+      SQRADD(a[ix >> 1], a[ix >> 1]);
+    }
+
+    /* store term */
+    COMBA_STORE(r[ix]);
+  }
+  COMBA_FINI;
+
+  /* Variables used but not seen by cppcheck. */
+  (void)c0; (void)c1; (void)c2;
+#ifdef TFM_ISO
+  (void)tt;
+#endif
+}
+#endif
+
+/*  C = (A * B)   */
+int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
+{
+  return _fp_mul_comba(A, B, C, 1);
 }
 
 /* a/b => cb + d == a */
@@ -936,16 +1072,48 @@ void fp_div_2(fp_int * a, fp_int * b)
   fp_clamp (b);
 }
 
+/* Remove leading zero digits in constant time.
+ *
+ * All a->used digits are always checked - no early exit.
+ *
+ * @param [in, out] a  Number to clamp.
+ */
+static void fp_clamp_ct(fp_int* a)
+{
+  int      i;
+  int      used = 0;
+
+  for (i = 0; i < a->used; i++) {
+    fp_digit d = a->dp[i];
+    /* Top bit set only when digit is non-zero - calculated in fp_digit width
+     * as small digit types are promoted to int. */
+    fp_digit nzd = (fp_digit)(d | (fp_digit)((fp_digit)0 - d)) >>
+                   (DIGIT_BIT - 1);
+    /* All bits set when digit is non-zero. */
+    int nz = (int)0 - (int)nzd;
+    /* When digit is non-zero, used is this digit's index + 1. */
+    used ^= (used ^ (i + 1)) & nz;
+  }
+  a->used = used;
+  /* Zero has positive sign - sign of a is always positive here. */
+  a->sign = FP_ZPOS;
+}
+
 /* c = a / 2 (mod b) - constant time (a < b and positive) */
 int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
 {
   fp_word  w = 0;
+  volatile fp_digit vmask;
   fp_digit mask;
   int i;
 
-  mask = (fp_digit)0 - (a->dp[0] & 1);
+  vmask = (fp_digit)0 - (a->dp[0] & 1);
+  /* Read once: hidden from the compiler, then kept in a register. */
+  mask = vmask;
   for (i = 0; i < b->used; i++) {
-      fp_digit mask_a = (fp_digit)0 - (i < a->used);
+      /* Mask is volatile so that the compiler can't tell it is all zeros or
+       * all ones and branch around the load of the digit. */
+      volatile fp_digit mask_a = (fp_digit)0 - (fp_digit)(i < a->used);
 
       w         += b->dp[i] & mask;
       w         += a->dp[i] & mask_a;
@@ -958,7 +1126,7 @@ int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
   c->dp[i] = (c->dp[i] >> 1) | ((fp_digit)w << (DIGIT_BIT - 1));
   c->used = i + 1;
   c->sign = FP_ZPOS;
-  fp_clamp(c);
+  fp_clamp_ct(c);
 
   return FP_OKAY;
 }
@@ -1456,9 +1624,9 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   for (i = 1; i < CT_INV_MOD_PRE_CNT; i++) {
     fp_init(&pre[i]);
     err |= fp_sqr(&pre[i-1], &pre[i]);
-    err |= fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_montgomery_reduce_ex(&pre[i], b, mp, 1);
     err |= fp_mul(&pre[i], a, &pre[i]);
-    err |= fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_montgomery_reduce_ex(&pre[i], b, mp, 1);
   }
 
   err |= fp_sub_d(b, 2, e);
@@ -1476,16 +1644,16 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
 
     if ((j == CT_INV_MOD_PRE_CNT) || (!set && j > 0)) {
       err |= fp_mul(t, &pre[j-1], t);
-      err |= fp_montgomery_reduce(t, b, mp);
+      err |= fp_montgomery_reduce_ex(t, b, mp, 1);
       j = 0;
     }
     err |= fp_sqr(t, t);
-    err |= fp_montgomery_reduce(t, b, mp);
+    err |= fp_montgomery_reduce_ex(t, b, mp, 1);
     j += set;
   }
   if (j > 0) {
     err |= fp_mul(t, &pre[j-1], c);
-    err |= fp_montgomery_reduce(c, b, mp);
+    err |= fp_montgomery_reduce_ex(c, b, mp, 1);
   }
   else
     fp_copy(t, c);
@@ -1579,6 +1747,7 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   fp_sword w;
+  volatile fp_digit vmask;
   fp_digit mask;
   int i;
 
@@ -1601,7 +1770,9 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   w  -= b->dp[i];
   w >>= DIGIT_BIT;
   /* When w is negative then we need to add modulus to make result positive. */
-  mask = (fp_digit)0 - (w < 0);
+  vmask = (fp_digit)0 - (w < 0);
+  /* Read once: hidden from the compiler, then kept in a register. */
+  mask = vmask;
   /* Constant time, conditionally, add modulus to difference. */
   w = 0;
   for (i = 0; i < c->used; i++) {
@@ -1613,7 +1784,7 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   /* Result will always have digits equal to or less than those in modulus. */
   d->used = i;
   d->sign = FP_ZPOS;
-  fp_clamp(d);
+  fp_clamp_ct(d);
 
   return FP_OKAY;
 }
@@ -1625,6 +1796,7 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   fp_word  w;
   fp_sword s;
+  volatile fp_digit vmask;
   fp_digit mask;
   int i;
 
@@ -1649,7 +1821,9 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
   s += (fp_digit)w;
   /* s will be positive when subtracting modulus is needed. */
-  mask = (fp_digit)0 - (s >= 0);
+  vmask = (fp_digit)0 - (s >= 0);
+  /* Read once: hidden from the compiler, then kept in a register. */
+  mask = vmask;
 
   /* Constant time, conditionally, subtract modulus from sum. */
   w = 0;
@@ -1662,12 +1836,99 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   /* Result will always have digits equal to or less than those in modulus. */
   d->used = i;
   d->sign = FP_ZPOS;
-  fp_clamp(d);
+  fp_clamp_ct(d);
 
   return FP_OKAY;
 }
 
 #ifdef TFM_TIMING_RESISTANT
+
+/* The cache-resistant exptmod ladders select the working value from R[0] or
+ * R[1] on each exponent bit. By default this is done with fp_cond_copy(), which
+ * accesses both objects every iteration so the touched address does not depend
+ * on the secret bit (resists co-resident L1D cache attacks such as Prime+Probe
+ * between SMT siblings).
+ *
+ * Defining WOLFSSL_SP_FAST_MODEXP_COPY (the same opt-in used by the SP math
+ * backends) selects the faster variant that instead computes a single
+ * secret-dependent pointer with wc_off_on_addr masking and copies only the
+ * selected object. It is faster but leaks the exponent at cache-line
+ * granularity, so only enable it where a co-resident cache observer is outside
+ * the threat model. The fast variant rebuilds a pointer from integer arithmetic
+ * on two addresses, which capability targets cannot do, so it is forced off
+ * when WC_NO_PTR_INT_CAST is defined. */
+#if defined(WOLFSSL_SP_FAST_MODEXP_COPY) && !defined(WC_NO_PTR_INT_CAST)
+    #define WC_FP_MODEXP_PTR_COPY
+#endif
+
+/* The WC_PROTECT_ENCRYPTED_MEM ladder has no WC_NO_CACHE_RESISTANT variant, so
+ * it needs this helper even when cache resistance is off. */
+#if !defined(WC_FP_MODEXP_PTR_COPY) && (!defined(WC_NO_CACHE_RESISTANT) || \
+    defined(WC_PROTECT_ENCRYPTED_MEM))
+/* Copy a into r when copy is 1, in constant time.
+ * Used where the address of the operand cannot be derived from the secret
+ * bit, as on capability based targets.
+ *
+ * Not a drop in replacement for fp_copy(): it always writes FP_SIZE digits
+ * and does not consult r->size, so r must be a full fp_int and never an
+ * alt_fp_int, whose dp[] is only FP_SIZE_ECC digits under ALT_ECC_SIZE. Every
+ * caller below passes a local fp_int from the exptmod ladders, which is.
+ */
+WC_MAYBE_UNUSED static void fp_cond_copy(const fp_int* a, int copy, fp_int* r)
+{
+  /* Masks pass through volatile so that the compiler can't tell they are
+   * all zeros or all ones, then are read once into registers. */
+  volatile fp_digit vmask = (fp_digit)0 - (fp_digit)(copy != 0);
+  volatile int vimask = 0 - (copy != 0);
+  fp_digit mask = vmask;
+  int      imask = vimask;
+  int      i;
+
+  for (i = 0; i < FP_SIZE; i++) {
+    r->dp[i] ^= (r->dp[i] ^ a->dp[i]) & mask;
+  }
+  r->used ^= (r->used ^ a->used) & imask;
+  r->sign ^= (r->sign ^ a->sign) & imask;
+}
+#endif
+
+/* Harden the exponentiation ladders against attackers that can observe fine
+ * grained timing or caches (e.g. a co-resident process). Montgomery reductions
+ * are constant time and working values are kept at the length of the modulus
+ * so that the multiply and square operations don't depend on secret values.
+ * Define WC_NO_MODEXP_TIMING_RESISTANT to disable, as for SP math.
+ */
+#ifndef WC_NO_MODEXP_TIMING_RESISTANT
+static int fp_montgomery_reduce_ct(fp_int *a, fp_int *m, fp_digit mp,
+                                   int fixed);
+/* Montgomery reduction during exponentiation - constant time, fixed length. */
+#define FP_EXPTMOD_RED(a, m, mp)        fp_montgomery_reduce_ct(a, m, mp, 1)
+/* Final Montgomery reduction - constant time and result clamped. */
+#define FP_EXPTMOD_RED_LAST(a, m, mp)   fp_montgomery_reduce_ct(a, m, mp, 0)
+static WC_INLINE int _fp_sqr_comba(fp_int *A, fp_int *B, int clamp);
+/* Square without removing leading zeros - number of leading zero digits is
+ * value dependent. Result is reduced with FP_EXPTMOD_RED. */
+static int fp_sqr_nc(fp_int *a, fp_int *r)
+{
+  /* Modulus may be FP_SIZE/2 digits - product uses all digits. */
+  if (a->used + a->used > FP_SIZE) {
+    return FP_VAL;
+  }
+  return _fp_sqr_comba(a, r, 0);
+}
+/* Multiply and square without removing leading zeros. */
+#define FP_EXPTMOD_MUL(a, b, r)         _fp_mul_comba(a, b, r, 0)
+#define FP_EXPTMOD_SQR(a, r)            fp_sqr_nc(a, r)
+/* Pad non-secret starting value, less than modulus, to length of modulus.
+ * Digits at and above used are zero. */
+#define FP_EXPTMOD_PAD(a, m)            ((a)->used = (m)->used)
+#else
+#define FP_EXPTMOD_RED(a, m, mp)        fp_montgomery_reduce(a, m, mp)
+#define FP_EXPTMOD_RED_LAST(a, m, mp)   fp_montgomery_reduce(a, m, mp)
+#define FP_EXPTMOD_PAD(a, m)            WC_DO_NOTHING
+#define FP_EXPTMOD_MUL(a, b, r)         fp_mul(a, b, r)
+#define FP_EXPTMOD_SQR(a, r)            fp_sqr(a, r)
+#endif
 
 #ifdef WC_RSA_NONBLOCK
 
@@ -1821,6 +2082,11 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
        }
     }
 
+    /* Values are not secret - pad to modulus length so that all working
+     * values have the same length. */
+    FP_EXPTMOD_PAD(&nb->R[0], P);
+    FP_EXPTMOD_PAD(&nb->R[1], P);
+
     /* set initial mode and bit cnt */
     nb->bitcnt = 1;
     nb->buf    = 0;
@@ -1849,27 +2115,52 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
     FALL_THROUGH;
 
   case TFM_EXPTMOD_NB_MUL:
-    fp_mul(&nb->R[0], &nb->R[1], &nb->R[nb->y^1]);
-    nb->state = TFM_EXPTMOD_NB_MUL_RED;
-    break;
-
-  case TFM_EXPTMOD_NB_MUL_RED:
-    err = fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+  #if defined(WC_NO_CACHE_RESISTANT) || defined(WC_FP_MODEXP_PTR_COPY)
+    err = FP_EXPTMOD_MUL(&nb->R[0], &nb->R[1], &nb->R[nb->y^1]);
+  #else
+    /* Address-oblivious: product -> fixed scratch R[2]. It is moved into the
+     * secret-selected R[y^1] after the reduction (NB_MUL_RED), so no write
+     * address in the multiply or its reduction depends on nb->y. */
+    err = FP_EXPTMOD_MUL(&nb->R[0], &nb->R[1], &nb->R[2]);
+  #endif
     if (err != FP_OKAY) {
       nb->state = TFM_EXPTMOD_NB_INIT;
       return err;
     }
+    nb->state = TFM_EXPTMOD_NB_MUL_RED;
+    break;
+
+  case TFM_EXPTMOD_NB_MUL_RED:
+  #if defined(WC_NO_CACHE_RESISTANT) || defined(WC_FP_MODEXP_PTR_COPY)
+    err = FP_EXPTMOD_RED(&nb->R[nb->y^1], P, nb->mp);
+  #else
+    err = FP_EXPTMOD_RED(&nb->R[2], P, nb->mp);
+  #endif
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
+  #if !defined(WC_NO_CACHE_RESISTANT) && !defined(WC_FP_MODEXP_PTR_COPY)
+    /* Move the reduced product into the secret-selected R[y^1] by touching
+     * both R[0] and R[1]. */
+    fp_cond_copy(&nb->R[2], nb->y,     &nb->R[0]);
+    fp_cond_copy(&nb->R[2], nb->y ^ 1, &nb->R[1]);
+  #endif
     nb->state = TFM_EXPTMOD_NB_SQR;
     break;
 
   case TFM_EXPTMOD_NB_SQR:
   #ifdef WC_NO_CACHE_RESISTANT
-    err = fp_sqr(&nb->R[nb->y], &nb->R[nb->y]);
+    err = FP_EXPTMOD_SQR(&nb->R[nb->y], &nb->R[nb->y]);
+  #elif !defined(WC_FP_MODEXP_PTR_COPY)
+    fp_cond_copy(&nb->R[0], nb->y^1, &nb->R[2]);
+    fp_cond_copy(&nb->R[1], nb->y,   &nb->R[2]);
+    err = FP_EXPTMOD_SQR(&nb->R[2], &nb->R[2]);
   #else
     fp_copy((fp_int*) ( ((wc_ptr_t)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
                         ((wc_ptr_t)&nb->R[1] & wc_off_on_addr[nb->y]) ),
             &nb->R[2]);
-    err = fp_sqr(&nb->R[2], &nb->R[2]);
+    err = FP_EXPTMOD_SQR(&nb->R[2], &nb->R[2]);
   #endif /* WC_NO_CACHE_RESISTANT */
     if (err != FP_OKAY) {
       nb->state = TFM_EXPTMOD_NB_INIT;
@@ -1881,9 +2172,13 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
 
   case TFM_EXPTMOD_NB_SQR_RED:
   #ifdef WC_NO_CACHE_RESISTANT
-    err = fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
+    err = FP_EXPTMOD_RED(&nb->R[nb->y], P, nb->mp);
+  #elif !defined(WC_FP_MODEXP_PTR_COPY)
+    err = FP_EXPTMOD_RED(&nb->R[2], P, nb->mp);
+    fp_cond_copy(&nb->R[2], nb->y^1, &nb->R[0]);
+    fp_cond_copy(&nb->R[2], nb->y,   &nb->R[1]);
   #else
-    err = fp_montgomery_reduce(&nb->R[2], P, nb->mp);
+    err = FP_EXPTMOD_RED(&nb->R[2], P, nb->mp);
     fp_copy(&nb->R[2],
             (fp_int*) ( ((wc_ptr_t)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
                         ((wc_ptr_t)&nb->R[1] & wc_off_on_addr[nb->y]) ) );
@@ -1898,7 +2193,7 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
 
   case TFM_EXPTMOD_NB_RED:
     /* final reduce */
-    err = fp_montgomery_reduce(&nb->R[0], P, nb->mp);
+    err = FP_EXPTMOD_RED_LAST(&nb->R[0], P, nb->mp);
     if (err != FP_OKAY) {
       nb->state = TFM_EXPTMOD_NB_INIT;
       return err;
@@ -1986,6 +2281,10 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
   }
+  /* Values are not secret - pad to modulus length so that all working values
+   * have the same length. */
+  FP_EXPTMOD_PAD(&R[0], P);
+  FP_EXPTMOD_PAD(&R[1], P);
 
   /* for j = t-1 downto 0 do
         r_!k = R0*R1; r_k = r_k^2
@@ -2014,69 +2313,86 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
 
 #ifdef WC_NO_CACHE_RESISTANT
     /* do ops */
-    err = fp_mul(&R[0], &R[1], &R[y^1]);
+    err = FP_EXPTMOD_MUL(&R[0], &R[1], &R[y^1]);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
-    err = fp_montgomery_reduce(&R[y^1], P, mp);
+    err = FP_EXPTMOD_RED(&R[y^1], P, mp);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
 
-    err = fp_sqr(&R[y], &R[y]);
+    err = FP_EXPTMOD_SQR(&R[y], &R[y]);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
-    err = fp_montgomery_reduce(&R[y], P, mp);
+    err = FP_EXPTMOD_RED(&R[y], P, mp);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
 #else
     /* do ops */
-    err = fp_mul(&R[0], &R[1], &R[2]);
+    err = FP_EXPTMOD_MUL(&R[0], &R[1], &R[2]);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
-    err = fp_montgomery_reduce(&R[2], P, mp);
+    err = FP_EXPTMOD_RED(&R[2], P, mp);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     /* instead of using R[y^1] for mul, which leaks key bit to cache monitor,
-     * use R[2] as temp, make sure address calc is constant, keep
-     * &R[0] and &R[1] in cache */
+     * use R[2] as temp, copy through both &R[0] and &R[1]
+     * (fp_cond_copy) so the accessed address does not depend on the key bit;
+     * WOLFSSL_SP_FAST_MODEXP_COPY instead selects one masked address */
+#ifndef WC_FP_MODEXP_PTR_COPY
+    fp_cond_copy(&R[2], y,   &R[0]);
+    fp_cond_copy(&R[2], y^1, &R[1]);
+#else
     fp_copy(&R[2],
             (fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y]) +
                         ((wc_ptr_t)&R[1] & wc_off_on_addr[y^1]) ) );
+#endif
 
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
-     * use R[2] as temp, make sure address calc is constant, keep
-     * &R[0] and &R[1] in cache */
+     * use R[2] as temp, copy through both &R[0] and &R[1]
+     * (fp_cond_copy) so the accessed address does not depend on the key bit;
+     * WOLFSSL_SP_FAST_MODEXP_COPY instead selects one masked address */
+#ifndef WC_FP_MODEXP_PTR_COPY
+    fp_cond_copy(&R[0], y^1, &R[2]);
+    fp_cond_copy(&R[1], y,   &R[2]);
+#else
     fp_copy((fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y^1]) +
                         ((wc_ptr_t)&R[1] & wc_off_on_addr[y]) ),
             &R[2]);
-    err = fp_sqr(&R[2], &R[2]);
+#endif
+    err = FP_EXPTMOD_SQR(&R[2], &R[2]);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
-    err = fp_montgomery_reduce(&R[2], P, mp);
+    err = FP_EXPTMOD_RED(&R[2], P, mp);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
+#ifndef WC_FP_MODEXP_PTR_COPY
+    fp_cond_copy(&R[2], y^1, &R[0]);
+    fp_cond_copy(&R[2], y,   &R[1]);
+#else
     fp_copy(&R[2],
             (fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y^1]) +
                         ((wc_ptr_t)&R[1] & wc_off_on_addr[y]) ) );
+#endif
 #endif /* WC_NO_CACHE_RESISTANT */
   }
 
-   err = fp_montgomery_reduce(&R[0], P, mp);
+   err = FP_EXPTMOD_RED_LAST(&R[0], P, mp);
    fp_copy(&R[0], Y);
    WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
 
@@ -2163,6 +2479,10 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
   }
+  /* Values are not secret - pad to modulus length so that all working values
+   * have the same length. */
+  FP_EXPTMOD_PAD(&R[0], P);
+  FP_EXPTMOD_PAD(&R[1], P);
 
   /* for j = t-1 downto 0 do
         r_!k = R0*R1; r_k = r_k^2
@@ -2190,29 +2510,35 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
     buf <<= (fp_digit)1;
 
     /* do ops */
-    err = fp_mul(&R[0], &R[1], &R[2]);
+    err = FP_EXPTMOD_MUL(&R[0], &R[1], &R[2]);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
-    err = fp_montgomery_reduce(&R[2], P, mp);
+    err = FP_EXPTMOD_RED(&R[2], P, mp);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
 
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
-     * use R[3] as temp, make sure address calc is constant, keep
-     * &R[0] and &R[1] in cache */
+     * use R[3] as temp, copy through both &R[0] and &R[1]
+     * (fp_cond_copy) so the accessed address does not depend on the key bit;
+     * WOLFSSL_SP_FAST_MODEXP_COPY instead selects one masked address */
+#ifndef WC_FP_MODEXP_PTR_COPY
+    fp_cond_copy(&R[0], y^1, &R[3]);
+    fp_cond_copy(&R[1], y,   &R[3]);
+#else
     fp_copy((fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y^1]) +
                         ((wc_ptr_t)&R[1] & wc_off_on_addr[y]) ),
             &R[3]);
-    err = fp_sqr(&R[3], &R[3]);
+#endif
+    err = FP_EXPTMOD_SQR(&R[3], &R[3]);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
-    err = fp_montgomery_reduce(&R[3], P, mp);
+    err = FP_EXPTMOD_RED(&R[3], P, mp);
     if (err != FP_OKAY) {
       WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
@@ -2220,7 +2546,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
     fp_copy_2_ct(&R[2], &R[3], &R[0], &R[1], y, P->used);
   }
 
-  err = fp_montgomery_reduce(&R[0], P, mp);
+  err = FP_EXPTMOD_RED_LAST(&R[0], P, mp);
   fp_copy(&R[0], Y);
   WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
   return err;
@@ -2514,7 +2840,111 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 }
 
 
-#ifdef TFM_TIMING_RESISTANT
+#if defined(TFM_TIMING_RESISTANT) && !defined(WC_NO_MODEXP_TIMING_RESISTANT)
+/* r = (2 * a) mod m in constant time.
+ *
+ * a must be less than m and have used equal to m->used.
+ * r has used set to m->used and is NOT clamped.
+ */
+static void fp_dbl_mod_ct(const fp_int* a, const fp_int* m, fp_int* r)
+{
+  int      i;
+  fp_digit c = 0;
+  volatile fp_digit vmask;
+  fp_digit mask;
+  fp_sword w = 0;
+
+  /* r = (a << 1) - m, with top bit of a in c. */
+  for (i = 0; i < m->used; i++) {
+    fp_digit v = a->dp[i];
+    w        += (fp_digit)((v << 1) | c);
+    w        -= m->dp[i];
+    r->dp[i]  = (fp_digit)w;
+    w       >>= DIGIT_BIT;
+    c         = v >> (DIGIT_BIT - 1);
+  }
+  /* 2 * a < 2 * m - negative only when 2 * a was less than m. */
+  w += c;
+  vmask = (fp_digit)0 - (fp_digit)(w < 0);
+  /* Read once: hidden from the compiler, then kept in a register. */
+  mask = vmask;
+  /* Add modulus back when negative. */
+  w = 0;
+  for (i = 0; i < m->used; i++) {
+    w        += r->dp[i];
+    w        += m->dp[i] & mask;
+    r->dp[i]  = (fp_digit)w;
+    w       >>= DIGIT_BIT;
+  }
+  r->used = m->used;
+  r->sign = FP_ZPOS;
+}
+
+/* y = 2**x (mod b) in constant time.
+ *
+ * Processes one exponent bit at a time with result in Montgomery form.
+ * Doubling is always calculated and selected in constant time when the
+ * exponent bit is set. Working values are kept at the length of the modulus.
+ */
+static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
+                              fp_int * Y)
+{
+  fp_digit mp;
+  int      err, i, j;
+  fp_int*  tr;
+  fp_int*  t;
+  WC_DECLARE_VAR(res, fp_int, 2, 0);
+
+  /* now setup montgomery  */
+  if ((err = fp_montgomery_setup(P, &mp)) != FP_OKAY) {
+    return err;
+  }
+
+  WC_ALLOC_VAR_EX(res, fp_int, 2, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+      return FP_MEM);
+  tr = &res[0];
+  t  = &res[1];
+  fp_init(tr);
+  fp_init(t);
+
+  /* tr = R mod m = 1 in Montgomery form - not secret. */
+  err = fp_montgomery_calc_normalization(tr, P);
+  if (err == FP_OKAY) {
+    FP_EXPTMOD_PAD(tr, P);
+  }
+
+  for (i = digits * (int)DIGIT_BIT - 1; (err == FP_OKAY) && (i >= 0); i--) {
+    volatile fp_digit mask;
+
+    err = FP_EXPTMOD_SQR(tr, tr);
+    if (err == FP_OKAY) {
+      err = FP_EXPTMOD_RED(tr, P, mp);
+    }
+    if (err == FP_OKAY) {
+      fp_dbl_mod_ct(tr, P, t);
+      /* tr = t when exponent bit is set. */
+      mask = (fp_digit)0 -
+             ((X->dp[i / (int)DIGIT_BIT] >> (i % (int)DIGIT_BIT)) & 1);
+      for (j = 0; j < P->used; j++) {
+        tr->dp[j] ^= (tr->dp[j] ^ t->dp[j]) & mask;
+      }
+    }
+  }
+
+  /* convert out of Montgomery form */
+  if (err == FP_OKAY) {
+    err = FP_EXPTMOD_RED_LAST(tr, P, mp);
+  }
+  if (err == FP_OKAY) {
+    fp_copy(tr, Y);
+  }
+
+  ForceZero(res, sizeof(fp_int) * 2);
+  WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  return err;
+}
+
+#elif defined(TFM_TIMING_RESISTANT)
 #if DIGIT_BIT <= 16
     #define WINSIZE    2
     #define WINMASK    0x3
@@ -2847,7 +3277,7 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 #undef WINSIZE
 #endif
 
-/* Y = (G * X) mod P */
+/* Y = (G ** X) mod P */
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
 #if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD)
@@ -2934,7 +3364,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       return FP_VAL;
 #endif /* POSITIVE_EXP_ONLY check */
    }
-   else if (G->used == 1 && G->dp[0] == 2) {
+   else if (G->used == 1 && G->dp[0] == 2 && G->sign == FP_ZPOS) {
       return _fp_exptmod_base_2(X, X->used, P, Y);
    }
    else {
@@ -3303,8 +3733,12 @@ clean:
   return err;
 }
 
-/* generic comba squarer */
-int fp_sqr_comba(fp_int *A, fp_int *B)
+/* generic comba squarer
+ *
+ * When clamp is zero, the result has used set to A->used * 2 and is not
+ * clamped. The number of operations then doesn't depend on the value.
+ */
+static WC_INLINE int _fp_sqr_comba(fp_int *A, fp_int *B, int clamp)
 {
   int       pa, ix, iz;
   fp_digit  c0, c1, c2;
@@ -3317,9 +3751,9 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
    WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
        return FP_MEM);
 
-  /* get size of output and trim */
+  /* get size of output and trim - unclamped result may use all digits */
   pa = A->used + A->used;
-  if (pa >= FP_SIZE) {
+  if (pa >= FP_SIZE + (clamp == 0)) {
      pa = FP_SIZE-1;
   }
 
@@ -3381,7 +3815,9 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
 
   /* setup dest */
   dst->used = pa;
-  fp_clamp (dst);
+  if (clamp) {
+    fp_clamp (dst);
+  }
   if (dst != B) {
      fp_copy(dst, B);
   }
@@ -3394,6 +3830,12 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
 
   WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
+}
+
+/* generic comba squarer */
+int fp_sqr_comba(fp_int *A, fp_int *B)
+{
+  return _fp_sqr_comba(A, B, 1);
 }
 
 int fp_cmp(fp_int *a, fp_int *b)
@@ -3461,6 +3903,44 @@ int fp_cmp_mag(fp_int *a, fp_int *b)
    return FP_EQ;
 }
 
+
+/* Unsigned comparison of the first n digits in constant time.
+ *
+ * Digits at and above used are treated as zero.
+ *
+ * @param [in] a  First number to compare.
+ * @param [in] b  Second number to compare.
+ * @param [in] n  Number of digits to compare. Must not exceed FP_SIZE.
+ * @return  FP_GT when a is greater than b.
+ * @return  FP_LT when a is less than b.
+ * @return  FP_EQ when a is equal to b.
+ */
+int fp_cmp_ct(const fp_int *a, const fp_int *b, int n)
+{
+   /* All bits set once a digit has shown a to be less/greater than b. */
+   fp_digit lt = 0;
+   fp_digit gt = 0;
+   int i;
+
+   for (i = n - 1; i >= 0; i--) {
+      /* Masks are volatile so that the compiler can't tell they are all zeros
+       * or all ones and branch around a load or an operation. */
+      volatile fp_digit mask_a = (fp_digit)0 - (fp_digit)(i < a->used);
+      volatile fp_digit mask_b = (fp_digit)0 - (fp_digit)(i < b->used);
+      fp_digit ad = a->dp[i] & mask_a;
+      fp_digit bd = b->dp[i] & mask_b;
+      volatile fp_digit dlt = (fp_digit)0 - (fp_digit)(ad < bd);
+      volatile fp_digit dgt = (fp_digit)0 - (fp_digit)(ad > bd);
+      /* Only the most significant differing digit decides. */
+      fp_digit undecided = ~(lt | gt);
+
+      lt |= dlt & undecided;
+      gt |= dgt & undecided;
+   }
+
+   /* FP_GT is 1, FP_LT is -1 and FP_EQ is 0. */
+   return (int)(gt & 1) - (int)(lt & 1);
+}
 
 /* sets up the montgomery reduction */
 int fp_montgomery_setup(fp_int *a, fp_digit *rho)
@@ -3643,6 +4123,249 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
 }
 #endif
 
+/* Number of digits the integer can hold - an alt_fp_int under ALT_ECC_SIZE
+ * has fewer digits than FP_SIZE. */
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    #define FP_DIGITS_CAP(a)    ((a)->size)
+#else
+    #define FP_DIGITS_CAP(a)    FP_SIZE
+#endif
+
+#ifdef TFM_MONT_RED_CT_AVAILABLE
+/* computes x/R == x (mod N) via Montgomery Reduction in constant time.
+ *
+ * Separate from fp_montgomery_reduce_ex() so that the variable time version is
+ * not slowed down. The operations performed depend only on the modulus:
+ *  - all m->used * 2 digits of a are used (digits above used are zero),
+ *  - the carry of each round is added to the next digit only, with the
+ *    overflow kept and added in the next round,
+ *  - the final subtraction is always performed and undone when negative.
+ *
+ * When fixed is set, the result is not clamped and has used set to m->used.
+ * This keeps the length of working values in an exponentiation independent of
+ * their value. Such a result must only be used as an intermediate value.
+ */
+static int fp_montgomery_reduce_ct(fp_int *a, fp_int *m, fp_digit mp,
+                                   int fixed)
+{
+   WC_DECLARE_VAR(c, fp_digit, FP_SIZE+1, 0);
+   fp_digit *_c, *tmpm, mu = 0;
+   fp_digit h = 0;
+   int      oldused, x, y, pa;
+
+   /* bail if too large */
+   if (m->used > (FP_SIZE/2)) {
+      (void)mu;                     /* shut up compiler */
+      return FP_VAL;
+   }
+
+   WC_ALLOC_VAR_EX(c, fp_digit, (FP_SIZE+1), NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
+
+   pa = m->used;
+   /* a must hold the m->used + 1 digit intermediate result. Capacity is
+    * public - an alt_fp_int under ALT_ECC_SIZE may hold fewer than
+    * 2 * m->used digits. */
+   if (FP_DIGITS_CAP(a) < pa + 1) {
+      WC_FREE_VAR_EX(c, NULL, DYNAMIC_TYPE_BIGINT);
+      return FP_VAL;
+   }
+
+   /* now zero the buff - only 2 * pa + 1 digits are used */
+   XMEMSET(c, 0, sizeof(fp_digit) * (size_t)(2 * pa + 1));
+
+   /* copy the input - fixed length bounded by the capacity of a. Missing high
+    * digits are zero in c. */
+   oldused = MIN(m->used * 2, FP_DIGITS_CAP(a));
+   for (x = 0; x < oldused; x++) {
+       c[x] = a->dp[x];
+   }
+   MONT_START;
+
+   for (x = 0; x < pa; x++) {
+       fp_digit cy = 0;
+       /* get Mu for this round */
+       LOOP_START;
+       _c   = c + x;
+       tmpm = m->dp;
+       y = 0;
+#if defined(INNERMUL8)
+        for (; y < (pa & ~7); y += 8) {
+              INNERMUL8 ;
+              _c   += 8;
+              tmpm += 8;
+           }
+#endif
+       for (; y < pa; y++) {
+          INNERMUL;
+          ++_c;
+       }
+       LOOP_END;
+       /* Add carry and the overflow of the previous round into the next
+        * digit. Overflow is at most one and is added in the next round - the
+        * same number of operations every round. */
+       {
+           fp_word t = (fp_word)c[x + pa] + cy + h;
+           c[x + pa] = (fp_digit)t;
+           h = (fp_digit)(t >> DIGIT_BIT);
+       }
+  }
+  c[2 * pa] = h;
+
+  /* now copy out */
+  _c   = c + pa;
+  tmpm = a->dp;
+  for (x = 0; x < pa+1; x++) {
+     *tmpm++ = *_c++;
+  }
+
+  /* zero any excess digits on the destination that we didn't write to */
+  for (; x < oldused; x++) {
+     *tmpm++ = 0;
+  }
+
+  MONT_FINI;
+
+  /* a is less than 2 * m with all m->used + 1 digits set.
+   * Always subtract m and add it back when the result is negative. */
+  {
+    fp_sword w = 0;
+    volatile fp_digit vmask;
+    fp_digit mask;
+
+    for (x = 0; x < pa; x++) {
+      w        += a->dp[x];
+      w        -= m->dp[x];
+      a->dp[x]  = (fp_digit)w;
+      w       >>= DIGIT_BIT;
+    }
+    w += a->dp[pa];
+    /* Negative when a was less than m - add modulus back. */
+    vmask = (fp_digit)0 - (fp_digit)(w < 0);
+    /* Read once: hidden from the compiler, then kept in a register. */
+    mask = vmask;
+    w = 0;
+    for (x = 0; x < pa; x++) {
+      w        += a->dp[x];
+      w        += m->dp[x] & mask;
+      a->dp[x]  = (fp_digit)w;
+      w       >>= DIGIT_BIT;
+    }
+  }
+  /* Result fits in m->used digits - clear the carry digit as digits above used
+   * must be zero. */
+  a->dp[pa] = 0;
+  a->used = pa;
+  a->sign = FP_ZPOS;
+  if (!fixed) {
+    fp_clamp_ct(a);
+  }
+
+  /* c holds the unreduced result, which may be derived from a secret. */
+  ForceZero(c, sizeof(fp_digit) * (size_t)(2 * pa + 1));
+  WC_FREE_VAR_EX(c, NULL, DYNAMIC_TYPE_BIGINT);
+  return FP_OKAY;
+}
+#endif /* TFM_MONT_RED_CT_AVAILABLE */
+
+#ifdef HAVE_ECC
+/* r = a * b / R mod m - Montgomery multiplication.
+ *
+ * Constant time when TFM_MONT_RED_CT_AVAILABLE is defined:
+ * operands are padded to the length of the modulus, the product is not
+ * clamped and the result is copied with a fixed number of digits.
+ * Called for each field multiplication in ECC point arithmetic - only the
+ * digits needed are written and zeroized.
+ *
+ * a * b must be less than m * R - true when a is less than m and b is less
+ * than R.
+ *
+ * @param [in]  a   First operand. Has no more digits than m.
+ * @param [in]  b   Second operand. Has no more digits than m.
+ * @param [in]  m   Modulus. Must be odd.
+ * @param [in]  mp  Montgomery multiplier for m.
+ * @param [out] r   Result. May be the same as a or b.
+ * @return  FP_OKAY on success.
+ * @return  FP_VAL when an operand is longer than m or m is too long.
+ * @return  FP_MEM when dynamic memory allocation fails.
+ */
+int fp_mont_mul_ct(fp_int* a, fp_int* b, fp_int* m, fp_digit mp, fp_int* r)
+{
+  int err = FP_OKAY;
+#ifdef TFM_MONT_RED_CT_AVAILABLE
+  int i;
+  int n = m->used;
+  fp_digit* ta;
+  fp_digit* tb;
+  WC_DECLARE_VAR(t, fp_int, 2, 0);
+
+  /* Lengths and capacities are public - operands are less than the
+   * modulus. */
+  if ((n == 0) || (a->used > n) || (b->used > n) || (n + n > FP_SIZE) ||
+      (FP_DIGITS_CAP(r) < n)) {
+    return FP_VAL;
+  }
+
+  WC_ALLOC_VAR_EX(t, fp_int, 2, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
+
+  /* Pad operands to the length of the modulus in the digits of t[0]. Digits
+   * read depend only on the capacities - digits at and above used are masked
+   * out. */
+  ta = t[0].dp;
+  tb = t[0].dp + n;
+  for (i = 0; i < n; i++) {
+    fp_digit d;
+    /* Masks are volatile so that the compiler can't tell they are all zeros
+     * or all ones and branch around the load of the digit. */
+    volatile fp_digit mask_a = (fp_digit)0 - (fp_digit)(i < a->used);
+    volatile fp_digit mask_b = (fp_digit)0 - (fp_digit)(i < b->used);
+
+    d = (i < FP_DIGITS_CAP(a)) ? a->dp[i] : 0;
+    ta[i] = d & mask_a;
+    d = (i < FP_DIGITS_CAP(b)) ? b->dp[i] : 0;
+    tb[i] = d & mask_b;
+  }
+
+  /* t[1] = a * b, not clamped, and reduced in constant time.
+   * Same pointer is public - square when operands are the same. */
+  if (a == b) {
+    fp_sqr_comba_n(ta, n, t[1].dp);
+  }
+  else {
+    fp_mul_comba_n(ta, tb, n, t[1].dp);
+  }
+  t[1].used = n + n;
+  t[1].sign = FP_ZPOS;
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+  t[1].size = FP_SIZE;
+#endif
+  err = fp_montgomery_reduce_ct(&t[1], m, mp, 0);
+  if (err == FP_OKAY) {
+    /* Copy a fixed number of digits and clear the rest of r's digits. */
+    for (i = 0; i < n; i++) {
+      r->dp[i] = t[1].dp[i];
+    }
+    XMEMSET(r->dp + n, 0,
+            sizeof(fp_digit) * (size_t)(FP_DIGITS_CAP(r) - n));
+    r->used = t[1].used;
+    r->sign = FP_ZPOS;
+  }
+
+  /* Only the first 2 * n digits of each temporary were used. */
+  ForceZero(t[0].dp, sizeof(fp_digit) * (size_t)(n + n));
+  ForceZero(t[1].dp, sizeof(fp_digit) * (size_t)(n + n));
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
+#else
+  err = fp_mul(a, b, r);
+  if (err == FP_OKAY) {
+    err = fp_montgomery_reduce(r, m, mp);
+  }
+#endif
+  return err;
+}
+#endif /* HAVE_ECC */
+
+
 /* computes x/R == x (mod N) via Montgomery Reduction */
 int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
 {
@@ -3650,6 +4373,11 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
    fp_digit *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa, err = 0;
 
+#ifdef TFM_MONT_RED_CT_AVAILABLE
+   if (ct) {
+      return fp_montgomery_reduce_ct(a, m, mp, 0);
+   }
+#endif
    IF_HAVE_INTEL_MULX(err=fp_montgomery_reduce_mulx(a, m, mp, ct), return err) ;
    (void)err;
 
@@ -3752,7 +4480,12 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
 
 int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
+#ifdef WOLFSSL_MONT_RED_CT
   return fp_montgomery_reduce_ex(a, m, mp, 1);
+#else
+  /* Constant time only when requested with fp_montgomery_reduce_ex(). */
+  return fp_montgomery_reduce_ex(a, m, mp, 0);
+#endif
 }
 
 int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
@@ -3924,21 +4657,33 @@ int fp_to_unsigned_bin_len_ct(fp_int *a, unsigned char *out, int outSz)
     /* Start at the end of the buffer - least significant byte. */
     int j;
     unsigned int i;
-    fp_digit mask = (fp_digit)-1;
     fp_digit d;
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    /* Allocated digit count - may be less than FP_SIZE (e.g. alt_fp_int). */
+    const unsigned int maxIdx = (unsigned int)a->size - 1;
+#else
+    const unsigned int maxIdx = (unsigned int)FP_SIZE - 1;
+#endif
 
-    /* Put each digit in. */
+    /* Put each digit in.
+     * Digit index advances every iteration independent of a->used so that the
+     * memory access pattern only depends on outSz and the allocated size
+     * (public). Digits at or above a->used are masked out in constant time.
+     */
     i = 0;
-    for (j = outSz - 1; j >= 0; ) {
+    for (j = outSz - 1; j >= 0; i++) {
       unsigned int b;
-      d = a->dp[i];
+      /* Index to load from - limited by allocated size (public). */
+      unsigned int idx = (i < maxIdx) ? i : maxIdx;
+      volatile fp_digit mask = (fp_digit)0 -
+          (fp_digit)(i < (unsigned int)a->used);
+
+      d = a->dp[idx];
       /* Place each byte of a digit into the buffer. */
       for (b = 0; (j >= 0) && (b < (DIGIT_BIT / 8)); b++) {
         out[j--] = (byte)(d & mask);
         d >>= 8;
       }
-      mask &= (fp_digit)0 - (i < (unsigned int)a->used - 1);
-      i += (unsigned int)(1 & mask);
     }
   }
 #else
@@ -3948,13 +4693,25 @@ int fp_to_unsigned_bin_len_ct(fp_int *a, unsigned char *out, int outSz)
   if (err == MP_OKAY) {
     unsigned int i;
     int j;
-    fp_digit mask = (fp_digit)-1;
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    /* Allocated digit count - may be less than FP_SIZE (e.g. alt_fp_int). */
+    const unsigned int maxIdx = (unsigned int)a->size - 1;
+#else
+    const unsigned int maxIdx = (unsigned int)FP_SIZE - 1;
+#endif
 
+    /* Digit index advances every iteration independent of a->used so that the
+     * memory access pattern only depends on outSz and the allocated size
+     * (public). Digits at or above a->used are masked out in constant time.
+     */
     i = 0;
-    for (j = outSz - 1; j >= 0; j--) {
-      out[j] = a->dp[i] & mask;
-      mask &= (fp_digit)0 - (i < (unsigned int)a->used - 1);
-      i += (unsigned int)(1 & mask);
+    for (j = outSz - 1; j >= 0; j--, i++) {
+      /* Index to load from - limited by allocated size (public). */
+      unsigned int idx = (i < maxIdx) ? i : maxIdx;
+      volatile fp_digit mask = (fp_digit)0 -
+          (fp_digit)(i < (unsigned int)a->used);
+
+      out[j] = (byte)(a->dp[idx] & mask);
     }
   }
 #endif
@@ -4321,20 +5078,10 @@ void fp_zero(fp_int *a)
 
 void fp_clear(fp_int *a)
 {
-#ifdef HAVE_FIPS
+    /* Wipe as fp_forcezero does. The fp_int is usually not used again, so
+     * the compiler may remove a plain memset as a dead store and leave the
+     * digits in memory. */
     fp_forcezero(a);
-#else
-    int size;
-    a->used = 0;
-    a->sign = FP_ZPOS;
-#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
-    size = a->size;
-#else
-    size = FP_SIZE;
-#endif
-    XMEMSET(a->dp, 0, size * sizeof(fp_digit));
-    fp_free(a);
-#endif
 }
 
 void fp_forcezero (mp_int * a)
@@ -4548,6 +5295,25 @@ int mp_exptmod_nct (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 
 
 /* compare two ints (signed)*/
+/* Compare first n digits of a and b in constant time. */
+int mp_cmp_ct(const mp_int *a, const mp_int *b, int n)
+{
+  /* Same as SP math: both NULL equal, NULL is less than non-NULL. */
+  if (a == b) {
+    return FP_EQ;
+  }
+  if (a == NULL) {
+    return FP_LT;
+  }
+  if (b == NULL) {
+    return FP_GT;
+  }
+  if ((n < 0) || (n > FP_SIZE)) {
+    n = FP_SIZE;
+  }
+  return fp_cmp_ct(a, b, n);
+}
+
 int mp_cmp (const mp_int * a, const mp_int * b)
 {
   return fp_cmp((mp_int *)a, (mp_int *)b);
@@ -4772,7 +5538,10 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 static int fp_cond_swap_ct_ex(mp_int* a, mp_int* b, int c, int m, mp_int* t)
 {
     int i;
-    mp_digit mask = (mp_digit)0 - m;
+    /* Mask passes through volatile so that the compiler can't tell it is all
+     * zeros or all ones, then is read once into a register. */
+    volatile mp_digit vmask = (mp_digit)0 - m;
+    mp_digit mask = vmask;
 
     t->used = (a->used ^ b->used) & mask;
     for (i = 0; i < c; i++) {
@@ -5164,6 +5933,9 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
    int      r, res;
    int      err;
 
+   /* default to no, so an error never leaves a primality claim */
+   *result = FP_NO;
+
    if (t <= 0 || t > FP_PRIME_SIZE) {
      *result = FP_NO;
      return FP_VAL;
@@ -5198,7 +5970,7 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
        fp_set(b, primes[r]);
        err = fp_prime_miller_rabin(a, b, &res);
        if ((err != FP_OKAY) || (res == FP_NO)) {
-          *result = res;
+          *result = FP_NO;
           WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
           return err;
        }
@@ -5219,6 +5991,9 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     fp_digit d;
     int i;
 
+    /* default to no, so an error never leaves a primality claim */
+    if (result != NULL)
+        *result = FP_NO;
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
     if (a->sign == FP_NEG)
@@ -5341,7 +6116,12 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         WC_FREE_VAR_EX(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else
-    (void)t;
+    /* No RNG: fixed small-prime bases, as in mp_prime_is_prime(). */
+    {
+        int err = fp_isprime_ex(a, t, &ret);
+        if (err != FP_OKAY)
+            return err;
+    }
 #endif /* !WC_NO_RNG */
 
     *result = ret;
@@ -5379,19 +6159,8 @@ int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
 
 int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 {
-    int err;
-
-    err = fp_randprime(a, len, rng, heap);
-    switch(err) {
-        case WC_NO_ERR_TRACE(MP_VAL):
-            return MP_VAL;
-        case WC_NO_ERR_TRACE(MP_MEM):
-            return MP_MEM;
-        default:
-            break;
-    }
-
-    return MP_OKAY;
+    /* FP_* codes are the MP_* codes, so any error passes straight through. */
+    return fp_randprime(a, len, rng, heap);
 }
 
 int mp_exch (mp_int * a, mp_int * b)
@@ -5424,6 +6193,12 @@ int fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap)
     if (len < 2 || len > 512) {
         return FP_VAL;
     }
+#ifndef WOLFSSL_SMALL_STACK
+    /* The prime test's base buffer holds FP_MAX_PRIME_SIZE bytes. */
+    if (len > FP_MAX_PRIME_SIZE) {
+        return FP_VAL;
+    }
+#endif
 
     /* allocate buffer to work with */
     buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5460,10 +6235,15 @@ int fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap)
          * of a 1024-bit candidate being a false positive, when it is our
          * prime candidate. (Note 4.49 of Handbook of Applied Cryptography.)
          * Using 8 because we've always used 8 */
-        mp_prime_is_prime_ex(a, 8, &isPrime, rng);
+        err = mp_prime_is_prime_ex(a, 8, &isPrime, rng);
+        if (err != FP_OKAY) {
+            XMEMSET(buf, 0, len);
+            XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return err;
+        }
     } while (isPrime == FP_NO);
 
-    XMEMSET(buf, 0, len);
+    ForceZero(buf, len);
     XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return FP_OKAY;
@@ -5995,14 +6775,30 @@ int mp_lshd (mp_int * a, int b)
 }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+/* Number of bytes of digits in the integer. With ALT_ECC_SIZE, an ECC integer
+ * is an alt_fp_int with fewer digits than an fp_int, so use the size it was
+ * initialized with, as fp_forcezero() does, to stay inside it. */
+static size_t mp_memzero_len(mp_int* a)
+{
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    return (size_t)a->size * sizeof(fp_digit);
+#else
+    return sizeof(a->dp);
+#endif
+}
+
 void mp_memzero_add(const char* name, mp_int* a)
 {
-    wc_MemZero_Add(name, a->dp, sizeof(a->dp));
+    if (a != NULL) {
+        wc_MemZero_Add(name, a->dp, mp_memzero_len(a));
+    }
 }
 
 void mp_memzero_check(mp_int* a)
 {
-    wc_MemZero_Check(a->dp, sizeof(a->dp));
+    if (a != NULL) {
+        wc_MemZero_Check(a->dp, mp_memzero_len(a));
+    }
 }
 #endif /* WOLFSSL_CHECK_MEM_ZERO */
 

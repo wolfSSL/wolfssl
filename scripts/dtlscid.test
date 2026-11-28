@@ -68,9 +68,7 @@ WOLFSSL_ROOT=$(pwd)
 # runs - a second "make check" in another source tree, say - from sharing one.
 READY_FILE="$WOLFSSL_ROOT/wolfssl_dtlscid_ready$$"
 
-# A usable port is a non-zero decimal below 65536. Worth checking rather than
-# assuming: a SINGLE_THREADED or WOLFSSL_TIRTOS build never resolves the
-# ephemeral port in udp_accept(), so the ready file legitimately contains 0.
+# A usable port is a non-zero decimal below 65536.
 valid_port() {
     case "$1" in
         ''|*[!0-9]*) return 1 ;;
@@ -78,11 +76,7 @@ valid_port() {
     [ "$1" -gt 0 ] && [ "$1" -lt 65536 ]
 }
 
-# The test below depends on the server being able to report the port it bound.
-# Besides the SINGLE_THREADED/WOLFSSL_TIRTOS case above, a NO_FILESYSTEM or
-# NETOS build compiles write_ready_file() to a no-op and never creates the file
-# at all. Probe the capability once and skip, rather than report a build-wide
-# limitation as a CID test failure.
+# Probe once whether the server can report the port it bound with -p 0 -R.
 check_ready_file_support() {
     local probe_pid counter port
 
@@ -115,7 +109,7 @@ check_ready_file_support() {
 
 if ! check_ready_file_support; then
     echo 'skipping dtlscid.test because the server cannot report an ephemeral' 1>&2
-    echo 'port with -p 0 -R (needs threads and a filesystem in the build).' 1>&2
+    echo 'port with -p 0 -R (needs a filesystem in the build).' 1>&2
     exit 77
 fi
 

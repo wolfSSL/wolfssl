@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Read, Result};
 use std::path::{Path,PathBuf};
+use std::sync::OnceLock;
 
 /// Perform crate build.
 fn main() {
@@ -19,6 +20,7 @@ fn main() {
 /// Returns `Ok(())` if successful, or an error if any step fails.
 fn run_build() -> Result<()> {
     generate_bindings()?;
+    check_unsupported_config()?;
     generate_fips_aliases()?;
     setup_wolfssl_link()?;
     scan_cfg()?;
@@ -37,68 +39,197 @@ fn wolfssl_repo_lib_dir() -> Result<String> {
     Ok(format!("{}/src/.libs", wolfssl_repo_base_dir()?))
 }
 
-fn wolfssl_user_prefix() -> Option<String> {
-    match env::var("WOLFSSL_PREFIX") {
-        Ok(prefix) => {
-            if !prefix.is_empty() && !prefix.contains('\n') {
-                Some(prefix)
-            } else {
-                println!("cargo:warning=ignoring WOLFSSL_PREFIX");
-                None
-            }
-        }
-        Err(_) => None,
+/// How a wolfSSL library file has to be handed to the linker.
+#[derive(Clone, Copy, PartialEq)]
+enum WolfsslLibKind {
+    /// Shared object resolved at run time through a library search path, so
+    /// an rpath entry is needed to run against a non-default prefix.
+    SharedObject,
+    /// Windows import library or DLL: linked dynamically, but the loader
+    /// finds the DLL via PATH rather than an rpath.
+    ImportLib,
+    /// Static archive, linked with the `static=` link kind.
+    StaticLib,
+}
+
+/// wolfSSL library file names to look for, with the names produced by the
+/// autotools, CMake and Visual Studio builds of the C library.  Dynamic
+/// variants come first so that a directory holding both prefers the shared
+/// library, matching how the linker itself resolves `-lwolfssl`.
+const WOLFSSL_LIB_FILES: [(&str, WolfsslLibKind); 7] = [
+    /* ELF platforms: Linux, the BSDs, Solaris/illumos */
+    ("libwolfssl.so",    WolfsslLibKind::SharedObject),
+    /* macOS */
+    ("libwolfssl.dylib", WolfsslLibKind::SharedObject),
+    /* MinGW / Cygwin import library for libwolfssl.dll */
+    ("libwolfssl.dll.a", WolfsslLibKind::ImportLib),
+    /* MinGW / Cygwin DLL installed without an import library */
+    ("libwolfssl.dll",   WolfsslLibKind::ImportLib),
+    /* MSVC: static library, or the import library for wolfssl.dll */
+    ("wolfssl.lib",      WolfsslLibKind::ImportLib),
+    /* MSVC built through libtool, which keeps the "lib" prefix */
+    ("libwolfssl.lib",   WolfsslLibKind::ImportLib),
+    /* Static archive on every Unix-like platform and MinGW */
+    ("libwolfssl.a",     WolfsslLibKind::StaticLib),
+];
+
+/// Returns the kind of the wolfSSL library file present in `dir`, if any.
+fn wolfssl_lib_kind(dir: &Path) -> Option<WolfsslLibKind> {
+    WOLFSSL_LIB_FILES.into_iter()
+                     .find(|(name, _)| dir.join(name).exists())
+                     .map(|(_, kind)| kind)
+}
+
+/// Returns true if `dir` holds any wolfSSL library file.
+fn has_wolfssl_lib(dir: &Path) -> bool {
+    wolfssl_lib_kind(dir).is_some()
+}
+
+/// Directories located under a validated `WOLFSSL_PREFIX` installation.
+struct WolfsslPrefixDirs {
+    include: String,
+    lib: String,
+}
+
+/// Returns the directories of the `WOLFSSL_PREFIX` installation, if set.
+///
+/// A prefix is only accepted if it provides both halves of an installation:
+/// the wolfSSL library under `lib` or `lib64`, and an `include/wolfssl`
+/// directory.
+/// A prefix holding only one of them fails the build, so that the headers
+/// and the library we build against always come from the same place.
+///
+/// Returns `None` only when `WOLFSSL_PREFIX` is unset or empty, in which case
+/// the build falls back to the wolfSSL repository containing this crate.
+///
+/// The result is computed once and cached, so any message is printed once.
+fn wolfssl_prefix_dirs() -> Option<&'static WolfsslPrefixDirs> {
+    static DIRS: OnceLock<Option<WolfsslPrefixDirs>> = OnceLock::new();
+    DIRS.get_or_init(compute_wolfssl_prefix_dirs).as_ref()
+}
+
+/// Report an unusable `WOLFSSL_PREFIX` and fail the build.
+///
+/// A prefix that is set but does not hold an installation is a mistake in the
+/// caller's environment.  Falling back to the in-tree build would hide it and
+/// silently build against a different wolfSSL than the one asked for, so fail
+/// instead.
+fn wolfssl_prefix_error(prefix: &str, reason: &str) -> ! {
+    eprintln!("error: WOLFSSL_PREFIX is set to \"{}\" but {}.", prefix, reason);
+    eprintln!("       Set WOLFSSL_PREFIX to the prefix of a wolfSSL installation \
+               providing include/wolfssl and the wolfSSL library under lib or \
+               lib64, or unset it to build against the wolfSSL repository \
+               containing this crate.");
+    std::process::exit(1);
+}
+
+/// Read `WOLFSSL_PREFIX` from the environment and validate its layout.
+///
+/// Returns `None` if the variable is unset or empty.  A non-empty value that
+/// does not point at a directory containing both `include/wolfssl` and the
+/// wolfSSL library file fails the build.
+fn compute_wolfssl_prefix_dirs() -> Option<WolfsslPrefixDirs> {
+    println!("cargo::rerun-if-env-changed=WOLFSSL_PREFIX");
+    let prefix = env::var("WOLFSSL_PREFIX").ok()?;
+    if prefix.is_empty() {
+        // An empty value is treated the same as unset.
+        return None;
+    }
+    if prefix.contains('\n') {
+        // A newline would let the value inject further cargo directives into
+        // the link search path we print below.
+        wolfssl_prefix_error(&prefix, "its value contains a newline");
+    }
+    let prefix_path = Path::new(&prefix);
+
+    let include_dir = prefix_path.join("include");
+    if !include_dir.join("wolfssl").is_dir() {
+        wolfssl_prefix_error(&prefix,
+                             &format!("{} is not a directory",
+                                      include_dir.join("wolfssl").display()));
+    }
+
+    // Installations put the library under either lib/ or lib64/ depending on
+    // the platform and how wolfSSL was configured.  Require the library file
+    // itself to be present, not merely the directory.
+    let lib_names = ["lib", "lib64"];
+    let Some(lib_dir) = lib_names.iter()
+                                 .map(|name| prefix_path.join(name))
+                                 .find(|dir| has_wolfssl_lib(dir)) else {
+        wolfssl_prefix_error(&prefix,
+                             &format!("no wolfSSL library was found in {}",
+                                      lib_names.map(|name| prefix_path.join(name)
+                                                                      .display()
+                                                                      .to_string())
+                                               .join(" or ")));
+    };
+
+    Some(WolfsslPrefixDirs {
+        include: include_dir.display().to_string(),
+        lib: lib_dir.display().to_string(),
+    })
+}
+
+/// Returns the base directory of the wolfSSL repository containing this
+/// crate, if that repository has been configured for an in-tree build.
+///
+/// The repository counts as configured only if `wolfssl/options.h` exists,
+/// which configure generates.
+fn wolfssl_in_tree_base_dir() -> Result<Option<String>> {
+    let base = wolfssl_repo_base_dir()?;
+    let options_h = Path::new(&base).join("wolfssl").join("options.h");
+    if options_h.is_file() {
+        Ok(Some(base))
+    } else {
+        Ok(None)
     }
 }
 
 /// Returns the include directory for wolfssl headers.
 ///
-/// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/include`.
-/// Otherwise falls back to the repo root if it exists (for in-tree host builds).
+/// If `WOLFSSL_PREFIX` is usable, returns `{WOLFSSL_PREFIX}/include`.
+/// Otherwise falls back to the repo root if it is configured for an in-tree
+/// build.
 fn wolfssl_include_dir() -> Result<Option<String>> {
-    if let Some(prefix) = wolfssl_user_prefix() {
-        let include_dir = format!("{}/include", prefix);
-        let wolfssl_dir = Path::new(&include_dir).join("wolfssl");
-        if !wolfssl_dir.is_dir() {
-            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", wolfssl_dir.display());
-            return Ok(None);
-        }
-        Ok(Some(include_dir))
+    if let Some(dirs) = wolfssl_prefix_dirs() {
+        Ok(Some(dirs.include.clone()))
     } else {
-        let base = wolfssl_repo_base_dir()?;
-        let base_path = Path::new(&base);
-        // Treat this as an in-tree wolfSSL repo only if the expected layout exists.
-        let wolfssl_dir = base_path.join("wolfssl");
-        let wolfssl_options = wolfssl_dir.join("options.h");
-        if wolfssl_options.is_file() {
-            Ok(Some(base))
-        } else {
-            Ok(None)
-        }
+        wolfssl_in_tree_base_dir()
     }
 }
 
 /// Returns the library directory for libwolfssl.
 ///
-/// If `WOLFSSL_PREFIX` is set, returns `{WOLFSSL_PREFIX}/lib`.
-/// Otherwise falls back to the in-tree build output directory if it exists.
+/// If `WOLFSSL_PREFIX` is usable, returns `{WOLFSSL_PREFIX}/lib` or
+/// `{WOLFSSL_PREFIX}/lib64`, whichever holds the library.
+///
+/// Otherwise, if the repository containing this crate is configured for an
+/// in-tree build, returns its build output directory.  The bindings are then
+/// generated from the in-tree headers, so the library must come from the same
+/// tree: if it has not been built there, the build fails rather than falling
+/// back to a system-installed library built with different options.
+///
+/// Returns `None` only when neither applies, in which case the system-wide
+/// library is used.
 fn wolfssl_lib_dir() -> Result<Option<String>> {
-    if let Some(prefix) = wolfssl_user_prefix() {
-        let lib_dir = format!("{}/lib", prefix);
-        let lib_path = Path::new(&lib_dir);
-        if !lib_path.is_dir() {
-            println!("cargo:warning=WOLFSSL_PREFIX is set but {} is not a directory", lib_dir);
-            return Ok(None);
-        }
-        Ok(Some(lib_dir))
-    } else {
-        let repo_lib_dir = wolfssl_repo_lib_dir()?;
-        if Path::new(&repo_lib_dir).exists() {
-            Ok(Some(repo_lib_dir))
-        } else {
-            Ok(None)
-        }
+    if let Some(dirs) = wolfssl_prefix_dirs() {
+        return Ok(Some(dirs.lib.clone()));
     }
+    if wolfssl_in_tree_base_dir()?.is_none() {
+        return Ok(None);
+    }
+    // The directory alone is not enough: configure/libtool create it before
+    // any library is built and `make clean` leaves it behind.
+    let repo_lib_dir = wolfssl_repo_lib_dir()?;
+    if !has_wolfssl_lib(Path::new(&repo_lib_dir)) {
+        return Err(io::Error::other(format!(
+            "the wolfSSL repository containing this crate is configured, but \
+             no wolfSSL library was found in {}.  Build the C library first \
+             (run make in the repository root), or set WOLFSSL_PREFIX to a \
+             wolfSSL installation.",
+            repo_lib_dir)));
+    }
+    Ok(Some(repo_lib_dir))
 }
 
 fn bindings_path() -> String {
@@ -117,7 +248,7 @@ fn rust_target_to_clang_target(rust_target: &str) -> String {
         return rust_target.to_string();
     }
 
-    // Strip ISA extensions: riscv64imac → riscv64, riscv32imac → riscv32
+    // Strip ISA extensions: riscv64imac -> riscv64, riscv32imac -> riscv32
     let arch = if parts[0].starts_with("riscv64") {
         "riscv64"
     } else if parts[0].starts_with("riscv32") {
@@ -130,7 +261,7 @@ fn rust_target_to_clang_target(rust_target: &str) -> String {
     let os     = parts[2];
     let abi    = parts.get(3).copied().unwrap_or("");
 
-    // Bare-metal: (os=none, abi=elf) → <arch>-<vendor>-elf
+    // Bare-metal: (os=none, abi=elf) -> <arch>-<vendor>-elf
     if os == "none" && abi == "elf" {
         format!("{}-{}-elf", arch, vendor)
     } else if abi.is_empty() {
@@ -215,6 +346,88 @@ fn generate_bindings() -> Result<()> {
         })
 }
 
+/// Fail the build if the wolfSSL C library was built with a configuration
+/// that this crate does not support.
+///
+/// Returns `Ok(())` if the configuration is supported, or an error otherwise.
+fn check_unsupported_config() -> Result<()> {
+    let binding = read_file(bindings_path())?;
+
+    // The wrapper does not support asynchronous crypto operations.
+    if has_symbol(&binding, "WOLFSSL_RUST_HAVE_ASYNC_CRYPT") {
+        return Err(io::Error::other(
+            "wolfSSL was built with asynchronous crypto support \
+             (WOLFSSL_ASYNC_CRYPT), which the Rust wrapper does not support. \
+             Rebuild wolfSSL without --enable-asynccrypt, \
+             --enable-asynccrypt-sw, or the curve25519/rsa/dh \"nonblock\" \
+             options that enable it."));
+    }
+
+    Ok(())
+}
+
+/// Mappings between the standard wolfCrypt name and the FIPS name, for the
+/// functions whose FIPS name is not simply `<name>_fips`.
+///
+/// This is the single source of truth for those renames: it is used both when
+/// generating the FIPS aliases and when probing the bindings in `check_cfg()`,
+/// so that a cfg whose probe function is renamed by the FIPS module is still
+/// detected.
+const FIPS_RENAMES: &[(&str, &str)] = &[
+    /* _ex suffix changed to Ex before _fips */
+    ("wc_InitRsaKey_ex", "wc_InitRsaKeyEx_fips"),
+    ("wc_RsaPublicEncrypt_ex", "wc_RsaPublicEncryptEx_fips"),
+    ("wc_RsaPrivateDecryptInline_ex", "wc_RsaPrivateDecryptInlineEx_fips"),
+    ("wc_RsaPrivateDecrypt_ex", "wc_RsaPrivateDecryptEx_fips"),
+    ("wc_RsaPSS_Sign_ex", "wc_RsaPSS_SignEx_fips"),
+    ("wc_RsaPSS_VerifyInline_ex", "wc_RsaPSS_VerifyInlineEx_fips"),
+    ("wc_RsaPSS_Verify_ex", "wc_RsaPSS_VerifyEx_fips"),
+    ("wc_RsaPSS_CheckPadding_ex", "wc_RsaPSS_CheckPaddingEx_fips"),
+    ("wc_DhSetKey_ex", "wc_DhSetKeyEx_fips"),
+    ("wc_DhCheckPubKey_ex", "wc_DhCheckPubKeyEx_fips"),
+    ("wc_DhCheckPrivKey_ex", "wc_DhCheckPrivKeyEx_fips"),
+
+    /* Name change */
+    ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
+];
+
+/// Renames done only by older FIPS modules (v5), used when the module has no
+/// `<name>_fips` symbol for the standard name.
+const FIPS_V5_RENAMES: &[(&str, &str)] = &[
+    /* v5 exports the external IV encrypt under the one shot's FIPS name */
+    ("wc_AesGcmEncrypt_ex", "wc_AesGcmEncrypt_fips"),
+];
+
+/// The renames that apply to the FIPS module whose bindings are `binding`.
+///
+/// Computed once and cached, as a build has a single set of bindings.
+fn fips_renames(binding: &str) -> &'static [(&'static str, &'static str)] {
+    static RENAMES: OnceLock<Vec<(&str, &str)>> = OnceLock::new();
+    RENAMES.get_or_init(|| {
+        FIPS_RENAMES.iter().chain(FIPS_V5_RENAMES.iter().filter(|(std_name, _)| {
+            let pattern = format!(r"pub fn {}_fips\s*\(", regex::escape(std_name));
+            !Regex::new(&pattern).unwrap().is_match(binding)
+        })).copied().collect()
+    })
+}
+
+/// Returns the name the FIPS module exports `base_name` under, for the
+/// functions listed in `FIPS_RENAMES` and `FIPS_V5_RENAMES`, or `None` for
+/// every other function (whose FIPS name is `<base_name>_fips`).
+fn fips_rename(binding: &str, base_name: &str) -> Option<&'static str> {
+    fips_renames(binding).iter()
+                .find(|(std_name, _)| *std_name == base_name)
+                .map(|(_, fips_name)| *fips_name)
+}
+
+/// Returns the standard wolfCrypt name of the renamed FIPS symbol
+/// `fips_name`, or `None` if the FIPS module does not rename it.
+fn fips_rename_base(binding: &str, fips_name: &str) -> Option<&'static str> {
+    fips_renames(binding).iter()
+                .find(|(_, fips)| *fips == fips_name)
+                .map(|(std_name, _)| *std_name)
+}
+
 /// Generate FIPS symbol aliases.
 ///
 /// Since Rust can't use fips.h's #defines which map the "regular" wc function
@@ -239,32 +452,10 @@ fn generate_fips_aliases() -> Result<()> {
         let mut base_name = &cap[1];
         let fips_name = format!("{}_fips", base_name);
 
-        // Exception mappings: (standard_name, fips_name)
-        // For cases where FIPS name doesn't follow the simple <name>_fips pattern
-        let exceptions: &[(&str, &str)] = &[
-            // _ex suffix changed to Ex before _fips
-            ("wc_InitRsaKey_ex", "wc_InitRsaKeyEx_fips"),
-            ("wc_RsaPublicEncrypt_ex", "wc_RsaPublicEncryptEx_fips"),
-            ("wc_RsaPrivateDecryptInline_ex", "wc_RsaPrivateDecryptInlineEx_fips"),
-            ("wc_RsaPrivateDecrypt_ex", "wc_RsaPrivateDecryptEx_fips"),
-            ("wc_RsaPSS_Sign_ex", "wc_RsaPSS_SignEx_fips"),
-            ("wc_RsaPSS_VerifyInline_ex", "wc_RsaPSS_VerifyInlineEx_fips"),
-            ("wc_RsaPSS_Verify_ex", "wc_RsaPSS_VerifyEx_fips"),
-            ("wc_RsaPSS_CheckPadding_ex", "wc_RsaPSS_CheckPaddingEx_fips"),
-            ("wc_DhSetKey_ex", "wc_DhSetKeyEx_fips"),
-            ("wc_DhCheckPubKey_ex", "wc_DhCheckPubKeyEx_fips"),
-            ("wc_DhCheckPrivKey_ex", "wc_DhCheckPrivKeyEx_fips"),
-
-            // Name change
-            ("wc_PRF_TLS", "wc_PRF_TLSv12_fips"),
-        ];
-
-        // Handle exceptions
-        for (exc_base_name, exc_fips_name) in exceptions {
-            if fips_name == *exc_fips_name {
-                base_name = exc_base_name;
-                break;
-            }
+        // Handle the functions the FIPS module renames rather than simply
+        // suffixing with _fips.
+        if let Some(renamed_base_name) = fips_rename_base(&binding, &fips_name) {
+            base_name = renamed_base_name;
         }
 
         // Check if the non-_fips version exists in bindings
@@ -279,7 +470,7 @@ fn generate_fips_aliases() -> Result<()> {
                 "wc_AesCcmEncrypt",
             ];
             if !known_both.contains(&base_name) {
-                println!("cargo:warning=Skipping FIPS symbols alias for {}", base_name);
+                println!("cargo::warning=Skipping FIPS symbols alias for {}", base_name);
             }
         } else {
             // Only alias if the base name doesn't already exist
@@ -297,24 +488,32 @@ fn generate_fips_aliases() -> Result<()> {
 /// Returns `Ok(())` if successful, or an error if any step fails.
 fn setup_wolfssl_link() -> Result<()> {
     if let Some(lib_dir) = wolfssl_lib_dir()? {
-        println!("cargo:rustc-link-search={}", lib_dir);
+        println!("cargo::rustc-link-search={}", lib_dir);
 
-        // Prefer a shared library if present, otherwise fall back to static.
-        let has_shared = Path::new(&lib_dir).join("libwolfssl.so").exists()
-            || Path::new(&lib_dir).join("libwolfssl.dylib").exists();
-        if has_shared {
-            println!("cargo:rustc-link-lib=wolfssl");
-            // Only set rpath where a dynamic linker exists (not bare-metal).
-            let target = env::var("TARGET").unwrap();
-            if !target.ends_with("-none-elf") {
-                println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir);
+        // Prefer a dynamic library if present, otherwise fall back to static.
+        match wolfssl_lib_kind(Path::new(&lib_dir)) {
+            Some(WolfsslLibKind::SharedObject) => {
+                println!("cargo::rustc-link-lib=wolfssl");
+                // Only set rpath where a dynamic linker exists (not bare-metal).
+                let target = env::var("TARGET").unwrap();
+                if !target.ends_with("-none-elf") {
+                    println!("cargo::rustc-link-arg=-Wl,-rpath,{}", lib_dir);
+                    println!("cargo::metadata=LIBDIRS={}", lib_dir);
+                }
             }
-        } else {
-            println!("cargo:rustc-link-lib=static=wolfssl");
+            // The DLL is found through PATH at run time, so there is no rpath
+            // to set here.
+            Some(WolfsslLibKind::ImportLib) => println!("cargo::rustc-link-lib=wolfssl"),
+            Some(WolfsslLibKind::StaticLib) =>
+                println!("cargo::rustc-link-lib=static=wolfssl"),
+            // The library kind is unknown, so let the linker pick whichever
+            // one it finds.
+            None => println!("cargo::rustc-link-lib=wolfssl"),
         }
     } else {
-        // No local lib dir found; rely on whatever is installed system-wide.
-        println!("cargo:rustc-link-lib=wolfssl");
+        // Neither WOLFSSL_PREFIX nor an in-tree build is in use; rely on
+        // whatever is installed system-wide.
+        println!("cargo::rustc-link-lib=wolfssl");
     }
 
     Ok(())
@@ -327,8 +526,17 @@ fn read_file(path: String) -> Result<String> {
     Ok(content)
 }
 
-fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) -> bool {
-    let pattern = format!(r"\b{}(_fips)?\b", function_name);
+/// Returns true if `function_name` (or its `_fips` variant) is present in the
+/// generated bindings.
+fn has_symbol(binding: &str, function_name: &str) -> bool {
+    // A FIPS build of wolfSSL exports most functions as <name>_fips, but
+    // renames a few of them (see FIPS_RENAMES).  Accept the renamed symbol
+    // too: the generated aliases make it callable under its standard name, so
+    // missing it here would compile out wrapper code the library supports.
+    let mut pattern = format!(r"\b{}(_fips)?\b", regex::escape(function_name));
+    if let Some(fips_name) = fips_rename(binding, function_name) {
+        pattern.push_str(&format!(r"|\b{}\b", regex::escape(fips_name)));
+    }
     let re = match Regex::new(&pattern) {
         Ok(r) => r,
         Err(e) => {
@@ -336,9 +544,22 @@ fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) -> bool {
             std::process::exit(1);
         }
     };
+    re.is_match(binding)
+}
+
+fn check_cfg(binding: &str, function_name: &str, cfg_name: &str) -> bool {
+    check_cfg_if(binding, function_name, cfg_name, true)
+}
+
+/// Like `check_cfg()`, but only enables `cfg_name` when `cond` also holds.
+///
+/// Needed where the probed symbol is declared unconditionally by the wolfSSL
+/// headers and so cannot by itself prove that the feature is built in.
+fn check_cfg_if(binding: &str, function_name: &str, cfg_name: &str,
+                cond: bool) -> bool {
     println!("cargo::rustc-check-cfg=cfg({})", cfg_name);
-    if re.is_match(binding) {
-        println!("cargo:rustc-cfg={}", cfg_name);
+    if cond && has_symbol(binding, function_name) {
+        println!("cargo::rustc-cfg={}", cfg_name);
         true
     } else {
         false
@@ -354,7 +575,6 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_AesCcmSetKey", "aes_ccm");
     check_cfg(&binding, "wc_AesCfbEncrypt", "aes_cfb");
     check_cfg(&binding, "wc_AesCtrEncrypt", "aes_ctr");
-    check_cfg(&binding, "wc_AesCtsEncrypt", "aes_cts");
     check_cfg(&binding, "wc_AesCfbDecrypt", "aes_cfb_decrypt");
     check_cfg(&binding, "wc_AesOfbDecrypt", "aes_ofb_decrypt");
     check_cfg(&binding, "wc_AesEaxInit", "aes_eax");
@@ -382,6 +602,9 @@ fn scan_cfg() -> Result<()> {
     /* curve25519 */
     check_cfg(&binding, "wc_curve25519_make_pub", "curve25519");
     check_cfg(&binding, "wc_curve25519_make_pub_blind", "curve25519_blinding");
+    check_cfg(&binding, "wc_curve25519_shared_secret", "curve25519_shared_secret");
+    check_cfg(&binding, "wc_curve25519_import_public", "curve25519_import");
+    check_cfg(&binding, "wc_curve25519_export_public", "curve25519_export");
 
     /* dh */
     check_cfg(&binding, "wc_InitDhKey", "dh");
@@ -398,7 +621,8 @@ fn scan_cfg() -> Result<()> {
     /* ecc */
     check_cfg(&binding, "wc_ecc_init", "ecc");
     check_cfg(&binding, "wc_ecc_key_new_ex", "ecc_key_new_ex");
-    check_cfg(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key");
+    check_cfg_if(&binding, "wc_ecc_export_point_der_compressed", "ecc_comp_key",
+                 has_symbol(&binding, "WOLFSSL_RUST_HAVE_COMP_KEY"));
     check_cfg(&binding, "wc_ecc_shared_secret", "ecc_dh");
     check_cfg(&binding, "wc_ecc_sign_hash", "ecc_sign");
     check_cfg(&binding, "wc_ecc_verify_hash", "ecc_verify");
@@ -420,6 +644,7 @@ fn scan_cfg() -> Result<()> {
 
     /* ed25519 */
     check_cfg(&binding, "wc_ed25519_init", "ed25519");
+    check_cfg(&binding, "wc_ed25519_make_key", "ed25519_make_key");
     check_cfg(&binding, "wc_ed25519_import_public", "ed25519_import");
     check_cfg(&binding, "wc_ed25519_export_public", "ed25519_export");
     check_cfg(&binding, "wc_ed25519_sign_msg", "ed25519_sign");
@@ -435,14 +660,39 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_ed448_verify_msg_init", "ed448_streaming_verify");
 
     /* fips */
-    check_cfg(&binding, "wc_SetSeed_Cb_fips", "fips");
+    let fips = check_cfg(&binding, "wc_SetSeed_Cb_fips", "fips");
+    if fips {
+        // Crates that depend on this one see it as DEP_WOLFSSL_FIPS.
+        println!("cargo::metadata=FIPS=1");
+    }
+    // FIPS v5 builds without RSA blinding, so it has no wc_RsaSetRNG(),
+    // and keeps wc_RNG_DRBG_Reseed() internal though the header declares it.
+    println!("cargo::rustc-check-cfg=cfg(fips_v5)");
+    let version = |name: &str| {
+        Regex::new(&format!(r"pub const {}: u32 = (\d+);", name)).unwrap()
+            .captures(&binding).and_then(|cap| cap[1].parse::<u32>().ok())
+    };
+    if fips && version("HAVE_FIPS_VERSION_MAJOR").or_else(|| version("HAVE_FIPS_VERSION")) == Some(5) {
+        println!("cargo::rustc-cfg=fips_v5");
+        // Crates that depend on this one see it as DEP_WOLFSSL_FIPS_V5.
+        println!("cargo::metadata=FIPS_V5=1");
+    }
+
+    // FIPS v6 accepts a caller supplied seed in wc_RNG_DRBG_Reseed, newer
+    // modules refuse it, and the bindings look the same either way.
+    println!("cargo::rustc-check-cfg=cfg(fips_v6)");
+    if fips && version("HAVE_FIPS_VERSION_MAJOR").or_else(|| version("HAVE_FIPS_VERSION")) == Some(6) {
+        println!("cargo::rustc-cfg=fips_v6");
+    }
 
     /* hkdf */
-    check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf");
+    check_cfg(&binding, "wc_HKDF_Extract", "hkdf");
+    check_cfg(&binding, "wc_HKDF_Extract_ex", "hkdf_ex");
 
     /* hmac */
     check_cfg(&binding, "wc_HmacSetKey", "hmac");
     check_cfg(&binding, "wc_HmacSetKey_ex", "hmac_setkey_ex");
+    check_cfg(&binding, "wc_HmacCopy", "hmac_copy");
 
     /* kdf */
     check_cfg(&binding, "wc_PBKDF2", "kdf_pbkdf2");
@@ -457,11 +707,17 @@ fn scan_cfg() -> Result<()> {
 
     /* random */
     check_cfg(&binding, "wc_RNG_DRBG_Reseed", "random_hashdrbg");
+    /* wc_RNG_HealthTest*() are declared regardless of
+     * WOLFSSL_FIPS_EXPORT_LOCAL_APIS but only exported with it, so also
+     * require the sentinel from headers.h to be present. */
+    check_cfg_if(&binding, "wc_RNG_HealthTest_ex", "random_health_test",
+                 has_symbol(&binding, "WOLFSSL_RUST_FIPS_EXPORT_LOCAL_APIS"));
     check_cfg(&binding, "wc_InitRng", "random");
+    check_cfg(&binding, "wc_rng_new_ex", "rng_new_ex");
 
     // When WOLFSSL_NO_MALLOC is set without WOLFSSL_STATIC_MEMORY, the
     // WC_RNG struct contains an inline `drbg_data` field and wolfCrypt sets
-    // `rng->drbg = &rng->drbg_data` — a self-referential pointer.  Rust
+    // `rng->drbg = &rng->drbg_data` - a self-referential pointer.  Rust
     // moves values by memcpy, which would silently invalidate that pointer.
     // Detect this configuration and refuse to build.
     if binding.contains("drbg_data") {
@@ -479,16 +735,42 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_InitRsaKey", "rsa");
     check_cfg(&binding, "wc_RsaDirect", "rsa_direct");
     check_cfg(&binding, "wc_MakeRsaKey", "rsa_keygen");
-    check_cfg(&binding, "wc_RsaPSS_Sign", "rsa_pss");
-    check_cfg(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep");
-    check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng");
-    check_cfg(&binding, "WC_MGF1SHA512_224", "rsa_mgf1sha512_224");
-    check_cfg(&binding, "WC_MGF1SHA512_256", "rsa_mgf1sha512_256");
+    /* wc_RsaPSS_Verify, not wc_RsaPSS_Sign: signing is additionally guarded
+     * out by the public-only and verify-only build options, so only the
+     * verify side tracks WC_RSA_PSS itself. */
+    check_cfg(&binding, "wc_RsaPSS_Verify", "rsa_pss");
+    /* wc_RsaPublicEncrypt_ex() and wc_RsaPrivateDecrypt_ex() are declared
+     * unconditionally in rsa.h.  With WC_NO_RSA_OAEP they are either not
+     * defined at all (link failure) or, with WC_RSA_NO_PADDING, defined but
+     * unable to do OAEP.  Require the OAEP sentinel from headers.h too. */
+    check_cfg_if(&binding, "wc_RsaPublicEncrypt_ex", "rsa_oaep",
+                 has_symbol(&binding, "WOLFSSL_RUST_HAVE_RSA_OAEP"));
+    // Builds without RSA blinding, such as FIPS v5 and v6, have no
+    // wc_RsaSetRNG. Crates that depend on this one see it as
+    // DEP_WOLFSSL_RSA_SETRNG.
+    if check_cfg(&binding, "wc_RsaSetRNG", "rsa_setrng") {
+        println!("cargo::metadata=RSA_SETRNG=1");
+    }
+    /* The RSA "only" build options subtract API, so each cfg names what is
+     * left rather than the C macro: rsa_private is !WOLFSSL_RSA_PUBLIC_ONLY,
+     * rsa_sign is !WOLFSSL_RSA_VERIFY_ONLY and rsa_ssl_verify is
+     * !WOLFSSL_RSA_VERIFY_INLINE.  Each sentinel is a function guarded by
+     * exactly one of those macros. */
+    check_cfg(&binding, "wc_RsaPrivateDecrypt", "rsa_private");
+    check_cfg(&binding, "wc_RsaPublicEncrypt", "rsa_sign");
+    check_cfg(&binding, "wc_RsaSSL_Verify", "rsa_ssl_verify");
+    // WC_MGF1SHA512_224 and WC_MGF1SHA512_256 are unconditional #defines in
+    // rsa.h, so their presence says nothing about whether SHA-512/224 and
+    // SHA-512/256 are actually built in. Require the hash as well.
+    check_cfg_if(&binding, "WC_MGF1SHA512_224", "rsa_mgf1sha512_224",
+                 has_symbol(&binding, "wc_InitSha512_224"));
+    check_cfg_if(&binding, "WC_MGF1SHA512_256", "rsa_mgf1sha512_256",
+                 has_symbol(&binding, "wc_InitSha512_256"));
     // Detect whether wc_RsaExportKey takes a const first arg (new API) or non-const (old API)
     let re = Regex::new(r"pub fn wc_RsaExportKey(_fips)?\s*\(\s*\w+\s*:\s*\*\s*const").unwrap();
     println!("cargo::rustc-check-cfg=cfg(rsa_const_api)");
     if re.is_match(&binding) {
-        println!("cargo:rustc-cfg=rsa_const_api");
+        println!("cargo::rustc-cfg=rsa_const_api");
     }
 
     /* mldsa */
@@ -498,15 +780,31 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_MlDsaKey_SignCtx", "mldsa_sign");
     check_cfg(&binding, "wc_MlDsaKey_SignCtxWithSeed", "mldsa_sign_with_seed");
     check_cfg(&binding, "wc_MlDsaKey_VerifyCtx", "mldsa_verify");
-    check_cfg(&binding, "wc_MlDsaKey_ImportPubRaw", "mldsa_import");
-    check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "mldsa_export");
+    check_cfg(&binding, "wc_MlDsaKey_Size", "mldsa_size");
+    check_cfg(&binding, "wc_MlDsaKey_PrivSize", "mldsa_priv_size");
+    check_cfg(&binding, "wc_MlDsaKey_PubSize", "mldsa_pub_size");
+    check_cfg(&binding, "wc_MlDsaKey_SigSize", "mldsa_sig_size");
+    check_cfg(&binding, "wc_MlDsaKey_ImportPubRaw", "mldsa_import_public");
+    check_cfg(&binding, "wc_MlDsaKey_ImportPrivRaw", "mldsa_import_private");
+    check_cfg(&binding, "wc_MlDsaKey_ExportPubRaw", "mldsa_export_public");
+    check_cfg(&binding, "wc_MlDsaKey_ExportPrivRaw", "mldsa_export_private");
     check_cfg(&binding, "wc_MlDsaKey_CheckKey", "mldsa_check_key");
-    check_cfg(&binding, "WC_MLDSA_44_KEY_SIZE", "mldsa_level2");
-    check_cfg(&binding, "WC_MLDSA_65_KEY_SIZE", "mldsa_level3");
-    check_cfg(&binding, "WC_MLDSA_87_KEY_SIZE", "mldsa_level5");
+    /* The WC_MLDSA_NN_* size macros are defined unconditionally by
+     * wc_mldsa.h, so their presence says nothing about which parameter sets
+     * were built in.  The PARAMS_ML_DSA_NN_* macros are the ones guarded by
+     * WOLFSSL_NO_ML_DSA_NN, so probe those instead. */
+    check_cfg(&binding, "PARAMS_ML_DSA_44_K", "mldsa_level2");
+    check_cfg(&binding, "PARAMS_ML_DSA_65_K", "mldsa_level3");
+    check_cfg(&binding, "PARAMS_ML_DSA_87_K", "mldsa_level5");
 
     /* mlkem / ML-KEM */
-    check_cfg(&binding, "wc_MlKemKey_Init", "mlkem");
+    check_cfg(&binding, "wc_MlKemKey_New", "mlkem");
+    check_cfg(&binding, "wc_MlKemKey_MakeKey", "mlkem_make_key");
+    check_cfg(&binding, "wc_MlKemKey_Encapsulate", "mlkem_encapsulate");
+    check_cfg(&binding, "wc_MlKemKey_Decapsulate", "mlkem_decapsulate");
+    check_cfg(&binding, "WC_ML_KEM_512_K", "mlkem_512");
+    check_cfg(&binding, "WC_ML_KEM_768_K", "mlkem_768");
+    check_cfg(&binding, "WC_ML_KEM_1024_K", "mlkem_1024");
 
     /* lms / HSS */
     check_cfg(&binding, "wc_LmsKey_Init", "lms");
@@ -514,14 +812,18 @@ fn scan_cfg() -> Result<()> {
     check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_L1_H5_W1", "lms_sha256_256");
     check_cfg(&binding, "wc_LmsParm_WC_LMS_PARM_SHA256_192_L1_H5_W1", "lms_sha256_192");
 
+    /* signature wrapper: wc_SignatureGenerate() and friends are only declared
+     * when NO_SIG_WRAPPER is not defined. */
+    check_cfg(&binding, "wc_SignatureGenerate", "sig_wrapper");
+
     /* sha */
     check_cfg(&binding, "wc_InitSha", "sha");
     check_cfg(&binding, "wc_InitSha224", "sha224");
     check_cfg(&binding, "wc_InitSha256", "sha256");
     check_cfg(&binding, "wc_InitSha384", "sha384");
     check_cfg(&binding, "wc_InitSha512", "sha512");
-    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_224", "sha512_224");
-    check_cfg(&binding, "wc_HashType_WC_HASH_TYPE_SHA512_256", "sha512_256");
+    check_cfg(&binding, "wc_InitSha512_224", "sha512_224");
+    check_cfg(&binding, "wc_InitSha512_256", "sha512_256");
     check_cfg(&binding, "wc_InitSha3_224", "sha3_224");
     check_cfg(&binding, "wc_InitSha3_256", "sha3_256");
     check_cfg(&binding, "wc_InitSha3_384", "sha3_384");

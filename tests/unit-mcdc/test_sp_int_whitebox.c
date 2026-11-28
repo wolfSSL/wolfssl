@@ -69,10 +69,12 @@
 #include "mcdc_seed_rng.h"
 
 #include "mcdc_fault_alloc.h"
+#include "mcdc_fault_cryptocb.h"
 
 #include <stdio.h>
 
 static int wb_fail = 0;
+static int wb_bad = 0;    /* a checked row returned the wrong result */
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
@@ -1660,10 +1662,20 @@ static void wb_gcd_r_small_b(void)
  * next person has to be able to reproduce the result. */
 #define WB_PRIME_RNG_SEED  0x5eed0001UL
 
+/* An error return must never leave a primality claim behind. */
+static void wb_prime_err_result(int err, int res)
+{
+    if ((err != MP_OKAY) && (res != MP_NO)) {
+        WB_NOTE("prime test returned an error with result MP_YES");
+        wb_bad = 1;
+    }
+}
+
 static void wb_prime_trial_alloc(void)
 {
     sp_int  a;
     int     res = 0;
+    int     err;
     int     n;
 #ifndef WC_NO_RNG
     WC_RNG  rng;
@@ -1693,9 +1705,11 @@ static void wb_prime_trial_alloc(void)
     mcdc_fa_install();
     for (n = 1; n <= 60; n++) {
         wb_set_d(&a, (sp_int_digit)2147483647UL);
+        res = MP_YES;
         mcdc_fa_arm_only(n);
-        (void)sp_prime_is_prime(&a, 8, &res);
+        err = sp_prime_is_prime(&a, 8, &res);
         mcdc_fa_disarm();
+        wb_prime_err_result(err, res);
     }
 
 #ifndef WC_NO_RNG
@@ -1705,9 +1719,11 @@ static void wb_prime_trial_alloc(void)
         (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
         for (n = 1; n <= 60; n++) {
             wb_set_d(&a, (sp_int_digit)2147483647UL);
+            res = MP_YES;
             mcdc_fa_arm_only(n);
-            (void)sp_prime_is_prime_ex(&a, 8, &res, &rng);
+            err = sp_prime_is_prime_ex(&a, 8, &res, &rng);
             mcdc_fa_disarm();
+            wb_prime_err_result(err, res);
         }
         wc_FreeRng(&rng);
     }
@@ -1739,13 +1755,26 @@ static void wb_prime_trial_alloc(void)
         (void)_sp_prime_random_trials(&a, 8, &res, &rng);
         wb_set_d(&a, (sp_int_digit)100160063ULL);
         (void)_sp_prime_random_trials(&a, 8, &res, &rng);
-        /* Real-entropy sweep. Kept for the rows it does reach (the
-         * wc_RNG_GenerateBlock() error break at :19666's neighbour), but it
-         * does NOT close :19672:0: the first faulted allocation lands inside
-         * Hash_DRBG_Generate() and leaves the WC_RNG permanently
-         * DRBG_FAILED, so every later index dies at the draw. Measured: for
-         * n >= 3 the call returns RNG_FAILURE_E with the RNG reporting a
-         * failure, never MP_MEM from the exponentiation. */
+        /* Real-entropy sweep, re-measured 2026-09-21 after random.c made
+         * Hash_DRBG_Generate() failure-atomic (no state mutation and no
+         * condemnation on a generate-path fault).  Rows under
+         * WOLFSSL_SMALL_STACK (non-cache), candidate 2^31 - 1, 30 indices:
+         * n = 1..2 fault this function's own ALLOC_SP_INT_ARRAYs (MP_MEM,
+         * decision not reached); n = 3..5 fault the draw's three
+         * allocations inside Hash_DRBG_Generate() (its digest, Hash_gen()'s
+         * data and digest) and return RNG_FAILURE_E for that index ONLY --
+         * rng.status stays WC_DRBG_OK at every index, so later indices
+         * proceed past the draw; n >= 6 lands inside the exponentiation and
+         * breaks the trial loop on `err != MP_OKAY` with MP_MEM, so this
+         * sweep now reaches :19672:0 as well.  (Before the refactor the
+         * first in-generate fault left the WC_RNG permanently DRBG_FAILED
+         * and every later index died at the draw, so the sweep could not
+         * close :19672:0.)  The PINNED-RNG block below remains the
+         * deterministic closer of record for that key: live-RNG allocation
+         * counts can drift with build shape, the pinned hook's cannot.  A
+         * fault landing in a DRBG reseed would still condemn at the reseed
+         * site, but 30 draws cannot approach WC_RESEED_INTERVAL, so no
+         * index here reaches one. */
         for (n = 1; n <= 30; n++) {
             wb_set_d(&a, (sp_int_digit)2147483647UL);
             mcdc_fa_arm_only(n);
@@ -1794,6 +1823,37 @@ static void wb_prime_trial_alloc(void)
 #endif
     mcdc_fa_disarm();
 
+#if !defined(WC_NO_RNG) && defined(WOLF_CRYPTO_CB)
+    /* A callback device fails the draw ahead of RDRAND and the DRBG. Runs
+     * last because wolfCrypt_Cleanup() tears down state the rows above use. */
+    if (wolfCrypt_Init() != 0) {
+        WB_NOTE("wolfCrypt_Init failed; failed-draw row not run");
+        wb_bad = 1;
+    }
+    else {
+        if ((mcdc_cb_install() != 0) ||
+                (wc_InitRng_ex(&rng, NULL, MCDC_CB_DEVID) != 0)) {
+            WB_NOTE("RNG failure device not set up; failed-draw row not run");
+            wb_bad = 1;
+        }
+        else {
+            wb_set_d(&a, (sp_int_digit)100160063ULL);
+            mcdc_cb_fail_algo(WC_ALGO_TYPE_RNG, RNG_FAILURE_E);
+            res = MP_YES;
+            err = sp_prime_is_prime_ex(&a, 8, &res, &rng);
+            mcdc_cb_disarm();
+            if ((err == MP_OKAY) || (mcdc_cb_hits() == 0)) {
+                WB_NOTE("injected RNG failure was not reached");
+                wb_bad = 1;
+            }
+            wb_prime_err_result(err, res);
+            wc_FreeRng(&rng);
+        }
+        mcdc_cb_uninstall();
+        (void)wolfCrypt_Cleanup();
+    }
+#endif
+
     WB_NOTE("prime trial-loop error rows exercised");
 }
 
@@ -1838,9 +1898,10 @@ int main(void)
     wb_div_2d_rem_small();
     wb_gcd_r_small_b();
     wb_prime_trial_alloc();
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
-    /* Setup failures are surfaced as skips, not test failures: the harness
-     * treats a nonzero exit as a failed variant and discards its coverage. */
+    printf("done (%s)\n", wb_bad ? "with failures" :
+                           (wb_fail ? "with skips" : "ok"));
+    /* Always exit 0: the harness discards a nonzero-exit variant's coverage.
+     * Failures print "with failures" above and skips print "with skips". */
     return 0;
 #endif
 }

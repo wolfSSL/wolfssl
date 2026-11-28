@@ -652,12 +652,12 @@ static void wb_IntegerDecisionCoverage(void)
     (void)mp_set(&b, 4); /* min_b(1) > 0 */
     (void)s_mp_sub(&a, &b, &c); /* tmpa==NULL: true */
 
-    /* mp_exptmod_fast (2107:*:1) / mp_exptmod_base_2 (2350:*:1) /
-     * mp_montgomery_reduce (2690:*:1): all three share
+    /* mp_exptmod_fast (2173:*:1) / mp_exptmod_base_2 (2416:*:1) /
+     * mp_montgomery_reduce (2756:*:1): all three share
      *   (N->used * 2 + 1 < (int)MP_WARRAY) &&
      *   (N->used < (1L << (CHAR_BIT*sizeof(mp_word) - 2*DIGIT_BIT)))
      * (mp_montgomery_reduce spells the first operand with the hoisted
-     * digs = n->used * 2 + 1 at :2689) to pick between the comba-accelerated
+     * digs = n->used * 2 + 1 at :2755) to pick between the comba-accelerated
      * and the generic montgomery reduce - both arms are functionally
      * equivalent (just performance), so a small and a large (real,
      * legitimately grown) modulus both succeed; only the dispatch differs.
@@ -671,7 +671,7 @@ static void wb_IntegerDecisionCoverage(void)
      *   operand0 <=> 2u + 1 < 2B <=> 2u <= 2B - 2 <=> u <= B - 1 <=> u < B
      * which is operand1 verbatim. The two operands are not merely disjoint,
      * they are the SAME predicate, so the (T,F) row that operand1's
-     * independence pair needs does not exist. (Contrast mp_sqr at :3162,
+     * independence pair needs does not exist. (Contrast mp_sqr at :3320,
      * whose second operand uses "- 1" in the exponent, i.e. B/2; there the
      * pair IS satisfiable and is driven below.) u is int-typed ->used, which
      * mp_clamp/mp_grow keep in [0, alloc]; a used large enough to overflow
@@ -742,8 +742,8 @@ static void wb_IntegerDecisionCoverage(void)
     wolfmath_big_fill(&a, 300, 3); /* > 1st threshold too */
     (void)mp_sqr(&a, &c); /* both false: falls back */
 
-    /* mp_mul (3199:*:1): "(digs < (int)MP_WARRAY) &&
-     * MIN(a->used,b->used) <= B", digs = a->used + b->used + 1 (:3197) and
+    /* mp_mul (3357:*:1): "(digs < (int)MP_WARRAY) &&
+     * MIN(a->used,b->used) <= B", digs = a->used + b->used + 1 (:3355) and
      * B == MP_WARRAY / 2 (see the identity spelled out above). The MIN
      * operand is EXCLUDED: operand0 true means a->used + b->used + 1 <= 2B-1,
      * hence a->used + b->used <= 2B-2, hence MIN <= B-1 <= B, so operand1 is
@@ -774,18 +774,18 @@ static void wb_IntegerDecisionCoverage(void)
     (void)s_mp_mul_digs(&a, &b, &c, 305); /* digs(305)<
                                     WARRAY:T, MIN(300,300)<256: F */
 
-    /* s_mp_exptmod tail (3959:*:1), identical idiom in mp_exptmod_fast
-     * (2279:*:1): "if (mode == 2 && bitcpy > 0)".
+    /* s_mp_exptmod tail (4117:*:1), identical idiom in mp_exptmod_fast
+     * (2345:*:1): "if (mode == 2 && bitcpy > 0)".
      *
      * The "bitcpy > 0" operand is EXCLUDED: the sliding-window state machine
      * maintains the invariant (mode == 2) => (bitcpy >= 1), so the (T,F) row
      * operand1 needs does not exist. Exhaustively, in each function there are
      * only three writes to 'mode' and two to 'bitcpy':
-     *   :3884/:2204  mode = 0    and  :3888/:2208  bitcpy = 0   (entry)
-     *   :3928/:2248  bitbuf |= (y << (winsize - ++bitcpy));  -- PRE-increment
-     *   :3929/:2249  mode = 2    -- immediately after, so bitcpy >= 1 here
-     *   :3952/:2272  bitcpy = 0  } same straight-line block, guarded by
-     *   :3954/:2274  mode   = 1  } "if (bitcpy == winsize)", no break/goto
+     *   :4042/:2270  mode = 0    and  :4046/:2274  bitcpy = 0   (entry)
+     *   :4086/:2314  bitbuf |= (y << (winsize - ++bitcpy));  -- PRE-increment
+     *   :4087/:2315  mode = 2    -- immediately after, so bitcpy >= 1 here
+     *   :4110/:2338  bitcpy = 0  } same straight-line block, guarded by
+     *   :4112/:2340  mode   = 1  } "if (bitcpy == winsize)", no break/goto
      *                              between them
      * The only assignment that clears bitcpy also leaves mode == 1, and the
      * only assignment that sets mode == 2 is preceded by an increment of
@@ -803,7 +803,7 @@ static void wb_IntegerDecisionCoverage(void)
     (void)mp_set(&b, 0x3FFFFFFF); /* 30 bits: winsize 3 */
     (void)s_mp_exptmod(&a, &b, &c, &a, 0);
 
-    /* s_mp_mul_high_digs (4170:*:1): "((a->used + b->used + 1) <
+    /* s_mp_mul_high_digs (4328:*:1): "((a->used + b->used + 1) <
      * (int)MP_WARRAY) && MIN(a->used,b->used) < B" - the 'digs' PARAMETER is
      * only used after the check; the check itself is SUM-based on
      * a->used+b->used, so this is the same coupling as mp_mul above (this

@@ -52,7 +52,7 @@ int Nucleus_Net_Errno;
     #ifdef USE_WINDOWS_API
         #include <winsock2.h>
     #else
-        #if defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
+        #if defined(WOLFSSL_LWIP)
         #elif defined(ARDUINO)
         #elif defined(FREESCALE_MQX)
         #elif defined(FREESCALE_KSDK_MQX)
@@ -74,7 +74,6 @@ int Nucleus_Net_Errno;
             #include <netdb.h>
             #include <sys/ioctl.h>
         #elif defined(WOLFSSL_SGX)
-        #elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
         #elif defined(WOLFSSL_DEOS)
         #elif defined(WOLFSSL_ZEPHYR)
         #elif defined(MICROCHIP_PIC32)
@@ -84,8 +83,8 @@ int Nucleus_Net_Errno;
             #if defined(HAVE_RTP_SYS)
             #elif defined(EBSNET)
             #elif defined(NETOS)
-            #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
-                    && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
+            #elif !defined(DEVKITPRO) \
+                    && !defined(WOLFSSL_WICED) \
                     && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
                 #ifdef HAVE_NETDB_H
                     #include <netdb.h>
@@ -652,8 +651,9 @@ int wolfIO_SockIsDGram(int sfd)
     /* optvalue 'type' is of size int */
     XSOCKLENT length = (XSOCKLENT)sizeof(type);
 
-    if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, (XSOCKOPT_TYPE_OPTVAL_TYPE)&type,
-            &length) == 0 && type != SOCK_DGRAM) {
+    if (XSOCKET_GETSOCKOPT(sfd, SOL_SOCKET, SO_TYPE,
+            (XSOCKOPT_TYPE_OPTVAL_TYPE)&type, &length) == 0 &&
+            type != SOCK_DGRAM) {
         return 0;
     }
     else {
@@ -757,6 +757,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 #endif /* WOLFSSL_DTLS13 */
 
     do {
+        int ignore = 0;
 
         if (!doDtlsTimeout) {
             dtls_timeout = 0;
@@ -798,7 +799,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             #endif /* WOLFSSL_DTLS13 */
                 timeout.tv_sec = dtls_timeout;
         #endif /* USE_WINDOWS_API */
-            if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
+            if (XSOCKET_SETSOCKOPT(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                     sizeof(timeout)) != 0) {
                 WOLFSSL_MSG("setsockopt rcvtimeo failed");
             }
@@ -863,7 +864,6 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         else if (dtlsCtx->userSet) {
             /* Check we received the packet from the correct peer */
-            int ignore = 0;
 #ifdef WOLFSSL_RW_THREADED
             if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
                 return WOLFSSL_CBIO_ERR_GENERAL;
@@ -879,19 +879,6 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
                 return WOLFSSL_CBIO_ERR_GENERAL;
 #endif
-            if (ignore) {
-#if defined(NO_ASN_TIME) &&                                                    \
-    !defined(DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER)
-                if (doDtlsTimeout) {
-                    invalidPeerPackets++;
-                    if (invalidPeerPackets > DTLS_RECEIVEFROM_MAX_INVALID_PEER)
-                        return wolfSSL_dtls_get_using_nonblock(ssl)
-                                   ? WOLFSSL_CBIO_ERR_WANT_READ
-                                   : WOLFSSL_CBIO_ERR_TIMEOUT;
-                }
-#endif /* NO_ASN_TIME && !DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER */
-                continue;
-            }
         }
         else {
             if (newPeer) {
@@ -902,23 +889,38 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             }
 #ifndef WOLFSSL_PEER_ADDRESS_CHANGES
             else {
-                ret = 0;
+                /* The peer we learned ourselves is kept, but a datagram from
+                 * anywhere else is not part of this association. Drop it like
+                 * the userSet branch above does. */
     #ifdef WOLFSSL_RW_THREADED
                 if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
                     return WOLFSSL_CBIO_ERR_GENERAL;
     #endif /* WOLFSSL_RW_THREADED */
                 if (!sockAddrEqual(peer, peerSz, (SOCKADDR_S*)dtlsCtx->peer.sa,
                                     dtlsCtx->peer.sz)) {
-                    ret = WOLFSSL_CBIO_ERR_GENERAL;
+                    WOLFSSL_MSG("    Ignored packet from invalid peer");
+                    ignore = 1;
                 }
     #ifdef WOLFSSL_RW_THREADED
                 if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
                     return WOLFSSL_CBIO_ERR_GENERAL;
     #endif /* WOLFSSL_RW_THREADED */
-                if (ret != 0)
-                    return ret;
             }
 #endif /* !WOLFSSL_PEER_ADDRESS_CHANGES */
+        }
+
+        if (ignore) {
+#if defined(NO_ASN_TIME) &&                                                    \
+    !defined(DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER)
+            if (doDtlsTimeout) {
+                invalidPeerPackets++;
+                if (invalidPeerPackets > DTLS_RECEIVEFROM_MAX_INVALID_PEER)
+                    return wolfSSL_dtls_get_using_nonblock(ssl)
+                               ? WOLFSSL_CBIO_ERR_WANT_READ
+                               : WOLFSSL_CBIO_ERR_TIMEOUT;
+            }
+#endif /* NO_ASN_TIME && !DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER */
+            continue;
         }
 #ifndef NO_ASN_TIME
         ssl->dtls_start_timeout = 0;
@@ -1029,7 +1031,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return BAD_FUNC_ARG;
 
     XMEMSET(&peer, 0, sizeof(peer));
-    if (getpeername(sd, (SOCKADDR*)&peer, &peerSz) != 0) {
+    if (XSOCKET_GETPEERNAME(sd, (SOCKADDR*)&peer, &peerSz) != 0) {
         WOLFSSL_MSG("getpeername failed in EmbedGenerateCookie");
         return GEN_COOKIE_E;
     }
@@ -1516,17 +1518,20 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #endif
 
     if (entry) {
+        char* hAddr;
+
+        /* macOS does not align h_addr_list, so copy the pointer out. */
+        XMEMCPY(&hAddr, entry->h_addr_list, sizeof(hAddr));
     #ifdef WOLFSSL_IPV6
         sin = (SOCKADDR_IN6 *)&addr;
         sin->sin6_family = AF_INET6;
         sin->sin6_port = XHTONS(port);
-        XMEMCPY(&sin->sin6_addr, entry->h_addr_list[0], entry->h_length);
+        XMEMCPY(&sin->sin6_addr, hAddr, entry->h_length);
     #else
         sin = (SOCKADDR_IN *)&addr;
         sin->sin_family = AF_INET;
         sin->sin_port = XHTONS(port);
-        XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0],
-                (size_t)entry->h_length);
+        XMEMCPY(&sin->sin_addr.s_addr, hAddr, (size_t)entry->h_length);
     #endif
     }
 
@@ -1562,7 +1567,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     (void)to_sec;
 #endif /* HAVE_IO_TIMEOUT */
 
-    ret = connect(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
+    ret = XSOCKET_CONNECT(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
 #ifdef HAVE_IO_TIMEOUT
     if ((ret != 0) && (to_sec > 0)) {
 #ifdef USE_WINDOWS_API
@@ -1643,14 +1648,15 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
     {
         int optval  = 1;
         XSOCKLENT optlen = sizeof(optval);
-        ret = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, optlen);
+        ret = XSOCKET_SETSOCKOPT(*sockfd, SOL_SOCKET, SO_REUSEADDR, &optval,
+                                 optlen);
     }
 #endif
 
     if (ret == 0)
-        ret = bind(*sockfd, (SOCKADDR *)sin, sockaddr_len);
+        ret = XSOCKET_BIND(*sockfd, (SOCKADDR *)sin, sockaddr_len);
     if (ret == 0)
-        ret = listen(*sockfd, SOMAXCONN);
+        ret = XSOCKET_LISTEN(*sockfd, SOMAXCONN);
 
     if (ret != 0) {
         WOLFSSL_MSG("wolfIO_TcpBind failed");
@@ -2443,10 +2449,16 @@ int wolfIO_OcspDestAllowed(const char* host)
     /* gethostbyname()/gethostbyname_r() resolve only IPv4 (h_addrtype
      * AF_INET); IPv6 would require gethostbyname2()/getipnodebyname(), which
      * are not used here, so screen each returned address as IPv4. */
-    for (i = 0; entry->h_addr_list[i] != NULL && !blocked; i++) {
+    for (i = 0; !blocked; i++) {
+        char* hAddr;
+
+        /* macOS does not align h_addr_list, so copy each pointer out. */
+        XMEMCPY(&hAddr, entry->h_addr_list + i, sizeof(hAddr));
+        if (hAddr == NULL) {
+            break;
+        }
         if (entry->h_addrtype == AF_INET) {
-            blocked = wolfIO_OcspIPv4Blocked(
-                (const unsigned char*)entry->h_addr_list[i]);
+            blocked = wolfIO_OcspIPv4Blocked((const unsigned char*)hAddr);
         }
     }
 #ifdef WOLFSSL_OCSP_GHBN_R
@@ -2807,6 +2819,46 @@ void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
 
 #ifdef HAVE_NETX
 
+/* Map a failing NetX status onto a wolfSSL CBIO error code.
+ * Transient conditions must not be reported as fatal, otherwise a non
+ * blocking (or short wait option) setup cannot retry the operation. */
+static int NetX_TranslateReturnCode(UINT status, int direction)
+{
+    int ret;
+
+    switch (status) {
+        /* Receive queue empty, packet pool exhausted, peer receive window
+         * full or transmit queue at max depth. All clear on their own. */
+        case NX_NO_PACKET:
+        case NX_WINDOW_OVERFLOW:
+        case NX_TX_QUEUE_DEPTH:
+            WOLFSSL_MSG("\tWould block");
+            ret = (direction == SOCKET_SENDING) ? WOLFSSL_CBIO_ERR_WANT_WRITE
+                                                : WOLFSSL_CBIO_ERR_WANT_READ;
+            break;
+
+        /* A suspended wait was aborted, treated like an interrupted call. */
+        case NX_WAIT_ABORTED:
+            WOLFSSL_MSG("\tSocket interrupted");
+            ret = WOLFSSL_CBIO_ERR_ISR;
+            break;
+
+        /* NetX has no separate reset status, so a peer reset also lands
+         * here and is reported as a close. */
+        case NX_NOT_CONNECTED:
+            WOLFSSL_MSG("\tConnection closed");
+            ret = WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            break;
+
+        default:
+            WOLFSSL_MSG_EX("\tGeneral error: %u", (unsigned int)status);
+            ret = WOLFSSL_CBIO_ERR_GENERAL;
+            break;
+    }
+
+    return ret;
+}
+
 /* The NetX receive callback for TLS
  *  return :  bytes read, or error
  */
@@ -2830,7 +2882,7 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                                        nxCtx->nxWait);
         if (status != NX_SUCCESS) {
             WOLFSSL_MSG("NetX Recv receive error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
+            return NetX_TranslateReturnCode(status, SOCKET_RECEIVING);
         }
     }
 
@@ -2885,21 +2937,21 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
                                 nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         WOLFSSL_MSG("NetX Send packet alloc error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     status = nx_packet_data_append(packet, buf, sz, pool, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send data append error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     status = nx_tcp_socket_send(nxCtx->nxTcpSocket, packet, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send socket send error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     return sz;
@@ -2930,13 +2982,25 @@ static int NetX_PeerAddrEqual(const NXD_ADDRESS* left, const NXD_ADDRESS* right)
     if (left->nxd_ip_version != right->nxd_ip_version)
         return 0;
 
+    /* NXD_ADDRESS only carries the union member for the families the NetX Duo
+     * build was configured with, so guard each access. NX_DISABLE_IPV4 and
+     * NX_DISABLE_IPV6 are set in nx_user.h, FEATURE_NX_IPV6 is derived from
+     * NX_DISABLE_IPV6 by nx_api.h. */
+#ifndef NX_DISABLE_IPV4
     if (left->nxd_ip_version == NX_IP_VERSION_V4)
         return left->nxd_ip_address.v4 == right->nxd_ip_address.v4;
+#endif
+#ifdef FEATURE_NX_IPV6
+    if (left->nxd_ip_version == NX_IP_VERSION_V6) {
+        return left->nxd_ip_address.v6[0] == right->nxd_ip_address.v6[0] &&
+               left->nxd_ip_address.v6[1] == right->nxd_ip_address.v6[1] &&
+               left->nxd_ip_address.v6[2] == right->nxd_ip_address.v6[2] &&
+               left->nxd_ip_address.v6[3] == right->nxd_ip_address.v6[3];
+    }
+#endif
 
-    return left->nxd_ip_address.v6[0] == right->nxd_ip_address.v6[0] &&
-           left->nxd_ip_address.v6[1] == right->nxd_ip_address.v6[1] &&
-           left->nxd_ip_address.v6[2] == right->nxd_ip_address.v6[2] &&
-           left->nxd_ip_address.v6[3] == right->nxd_ip_address.v6[3];
+    /* Unknown or unsupported address family, do not treat it as our peer. */
+    return 0;
 }
 
 /* The NetX receive callback for DTLS
@@ -3019,7 +3083,7 @@ int NetX_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                            : WOLFSSL_CBIO_ERR_TIMEOUT;
                 }
                 WOLFSSL_MSG("NetX Recv receive error");
-                return WOLFSSL_CBIO_ERR_GENERAL;
+                return NetX_TranslateReturnCode(status, SOCKET_RECEIVING);
             }
 
             status = nxd_udp_source_extract(nxCtx->nxPacket, &srcIp, &srcPort);
@@ -3137,29 +3201,26 @@ int NetX_SendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
                                 nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         WOLFSSL_MSG("NetX Send packet alloc error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     status = nx_packet_data_append(packet, buf, sz, pool, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send data append error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
-    if (nxCtx->nxdIp.nxd_ip_version == NX_IP_VERSION_V4) {
-        status = nx_udp_socket_send(nxCtx->nxUdpSocket, packet,
-                                    nxCtx->nxdIp.nxd_ip_address.v4,
-                                    (UINT)nxCtx->nxPort);
-    }
-    else {
-        status = nxd_udp_socket_send(nxCtx->nxUdpSocket, packet,
-                                     &nxCtx->nxdIp, (UINT)nxCtx->nxPort);
-    }
+    /* nxd_udp_socket_send() takes the NXD_ADDRESS itself and dispatches on
+     * nxd_ip_version, so it serves IPv4 and IPv6 without reaching into the
+     * nxd_ip_address union, which is only partly populated when the NetX Duo
+     * build disables a family. */
+    status = nxd_udp_socket_send(nxCtx->nxUdpSocket, packet,
+                                 &nxCtx->nxdIp, (UINT)nxCtx->nxPort);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
         WOLFSSL_MSG("NetX Send socket send error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        return NetX_TranslateReturnCode(status, SOCKET_SENDING);
     }
 
     return sz;
@@ -3454,322 +3515,6 @@ int MicriumGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
 #endif /* MICRIUM */
 
-#if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-
-#include <os/os_error.h>
-#include <os/os_mbuf.h>
-#include <os/os_mempool.h>
-
-#define MB_NAME "wolfssl_mb"
-
-typedef struct Mynewt_Ctx {
-        struct mn_socket *mnSocket;          /* send/recv socket handler */
-        struct mn_sockaddr_in mnSockAddrIn;  /* socket address */
-        struct os_mbuf *mnPacket;            /* incoming packet handle
-                                                for short reads */
-        int reading;                         /* reading flag */
-
-        /* private */
-        void *mnMemBuffer;                   /* memory buffer for mempool */
-        struct os_mempool mnMempool;         /* mempool */
-        struct os_mbuf_pool mnMbufpool;      /* mbuf pool */
-} Mynewt_Ctx;
-
-void mynewt_ctx_clear(void *ctx) {
-    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx*)ctx;
-    if(!mynewt_ctx) return;
-
-    if(mynewt_ctx->mnPacket) {
-        os_mbuf_free_chain(mynewt_ctx->mnPacket);
-        mynewt_ctx->mnPacket = NULL;
-    }
-    os_mempool_clear(&mynewt_ctx->mnMempool);
-    XFREE(mynewt_ctx->mnMemBuffer, 0, 0);
-    XFREE(mynewt_ctx, 0, 0);
-}
-
-/* return Mynewt_Ctx instance */
-void* mynewt_ctx_new() {
-    int rc = 0;
-    Mynewt_Ctx *mynewt_ctx;
-    int mem_buf_count = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_COUNT);
-    int mem_buf_size = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_SIZE);
-    int mempool_bytes = OS_MEMPOOL_BYTES(mem_buf_count, mem_buf_size);
-
-    mynewt_ctx = (Mynewt_Ctx *)XMALLOC(sizeof(struct Mynewt_Ctx),
-                                       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if(!mynewt_ctx) return NULL;
-
-    XMEMSET(mynewt_ctx, 0, sizeof(Mynewt_Ctx));
-    mynewt_ctx->mnMemBuffer = (void *)XMALLOC(mempool_bytes, 0, 0);
-    if(!mynewt_ctx->mnMemBuffer) {
-        mynewt_ctx_clear((void*)mynewt_ctx);
-        return NULL;
-    }
-
-    rc = os_mempool_init(&mynewt_ctx->mnMempool,
-                         mem_buf_count, mem_buf_size,
-                         mynewt_ctx->mnMemBuffer, MB_NAME);
-    if(rc != 0) {
-        mynewt_ctx_clear((void*)mynewt_ctx);
-        return NULL;
-    }
-    rc = os_mbuf_pool_init(&mynewt_ctx->mnMbufpool, &mynewt_ctx->mnMempool,
-                           mem_buf_count, mem_buf_size);
-    if(rc != 0) {
-        mynewt_ctx_clear((void*)mynewt_ctx);
-        return NULL;
-    }
-
-    return mynewt_ctx;
-}
-
-static void mynewt_sock_writable(void *arg, int err);
-static void mynewt_sock_readable(void *arg, int err);
-static const union mn_socket_cb mynewt_sock_cbs = {
-    .socket.writable = mynewt_sock_writable,
-    .socket.readable = mynewt_sock_readable,
-};
-static void mynewt_sock_writable(void *arg, int err)
-{
-    /* do nothing */
-}
-static void mynewt_sock_readable(void *arg, int err)
-{
-    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx *)arg;
-    if (err && mynewt_ctx->reading) {
-        mynewt_ctx->reading = 0;
-    }
-}
-
-/* The Mynewt receive callback
- *  return :  bytes read, or error
- */
-int Mynewt_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
-{
-    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx*)ctx;
-    int rc = 0;
-    struct mn_sockaddr_in from;
-    struct os_mbuf *m;
-    int read_sz = 0;
-    word16 total;
-
-    if (mynewt_ctx == NULL || mynewt_ctx->mnSocket == NULL) {
-        WOLFSSL_MSG("Mynewt Recv NULL parameters");
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
-
-    if(mynewt_ctx->mnPacket == NULL) {
-        mynewt_ctx->mnPacket = os_mbuf_get_pkthdr(&mynewt_ctx->mnMbufpool, 0);
-        if(mynewt_ctx->mnPacket == NULL) {
-            return MEMORY_E;
-        }
-
-        mynewt_ctx->reading = 1;
-        while(mynewt_ctx->reading && rc == 0) {
-            rc = mn_recvfrom(mynewt_ctx->mnSocket, &m, (struct mn_sockaddr *) &from);
-            if(rc == MN_ECONNABORTED) {
-                rc = 0;
-                mynewt_ctx->reading = 0;
-                break;
-            }
-            if (!(rc == 0 || rc == MN_EAGAIN)) {
-                WOLFSSL_MSG("Mynewt Recv receive error");
-                mynewt_ctx->reading = 0;
-                break;
-            }
-            if(rc == 0) {
-                int len = OS_MBUF_PKTLEN(m);
-                if(len == 0) {
-                    break;
-                }
-                rc = os_mbuf_appendfrom(mynewt_ctx->mnPacket, m, 0, len);
-                if(rc != 0) {
-                    WOLFSSL_MSG("Mynewt Recv os_mbuf_appendfrom error");
-                    break;
-                }
-                os_mbuf_free_chain(m);
-                m = NULL;
-            } else if(rc == MN_EAGAIN) {
-                /* continue to until reading all of packet data. */
-                rc = 0;
-                break;
-            }
-        }
-        if(rc != 0) {
-            mynewt_ctx->reading = 0;
-            os_mbuf_free_chain(mynewt_ctx->mnPacket);
-            mynewt_ctx->mnPacket = NULL;
-            return rc;
-        }
-    }
-
-    if(mynewt_ctx->mnPacket) {
-        total = OS_MBUF_PKTLEN(mynewt_ctx->mnPacket);
-        read_sz = (total >= sz)? sz : total;
-
-        os_mbuf_copydata(mynewt_ctx->mnPacket, 0, read_sz, (void*)buf);
-        os_mbuf_adj(mynewt_ctx->mnPacket, read_sz);
-
-        if (read_sz == total) {
-            WOLFSSL_MSG("Mynewt Recv Drained packet");
-            os_mbuf_free_chain(mynewt_ctx->mnPacket);
-            mynewt_ctx->mnPacket = NULL;
-        }
-    }
-
-    return read_sz;
-}
-
-/* The Mynewt send callback
- *  return : bytes sent, or error
- */
-int Mynewt_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
-{
-    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx*)ctx;
-    int rc = 0;
-    struct os_mbuf *m;
-    int write_sz = 0;
-    m = os_msys_get_pkthdr(sz, 0);
-    if (!m) {
-        WOLFSSL_MSG("Mynewt Send os_msys_get_pkthdr error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
-    rc = os_mbuf_copyinto(m, 0, buf, sz);
-    if (rc != 0) {
-        WOLFSSL_MSG("Mynewt Send os_mbuf_copyinto error");
-        os_mbuf_free_chain(m);
-        return rc;
-    }
-    rc = mn_sendto(mynewt_ctx->mnSocket, m, (struct mn_sockaddr *)&mynewt_ctx->mnSockAddrIn);
-    if(rc != 0) {
-        WOLFSSL_MSG("Mynewt Send mn_sendto error");
-        os_mbuf_free_chain(m);
-        return rc;
-    }
-    write_sz = sz;
-    return write_sz;
-}
-
-/* like set_fd, but for default NetX context */
-void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket, struct mn_sockaddr_in* mnSockAddrIn)
-{
-    if (ssl && ssl->mnCtx) {
-        Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx *)ssl->mnCtx;
-        mynewt_ctx->mnSocket = mnSocket;
-        XMEMCPY(&mynewt_ctx->mnSockAddrIn, mnSockAddrIn, sizeof(struct mn_sockaddr_in));
-        mn_socket_set_cbs(mynewt_ctx->mnSocket, mnSocket, &mynewt_sock_cbs);
-    }
-}
-
-#endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
-
-#ifdef WOLFSSL_UIP
-#include <uip.h>
-#include <stdio.h>
-
-/* uIP TCP/IP port, using the native tcp/udp socket api.
- * TCP and UDP are currently supported with the callbacks below.
- *
- */
-/* The uIP tcp send callback
- * return : bytes sent, or error
- */
-int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
-{
-    uip_wolfssl_ctx *ctx = (struct uip_wolfssl_ctx *)_ctx;
-    int total_written = 0;
-    (void)ssl;
-    do {
-        int ret;
-        unsigned int bytes_left = sz - total_written;
-        unsigned int max_sendlen = tcp_socket_max_sendlen(&ctx->conn.tcp);
-        if (bytes_left > max_sendlen) {
-            fprintf(stderr, "uIPSend: Send limited by buffer\r\n");
-            bytes_left = max_sendlen;
-        }
-        if (bytes_left == 0) {
-            fprintf(stderr, "uIPSend: Buffer full!\r\n");
-            break;
-        }
-        ret = tcp_socket_send(&ctx->conn.tcp, (unsigned char *)buf + total_written, bytes_left);
-        if (ret <= 0)
-            break;
-        total_written += ret;
-    } while(total_written < sz);
-    if (total_written == 0)
-        return WOLFSSL_CBIO_ERR_WANT_WRITE;
-    return total_written;
-}
-
-int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
-{
-    uip_wolfssl_ctx *ctx = (struct uip_wolfssl_ctx *)_ctx;
-    int ret = 0;
-    (void)ssl;
-    ret = udp_socket_sendto(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr, ctx->peer_port );
-    if (ret == 0)
-        return WOLFSSL_CBIO_ERR_WANT_WRITE;
-    return ret;
-}
-
-/* The uIP uTCP/IP receive callback
- *  return : nb bytes read, or error
- */
-int uIPReceive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
-{
-    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)_ctx;
-    if (!ctx || !ctx->ssl_rx_databuf)
-        return WOLFSSL_FATAL_ERROR;
-    (void)ssl;
-    if (ctx->ssl_rb_len > 0) {
-        if (sz > ctx->ssl_rb_len - ctx->ssl_rb_off)
-            sz = ctx->ssl_rb_len - ctx->ssl_rb_off;
-        XMEMCPY(buf, ctx->ssl_rx_databuf + ctx->ssl_rb_off, sz);
-        ctx->ssl_rb_off += sz;
-        if (ctx->ssl_rb_off >= ctx->ssl_rb_len) {
-            ctx->ssl_rb_len = 0;
-            ctx->ssl_rb_off = 0;
-        }
-        return sz;
-    } else {
-        return WOLFSSL_CBIO_ERR_WANT_READ;
-    }
-}
-
-/* uIP DTLS Generate Cookie callback
- *  return : number of bytes copied into buf, or error
- */
-#if defined(NO_SHA) && !defined(NO_SHA256)
-    #define UIP_COOKIE_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-#elif !defined(NO_SHA)
-    #define UIP_COOKIE_DIGEST_SIZE WC_SHA_DIGEST_SIZE
-#else
-    #error Must enable either SHA-1 or SHA256 (or both) for uIP.
-#endif
-int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
-{
-    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)_ctx;
-    byte token[32];
-    byte digest[UIP_COOKIE_DIGEST_SIZE];
-    int  ret = 0;
-    XMEMSET(token, 0, sizeof(token));
-    XMEMCPY(token, &ctx->peer_addr, sizeof(uip_ipaddr_t));
-    XMEMCPY(token + sizeof(uip_ipaddr_t), &ctx->peer_port, sizeof(word16));
-#if defined(NO_SHA) && !defined(NO_SHA256)
-    ret = wc_Sha256Hash(token, sizeof(uip_ipaddr_t) + sizeof(word16), digest);
-#else
-    ret = wc_ShaHash(token, sizeof(uip_ipaddr_t) + sizeof(word16), digest);
-#endif
-    if (ret != 0)
-        return ret;
-    if (sz > UIP_COOKIE_DIGEST_SIZE)
-        sz = UIP_COOKIE_DIGEST_SIZE;
-    XMEMCPY(buf, digest, sz);
-    return sz;
-}
-
-#endif /* WOLFSSL_UIP */
 
 #ifdef WOLFSSL_GNRC
 
@@ -3827,7 +3572,7 @@ int GNRC_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
 /* GNRC DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
-#define GNRC_MAX_TOKEN_SIZE (32)
+#define GNRC_MAX_TOKEN_SIZE 32
 #if defined(NO_SHA) && !defined(NO_SHA256)
     #define GNRC_COOKIE_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
 #elif !defined(NO_SHA)

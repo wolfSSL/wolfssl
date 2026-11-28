@@ -5,8 +5,13 @@
     called by wc_Sha256Hash.
 
     \return 0 Returned upon successfully initializing
+    \return BAD_ALIGN_E On x86_64, if sha256 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha256 pointer to the sha256 structure to use for encryption
+
+    \note On 64-bit CPUs, wc_Sha256 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -126,6 +131,46 @@ void wc_Sha256Free(wc_Sha256* sha256);
 /*!
     \ingroup SHA
 
+    \brief Resets the sha256 structure to its freshly initialized state,
+    continuing with its established allocations, heap hint, and device
+    association.  Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially hashed message,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Sha256Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if sha256 is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param sha256 Pointer to the sha256 structure to be reset.
+
+    _Example_
+    \code
+    wc_Sha256 sha256;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[WC_SHA256_DIGEST_SIZE];
+
+    if ((ret = wc_InitSha256(&sha256)) == 0) {
+        wc_Sha256Update(&sha256, data, sizeof(data));
+        wc_Sha256Reset(&sha256); /* discard the partially hashed message */
+        wc_Sha256Update(&sha256, data2, sizeof(data2));
+        wc_Sha256Final(&sha256, hash);
+        wc_Sha256Free(&sha256);
+    }
+    \endcode
+
+    \sa wc_InitSha256
+    \sa wc_Sha256Final
+    \sa wc_Sha256Free
+*/
+int wc_Sha256Reset(wc_Sha256* sha256);
+
+/*!
+    \ingroup SHA
+
     \brief Gets hash data. Result is placed into hash.  Does not
     reset state of sha256 struct.
 
@@ -159,8 +204,13 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
 
     \return 0 Success
     \return 1 Error returned because sha224 is null.
+    \return BAD_ALIGN_E On x86_64, if sha224 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha224 Pointer to a Sha224 struct to initialize.
+
+    \note On 64-bit CPUs, wc_Sha224 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -251,10 +301,15 @@ int wc_Sha224Final(wc_Sha224* sha224, byte* hash);
 
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if sha256 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha SHA256 structure
     \param heap Heap hint
     \param devId Device ID
+
+    \note On 64-bit CPUs, wc_Sha256 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -362,12 +417,17 @@ int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
     \ingroup SHA
     \brief Copies SHA256 context.
 
+    The memory regions occupied by the source and destination structures
+    must not overlap.
+
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if dst is not 16-byte aligned.
+        dst is left unmodified.
 
     \param src Source SHA256 structure
     \param dst Destination SHA256 structure;
-    (must be zeroed or previously initialized)
+    (must be zeroed or previously initialized and must not overlap src)
 
     _Example_
     \code
@@ -448,10 +508,15 @@ int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags);
 
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if sha224 is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param sha224 SHA224 structure
     \param heap Heap hint
     \param devId Device ID
+
+    \note On 64-bit CPUs, wc_Sha224 has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -481,6 +546,46 @@ int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId);
     \sa wc_InitSha224
 */
 void wc_Sha224Free(wc_Sha224* sha224);
+
+/*!
+    \ingroup SHA
+
+    \brief Resets the sha224 structure to its freshly initialized state,
+    continuing with its established allocations, heap hint, and device
+    association.  Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially hashed message,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Sha224Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if sha224 is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param sha224 Pointer to the sha224 structure to be reset.
+
+    _Example_
+    \code
+    wc_Sha224 sha224;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[WC_SHA224_DIGEST_SIZE];
+
+    if ((ret = wc_InitSha224(&sha224)) == 0) {
+        wc_Sha224Update(&sha224, data, sizeof(data));
+        wc_Sha224Reset(&sha224); /* discard the partially hashed message */
+        wc_Sha224Update(&sha224, data2, sizeof(data2));
+        wc_Sha224Final(&sha224, hash);
+        wc_Sha224Free(&sha224);
+    }
+    \endcode
+
+    \sa wc_InitSha224
+    \sa wc_Sha224Final
+    \sa wc_Sha224Free
+*/
+int wc_Sha224Reset(wc_Sha224* sha224);
 
 /*!
     \ingroup SHA
@@ -533,12 +638,17 @@ int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash);
     \ingroup SHA
     \brief Copies SHA224 context.
 
+    The memory regions occupied by the source and destination structures
+    must not overlap.
+
     \return 0 on success
     \return negative on error
+    \return BAD_ALIGN_E On x86_64, if dst is not 16-byte aligned.
+        dst is left unmodified.
 
     \param src Source SHA224 structure
     \param dst Destination SHA224 structure
-    (must be zeroed or previously initialized)
+    (must be zeroed or previously initialized and must not overlap src)
 
     _Example_
     \code

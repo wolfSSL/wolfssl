@@ -59,7 +59,7 @@
     安全性は完全に失われます。
 
     1つの鍵から利用できる署名の回数はパラメータセットによって上限が定まります。
-    残りの回数はwc_LmsKey_SigsLeft()で問い合わせてください。
+    署名が残っているかどうかはwc_LmsKey_SigsLeft()で問い合わせてください。
 
     \defgroup XMSS アルゴリズム - XMSS / XMSS^MT (RFC 8391)
     XMSS(eXtended Merkle Signature Scheme)とそのマルチツリー版である
@@ -71,7 +71,7 @@
     ワンタイム鍵を再利用すると、この方式の安全性は完全に失われます。
 
     1つの鍵から利用できる署名の回数はパラメータセットによって上限が定まります。
-    残りの回数はwc_XmssKey_SigsLeft()で問い合わせてください。
+    署名が残っているかどうかはwc_XmssKey_SigsLeft()で問い合わせてください。
 
     \defgroup ECCSI_Overview ECC​​SIの概要
     ECCSI(楕円曲線ベースの証明書レス署名によるアイデンティティベース暗号化)は、RFC 6507(https://tools.ietf.org/html/rfc6507)で規定されています。
@@ -170,7 +170,7 @@
         -# wc_MakeSakkeKey(), wc_ExportSakkeKey(), wc_ExportSakkePublicKey() または
         -# wc_ImportSakkeKey()
       -# リクエストを待機:
-        -# クライアントのIDに基づいてRSKを作成: wc_MakeSakkeRsk()
+        -# クライアントのIDに基づいてRSKを作成: wc_MakeSakkeRsk_ex()
         -# クライアントへの転送のためにRSKをエンコード: wc_EncodeSakkeRsk()
       -# SAKKE鍵の解放: wc_FreeSakkeKey()
 
@@ -231,7 +231,7 @@
     これらの操作は、受信者秘密鍵(RSK)を作成、検証、エンコード、デコードします。
 
     RSKは、SSVを導出するために必要です(wc_DeriveSakkeSSV()を参照)。\n
-    KMSで、クライアントのIDからRSKを作成(wc_MakeSakkeRsk())。\n
+    KMSで、クライアントのIDからRSKを作成(wc_MakeSakkeRsk_ex())。\n
     クライアントで、IDでRSKを検証(wc_ValidateSakkeRsk())。\n
     クライアントへの転送またはストレージのためにRSKをエンコード(wc_EncodeSakkeRsk())。\n
     必要に応じてクライアントでRSKをデコード(wc_DecodeSakkeRsk())。\n
@@ -258,6 +258,21 @@
     \defgroup MD5 アルゴリズム - MD5
     \defgroup PKCS7 アルゴリズム - PKCS7
     \defgroup PKCS11 アルゴリズム - PKCS11
+    \defgroup PKCS12 アルゴリズム - PKCS12
+    PKCS #12（RFC 7292）はPFXバンドル形式を定義しています。これは、秘密鍵とその証明書、
+    およびチェーン内のCA証明書をまとめて格納する、パスワードで保護された単一のファイルです。
+    一般的な.p12ファイルや.pfxファイルはこの形式です。wolfCryptのサポートは
+    --enable-pkcs12を指定するか、HAVE_PKCS12を定義することで有効になります。
+    また、パスワードベースの鍵導出（--enable-pwdbased）も必要です。
+
+    バンドルの読み込みは、WC_PKCS12構造体を割り当て（wc_PKCS12_new()または
+    wc_PKCS12_new_ex()）、DERをデコードし（wc_d2i_PKCS12()または
+    wc_d2i_PKCS12_fp()）、wc_PKCS12_parse()でMACを検証して内容を復号する、
+    という手順で行います。wc_PKCS12_parse()はDER形式の秘密鍵、証明書、
+    および任意でCAチェーンを返します。\n
+    バンドルの書き出しは、wc_PKCS12_create()で構造体を構築し、
+    wc_i2d_PKCS12()でエンコードすることで行います。\n
+    <wolfssl/wolfcrypt/pkcs12.h>をご参照ください。
     \defgroup Password アルゴリズム - パスワードベース
     \defgroup Poly1305 アルゴリズム - Poly1305
     \defgroup PUF アルゴリズム - PUF

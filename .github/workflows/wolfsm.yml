@@ -34,7 +34,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -84,18 +84,23 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/wolfsm-configs.json" <<'EOF'
           [
-          {"name": "all-sm", "minutes": 3,
+          {"name": "all-sm", "minutes": 5.8,
            "configure": ["--enable-all", "--enable-sm2", "--enable-sm3",
             "--enable-sm4-ecb", "--enable-sm4-cbc", "--enable-sm4-ctr",
             "--enable-sm4-gcm", "--enable-sm4-ccm"]},
-          {"name": "sm-tls-suites", "minutes": 1.5,
+          {"name": "sm-cryptocb", "minutes": 3.0,
+           "comment": "SM2/SM3/SM4 through the crypto callback. Needs a wolfsm carrying the SM dispatch hooks; cryptocb_test() then checks each op reached the device.",
+           "configure": ["--enable-sm2", "--enable-sm3", "--enable-sm4-ecb",
+            "--enable-sm4-cbc", "--enable-sm4-ctr", "--enable-sm4-gcm",
+            "--enable-sm4-ccm", "--enable-sha3", "--enable-cryptocb"]},
+          {"name": "sm-tls-suites", "minutes": 2.9,
            "configure": ["--enable-sm2", "--enable-sm3", "--enable-sm4-gcm",
             "--enable-sm4-ccm", "--enable-sha3"]},
-          {"name": "sm4-all-modes", "minutes": 1.5,
+          {"name": "sm4-all-modes", "minutes": 2.9,
            "configure": ["--enable-sm2", "--enable-sm3", "--enable-sm4-ecb",
             "--enable-sm4-cbc", "--enable-sm4-ctr", "--enable-sm4-gcm",
             "--enable-sm4-ccm", "--enable-sha3"]},
-          {"name": "sm-faultharden", "minutes": 1.5,
+          {"name": "sm-faultharden", "minutes": 1.8,
            "comment": "The only config that compiles the SM2 signature-fault check with HAVE_PK_CALLBACKS. sm4-cbc is required: the sole TLS 1.2 SM2 client-auth case in tests/test-sm2.conf is ECDHE-ECDSA-SM4-CBC-SM3.",
            "configure": ["--enable-sm2", "--enable-sm3", "--enable-sm4-ecb",
             "--enable-sm4-cbc", "--enable-sm4-ctr", "--enable-sm4-gcm",
@@ -104,6 +109,8 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=12 \
+            --deadline=12 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
             "$RUNNER_TEMP/wolfsm-configs.json"

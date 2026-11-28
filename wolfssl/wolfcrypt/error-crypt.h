@@ -35,6 +35,12 @@ the error status.
  * wc_compat.h.
  */
 #include <wolfssl/wolfcrypt/wc_port.h>
+/* Frozen FIPS v6 sources expect types.h from here. Library builds only, since
+ * apps would pull in wc_compat.h before the error codes below exist. */
+#if defined(BUILDING_WOLFSSL) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_EQ(6,0,0)
+#include <wolfssl/wolfcrypt/types.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -192,7 +198,7 @@ enum wolfCrypt_ErrorCodes {
     HMAC_KAT_FIPS_E     = -206,  /* HMAC KAT failure */
     RSA_KAT_FIPS_E      = -207,  /* RSA KAT failure */
     DRBG_KAT_FIPS_E     = -208,  /* HASH DRBG KAT failure */
-    DRBG_CONT_FIPS_E    = -209,  /* HASH DRBG Continuous test failure */
+    DRBG_CONT_FIPS_E    = -209,  /* Hash_DRBG health test (KAT) failure */
     AESGCM_KAT_FIPS_E   = -210,  /* AESGCM KAT failure */
     THREAD_STORE_KEY_E  = -211,  /* Thread local storage key create failure */
     THREAD_STORE_SET_E  = -212,  /* Thread local storage key set failure */
@@ -354,9 +360,20 @@ enum wolfCrypt_ErrorCodes {
     OBJECT_NOT_LOCKED_E = -1031, /* Required lock on object is not held */
     WRONG_TYPE_OBJECT_E = -1032, /* Object is wrong type for requested */
                                  /* operation */
+    NEEDS_RECOVERY_E    = -1033, /* Object needs recovery before use */
+    UNEXPECTED_STATE_E  = -1034, /* Object has unexpected state */
+    STILL_REFERENCED_E  = -1035, /* Object is still referenced (unsafe to
+                                  * deallocate) */
+    OBJECT_ORPHANED_E   = -1036, /* Object orphaned (can be adopted) */
+    HWPUF_INIT_E        = -1037, /* HWPUF initialization failed */
+    HWPUF_ENROLL_E      = -1038, /* HWPUF enrollment failed */
+    HWPUF_START_E       = -1039, /* HWPUF start failed */
+    HWPUF_GENERATE_KEY_E = -1040, /* HWPUF generate key failed */
+    HWPUF_GET_KEY_E     = -1041, /* HWPUF get key failed */
+    HWPUF_ZEROIZE_E     = -1042, /* HWPUF zeroize failed */
 
-    WC_SPAN2_LAST_E     = -1032, /* Update to indicate last used error code */
-    WC_LAST_E           = -1032, /* the last code used either here or in
+    WC_SPAN2_LAST_E     = -1042, /* Update to indicate last used error code */
+    WC_LAST_E           = -1042, /* the last code used either here or in
                                   * error-ssl.h */
 
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
@@ -383,9 +400,13 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
     WOLFSSL_API extern int wc_backtrace_render(void);
 #endif
 
-#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
-        (defined(BUILDING_WOLFSSL) || \
-         defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) &&              \
+    (defined(BUILDING_WOLFSSL) ||                            \
+     defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS)) &&     \
+    (!defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_PER_FILE) ||   \
+     defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_THIS_FILE)) &&  \
+    !defined(WOLFSSL_DEBUG_NO_TRACE_ERROR_CODES_THIS_FILE)
+
     #include <wolfssl/wolfcrypt/logging.h>
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE

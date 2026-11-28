@@ -661,7 +661,7 @@ int wc_SHE_LoadKey_Verify_Label(
     \brief ハードウェアから鍵をSHEのロード可能な形式(M1〜M5)でエクスポートします。一部のHSMでは特定の鍵スロット(例: RAM鍵)のエクスポートが許可されており、後からSHEの鍵更新プロトコルで再ロードできます。WOLF_CRYPTO_CBが有効で、かつNO_WC_SHE_EXPORTKEYが定義されていないことが必要です。出力バッファはいずれもNULLにでき、その場合そのメッセージはスキップされます。
 
     \return 0 成功した場合に返されます
-    \return BAD_FUNC_ARG sheがNULLの場合に返されます
+    \return BAD_FUNC_ARG sheがNULLの場合、またはNULLでない出力バッファのサイズがそのメッセージのサイズより小さい場合に返されます
     \return CRYPTOCB_UNAVAILABLE コールバックが登録されていない場合に返されます
 
     \param she 初期化済みのSHEコンテキスト

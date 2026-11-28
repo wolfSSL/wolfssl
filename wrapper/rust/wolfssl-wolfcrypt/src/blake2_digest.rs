@@ -81,8 +81,9 @@ macro_rules! impl_blake2_digest {
         $(#[$attr])*
         impl digest::Update for $name {
             fn update(&mut self, data: &[u8]) {
-                <$wc_ty>::update(&mut self.blake2, data)
-                    .expect("wolfCrypt BLAKE2 update failed");
+                crate::update_in_chunks(data, |chunk| {
+                    <$wc_ty>::update(&mut self.blake2, chunk)
+                }).expect("wolfCrypt BLAKE2 update failed");
             }
         }
 

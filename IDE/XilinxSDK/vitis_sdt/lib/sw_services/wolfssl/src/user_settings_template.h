@@ -104,6 +104,12 @@
 #define USE_CERT_BUFFERS_256
 #define BENCH_EMBEDDED
 
+/* Adds a second set of ECIES benchmark rows, tagged -kdf, set up the way the
+ * ASU needs (KDF salt and info, no MAC salt). Without it the only ECIES rows
+ * are the salt-exchange ones, which the port always turns down, so the
+ * benchmark would show no ECIES number that reaches the hardware. */
+#define WC_BENCH_ECIES_KDF
+
 /* Uncomment for a build with only wolfCrypt (no TLS layer). */
 /* #define WOLFCRYPT_ONLY */
 

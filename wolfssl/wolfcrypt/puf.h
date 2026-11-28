@@ -293,6 +293,10 @@ WOLFSSL_API int wc_PufZeroize(wc_PufCtx* ctx);
 
 #ifdef WOLFSSL_PUF_TEST
 WOLFSSL_API int wc_PufSetTestData(wc_PufCtx* ctx, const byte* data, word32 sz);
+/* Test hook: when on is non-zero, wc_PufEnroll() and wc_PufReconstructEx()
+ * behave as if the final identity hash failed, so the failure-path state
+ * cleanup can be exercised. */
+WOLFSSL_API void wc_PufTestForceHashFail(int on);
 #endif
 
 #ifdef __cplusplus

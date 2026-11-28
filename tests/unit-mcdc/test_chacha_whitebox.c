@@ -57,20 +57,21 @@
  * The AVX-512 ChaCha work replaced that flat if/else with a length-and-feature
  * ladder in wc_Chacha_Process, five compound decisions deep:
  *
- *   msglen <= CHACHA_CHUNK_BYTES && IS_INTEL_AVX512_VL(f) == 0 &&
+ *   msglen <= CHACHA_CHUNK_BYTES && !CHACHA_USE_AVX512_VL(f) &&
  *       IS_INTEL_AVX1(f)                                   -> 1-block AVX1
- *   IS_INTEL_AVX512_VL(f) == 0 && msglen < 4*CHUNK &&
+ *   !CHACHA_USE_AVX512_VL(f) && msglen < 4*CHUNK &&
  *       IS_INTEL_SSSE3(f)                                  -> SSSE3
- *   IS_INTEL_AVX512_VL(f) == 0 && msglen < 4*CHUNK         -> scalar x64
+ *   !CHACHA_USE_AVX512_VL(f) && msglen < 4*CHUNK           -> scalar x64
  *   chacha_avx512_beneficial(f) && msglen >= 16*CHUNK      -> 512-bit zmm
- *   IS_INTEL_AVX512_VL(f) && msglen < 8*CHUNK              -> AVX-512VL
+ *   CHACHA_USE_AVX512_VL(f) && msglen < 8*CHUNK            -> AVX-512VL
  *
  * plus the predicate chacha_avx512_beneficial(): IS_INTEL_AVX512(f) &&
- * IS_INTEL_VAES(f).
+ * IS_INTEL_VAES(f). CHACHA_USE_AVX512_VL(f) is IS_INTEL_AVX512_VL(f) when the
+ * AVX-512VL kernel is built (HAVE_INTEL_AVX512) and 0 otherwise.
  *
  * Two inputs decide all of them: the message length and the cpuid mask. One
  * host only ever supplies one mask -- on an AVX-512VL machine every
- * "IS_INTEL_AVX512_VL(f) == 0" operand is permanently false, which pins three
+ * "!CHACHA_USE_AVX512_VL(f)" operand is permanently false, which pins three
  * of the five decisions to a single outcome no matter what lengths the tests
  * use, and on a machine without AVX-512 the last two are pinned the other way.
  * wb_chacha_process_case() drives one (mask, length) pair; the table in

@@ -59,15 +59,14 @@ else
     mapfile -t HEADERS < <(
         git ls-files 'wolfssl/*.h' 'wolfssl/wolfcrypt/*.h' \
                      'wolfssl/wolfcrypt/port/**/*.h' 'wolfssl/openssl/*.h' \
-        | grep -vE '^wolfssl/(options|internal|certs_test|certs_test_sm|debug-trace-error-codes|debug-untrace-error-codes)\.h$' \
+        | grep -vE '^wolfssl/(options|internal|ssl_sess|certs_test|certs_test_sm|debug-trace-error-codes|debug-untrace-error-codes)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/(fips_test|selftest|tfm)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/aria/aria-crypt(ocb)?\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/autosar/(CryIf|Crypto)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/caam/(caam_driver|caam_qnx|wolfcaam_hash)\.h$' \
         | grep -vE '^wolfssl/wolfcrypt/port/kcapi/' \
         | grep -vE '^wolfssl/wolfcrypt/port/nxp/(dcp_port|se050_port)\.h$' \
-        | grep -vE '^wolfssl/wolfcrypt/port/Renesas/(renesas_fspsm_internal|renesas-rx64-hw-crypt|renesas-tsip-crypt|renesas_tsip_internal)\.h$' \
-        | grep -vE '^wolfssl/wolfcrypt/port/silabs/silabs_aes\.h$'
+        | grep -vE '^wolfssl/wolfcrypt/port/Renesas/(renesas_fspsm_internal|renesas-rx64-hw-crypt|renesas-tsip-crypt|renesas_tsip_internal)\.h$'
     )
 fi
 

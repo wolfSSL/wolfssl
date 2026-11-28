@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef __clang__
+/* Fixed-length DER fixtures deliberately omit the C string NUL. */
+#pragma clang diagnostic ignored "-Wunterminated-string-initialization"
+#endif
+
 /*
  * White-box MC/DC supplement for wolfcrypt/src/asn.c (Part 5, "cert" wave).
  *
@@ -43,14 +48,14 @@
  *
  * RESIDUALS (structurally dead operand, argued from the source, not a gap
  * in this test):
- *   - SetSubject() :15074 / SetIssuer() :15127 1st operand (id >
- *     ASN_COMMON_NAME): both are called from GetRDN() only when typeStr !=
- *     NULL (asn.c:15288), and every dispatch branch that assigns typeStr
- *     also assigns an id of at least ASN_COMMON_NAME (3) -- the v1 branch
- *     is gated on ValidCertNameSubject(id), which requires id - 3 >= 0; the
- *     x500UniqueIdentifier branch uses 0x2d; the rest use the 0x100/0x200
- *     constants. id == ASN_COMMON_NAME is consumed by the preceding `if`,
- *     so the operand is constant true here.
+ *   - SetSubject() / SetIssuer() 1st operand (idx !=
+ *     CERT_NAME_SUBJ_NO_IDX): both are called from GetRDN() only when typeStr
+ *     != NULL (asn.c:15288), and every dispatch branch that assigns typeStr
+ *     for a 2.5.4.x id first found a row for it -- the v1 branch is gated on
+ *     ValidCertNameSubject(), which needs a row. The x500UniqueIdentifier
+ *     branch (0x2d) and the 0x100/0x200 constants reach SetSubject() with no
+ *     row, but are consumed by its later id == ASN_EMAIL / ASN_JURIS_*
+ *     arms, so the operand is constant true where it is evaluated.
  *   - SetAlgoIDImpl() :16774 1st operand (ret == 0): ret comes only from
  *     CALLOC_ASNSETDATA -- whose MEMORY_E is caught and returned at
  *     :16731-:16734 before that line -- and from SizeASN_Items() over the
@@ -580,15 +585,15 @@ static void wb_set_dns_entry(void) { WB_NOTE("WOLFSSL_CERT_GEN/WOLFSSL_ALT_NAMES
 #endif
 
 /* ===========================================================================
- * Section 8: GetRDN()/GetCertName()/GetName() OID dispatch and SetSubject/
- * SetIssuer id-range macro [:14261,:15073,:15126,:15169,:15181,:15190,
+ * Section 8: GetRDN()/GetCertName()/GetName() OID dispatch and the
+ * SetSubject/SetIssuer row lookup [:15073,:15126,:15169,:15181,:15190,
  * :15199,:15208,:15217,:15227,:15239,:15244,:15269,:15391]
  *
  * Drives GetName() (public entry point) with hand-built Name ::= SEQUENCE OF
  * RelativeDistinguishedName ::= SET { SEQUENCE { OID, DirectoryString } }
  * buffers, one RDN OID per vector to isolate each else-if arm of GetRDN()'s
- * OID dispatch (and the ValidCertNameSubject() range macro at :14261, which
- * that dispatch's v1-name-type branch expands into).
+ * OID dispatch (and the CertNameSubjectIdx()/ValidCertNameSubject() row lookup
+ * that dispatch's v1-name-type branch uses).
  * ========================================================================= */
 #ifdef WOLFSSL_ASN_TEMPLATE
 static word32 wb_build_rdn_val(byte* out, const byte* oidContent, word32 oidSz,
@@ -665,10 +670,13 @@ static void wb_get_rdn_get_cert_name(void)
     int ret;
     /* v1 DN type OIDs: {0x55, 0x04, id}. */
     static const byte v1_cn[]  = { 0x55, 0x04, ASN_COMMON_NAME };  /* id=3, in-range */
-    static const byte v1_lo[]  = { 0x55, 0x04, 0x02 };  /* id-3<0 (ASN_DN_NULL side) */
-    /* id-3 past table size; must stay < 0x80 so the byte is still a valid
+    static const byte v1_lo[]  = { 0x55, 0x04, 0x02 };  /* below both runs */
+    /* Past both runs of ids; must stay < 0x80 so the byte is still a valid
      * single-byte OID sub-identifier (no dangling BER continuation bit). */
     static const byte v1_hi[]  = { 0x55, 0x04, 0x50 };
+    /* Between the two runs: a real attribute type (physicalDeliveryOfficeName)
+     * that the table has no row for. */
+    static const byte v1_gap[] = { 0x55, 0x04, 0x13 };
     /* dcOid with last byte changed -> "unknown pilot attribute" arm. */
     byte dcOid_bad[sizeof(dcOid)];
     /* jurisdiction-of-incorporation OIDs. */
@@ -676,31 +684,54 @@ static void wb_get_rdn_get_cert_name(void)
     byte joi_st[ASN_JOI_PREFIX_SZ + 1];
     byte joi_unknown[ASN_JOI_PREFIX_SZ + 1];
 
-    WB_NOTE("GetRDN()/GetCertName(): v1 name-type range macro [:14261]; "
-            "OID dispatch chain [:15169-:15269]");
+    WB_NOTE("GetRDN()/GetCertName(): v1 name-type id-to-row mapping "
+            "(CertNameSubjectIdx()); OID dispatch chain [:15169-:15269]");
 
-    /* id in [3, table) -> ValidCertNameSubject() all true; goes through
-     * SetSubject()'s id>ASN_COMMON_NAME&&id<=ASN_USER_ID (false here, id==
-     * ASN_COMMON_NAME itself) [:15073 2nd-operand-moot via 1st check]. */
+    /* certNameSubject[] covers two runs of ids - 2.5.4.3 to 2.5.4.18, and
+     * 2.5.4.41 to 2.5.4.46 with WOLFSSL_CERT_NAME_ALL - so CertNameSubjectIdx()
+     * decides on two range tests, and ValidCertNameSubject() then on the row's
+     * strLen. Each of the three is driven both ways below. */
+
+    /* First run -> 1st range test true; goes through SetSubject()'s
+     * id == ASN_COMMON_NAME arm rather than the table-offset one. */
     ret = wb_get_name_with_oid(ASN_SUBJECT, v1_cn, sizeof(v1_cn));
-    WB_CHECK(ret == 0, "v1 CN OID, ASN_SUBJECT (:14261 all true)");
+    WB_CHECK(ret == 0, "v1 CN OID, ASN_SUBJECT (1st range test true)");
 
-    /* id-3 < 0 -> ValidCertNameSubject() 1st operand false; unknown type is
-     * silently skipped (typeStr stays NULL, ret stays 0). */
+    /* Below the first run -> both range tests false; unknown type is silently
+     * skipped (typeStr stays NULL, ret stays 0). */
     ret = wb_get_name_with_oid(ASN_SUBJECT, v1_lo, sizeof(v1_lo));
-    WB_CHECK(ret == 0, "v1 OID id-3<0 (:14261 1st operand false)");
+    WB_CHECK(ret == 0, "v1 OID below both runs (both range tests false)");
 
-    /* id-3 >= certNameSubjectSz -> 1st operand true, 2nd false. */
+    /* Between the runs -> 1st range test false on its upper bound, 2nd false
+     * on its lower bound. This is the id that a dense "id - 3" index gave the
+     * second run's rows to. */
+    ret = wb_get_name_with_oid(ASN_SUBJECT, v1_gap, sizeof(v1_gap));
+    WB_CHECK(ret == 0, "v1 OID between the runs (no row)");
+
+    /* Past both runs -> 2nd range test false on its upper bound. */
     ret = wb_get_name_with_oid(ASN_SUBJECT, v1_hi, sizeof(v1_hi));
-    WB_CHECK(ret == 0, "v1 OID id-3 out of range high (:14261 2nd operand false)");
+    WB_CHECK(ret == 0, "v1 OID above both runs (2nd range test false)");
 
-    /* id 12 ("Title") is in range but its certNameSubject[] entry carries
-     * EMPTY_STR/0, so the strLen operand is the one that decides. */
+#ifdef WOLFSSL_CERT_NAME_ALL
+    /* Second run -> 1st range test false, 2nd true. Both ends are driven so
+     * neither bound of the second range test can drift unnoticed. */
+    {
+        static const byte v1_name[] = { 0x55, 0x04, ASN_NAME };
+        static const byte v1_dnq[]  = { 0x55, 0x04, ASN_DNQUALIFIER };
+        ret = wb_get_name_with_oid(ASN_SUBJECT, v1_name, sizeof(v1_name));
+        WB_CHECK(ret == 0, "v1 name OID (2nd range test true, low end)");
+        ret = wb_get_name_with_oid(ASN_SUBJECT, v1_dnq, sizeof(v1_dnq));
+        WB_CHECK(ret == 0, "v1 dnQualifier OID (2nd range test true, high end)");
+    }
+#endif
+
+    /* id 12 ("Title") has a row but it carries EMPTY_STR/0, so
+     * ValidCertNameSubject()'s strLen operand is the one that decides. */
     {
         static const byte v1_empty[] = { 0x55, 0x04, 0x0C };
         ret = wb_get_name_with_oid(ASN_SUBJECT, v1_empty, sizeof(v1_empty));
-        WB_CHECK(ret == 0, "v1 OID with an empty table entry "
-                "(:14261 3rd operand false)");
+        WB_CHECK(ret == 0, "v1 OID with an empty table row "
+                "(strLen operand false)");
     }
 
     /* id in [ASN_COMMON_NAME+1, ASN_USER_ID] -> SetSubject()'s table-offset
@@ -1707,9 +1738,10 @@ static void wb_decode_dsa_asn1_sig(void)
     contentSz += wb_tlv(content + contentSz, ASN_INTEGER, &sVal, 1);
     sigSz = WB_SEQ(sig, content, contentSz);
 
-    ret = DecodeDsaAsn1Sig(sig, sigSz, sigCpy, NULL);
+    /* qSz 1: r and s are one byte each, so sigCpy holds them unpadded. */
+    ret = DecodeDsaAsn1Sig(sig, sigSz, sigCpy, 1, NULL);
     WB_CHECK(ret == 0 && sigCpy[0] == rVal && sigCpy[1] == sVal,
-            "valid r/s -> mp_to_unsigned_bin() succeeds both times "
+            "valid r/s -> mp_to_unsigned_bin_len() succeeds both times "
             "(:17294 false side)");
 }
 #else
@@ -1732,7 +1764,7 @@ static void wb_decode_dsa_asn1_sig(void) { WB_NOTE("NO_DSA/HAVE_SELFTEST; Decode
  *   (a) leaf certificate, CertManager holding its issuing CA
  *       -> cert->ca found, issuer hashes match;
  *   (b) the self-signed root itself, same CertManager
- *       -> selfSigned paths, trust-anchor comparison in the path-length
+ *       -> selfIssued paths, trust-anchor comparison in the path-length
  *          block;
  *   (c) leaf certificate with NO CertManager
  *       -> every cert->ca lookup returns NULL.
@@ -1880,7 +1912,7 @@ static void wb_parse_cert_relative_bad_date(void)
 /* ------------------------------------------------------------------------- *
  * ParseCertRelative()'s RFC 5280 zero-serial guard.
  *   :24444  (type == CA_TYPE || type == TRUSTED_PEER_TYPE) && cert->isCA &&
- *           cert->selfSigned
+ *           cert->selfIssued
  *   :24450  if (!isTrustAnchorLoad && !isCsr)
  * No corpus certificate has serial 0, so the guard's body is never entered.
  * Each fixture below is a private copy whose serialNumber INTEGER has been
@@ -1889,7 +1921,7 @@ static void wb_parse_cert_relative_bad_date(void)
  * and an intermediate CA whose issuer differs from its subject).
  *
  * STILL OPEN, not excluded:
- *   - :24444 3rd and 4th operands (cert->isCA, cert->selfSigned). Driving
+ *   - :24444 3rd and 4th operands (cert->isCA, cert->selfIssued). Driving
  *     them needs a certificate that reaches :24442 with a zero serial and
  *     with cA FALSE, or with a subject that differs from its issuer. Every
  *     attempt made here failed at the DecodeCert() call that precedes the
@@ -1907,21 +1939,6 @@ static void wb_parse_cert_relative_bad_date(void)
  *     serialNumber attribute into cert->serial at asn.c:23034 -- but needs a
  *     from-scratch CSR carrying that attribute; not built.
  * ------------------------------------------------------------------------- */
-/* Read a DER file into `buf`; returns 0 on success. */
-static int wb_load_der(const char* path, byte* buf, size_t cap, size_t* outSz)
-{
-    FILE* f = fopen(path, "rb");
-    size_t n;
-
-    if (f == NULL) {
-        return -1;
-    }
-    n = fread(buf, 1, cap, f);
-    fclose(f);
-    *outSz = n;
-    return (n > 0) ? 0 : -1;
-}
-
 static int wb_zero_serial(byte* buf, word32* sz)
 {
     word32 co, cl, lo, lw;
@@ -2132,6 +2149,31 @@ static void wb_fill_name(CertName* name, const char* cn)
 /* Build one fixture. Returns 0 on success. Never asserts on the *content*
  * of the result beyond "the generator accepted it": the whole point of some
  * of these shapes is that a strict parser will later reject them. */
+/* Rewrite a freshly built body's serial number to zero.
+ *
+ * wc_MakeCert() refuses to emit a zero serial (RFC 5280 4.1.2.2), so a
+ * zero-serial fixture is built with 0x01 and the single content octet is
+ * patched here before signing. The encoded length does not change, so the
+ * signature still covers the whole body. */
+static int wb_patch_zero_serial(byte* der, int derSz)
+{
+    int i;
+
+    for (i = 0; ((i + 8) <= derSz) && (i < 16); i++) {
+        /* [0] EXPLICIT { INTEGER 2 } then the serial INTEGER holding 1. */
+        if ((der[i] == 0xA0) && (der[i + 1] == 0x03) &&
+            (der[i + 2] == ASN_INTEGER) && (der[i + 3] == 0x01) &&
+            (der[i + 4] == 0x02) &&
+            (der[i + 5] == ASN_INTEGER) && (der[i + 6] == 0x01) &&
+            (der[i + 7] == 0x01)) {
+            der[i + 7] = 0x00;
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 static int wb_make_fixture(WbFix* out, const WbSpec* spec)
 {
     Cert* cert;
@@ -2194,7 +2236,9 @@ static int wb_make_fixture(WbFix* out, const WbSpec* spec)
         }
 
         if (spec->zeroSerial) {
+            /* Patched down to 0 after the body is built. */
             XMEMSET(cert->serial, 0, sizeof(cert->serial));
+            cert->serial[0] = 0x01;
             cert->serialSz = 1;
         }
         else {
@@ -2248,6 +2292,9 @@ static int wb_make_fixture(WbFix* out, const WbSpec* spec)
             ret = 0;
         }
     }
+    if (ret == 0 && spec->zeroSerial) {
+        ret = wb_patch_zero_serial(out->der, cert->bodySz);
+    }
     if (ret == 0) {
         bodySz = cert->bodySz;
         ret = wc_SignCert(bodySz, cert->sigType, out->der, WB_FIX_DER_SZ,
@@ -2274,7 +2321,7 @@ static int wb_make_fixture(WbFix* out, const WbSpec* spec)
  * only the decisions evaluated on the way matter here. A DecodedCert is
  * ~4KB, so it lives on the heap for the small_stack variant's benefit. */
 static void wb_parse_one(const WbFix* fix, int type, int verify,
-                         void* cm, Signer* extraCAList)
+                         WOLFSSL_CERT_MANAGER* cm, Signer* extraCAList)
 {
     DecodedCert* dc;
 
@@ -2878,7 +2925,7 @@ static void wb_fixture_parse_matrix(void)
      * A certificate can never take the isCsr arm and no certificate can
      * make either of :24624's trailing operands false: DecodeCertInternal()
      * (asn.c:23007) already rejects serial 0 for anything that is not
-     * `isCA && selfSigned`, and ParseCertRelative() returns immediately on a
+     * `isCA && selfIssued`, and ParseCertRelative() returns immediately on a
      * negative DecodeCert(), so `ret == 0` at :24622 implies both.
      *
      * A certificate REQUEST is the exception, and the only one. It is parsed

@@ -40,6 +40,14 @@ decouple library dependencies with standard string, memory and so on.
 library files.
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && (defined(WOLFSSL_SM2) || \
+    defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4))
+    /* Other crypto callbacks use WOLFSSL_CRYPTO_CB, but this one is temporatily
+     * added for SM crypto to enable clean merges of this feature between repos.
+     * It can be removed once the feature is fully integrated. */
+    #define WOLF_CRYPTO_CB_SM
+#endif
+
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
 #endif
@@ -329,6 +337,26 @@ typedef const char wcchar[];
  * the stored octet.  Used by the SHA-2/3, Hash-DRBG, base64 and ML-DSA packers. */
 #define WC_OCTET(x)  ((byte)((x) & 0xFF))
 
+/* Octet representation at the API boundary.
+ *
+ * Every wolfCrypt byte* buffer holds ONE octet per 'byte' cell.  Where
+ * CHAR_BIT != 8 (e.g. the TI C2000 C28x, a 16-bit cell) that costs twice the
+ * RAM but leaves the octet values unchanged.  Data from outside the CPU -
+ * flash, a serial link, a host tool - is instead PACKED: WC_OCTETS_PER_BYTE
+ * octets per cell, low octet first.  Convert at the boundary with
+ * wc_UnpackOctets()/wc_PackOctets(), declared only where a cell is wider than
+ * an octet - elsewhere the two layouts coincide and there is nothing to do. */
+#if (CHAR_BIT <= 0) || (CHAR_BIT % 8 != 0)
+    #error CHAR_BIT must be a positive multiple of 8.
+#endif
+#define WC_OCTETS_PER_BYTE       ((word32)(CHAR_BIT / 8))
+/* Cells needed to hold octetSz octets packed.  Divides before adding the
+ * round-up so a near-WORD32_MAX octetSz cannot wrap.  octetSz is evaluated
+ * more than once - do not pass an expression with side effects. */
+#define WC_PACKED_CELLS(octetSz)                                     \
+    (((word32)(octetSz) / WC_OCTETS_PER_BYTE) +                      \
+     ((((word32)(octetSz)) % WC_OCTETS_PER_BYTE) != 0U ? 1U : 0U))
+
 #if defined(HAVE___UINT128_T) && !defined(NO_INT128)
     #ifndef WOLFSSL_UINT128_T_DEFINED
         #ifdef __SIZEOF_INT128__
@@ -509,6 +537,17 @@ enum {
 #define WOLFSSL_MAX_16BIT 0xffffU
 #define WOLFSSL_MAX_32BIT 0xffffffffU
 
+#ifndef WC_STATIC_STRUCT_INITIALIZER
+    /* Note, don't use this to dynamically initialize structs on the stack.
+     * On some targets/toolchains/configs, that pattern is an implicit
+     * memset reference that is unmaskable. */
+    #ifdef __cplusplus
+        #define WC_STATIC_STRUCT_INITIALIZER {}
+    #else
+        #define WC_STATIC_STRUCT_INITIALIZER {0}
+    #endif
+#endif
+
 #ifndef WC_DO_NOTHING
     #define WC_DO_NOTHING do {} while (0)
     #ifdef _MSC_VER
@@ -540,15 +579,39 @@ enum {
 #if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS)
     #if defined(_MSC_VER) || defined(__WATCOMC__)
         #define THREAD_LS_T __declspec(thread)
-    /* Thread local storage only in FreeRTOS v8.2.1 and higher */
+        #define WC_THREAD_LS_T_IS_REAL
+    /* Zephyr gives each thread its own copy: Zephyr docs,
+     * doc/kernel/services/other/thread_local_storage.rst */
+    #elif defined(WOLFSSL_ZEPHYR) && defined(CONFIG_THREAD_LOCAL_STORAGE)
+        #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
+    /* FreeRTOS switches the compiler TLS pointer per task only with picolibc:
+     * FreeRTOS-Kernel 11.1.0 include/picolibc-freertos.h configSET_TLS_BLOCK */
+    #elif defined(FREERTOS) && defined(configUSE_PICOLIBC_TLS) && \
+          (configUSE_PICOLIBC_TLS == 1)
+        #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
+    /* Other FreeRTOS and Zephyr builds: compiler TLS is not per task. */
     #elif defined(FREERTOS) || defined(FREERTOS_TCP) || \
                                                         defined(WOLFSSL_ZEPHYR)
         #define THREAD_LS_T
     #else
         #define THREAD_LS_T __thread
+        #define WC_THREAD_LS_T_IS_REAL
     #endif
 #else
     #define THREAD_LS_T
+#endif
+
+/* ERROR_QUEUE_PER_THREAD keeps the error queue in an unlocked THREAD_LS_T
+ * global. In a multi-threaded build where THREAD_LS_T expands to nothing (no
+ * HAVE_THREAD_LS, NO_THREAD_LS, or a platform without compiler TLS) that
+ * global would be shared by every thread with no locking, so fall back to the
+ * mutex protected queue instead. WC_THREAD_LS_T_IS_REAL is set above only
+ * where THREAD_LS_T is a real storage class. */
+#if defined(ERROR_QUEUE_PER_THREAD) && !defined(SINGLE_THREADED) && \
+    !defined(WC_THREAD_LS_T_IS_REAL)
+    #undef ERROR_QUEUE_PER_THREAD
 #endif
 
 #ifndef FALL_THROUGH
@@ -857,7 +920,7 @@ enum {
                 wolfSSL_Malloc((s), (h), (t), __func__, __LINE__)
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                 #define XFREE(p, h, t)   \
-                    wolfSSL_Free(xp, h, t, __func__, __LINE__)
+                    wolfSSL_Free((p), h, t, __func__, __LINE__)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t, __func__, __LINE__); } while (0)
@@ -867,7 +930,7 @@ enum {
         #else
             #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                #define XFREE(p, h, t)   wolfSSL_Free(xp, h, t)
+                #define XFREE(p, h, t)   wolfSSL_Free((p), h, t)
             #else
                 #define XFREE(p, h, t)   do { void* xp = (p); if (xp) \
                     wolfSSL_Free(xp, h, t); } while (0)
@@ -907,6 +970,11 @@ enum {
                 wolfSSL_Realloc((p), (n)))
         #endif /* WOLFSSL_DEBUG_MEMORY */
     #endif /* WOLFSSL_STATIC_MEMORY */
+#endif
+
+#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WC_NO_CONSTRUCTORS)
+    #define WC_NO_CONSTRUCTORS
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && defined(WC_NO_CONSTRUCTORS)
@@ -1110,7 +1178,7 @@ enum {
             #define XSTRCASECMP(s1,s2) _stricmp((s1),(s2))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
@@ -1144,7 +1212,7 @@ enum {
             #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
-                !defined(WOLFSSL_SGX)
+                !defined(WOLFSSL_SGX) && !defined(__UBOOT__)
                 #include <strings.h>
             #endif
             #if defined(WOLFSSL_DEOS)
@@ -1275,7 +1343,6 @@ binding for XSNPRINTF
             #define XSTRTOK(s1,d,ptr) strtok_r((s1),(d),(ptr))
         #endif
     #endif
-
     #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_OCSP) || \
         defined(HAVE_CRL_IO) || defined(HAVE_HTTP_CLIENT) || \
         !defined(NO_CRYPT_BENCHMARK) || defined(OPENSSL_EXTRA)
@@ -1286,6 +1353,32 @@ binding for XSNPRINTF
         #endif
     #endif
 #endif /* STRING_USER */
+
+/* The STRING_USER platform templates override the string and memory macros
+ * but not XATOI, which the certificate policy OID parser and the benchmark
+ * need. Same features as the case above, so a platform that set STRING_USER
+ * to keep the standard library out only reaches <stdlib.h> through one that
+ * cannot work without XATOI, and one that supplies its own still wins. */
+#if defined(STRING_USER) && !defined(XATOI) && \
+    (defined(WOLFSSL_CERT_EXT) || defined(HAVE_OCSP) || \
+     defined(HAVE_CRL_IO) || defined(HAVE_HTTP_CLIENT) || \
+     !defined(NO_CRYPT_BENCHMARK) || defined(OPENSSL_EXTRA))
+    #include <stdlib.h>
+    #define XATOI(s)          atoi((s))
+#endif
+
+#ifdef WOLFSSL_WIDE_BYTE
+/* Packed octet stream -> one octet per byte cell.  All sizes are in byte cells;
+ * out needs octetSz, in needs WC_PACKED_CELLS(octetSz), and they must not
+ * overlap.  Returns 0, BAD_FUNC_ARG on NULL, BUFFER_E when either buffer is
+ * short.  Declared only where a cell is wider than an octet; elsewhere the two
+ * layouts are identical and there is nothing to convert. */
+WOLFSSL_API int wc_UnpackOctets(byte* out, word32 outSz, const byte* in,
+    word32 inSz, word32 octetSz);
+/* Inverse: out needs WC_PACKED_CELLS(octetSz), in needs octetSz. */
+WOLFSSL_API int wc_PackOctets(byte* out, word32 outSz, const byte* in,
+    word32 inSz, word32 octetSz);
+#endif /* WOLFSSL_WIDE_BYTE */
 
 #ifdef USE_WOLF_STRTOK
     WOLFSSL_API char* wc_strtok(char *str, const char *delim, char **nextp);
@@ -1360,6 +1453,10 @@ binding for XSNPRINTF
     #else
         #define WC_OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
     #endif
+#endif
+
+#ifndef WC_SIZEOFMEMBER
+    #define WC_SIZEOFMEMBER(type, field) sizeof(((type *)0)->field)
 #endif
 
 
@@ -1527,7 +1624,9 @@ enum wc_AlgoType {
     /* async: re-enter a crypto callback device to poll a pending operation so
      * it can complete the work and fill the output buffer (QAT-style). */
     WC_ALGO_TYPE_ASYNC_POLL = 15,
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_ASYNC_POLL
+    /* hardware key store lifecycle: import, export, derive, delete, query */
+    WC_ALGO_TYPE_KEYSTORE = 16,
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_KEYSTORE
 };
 
 /* KDF types */
@@ -1536,8 +1635,9 @@ enum wc_KdfType {
     WC_KDF_TYPE_HKDF = 1,
     WC_KDF_TYPE_TWOSTEP_CMAC = 2, /* NIST SP 800-56C two-step cmac kdf. */
     WC_KDF_TYPE_HKDF_EXTRACT = 3,
-    WC_KDF_TYPE_HKDF_EXPAND = 4
-    /* Future: WC_KDF_TYPE_PBKDF2 = 5, WC_KDF_TYPE_SCRYPT = 6, etc. */
+    WC_KDF_TYPE_HKDF_EXPAND = 4,
+    WC_KDF_TYPE_PBKDF2 = 5
+    /* Future: WC_KDF_TYPE_SCRYPT = 6, etc. */
 };
 
 /* hash types */
@@ -1630,8 +1730,19 @@ enum wc_CipherType {
     WC_CIPHER_DES3 = 7,
     WC_CIPHER_DES = 8,
     WC_CIPHER_CHACHA = 9,
+    #define _WC_CIPHER_MAX WC_CIPHER_AES_KEYWRAP
+#ifdef WOLFSSL_SM4
+    WC_CIPHER_SM4_ECB = 16,
+    WC_CIPHER_SM4_CBC = 17,
+    WC_CIPHER_SM4_CTR = 18,
+    WC_CIPHER_SM4_GCM = 19,
+    WC_CIPHER_SM4_CCM = 20,
+    WC_CIPHER_SM4 = 21,
+    #undef _WC_CIPHER_MAX
+    #define _WC_CIPHER_MAX WC_CIPHER_SM4
+#endif
 
-    WC_CIPHER_MAX = WC_CIPHER_AES_CCM
+    WC_CIPHER_MAX = _WC_CIPHER_MAX
 };
 
 /* PK=public key (asymmetric) based algorithms */
@@ -1709,6 +1820,31 @@ enum wc_PkType {
     WC_PK_TYPE_CURVE448_GENERIC  = 46,
     #undef _WC_PK_TYPE_MAX
     #define _WC_PK_TYPE_MAX WC_PK_TYPE_CURVE448_GENERIC
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(HAVE_FALCON) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+    /* Internal interface: the caller supplies the already built message
+     * representative rather than message and context. */
+    WC_PK_TYPE_PQC_SIG_SIGN_MSG   = 47,
+    WC_PK_TYPE_PQC_SIG_VERIFY_MSG = 48,
+    /* Seeded key generation. Its own type so a device that cannot derive
+     * from a seed declines instead of generating an unrelated key. */
+    WC_PK_TYPE_PQC_SIG_KEYGEN_SEED = 49,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_KEYGEN_SEED
+#endif
+#ifdef WOLFSSL_SM2
+    WC_PK_TYPE_SM2_SIGN          = 50,
+    WC_PK_TYPE_SM2_VERIFY        = 51,
+    WC_PK_TYPE_SM2_SHARED_SECRET = 52,
+    WC_PK_TYPE_SM2_CREATE_DIGEST = 53,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_SM2_CREATE_DIGEST
+#endif
+    WC_PK_TYPE_ED448_MAKE_PUB  = 54,
+    WC_PK_TYPE_ED448_CHECK_KEY = 55,
+    WC_PK_TYPE_ED448_KEYGEN    = 56,
+    #undef _WC_PK_TYPE_MAX
+    #define _WC_PK_TYPE_MAX WC_PK_TYPE_ED448_KEYGEN
     WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
 };
 
@@ -1831,6 +1967,10 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define XASM_LINK(f) /* null expansion */
 #elif defined(__APPLE__)
     #define XASM_LINK(f) asm("_" f)
+#elif defined(__GNUC__) && defined(__i386__)
+    /* The 32-bit asm reads its arguments from the stack, but i386 kernels
+     * compile C with -mregparm=3 (linux arch/x86/Makefile). */
+    #define XASM_LINK(f) __asm__(f) __attribute__((regparm(0)))
 #elif defined(__GNUC__)
     /* use alternate keyword for compatibility with -std=c99 */
     #define XASM_LINK(f) __asm__(f)
@@ -1918,16 +2058,43 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define ALIGN256 WOLFSSL_ALIGN(256)
 #endif
 
+#ifndef WC_ALIGNOF
+    #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+        #define WC_ALIGNOF(T) _Alignof(T)
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define WC_ALIGNOF(T) __alignof__(T)
+    #elif defined(_MSC_VER)
+        #define WC_ALIGNOF(T) __alignof(T)
+    #endif
+#endif
+
+#ifndef WC_IS_ALIGNED
+    #define WC_IS_ALIGNED(p, a) \
+        ((((wc_ptr_t)(p)) & ((wc_ptr_t)(a) - 1)) == 0)
+#endif
+
+/* Capped at 16, the alignment malloc() guarantees on x86_64. */
+#if defined(WC_ALIGNOF) && (defined(__x86_64__) || defined(_M_X64)) && \
+    !defined(WOLFSSL_KERNEL_MODE) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    (!defined(__STDC_HOSTED__) || (__STDC_HOSTED__ != 0)) && \
+    !defined(WC_NO_CTX_ALIGN_CHECK)
+    #define WC_CTX_IS_ALIGNED(p, T) \
+        WC_IS_ALIGNED(p, (WC_ALIGNOF(T) < 16) ? WC_ALIGNOF(T) : 16)
+#endif
+
 /* Define the unaligned type modifier across different compilers */
+#ifndef MAYBE_UNALIGNED
 #if defined(__GNUC__) || defined(__clang__)
     /* Works on GCC 2.0+ and all versions of Clang */
     #define MAYBE_UNALIGNED __attribute__((aligned(1)))
-#elif defined(_MSC_VER)
-    /* MSVC handles unaligned reads via hardware or __unaligned keyword */
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+    /* MSVC handles unaligned reads via hardware or __unaligned keyword on
+     * 64-bit targets */
     #define MAYBE_UNALIGNED __unaligned
 #else
     #define MAYBE_UNALIGNED
 #endif
+#endif /* !MAYBE_UNALIGNED */
 
 #if !defined(PEDANTIC_EXTENSION)
     #if defined(__GNUC__)
@@ -2044,6 +2211,8 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         k_thread_stack_t* threadStack;
     } THREAD_TYPE;
     #define WOLFSSL_THREAD
+    /* Heap hint for thread allocations. Set it before the first
+     * wolfSSL_NewThread call and do not change it afterwards. */
     extern void* wolfsslThreadHeapHint;
     /* Native Zephyr condition variable (k_condvar) built on a k_mutex; no
      * POSIX pthread layer required. Only reached when !SINGLE_THREADED, so
@@ -2137,6 +2306,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #undef THREAD_TYPE
     typedef uintptr_t     THREAD_TYPE;
     #define WOLFSSL_THREAD __stdcall
+#elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+    /* Same types as the generic branch below, but without __stdcall, which
+     * only MSVC-style compilers accept (e.g. a GCC build without
+     * WOLFSSL_MDK_ARM). */
+    typedef unsigned int  THREAD_RETURN;
+    typedef size_t        THREAD_TYPE;
+    #define WOLFSSL_THREAD
 #else
     typedef unsigned int  THREAD_RETURN;
     typedef size_t        THREAD_TYPE;
@@ -2256,7 +2432,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define __GNUC_PREREQ(maj, min) \
             ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
     #else
-        #define __GNUC_PREREQ(maj, min) (0) /* not GNUC */
+        #define __GNUC_PREREQ(maj, min) 0 /* not GNUC */
     #endif
 #endif
 
@@ -2264,6 +2440,20 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WC_NORETURN __attribute__((noreturn))
 #else
     #define WC_NORETURN
+#endif
+
+/* Skip clang's -fsanitize=function check in a function. Used where a
+ * function is called through a generic pointer type. */
+#ifndef WC_NO_SANITIZE_FUNCTION
+    #if defined(__clang__) && defined(__has_attribute)
+        #if __has_attribute(no_sanitize)
+            #define WC_NO_SANITIZE_FUNCTION \
+                __attribute__((no_sanitize("function")))
+        #endif
+    #endif
+#endif
+#ifndef WC_NO_SANITIZE_FUNCTION
+    #define WC_NO_SANITIZE_FUNCTION /* null expansion */
 #endif
 
 #ifdef __has_attribute
@@ -2314,7 +2504,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_GCC_DIAG_POP /* null expansion */
 #endif
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__ti__)
     #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
     #define PRAGMA_CLANG(str) _Pragma(str)
     #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
@@ -2331,7 +2521,10 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define PRAGMA_DIAG_PUSH /* null expansion */
 #endif
 #ifndef PRAGMA
+/* for ti, PRAGMA is defined in the mcu plus sdk... */
+# if !(defined(__ti__) && defined(TI_MCU_PLUS_SDK))
     #define PRAGMA(str) /* null expansion */
+# endif
 #endif
 #ifndef PRAGMA_DIAG_POP
     #define PRAGMA_DIAG_POP /* null expansion */
@@ -2339,6 +2532,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 #define WC_CPP_CAT4_(a, b, c, d) a ## b ## c ## d
 #define WC_CPP_CAT4(a, b, c, d) WC_CPP_CAT4_(a, b, c, d)
+/* Outside library and test builds, default wc_static_assert() to a no-op so
+ * that wolfSSL headers don't pull <assert.h> into applications.  Define
+ * WC_USE_STATIC_ASSERT to get live static asserts in application builds. */
+#if !defined(BUILDING_WOLFSSL) && !defined(WOLFSSL_VIS_FOR_TESTS) && \
+    !defined(WC_USE_STATIC_ASSERT) && !defined(WC_NO_STATIC_ASSERT)
+    #define WC_NO_STATIC_ASSERT
+#endif
 #if defined(WC_NO_STATIC_ASSERT)
     #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
     #define wc_static_assert2(expr, msg) wc_static_assert(expr)
@@ -2392,6 +2592,14 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
                 wc_static_assert2(__builtin_choose_expr(                \
                                   WC_IS_CONSTEXPR(expr), expr, 1), msg)
         #endif
+    #elif defined(WOLFSSL_BSDKM)
+        /* from CTASSERT(9), FreeBSD Kernel Developer's Manual:
+         * The CTASSERT() macro is deprecated and the C11 standard
+         * _Static_assert() should be used instead. */
+        #define wc_static_assert(expr) _Static_assert(expr, #expr)
+        #ifndef wc_static_assert2
+            #define wc_static_assert2(expr, msg) _Static_assert(expr, msg)
+        #endif
     #else
         #ifdef __COUNTER__
             #define wc_static_assert(expr)                          \
@@ -2444,6 +2652,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #endif
 #ifndef WC_SIG_IGNORE_END
     #define WC_SIG_IGNORE_END() 0
+#endif
+
+#ifndef WC_CAN_BLOCK
+    #define WC_CAN_BLOCK() 1
+#endif
+#ifndef WC_CAN_LONG_LOOP
+    #define WC_CAN_LONG_LOOP() 1
 #endif
 
 #ifndef RESTORE_NO_VECTOR_REGISTERS

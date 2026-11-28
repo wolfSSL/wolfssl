@@ -19,12 +19,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*!
+    \file wolfssl/wolfcrypt/wolfentropy.h
+*/
+
 #ifndef WOLFENTROPY_H
 #define WOLFENTROPY_H
 
 #include <wolfssl/wolfcrypt/types.h>
 
 #ifdef HAVE_ENTROPY_MEMUSE
+
+#include <wolfssl/wolfcrypt/entropy-timers.h>
 
 #if defined(ENTROPY_SCALE_FACTOR) && FIPS_VERSION3_GE(5,2,4) && \
     FIPS_VERSION3_NE(6,0,0)
@@ -43,9 +49,9 @@
     /* Full strength, conditioned entropy is requested of MemUse Entropy. */
     #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
         (HAVE_FIPS_VERSION >= 2)
-        #define ENTROPY_SCALE_FACTOR (4)
+        #define ENTROPY_SCALE_FACTOR 4
     #else
-        #define ENTROPY_SCALE_FACTOR (1)
+        #define ENTROPY_SCALE_FACTOR 1
     #endif
 #endif
 
@@ -63,6 +69,8 @@ WOLFSSL_API int wc_Entropy_OnDemandTest(void);
 
 WOLFSSL_LOCAL int Entropy_Init(void);
 WOLFSSL_LOCAL void Entropy_Final(void);
+
+WOLFSSL_API const char* wc_Entropy_GetVersion(void);
 
 #ifdef __cplusplus
     } /* extern "C" */

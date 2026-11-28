@@ -127,14 +127,14 @@ int test_wc_PKCS7_InitWithCert(void)
         XMEMSET(cert, 0, certSz);
         XMEMCPY(cert, client_cert_der_1024, sizeof_client_cert_der_1024);
     #else
-        unsigned char   cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char   cert[TWOK_BUF];
         XFILE           fp = XBADFILE;
         int             certSz;
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -288,15 +288,15 @@ int test_wc_PKCS7_InitWithCert_guardrails(void)
         XMEMSET(cert, 0, sizeof(cert));
         XMEMCPY(cert, client_cert_der_1024, sizeof_client_cert_der_1024);
     #else
-        byte cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        byte cert[TWOK_BUF];
         XFILE fp = XBADFILE;
         int tmpCertSz;
         word32 certSz = 0;
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(tmpCertSz = (int)XFREAD(cert, 1,
-            sizeof_client_cert_der_1024, fp), 0);
+        ExpectIntGT(tmpCertSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         certSz = (word32)tmpCertSz;
         if (fp != XBADFILE)
             XFCLOSE(fp);
@@ -368,7 +368,8 @@ int test_wc_PKCS7_EncodeData(void)
         XMEMCPY(cert, client_cert_der_1024, certSz);
         XMEMCPY(key, client_key_der_1024, keySz);
     #else
-        unsigned char cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char cert[TWOK_BUF];
         unsigned char key[ONEK_BUF];
         XFILE         fp = XBADFILE;
         int           certSz;
@@ -376,8 +377,7 @@ int test_wc_PKCS7_EncodeData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -385,8 +385,7 @@ int test_wc_PKCS7_EncodeData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -511,7 +510,8 @@ static int rsaSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
 #else
     {
         XFILE fp;
-        byte keyBuf[ONEK_BUF];
+        /* key file is larger than ONEK_BUF */
+        byte keyBuf[TWOK_BUF];
         int keySz;
 
         fp = XFOPEN("./certs/client-key.der", "rb");
@@ -713,7 +713,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof(sizeof_client_cert_der_1024)];
+        byte        cert[sizeof_client_cert_der_1024];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -721,7 +721,8 @@ int test_wc_PKCS7_EncodeSignedData(void)
         XMEMCPY(key, client_key_der_1024, keySz);
         XMEMCPY(cert, client_cert_der_1024, certSz);
     #else
-        unsigned char   cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char   cert[TWOK_BUF];
         unsigned char   key[ONEK_BUF];
         XFILE           fp = XBADFILE;
         int             certSz;
@@ -729,8 +730,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -738,8 +738,7 @@ int test_wc_PKCS7_EncodeSignedData(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -1078,7 +1077,8 @@ int test_wc_PKCS7_EncodeSignedData_SKID(void)
     XMEMCPY(key, client_key_der_1024, keySz);
     XMEMCPY(cert, client_cert_der_1024, certSz);
 #else
-    byte   cert[ONEK_BUF];
+    /* cert file is larger than ONEK_BUF */
+    byte   cert[TWOK_BUF];
     byte   key[ONEK_BUF];
     word32 certSz = 0;
     word32 keySz = 0;
@@ -1380,7 +1380,6 @@ int test_wc_PKCS7_VerifySignedData_ExplicitSKID(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_VerifySignedData_ExplicitSKID */
-
 
 
 /*
@@ -1813,7 +1812,7 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof(sizeof_client_cert_der_1024)];
+        byte        cert[sizeof_client_cert_der_1024];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -1821,16 +1820,16 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
         XMEMCPY(key, client_key_der_1024, keySz);
         XMEMCPY(cert, client_cert_der_1024, certSz);
     #else
-        unsigned char  cert[ONEK_BUF];
+        /* cert file is larger than ONEK_BUF */
+        unsigned char  cert[TWOK_BUF];
         unsigned char  key[ONEK_BUF];
         XFILE          fp = XBADFILE;
         int            certSz;
         int            keySz;
 
-        ExpectTure((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
-            fp), 0);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof(cert), fp), 0);
         if (fp != XBADFILE) {
             XFCLOSE(fp);
             fp = XBADFILE;
@@ -1838,8 +1837,7 @@ int test_wc_PKCS7_EncodeSignedData_ex(void)
 
         ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
             XBADFILE);
-        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
-            0);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof(key), fp), 0);
         if (fp != XBADFILE)
             XFCLOSE(fp);
     #endif
@@ -3308,6 +3306,71 @@ int test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen(void)
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_DecodeEnvelopedData_forgedRecipientSetLen() */
 
+/*
+ * Test with malformed input made from a valid EnvelopedData by changing the
+ * keyEncryptionAlgorithm NULL parameters (05 00) into an empty OCTET STRING
+ * (04 00).
+ */
+int test_wc_PKCS7_DecodeEnvelopedData_KTRI_emptyEncryptedKey(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    static const byte rsaEncOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x01, 0x01
+    };
+    PKCS7* pkcs7 = NULL;
+    byte   data[] = "hello";
+    byte   encrypted[FOURK_BUF];
+    byte   decoded[FOURK_BUF];
+    int    encryptedSz = 0;
+    int    found = 0;
+    int    i;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+    }
+    ExpectIntGT(encryptedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7,
+        encrypted, (word32)sizeof(encrypted)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Turn the rsaEncryption NULL parameters into an empty OCTET STRING. */
+    for (i = 0; i + (int)sizeof(rsaEncOid) + 2 <= encryptedSz; i++) {
+        if (XMEMCMP(&encrypted[i], rsaEncOid, sizeof(rsaEncOid)) == 0) {
+            int p = i + (int)sizeof(rsaEncOid);
+            if (encrypted[p] == 0x05 && encrypted[p + 1] == 0x00) {
+                encrypted[p] = 0x04;
+                found = 1;
+            }
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, encrypted,
+        (word32)encryptedSz, decoded, (word32)sizeof(decoded)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_KTRI_emptyEncryptedKey() */
+
 
 #if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
     defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
@@ -3766,17 +3829,797 @@ int test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet(void)
 } /* END test_wc_PKCS7_DecodeEnvelopedData_constructedDefiniteOctet() */
 
 
-/* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag
- * is truncated must return BUFFER_E rather than reading past pkiMsg. */
+/* RFC 5652 6.1 sets the EnvelopedData version from every RecipientInfo in the
+ * set, so a KTRI reader must open a message that also carries a PWRI. */
+int test_wc_PKCS7_DecodeEnvelopedData_version(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_PWDBASED) && !defined(NO_SHA)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[FOURK_BUF];
+    byte   decoded[FOURK_BUF];
+    byte   data[] = "EnvelopedData version test";
+#ifndef HAVE_FIPS
+    byte   password[] = "password";
+#else
+    byte   password[] = "passwordFIPS_MODE";
+#endif
+    byte   salt[] = { 0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12 };
+    int    envelopedSz = 0;
+    word32 idx = 0;
+    word32 len = 0;
+    word32 lenValOff = 0;
+    word32 lenValWidth = 0;
+    byte   tag = 0;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+    }
+    ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, client_cert_der_2048,
+        sizeof_client_cert_der_2048, 0), 0);
+    ExpectIntGT(wc_PKCS7_AddRecipient_PWRI(pkcs7, password,
+        (word32)XSTRLEN((char*)password), salt, (word32)sizeof(salt),
+        PBKDF2_OID, WC_SHA, 5, AES256CBCb, 0), 0);
+    ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
+        (word32)sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* ContentInfo, contentType, [0], EnvelopedData, then the version */
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    idx += len;
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(pkcs7_der_readHdr(enveloped, (word32)envelopedSz, &idx, &tag,
+        &len, &lenValOff, &lenValWidth), 0);
+    ExpectIntEQ(tag, ASN_INTEGER);
+    ExpectIntEQ(len, 1);
+    ExpectIntEQ(enveloped[idx], 3);
+
+    ExpectIntEQ(pkcs7_decodeWrapped(enveloped, (word32)envelopedSz, decoded,
+        (word32)sizeof(decoded)), (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+
+    if (EXPECT_SUCCESS()) {
+        enveloped[idx] = 4;
+    }
+    ExpectIntEQ(pkcs7_decodeWrapped(enveloped, (word32)envelopedSz, decoded,
+        (word32)sizeof(decoded)), (int)sizeof(data));
+
+    /* 1 is not a CMSVersion EnvelopedData can carry */
+    if (EXPECT_SUCCESS()) {
+        enveloped[idx] = 1;
+    }
+    ExpectIntEQ(pkcs7_decodeWrapped(enveloped, (word32)envelopedSz, decoded,
+        (word32)sizeof(decoded)), WC_NO_ERR_TRACE(ASN_VERSION_E));
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_version() */
+
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+/* Re-encode (Auth)EnvelopedData as openssl -stream does: indefinite lengths,
+ * encryptedContent in fragSz-byte pieces less trim bytes. 0 on success */
+static int pkcs7_berFragment(const byte* in, word32 inSz, byte* out,
+        word32 outCap, word32* outSz, word32 fragSz, word32 trim)
+{
+    word32 idx = 0;
+    word32 o = 0;
+    word32 len = 0;
+    word32 lenValOff = 0;
+    word32 lenValWidth = 0;
+    word32 oidStart, oidEnd, headEnd, eciStart, algEnd, envEnd, ctStart, ctSz;
+    word32 n;
+    byte   tag = 0;
+
+    if (fragSz == 0 ||
+            pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+                &lenValWidth) != 0 || tag != (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+        return -1;
+    }
+    oidStart = idx;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0 || tag != ASN_OBJECT_ID) {
+        return -1;
+    }
+    idx += len;
+    oidEnd = idx;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0 ||
+            pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    envEnd = idx + len;
+    headEnd = idx;
+    /* version and RecipientInfos */
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    idx += len;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    idx += len;
+    /* EncryptedContentInfo: contentType and contentEncryptionAlgorithm */
+    eciStart = idx;
+    if (pkcs7_der_readHdr(in, inSz, &idx, &tag, &len, &lenValOff,
+            &lenValWidth) != 0 || tag != (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+        return -1;
+    }
+    algEnd = idx;
+    if (pkcs7_der_readHdr(in, inSz, &algEnd, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    algEnd += len;
+    if (pkcs7_der_readHdr(in, inSz, &algEnd, &tag, &len, &lenValOff,
+            &lenValWidth) != 0) {
+        return -1;
+    }
+    algEnd += len;
+    ctStart = algEnd;
+    if (pkcs7_der_readHdr(in, inSz, &ctStart, &tag, &ctSz, &lenValOff,
+            &lenValWidth) != 0 || tag != (ASN_CONTEXT_SPECIFIC | 0) ||
+            trim > ctSz || envEnd > inSz) {
+        return -1;
+    }
+    if (inSz + 32 + (ctSz / fragSz + 1) * 6 > outCap) {
+        return -1;
+    }
+
+    out[o++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    out[o++] = ASN_INDEF_LENGTH;
+    XMEMCPY(out + o, in + oidStart, oidEnd - oidStart);
+    o += oidEnd - oidStart;
+    out[o++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0;
+    out[o++] = ASN_INDEF_LENGTH;
+    out[o++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    out[o++] = ASN_INDEF_LENGTH;
+    XMEMCPY(out + o, in + headEnd, eciStart - headEnd);
+    o += eciStart - headEnd;
+    out[o++] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    out[o++] = ASN_INDEF_LENGTH;
+    XMEMCPY(out + o, in + idx, algEnd - idx);
+    o += algEnd - idx;
+    out[o++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0;
+    out[o++] = ASN_INDEF_LENGTH;
+    for (idx = 0; idx < ctSz - trim; idx += n) {
+        n = ctSz - trim - idx;
+        if (n > fragSz) {
+            n = fragSz;
+        }
+        out[o++] = ASN_OCTET_STRING;
+        o += pkcs7_derWriteLen(out + o, n);
+        XMEMCPY(out + o, in + ctStart + idx, n);
+        o += n;
+    }
+    XMEMSET(out + o, 0, 4);
+    o += 4;
+    /* authAttrs, mac and unauthAttrs of an AuthEnvelopedData */
+    idx = ctStart + ctSz;
+    XMEMCPY(out + o, in + idx, envEnd - idx);
+    o += envEnd - idx;
+    XMEMSET(out + o, 0, 6);
+    o += 6;
+
+    *outSz = o;
+    return 0;
+}
+
+#ifdef ASN_BER_TO_DER
+/* Feed msg to a fresh decoder chunk bytes at a time, reporting in fed how
+ * much went in. With cbCtx the plaintext goes to the stream callback. */
+static int pkcs7_decodeFeed(const byte* msg, word32 msgSz, word32 chunk,
+        int auth, byte* out, word32 outSz, void* cbCtx, word32* fed)
+{
+    PKCS7* pkcs7;
+    word32 off = 0;
+    word32 n;
+    int    ret;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL) {
+        return MEMORY_E;
+    }
+    ret = wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048);
+    if (ret == 0) {
+        ret = wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+            sizeof_client_key_der_2048);
+    }
+#ifndef NO_PKCS7_STREAM
+    if (ret == 0 && cbCtx != NULL) {
+        ret = wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+            test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb, cbCtx);
+        out = NULL;
+        outSz = 0;
+    }
+#else
+    (void)cbCtx;
+#endif
+    if (ret == 0) {
+        ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+    }
+    while (off < msgSz && ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+        n = (msgSz - off < chunk) ? msgSz - off : chunk;
+        if (auth) {
+            ret = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, (byte*)msg + off, n,
+                out, outSz);
+        }
+        else {
+            ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, (byte*)msg + off, n,
+                out, outSz);
+        }
+        off += n;
+    }
+    wc_PKCS7_Free(pkcs7);
+    if (fed != NULL) {
+        *fed = off;
+    }
+    return ret;
+}
+
+static int pkcs7_decodeChunked(const byte* msg, word32 msgSz, word32 chunk,
+        int auth, byte* out, word32 outSz, void* cbCtx)
+{
+    return pkcs7_decodeFeed(msg, msgSz, chunk, auth, out, outSz, cbCtx, NULL);
+}
+
+#ifndef NO_PKCS7_STREAM
+/* stream output callback that refuses its second fragment */
+static int pkcs7_failingStreamOutCb(wc_PKCS7* pkcs7, const byte* output,
+    word32 outputSz, void* ctx)
+{
+    int* calls = (int*)ctx;
+
+    (void)pkcs7;
+    (void)output;
+    (void)outputSz;
+    return (++(*calls) >= 2) ? -1 : 0;
+}
+#endif
+#endif /* ASN_BER_TO_DER */
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 */
+
+/* Indefinite-length EnvelopedData whose encryptedContent is split into several
+ * OCTET STRINGs, of sizes that need not be whole cipher blocks. */
+int test_wc_PKCS7_DecodeEnvelopedData_fragmented(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[FOURK_BUF];
+    byte   ber[FOURK_BUF];
+    byte   decoded[FOURK_BUF];
+    byte   data[200];
+    word32 fragSz[] = { 16, 7, 1, 33, 4096 };
+    int    envelopedSz = 0;
+    word32 berSz = 0;
+    size_t i;
+#if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
+    word32 chunkSz[] = { 1, 13 };
+    size_t j;
+    WOLFSSL_BUFFER_INFO cbOut;
+    int    cbCalls = 0;
+    word32 fed = 0;
+#endif
+
+    for (i = 0; i < sizeof(data); i++) {
+        data[i] = (byte)i;
+    }
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+    }
+    ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
+        (word32)sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    for (i = 0; i < sizeof(fragSz) / sizeof(fragSz[0]); i++) {
+        ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+            (word32)sizeof(ber), &berSz, fragSz[i], 0), 0);
+    #ifndef ASN_BER_TO_DER
+        ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+            (word32)sizeof(decoded)), WC_NO_ERR_TRACE(BER_INDEF_E));
+    #else
+        /* stale bytes in the caller's buffer must not pass for plaintext */
+        XMEMSET(decoded, 0xAA, sizeof(decoded));
+        ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz, 0, decoded,
+            (word32)sizeof(decoded), NULL), (int)sizeof(data));
+        ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+
+        ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+            (word32)sizeof(data) - 1), WC_NO_ERR_TRACE(BUFFER_E));
+
+    #ifndef NO_PKCS7_STREAM
+        for (j = 0; j < sizeof(chunkSz) / sizeof(chunkSz[0]); j++) {
+            XMEMSET(decoded, 0xAA, sizeof(decoded));
+            ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, chunkSz[j], 0,
+                decoded, (word32)sizeof(decoded), NULL), (int)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+
+            cbOut.buffer = decoded;
+            cbOut.length = 0;
+            ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, chunkSz[j], 0, NULL,
+                0, &cbOut), (int)sizeof(data));
+            ExpectIntEQ(cbOut.length, (word32)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+        }
+        /* first call ends right after the last fragment, before its EOC */
+        XMEMSET(decoded, 0xAA, sizeof(decoded));
+        ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz - 10, 0, decoded,
+            (word32)sizeof(decoded), NULL), (int)sizeof(data));
+        ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+    #endif
+    #endif /* ASN_BER_TO_DER */
+    }
+
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* a callback that fails part way must fail the decode */
+    ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+        (word32)sizeof(ber), &berSz, 16, 0), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+        sizeof_client_key_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+        pkcs7_failingStreamOutCb, &cbCalls), 0);
+    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, ber, berSz, NULL, 0),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(cbCalls, 2);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* too small an output stops the decode once the content outgrows it */
+    ExpectIntEQ(pkcs7_decodeFeed(ber, berSz, 13, 0, decoded, 16, NULL, &fed),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntLT(fed, berSz - 64);
+#endif
+
+#ifdef ASN_BER_TO_DER
+    /* a ciphertext that stops short of a whole block */
+    ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+        (word32)sizeof(ber), &berSz, 7, 1), 0);
+    ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+        (word32)sizeof(decoded)), WC_NO_ERR_TRACE(BUFFER_E));
+#endif
+#if defined(ASN_BER_TO_DER) && !defined(NO_DES3)
+    /* short enough to end before the worst-case EncryptedContentInfo header
+     * that an indefinite length is sized by */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = 1;
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = DES3b;
+    }
+    ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
+        (word32)sizeof(enveloped)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+        (word32)sizeof(ber), &berSz, 16, 0), 0);
+    XMEMSET(decoded, 0xAA, sizeof(decoded));
+    ExpectIntEQ(pkcs7_decodeWrapped(ber, berSz, decoded,
+        (word32)sizeof(decoded)), 1);
+    ExpectIntEQ(decoded[0], data[0]);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_fragmented() */
+
+
+/* Indefinite-length AuthEnvelopedData with fragmented encryptedContent, with
+ * and without authenticated attributes after it. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_fragmented(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(ASN_BER_TO_DER)
+    PKCS7*      pkcs7 = NULL;
+    byte        enveloped[FOURK_BUF];
+    byte        ber[FOURK_BUF];
+    byte        decoded[FOURK_BUF];
+    byte        data[200];
+    word32      fragSz[] = { 16, 7, 1, 33, 4096 };
+    int         envelopedSz = 0;
+    word32      berSz = 0;
+    int         withAttr;
+    size_t      i;
+#ifndef NO_PKCS7_STREAM
+    word32      chunkSz[] = { 1, 13 };
+    size_t      j;
+    word32      fed = 0;
+#endif
+    PKCS7Attrib attrib;
+    static const byte oid[]   = { 0x06, 0x03, 0x55, 0x04, 0x03 };
+    static const byte value[] = { 0x04, 0x01, 0x00 };
+
+    XMEMSET(&attrib, 0, sizeof(attrib));
+    attrib.oid     = oid;
+    attrib.oidSz   = (word32)sizeof(oid);
+    attrib.value   = value;
+    attrib.valueSz = (word32)sizeof(value);
+    for (i = 0; i < sizeof(data); i++) {
+        data[i] = (byte)i;
+    }
+
+    for (withAttr = 0; withAttr < 2; withAttr++) {
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content    = data;
+            pkcs7->contentSz  = (word32)sizeof(data);
+            pkcs7->contentOID = DATA;
+            pkcs7->encryptOID = AES256GCMb;
+            if (withAttr) {
+                pkcs7->authAttribs   = &attrib;
+                pkcs7->authAttribsSz = 1;
+            }
+        }
+        ExpectIntGT(envelopedSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
+            enveloped, (word32)sizeof(enveloped)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        for (i = 0; i < sizeof(fragSz) / sizeof(fragSz[0]); i++) {
+            ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+                (word32)sizeof(ber), &berSz, fragSz[i], 0), 0);
+
+            XMEMSET(decoded, 0xAA, sizeof(decoded));
+            ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz, 1, decoded,
+                (word32)sizeof(decoded), NULL), (int)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+        #ifndef NO_PKCS7_STREAM
+            for (j = 0; j < sizeof(chunkSz) / sizeof(chunkSz[0]); j++) {
+                XMEMSET(decoded, 0xAA, sizeof(decoded));
+                ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, chunkSz[j], 1,
+                    decoded, (word32)sizeof(decoded), NULL),
+                    (int)sizeof(data));
+                ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+            }
+        #endif
+
+            /* the tag sits just before the three closing end-of-contents */
+            if (EXPECT_SUCCESS()) {
+                ber[berSz - 7] ^= 0x01;
+            }
+            ExpectIntLT(pkcs7_decodeChunked(ber, berSz, berSz, 1, decoded,
+                (word32)sizeof(decoded), NULL), 0);
+        }
+
+        /* an indefinite [0] with no content at all */
+        ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+            (word32)sizeof(ber), &berSz, 16, (word32)sizeof(data)), 0);
+        ExpectIntEQ(pkcs7_decodeChunked(ber, berSz, berSz, 1, decoded,
+            (word32)sizeof(decoded), NULL), WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    #ifndef NO_PKCS7_STREAM
+        /* too small an output stops the join once the content outgrows it */
+        ExpectIntEQ(pkcs7_berFragment(enveloped, (word32)envelopedSz, ber,
+            (word32)sizeof(ber), &berSz, 16, 0), 0);
+        ExpectIntEQ(pkcs7_decodeFeed(ber, berSz, 13, 1, decoded, 16, NULL,
+            &fed), WC_NO_ERR_TRACE(BUFFER_E));
+        ExpectIntLT(fed, berSz - 64);
+    #endif
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_fragmented() */
+
+
+/* Messages written by openssl cms -encrypt -stream, see certs/renewcerts.sh */
+int test_wc_PKCS7_DecodeOpenSslStream(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_FILESYSTEM) && defined(ASN_BER_TO_DER)
+    static const struct {
+        const char* file;
+        int         auth;
+    } vectors[] = {
+        { "./certs/test-stream-dec-aes256.p7b", 0 },
+    #ifdef HAVE_AESGCM
+        { "./certs/test-stream-dec-aes256gcm.p7b", 1 },
+    #endif
+    };
+    XFILE  f = XBADFILE;
+    byte*  msg = NULL;
+    byte*  expect = NULL;
+    byte*  decoded = NULL;
+    word32 msgSz = 0;
+    word32 expectSz = 0;
+    word32 bufSz = 8192;
+    size_t i;
+
+    ExpectNotNull(msg = (byte*)XMALLOC(bufSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(expect = (byte*)XMALLOC(bufSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(decoded = (byte*)XMALLOC(bufSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectTrue((f = XFOPEN("./certs/ca-cert.pem", "rb")) != XBADFILE);
+    if (EXPECT_SUCCESS()) {
+        expectSz = (word32)XFREAD(expect, 1, bufSz, f);
+    }
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectIntGT(expectSz, 0);
+
+    for (i = 0; i < sizeof(vectors) / sizeof(vectors[0]); i++) {
+        msgSz = 0;
+        ExpectTrue((f = XFOPEN(vectors[i].file, "rb")) != XBADFILE);
+        if (EXPECT_SUCCESS()) {
+            msgSz = (word32)XFREAD(msg, 1, bufSz, f);
+        }
+        if (f != XBADFILE) {
+            XFCLOSE(f);
+            f = XBADFILE;
+        }
+        ExpectIntGT(msgSz, 0);
+        ExpectIntLT(msgSz, bufSz);
+
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(decoded, 0xAA, bufSz);
+        }
+        ExpectIntEQ(pkcs7_decodeChunked(msg, msgSz, msgSz, vectors[i].auth,
+            decoded, bufSz, NULL), (int)expectSz);
+        ExpectIntEQ(XMEMCMP(decoded, expect, expectSz), 0);
+    #ifndef NO_PKCS7_STREAM
+        if (EXPECT_SUCCESS()) {
+            XMEMSET(decoded, 0xAA, bufSz);
+        }
+        ExpectIntEQ(pkcs7_decodeChunked(msg, msgSz, 100, vectors[i].auth,
+            decoded, bufSz, NULL), (int)expectSz);
+        ExpectIntEQ(XMEMCMP(decoded, expect, expectSz), 0);
+    #endif
+    }
+
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(expect, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decoded, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeOpenSslStream() */
+
+
+/* (Auth)EnvelopedData fed in two calls, so the second call can start inside
+ * the EncryptedContentInfo header. */
+int test_wc_PKCS7_DecodeEnvelopedData_split(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_PKCS7_STREAM)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[FOURK_BUF];
+    byte   decoded[64];
+    byte   data[20];
+    int    envelopedSz = 0;
+    int    ret = 0;
+    int    auth;
+    word32 first;
+    word32 split;
+    size_t i;
+
+    for (i = 0; i < sizeof(data); i++) {
+        data[i] = (byte)i;
+    }
+
+    for (auth = 0; auth < 2; auth++) {
+    #ifndef HAVE_AESGCM
+        if (auth)
+            break;
+    #endif
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content    = data;
+            pkcs7->contentSz  = (word32)sizeof(data);
+            pkcs7->contentOID = DATA;
+            pkcs7->encryptOID = AES256CBCb;
+        }
+    #ifdef HAVE_AESGCM
+        if (auth) {
+            if (pkcs7 != NULL) {
+                pkcs7->encryptOID = AES256GCMb;
+            }
+            ExpectIntGT(envelopedSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
+                enveloped, (word32)sizeof(enveloped)), 0);
+        }
+        else
+    #endif
+        {
+            ExpectIntGT(envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7,
+                enveloped, (word32)sizeof(enveloped)), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* the second call carries the last split bytes */
+        for (split = 1; split <= 128 && split < (word32)envelopedSz; split++) {
+            if (EXPECT_FAIL())
+                break;
+            first = (word32)envelopedSz - split;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7,
+                (byte*)client_cert_der_2048, sizeof_client_cert_der_2048), 0);
+            ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+                sizeof_client_key_der_2048), 0);
+            if (EXPECT_SUCCESS()) {
+                XMEMSET(decoded, 0xAA, sizeof(decoded));
+                ret = auth ? wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                                 enveloped, first, decoded, sizeof(decoded))
+                           : wc_PKCS7_DecodeEnvelopedData(pkcs7, enveloped,
+                                 first, decoded, sizeof(decoded));
+            }
+            if (EXPECT_SUCCESS() &&
+                    ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+                ret = auth ? wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                                 enveloped + first, split, decoded,
+                                 sizeof(decoded))
+                           : wc_PKCS7_DecodeEnvelopedData(pkcs7,
+                                 enveloped + first, split, decoded,
+                                 sizeof(decoded));
+            }
+            ExpectIntEQ(ret, (int)sizeof(data));
+            ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEnvelopedData_split() */
+
+
+/* Decoding an AuthEnvelopedData blob whose encryptedContent or authTag is
+ * truncated must reject it rather than reading past pkiMsg. */
 int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
-    !defined(NO_AES) && defined(WOLFSSL_AES_128) && defined(NO_PKCS7_STREAM)
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
     PKCS7* pkcs7 = NULL;
     byte   enveloped[2048];
     byte   decoded[256];
     byte   data[] = "truncated authEnvelopedData test";
+    byte*  exact = NULL;
+    word32 inSz = 0;
+    int    encSz = 0;
+    int    i;
+    /* 32 stops inside encryptedContent, which starves the stream before the
+     * tag; 1, 5 and 11 cut into the 16 byte tag itself */
+    static const int truncBy[] = { 32, 1, 5, 11 };
+#ifdef NO_PKCS7_STREAM
+    int    truncErr = WC_NO_ERR_TRACE(BUFFER_E);
+#else
+    int    truncErr = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+#endif
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content    = data;
+        pkcs7->contentSz  = (word32)sizeof(data);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES128GCMb;
+    }
+    /* >32 so the truncations below can't underflow */
+    ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
+        sizeof(enveloped)), 32);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* the untruncated message still decodes */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
+        (word32)encSz, decoded, sizeof(decoded)), (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* exact sized copies, so that an over-read leaves the allocation */
+    for (i = 0; i < (int)(sizeof(truncBy) / sizeof(truncBy[0])); i++) {
+        inSz = (word32)(encSz - truncBy[i]);
+
+        ExpectNotNull(exact = (byte*)XMALLOC(inSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (exact != NULL) {
+            XMEMCPY(exact, enveloped, inSz);
+        }
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->privateKey   = (byte*)client_key_der_2048;
+            pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        }
+        ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, exact, inSz,
+            decoded, sizeof(decoded)), truncErr);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        XFREE(exact, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        exact = NULL;
+    }
+
+#ifndef NO_PKCS7_STREAM
+    /* a read boundary inside the tag must ask for the rest, then decode */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    }
+    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
+        (word32)encSz - 11, decoded, sizeof(decoded)),
+        WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+        enveloped + encSz - 11, 11, decoded, sizeof(decoded)),
+        (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
+#endif
+
+    wc_PKCS7_Free(pkcs7);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_truncated() */
+
+
+/* A failed AuthEnvelopedData decode leaves the object ready for the next
+ * operation. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_ReuseAfterError(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && \
+    defined(USE_CERT_BUFFERS_2048)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[2048];
+    byte   badTag[2048];
+    byte   decoded[256];
+    byte   data[] = "authEnvelopedData reuse test";
     int    encSz = 0;
 
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -3788,13 +4631,15 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
         pkcs7->contentOID = DATA;
         pkcs7->encryptOID = AES128GCMb;
     }
-    /* >32 so the encSz-32 / encSz-1 truncations below can't underflow */
     ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
-        sizeof(enveloped)), 32);
+        sizeof(enveloped)), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+    if (encSz > 0) {
+        XMEMCPY(badTag, enveloped, (size_t)encSz);
+        badTag[encSz - 1] ^= 0x01;
+    }
 
-    /* Truncate inside encryptedContent (encryptedContentSz check). */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
         sizeof_client_cert_der_2048), 0);
@@ -3802,13 +4647,234 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
         pkcs7->privateKey   = (byte*)client_key_der_2048;
         pkcs7->privateKeySz = sizeof_client_key_der_2048;
     }
+    ExpectIntLT(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, badTag,
+        (word32)encSz, decoded, sizeof(decoded)), 0);
+    /* Resuming at the tag stage after the stream was reset finds no saved
+     * nonce, tag or attributes. */
+    if (pkcs7 != NULL) {
+        pkcs7->state = WC_PKCS7_AUTHENV_6;
+    }
+    ExpectIntLT(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
+        (word32)encSz, decoded, sizeof(decoded)), 0);
     ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
-        (word32)encSz - 32, decoded, sizeof(decoded)),
-        WC_NO_ERR_TRACE(BUFFER_E));
+        (word32)encSz, decoded, sizeof(decoded)), (int)sizeof(data));
+    ExpectIntEQ(XMEMCMP(decoded, data, sizeof(data)), 0);
     wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_ReuseAfterError() */
 
-    /* Truncate one byte off the auth tag (authTagSz check). */
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_128) && (defined(HAVE_AESGCM) || defined(HAVE_AESCCM))
+/* Encode an AuthEnvelopedData bundle, then cut its tag down to tagSz bytes
+ * and fix up the stated tag size and the outer lengths. Returns the new size. */
+static int pkcs7_shortTagBundle(byte* out, word32 outSz, int encryptOID,
+    word32 tagSz, int contentOID)
+{
+    PKCS7* pkcs7 = NULL;
+    byte   data[] = "short authTag authEnvelopedData test";
+    int    encSz;
+    word32 cut;
+    word32 lenIdx[3];
+    word32 found = 0;
+    word32 i;
+    word32 n;
+    word32 len;
+
+    if (tagSz == 0 || tagSz > (word32)WC_AES_BLOCK_SIZE)
+        return -1;
+    cut = (word32)WC_AES_BLOCK_SIZE - tagSz;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return -1;
+    if (wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+    pkcs7->content    = data;
+    pkcs7->contentSz  = (word32)sizeof(data);
+    /* a contentOID other than DATA makes the encoder add authenticated
+     * attributes, which the decoder walks in its own state */
+    pkcs7->contentOID = contentOID;
+    pkcs7->encryptOID = encryptOID;
+    encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, out, outSz);
+    wc_PKCS7_Free(pkcs7);
+    if (encSz <= 32)
+        return -1;
+
+    /* Tag is last: 04 10 <16 bytes>. Keep only its first tagSz bytes. */
+    if (out[encSz - (WC_AES_BLOCK_SIZE + 2)] != ASN_OCTET_STRING ||
+            out[encSz - (WC_AES_BLOCK_SIZE + 1)] != WC_AES_BLOCK_SIZE)
+        return -1;
+    out[encSz - (WC_AES_BLOCK_SIZE + 1)] = (byte)tagSz;
+    encSz -= (int)cut;
+
+    /* Tag size field follows the nonce: 04 <n> <nonce> 02 01 10 */
+    for (i = 0; i + 20 < (word32)encSz; i++) {
+        n = out[i + 1];
+        /* 04 <n> <nonce> 02 01 10, then the encryptedContent [0] tag */
+        if (out[i] == 0x04 && n >= 7 && n <= 13 &&
+                out[i + n + 2] == 0x02 && out[i + n + 3] == 0x01 &&
+                out[i + n + 4] == 0x10 &&
+                (out[i + n + 5] == 0x80 || out[i + n + 5] == 0xA0)) {
+            out[i + n + 4] = (byte)tagSz;
+            found = 1;
+            break;
+        }
+    }
+    if (!found)
+        return -1;
+
+    /* Outer SEQUENCE, [0] and inner SEQUENCE lengths are 82 hi lo. */
+    lenIdx[0] = 1;
+    lenIdx[1] = 6 + (word32)out[5] + 1;
+    lenIdx[2] = lenIdx[1] + 4;
+    for (i = 0; i < 3; i++) {
+        if (out[lenIdx[i]] != 0x82)
+            return -1;
+        len = ((word32)out[lenIdx[i] + 1] << 8) | out[lenIdx[i] + 2];
+        len -= cut;
+        out[lenIdx[i] + 1] = (byte)(len >> 8);
+        out[lenIdx[i] + 2] = (byte)len;
+    }
+
+    return encSz;
+}
+
+/* Decode a bundle whose tag was cut short, expecting it to be refused. */
+static int pkcs7_decodeShortTag(byte* enveloped, int encSz)
+{
+    PKCS7* pkcs7 = NULL;
+    byte   decoded[256];
+    int    ret;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return -1;
+    if (wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048) != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+    pkcs7->privateKey   = (byte*)client_key_der_2048;
+    pkcs7->privateKeySz = sizeof_client_key_der_2048;
+    ret = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped, (word32)encSz,
+        decoded, sizeof(decoded));
+    wc_PKCS7_Free(pkcs7);
+
+    return ret;
+}
+#endif
+
+
+/* A GCM tag under 12 bytes must be refused, even when the build allows
+ * short tags for plain AES-GCM calls. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    byte enveloped[2048];
+    int  encSz = 0;
+
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 8, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(pkcs7_decodeShortTag(enveloped, encSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+/* These accept a truncated tag, which needs the in-tree AES-GCM. A v5, v6 or
+ * selftest build pins an older aes.c, so they are left out there. */
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && !defined(HAVE_SELFTEST)
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 12
+    /* a tag at the floor still decodes, a GCM tag being the leading bytes
+     * of the full one */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 12, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(pkcs7_decodeShortTag(enveloped, encSz), 0);
+    }
+#endif
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 13
+    /* SP 800-38D section 5.2.1.2 approves 104 bits, so an odd GCM ICV is
+     * allowed here where the CCM list has none */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 13, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntGT(pkcs7_decodeShortTag(enveloped, encSz), 0);
+    }
+#endif
+#endif /* in-tree AES-GCM */
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTag() */
+
+
+/* A CCM tag under 8 bytes must be refused, even when the build allows
+ * short tags for plain AES-CCM calls. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESCCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128)
+    byte enveloped[2048];
+    int  encSz = 0;
+
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128CCMb, 6, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(pkcs7_decodeShortTag(enveloped, encSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+/* Odd sizes are the only way to reach the parity rule, and RFC 5084 section
+ * 3.1 stops at 16, so 13 and 15 are the only candidates. */
+#if WOLFSSL_MIN_AUTH_TAG_SZ <= 13
+    #define PKCS7_TEST_CCM_ODD_SZ 13
+#elif WOLFSSL_MIN_AUTH_TAG_SZ <= 15
+    #define PKCS7_TEST_CCM_ODD_SZ 15
+#endif
+
+#ifdef PKCS7_TEST_CCM_ODD_SZ
+    /* RFC 5084 section 3.1 has no odd ICV size, so this is refused while
+     * parsing rather than later by the cipher */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128CCMb, PKCS7_TEST_CCM_ODD_SZ, DATA), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(pkcs7_decodeShortTag(enveloped, encSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagCcm() */
+
+
+/* Feeding the bundle in chunks makes the decoder come back in at the tag
+ * state, where it must still refuse a short tag. */
+int test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_AESGCM) && !defined(NO_RSA) && \
+    !defined(NO_AES) && defined(WOLFSSL_AES_128) && !defined(NO_PKCS7_STREAM)
+    PKCS7* pkcs7 = NULL;
+    byte   enveloped[2048];
+    byte   decoded[256];
+    int    encSz = 0;
+    int    ret = 0;
+    int    idx;
+    int    chunk = 1;
+
+    /* authenticated attributes plus one byte at a time make the decoder stop
+     * in its own state, so it comes back in at the tag state instead of
+     * falling through to it with the cipher still in hand */
+    ExpectIntGT(encSz = pkcs7_shortTagBundle(enveloped, sizeof(enveloped),
+        AES128GCMb, 8, FIRMWARE_PKG_DATA), 0);
+
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
         sizeof_client_cert_der_2048), 0);
@@ -3816,14 +4882,23 @@ int test_wc_PKCS7_DecodeAuthEnvelopedData_truncated(void)
         pkcs7->privateKey   = (byte*)client_key_der_2048;
         pkcs7->privateKeySz = sizeof_client_key_der_2048;
     }
-    ExpectIntEQ(wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
-        (word32)encSz - 1, decoded, sizeof(decoded)),
-        WC_NO_ERR_TRACE(BUFFER_E));
+
+    if (EXPECT_SUCCESS()) {
+        for (idx = 0; idx < encSz; idx += chunk) {
+            int sz = (encSz - idx < chunk) ? encSz - idx : chunk;
+
+            ret = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped + idx,
+                (word32)sz, decoded, sizeof(decoded));
+            if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                break;
+        }
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
 
     wc_PKCS7_Free(pkcs7);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_truncated() */
+} /* END test_wc_PKCS7_DecodeAuthEnvelopedData_shortTagChunked() */
 
 
 /* Tearing down a PKCS7 whose AuthEnvelopedData decode stopped part-way must
@@ -3997,7 +5072,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         serverRet = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, serverDecodedData,
             sizeof(serverDecodedData));
-    #if defined(NO_AES) || defined(NO_AES_256)
+    #if defined(NO_AES) || defined(NO_AES_256) || !defined(HAVE_AES_CBC)
         ExpectIntEQ(serverRet, ALGO_ID_E);
     #else
         ExpectIntGT(serverRet, 0);
@@ -4017,7 +5092,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
 
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
-    #if defined(NO_AES) || defined(NO_AES_256)
+    #if defined(NO_AES) || defined(NO_AES_256) || !defined(HAVE_AES_CBC)
         ExpectIntEQ(ret, ALGO_ID_E);
     #else
         ExpectIntGT(ret, 0);
@@ -4045,7 +5120,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         XMEMSET(decodedData, 0, sizeof(decodedData));
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
-    #if defined(NO_AES) || defined(NO_AES_256)
+    #if defined(NO_AES) || defined(NO_AES_256) || !defined(HAVE_AES_CBC)
         ExpectIntEQ(ret, ALGO_ID_E);
     #else
         ExpectTrue(ret < 0 || ret != serverRet ||
@@ -4443,34 +5518,32 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         pkcs7->singleCert = NULL;
     }
   #ifndef NO_RSA
-    /* With corrupted singleCert, decode should fail with a parse error.
-     * State is properly reset on error so re-decode starts from scratch. */
+    /* With singleCert cleared no KeyTransRecipientInfo can match, so the
+     * decode says so. Was ASN_PARSE_E before the search was bounded by the
+     * RecipientInfo set. State resets, so re-decode starts from scratch. */
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        WC_NO_ERR_TRACE(ASN_PARSE_E));
+        WC_NO_ERR_TRACE(PKCS7_RECIP_E));
   #endif /* !NO_RSA */
     if (pkcs7 != NULL) {
         pkcs7->singleCert = tmpBytePtr;
     }
 #endif
 #ifdef HAVE_AES_KEYWRAP
-    if (pkcs7 != NULL) {
+    /* output only holds an encoding if a test vector was compiled in. */
+    if (pkcs7 != NULL && testSz > 0) {
         tempWrd32 = pkcs7->privateKeySz;
         pkcs7->privateKeySz = 0;
-    }
-    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    if (pkcs7 != NULL) {
+        ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+            (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         pkcs7->privateKeySz = tempWrd32;
 
         tmpBytePtr = pkcs7->privateKey;
         pkcs7->privateKey = NULL;
-    }
-    ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    if (pkcs7 != NULL) {
+        ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+            (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         pkcs7->privateKey = tmpBytePtr;
     }
 #endif
@@ -4564,9 +5637,123 @@ int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_EncodeDecodeEnvelopedData() */
 
+/*
+ * The BER streaming encoder encrypts the content one 4096-byte octet chunk at a
+ * time into a working buffer, and the final chunk additionally carries the
+ * block cipher pad. Content that is an exact multiple of the chunk length makes
+ * that last chunk the largest one the buffer has to hold. Round-trip such sizes.
+ */
+int test_wc_PKCS7_stream_encode_chunk_boundary(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* multiples of the encoder's private BER_OCTET_LENGTH (4096) */
+    static const word32 contentSizes[] = { 4096, 8192 };
+    word32 i;
+    #if defined(USE_CERT_BUFFERS_2048)
+        byte   cert[sizeof(client_cert_der_2048)];
+        byte   key[sizeof(client_key_der_2048)];
+        word32 certSz = (word32)sizeof(cert);
+        word32 keySz  = (word32)sizeof(key);
+
+        XMEMCPY(cert, client_cert_der_2048, certSz);
+        XMEMCPY(key, client_key_der_2048, keySz);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        byte   cert[sizeof(client_cert_der_1024)];
+        byte   key[sizeof(client_key_der_1024)];
+        word32 certSz = (word32)sizeof(cert);
+        word32 keySz  = (word32)sizeof(key);
+
+        XMEMCPY(cert, client_cert_der_1024, certSz);
+        XMEMCPY(key, client_key_der_1024, keySz);
+    #else
+        /* cert file is larger than ONEK_BUF */
+        byte   cert[TWOK_BUF];
+        byte   key[ONEK_BUF];
+        word32 certSz = 0;
+        word32 keySz  = 0;
+        XFILE  fp = XBADFILE;
+
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(certSz = (word32)XFREAD(cert, 1, sizeof(cert), fp), 0);
+        if (fp != XBADFILE) {
+            XFCLOSE(fp);
+            fp = XBADFILE;
+        }
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(keySz = (word32)XFREAD(key, 1, sizeof(key), fp), 0);
+        if (fp != XBADFILE)
+            XFCLOSE(fp);
+    #endif
+
+    for (i = 0; i < (word32)XELEM_CNT(contentSizes); i++) {
+        PKCS7* pkcs7 = NULL;
+        byte*  content = NULL;
+        byte*  ber = NULL;
+        byte*  plain = NULL;
+        word32 contentSz = contentSizes[i];
+        word32 berBufSz = contentSz + FOURK_BUF;
+        int    encSz = 0;
+        word32 j;
+
+        ExpectNotNull(content = (byte*)XMALLOC(contentSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(ber = (byte*)XMALLOC(berBufSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(plain = (byte*)XMALLOC(contentSz, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        if (content != NULL) {
+            for (j = 0; j < contentSz; j++)
+                content[j] = (byte)j;
+        }
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = content;
+            pkcs7->contentSz    = contentSz;
+            pkcs7->contentOID   = DATA;
+            pkcs7->encryptOID   = AES256CBCb;
+            pkcs7->privateKey   = key;
+            pkcs7->privateKeySz = keySz;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntGT((encSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, ber,
+            berBufSz)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* decode back: a mis-sized or mis-split chunk shows up as corrupt
+         * plaintext or a parse failure */
+        if (encSz > 0) {
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key;
+                pkcs7->privateKeySz = keySz;
+            }
+            ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, ber, (word32)encSz,
+                plain, contentSz), (int)contentSz);
+            ExpectIntEQ(XMEMCMP(plain, content, contentSz), 0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+
+        XFREE(content, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(ber, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plain, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_stream_encode_chunk_boundary() */
+
 
 #if defined(HAVE_PKCS7) && defined(HAVE_ECC) && defined(HAVE_X963_KDF) && \
-    !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
+    !defined(NO_SHA256) && defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
 static int wasAESKeyWrapCbCalled = 0;
 static int wasAESKeyUnwrapCbCalled = 0;
 
@@ -4596,7 +5783,7 @@ int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7) && defined(HAVE_ECC) && defined(HAVE_X963_KDF) && \
-    !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
+    !defined(NO_SHA256) && defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
     static const char input[] = "Test input for AES key wrapping";
     PKCS7 * pkcs7 = NULL;
     byte * eccCert = NULL;
@@ -4691,6 +5878,442 @@ int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
 #ifdef ECC_TIMING_RESISTANT
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Open one message as each of its two recipients. Decoding as the second is
+ * what exercises the walk past a RecipientInfo that is not the reader's;
+ * decoding as the first passes even with the search unbounded. */
+int test_wc_PKCS7_MultipleRecipients(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA256)
+    byte* cert1 = NULL;
+    byte* key1  = NULL;
+    byte* cert2 = NULL;
+    byte* key2  = NULL;
+    byte* cert3 = NULL;
+    byte* key3  = NULL;
+    byte* out   = NULL;
+    byte* out3  = NULL;
+    byte decoded[128];
+    word32 cert1Sz = 0, key1Sz = 0, cert2Sz = 0, key2Sz = 0;
+    word32 cert3Sz = 0, key3Sz = 0;
+    XFILE f = XBADFILE;
+    int outSz = 4096;
+    int encodedSz = 0;
+    int encoded3Sz = 0;
+    int b, i, j, k;
+#ifndef NO_PKCS7_STREAM
+    const int chunks[] = { 1, 13, 32 };
+#endif
+    WOLFSSL_SMALL_STACK_STATIC const byte content[] = {
+        0x74,0x77,0x6F,0x20,0x6F,0x66,0x20,0x75,0x73   /* "two of us" */
+    };
+
+    cert1Sz = key1Sz = cert2Sz = key2Sz = FOURK_BUF;
+    cert3Sz = key3Sz = FOURK_BUF;
+    ExpectNotNull(cert1 = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(key1 = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(cert2 = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(key2 = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(cert3 = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(key3 = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(out = (byte*)XMALLOC((size_t)outSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(out3 = (byte*)XMALLOC((size_t)outSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectTrue((f = XFOPEN("./certs/client-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((cert1Sz = (word32)XFREAD(cert1, 1, cert1Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    ExpectTrue((f = XFOPEN("./certs/client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((key1Sz = (word32)XFREAD(key1, 1, key1Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    ExpectTrue((f = XFOPEN("./certs/ca-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((cert2Sz = (word32)XFREAD(cert2, 1, cert2Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    ExpectTrue((f = XFOPEN("./certs/ca-key.der", "rb")) != XBADFILE);
+    ExpectTrue((key2Sz = (word32)XFREAD(key2, 1, key2Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    /* a stranger to the message: issued by a different CA, so it matches
+     * neither recipient identifier */
+    ExpectTrue((f = XFOPEN("./certs/1024/client-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((cert3Sz = (word32)XFREAD(cert3, 1, cert3Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+    ExpectTrue((f = XFOPEN("./certs/1024/client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((key3Sz = (word32)XFREAD(key3, 1, key3Sz, f)) > 0);
+    if (f != XBADFILE) { XFCLOSE(f); f = XBADFILE; }
+
+    /* j == 0: EnvelopedData, j == 1: AuthEnvelopedData */
+    for (j = 0; j < 2; j++) {
+    #ifndef HAVE_AESGCM
+        if (j == 1)
+            continue;
+    #endif
+        if (EXPECT_FAIL())
+            break;
+        /* build the bundles; b == 1 repeats cert1 so cert2 is in the middle */
+        for (b = 0; b < 2; b++) {
+            wc_PKCS7* pkcs7 = NULL;
+            byte* enc = (b == 0) ? out : out3;
+            int encSz = 0;
+
+            if (EXPECT_FAIL())
+                break;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->content    = (byte*)content;
+                pkcs7->contentSz  = (word32)sizeof(content);
+                pkcs7->contentOID = DATA;
+            #ifdef HAVE_AESGCM
+                pkcs7->encryptOID = (j == 1) ? AES256GCMb : AES256CBCb;
+            #else
+                pkcs7->encryptOID = AES256CBCb;
+            #endif
+            }
+            ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert1, cert1Sz, 0),
+                0);
+            ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert2, cert2Sz, 0),
+                0);
+            if (b == 1) {
+                ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert1, cert1Sz,
+                    0), 0);
+            }
+        #ifdef HAVE_AESGCM
+            if (j == 1) {
+                ExpectIntGT(encSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7,
+                    enc, (word32)outSz), 0);
+            }
+            else
+        #endif
+            {
+                ExpectIntGT(encSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enc,
+                    (word32)outSz), 0);
+            }
+            if (b == 0)
+                encodedSz = encSz;
+            else
+                encoded3Sz = encSz;
+            wc_PKCS7_Free(pkcs7);
+        }
+
+        /* each recipient, then cert2 as the middle one of three */
+        for (i = 0; i < 3; i++) {
+            wc_PKCS7* pkcs7 = NULL;
+            byte* msg = (i == 2) ? out3 : out;
+            int msgSz = (i == 2) ? encoded3Sz : encodedSz;
+            byte* useCert = (i == 0) ? cert1 : cert2;
+            byte* useKey  = (i == 0) ? key1  : key2;
+            word32 useCertSz = (i == 0) ? cert1Sz : cert2Sz;
+            word32 useKeySz  = (i == 0) ? key1Sz  : key2Sz;
+            int decSz = 0;
+
+            if (EXPECT_FAIL())
+                break;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            /* the recipient identifier is matched against this certificate */
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, useCert, useCertSz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = useKey;
+                pkcs7->privateKeySz = useKeySz;
+            }
+            XMEMSET(decoded, 0, sizeof(decoded));
+        #ifdef HAVE_AESGCM
+            if (j == 1) {
+                ExpectIntGT(decSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, msg,
+                    (word32)msgSz, decoded, sizeof(decoded)), 0);
+            }
+            else
+        #endif
+            {
+                ExpectIntGT(decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, msg,
+                    (word32)msgSz, decoded, sizeof(decoded)), 0);
+            }
+            ExpectIntEQ(decSz, (int)sizeof(content));
+            ExpectIntEQ(XMEMCMP(decoded, content, sizeof(content)), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+
+        #ifndef NO_PKCS7_STREAM
+            /* again in chunks, so the walk and the step over the rest of
+             * the set run on a shifting stream buffer */
+            for (k = 0; k < (int)(sizeof(chunks) / sizeof(chunks[0])); k++) {
+                int fed = 0;
+                int chunk = chunks[k];
+                int streamSz = -1;
+
+                if (EXPECT_FAIL())
+                    break;
+
+                ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+                ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, useCert, useCertSz),
+                    0);
+                if (pkcs7 != NULL) {
+                    pkcs7->privateKey   = useKey;
+                    pkcs7->privateKeySz = useKeySz;
+                }
+                XMEMSET(decoded, 0, sizeof(decoded));
+
+                while ((pkcs7 != NULL) && (fed < msgSz)) {
+                    int n = ((msgSz - fed) < chunk) ? (msgSz - fed) : chunk;
+                #ifdef HAVE_AESGCM
+                    if (j == 1) {
+                        streamSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                            msg + fed, (word32)n, decoded, sizeof(decoded));
+                    }
+                    else
+                #endif
+                    {
+                        streamSz = wc_PKCS7_DecodeEnvelopedData(pkcs7,
+                            msg + fed, (word32)n, decoded, sizeof(decoded));
+                    }
+                    fed += n;
+                    if (streamSz != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                        break;
+                }
+
+                ExpectIntEQ(streamSz, (int)sizeof(content));
+                ExpectIntEQ(XMEMCMP(decoded, content, sizeof(content)), 0);
+                if (pkcs7 != NULL) {
+                    pkcs7->privateKey = NULL;
+                    pkcs7->privateKeySz = 0;
+                }
+                wc_PKCS7_Free(pkcs7);
+            }
+        #endif /* !NO_PKCS7_STREAM */
+        }
+
+        /* A reader who is none of the recipients must be told so, whole or
+         * in chunks. */
+        if (!EXPECT_FAIL()) {
+            wc_PKCS7* pkcs7 = NULL;
+            int wholeSz = 0;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert3, cert3Sz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key3;
+                pkcs7->privateKeySz = key3Sz;
+            }
+        #ifdef HAVE_AESGCM
+            if (j == 1) {
+                wholeSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, out,
+                    (word32)encodedSz, decoded, sizeof(decoded));
+            }
+            else
+        #endif
+            {
+                wholeSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out,
+                    (word32)encodedSz, decoded, sizeof(decoded));
+            }
+            ExpectIntEQ(wholeSz, WC_NO_ERR_TRACE(PKCS7_RECIP_E));
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+        }
+
+    #ifndef NO_PKCS7_STREAM
+        /* Fed in chunks the walk has to keep its bound across the buffer
+         * shifts each rejected recipient makes, or it runs on into the
+         * EncryptedContentInfo and answers ASN_PARSE_E instead. */
+        if (!EXPECT_FAIL()) {
+            wc_PKCS7* pkcs7 = NULL;
+            int fed = 0;
+            int chunk = 128;
+            int streamSz = -1;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert3, cert3Sz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key3;
+                pkcs7->privateKeySz = key3Sz;
+            }
+
+            while ((pkcs7 != NULL) && (fed < encodedSz)) {
+                int n = ((encodedSz - fed) < chunk) ? (encodedSz - fed)
+                                                    : chunk;
+            #ifdef HAVE_AESGCM
+                if (j == 1) {
+                    streamSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                        out + fed, (word32)n, decoded, sizeof(decoded));
+                }
+                else
+            #endif
+                {
+                    streamSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out + fed,
+                        (word32)n, decoded, sizeof(decoded));
+                }
+                fed += n;
+                if (streamSz != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                    break;
+            }
+
+            ExpectIntEQ(streamSz, WC_NO_ERR_TRACE(PKCS7_RECIP_E));
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+        }
+    #endif /* !NO_PKCS7_STREAM */
+
+        /* A set one byte short leaves the last RecipientInfo running into
+         * the EncryptedContentInfo; whole and in chunks. */
+        for (k = 0; k < 2; k++) {
+            wc_PKCS7* pkcs7 = NULL;
+            int setOff = 0;
+            int setLen;
+            int fed = 0;
+            int chunk = (k == 0) ? encodedSz : 128;
+            int shortSz = -1;
+
+            if (EXPECT_FAIL())
+                break;
+
+            /* version 0, then the SET with a two-byte length */
+            for (i = 0; i + 7 <= encodedSz; i++) {
+                if ((out[i] == 0x02) && (out[i + 1] == 0x01) &&
+                        (out[i + 2] == 0x00) && (out[i + 3] == 0x31) &&
+                        (out[i + 4] == 0x82)) {
+                    setOff = i + 5;
+                    break;
+                }
+            }
+            ExpectIntGT(setOff, 0);
+            XMEMCPY(out3, out, (size_t)encodedSz);
+            setLen = ((int)out3[setOff] << 8) | out3[setOff + 1];
+            setLen--;
+            out3[setOff]     = (byte)(setLen >> 8);
+            out3[setOff + 1] = (byte)setLen;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert3, cert3Sz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key3;
+                pkcs7->privateKeySz = key3Sz;
+            }
+            while ((pkcs7 != NULL) && (fed < encodedSz)) {
+                int n = ((encodedSz - fed) < chunk) ? (encodedSz - fed)
+                                                    : chunk;
+            #ifdef HAVE_AESGCM
+                if (j == 1) {
+                    shortSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                        out3 + fed, (word32)n, decoded, sizeof(decoded));
+                }
+                else
+            #endif
+                {
+                    shortSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out3 + fed,
+                        (word32)n, decoded, sizeof(decoded));
+                }
+                fed += n;
+                if (shortSz != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                    break;
+            }
+            ExpectIntEQ(shortSz, WC_NO_ERR_TRACE(ASN_PARSE_E));
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+        }
+    }
+
+#if defined(ASN_BER_TO_DER) && !defined(NO_PKCS7_STREAM)
+    /* Indefinite length gives the decoder only an estimate of where the
+     * message ends; reading as cert2 walks past cert1 beyond that estimate. */
+    if (!EXPECT_FAIL()) {
+        wc_PKCS7* pkcs7 = NULL;
+        int first;
+        int eciOff = 0;
+        /* id-data, the EncryptedContentInfo's contentType */
+        WOLFSSL_SMALL_STACK_STATIC const byte dataOid[] = {
+            0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x07,0x01
+        };
+
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content    = (byte*)content;
+            pkcs7->contentSz  = (word32)sizeof(content);
+            pkcs7->contentOID = DATA;
+            pkcs7->encryptOID = AES256CBCb;
+        }
+        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL, NULL, NULL), 0);
+        ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert1, cert1Sz, 0), 0);
+        ExpectIntGT(wc_PKCS7_AddRecipient_KTRI(pkcs7, cert2, cert2Sz, 0), 0);
+        ExpectIntGT(encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, out,
+            (word32)outSz), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* the last id-data is the EncryptedContentInfo's; splitting its
+         * header is a different case */
+        for (i = 0; i + (int)sizeof(dataOid) <= encodedSz; i++) {
+            if (XMEMCMP(out + i, dataOid, sizeof(dataOid)) == 0)
+                eciOff = i;
+        }
+        ExpectIntGT(eciOff, 0);
+
+        /* two calls, the first ending inside the RecipientInfo set */
+        for (first = 1; first < eciOff; first += 11) {
+            int decSz;
+
+            if (EXPECT_FAIL())
+                break;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert2, cert2Sz), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey   = key2;
+                pkcs7->privateKeySz = key2Sz;
+            }
+            XMEMSET(decoded, 0, sizeof(decoded));
+            decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out, (word32)first,
+                decoded, sizeof(decoded));
+            if (decSz == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+                decSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, out + first,
+                    (word32)(encodedSz - first), decoded, sizeof(decoded));
+            }
+            ExpectIntEQ(decSz, (int)sizeof(content));
+            ExpectIntEQ(XMEMCMP(decoded, content, sizeof(content)), 0);
+            if (pkcs7 != NULL) {
+                pkcs7->privateKey = NULL;
+                pkcs7->privateKeySz = 0;
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+#endif
+
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
@@ -4871,6 +6494,42 @@ int test_wc_PKCS7_EncodeEncryptedData(void)
             (word32)encryptedSz, decoded, sizeof(decoded)), 0);
 
         ExpectIntEQ(XMEMCMP(decoded, data, decodedSz), 0);
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        if (EXPECT_SUCCESS() && testVectors[i].encryptOID == AES128CBCb) {
+            static const byte oid[] = {
+                ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                0x01, 0x09, 0x07
+            };
+            static const byte value[] = { 0x0c, 0x03, 'c', 'm', 's' };
+            PKCS7Attrib attrib = { oid, sizeof(oid), value, sizeof(value) };
+            byte recovered[sizeof(value)];
+            word32 recoveredSz = sizeof(recovered);
+
+            /* Keep the algorithm and key bytes, but supply a shorter key. */
+            pkcs7->encryptionKeySz = (word32)sizeof(aes128Key) - 1;
+            ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted,
+                (word32)encryptedSz, decoded, sizeof(decoded)),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            ExpectIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
+                sizeof(encrypted)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            pkcs7->encryptionKeySz = (word32)sizeof(aes128Key);
+
+            /* Unprotected attributes select EncryptedData version 2. */
+            pkcs7->unprotectedAttribs = &attrib;
+            pkcs7->unprotectedAttribsSz = 1;
+            ExpectIntGT(encryptedSz = wc_PKCS7_EncodeEncryptedData(pkcs7,
+                encrypted, sizeof(encrypted)), 0);
+            pkcs7->unprotectedAttribs = NULL;
+            pkcs7->unprotectedAttribsSz = 0;
+            ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted,
+                (word32)encryptedSz, decoded, sizeof(decoded)), sizeof(data));
+            ExpectBufEQ(decoded, data, sizeof(data));
+            ExpectIntEQ(wc_PKCS7_GetAttributeValue(pkcs7, oid + 2,
+                sizeof(oid) - 2, recovered, &recoveredSz), sizeof(value));
+            ExpectBufEQ(recovered, value, sizeof(value));
+        }
+#endif
         /* Keep values for last itr. */
         if (i < testSz - 1) {
             wc_PKCS7_Free(pkcs7);
@@ -5330,11 +6989,13 @@ int test_wc_PKCS7_DecodeEncryptedKeyPackage(void)
                     ExpectIntEQ(XMEMCMP(out, "test", 4), 0);
                 }
                 if (test_messages[test_msg].msg_content_type == ENCRYPTED_DATA) {
-#ifndef NO_PKCS7_ENCRYPTED_DATA
+#if defined(NO_PKCS7_ENCRYPTED_DATA)
+                    ExpectIntEQ(result, WC_NO_ERR_TRACE(ASN_PARSE_E));
+#elif !defined(HAVE_AES_CBC)
+                    ExpectIntEQ(result, WC_NO_ERR_TRACE(ALGO_ID_E));
+#else
                     ExpectIntGT(result, 0);
                     ExpectIntEQ(XMEMCMP(out, "testencrypt", 11), 0);
-#else
-                    ExpectIntEQ(result, WC_NO_ERR_TRACE(ASN_PARSE_E));
 #endif
                 }
             }
@@ -6012,6 +7673,93 @@ int test_wc_PKCS7_BER(void)
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_BER() */
 
+/* A BER RecipientInfo SET may carry an indefinite length, which
+ * wc_PKCS7_ParseToRecipientInfoSet reports as a set size of 0. A search bound
+ * computed from that lands on the start of the set and stops the walk before
+ * the first recipient, so such a message decodes to PKCS7_RECIP_E.
+ *
+ * berContent has indefinite outer structures but a definite RecipientInfo SET,
+ * so the vector is rewritten here: 31 82 01 54 becomes 31 80, the content
+ * shifts down two bytes and an end-of-contents pair closes the set. Every
+ * enclosing structure is already indefinite, so no other length moves and the
+ * message stays the same size.
+ *
+ * The decode then unwraps the recipient key and stops at the end-of-contents
+ * pair, which nothing steps over, so EncryptedContentInfo is read from the two
+ * zero bytes: ASN_PARSE_E, as on the merge base. Decoding an indefinite set
+ * through to the plaintext needs that step-over and is not part of this change.
+ * The assertion is exact so that both a walk that stops early (PKCS7_RECIP_E)
+ * and a later step-over fail here rather than pass quietly.
+ *
+ * SP math is excluded: it cannot do the vector's 1024-bit RSA key, and the fake
+ * CEK substituted for that failure makes the outcome non-deterministic. */
+int test_wc_PKCS7_IndefiniteRecipientSet(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    defined(ASN_BER_TO_DER) && !defined(NO_DES3) && !defined(NO_SHA) && \
+    !defined(NO_PKCS7_STREAM) && !defined(WOLFSSL_SP_MATH)
+    wc_PKCS7* pkcs7 = NULL;
+    byte* ber = NULL;
+    byte  decoded[2048];
+    byte  cert[2048];
+    byte  key[2048];
+    word32 certSz = 0;
+    word32 keySz = 0;
+    XFILE f = XBADFILE;
+    int ret = 0;
+    word32 setOff = 20;   /* 31 82 01 54, the RecipientInfo SET header */
+    word32 setLen = 340;  /* 0x0154 */
+
+    ExpectTrue((f = XFOPEN("./certs/1024/client-cert.der", "rb")) != XBADFILE);
+    ExpectTrue((certSz = (word32)XFREAD(cert, 1, sizeof(cert), f)) > 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    ExpectTrue((f = XFOPEN("./certs/1024/client-key.der", "rb")) != XBADFILE);
+    ExpectTrue((keySz = (word32)XFREAD(key, 1, sizeof(key), f)) > 0);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* Confirm the vector still has the header this rewrite expects, so the
+     * test fails loudly rather than silently checking nothing. */
+    ExpectIntEQ(berContent[setOff], 0x31);
+    ExpectIntEQ(berContent[setOff + 1], 0x82);
+    ExpectIntEQ(berContent[setOff + 2], 0x01);
+    ExpectIntEQ(berContent[setOff + 3], 0x54);
+    ExpectIntGE((int)sizeof(berContent), (int)(setOff + setLen + 4));
+
+    ExpectNotNull(ber = (byte*)XMALLOC(sizeof(berContent), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (ber != NULL) {
+        XMEMCPY(ber, berContent, sizeof(berContent));
+        ber[setOff + 1] = 0x80;
+        XMEMMOVE(ber + setOff + 2, ber + setOff + 4, setLen);
+        ber[setOff + 2 + setLen]     = 0x00;
+        ber[setOff + 2 + setLen + 1] = 0x00;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = keySz;
+    }
+    if (EXPECT_SUCCESS()) {
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, ber, sizeof(berContent),
+            decoded, sizeof(decoded));
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(ber, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wc_PKCS7_signed_enveloped(void)
 {
     EXPECT_DECLS;
@@ -6121,6 +7869,7 @@ int test_wc_PKCS7_signed_enveloped(void)
     ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, (word32)sigSz)), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
 
     /* check verify fails */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
@@ -6160,71 +7909,6 @@ int test_wc_PKCS7_signed_enveloped(void)
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
 
-    /* test for streaming */
-    ret = -1;
-    for (z = 0; z < sigSz && ret != 0; z++) {
-        ret = wc_PKCS7_VerifySignedData(pkcs7, sig + z, 1);
-        if (ret < 0){
-            ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
-        }
-    }
-    ExpectIntEQ(ret, 0);
-#endif /* !NO_PKCS7_STREAM */
-
-    wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
-
-    /* create valid degenerate bundle */
-    sigSz = FOURK_BUF * 2;
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
-    if (pkcs7 != NULL) {
-        pkcs7->content    = env;
-        pkcs7->contentSz  = (word32)envSz;
-        pkcs7->contentOID = DATA;
-        pkcs7->privateKey   = key;
-        pkcs7->privateKeySz = (word32)keySz;
-        pkcs7->encryptOID   = RSAk;
-        pkcs7->hashOID      = SHA256h;
-        pkcs7->rng = &rng;
-    }
-    ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
-    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, (word32)sigSz)), 0);
-    wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
-    wc_FreeRng(&rng);
-
-    /* check verify */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
-    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, (word32)sigSz), 0);
-    ExpectNotNull(pkcs7->content);
-
-#ifndef NO_PKCS7_STREAM
-    wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
-
-    /* create valid degenerate bundle */
-    sigSz = FOURK_BUF * 2;
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
-    if (pkcs7 != NULL) {
-        pkcs7->content    = env;
-        pkcs7->contentSz  = (word32)envSz;
-        pkcs7->contentOID = DATA;
-        pkcs7->privateKey   = key;
-        pkcs7->privateKeySz = (word32)keySz;
-        pkcs7->encryptOID   = RSAk;
-        pkcs7->hashOID      = SHA256h;
-        pkcs7->rng = &rng;
-    }
-    ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
-    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, (word32)sigSz)), 0);
-    wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
-    wc_FreeRng(&rng);
-
-    /* check verify */
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, testDevId));
-    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
     /* test for streaming */
     ret = -1;
     for (z = 0; z < sigSz && ret != 0; z++) {
@@ -6459,6 +8143,64 @@ int test_wc_PKCS7_DecodeCompressedData(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_PKCS7) && !defined(NO_PKCS7_STREAM)
+/* Expected result for ChunkSweep_once(): any error but WC_PKCS7_WANT_READ_E */
+#define PKCS7_SWEEP_ANY_ERR 1
+
+/* Feeds der at every chunk size from minChunkSz to derSz and checks the final
+ * result against expectRet. */
+static int test_wc_PKCS7_VerifySignedData_ChunkSweep_once(const byte* der,
+        word32 derSz, word32 minChunkSz, int expectRet, word32 expectContentSz)
+{
+    EXPECT_DECLS;
+    PKCS7* pkcs7 = NULL;
+    int ret;
+    word32 chunkSz;
+    word32 off;
+    word32 thisSz;
+    word32 fed;
+
+    for (chunkSz = minChunkSz; chunkSz <= derSz; chunkSz++) {
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+        fed = 0;
+        ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        for (off = 0; off < derSz && ret != 0; off += chunkSz) {
+            thisSz = min(chunkSz, derSz - off);
+            ret = wc_PKCS7_VerifySignedData(pkcs7, (byte*)der + off, thisSz);
+            fed = off + thisSz;
+            if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+                break;
+            }
+        }
+
+        if (expectRet == PKCS7_SWEEP_ANY_ERR) {
+            ExpectIntNE(ret, 0);
+            ExpectIntNE(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+        }
+        else {
+            ExpectIntEQ(ret, expectRet);
+            /* a full parse before the last byte means a truncated prefix
+             * was accepted */
+            if (expectRet == 0 ||
+                    expectRet == WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK)) {
+                ExpectIntEQ(fed, derSz);
+            }
+            if (expectContentSz > 0 && pkcs7 != NULL) {
+                ExpectIntEQ(pkcs7->contentSz, expectContentSz);
+                ExpectNotNull(pkcs7->content);
+            }
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_PKCS7 && !NO_PKCS7_STREAM */
+
 /*
  * Test for PKCS#7 SignedData with non-OCTET_STRING content
  * (PKCS#7 style vs CMS)
@@ -6471,7 +8213,7 @@ int test_wc_PKCS7_DecodeCompressedData(void)
 int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_PKCS7)
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256)
     PKCS7* pkcs7 = NULL;
 #ifndef NO_PKCS7_STREAM
     word32 idx;
@@ -6479,10 +8221,12 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
 #endif
 
     /*
-     * Hand-crafted PKCS#7 SignedData (degenerate, no signers) with:
+     * Hand-crafted PKCS#7 SignedData with:
      * - Content type OID (1.3.6.1.4.1.311.2.1.4 = SPC_INDIRECT_DATA)
      * - Content is a SEQUENCE, NOT an OCTET STRING
      * - eContent is encoded as "ANY" type per original PKCS#7 spec.
+     * - One SignerInfo with a dummy signature and no certificates, so
+     *   verification stops at PKCS7_SIGNEEDS_CHECK after parsing content.
      *
      * This test ensures wolfSSL's PKCS7 streaming code can correctly
      * parse SignedData types when the encapsulated content is not an OCTET
@@ -6500,17 +8244,17 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
      *         eContentType OID 1.3.6.1.4.1.311.2.1.4
      *         [0] eContent
      *           SEQUENCE { OID, OCTET STRING } - SEQUENCE not OCTET STRING
-     *       signerInfos SET {} (empty = degenerate)
+     *       signerInfos SET { SignerInfo }
      */
     static const byte pkcs7Content[] = {
-        /* ContentInfo SEQUENCE */
-        0x30, 0x56,
+        /* ContentInfo SEQUENCE (134 bytes content) */
+        0x30, 0x81, 0x86,
         /* contentType OID: 1.2.840.113549.1.7.2 (signedData) */
         0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02,
         /* [0] EXPLICIT - content */
-        0xA0, 0x49,
+        0xA0, 0x79,
         /* SignedData SEQUENCE */
-        0x30, 0x47,
+        0x30, 0x77,
         /* version INTEGER 1 */
         0x02, 0x01, 0x01,
         /* digestAlgorithms SET */
@@ -6538,8 +8282,24 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
         0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20,  /* "This is " */
         0x74, 0x65, 0x73, 0x74, 0x20, 0x63, 0x6F, 0x6E,  /* "test con" */
         0x74, 0x65, 0x6E, 0x74, 0x20, 0x64, 0x61, 0x74,  /* "tent dat" */
-        /* signerInfos SET - empty for degenerate */
-        0x31, 0x00
+        /* signerInfos SET */
+        0x31, 0x30,
+        /* SignerInfo SEQUENCE */
+        0x30, 0x2E,
+        /* version INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* issuerAndSerialNumber { empty Name, serial 1 } */
+        0x30, 0x05, 0x30, 0x00, 0x02, 0x01, 0x01,
+        /* digestAlgorithm sha256 */
+        0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+        0x05, 0x00,
+        /* signatureAlgorithm sha256WithRSAEncryption */
+        0x30, 0x0D,
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0B,
+        0x05, 0x00,
+        /* signature OCTET STRING (dummy) */
+        0x04, 0x04, 0xDE, 0xAD, 0xBE, 0xEF
     };
 
     /* Test non-streaming verification */
@@ -6547,7 +8307,8 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, (byte*)pkcs7Content,
-                (word32)sizeof(pkcs7Content)), 0);
+                (word32)sizeof(pkcs7Content)),
+                WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
 
     /* Verify content was parsed correctly */
     if (pkcs7 != NULL) {
@@ -6561,35 +8322,866 @@ int test_wc_PKCS7_VerifySignedData_PKCS7ContentSeq(void)
     pkcs7 = NULL;
 
 #ifndef NO_PKCS7_STREAM
-    /* Test streaming verification - feed data byte by byte */
+    EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(pkcs7Content,
+            (word32)sizeof(pkcs7Content), 1,
+            WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK), 33));
+
+    /* streaming also takes the PKCS#7 ANY content path */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-
-    /* Feed data byte by byte to exercise streaming path */
     ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
-    for (idx = 0; idx < (word32)sizeof(pkcs7Content) && ret != 0; idx++) {
-        ret = wc_PKCS7_VerifySignedData(pkcs7,
-                  (byte*)pkcs7Content + idx, 1);
-        if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
-            /* Unexpected error */
-            break;
-        }
+    for (idx = 0; idx < (word32)sizeof(pkcs7Content) &&
+            ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E); idx++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, (byte*)pkcs7Content + idx, 1);
     }
-
-    /* Expecting ret = 0, not ASN_PARSE_E or other negative error */
-    ExpectIntEQ(ret, 0);
-
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
     if (pkcs7 != NULL) {
         ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
-        ExpectIntEQ(pkcs7->contentSz, 33);
-        ExpectNotNull(pkcs7->content);
     }
     wc_PKCS7_Free(pkcs7);
 #endif /* !NO_PKCS7_STREAM */
-#endif /* HAVE_PKCS7 */
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
     return EXPECT_RESULT();
 }
+
+/*
+ * Legacy PKCS#7 "ANY" eContent form: eContent begins with a SEQUENCE rather
+ * than an OCTET STRING (as RFC 2315 allows and Authenticode uses). The ANY
+ * eContent is a single element that must span the whole content. A message
+ * whose first element spans the content verifies, and the whole element
+ * (tag, length and value) is reported to the caller as the content; one whose
+ * first element stops short of the content (leaving trailing, undigested
+ * bytes) is rejected during content verification.
+ *
+ * The message is produced at run time: a normal CMS SignedData (OCTET STRING
+ * eContent) is signed with the test RSA credentials, then its eContent inner
+ * tag is changed from OCTET STRING (0x04) to SEQUENCE (0x30) in place to reach
+ * the ANY path. For the negative case that element's length is also shortened
+ * so it no longer spans the content.
+ */
+int test_wc_PKCS7_VerifySignedData_eContentAnySpan(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    (defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024))
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte   output[FOURK_BUF];
+    word32 outputSz = (word32)sizeof(output);
+    byte   any[FOURK_BUF];
+    int    anySz = 0;
+    int    i;
+    int    octetOff = -1;
+    const char contentStr[] = "pkcs7 econtent test";
+    word32 contentSz = (word32)XSTRLEN(contentStr);
+
+    /* Crafted PKCS#7 SignedData with signed attributes whose ANY-typed
+     * eContent is a single malformed element; the span check rejects it
+     * before any signature or digest work, so the signature need not be
+     * valid. onebyteEContent: a one-octet [0] value (no length octet).
+     * indefEContent: a SEQUENCE using the indefinite-length form (0x80). */
+    static const byte onebyteEContent[] = {
+        0x30, 0x82, 0x02, 0x86, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x07, 0x02, 0xa0, 0x82, 0x02, 0x77, 0x30, 0x82, 0x02, 0x73, 0x02,
+        0x01, 0x01, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+        0x65, 0x03, 0x04, 0x02, 0x01, 0x30, 0x0e, 0x06, 0x09, 0x2a, 0x86, 0x48,
+        0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0xa0, 0x01, 0x00, 0x31, 0x82, 0x02,
+        0x4d, 0x30, 0x82, 0x02, 0x49, 0x02, 0x01, 0x01, 0x30, 0x81, 0xb8, 0x30,
+        0x81, 0x9f, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13,
+        0x02, 0x55, 0x53, 0x31, 0x10, 0x30, 0x0e, 0x06, 0x03, 0x55, 0x04, 0x08,
+        0x0c, 0x07, 0x4d, 0x6f, 0x6e, 0x74, 0x61, 0x6e, 0x61, 0x31, 0x10, 0x30,
+        0x0e, 0x06, 0x03, 0x55, 0x04, 0x07, 0x0c, 0x07, 0x42, 0x6f, 0x7a, 0x65,
+        0x6d, 0x61, 0x6e, 0x31, 0x15, 0x30, 0x13, 0x06, 0x03, 0x55, 0x04, 0x0a,
+        0x0c, 0x0c, 0x77, 0x6f, 0x6c, 0x66, 0x53, 0x53, 0x4c, 0x5f, 0x32, 0x30,
+        0x34, 0x38, 0x31, 0x19, 0x30, 0x17, 0x06, 0x03, 0x55, 0x04, 0x0b, 0x0c,
+        0x10, 0x50, 0x72, 0x6f, 0x67, 0x72, 0x61, 0x6d, 0x6d, 0x69, 0x6e, 0x67,
+        0x2d, 0x32, 0x30, 0x34, 0x38, 0x31, 0x18, 0x30, 0x16, 0x06, 0x03, 0x55,
+        0x04, 0x03, 0x0c, 0x0f, 0x77, 0x77, 0x77, 0x2e, 0x77, 0x6f, 0x6c, 0x66,
+        0x73, 0x73, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x31, 0x20, 0x30, 0x1e, 0x06,
+        0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01, 0x16, 0x11,
+        0x66, 0x61, 0x63, 0x74, 0x73, 0x40, 0x77, 0x6f, 0x6c, 0x66, 0x73, 0x73,
+        0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x02, 0x14, 0x75, 0x90, 0x2e, 0xa0, 0xc3,
+        0xe1, 0x96, 0xe1, 0x92, 0x48, 0xb7, 0xa5, 0xc5, 0x83, 0xa1, 0xc9, 0xa7,
+        0x3e, 0xe9, 0x5f, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+        0x03, 0x04, 0x02, 0x01, 0xa0, 0x69, 0x30, 0x18, 0x06, 0x09, 0x2a, 0x86,
+        0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03, 0x31, 0x0b, 0x06, 0x09, 0x2a,
+        0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0x30, 0x1c, 0x06, 0x09,
+        0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x05, 0x31, 0x0f, 0x17,
+        0x0d, 0x32, 0x36, 0x31, 0x31, 0x30, 0x33, 0x30, 0x31, 0x30, 0x34, 0x31,
+        0x38, 0x5a, 0x30, 0x2f, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x09, 0x04, 0x31, 0x22, 0x04, 0x20, 0x14, 0x75, 0x34, 0x9f, 0x89,
+        0xdc, 0xdf, 0x00, 0x02, 0x20, 0xbe, 0xea, 0xfa, 0x17, 0xde, 0x82, 0x4d,
+        0x0f, 0x79, 0x20, 0xe9, 0x6e, 0x35, 0x41, 0x2b, 0x6f, 0xf1, 0x15, 0x93,
+        0xa9, 0x86, 0xd9, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
+        0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x04, 0x82, 0x01, 0x00, 0x3d, 0x13,
+        0x76, 0x29, 0xa1, 0xd7, 0xf7, 0xb4, 0xad, 0x5e, 0xf6, 0xad, 0x6a, 0xbb,
+        0x0a, 0x47, 0x84, 0xd7, 0x9c, 0x8e, 0xb3, 0xf1, 0x61, 0xe5, 0xaf, 0x6b,
+        0x26, 0x9a, 0xb2, 0x40, 0x8f, 0xf2, 0xe6, 0x81, 0x01, 0xe3, 0x58, 0xbc,
+        0xe1, 0x1d, 0xeb, 0xf6, 0x2d, 0x95, 0xf9, 0x4a, 0xe3, 0x57, 0x43, 0xba,
+        0x86, 0xa1, 0x13, 0xef, 0xa7, 0xad, 0x7e, 0xfe, 0x6f, 0xb9, 0xde, 0x04,
+        0x05, 0xe1, 0x57, 0x59, 0x8a, 0x72, 0x73, 0x2f, 0x14, 0xbb, 0x59, 0xe3,
+        0xc1, 0xb6, 0xe2, 0x7c, 0x20, 0xb6, 0x4a, 0x92, 0xad, 0x27, 0xa3, 0x7f,
+        0xcb, 0x53, 0x02, 0xc5, 0x24, 0x77, 0x49, 0x86, 0xfa, 0xf4, 0x69, 0xb3,
+        0x21, 0x3c, 0x1e, 0x11, 0xfd, 0x6a, 0x58, 0x3b, 0xb6, 0x50, 0xf2, 0xbe,
+        0x94, 0x25, 0x9a, 0x56, 0x43, 0x28, 0x7f, 0xc9, 0xb7, 0xdc, 0x58, 0xde,
+        0xd2, 0xed, 0xc6, 0xe2, 0x14, 0xa8, 0x68, 0xe2, 0x59, 0xdb, 0x02, 0x57,
+        0xe1, 0x96, 0xcb, 0x1e, 0x7f, 0x71, 0x61, 0xd3, 0xa3, 0xc5, 0x5b, 0x71,
+        0xc0, 0x5f, 0xc6, 0x69, 0x4d, 0x3b, 0x0d, 0xe0, 0xde, 0xbb, 0xe0, 0xee,
+        0xa5, 0xf1, 0xed, 0x20, 0xfc, 0x5d, 0x98, 0x85, 0xa1, 0xb9, 0x0b, 0x93,
+        0x6d, 0xe1, 0x14, 0x61, 0x6a, 0x11, 0x37, 0x27, 0x65, 0xcb, 0xd2, 0x13,
+        0x91, 0x35, 0x7c, 0x8f, 0x98, 0xe4, 0x0b, 0xf7, 0x5b, 0xfb, 0x1b, 0x48,
+        0x94, 0x53, 0x97, 0x24, 0x6a, 0xf6, 0x8e, 0x77, 0xf3, 0xe7, 0x71, 0x54,
+        0xae, 0x0f, 0xfe, 0xfb, 0x78, 0x6f, 0x12, 0x31, 0x56, 0xeb, 0x47, 0x90,
+        0x45, 0x34, 0xfb, 0xab, 0x4a, 0x0f, 0xf9, 0x03, 0x49, 0x3c, 0x1b, 0x0d,
+        0x94, 0x9c, 0x24, 0x84, 0x7c, 0xd9, 0x34, 0x67, 0xee, 0xad, 0x72, 0xea,
+        0x65, 0xdf, 0xde, 0x10, 0x44, 0xbc, 0x5b, 0x76, 0xeb, 0x89, 0xa7, 0xba,
+        0x19, 0x2e,
+    };
+
+    static const byte indefEContent[] = {
+        0x30, 0x82, 0x02, 0x87, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+        0x01, 0x07, 0x02, 0xa0, 0x82, 0x02, 0x78, 0x30, 0x82, 0x02, 0x74, 0x02,
+        0x01, 0x01, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+        0x65, 0x03, 0x04, 0x02, 0x01, 0x30, 0x0f, 0x06, 0x09, 0x2a, 0x86, 0x48,
+        0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0xa0, 0x02, 0x30, 0x80, 0x31, 0x82,
+        0x02, 0x4d, 0x30, 0x82, 0x02, 0x49, 0x02, 0x01, 0x01, 0x30, 0x81, 0xb8,
+        0x30, 0x81, 0x9f, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06,
+        0x13, 0x02, 0x55, 0x53, 0x31, 0x10, 0x30, 0x0e, 0x06, 0x03, 0x55, 0x04,
+        0x08, 0x0c, 0x07, 0x4d, 0x6f, 0x6e, 0x74, 0x61, 0x6e, 0x61, 0x31, 0x10,
+        0x30, 0x0e, 0x06, 0x03, 0x55, 0x04, 0x07, 0x0c, 0x07, 0x42, 0x6f, 0x7a,
+        0x65, 0x6d, 0x61, 0x6e, 0x31, 0x15, 0x30, 0x13, 0x06, 0x03, 0x55, 0x04,
+        0x0a, 0x0c, 0x0c, 0x77, 0x6f, 0x6c, 0x66, 0x53, 0x53, 0x4c, 0x5f, 0x32,
+        0x30, 0x34, 0x38, 0x31, 0x19, 0x30, 0x17, 0x06, 0x03, 0x55, 0x04, 0x0b,
+        0x0c, 0x10, 0x50, 0x72, 0x6f, 0x67, 0x72, 0x61, 0x6d, 0x6d, 0x69, 0x6e,
+        0x67, 0x2d, 0x32, 0x30, 0x34, 0x38, 0x31, 0x18, 0x30, 0x16, 0x06, 0x03,
+        0x55, 0x04, 0x03, 0x0c, 0x0f, 0x77, 0x77, 0x77, 0x2e, 0x77, 0x6f, 0x6c,
+        0x66, 0x73, 0x73, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x31, 0x20, 0x30, 0x1e,
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01, 0x16,
+        0x11, 0x66, 0x61, 0x63, 0x74, 0x73, 0x40, 0x77, 0x6f, 0x6c, 0x66, 0x73,
+        0x73, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x02, 0x14, 0x75, 0x90, 0x2e, 0xa0,
+        0xc3, 0xe1, 0x96, 0xe1, 0x92, 0x48, 0xb7, 0xa5, 0xc5, 0x83, 0xa1, 0xc9,
+        0xa7, 0x3e, 0xe9, 0x5f, 0x30, 0x0b, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+        0x65, 0x03, 0x04, 0x02, 0x01, 0xa0, 0x69, 0x30, 0x18, 0x06, 0x09, 0x2a,
+        0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03, 0x31, 0x0b, 0x06, 0x09,
+        0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0x30, 0x1c, 0x06,
+        0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x05, 0x31, 0x0f,
+        0x17, 0x0d, 0x32, 0x36, 0x31, 0x31, 0x30, 0x33, 0x30, 0x31, 0x30, 0x34,
+        0x31, 0x38, 0x5a, 0x30, 0x2f, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
+        0x0d, 0x01, 0x09, 0x04, 0x31, 0x22, 0x04, 0x20, 0x14, 0x75, 0x34, 0x9f,
+        0x89, 0xdc, 0xdf, 0x00, 0x02, 0x20, 0xbe, 0xea, 0xfa, 0x17, 0xde, 0x82,
+        0x4d, 0x0f, 0x79, 0x20, 0xe9, 0x6e, 0x35, 0x41, 0x2b, 0x6f, 0xf1, 0x15,
+        0x93, 0xa9, 0x86, 0xd9, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+        0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x04, 0x82, 0x01, 0x00, 0x3d,
+        0x13, 0x76, 0x29, 0xa1, 0xd7, 0xf7, 0xb4, 0xad, 0x5e, 0xf6, 0xad, 0x6a,
+        0xbb, 0x0a, 0x47, 0x84, 0xd7, 0x9c, 0x8e, 0xb3, 0xf1, 0x61, 0xe5, 0xaf,
+        0x6b, 0x26, 0x9a, 0xb2, 0x40, 0x8f, 0xf2, 0xe6, 0x81, 0x01, 0xe3, 0x58,
+        0xbc, 0xe1, 0x1d, 0xeb, 0xf6, 0x2d, 0x95, 0xf9, 0x4a, 0xe3, 0x57, 0x43,
+        0xba, 0x86, 0xa1, 0x13, 0xef, 0xa7, 0xad, 0x7e, 0xfe, 0x6f, 0xb9, 0xde,
+        0x04, 0x05, 0xe1, 0x57, 0x59, 0x8a, 0x72, 0x73, 0x2f, 0x14, 0xbb, 0x59,
+        0xe3, 0xc1, 0xb6, 0xe2, 0x7c, 0x20, 0xb6, 0x4a, 0x92, 0xad, 0x27, 0xa3,
+        0x7f, 0xcb, 0x53, 0x02, 0xc5, 0x24, 0x77, 0x49, 0x86, 0xfa, 0xf4, 0x69,
+        0xb3, 0x21, 0x3c, 0x1e, 0x11, 0xfd, 0x6a, 0x58, 0x3b, 0xb6, 0x50, 0xf2,
+        0xbe, 0x94, 0x25, 0x9a, 0x56, 0x43, 0x28, 0x7f, 0xc9, 0xb7, 0xdc, 0x58,
+        0xde, 0xd2, 0xed, 0xc6, 0xe2, 0x14, 0xa8, 0x68, 0xe2, 0x59, 0xdb, 0x02,
+        0x57, 0xe1, 0x96, 0xcb, 0x1e, 0x7f, 0x71, 0x61, 0xd3, 0xa3, 0xc5, 0x5b,
+        0x71, 0xc0, 0x5f, 0xc6, 0x69, 0x4d, 0x3b, 0x0d, 0xe0, 0xde, 0xbb, 0xe0,
+        0xee, 0xa5, 0xf1, 0xed, 0x20, 0xfc, 0x5d, 0x98, 0x85, 0xa1, 0xb9, 0x0b,
+        0x93, 0x6d, 0xe1, 0x14, 0x61, 0x6a, 0x11, 0x37, 0x27, 0x65, 0xcb, 0xd2,
+        0x13, 0x91, 0x35, 0x7c, 0x8f, 0x98, 0xe4, 0x0b, 0xf7, 0x5b, 0xfb, 0x1b,
+        0x48, 0x94, 0x53, 0x97, 0x24, 0x6a, 0xf6, 0x8e, 0x77, 0xf3, 0xe7, 0x71,
+        0x54, 0xae, 0x0f, 0xfe, 0xfb, 0x78, 0x6f, 0x12, 0x31, 0x56, 0xeb, 0x47,
+        0x90, 0x45, 0x34, 0xfb, 0xab, 0x4a, 0x0f, 0xf9, 0x03, 0x49, 0x3c, 0x1b,
+        0x0d, 0x94, 0x9c, 0x24, 0x84, 0x7c, 0xd9, 0x34, 0x67, 0xee, 0xad, 0x72,
+        0xea, 0x65, 0xdf, 0xde, 0x10, 0x44, 0xbc, 0x5b, 0x76, 0xeb, 0x89, 0xa7,
+        0xba, 0x19, 0x2e,
+    };
+#if defined(USE_CERT_BUFFERS_2048)
+    byte   key[sizeof(client_key_der_2048)];
+    byte   cert[sizeof(client_cert_der_2048)];
+    word32 keySz = (word32)sizeof(key);
+    word32 certSz = (word32)sizeof(cert);
+    XMEMCPY(key, client_key_der_2048, keySz);
+    XMEMCPY(cert, client_cert_der_2048, certSz);
+#else
+    byte   key[sizeof_client_key_der_1024];
+    byte   cert[sizeof_client_cert_der_1024];
+    word32 keySz = (word32)sizeof(key);
+    word32 certSz = (word32)sizeof(cert);
+    XMEMCPY(key, client_key_der_1024, keySz);
+    XMEMCPY(cert, client_cert_der_1024, certSz);
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(output, 0, outputSz);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Sign a normal CMS SignedData (OCTET STRING eContent) over contentStr. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = (byte*)contentStr;
+        pkcs7->contentSz = contentSz;
+        pkcs7->privateKey = key;
+        pkcs7->privateKeySz = keySz;
+        pkcs7->encryptOID = RSAk;
+        pkcs7->hashOID = SHA256h;
+        pkcs7->rng = &rng;
+    }
+    ExpectIntGT(anySz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Locate the eContent OCTET STRING: the two bytes 0x04,len precede the
+     * signed content inside the eContent [0] wrapper. */
+    if (anySz > 0) {
+        for (i = 0; i + 2 + (int)contentSz <= anySz; i++) {
+            if (output[i] == 0x04 &&
+                    output[i + 1] == (byte)contentSz &&
+                    XMEMCMP(output + i + 2, contentStr, contentSz) == 0) {
+                octetOff = i;
+                break;
+            }
+        }
+    }
+    ExpectIntGE(octetOff, 0);
+
+    /* Positive: retag the element to SEQUENCE so it spans the whole content. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;   /* OCTET STRING (0x04) -> SEQUENCE (0x30) */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+            /* the whole ANY element is reported: tag (0x30), length, value. */
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectIntEQ(pkcs7->content[0], 0x30);
+                ExpectIntEQ(pkcs7->content[1], (int)contentSz);
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+            }
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: retag, and shorten the element's length so it stops before the
+     * end of the content, leaving trailing bytes the digest never covered. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);        /* short-form length */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: a high-tag-number identifier (multi-byte tag, low five bits
+     * all set) is not a supported eContent element form and is rejected. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x9f;   /* high-tag-number identifier */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: the end-of-contents identifier (0x00) is not a valid element
+     * tag. The length octet is left unchanged so the element still spans the
+     * whole content; only the tag rule can reject it. */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x00;   /* end-of-contents identifier */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Same two cases through the precomputed-hash entry point
+     * (wc_PKCS7_VerifySignedData_ex, hashBuf != NULL): the value is still
+     * reported, and trailing data is still rejected, on that path too. */
+    if (octetOff >= 0) {
+        byte   hash[WC_SHA256_DIGEST_SIZE];
+        word32 hashSz = (word32)sizeof(hash);
+        ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, (const byte*)contentStr,
+                    contentSz, hash, hashSz), 0);
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectIntEQ(pkcs7->content[0], 0x30);
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+            }
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Reuse: after an ANY message, a CMS message verifies on the same object
+     * with no re-init, via both entry points, and reports the CMS content. */
+    if (octetOff >= 0) {
+        byte   hash[WC_SHA256_DIGEST_SIZE];
+        word32 hashSz = (word32)sizeof(hash);
+        ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, (const byte*)contentStr,
+                    contentSz, hash, hashSz), 0);
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+            /* Content lifetime: this verify's content is valid until the next
+             * verify on the object. Read it here, before the second verify
+             * below, to pin that the first verify's content is still intact. */
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectIntEQ(pkcs7->content[0], 0x30);
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+            }
+        }
+        /* drop the last verify's content so it is not taken as
+         * caller-supplied content by the next verify */
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
+        /* same object, CMS message, ordinary entry point */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)anySz),
+                    0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 0);
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz);
+            ExpectIntEQ(XMEMCMP(pkcs7->content, contentStr, contentSz), 0);
+        }
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
+        /* ANY again, then CMS through the precomputed-hash entry point */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    output, (word32)anySz, NULL, 0), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 0);
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz);
+            ExpectIntEQ(XMEMCMP(pkcs7->content, contentStr, contentSz), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Reuse after a FAILED ANY verify: a malformed ANY (trailing bytes) is
+     * rejected with ASN_PARSE_E, during parsing of which contentIsPkcs7Type
+     * is set; the next verify on the same object must clear it. A following
+     * CMS verify parses fresh and reports flag 0, pinning the per-verify
+     * reset on the failure path. */
+    if (octetOff >= 0) {
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        if (pkcs7 != NULL) {
+            pkcs7->content = NULL;
+            pkcs7->contentSz = 0;
+        }
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)anySz), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentIsPkcs7Type, 0);
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz);
+            ExpectIntEQ(XMEMCMP(pkcs7->content, contentStr, contentSz), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+#ifndef NO_PKCS7_STREAM
+    /* Trailing data is also rejected when the message is fed one byte at a
+     * time, exercising the streaming parse path. */
+    if (octetOff >= 0) {
+        word32 idx;
+        int    ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = (byte)(contentSz - 4);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        for (idx = 0; idx < (word32)anySz && ret != 0; idx++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, any + idx, 1);
+            if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                break;
+        }
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif /* !NO_PKCS7_STREAM */
+
+    /* No-certificate bundle: verification returns PKCS7_SIGNEEDS_CHECK (the
+     * caller verifies the signature itself), and the reported content is still
+     * narrowed to the signed value. */
+    if (octetOff >= 0) {
+        byte nc[FOURK_BUF];
+        int  ncSz = 0;
+        int  o2 = -1;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(pkcs7, 1), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = (byte*)contentStr;
+            pkcs7->contentSz = contentSz;
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(ncSz = wc_PKCS7_EncodeSignedData(pkcs7, nc, sizeof(nc)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        for (i = 0; ncSz > 0 && i + 2 + (int)contentSz <= ncSz; i++) {
+            if (nc[i] == 0x04 && nc[i + 1] == (byte)contentSz &&
+                    XMEMCMP(nc + i + 2, contentStr, contentSz) == 0) {
+                o2 = i;
+                break;
+            }
+        }
+        ExpectIntGE(o2, 0);
+        if (o2 >= 0) {
+            nc[o2] = 0x30;      /* retag to a spanning SEQUENCE */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, nc, (word32)ncSz),
+                        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL) {
+                    ExpectIntEQ(pkcs7->content[0], 0x30);
+                    ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                                contentSz), 0);
+                }
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+
+    /* Negative (crafted vectors): the span check rejects a one-octet element
+     * (no length octet) and the indefinite-length form, before any signature
+     * or digest work. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, (byte*)onebyteEContent,
+                (word32)sizeof(onebyteEContent)), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, (byte*)indefEContent,
+                (word32)sizeof(indefEContent)), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Negative: a declared length past the content is rejected on both the
+     * one-shot and precomputed-hash entry points. */
+    if (octetOff >= 0) {
+        byte   hash[WC_SHA256_DIGEST_SIZE];
+        word32 hashSz = (word32)sizeof(hash);
+        ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, (const byte*)contentStr,
+                    contentSz, hash, hashSz), 0);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x7f;   /* length past the element's bytes */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        /* Non-minimal long-form length (long form for a value that fits short
+         * form) is rejected on both entry points. The element still spans the
+         * whole content, so only the minimal-length rule can reject it. */
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x81;               /* long form, one length octet */
+        any[octetOff + 2] = (byte)(contentSz - 1); /* 0x30 0x81 L + (len-1) value */
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hash, hashSz,
+                    any, (word32)anySz, NULL, 0), WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Negative: multi-octet long-form lengths rejected by GetLength_ex before
+     * the span comparison. Each overwrites only the length octets, so the tag
+     * stays a SEQUENCE and only the length rule can reject it:
+     *   0x82 0x00 0x13  non-minimal two-octet length (value fits one octet)
+     *   0x84 0x80 ...    four-octet length with the high bit set (out of range)
+     *   0x85 ...         overlong length (more than four octets). */
+    if (octetOff >= 0) {
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x82;
+        any[octetOff + 2] = 0x00;
+        any[octetOff + 3] = 0x13;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x84;
+        any[octetOff + 2] = 0x80;
+        any[octetOff + 3] = 0x00;
+        any[octetOff + 4] = 0x00;
+        any[octetOff + 5] = 0x00;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        any[octetOff + 1] = 0x85;
+        any[octetOff + 2] = 0x00;
+        any[octetOff + 3] = 0x00;
+        any[octetOff + 4] = 0x00;
+        any[octetOff + 5] = 0x00;
+        any[octetOff + 6] = 0x13;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)anySz),
+                    WC_NO_ERR_TRACE(ASN_PARSE_E));
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+#ifndef NO_PKCS7_STREAM
+    /* Positive: a spanning element also verifies fed one byte at a time. */
+    if (octetOff >= 0) {
+        word32 idx;
+        int    ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+        XMEMCPY(any, output, (word32)anySz);
+        any[octetOff] = 0x30;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        for (idx = 0; idx < (word32)anySz && ret != 0; idx++) {
+            ret = wc_PKCS7_VerifySignedData(pkcs7, any + idx, 1);
+            if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+                break;
+        }
+        ExpectIntEQ(ret, 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL)
+                ExpectIntEQ(XMEMCMP(pkcs7->content + 2, contentStr,
+                            contentSz), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+#endif /* !NO_PKCS7_STREAM */
+
+    /* Positive: a long-form (>=128-byte) element length spans the content. */
+    if (octetOff >= 0) {
+        byte   lcont[200];
+        int    lanySz = 0;
+        int    loff = -1;
+        int    j;
+        for (j = 0; j < (int)sizeof(lcont); j++)
+            lcont[j] = (byte)('A' + (j % 26));
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = lcont;
+            pkcs7->contentSz = (word32)sizeof(lcont);
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(lanySz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz),
+                    0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        /* eContent OCTET STRING is long-form (04 81 c8) for a 200-byte value */
+        for (i = 0; lanySz > 0 && i + 3 + (int)sizeof(lcont) <= lanySz; i++) {
+            if (output[i] == 0x04 && output[i + 1] == 0x81 &&
+                    output[i + 2] == (byte)sizeof(lcont) &&
+                    XMEMCMP(output + i + 3, lcont, sizeof(lcont)) == 0) {
+                loff = i;
+                break;
+            }
+        }
+        ExpectIntGE(loff, 0);
+        if (loff >= 0) {
+            XMEMCPY(any, output, (word32)lanySz);
+            any[loff] = 0x30;   /* OCTET STRING -> spanning SEQUENCE */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)lanySz),
+                        0);
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, (int)sizeof(lcont) + 3);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL)
+                    ExpectIntEQ(XMEMCMP(pkcs7->content + 3, lcont,
+                                sizeof(lcont)), 0);
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    /* Positive: a two-length-octet (>=256-byte) element length spans the
+     * content, exercising the 0x82 long-form length in the span check and in
+     * the value-skip digest (a slip here would reject every large real token
+     * while the short-length tests still pass). */
+    if (octetOff >= 0) {
+        byte   bcont[300];
+        int    banySz = 0;
+        int    boff = -1;
+        int    j;
+        for (j = 0; j < (int)sizeof(bcont); j++)
+            bcont[j] = (byte)('A' + (j % 26));
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = bcont;
+            pkcs7->contentSz = (word32)sizeof(bcont);
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(banySz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz),
+                    0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        /* eContent OCTET STRING is two-length-octet form (04 82 01 2c) */
+        for (i = 0; banySz > 0 && i + 4 + (int)sizeof(bcont) <= banySz; i++) {
+            if (output[i] == 0x04 && output[i + 1] == 0x82 &&
+                    output[i + 2] == (byte)(sizeof(bcont) >> 8) &&
+                    output[i + 3] == (byte)(sizeof(bcont) & 0xff) &&
+                    XMEMCMP(output + i + 4, bcont, sizeof(bcont)) == 0) {
+                boff = i;
+                break;
+            }
+        }
+        ExpectIntGE(boff, 0);
+        if (boff >= 0) {
+            XMEMCPY(any, output, (word32)banySz);
+            any[boff] = 0x30;   /* OCTET STRING -> spanning SEQUENCE */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, any, (word32)banySz),
+                        0);
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, (int)sizeof(bcont) + 4);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL)
+                    ExpectIntEQ(XMEMCMP(pkcs7->content + 4, bcont,
+                                sizeof(bcont)), 0);
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    /* Accept side of the contentSz<2 boundary: a 2-byte element (30 00) passes
+     * the span check and the digest of its empty value. No-cert bundle (no
+     * signature needed); patch messageDigest to the SHA-256 of the empty
+     * value, which the encoder leaves zero. */
+    if (octetOff >= 0) {
+        static const byte emptyHash[WC_SHA256_DIGEST_SIZE] = {
+            0xe3,0xb0,0xc4,0x42,0x98,0xfc,0x1c,0x14,0x9a,0xfb,0xf4,0xc8,
+            0x99,0x6f,0xb9,0x24,0x27,0xae,0x41,0xe4,0x64,0x9b,0x93,0x4c,
+            0xa4,0x95,0x99,0x1b,0x78,0x52,0xb8,0x55 };
+        static const byte mdOid[] = {
+            0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x04 };
+        byte eb[FOURK_BUF];
+        int  ebSz = 0, eoff = -1, moff = -1;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(pkcs7, 1), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = (byte*)contentStr;
+            pkcs7->contentSz = 0;
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(ebSz = wc_PKCS7_EncodeSignedData(pkcs7, eb, sizeof(eb)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        /* eContent [0] wraps an empty OCTET STRING (a0 02 04 00) */
+        for (i = 0; ebSz > 3 && i + 4 <= ebSz; i++) {
+            if (eb[i] == 0xa0 && eb[i + 1] == 0x02 && eb[i + 2] == 0x04 &&
+                    eb[i + 3] == 0x00) {
+                eoff = i + 2;
+                break;
+            }
+        }
+        /* messageDigest value follows its OID, then 31 22 04 20 */
+        for (i = 0; i + (int)sizeof(mdOid) + 4 + WC_SHA256_DIGEST_SIZE <= ebSz;
+                i++) {
+            if (XMEMCMP(eb + i, mdOid, sizeof(mdOid)) == 0) {
+                moff = i + (int)sizeof(mdOid) + 4;
+                break;
+            }
+        }
+        ExpectIntGE(eoff, 0);
+        ExpectIntGE(moff, 0);
+        if (eoff >= 0 && moff >= 0) {
+            eb[eoff] = 0x30;        /* 04 00 -> 30 00 */
+            XMEMCPY(eb + moff, emptyHash, WC_SHA256_DIGEST_SIZE);
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, eb, (word32)ebSz),
+                        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+            if (pkcs7 != NULL) {
+                ExpectIntEQ((int)pkcs7->contentSz, 2);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL)
+                    ExpectIntEQ(pkcs7->content[0], 0x30);
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    /* No signed attributes: the span check is gated on the signed-attributes
+     * path, so it never runs here. The identical malformed ANY element that the
+     * signed-attributes path rejects with ASN_PARSE_E is accepted, and the
+     * whole eContent region (trailing bytes included) is reported as content.
+     * No certificates, so verification returns PKCS7_SIGNEEDS_CHECK without a
+     * signature check; the signature covers the region as received, so the
+     * shape is the signer's choice, not the verifier's guarantee. */
+    if (octetOff >= 0) {
+        byte na[FOURK_BUF];
+        int  naSz = 0;
+        int  o3 = -1;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+        ExpectIntEQ(wc_PKCS7_NoDefaultSignedAttribs(pkcs7), 0);
+        ExpectIntEQ(wc_PKCS7_SetNoCerts(pkcs7, 1), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content = (byte*)contentStr;
+            pkcs7->contentSz = contentSz;
+            pkcs7->privateKey = key;
+            pkcs7->privateKeySz = keySz;
+            pkcs7->encryptOID = RSAk;
+            pkcs7->hashOID = SHA256h;
+            pkcs7->rng = &rng;
+        }
+        ExpectIntGT(naSz = wc_PKCS7_EncodeSignedData(pkcs7, na, sizeof(na)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        for (i = 0; naSz > 0 && i + 2 + (int)contentSz <= naSz; i++) {
+            if (na[i] == 0x04 && na[i + 1] == (byte)contentSz &&
+                    XMEMCMP(na + i + 2, contentStr, contentSz) == 0) {
+                o3 = i;
+                break;
+            }
+        }
+        ExpectIntGE(o3, 0);
+        if (o3 >= 0) {
+            na[o3] = 0x30;                      /* retag to a SEQUENCE */
+            na[o3 + 1] = (byte)(contentSz - 4); /* shorten: 4 trailing bytes */
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, na, (word32)naSz),
+                        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+            if (pkcs7 != NULL) {
+                ExpectIntEQ(pkcs7->contentIsPkcs7Type, 1);
+                ExpectIntEQ((int)pkcs7->contentSz, (int)contentSz + 2);
+                ExpectNotNull(pkcs7->content);
+                if (pkcs7->content != NULL) {
+                    ExpectIntEQ(pkcs7->content[0], 0x30);
+                    ExpectIntEQ(pkcs7->content[1], (int)contentSz - 4);
+                }
+            }
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+        }
+    }
+
+    ForceZero(key, sizeof(key));
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 
 /*
  * Test PKCS7 VerifySignedData with indefinite-length BER-encoded SignedData
@@ -6736,64 +9328,6 @@ int test_wc_PKCS7_VerifySignedData_IndefLenOOB(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_PKCS7) && !defined(NO_PKCS7_STREAM)
-/*
- * Feeds der to wc_PKCS7_VerifySignedData at every chunk size from
- * minChunkSz to derSz. If expectContentSz > 0, every chunk size must
- * decode successfully and produce that content size; otherwise every
- * chunk size must fail with a real parse error and never leave the
- * result at WC_PKCS7_WANT_READ_E once the whole buffer has been fed.
- */
-static int test_wc_PKCS7_VerifySignedData_ChunkSweep_once(const byte* der,
-        word32 derSz, word32 minChunkSz, word32 expectContentSz)
-{
-    EXPECT_DECLS;
-    PKCS7* pkcs7 = NULL;
-    int ret;
-    word32 chunkSz;
-    word32 off;
-    word32 thisSz;
-    word32 fed;
-
-    for (chunkSz = minChunkSz; chunkSz <= derSz; chunkSz++) {
-        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
-        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-
-        fed = 0;
-        ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
-        for (off = 0; off < derSz && ret != 0; off += chunkSz) {
-            thisSz = min(chunkSz, derSz - off);
-            ret = wc_PKCS7_VerifySignedData(pkcs7, (byte*)der + off, thisSz);
-            fed = off + thisSz;
-            if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
-                break;
-            }
-        }
-
-        if (expectContentSz > 0) {
-            ExpectIntEQ(ret, 0);
-            /* a genuine success must only happen once every byte of the
-             * bundle has actually been fed in; an early success here
-             * means the parser accepted a truncated prefix */
-            ExpectIntEQ(fed, derSz);
-            if (pkcs7 != NULL) {
-                ExpectIntEQ(pkcs7->contentSz, expectContentSz);
-                ExpectNotNull(pkcs7->content);
-            }
-        }
-        else {
-            ExpectIntNE(ret, 0);
-            ExpectIntNE(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
-        }
-        wc_PKCS7_Free(pkcs7);
-        pkcs7 = NULL;
-    }
-
-    return EXPECT_RESULT();
-}
-#endif /* HAVE_PKCS7 && !NO_PKCS7_STREAM */
-
 /*
  * SignedData bundle truncated at the eContent [0] EXPLICIT tag in
  * encapContentInfo. Verifies that the parser rejects the malformed
@@ -6840,7 +9374,7 @@ int test_wc_PKCS7_VerifySignedData_TruncEContentTag(void)
 
 #ifndef NO_PKCS7_STREAM
     EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
-            1, 0));
+            1, PKCS7_SWEEP_ANY_ERR, 0));
 #endif
 
 #endif /* HAVE_PKCS7 */
@@ -6900,108 +9434,15 @@ int test_wc_PKCS7_VerifySignedData_TruncCertSetTag(void)
 
 #ifndef NO_PKCS7_STREAM
     EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
-            1, 0));
+            1, PKCS7_SWEEP_ANY_ERR, 0));
 #endif
 
 #endif /* HAVE_PKCS7 */
     return EXPECT_RESULT();
 }
 
-/*
- * SignedData bundle that is a genuine, non-truncated degenerate
- * (certs-only) bundle: no certificates, no CRLs, and an empty signerInfos
- * SET ("31 00") closing the bundle right after the content. This is the
- * shortest legitimate ending the stage 3 tail check in the streaming
- * parser can see, and must still succeed after fixing that check to reject
- * truncated bundles.
- */
-/* wc_PKCS7_DecodeSignedData() decodes a detached bundle without its content
- * and leaves the signature for a later wc_PKCS7_VerifySignedData(). An
- * attached bundle is verified while decoding. */
-int test_wc_PKCS7_DecodeSignedData(void)
-{
-    EXPECT_DECLS;
-#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-    PKCS7* pkcs7 = NULL;
-    byte   output[6000];
-    word32 outputSz = sizeof(output);
-    byte   data[] = "Test data to encode.";
-    byte   badData[] = "This is different content than was signed";
-    word32 i;
-
-    /* detached bundle */
-    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output,
-        (int)outputSz, data, (word32)sizeof(data), 0, 1, 0, RSA_TYPE)), 0);
-
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-    ExpectIntEQ(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
-    if (pkcs7 != NULL) {
-        ExpectIntEQ(pkcs7->detached, 1);
-        ExpectNotNull(pkcs7->singleCert);
-        ExpectIntGT(pkcs7->singleCertSz, 0);
-        /* nothing was verified */
-        ExpectNull(pkcs7->verifyCert);
-    }
-
-    /* verifying without the content still fails */
-    ExpectIntLT(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
-
-    /* verify once the content is supplied */
-    if (pkcs7 != NULL) {
-        pkcs7->content = data;
-        pkcs7->contentSz = (word32)sizeof(data);
-    }
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
-    if (pkcs7 != NULL) {
-        ExpectNotNull(pkcs7->verifyCert);
-    }
-
-    /* wrong content is rejected */
-    if (pkcs7 != NULL) {
-        pkcs7->content = badData;
-        pkcs7->contentSz = (word32)sizeof(badData);
-    }
-    ExpectIntLT(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
-
-    wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
-
-    /* attached bundle is verified while decoding */
-    outputSz = sizeof(output);
-    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output,
-        (int)outputSz, data, (word32)sizeof(data), 0, 0, 0, RSA_TYPE)), 0);
-
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-    ExpectIntEQ(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
-    if (pkcs7 != NULL) {
-        ExpectIntEQ(pkcs7->detached, 0);
-        ExpectNotNull(pkcs7->verifyCert);
-    }
-    wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
-
-    /* tampered attached content is rejected */
-    for (i = 0; i + sizeof(data) <= outputSz; i++) {
-        if (XMEMCMP(output + i, data, sizeof(data)) == 0) {
-            output[i] ^= 0x01;
-            break;
-        }
-    }
-    ExpectTrue(i + sizeof(data) <= outputSz);
-    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-    ExpectIntLT(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
-    wc_PKCS7_Free(pkcs7);
-    pkcs7 = NULL;
-
-    ExpectIntEQ(wc_PKCS7_DecodeSignedData(NULL, output, outputSz),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
-    return EXPECT_RESULT();
-}
-
+/* Complete counterpart of the Trunc* tests: content, then an empty signerInfos
+ * SET. It must fail with PKCS7_NO_SIGNER_E. */
 int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void)
 {
     EXPECT_DECLS;
@@ -7046,11 +9487,8 @@ int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void)
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
-    if (pkcs7 != NULL) {
-        ExpectIntEQ(pkcs7->contentSz, 60);
-        ExpectNotNull(pkcs7->content);
-    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
+            WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
@@ -7061,20 +9499,345 @@ int test_wc_PKCS7_VerifySignedData_DegenerateMinimal(void)
      * read to less than the signerInfos SET tag/length needs and
      * stalling on WC_PKCS7_WANT_READ_E forever. */
     EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
-            1, 60));
+            1, WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E), 0));
 #endif /* !NO_PKCS7_STREAM */
 
 #endif /* HAVE_PKCS7 */
     return EXPECT_RESULT();
 }
 
-/*
- * Same shape as test_wc_PKCS7_VerifySignedData_DegenerateMinimal, but with
- * an empty certificates [0] SET and empty crls [1] SET both present ahead
- * of the empty signerInfos SET ("A0 00 A1 00 31 00" footer). Structurally
- * valid, and must verify the same way whether fed in one shot or in small
- * chunks that land the footer partway into the stream's internal buffer.
- */
+/* wc_PKCS7_EncodeSignedData() with DEGENERATE_SID rejects content and
+ * otherwise omits eContent. */
+int test_wc_PKCS7_EncodeSignedData_Degenerate(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    PKCS7* pkcs7 = NULL;
+    byte   cert[sizeof(client_cert_der_2048)];
+    byte   content[] = { 0x01, 0x02, 0x03 };
+    byte*  out = NULL;
+    int    outSz = 0;
+    int    found = 0;
+    word32 i;
+    /* encapContentInfo holding only eContentType id-data */
+    static const byte certsOnlyEci[] = {
+        0x30, 0x0B, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01
+    };
+
+    XMEMCPY(cert, client_cert_der_2048, sizeof(client_cert_der_2048));
+    ExpectNotNull(out = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)sizeof(cert)), 0);
+    ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->contentOID = DATA;
+        pkcs7->content    = content;
+        pkcs7->contentSz  = (word32)sizeof(content);
+    }
+    ExpectIntEQ(wc_PKCS7_EncodeSignedData(pkcs7, out, FOURK_BUF),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (pkcs7 != NULL) {
+        pkcs7->content   = NULL;
+        pkcs7->contentSz = 0;
+    }
+    ExpectIntGT(outSz = wc_PKCS7_EncodeSignedData(pkcs7, out, FOURK_BUF), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    for (i = 0; out != NULL && outSz > 0 &&
+            i + sizeof(certsOnlyEci) <= (word32)outSz; i++) {
+        if (XMEMCMP(out + i, certsOnlyEci, sizeof(certsOnlyEci)) == 0) {
+            found = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, out, (word32)outSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->certSz[0], sizeof(cert));
+    }
+    wc_PKCS7_Free(pkcs7);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A wc_PKCS7 that verified signed content, then verifies a certs-only bundle
+ * without eContent, must report no content. */
+int test_wc_PKCS7_VerifySignedData_ReuseCertsOnly(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_RSA) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte   cert[sizeof(client_cert_der_2048)];
+    byte   key[sizeof(client_key_der_2048)];
+    byte   data[] = "content of the first bundle";
+    byte*  signedDer = NULL;
+    byte*  certsOnly = NULL;
+    int    signedSz = 0;
+    int    certsOnlySz = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMCPY(cert, client_cert_der_2048, sizeof(cert));
+    XMEMCPY(key, client_key_der_2048, sizeof(key));
+    ExpectNotNull(signedDer = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(certsOnly = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)sizeof(cert)), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content      = data;
+        pkcs7->contentSz    = (word32)sizeof(data);
+        pkcs7->privateKey   = key;
+        pkcs7->privateKeySz = (word32)sizeof(key);
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->rng          = &rng;
+    }
+    ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, signedDer,
+        FOURK_BUF), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)sizeof(cert)), 0);
+    ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
+    ExpectIntGT(certsOnlySz = wc_PKCS7_EncodeSignedData(pkcs7, certsOnly,
+        FOURK_BUF), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+        (word32)signedSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, certsOnly,
+        (word32)certsOnlySz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNull(pkcs7->content);
+        ExpectIntEQ(pkcs7->contentSz, 0);
+    }
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (EXPECT_SUCCESS()) {
+        byte different[sizeof(data)];
+
+        /* Reverify after the decoder has retained its own content. */
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), 0);
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+        ExpectBufEQ(pkcs7->content, data, sizeof(data));
+
+        /* A caller can also supply its own copy of the embedded content. */
+        pkcs7->content = data;
+        pkcs7->contentSz = sizeof(data);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), 0);
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+        ExpectBufEQ(pkcs7->content, data, sizeof(data));
+
+        XMEMCPY(different, data, sizeof(different));
+        different[0] ^= 1;
+        pkcs7->content = different;
+        pkcs7->contentSz = sizeof(different);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedDer,
+            (word32)signedSz), WC_NO_ERR_TRACE(SIG_VERIFY_E));
+        pkcs7->content = NULL;
+        pkcs7->contentSz = 0;
+    }
+#endif
+    wc_PKCS7_Free(pkcs7);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    XFREE(certsOnly, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(signedDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+/* Writes tag, 0x82 and a two-byte length; len must be 256..65535. */
+static word32 test_pkcs7_hdr82(byte* out, byte tag, word32 len)
+{
+    out[0] = tag;
+    out[1] = 0x82;
+    out[2] = (byte)(len >> 8);
+    out[3] = (byte)len;
+    return 4;
+}
+#endif
+
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+/* Verifies a certs-only SignedData built around eci, with
+ * client_cert_der_2048 as its only certificate, in one call and at every
+ * chunk size. */
+static int test_pkcs7_certs_only_verify(const byte* eci, word32 eciSz,
+        int expectRet)
+{
+    EXPECT_DECLS;
+    PKCS7* pkcs7 = NULL;
+    byte*  der = NULL;
+    word32 derSz;
+    word32 innerSz;
+    word32 idx = 0;
+    word32 certSz = (word32)sizeof(client_cert_der_2048);
+    static const byte sdOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02
+    };
+    /* version 1, empty digestAlgorithms */
+    static const byte sdHead[] = { 0x02, 0x01, 0x01, 0x31, 0x00 };
+    /* signerInfos SET (empty) */
+    static const byte sdTail[] = { 0x31, 0x00 };
+
+    ExpectIntGE(certSz, 256);
+    innerSz = (word32)sizeof(sdHead) + eciSz + 4 + certSz +
+              (word32)sizeof(sdTail);
+    derSz = 4 + (word32)sizeof(sdOid) + 4 + 4 + innerSz;
+    ExpectNotNull(der = (byte*)XMALLOC(derSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (der != NULL) {
+        idx += test_pkcs7_hdr82(der + idx, 0x30, derSz - 4);
+        XMEMCPY(der + idx, sdOid, sizeof(sdOid));
+        idx += (word32)sizeof(sdOid);
+        idx += test_pkcs7_hdr82(der + idx, 0xA0, 4 + innerSz);
+        idx += test_pkcs7_hdr82(der + idx, 0x30, innerSz);
+        XMEMCPY(der + idx, sdHead, sizeof(sdHead));
+        idx += (word32)sizeof(sdHead);
+        XMEMCPY(der + idx, eci, eciSz);
+        idx += eciSz;
+        idx += test_pkcs7_hdr82(der + idx, 0xA0, certSz);
+        XMEMCPY(der + idx, client_cert_der_2048, certSz);
+        idx += certSz;
+        XMEMCPY(der + idx, sdTail, sizeof(sdTail));
+        idx += (word32)sizeof(sdTail);
+    }
+    ExpectIntEQ(idx, derSz);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), expectRet);
+    if (pkcs7 != NULL && expectRet == 0) {
+        ExpectIntEQ(pkcs7->certSz[0], certSz);
+    }
+    wc_PKCS7_Free(pkcs7);
+
+#ifndef NO_PKCS7_STREAM
+    if (der != NULL) {
+        EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
+                1, expectRet, 0));
+    }
+#endif /* !NO_PKCS7_STREAM */
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A certs-only bundle with an empty eContent, the form wolfSSL encoded before
+ * omitting it, must still verify. */
+int test_wc_PKCS7_VerifySignedData_DegenerateEmptyEContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    /* id-data with an empty eContent */
+    static const byte eci[] = {
+        0x30, 0x0F, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01, 0xA0, 0x02, 0x04, 0x00
+    };
+
+    EXPECT_TEST(test_pkcs7_certs_only_verify(eci, (word32)sizeof(eci), 0));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A certs-only bundle whose indefinite-length encapContentInfo omits eContent
+ * must verify. */
+int test_wc_PKCS7_VerifySignedData_DegenerateIndefOmittedEContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    /* id-data, then end-of-contents */
+    static const byte eci[] = {
+        0x30, 0x80, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01, 0x00, 0x00
+    };
+
+    EXPECT_TEST(test_pkcs7_certs_only_verify(eci, (word32)sizeof(eci), 0));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A signer-less bundle whose eContent holds a [0] instead of an OCTET STRING
+ * must fail with PKCS7_NO_SIGNER_E. The content ends in an empty SET, so a
+ * reader that stops 2 bytes short of the eContent end sees empty
+ * signerInfos. */
+int test_wc_PKCS7_VerifySignedData_DegenerateTaggedEContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    static const byte eci[] = {
+        0x30, 0x20, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01,
+        0xA0, 0x13, 0xA0, 0x11, 0x04, 0x0F,
+        'u', 'n', 's', 'i', 'g', 'n', 'e', 'd', ' ', 'd', 'a', 't', 'a',
+        0x31, 0x00
+    };
+#ifndef NO_PKCS7_STREAM
+    int expectRet = WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E);
+#else
+    /* without streaming, the [0] eContent is parsed as the certificate set */
+    int expectRet = WC_NO_ERR_TRACE(ASN_PARSE_E);
+#endif
+
+    EXPECT_TEST(test_pkcs7_certs_only_verify(eci, (word32)sizeof(eci),
+        expectRet));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* An encapContentInfo whose definite length is shorter than its eContentType
+ * OID must fail to parse. */
+int test_wc_PKCS7_VerifySignedData_ShortEncapContentInfo(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    /* length 5 around an 11-byte id-data OID */
+    static const byte eciShort[] = {
+        0x30, 0x05, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01
+    };
+    /* length 0 followed by an id-data OID */
+    static const byte eciZero[] = {
+        0x30, 0x00, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01
+    };
+
+    EXPECT_TEST(test_pkcs7_certs_only_verify(eciShort,
+        (word32)sizeof(eciShort), WC_NO_ERR_TRACE(ASN_PARSE_E)));
+    EXPECT_TEST(test_pkcs7_certs_only_verify(eciZero,
+        (word32)sizeof(eciZero), WC_NO_ERR_TRACE(ASN_PARSE_E)));
+#endif
+    return EXPECT_RESULT();
+}
+
+/* test_wc_PKCS7_VerifySignedData_DegenerateMinimal with an "A0 00 A1 00 31 00"
+ * tail, which chunking can leave partly in the stream buffer. Must fail with
+ * PKCS7_NO_SIGNER_E at every chunk size. */
 int test_wc_PKCS7_VerifySignedData_DegenerateEmptyCertsCrls(void)
 {
     EXPECT_DECLS;
@@ -7123,11 +9886,8 @@ int test_wc_PKCS7_VerifySignedData_DegenerateEmptyCertsCrls(void)
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
-    if (pkcs7 != NULL) {
-        ExpectIntEQ(pkcs7->contentSz, 60);
-        ExpectNotNull(pkcs7->content);
-    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
+            WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
@@ -7140,7 +9900,7 @@ int test_wc_PKCS7_VerifySignedData_DegenerateEmptyCertsCrls(void)
      * across a buffered-to-direct read transition, double-counting the
      * last content byte and starving stage 6 of the final length byte. */
     EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
-            1, 60));
+            1, WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E), 0));
 #endif /* !NO_PKCS7_STREAM */
 
 #endif /* HAVE_PKCS7 */
@@ -7194,7 +9954,7 @@ int test_wc_PKCS7_VerifySignedData_TruncSignerInfosTag(void)
 
 #ifndef NO_PKCS7_STREAM
     EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
-            1, 0));
+            1, PKCS7_SWEEP_ANY_ERR, 0));
 #endif
 
 #endif /* HAVE_PKCS7 */
@@ -7253,7 +10013,7 @@ int test_wc_PKCS7_VerifySignedData_NoSignerInfosTag(void)
      * must not end stuck on WANT_READ_E once all available bytes are
      * consumed */
     EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
-            1, 0));
+            1, PKCS7_SWEEP_ANY_ERR, 0));
 #endif /* !NO_PKCS7_STREAM */
 
 #endif /* HAVE_PKCS7 */
@@ -7320,8 +10080,137 @@ int test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos(void)
     ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
         WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
     wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
 
+    /* rejected by default too, since it carries eContent */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz),
+        WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
+    wc_PKCS7_Free(pkcs7);
+
+#ifndef NO_PKCS7_STREAM
+    EXPECT_TEST(test_wc_PKCS7_VerifySignedData_ChunkSweep_once(der, derSz,
+            1, WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E), 0));
+#endif /* !NO_PKCS7_STREAM */
 #endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Same bundle as test_wc_PKCS7_VerifySignedData_DegenerateNonEmptyDigestAlgos
+ * but carrying one certificate in the SignedData certificates field. Finding
+ * a certificate makes the verify state machine re-initialise the PKCS7
+ * structure around it, which must not drop the wc_PKCS7_AllowDegenerate(pkcs7,
+ * 0) setting before the signerInfos SET is checked. An unsigned bundle must
+ * be rejected whether or not it carries a certificate.
+ */
+int test_wc_PKCS7_VerifySignedData_DegenerateWithCert(void)
+{
+    EXPECT_DECLS;
+/* the bundle below names sha256 in digestAlgorithms */
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    PKCS7* pkcs7 = NULL;
+    /* version, digestAlgorithms { sha256 } and encapContentInfo with an
+     * attached 60 byte id-data eContent, as in the test above */
+    WOLFSSL_SMALL_STACK_STATIC const byte sdBody[] = {
+        /* version INTEGER 1 */
+        0x02, 0x01, 0x01,
+        /* digestAlgorithms SET (15 bytes content) -- one real
+         * AlgorithmIdentifier (sha256), not empty */
+        0x31, 0x0F,
+        0x30, 0x0D,
+        0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+        0x05, 0x00,
+        /* encapContentInfo SEQUENCE (75 bytes content) */
+        0x30, 0x4B,
+        /* eContentType OID 1.2.840.113549.1.7.1 (data) */
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01,
+        /* eContent [0] EXPLICIT (62 bytes content) */
+        0xA0, 0x3E,
+        /* OCTET STRING (60 bytes content) */
+        0x04, 0x3C,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x3A, 0x3B
+    };
+    /* contentType OID signedData */
+    WOLFSSL_SMALL_STACK_STATIC const byte sdOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02
+    };
+    /* signerInfos SET (empty -- genuinely degenerate) */
+    WOLFSSL_SMALL_STACK_STATIC const byte signerInfos[] = { 0x31, 0x00 };
+    /* tag + 2 byte long form length, 4 bytes per enclosing header */
+    byte   der[4 + sizeof(sdOid) + 4 + 4 + sizeof(sdBody) + 4 +
+               sizeof(client_cert_der_2048) + sizeof(signerInfos)];
+    word32 certSz = (word32)sizeof(client_cert_der_2048);
+    word32 sdSz = (word32)sizeof(sdBody) + 4 + certSz +
+                  (word32)sizeof(signerInfos);
+    word32 idx = 0;
+    int    i;
+    /* Enclosing headers, outermost first: ContentInfo SEQUENCE,
+     * [0] EXPLICIT, SignedData SEQUENCE. Each wraps a certificate so the
+     * lengths are all above 255 and the 2 byte long form is the DER form. */
+    struct {
+        byte   tag;
+        word32 len;
+    } hdr[3];
+
+    hdr[0].tag = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    hdr[0].len = (word32)sizeof(sdOid) + 4 + 4 + sdSz;
+    hdr[1].tag = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
+    hdr[1].len = 4 + sdSz;
+    hdr[2].tag = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    hdr[2].len = sdSz;
+
+    for (i = 0; i < 3; i++) {
+        if (i == 1) {
+            XMEMCPY(der + idx, sdOid, sizeof(sdOid));
+            idx += (word32)sizeof(sdOid);
+        }
+        der[idx++] = hdr[i].tag;
+        der[idx++] = 0x82;
+        der[idx++] = (byte)(hdr[i].len >> 8);
+        der[idx++] = (byte)(hdr[i].len);
+    }
+    XMEMCPY(der + idx, sdBody, sizeof(sdBody));
+    idx += (word32)sizeof(sdBody);
+    /* certificates [0] IMPLICIT, one certificate */
+    der[idx++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
+    der[idx++] = 0x82;
+    der[idx++] = (byte)(certSz >> 8);
+    der[idx++] = (byte)(certSz);
+    XMEMCPY(der + idx, client_cert_der_2048, certSz);
+    idx += certSz;
+    XMEMCPY(der + idx, signerInfos, sizeof(signerInfos));
+    idx += (word32)sizeof(signerInfos);
+    ExpectIntEQ(idx, (word32)sizeof(der));
+
+    /* rejected by default too, across the reset the certificate triggers */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, idx),
+        WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, idx),
+        WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
+    wc_PKCS7_Free(pkcs7);
+
+#endif /* HAVE_PKCS7 && !NO_RSA && USE_CERT_BUFFERS_2048 */
     return EXPECT_RESULT();
 }
 
@@ -7569,5 +10458,1000 @@ int test_wc_PKCS7_VerifySignedData_NoDigestParams(void)
         wc_PKCS7_Free(pkcs7);
     }
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 && USE_CERT_BUFFERS_2048 */
+    return EXPECT_RESULT();
+}
+
+/* wc_PKCS7_DecodeSignedData() decodes a detached bundle without its content
+ * and leaves the signature for a later wc_PKCS7_VerifySignedData(). An
+ * attached bundle is verified while decoding. */
+int test_wc_PKCS7_DecodeSignedData(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    PKCS7* pkcs7 = NULL;
+    byte   output[6000];
+    word32 outputSz = sizeof(output);
+    byte   data[] = "Test data to encode.";
+    byte   badData[] = "This is different content than was signed";
+    word32 i;
+
+    /* detached bundle */
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output,
+        (int)outputSz, data, (word32)sizeof(data), 0, 1, 0, RSA_TYPE)), 0);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->detached, 1);
+        ExpectNotNull(pkcs7->singleCert);
+        ExpectIntGT(pkcs7->singleCertSz, 0);
+        /* nothing was verified */
+        ExpectNull(pkcs7->verifyCert);
+    }
+
+    /* verifying without the content still fails */
+    ExpectIntLT(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+
+    /* verify once the content is supplied */
+    if (pkcs7 != NULL) {
+        pkcs7->content = data;
+        pkcs7->contentSz = (word32)sizeof(data);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNotNull(pkcs7->verifyCert);
+    }
+
+    /* wrong content is rejected */
+    if (pkcs7 != NULL) {
+        pkcs7->content = badData;
+        pkcs7->contentSz = (word32)sizeof(badData);
+    }
+    ExpectIntLT(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* attached bundle is verified while decoding */
+    outputSz = sizeof(output);
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output,
+        (int)outputSz, data, (word32)sizeof(data), 0, 0, 0, RSA_TYPE)), 0);
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->detached, 0);
+        ExpectNotNull(pkcs7->verifyCert);
+    }
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* tampered attached content is rejected */
+    for (i = 0; i + sizeof(data) <= outputSz; i++) {
+        if (XMEMCMP(output + i, data, sizeof(data)) == 0) {
+            output[i] ^= 0x01;
+            break;
+        }
+    }
+    ExpectTrue(i + sizeof(data) <= outputSz);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntLT(wc_PKCS7_DecodeSignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectIntEQ(wc_PKCS7_DecodeSignedData(NULL, output, outputSz),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC decision coverage for the explicit-SKID parse in the SignedData
+ * signerInfo decode (wolfcrypt/src/pkcs7.c): the [0] constructed SKID
+ * marker is driven with truncations and one corruption of the explicit
+ * fixture. The (ret == 0) operands of the idx+1/inSz and GetASNTag checks
+ * take their false side from the first truncation; the inSz check's true
+ * side from the second; the inner GetLength's false side from the tag
+ * corruption.
+ */
+int test_wc_PKCS7_SkidParseDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+    byte   msg[sizeof(explicitSKIDSignedData)];
+    word32 sz = (word32)sizeof(explicitSKIDSignedData);
+    /* legacy explicit [0] SKID marker: 0xA0 len 0x04 len */
+    static const byte explicitMarker[] = { 0xA0, 0x16, 0x04, 0x14 };
+    int marker = -1;
+
+    marker = test_PKCS7_findBytes(explicitSKIDSignedData, (int)sz,
+        explicitMarker, (int)sizeof(explicitMarker));
+    ExpectIntGE(marker, 0);
+    ExpectIntLE(marker, (int)(sz - sizeof(explicitMarker)));
+    if (marker < 0 || (word32)marker > sz - sizeof(explicitMarker))
+        return EXPECT_RESULT();
+
+    /* Truncate after the [0] tag: the [0] length read fails, so the
+     * (ret == 0) operands of the inSz and GetASNTag checks are false. */
+    XMEMCPY(msg, explicitSKIDSignedData, (size_t)marker + 1);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)marker + 1),
+        0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Truncate after the [0] length: idx+1 > inSz fires BUFFER_E. */
+    XMEMCPY(msg, explicitSKIDSignedData, (size_t)marker + 2);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)marker + 2),
+        0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Corrupt the inner OCTET STRING tag: the tag check fails first, so
+     * the inner GetLength check's (ret == 0) operand is false. */
+    XMEMCPY(msg, explicitSKIDSignedData, sz);
+    msg[marker + 2] = 0x02;
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntNE(wc_PKCS7_VerifySignedData(pkcs7, msg, sz), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * MC/DC decision coverage for the SignedData certificates-footer decode
+ * (wolfcrypt/src/pkcs7.c): a non-NULL footer pointer with a zero footer
+ * size drives the (pkiMsg2Sz == 0) operand's true side, which falls back
+ * to the whole message and verifies normally.
+ */
+int test_wc_PKCS7_CertFooterDecisionCoverage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256)
+    PKCS7* pkcs7 = NULL;
+    word32 sz = (word32)sizeof(explicitSKIDSignedData);
+
+    /* Footer supplied with size 0: the (pkiMsg2Sz == 0) operand's true
+     * side falls back to the whole message, which verifies normally. */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, NULL, 0,
+        (byte*)explicitSKIDSignedData, sz,
+        (byte*)explicitSKIDSignedData, 0), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_SHA256 */
+    return EXPECT_RESULT();
+}
+
+/*
+ * Test on state of PKCS7 when failing to parse input buffer.
+ */
+int test_wc_PKCS7_VerifySignedData_NonSequence(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    PKCS7* pkcs7 = NULL;
+    byte   buf[128];
+    word32 sz;
+
+    XMEMSET(buf, 'A', sizeof(buf));
+
+    for (sz = 1; sz <= (word32)sizeof(buf) && EXPECT_SUCCESS(); sz++) {
+        int ret;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        if (pkcs7 != NULL)
+            wc_PKCS7_AllowDegenerate(pkcs7, 0);
+        ret = wc_PKCS7_VerifySignedData(pkcs7, buf, sz);
+        ExpectIntNE(ret, 0);
+        if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+            ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+        }
+        if (pkcs7 != NULL)
+            ExpectNull(pkcs7->verifyCert);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, buf, sizeof(buf)),
+        WC_NO_ERR_TRACE(ASN_PARSE_E));
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+#endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+/* Encode a SignedData carrying count copies of the client certificate, either
+ * certificates-only or signed with the client key. */
+static int pkcs7_encode_cert_set(byte* out, word32 outSz, int count,
+    int certsOnly, WC_RNG* rng)
+{
+    static const byte data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7;
+    int    ret = 0;
+    int    i;
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId);
+    if (pkcs7 == NULL)
+        return MEMORY_E;
+
+    if (!certsOnly) {
+        ret = wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048);
+    }
+    for (i = 0; ret == 0 && i < count; i++) {
+        ret = wc_PKCS7_AddCertificate(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048);
+    }
+    if (ret == 0 && certsOnly) {
+        ret = wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID);
+        pkcs7->detached = 1;
+    }
+    if (ret == 0 && !certsOnly) {
+        pkcs7->content      = (byte*)data;
+        pkcs7->contentSz    = (word32)sizeof(data);
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        pkcs7->rng          = rng;
+    }
+    if (ret == 0) {
+        pkcs7->contentOID = DATA;
+        ret = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    return ret;
+}
+#endif
+
+/* Verifying again with an object whose last message carried content must not
+ * read that content after it is freed. */
+int test_wc_PKCS7_VerifySignedData_ReuseAfterContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    static const byte data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7 = NULL;
+    PKCS7* other = NULL;
+    WC_RNG rng;
+    byte*  signedMsg = NULL;
+    byte*  certsOnly = NULL;
+    byte*  detached = NULL;
+    byte*  badMsg = NULL;
+    byte*  msgCopy = NULL;
+    byte*  head = NULL;
+    byte*  foot = NULL;
+    byte*  full = NULL;
+    word32 headSz = 0;
+    word32 footSz = 0;
+    byte   hash[WC_SHA256_DIGEST_SIZE];
+    byte   bigData[64];
+    word32 msgMax = 2 * sizeof_client_cert_der_2048 + FOURK_BUF;
+    int    signedSz = 0;
+    int    certsOnlySz = 0;
+    int    detachedSz = 0;
+    int    noContentRet = 0;
+    int    i;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(bigData, 0x5a, sizeof(bigData));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(signedMsg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(certsOnly = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(detached = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(badMsg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntGT((signedSz = pkcs7_encode_cert_set(signedMsg, msgMax, 0, 0,
+        &rng)), 0);
+    ExpectIntGT((certsOnlySz = pkcs7_encode_cert_set(certsOnly, msgMax, 1, 1,
+        &rng)), 0);
+
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (other != NULL) {
+        other->content      = (byte*)data;
+        other->contentSz    = (word32)sizeof(data);
+        other->contentOID   = DATA;
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+        other->detached     = 1;
+    }
+    ExpectIntGT((detachedSz = wc_PKCS7_EncodeSignedData(other, detached,
+        msgMax)), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedMsg,
+        (word32)signedSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, certsOnly,
+        (word32)certsOnlySz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, signedMsg,
+        (word32)signedSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, 3);
+    }
+
+    /* Detached content set by the caller is kept for the next call. */
+    if (pkcs7 != NULL) {
+        pkcs7->content   = (byte*)data;
+        pkcs7->contentSz = (word32)sizeof(data);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, detached,
+        (word32)detachedSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, detached,
+        (word32)detachedSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectPtrEq(pkcs7->content, data);
+    }
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    /* Content left by a verify that failed part way is not used either. */
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(badMsg, signedMsg, (size_t)signedSz);
+        for (i = 0; i + 16 < signedSz; i++) {
+            if (XMEMCMP(badMsg + i, client_cert_der_2048, 16) == 0) {
+                badMsg[i + 2]++;
+                break;
+            }
+        }
+        ExpectIntLT(i + 16, signedSz);
+    }
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (other != NULL) {
+        noContentRet = wc_PKCS7_VerifySignedData(other, detached,
+            (word32)detachedSz);
+    }
+    ExpectIntLT(noContentRet, 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntLT(wc_PKCS7_VerifySignedData(other, badMsg, (word32)signedSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), noContentRet);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* A failed verify leaves the caller's content in place. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (other != NULL) {
+        other->content   = (byte*)data;
+        other->contentSz = (word32)sizeof(data);
+    }
+    ExpectIntLT(wc_PKCS7_VerifySignedData(other, badMsg, (word32)signedSz), 0);
+    if (other != NULL) {
+        ExpectPtrEq(other->content, data);
+        ExpectIntEQ(other->contentSz, sizeof(data));
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* Content a verify handed back is not used by the next verify, even when
+     * it points into a message buffer the caller has freed since. */
+    ExpectNotNull(msgCopy = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (msgCopy != NULL) {
+        XMEMCPY(msgCopy, signedMsg, (size_t)signedSz);
+    }
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, msgCopy, (word32)signedSz),
+        0);
+    if (msgCopy != NULL) {
+        XMEMSET(msgCopy, 0, (size_t)signedSz);
+    }
+    XFREE(msgCopy, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), noContentRet);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* A message without certificates hands its content back for the caller
+     * to check, and the next verify drops it like any other. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetNoCerts(other, 1), 0);
+    if (other != NULL) {
+        other->content      = (byte*)data;
+        other->contentSz    = (word32)sizeof(data);
+        other->contentOID   = DATA;
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+    }
+    ExpectIntGT((signedSz = wc_PKCS7_EncodeSignedData(other, signedMsg,
+        msgMax)), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK));
+    if (other != NULL) {
+        ExpectIntEQ(other->contentSz, sizeof(data));
+        ExpectNotNull(other->content);
+        if (other->content != NULL) {
+            ExpectBufEQ(other->content, data, sizeof(data));
+        }
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), noContentRet);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* A header/footer verify after a full one keeps the contentSz the caller
+     * set even though the old content pointer is still in place. */
+    ExpectNotNull(head = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(foot = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_Sha256Hash(bigData, (word32)sizeof(bigData), hash), 0);
+    headSz = msgMax;
+    footSz = msgMax;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (other != NULL) {
+        other->contentSz    = (word32)sizeof(bigData);
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+    }
+    ExpectIntEQ(wc_PKCS7_EncodeSignedData_ex(other, hash, sizeof(hash), head,
+        &headSz, foot, &footSz), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectIntGT((signedSz = pkcs7_encode_cert_set(signedMsg, msgMax, 0, 0,
+        &rng)), 0);
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    if (other != NULL) {
+        other->contentSz = (word32)sizeof(bigData);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(other, hash, sizeof(hash), head,
+        headSz, foot, footSz), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* A footer without a hash gives the same result after a full verify as on
+     * a fresh object. */
+    ExpectNotNull(full = (byte*)XMALLOC(headSz + sizeof(bigData) + footSz,
+        HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+    if (full != NULL) {
+        XMEMCPY(full, head, headSz);
+        XMEMCPY(full + headSz, bigData, sizeof(bigData));
+        XMEMCPY(full + headSz + sizeof(bigData), foot, footSz);
+    }
+    for (i = 0; i < 2; i++) {
+        byte*  in2 = (i == 0) ? foot : bigData;
+        word32 in2Sz = (i == 0) ? footSz : (word32)sizeof(bigData);
+        int    freshRet = 0;
+
+        ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+        if (other != NULL) {
+            freshRet = wc_PKCS7_VerifySignedData_ex(other, NULL, 0, full,
+                headSz + (word32)sizeof(bigData) + footSz, in2, in2Sz);
+        }
+        wc_PKCS7_Free(other);
+        other = NULL;
+        ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg,
+            (word32)signedSz), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData_ex(other, NULL, 0, full,
+            headSz + (word32)sizeof(bigData) + footSz, in2, in2Sz), freshRet);
+        wc_PKCS7_Free(other);
+        other = NULL;
+    }
+
+    /* A verify called in another operation's state leaves the content the
+     * last verify handed back. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    if (other != NULL) {
+        other->state = WC_PKCS7_AUTHENV_7;
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    if (other != NULL) {
+        ExpectIntEQ(other->contentSz, sizeof(data));
+        ExpectNotNull(other->content);
+        if (other->content != NULL) {
+            ExpectBufEQ(other->content, data, sizeof(data));
+        }
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+
+    /* Larger detached content than the previous verify left behind. */
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(other, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (other != NULL) {
+        other->content      = bigData;
+        other->contentSz    = (word32)sizeof(bigData);
+        other->contentOID   = DATA;
+        other->hashOID      = SHA256h;
+        other->encryptOID   = RSAk;
+        other->privateKey   = (byte*)client_key_der_2048;
+        other->privateKeySz = sizeof_client_key_der_2048;
+        other->rng          = &rng;
+        other->detached     = 1;
+    }
+    ExpectIntGT((detachedSz = wc_PKCS7_EncodeSignedData(other, detached,
+        msgMax)), 0);
+    wc_PKCS7_Free(other);
+    other = NULL;
+    ExpectNotNull(other = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, signedMsg, (word32)signedSz),
+        0);
+    if (other != NULL) {
+        other->content   = bigData;
+        other->contentSz = (word32)sizeof(bigData);
+    }
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(other, detached,
+        (word32)detachedSz), 0);
+    wc_PKCS7_Free(other);
+
+    XFREE(full, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(foot, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(head, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(badMsg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(detached, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(certsOnly, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(signedMsg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* One object verifies messages with different embedded content in turn, the
+ * first one from a buffer freed before the next verify. */
+int test_wc_PKCS7_VerifySignedData_ReuseEmbeddedContent(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    static const byte data0[] = { 0x01, 0x02, 0x03 };
+    static const byte data1[] = { 0x04, 0x05, 0x06 };
+    static const byte data2[] = { 0x07, 0x08, 0x09, 0x0a };
+    const byte* data[3] = { data0, data1, data2 };
+    word32 dataSz[3] = { sizeof(data0), sizeof(data1), sizeof(data2) };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg[3] = { NULL, NULL, NULL };
+    int    msgSz[3] = { 0, 0, 0 };
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    int    i;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    for (i = 0; i < 3; i++) {
+        ExpectNotNull(msg[i] = (byte*)XMALLOC(msgMax, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+        if (pkcs7 != NULL) {
+            pkcs7->content      = (byte*)data[i];
+            pkcs7->contentSz    = dataSz[i];
+            pkcs7->contentOID   = DATA;
+            pkcs7->hashOID      = SHA256h;
+            pkcs7->encryptOID   = RSAk;
+            pkcs7->privateKey   = (byte*)client_key_der_2048;
+            pkcs7->privateKeySz = sizeof_client_key_der_2048;
+            pkcs7->rng          = &rng;
+        }
+        ExpectIntGT((msgSz[i] = wc_PKCS7_EncodeSignedData(pkcs7, msg[i],
+            msgMax)), 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    for (i = 0; i < 3; i++) {
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg[i], (word32)msgSz[i]),
+            0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->contentSz, dataSz[i]);
+            ExpectNotNull(pkcs7->content);
+            if (pkcs7->content != NULL) {
+                ExpectBufEQ(pkcs7->content, data[i], dataSz[i]);
+            }
+        }
+        if (i == 0 && msg[0] != NULL) {
+            XMEMSET(msg[0], 0, (size_t)msgSz[0]);
+            XFREE(msg[0], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            msg[0] = NULL;
+        }
+    }
+    wc_PKCS7_Free(pkcs7);
+
+    for (i = 0; i < 3; i++) {
+        XFREE(msg[i], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A streaming verify paused near the end and abandoned through another
+ * decoder's error path does not leave its content to the next verify. */
+int test_wc_PKCS7_VerifySignedData_ReusePausedVerify(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_PKCS7_STREAM)
+    static const byte data[] = { 0x01, 0x02, 0x03 };
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  msg = NULL;
+    int    msgSz = 0;
+    word32 msgMax = sizeof_client_cert_der_2048 + FOURK_BUF;
+    byte   junk[64];
+    byte   out[256];
+    int    ret = 0;
+    int    z;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(junk, 0x30, sizeof(junk));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(msg = (byte*)XMALLOC(msgMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content      = (byte*)data;
+        pkcs7->contentSz    = sizeof(data);
+        pkcs7->contentOID   = DATA;
+        pkcs7->hashOID      = SHA256h;
+        pkcs7->encryptOID   = RSAk;
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        pkcs7->rng          = &rng;
+    }
+    ExpectIntGT((msgSz = wc_PKCS7_EncodeSignedData(pkcs7, msg, msgMax)), 20);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    /* stop in the signerInfos, after the certificates stage */
+    for (z = 0; EXPECT_SUCCESS() && z < msgSz - 20; z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, msg + z, 1);
+        if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E))
+            break;
+    }
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+    ExpectIntLT(wc_PKCS7_DecodeEnvelopedData(pkcs7, junk, sizeof(junk), out,
+        sizeof(out)), 0);
+
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, msg, (word32)msgSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectIntEQ(pkcs7->contentSz, sizeof(data));
+        ExpectNotNull(pkcs7->content);
+        if (pkcs7->content != NULL) {
+            ExpectBufEQ(pkcs7->content, data, sizeof(data));
+        }
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_PKCS7_STREAM)
+/* Feed a message to wc_PKCS7_VerifySignedData() one byte per call. */
+static int pkcs7_verify_bytewise(PKCS7* pkcs7, byte* in, int inSz)
+{
+    int ret = WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+    int z;
+
+    for (z = 0; z < inSz && ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
+            z++) {
+        ret = wc_PKCS7_VerifySignedData(pkcs7, in + z, 1);
+    }
+    return ret;
+}
+#endif
+
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+/* Write a DER tag and definite length, or only size them when out is NULL. */
+static word32 pkcs7_der_hdr(byte* out, byte tag, word32 len)
+{
+    word32 lenBytes = 0;
+    word32 n;
+    word32 i;
+
+    if (len >= 0x80) {
+        for (n = len; n > 0; n >>= 8)
+            lenBytes++;
+    }
+    if (out != NULL) {
+        out[0] = tag;
+        if (lenBytes == 0) {
+            out[1] = (byte)len;
+        }
+        else {
+            out[1] = (byte)(ASN_LONG_LENGTH | lenBytes);
+            for (i = 0; i < lenBytes; i++)
+                out[2 + i] = (byte)(len >> (8 * (lenBytes - 1 - i)));
+        }
+    }
+    return 2 + lenBytes;
+}
+
+/* Encode a certs-only SignedData of count client certs, optionally with a
+ * SHA-256 digestAlg, a one-byte eContent and attr before copy attrPos. */
+static int pkcs7_encode_raw_cert_set(byte* out, word32 outSz, int count,
+    int digestAlg, int eContent, const byte* attr, word32 attrSz, int attrPos)
+{
+    static const byte signedDataOid[] = {
+        0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02
+    };
+    static const byte version[] = { 0x02, 0x01, 0x01 };
+    static const byte noDigestAlgs[] = { 0x31, 0x00 };
+    static const byte sha256DigestAlgs[] = {
+        0x31, 0x0F, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+        0x03, 0x04, 0x02, 0x01, 0x05, 0x00
+    };
+    static const byte dataContentInfo[] = {
+        0x30, 0x0B, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01
+    };
+    static const byte dataEContentInfo[] = {
+        0x30, 0x10, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+        0x07, 0x01, 0xA0, 0x03, 0x04, 0x01, 0x78
+    };
+    static const byte noSigners[] = { 0x31, 0x00 };
+    const byte* digestAlgs = digestAlg ? sha256DigestAlgs : noDigestAlgs;
+    word32 digestAlgsSz = digestAlg ? (word32)sizeof(sha256DigestAlgs) :
+                                      (word32)sizeof(noDigestAlgs);
+    const byte* contentInfo = eContent ? dataEContentInfo : dataContentInfo;
+    word32 contentInfoSz = eContent ? (word32)sizeof(dataEContentInfo) :
+                                      (word32)sizeof(dataContentInfo);
+    word32 setSz;
+    word32 sdSz;
+    word32 expSz;
+    word32 ciSz;
+    word32 idx = 0;
+    int    i;
+
+    setSz = attrSz + (word32)count * (word32)sizeof_client_cert_der_2048;
+    sdSz  = (word32)sizeof(version) + digestAlgsSz +
+            contentInfoSz + pkcs7_der_hdr(NULL, 0, setSz) +
+            setSz + (word32)sizeof(noSigners);
+    expSz = pkcs7_der_hdr(NULL, 0, sdSz) + sdSz;
+    ciSz  = (word32)sizeof(signedDataOid) + pkcs7_der_hdr(NULL, 0, expSz) +
+            expSz;
+    if (pkcs7_der_hdr(NULL, 0, ciSz) + ciSz > outSz)
+        return BUFFER_E;
+
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_SEQUENCE, ciSz);
+    XMEMCPY(out + idx, signedDataOid, sizeof(signedDataOid));
+    idx += (word32)sizeof(signedDataOid);
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC,
+        expSz);
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_SEQUENCE, sdSz);
+    XMEMCPY(out + idx, version, sizeof(version));
+    idx += (word32)sizeof(version);
+    XMEMCPY(out + idx, digestAlgs, digestAlgsSz);
+    idx += digestAlgsSz;
+    XMEMCPY(out + idx, contentInfo, contentInfoSz);
+    idx += contentInfoSz;
+    idx += pkcs7_der_hdr(out + idx, ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC,
+        setSz);
+    for (i = 0; i <= count; i++) {
+        if (i == attrPos) {
+            XMEMCPY(out + idx, attr, attrSz);
+            idx += attrSz;
+        }
+        if (i < count) {
+            XMEMCPY(out + idx, client_cert_der_2048,
+                sizeof_client_cert_der_2048);
+            idx += (word32)sizeof_client_cert_der_2048;
+        }
+    }
+    XMEMCPY(out + idx, noSigners, sizeof(noSigners));
+    idx += (word32)sizeof(noSigners);
+
+    return (int)idx;
+}
+#endif
+
+/* A certificates-only bundle with more certificates than cert[] holds is
+ * refused instead of being truncated; a signed message still verifies. */
+int test_wc_PKCS7_VerifySignedData_CertSetOverflow(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte*  bundle = NULL;
+    byte*  fit = NULL;
+    word32 bundleMax = (MAX_PKCS7_CERTS + 2) * sizeof_client_cert_der_2048 +
+                       FOURK_BUF;
+    int    bundleSz = 0;
+    int    fitSz = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(bundle = (byte*)XMALLOC(bundleMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(fit = (byte*)XMALLOC(bundleMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntGT((fitSz = pkcs7_encode_cert_set(fit, bundleMax,
+        MAX_PKCS7_CERTS, 1, &rng)), 0);
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, fit, (word32)fitSz), 0);
+    if (pkcs7 != NULL) {
+        ExpectNotNull(pkcs7->cert[MAX_PKCS7_CERTS - 1]);
+    }
+
+    /* The same object accepts a bundle that fits after each refusal. */
+    ExpectIntGT((bundleSz = pkcs7_encode_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 1, &rng)), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, fit, (word32)fitSz), 0);
+
+    /* With degenerate bundles disallowed, the policy error is reported. */
+    ExpectIntGT((bundleSz = pkcs7_encode_raw_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 1, 0, NULL, 0, -1)), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    wc_PKCS7_AllowDegenerate(pkcs7, 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz),
+        WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
+    wc_PKCS7_AllowDegenerate(pkcs7, 1);
+
+    /* Content without a signer is reported ahead of the overflow. */
+    ExpectIntGT((bundleSz = pkcs7_encode_raw_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 1, 1, NULL, 0, -1)), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz),
+        WC_NO_ERR_TRACE(PKCS7_NO_SIGNER_E));
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, fit, (word32)fitSz), 0);
+    ExpectIntGT((bundleSz = pkcs7_encode_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 1, &rng)), 0);
+
+#ifndef NO_PKCS7_STREAM
+    ExpectIntEQ(pkcs7_verify_bytewise(pkcs7, bundle, bundleSz),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(pkcs7_verify_bytewise(pkcs7, fit, fitSz), 0);
+#endif
+
+    ExpectIntGT((bundleSz = pkcs7_encode_cert_set(bundle, bundleMax,
+        MAX_PKCS7_CERTS + 1, 0, &rng)), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle, (word32)bundleSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, fit, (word32)fitSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    XFREE(fit, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bundle, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A certificate set may hold other CertificateChoices; they are stepped over
+ * and only X.509 certificates are stored and counted. */
+int test_wc_PKCS7_VerifySignedData_CertSetAttrCert(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(USE_CERT_BUFFERS_2048)
+    static const byte attrCert[] = { 0xA2, 0x03, 0x30, 0x01, 0x00 };
+    static const byte badAttrCert[] = { 0xA2, 0x7F };
+    static const byte longAttrCert[] = { 0xA2, 0x03, 0x30, 0x01 };
+    static const byte strayTag[] = { 0xA2 };
+    static const byte indefCert[] = { 0x30, 0x80, 0x30, 0x00, 0x00, 0x00 };
+    const byte* bad[] = { badAttrCert, longAttrCert, strayTag, indefCert };
+    const word32 badSz[] = { sizeof(badAttrCert), sizeof(longAttrCert),
+                             sizeof(strayTag), sizeof(indefCert) };
+    PKCS7* pkcs7 = NULL;
+    byte*  bundle = NULL;
+    word32 bundleMax = (MAX_PKCS7_CERTS + 2) * sizeof_client_cert_der_2048 +
+                       FOURK_BUF;
+    int    bundleSz = 0;
+    int    pos;
+    int    p;
+
+    ExpectNotNull(bundle = (byte*)XMALLOC(bundleMax, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    /* Attribute certificate first, second and last. */
+    for (p = 0; p < 3; p++) {
+        pos = (p < 2) ? p : MAX_PKCS7_CERTS;
+        ExpectIntGT((bundleSz = pkcs7_encode_raw_cert_set(bundle, bundleMax,
+            MAX_PKCS7_CERTS, 0, 0, attrCert, sizeof(attrCert), pos)), 0);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle,
+            (word32)bundleSz), 0);
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(pkcs7->certSz[0], sizeof_client_cert_der_2048);
+            ExpectIntEQ(pkcs7->certSz[MAX_PKCS7_CERTS - 1],
+                sizeof_client_cert_der_2048);
+        }
+    #ifndef NO_PKCS7_STREAM
+        ExpectIntEQ(pkcs7_verify_bytewise(pkcs7, bundle, bundleSz), 0);
+    #endif
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+
+        pos = (p < 2) ? p : MAX_PKCS7_CERTS + 1;
+        ExpectIntGT((bundleSz = pkcs7_encode_raw_cert_set(bundle, bundleMax,
+            MAX_PKCS7_CERTS + 1, 0, 0, attrCert, sizeof(attrCert), pos)), 0);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle,
+            (word32)bundleSz), WC_NO_ERR_TRACE(BUFFER_E));
+    #ifndef NO_PKCS7_STREAM
+        ExpectIntEQ(pkcs7_verify_bytewise(pkcs7, bundle, bundleSz),
+            WC_NO_ERR_TRACE(BUFFER_E));
+    #endif
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* Truncated, overlong and indefinite-length elements are parse errors. */
+    for (p = 0; p < (int)(sizeof(badSz) / sizeof(badSz[0])); p++) {
+        ExpectIntGT((bundleSz = pkcs7_encode_raw_cert_set(bundle, bundleMax,
+            1, 0, 0, bad[p], badSz[p], 1)), 0);
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, bundle,
+            (word32)bundleSz), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    #ifndef NO_PKCS7_STREAM
+        ExpectIntEQ(pkcs7_verify_bytewise(pkcs7, bundle, bundleSz),
+            WC_NO_ERR_TRACE(ASN_PARSE_E));
+    #endif
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    XFREE(bundle, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return EXPECT_RESULT();
 }

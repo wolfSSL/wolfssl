@@ -135,7 +135,10 @@ WOLFSSL_API int  wc_Des_EcbEncrypt(Des* des, byte* out,
 WOLFSSL_API int wc_Des3_EcbEncrypt(Des3* des, byte* out,
                                    const byte* in, word32 sz);
 
-#ifdef FREESCALE_MMCAU /* Has separate encrypt/decrypt functions */
+#if defined(FREESCALE_MMCAU) || \
+    (defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY))
+/* Has separate encrypt/decrypt functions: the hardware takes the same key in
+ * both directions */
 WOLFSSL_API int wc_Des_EcbDecrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
 WOLFSSL_API int wc_Des3_EcbDecrypt(Des3* des, byte* out,

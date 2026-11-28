@@ -78,6 +78,11 @@ int test_wc_DhPublicKeyDecode(void)
     inOutIdx = 0;
     ExpectIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
         sizeof_dh_pub_key_der_2048), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    inOutIdx = 0;
+    ExpectIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
+        sizeof_dh_pub_key_der_2048), 0);
     ExpectIntNE(key.p.used, 0);
     ExpectIntNE(key.g.used, 0);
     ExpectIntEQ(key.q.used, 0);
@@ -274,6 +279,10 @@ int test_wc_DhSetKey(void)
     if (params != NULL) {
         /* valid: known FFDHE prime, short-circuits the primality test */
         ExpectIntEQ(wc_InitDhKey(&key), 0);
+        ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
+            params->g_len), 0);
+        /* Set again on the same key; the first values must be released,
+         * not orphaned. */
         ExpectIntEQ(wc_DhSetKey(&key, params->p, params->p_len, params->g,
             params->g_len), 0);
         wc_FreeDhKey(&key);
@@ -762,6 +771,9 @@ int test_wc_DhImportExportKeyPair(void)
     /* both */
     ExpectIntEQ(wc_InitDhKey(&key), 0);
     ExpectIntEQ(wc_DhImportKeyPair(&key, priv, privSz, pub, pubSz), 0);
+    /* Import again into the same key; the first values must be released,
+     * not orphaned. */
+    ExpectIntEQ(wc_DhImportKeyPair(&key, priv, privSz, pub, pubSz), 0);
 
     /* export bad args */
     privOutSz = sizeof(privOut);
@@ -1010,6 +1022,7 @@ int test_wc_DhGenerateParams_and_ExportRaw(void)
  * generate-and-export flow below is only valid with the full SP math
  * (WOLFSSL_SP_MATH_ALL), fastmath or heapmath backends. */
 #if !defined(NO_DH) && defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLFSSL_NO_DH_GEN_PARAMS) && \
     !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     DhKey dh;
     WC_RNG rng;
@@ -1031,6 +1044,9 @@ int test_wc_DhGenerateParams_and_ExportRaw(void)
     ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, &dh), 0);
+    /* Generate again into the same key; the first values must be released,
+     * not orphaned. */
     ExpectIntEQ(wc_DhGenerateParams(&rng, 1024, &dh), 0);
 
     /* bad args */
@@ -1133,6 +1149,44 @@ int test_wc_DhGenerateKeyPair_CheckDhLN(void)
     }
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Decision-coverage drivers for the ssl_load.c DH argument guards left
+ * unpaired by the functional tests. Each block names the
+ * source line:condition it closes. */
+int test_dh_decision_coverage(void)
+{
+    EXPECT_DECLS;
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_DH) && !defined(NO_TLS)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte p[512];
+    byte g[8];
+    byte bigP[4096];
+
+    XMEMSET(p, 0, sizeof(p));
+    XMEMSET(g, 0, sizeof(g));
+    XMEMSET(bigP, 0, sizeof(bigP));
+    p[0] = 0x01;
+    g[0] = 0x02;
+    bigP[0] = 0x01;
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+
+    /* --- 6024/6311:0/1 wolfSSL_CTX_SetTmpDH: ctx/p/g NULL guards ---------- */
+    (void)wolfSSL_CTX_SetTmpDH(NULL, p, (int)sizeof(p), g, (int)sizeof(g));
+    (void)wolfSSL_CTX_SetTmpDH(ctx, NULL, 0, g, (int)sizeof(g));
+    (void)wolfSSL_CTX_SetTmpDH(ctx, p, (int)sizeof(p), NULL, 0);
+
+    /* --- 5848:0/1 wolfSSL_SetTmpDH: pSz < minDhKeySz || > maxDhKeySz ----- */
+    (void)wolfSSL_SetTmpDH(ssl, p, 1, g, (int)sizeof(g));
+    (void)wolfSSL_SetTmpDH(ssl, bigP, (int)sizeof(bigP), g, (int)sizeof(g));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

@@ -20,6 +20,14 @@
  */
 
 #include <tests/unit.h>
+
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #include <tests/utils.h>
 #include <tests/api/api.h>
 #include <tests/api/test_tls_parse.h>
@@ -29,6 +37,9 @@
 #ifndef NO_DH
 #include <wolfssl/wolfcrypt/dh.h>
 #endif
+#ifdef WOLFSSL_HAVE_MLKEM
+#include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
 
 /* Several helpers below are called only from test bodies whose feature guards
  * differ, so a configuration can compile in none of their callers. */
@@ -36,6 +47,16 @@
     #define TEST_TLS_PARSE_UNUSED __attribute__((unused))
 #else
     #define TEST_TLS_PARSE_UNUSED
+#endif
+
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+    #if !defined(WOLFSSL_NO_ML_KEM_768)
+        #define TEST_TLS_PARSE_MLKEM_GROUP WOLFSSL_ML_KEM_768
+    #elif !defined(WOLFSSL_NO_ML_KEM_1024)
+        #define TEST_TLS_PARSE_MLKEM_GROUP WOLFSSL_ML_KEM_1024
+    #elif !defined(WOLFSSL_NO_ML_KEM_512)
+        #define TEST_TLS_PARSE_MLKEM_GROUP WOLFSSL_ML_KEM_512
+    #endif
 #endif
 
 /* Helper to build a server-side WOLFSSL_CTX with a certificate/key loaded,
@@ -141,6 +162,14 @@ static void* tls_parse_fail_realloc(void* ptr, size_t size)
 {
     return realloc(ptr, size);
 }
+
+TEST_TLS_PARSE_UNUSED
+static void* tls_parse_null_realloc(void* ptr, size_t size)
+{
+    (void)ptr;
+    (void)size;
+    return NULL;
+}
 #endif /* WOLFSSL_TEST_STATIC_BUILD && !NO_TLS */
 
 #if defined(WOLFSSL_TEST_STATIC_BUILD) && defined(WOLFSSL_TLS13) && \
@@ -153,13 +182,20 @@ TEST_TLS_PARSE_UNUSED
 static int test_tls_parse_push_curve(TLSX** extensions, WOLFSSL* ssl,
         word16 name)
 {
-    SupportedCurve* curve = (SupportedCurve*)XMALLOC(sizeof(SupportedCurve),
-            ssl->heap, DYNAMIC_TYPE_TLSX);
-    if (curve == NULL)
+    SupportedCurves* curves = (SupportedCurves*)XMALLOC(
+            sizeof(SupportedCurves) + sizeof(word16), ssl->heap,
+            DYNAMIC_TYPE_TLSX);
+    if (curves == NULL)
         return WC_NO_ERR_TRACE(MEMORY_E);
-    curve->name = name;
-    curve->next = NULL;
-    return TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, ssl->heap);
+    curves->count = 1;
+    curves->cap = 1;
+    curves->name[0] = name;
+    if (TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curves, ssl->heap) != 0) {
+        /* TLSX_New failed before it stored curve, so the entry is still ours. */
+        XFREE(curves, ssl->heap, DYNAMIC_TYPE_TLSX);
+        return WC_NO_ERR_TRACE(MEMORY_E);
+    }
+    return 0;
 }
 
 /* Builds and pushes a minimal key share entry -- a peer offer that was
@@ -198,12 +234,118 @@ TEST_TLS_PARSE_UNUSED
 static void test_tls_parse_free_kse(WOLFSSL* ssl, KeyShareEntry* kse)
 {
     TLSX* extensions = NULL;
+    void* heap;
+
     if (kse == NULL)
         return;
-    if (TLSX_Push(&extensions, TLSX_KEY_SHARE, kse, ssl->heap) != 0)
+    if (TLSX_Push(&extensions, TLSX_KEY_SHARE, kse, ssl->heap) == 0) {
+        TLSX_FreeAll(extensions, ssl->heap);
         return;
-    TLSX_FreeAll(extensions, ssl->heap);
+    }
+
+    /* TLSX_Push allocates the list node. After the mem-fail count is hit,
+     * that allocation fails and every later one fails too, so FreeAll never
+     * runs. The entry is still ours. */
+    heap = ssl->heap;
+    if (WOLFSSL_NAMED_GROUP_IS_FFDHE(kse->group)) {
+#ifndef NO_DH
+        if (kse->key != NULL) {
+        #if defined(WC_DH_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_DH)
+            if (((DhKey*)kse->key)->nb != NULL) {
+                XFREE(((DhKey*)kse->key)->nb, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+                ((DhKey*)kse->key)->nb = NULL;
+            }
+        #endif
+            wc_FreeDhKey((DhKey*)kse->key);
+        }
+        if (kse->privKey != NULL && kse->privKeyLen > 0)
+            ForceZero(kse->privKey, kse->privKeyLen);
+#endif
+    }
+    else if (kse->group == WOLFSSL_ECC_X25519) {
+#ifdef HAVE_CURVE25519
+        if (kse->key != NULL) {
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW)
+            if (((curve25519_key*)kse->key)->nb_ctx != NULL) {
+                XFREE(((curve25519_key*)kse->key)->nb_ctx, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
+            wc_curve25519_free((curve25519_key*)kse->key);
+        }
+#endif
+    }
+    else if (kse->group == WOLFSSL_ECC_X448) {
+#ifdef HAVE_CURVE448
+        if (kse->key != NULL)
+            wc_curve448_free((curve448_key*)kse->key);
+#endif
+    }
+    else if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group)) {
+#ifdef WOLFSSL_HAVE_MLKEM
+        if (kse->key != NULL)
+            wc_MlKemKey_Free((MlKemKey*)kse->key);
+        if (kse->privKey != NULL && kse->privKeyLen > 0)
+            ForceZero(kse->privKey, kse->privKeyLen);
+#endif
+    }
+    /* ECC is the remaining group. */
+    else if (!WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group)) {
+#ifdef HAVE_ECC
+        if (kse->key != NULL) {
+        #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_ECC)
+            if (((ecc_key*)kse->key)->nb_ctx != NULL) {
+                XFREE(((ecc_key*)kse->key)->nb_ctx, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        #endif
+            wc_ecc_free((ecc_key*)kse->key);
+        }
+#endif
+    }
+    XFREE(kse->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+#if !defined(NO_DH) || defined(WOLFSSL_HAVE_MLKEM)
+    XFREE(kse->privKey, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+#endif
+    XFREE(kse->pubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(kse->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(kse, heap, DYNAMIC_TYPE_TLSX);
 }
+
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+/* TLSX_Push's first allocation is the list node. Fail that one so the
+ * direct free above runs. Later allocations in this call are allowed. */
+TEST_TLS_PARSE_UNUSED
+static int test_tls_parse_free_kse_push_fail(WOLFSSL* ssl, KeyShareEntry* kse)
+{
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    int ret;
+
+    ret = wolfSSL_GetAllocators(&prevM, &prevF, &prevR);
+    if (ret != 0) {
+        test_tls_parse_free_kse(ssl, kse);
+        return ret;
+    }
+    ret = wolfSSL_SetAllocators(tls_parse_fail_malloc, tls_parse_fail_free,
+            tls_parse_fail_realloc);
+    if (ret != 0) {
+        test_tls_parse_free_kse(ssl, kse);
+        return ret;
+    }
+    tls_parse_alloc_seen = 0;
+    tls_parse_fail_after = 0;
+    test_tls_parse_free_kse(ssl, kse);
+    tls_parse_fail_after = -1;
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    return 0;
+}
+#endif
 #endif /* WOLFSSL_TEST_STATIC_BUILD && WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
 /* ---- ALPN --------------------------------------------------------------- */
@@ -304,7 +446,9 @@ int test_TLSX_ALPN_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, server_hello, NULL), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Response direction, nothing configured on this client at all:
      * ALPN_find_match()'s extension == NULL path. */
@@ -319,7 +463,9 @@ int test_TLSX_ALPN_parse(void)
                     WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Response direction, two protocol names instead of the one RFC 7301
      * Section 3.1 allows in a response. */
@@ -336,8 +482,11 @@ int test_TLSX_ALPN_parse(void)
                     WC_NO_ERR_TRACE(BUFFER_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
+#ifndef NO_WOLFSSL_SERVER
     /* Request direction: server parses and stores a client_hello ALPN
      * list. Exercises TLSX_ALPN_ParseAndSet()'s length bookkeeping (shared
      * with the response direction) on the request side, including the
@@ -377,7 +526,9 @@ int test_TLSX_ALPN_parse(void)
                     WC_NO_ERR_TRACE(BUFFER_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ctx = test_tls_parse_server_ctx(wolfTLSv1_2_server_method());
     ExpectNotNull(ctx);
@@ -393,7 +544,10 @@ int test_TLSX_ALPN_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif /* !NO_WOLFSSL_SERVER */
 #endif
     return EXPECT_RESULT();
 }
@@ -629,7 +783,9 @@ int test_TLSX_Cookie_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #ifdef WOLFSSL_DTLS13
     /* DTLS 1.3: a cookie in client_hello with none stored yet and no
@@ -646,7 +802,9 @@ int test_TLSX_Cookie_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, client_hello, suites), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 #endif
     return EXPECT_RESULT();
@@ -682,14 +840,16 @@ int test_TLSX_EncryptThenMac_parse(void)
 int test_TLSX_MFL_parse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MAX_FRAGMENT) && !defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION)  && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
-    defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_TLS_EXTENSIONS) && \
+    ((!defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION) && \
+      !defined(WOLFSSL_NO_TLS12)) || defined(WOLFSSL_TLS13))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8];
     word16 extLen;
 
+#if !defined(WOLFSSL_OLD_UNSUPPORTED_EXTENSION) && !defined(WOLFSSL_NO_TLS12)
     /* Client did not request MFL: any server_hello response is flagged as
      * an unrequested extension before the value is even looked at. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
@@ -702,7 +862,9 @@ int test_TLSX_MFL_parse(void)
                     WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Client requested MFL_2_9: a mismatching echo is rejected, the same
      * value is accepted. */
@@ -725,7 +887,56 @@ int test_TLSX_MFL_parse(void)
         ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, server_hello, NULL), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif /* !WOLFSSL_OLD_UNSUPPORTED_EXTENSION && !WOLFSSL_NO_TLS12 */
+
+#ifdef WOLFSSL_TLS13
+    /* TLS 1.3 (RFC 8446 Section 4.2): a response the client did not request
+     * is rejected in encrypted_extensions, also when the legacy TLS 1.2
+     * handling is compiled in. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        const byte resp[] = { WOLFSSL_MFL_2_9 };
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_MAX_FRAGMENT_LENGTH, resp, (word16)sizeof(resp));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, encrypted_extensions, NULL),
+                    WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
+        ExpectIntEQ(ssl->max_fragment, MAX_RECORD_SIZE);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Client requested MFL_2_9: a mismatching response is rejected and
+     * leaves the fragment size alone, the same value is applied. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        const byte mismatch[] = { WOLFSSL_MFL_2_10 };
+        const byte match[] = { WOLFSSL_MFL_2_9 };
+
+        ExpectIntEQ(wolfSSL_UseMaxFragment(ssl, WOLFSSL_MFL_2_9),
+                    WOLFSSL_SUCCESS);
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_MAX_FRAGMENT_LENGTH, mismatch, (word16)sizeof(mismatch));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, encrypted_extensions, NULL),
+                    WC_NO_ERR_TRACE(UNKNOWN_MAX_FRAG_LEN_E));
+        ExpectIntEQ(ssl->max_fragment, MAX_RECORD_SIZE);
+
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext),
+                TLSXT_MAX_FRAGMENT_LENGTH, match, (word16)sizeof(match));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, encrypted_extensions, NULL),
+                    0);
+        ExpectIntEQ(ssl->max_fragment, 512);
+    }
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* WOLFSSL_TLS13 */
 #endif
     return EXPECT_RESULT();
 }
@@ -942,6 +1153,7 @@ int test_TLSX_SecureRenegotiation_parse(void)
     /* Client side response direction: *input == 2*TLS_FINISHED_SZ, but the
      * declared extension length disagrees with it -- length is the
      * second, independent half of that check. */
+#ifndef NO_WOLFSSL_CLIENT
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     ExpectNotNull(ctx);
     ssl = NULL;
@@ -973,6 +1185,7 @@ int test_TLSX_SecureRenegotiation_parse(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
+#endif
     return EXPECT_RESULT();
 }
 
@@ -988,7 +1201,7 @@ int test_TLSX_SupportedVersions_parse(void)
      * WOLFSSL_LOCAL: called directly (guarded). */
 #if defined(WOLFSSL_TLS13) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)  && !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
     defined(HAVE_TLS_EXTENSIONS) && \
-    !defined(WOLFSSL_NO_TLS12)
+    !defined(WOLFSSL_NO_TLS12) && (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte ext[8 + MAX_SV_EXT_LEN];
@@ -1351,6 +1564,58 @@ int test_TLSX_CSR_parse(void)
     }
     wolfSSL_free(ssl);
     ssl = NULL;
+    if (ctx != NULL)
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        /* RFC 8446 4.4.2.1 defines OCSPResponse<1..2^24-1>, so a present
+         * but empty staple is a field out of range. */
+        const byte respEmpty[] = {
+            WOLFSSL_CSR_OCSP,
+            0x00, 0x00, 0x00
+        };
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP, 0),
+                    WOLFSSL_SUCCESS);
+        ssl->options.tls1_3 = 1;
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext), TLSXT_STATUS_REQUEST,
+                respEmpty, (word16)sizeof(respEmpty));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, certificate, NULL),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    if (ctx != NULL)
+        ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        /* RFC 8446 4.4.2.1: a CertificateRequest carries it empty too, and
+         * the client must not let that replace its own request. */
+        Suites* suites = (Suites*)WOLFSSL_SUITES(ssl);
+        const byte truncatedReq[] = { WOLFSSL_CSR_OCSP };
+        const byte fullReq[] = { WOLFSSL_CSR_OCSP, 0x00, 0x00, 0x00, 0x00 };
+
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP, 0),
+                    WOLFSSL_SUCCESS);
+        ssl->options.tls1_3 = 1;
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext), TLSXT_STATUS_REQUEST,
+                NULL, 0);
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, certificate_request, suites),
+                    0);
+        ExpectIntEQ(ssl->status_request, 0);
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext), TLSXT_STATUS_REQUEST,
+                truncatedReq, (word16)sizeof(truncatedReq));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, certificate_request, suites),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+        ExpectIntEQ(ssl->status_request, 0);
+        /* A well-formed but non-empty body is refused after the handshake
+         * too, where post-handshake authentication sends it. */
+        ssl->options.handShakeDone = 1;
+        extLen = test_tls_parse_build_ext(ext, sizeof(ext), TLSXT_STATUS_REQUEST,
+                fullReq, (word16)sizeof(fullReq));
+        ExpectIntEQ(TLSX_Parse(ssl, ext, extLen, certificate_request, suites),
+                    WC_NO_ERR_TRACE(BUFFER_ERROR));
+        ExpectIntEQ(ssl->status_request, 0);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
 
     /* The response buffer allocation: response_idx is always 0 at this
      * point in a synthetic parse (no prior certificate chain was
@@ -1395,7 +1660,7 @@ int test_TLSX_CSR_parse(void)
 #endif
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER)
+    !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
     {
         WOLFSSL_CTX* ctx2 = test_tls_parse_server_ctx(
                 wolfTLSv1_2_server_method());
@@ -1449,13 +1714,22 @@ int test_TLSX_CSR_parse(void)
 int test_TLSX_PointFormat_parse(void)
 {
     EXPECT_DECLS;
+#if (defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
+     !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+     defined(HAVE_TLS_EXTENSIONS) && !defined(WOLFSSL_NO_TLS12)) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
+     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
+     !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+     (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(WOLFSSL_NO_TLS12) && \
+     (!defined(NO_DH) || defined(HAVE_CURVE25519)))
+    byte ext[16];
+    word16 extLen;
+#endif
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) &&  !defined(NO_WOLFSSL_SERVER) &&  (!defined(NO_RSA) || defined(HAVE_ECC)) && \
     defined(HAVE_TLS_EXTENSIONS) && \
     !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    byte ext[16];
-    word16 extLen;
 
     ctx = test_tls_parse_server_ctx(wolfTLSv1_2_server_method());
     ExpectNotNull(ctx);
@@ -1490,7 +1764,8 @@ int test_TLSX_PointFormat_parse(void)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) && \
     !defined(WOLFSSL_NO_SERVER_GROUPS_EXT) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(WOLFSSL_NO_TLS12)
     /* TLSX_SupportedCurve_Preferred(): checkSupported gating and the
      * TLSX_IsGroupSupported() result, driven by a raw (unfiltered) offered
      * groups list -- TLSX_SupportedCurve_Parse() records whatever the peer
@@ -1557,7 +1832,8 @@ int test_TLSX_PointFormat_parse(void)
 #endif
 
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS) && \
-    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(WOLFSSL_NO_TLS12)
     /* TLSX_PointFormat_ValidateResponse(): reached while sizing/writing a
      * ServerHello, through the WOLFSSL_LOCAL TLSX_GetResponseSize() rather
      * than TLSX_Parse() (there is no wire input on this side). A cipher
@@ -1970,7 +2246,9 @@ int test_TLSX_SupportedGroups_parse(void)
         ExpectNull(extensions);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* server_hello direction, TLS 1.3: the version half of the guard no
      * longer applies, so parsing proceeds. */
@@ -1997,7 +2275,9 @@ int test_TLSX_SupportedGroups_parse(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* client_hello direction is never checked against the version; a TLS
      * 1.2 connection reaches the same body parsing as above. Also the
@@ -2075,7 +2355,9 @@ int test_TLSX_SupportedGroups_parse(void)
 #endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Second shape: a local restriction is already configured (as if from
      * wolfSSL_CTX_set1_groups_list()), so parsing intersects the peer's
@@ -2137,14 +2419,68 @@ int test_TLSX_SupportedGroups_parse(void)
         extensions = NULL;
 
 #ifdef WOLFSSL_TEST_STATIC_BUILD
-        /* Offered group matches the local restriction, but recording it
-         * in the intersection list is forced to fail: a non-zero ret
-         * reaches the "no common curve" check below without commonCurves
-         * ever becoming non-NULL through the normal path. */
+        /* New lists come from malloc and do not depend on realloc(NULL). */
         {
             wolfSSL_Malloc_cb prevM = NULL;
             wolfSSL_Free_cb prevF = NULL;
             wolfSSL_Realloc_cb prevR = NULL;
+
+            ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+            ExpectIntEQ(wolfSSL_SetAllocators(tls_parse_fail_malloc,
+                        tls_parse_fail_free, tls_parse_null_realloc), 0);
+            ExpectIntEQ(TLSX_UseSupportedCurve(&extensions,
+                        WOLFSSL_ECC_SECP256R1, ssl->heap,
+                        ssl->options.side), WOLFSSL_SUCCESS);
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* A failed grow leaves the list in the extension as it was. */
+        {
+            wolfSSL_Malloc_cb prevM = NULL;
+            wolfSSL_Free_cb prevF = NULL;
+            wolfSSL_Realloc_cb prevR = NULL;
+            TLSX* ext = NULL;
+            SupportedCurves* before = NULL;
+            SupportedCurves* curves = NULL;
+
+            ExpectIntEQ(test_tls_parse_push_curve(&extensions, ssl,
+                        WOLFSSL_ECC_SECP256R1), 0);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if (ext != NULL)
+                before = (SupportedCurves*)ext->data;
+
+            ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+            ExpectIntEQ(wolfSSL_SetAllocators(tls_parse_fail_malloc,
+                        tls_parse_fail_free, tls_parse_null_realloc), 0);
+            tls_parse_alloc_seen = 0;
+            tls_parse_fail_after = 0;
+            ExpectIntEQ(TLSX_UseSupportedCurve(&extensions,
+                        WOLFSSL_ECC_SECP384R1, ssl->heap, ssl->options.side),
+                        WC_NO_ERR_TRACE(MEMORY_E));
+            tls_parse_fail_after = -1;
+            (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectPtrEq(curves, before);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 1);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[0],
+                        WOLFSSL_ECC_SECP256R1);
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* The intersection is one allocation; when it fails the list in the
+         * extension is left as it was. */
+        {
+            wolfSSL_Malloc_cb prevM = NULL;
+            wolfSSL_Free_cb prevF = NULL;
+            wolfSSL_Realloc_cb prevR = NULL;
+            TLSX* ext = NULL;
+            SupportedCurves* curves = NULL;
 
             ExpectIntEQ(TLSX_UseSupportedCurve(&extensions,
                         WOLFSSL_ECC_SECP256R1, ssl->heap,
@@ -2159,15 +2495,113 @@ int test_TLSX_SupportedGroups_parse(void)
             ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, goodBody,
                         (word16)sizeof(goodBody), 1, &extensions),
                         WC_NO_ERR_TRACE(MEMORY_E));
+            ExpectIntEQ(tls_parse_alloc_seen, 1);
+
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectNotNull(curves);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 1);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[0],
+                        WOLFSSL_ECC_SECP256R1);
+
+            tls_parse_alloc_seen = 0;
+            tls_parse_fail_after = 1;
+            ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, goodBody,
+                        (word16)sizeof(goodBody), 1, &extensions), 0);
+            ExpectIntEQ(tls_parse_alloc_seen, 1);
 
             tls_parse_fail_after = -1;
             (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
             TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* Only the first FFDHE codepoint this build lacks is kept, in the
+         * peer's order. */
+        {
+            /* secp256r1, then two FFDHE codepoints no build implements. */
+            const byte ffdheTwo[] = { 0x00, 0x06, 0x00, 0x17, 0x01, 0x20,
+                                      0x01, 0x21 };
+            TLSX* ext = NULL;
+            SupportedCurves* curves = NULL;
+
+            ExpectIntEQ(test_tls_parse_push_curve(&extensions, ssl,
+                        WOLFSSL_ECC_SECP256R1), 0);
+            ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, ffdheTwo,
+                        (word16)sizeof(ffdheTwo), 1, &extensions), 0);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectNotNull(curves);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count, 2);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[0],
+                        WOLFSSL_ECC_SECP256R1);
+            ExpectIntEQ(curves == NULL ? 0 : curves->name[1], 0x0120);
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+        }
+
+        /* After an HRR the second ClientHello is intersected with the first
+         * one's list, which can be longer than WOLFSSL_MAX_GROUP_COUNT. */
+        {
+            #define TEST_LONG_CNT (WOLFSSL_MAX_GROUP_COUNT + 2)
+            byte peer[OPAQUE16_LEN + TEST_LONG_CNT * OPAQUE16_LEN];
+            TLSX* ext = NULL;
+            SupportedCurves* curves = NULL;
+            word16 name;
+            word16 i;
+            int ret;
+
+            curves = (SupportedCurves*)XMALLOC(sizeof(SupportedCurves) +
+                    TEST_LONG_CNT * sizeof(word16), ssl->heap,
+                    DYNAMIC_TYPE_TLSX);
+            ExpectNotNull(curves);
+            if (curves != NULL) {
+                curves->count = TEST_LONG_CNT;
+                curves->cap = TEST_LONG_CNT;
+                for (i = 0; i < TEST_LONG_CNT; i++)
+                    curves->name[i] = (word16)(0x0a00 + i);
+                ret = TLSX_Push(&extensions, TLSX_SUPPORTED_GROUPS, curves,
+                                ssl->heap);
+                if (ret != 0)
+                    XFREE(curves, ssl->heap, DYNAMIC_TYPE_TLSX);
+                ExpectIntEQ(ret, 0);
+            }
+
+            peer[0] = (byte)((TEST_LONG_CNT * OPAQUE16_LEN) >> 8);
+            peer[1] = (byte)(TEST_LONG_CNT * OPAQUE16_LEN);
+            for (i = 0; i < TEST_LONG_CNT; i++) {
+                name = (word16)(0x0a00 + TEST_LONG_CNT - 1 - i);
+                peer[OPAQUE16_LEN + i * OPAQUE16_LEN] = (byte)(name >> 8);
+                peer[OPAQUE16_LEN + i * OPAQUE16_LEN + 1] = (byte)name;
+            }
+
+            ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, peer,
+                        (word16)sizeof(peer), 1, &extensions), 0);
+            ExpectNotNull(ext = TLSX_Find(extensions,
+                                          TLSX_SUPPORTED_GROUPS));
+            curves = NULL;
+            if (ext != NULL)
+                curves = (SupportedCurves*)ext->data;
+            ExpectNotNull(curves);
+            ExpectIntEQ(curves == NULL ? -1 : (int)curves->count,
+                        TEST_LONG_CNT);
+            for (i = 0; (curves != NULL) && (i < curves->count); i++) {
+                ExpectIntEQ(curves->name[i], 0x0a00 + TEST_LONG_CNT - 1 - i);
+            }
+            TLSX_FreeAll(extensions, NULL);
+            extensions = NULL;
+            #undef TEST_LONG_CNT
         }
 #endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same restriction shape, response direction: needs a TLS 1.3
      * connection to get past the version guard tested first (a TLS 1.2
@@ -2186,10 +2620,19 @@ int test_TLSX_SupportedGroups_parse(void)
                     WOLFSSL_SUCCESS);
         ExpectIntEQ(TLSX_SupportedCurve_Parse(ssl, noMatch261,
                     (word16)sizeof(noMatch261), 0, &extensions), 0);
+        {
+            TLSX* ext = TLSX_Find(extensions, TLSX_SUPPORTED_GROUPS);
+
+            ExpectNotNull(ext);
+            if (ext != NULL)
+                ExpectNull(ext->data);
+        }
         TLSX_FreeAll(extensions, NULL);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2204,7 +2647,7 @@ int test_TLSX_KeyShare_negotiate(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2226,7 +2669,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     &searched), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2241,7 +2686,9 @@ int test_TLSX_KeyShare_negotiate(void)
         ExpectNull(kse);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_Choose(): extension->resp == 1 means a server key share
      * was already chosen (e.g. after a HelloRetryRequest) -- outside of
@@ -2272,7 +2719,9 @@ int test_TLSX_KeyShare_negotiate(void)
         ExpectIntEQ(searched, 1);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #ifdef WOLFSSL_HAVE_MLKEM
     /* TLSX_KeyShare_Choose(): a client-offered group above WOLFSSL_ECC_MAX
@@ -2308,7 +2757,9 @@ int test_TLSX_KeyShare_negotiate(void)
                 ExpectIntEQ(searched, 1);
             }
             wolfSSL_free(ssl);
+            ssl = NULL;
             wolfSSL_CTX_free(ctx);
+            ctx = NULL;
         }
     }
 #endif /* WOLFSSL_HAVE_MLKEM */
@@ -2324,7 +2775,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = test_tls_parse_server_ctx(wolfTLSv1_3_server_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -2335,7 +2788,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(BAD_STATE_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_Parse_ClientHello(): the list-length prefix and the
      * MAX_EXT_DATA_LEN bound. Both are checked against the 'length'
@@ -2370,7 +2825,9 @@ int test_TLSX_KeyShare_negotiate(void)
         TLSX_FreeAll(extensions, NULL);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_Parse(), server_hello direction: "not in the list sent
      * if there isn't a private key". A group that was offered (both
@@ -2404,7 +2861,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same shape, but the client's entry already has a (fully initialised,
      * so freeing it later is safe) DH key object -- key != NULL alone is
@@ -2442,7 +2901,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(PEER_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same shape, but the client's entry already has a private key (as a
      * real one would by the time a ServerHello arrives): the gate passes
@@ -2481,7 +2942,9 @@ int test_TLSX_KeyShare_negotiate(void)
                     WC_NO_ERR_TRACE(PEER_KEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
 #endif
     return EXPECT_RESULT();
@@ -2499,7 +2962,7 @@ int test_TLSX_KeyShare_gen(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS) && \
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_CLIENT) && \
     defined(USE_WOLFSSL_MEMORY)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -2530,6 +2993,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
 
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         /* pubKey missing, privKey pre-seeded: the outer guard is true from
@@ -2545,6 +3009,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->pubKey);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         /* privKey missing, pubKey pre-seeded (sized for the FFDHE 2048
@@ -2561,6 +3026,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             ExpectNotNull(kse->privKey);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
 #ifdef WOLFSSL_TEST_STATIC_BUILD
@@ -2600,12 +3066,35 @@ int test_TLSX_KeyShare_gen(void)
                 (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
 
                 test_tls_parse_free_kse(ssl, kse);
+                kse = NULL;
             }
+        }
+#endif
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_FFDHE_2048;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
         }
 #endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
 
 #ifdef HAVE_CURVE25519
@@ -2632,6 +3121,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNull(kse->pubKey);
             ssl->rng = savedRng;
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
@@ -2643,10 +3133,33 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNotNull(kse->pubKey);
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_ECC_X25519;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_CURVE25519 */
 
 #ifdef HAVE_CURVE448
@@ -2668,6 +3181,7 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNull(kse->pubKey);
             ssl->rng = savedRng;
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
 
         ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
@@ -2679,17 +3193,42 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNotNull(kse->pubKey);
             ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_ECC_X448;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_CURVE448 */
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+    !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
     /* TLSX_KeyShare_GenEccKey(): only the "ret == 0" half of "ret == 0 &&
      * pubKey == NULL" is open (the pubKey half already has coverage
      * elsewhere); force it false the same way as the Curve25519/X448
-     * cases above. */
+     * cases above. P-256 is the group this switch arm accepts. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     if (ssl != NULL) {
@@ -2707,11 +3246,87 @@ int test_TLSX_KeyShare_gen(void)
             ExpectNull(kse->pubKey);
             ssl->rng = savedRng;
             test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
         }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = WOLFSSL_ECC_SECP256R1;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            /* Expect skips its arguments after a failure. Free the entry
+             * even when GenKey or the pubKey check failed. */
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
-#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
+    ctx = NULL;
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT &&
+        (!NO_ECC256 || HAVE_ALL_CURVES) && !NO_ECC_SECP &&
+        ECC_MIN_KEY_SZ <= 256 */
+
+#if defined(TEST_TLS_PARSE_MLKEM_GROUP) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && defined(HAVE_SUPPORTED_CURVES)
+    /* TLSX_KeyShare_GenPqcKeyClient(): a second call keeps the first key. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    if (ssl != NULL) {
+        KeyShareEntry* kse = NULL;
+        byte* pubKey = NULL;
+
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = TEST_TLS_PARSE_MLKEM_GROUP;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(pubKey = kse->pubKey);
+            ExpectIntGT(kse->pubKeyLen, 0);
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectPtrEq(kse->pubKey, pubKey);
+            test_tls_parse_free_kse(ssl, kse);
+            kse = NULL;
+        }
+#if !defined(NO_TLS) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+        /* Key is generated. The next allocation, the list node, fails.
+         * A failed Expect skips the assignment, so drop the freed pointer. */
+        kse = NULL;
+        ExpectNotNull(kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry),
+                    ssl->heap, DYNAMIC_TYPE_TLSX));
+        if (kse != NULL) {
+            int pushFailRet;
+
+            XMEMSET(kse, 0, sizeof(*kse));
+            kse->group = TEST_TLS_PARSE_MLKEM_GROUP;
+            ExpectIntEQ(TLSX_KeyShare_GenKey(ssl, kse), 0);
+            ExpectNotNull(kse->pubKey);
+            pushFailRet = test_tls_parse_free_kse_push_fail(ssl, kse);
+            ExpectIntEQ(pushFailRet, 0);
+        }
+#endif
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif /* TEST_TLS_PARSE_MLKEM_GROUP && !WOLFSSL_MLKEM_NO_MAKE_KEY &&
+        !WOLFSSL_MLKEM_NO_DECAPSULATE && HAVE_SUPPORTED_CURVES */
+    (void)ctx;
+    (void)ssl;
 #endif
     return EXPECT_RESULT();
 }
@@ -2721,7 +3336,7 @@ int test_TLSX_KeyShare_freesizewrite(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  !defined(NO_DH) && defined(HAVE_FFDHE_2048) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2764,7 +3379,9 @@ int test_TLSX_KeyShare_freesizewrite(void)
         }
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* TLSX_KeyShare_GetSize() / TLSX_KeyShare_Write(): "!isRequest &&
      * pubKey == NULL" -- a request-direction (client_hello) list always
@@ -2856,7 +3473,9 @@ int test_TLSX_KeyShare_freesizewrite(void)
         ExpectIntGT(respOff, 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2873,7 +3492,7 @@ int test_TLSX_KeyShare_process(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) &&  defined(WOLFSSL_TEST_STATIC_BUILD) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -2915,7 +3534,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Same shape, but our own side has a real key too: both operands
      * false, and the exchange actually completes. */
@@ -2954,7 +3575,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* "ret == 0" itself: an invalid peer value is rejected before our own
      * key is ever looked at, independent of whether one was generated. */
@@ -2982,7 +3605,9 @@ int test_TLSX_KeyShare_process(void)
                     WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_CURVE25519 */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
@@ -3021,7 +3646,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -3058,7 +3685,9 @@ int test_TLSX_KeyShare_process(void)
         test_tls_parse_free_kse(ssl, peer);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* "ret == 0" itself: an invalid (wrong-length) peer value is rejected
      * while importing it, before our own key is ever looked at. */
@@ -3083,7 +3712,9 @@ int test_TLSX_KeyShare_process(void)
                     WC_NO_ERR_TRACE(ECC_PEERKEY_ERROR));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
 #if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
@@ -3128,7 +3759,9 @@ int test_TLSX_KeyShare_process(void)
         ExpectIntEQ(TLSX_KeyShare_DeriveSecret(ssl), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
@@ -3163,8 +3796,12 @@ int test_TLSX_KeyShare_process(void)
         ExpectIntEQ(TLSX_KeyShare_DeriveSecret(ssl), 0);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif /* !NO_DH && HAVE_FFDHE_2048 */
+    (void)ctx;
+    (void)ssl;
 #endif
     return EXPECT_RESULT();
 }

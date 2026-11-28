@@ -240,6 +240,8 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
             const char **file, int *line, const char **data, int *flags,
             int (*ignore_err)(int err));
     WOLFSSL_LOCAL int wc_GetErrorNodeErr(void);
+    WOLFSSL_LOCAL int wc_SetErrorNodeMark(void);
+    WOLFSSL_LOCAL int wc_PopErrorNodesToMark(void);
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         WOLFSSL_API void wc_ERR_print_errors_fp(XFILE fp);
         WOLFSSL_API void wc_ERR_print_errors_cb(int (*cb)(const char *str,
@@ -441,6 +443,37 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #define WOLFSSL_ERROR_VERBOSE(e) (void)(e)
 #endif /* WOLFSSL_VERBOSE_ERRORS */
 
+/* Verbose message logging.
+ *
+ * The sibling of WOLFSSL_VERBOSE_ERRORS / WOLFSSL_ERROR_VERBOSE above: that
+ * pair controls how much detail reaches the *error queue*, this one controls
+ * how much reaches the *log*.
+ *
+ * These narrow the normal macros rather than bypassing them: they expand to
+ * WOLFSSL_MSG/WOLFSSL_ENTER/WOLFSSL_LEAVE, so DEBUG_WOLFSSL (without
+ * WOLFSSL_DEBUG_ERRORS_ONLY) is still required for any output at all.
+ * WOLFSSL_VERBOSE_LOGGING on its own emits nothing; it admits these traces
+ * into a build that is already logging, and they stay off otherwise.
+ *
+ * Use it for traces in functions called so often that the trace is itself the
+ * problem - container helpers, name-entry churn - where the line is noise
+ * during ordinary debugging and is only wanted when tracing that area
+ * specifically.  As a rule of thumb: if one API call can emit the line
+ * thousands of times, it belongs here.
+ *
+ * WOLFSSL_DEBUG_OPENSSL is honoured as well.  It was the hand-rolled spelling
+ * of this same idea in the OpenSSL compatibility layer, applied as
+ * #ifdef/#endif around individual traces; enabling it keeps giving those
+ * callers exactly what it always did.
+ */
+#if defined(WOLFSSL_VERBOSE_LOGGING) || defined(WOLFSSL_DEBUG_OPENSSL)
+    #define WOLFSSL_MSG_VERBOSE(m)      WOLFSSL_MSG(m)
+    #define WOLFSSL_ENTER_VERBOSE(m)    WOLFSSL_ENTER(m)
+#else
+    #define WOLFSSL_MSG_VERBOSE(m)      WC_DO_NOTHING
+    #define WOLFSSL_ENTER_VERBOSE(m)    WC_DO_NOTHING
+#endif /* WOLFSSL_VERBOSE_LOGGING || WOLFSSL_DEBUG_OPENSSL */
+
 #ifdef HAVE_STACK_SIZE_VERBOSE
     extern WOLFSSL_API THREAD_LS_T unsigned char *StackSizeCheck_myStack;
     extern WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSize;
@@ -533,9 +566,6 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #elif defined(MQX_USE_IO_OLD)
     #define WOLFSSL_DEBUG_PRINTF_FN fprintf
     #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS _mqxio_stderr,
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #define WOLFSSL_DEBUG_PRINTF_FN LOG_DEBUG
-    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS &mynewt_log, LOG_MODULE_DEFAULT,
 #elif defined(WOLFSSL_ESPIDF)
     #define WOLFSSL_DEBUG_PRINTF_FN ESP_LOGI
     #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS "wolfssl",

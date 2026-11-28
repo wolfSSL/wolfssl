@@ -18,7 +18,27 @@ if(CONFIG_WOLFSSL)
         ${ZEPHYR_CURRENT_MODULE_DIR}/zephyr
         )
 
+    # user_settings.h builds without DH, so TLS needs one of these groups.
+    if(NOT CONFIG_WOLFSSL_HAS_SETTINGS_FILE AND NOT CONFIG_WOLFCRYPT_FIPS
+       AND NOT CONFIG_WOLFSSL_CRYPTO_ONLY AND NOT CONFIG_WOLFSSL_ECC
+       AND NOT CONFIG_WOLFSSL_CURVE25519 AND NOT CONFIG_WOLFSSL_CURVE448
+       AND NOT CONFIG_WOLFSSL_MLKEM)
+      message(FATAL_ERROR "wolfSSL TLS needs a key exchange group: enable "
+              "CONFIG_WOLFSSL_ECC, CONFIG_WOLFSSL_CURVE25519, CONFIG_WOLFSSL_CURVE448 "
+              "or CONFIG_WOLFSSL_MLKEM, or set CONFIG_WOLFSSL_CRYPTO_ONLY")
+    endif()
+
     zephyr_library()
+    # Library sources only, never the application, as the top-level CMake does.
+    # The v5 kdf.c predates libwolfssl_sources.h: without this, types.h pulls
+    # in wc_compat.h, which reaches fips.h before kdf.c sets FIPS_NO_WRAPPERS,
+    # and kdf.c then defines the wc_*_fips wrappers a second time.
+    zephyr_library_compile_definitions(BUILDING_WOLFSSL)
+    # The v5 random.c predates the zephyr/ include prefix; map its
+    # <random/rand32.h> and <posix/time.h> onto the current headers.
+    if(CONFIG_WOLFCRYPT_FIPS_V5)
+      zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/fips-v5-compat)
+    endif()
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/zephyr_init.c)
 
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/crl.c)
@@ -33,27 +53,112 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/tls13.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/wolfio.c)
 
+    set(WOLF_SRC ${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src)
+    set(WOLF_ARM_ASM_DIR ${WOLF_SRC}/port/arm)
+    if(CONFIG_WOLFCRYPT_ASM AND CONFIG_WOLFCRYPT_ARM_SYMMETRIC_ASM)
+      if(CONFIG_CPU_CORTEX_M)
+        set(WOLF_ARM_ASM_PREFIX thumb2)
+      elseif(CONFIG_ARM64)
+        set(WOLF_ARM_ASM_PREFIX armv8)
+      else()
+        set(WOLF_ARM_ASM_PREFIX armv8-32)
+      endif()
+    endif()
+
     # FIPS Boundary
-    if(CONFIG_WOLFCRYPT_FIPS)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wolfcrypt_first.c)
+    if(CONFIG_WOLFCRYPT_FIPS_V7 OR CONFIG_WOLFCRYPT_FIPS_READY)
+      # src/include.am BUILD_FIPS_V7_PLUS order; files a build does not select compile empty.
+      set(WOLF_BOUNDARY hmac random kdf rsa ecc aes sha sha256 sha512 sha3 dh cmac
+          ed448 ed25519 pwdbased sp_c32 sp_c64 sp_x86_64
+          sp_arm32 sp_armthumb sp_arm64 sp_cortexm wc_mlkem wc_mlkem_poly
+          wc_mldsa wc_lms wc_lms_impl wc_xmss wc_xmss_impl wc_slhdsa)
+      set(WOLF_BOUNDARY_ASM ON)
+    else()
+      set(WOLF_BOUNDARY hmac random kdf rsa ecc aes sha sha256 sha512 sha3 dh cmac)
+      set(WOLF_BOUNDARY_ASM OFF)
     endif()
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/hmac.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/random.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/kdf.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/rsa.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ecc.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha256.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha512.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha3.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/dh.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/cmac.c)
-    if(CONFIG_WOLFCRYPT_FIPS)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/fips.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/fips_test.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wolfcrypt_last.c)
+    # The v7 boundary carries each algorithm's assembly right after it.
+    set(WOLF_ARM_ASM_aes aes-asm_c)
+    # SHA-1 has an AArch64 port only - there is no thumb2-sha1-asm_c.c or
+    # armv8-32-sha1-asm_c.c - so unlike its neighbours this mapping is set for
+    # that one prefix rather than unconditionally.
+    if(WOLF_ARM_ASM_PREFIX STREQUAL "armv8")
+      set(WOLF_ARM_ASM_sha sha1-asm_c)
     endif()
+    set(WOLF_ARM_ASM_sha256 sha256-asm_c)
+    set(WOLF_ARM_ASM_sha512 sha512-asm_c)
+    set(WOLF_ARM_ASM_sha3 sha3-asm_c)
+    set(WOLF_ARM_ASM_ed25519 curve25519_c)
+    set(WOLF_ARM_ASM_wc_mlkem_poly mlkem-asm_c)
+    set(WOLF_X86_ASM_sha256 sha256_asm)
+    set(WOLF_X86_ASM_sha512 sha512_asm)
+    set(WOLF_X86_ASM_sha3 sha3_asm)
+    set(WOLF_X86_ASM_ed25519 fe_x25519_asm)
+    set(WOLF_X86_ASM_wc_mlkem_poly wc_mlkem_asm)
+    set(WOLF_X86_ASM_wc_mldsa wc_mldsa_asm)
+
+    if(CONFIG_WOLFCRYPT_FIPS)
+      set(WOLF_FIPS_SRCS ${WOLF_SRC}/wolfcrypt_first.c)
+    endif()
+    foreach(f ${WOLF_BOUNDARY})
+      list(APPEND WOLF_FIPS_SRCS ${WOLF_SRC}/${f}.c)
+      if(WOLF_BOUNDARY_ASM AND WOLF_ARM_ASM_PREFIX AND WOLF_ARM_ASM_${f})
+        list(APPEND WOLF_FIPS_SRCS ${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-${WOLF_ARM_ASM_${f}}.c)
+      elseif(WOLF_BOUNDARY_ASM AND CONFIG_WOLFCRYPT_ASM AND CONFIG_X86_64 AND WOLF_X86_ASM_${f})
+        list(APPEND WOLF_FIPS_SRCS ${WOLF_SRC}/${WOLF_X86_ASM_${f}}.S)
+      endif()
+    endforeach()
+    if(CONFIG_WOLFCRYPT_FIPS)
+      list(APPEND WOLF_FIPS_SRCS ${WOLF_SRC}/fips.c ${WOLF_SRC}/fips_test.c
+           ${WOLF_SRC}/wolfcrypt_last.c)
+    endif()
+    zephyr_library_sources(${WOLF_FIPS_SRCS})
+
+    # The integrity test hashes the boundary .text and .rodata as two ranges, so
+    # keep each in one piece and in file order: no sorting, splitting or merging.
+    # v5 hashes the same wolfCrypt_FIPS_first..last and ro_start..ro_end pair as
+    # v7, so this holds for every boundary, not only the one with assembly.
+    if(CONFIG_WOLFCRYPT_FIPS)
+      if(CONFIG_LINKER_SORT_BY_ALIGNMENT)
+        message(FATAL_ERROR "wolfCrypt FIPS needs CONFIG_LINKER_SORT_BY_ALIGNMENT=n: "
+                "sorting by alignment moves boundary code out of the hashed range")
+      endif()
+      # The v5 seed callback in zephyr_init.c draws on the Zephyr CSPRNG, which
+      # must read the entropy driver itself rather than pass the seed through
+      # a DRBG outside the module, as the CTR-DRBG and PSA generators do. Only
+      # with an entropy driver, which sets CSPRNG_ENABLED: without one the
+      # callback uses the test generator or fails the build. The test CSPRNG is
+      # sys_rand_get() under a name Zephyr already flags as insecure.
+      if(CONFIG_WOLFCRYPT_FIPS_V5 AND CONFIG_CSPRNG_ENABLED
+         AND NOT CONFIG_HARDWARE_DEVICE_CS_GENERATOR
+         AND NOT CONFIG_TEST_CSPRNG_GENERATOR)
+        message(FATAL_ERROR "wolfCrypt FIPS v5 needs CONFIG_HARDWARE_DEVICE_CS_GENERATOR=y: "
+                "the DRBG seed must come straight from the entropy driver")
+      endif()
+      set_source_files_properties(${WOLF_FIPS_SRCS} PROPERTIES COMPILE_OPTIONS
+          "-fno-function-sections;-fno-data-sections;-fno-merge-constants")
+    endif()
+    # native_sim links like a host program and keeps file order without this.
+    if(CONFIG_WOLFCRYPT_FIPS AND NOT CONFIG_ARCH_POSIX)
+      set(WOLF_FIPS_LD ${CMAKE_CURRENT_BINARY_DIR}/wolfcrypt_fips_rodata.ld)
+      file(WRITE ${WOLF_FIPS_LD} "SECTION_PROLOGUE(wolfcrypt_fips_rodata,,)\n{\n")
+      foreach(s ${WOLF_FIPS_SRCS})
+        get_filename_component(n ${s} NAME)
+        file(APPEND ${WOLF_FIPS_LD}
+            "    *lib${ZEPHYR_CURRENT_LIBRARY}.a:${n}.obj(.rodata .rodata.*)\n")
+      endforeach()
+      file(APPEND ${WOLF_FIPS_LD} "} GROUP_ROM_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)\n")
+      zephyr_linker_sources(ROM_SECTIONS ${WOLF_FIPS_LD})
+    endif()
+
+    # Sources the v7 boundary owns, added here only when outside it.
+    foreach(f curve25519 curve448 ed25519 ed448 pwdbased sp_arm32 sp_arm64
+              sp_armthumb sp_c32 sp_c64 sp_cortexm sp_x86_64 wc_lms wc_lms_impl
+              wc_mldsa wc_mlkem wc_mlkem_poly wc_slhdsa wc_xmss wc_xmss_impl)
+      if(NOT f IN_LIST WOLF_BOUNDARY)
+        zephyr_library_sources(${WOLF_SRC}/${f}.c)
+      endif()
+    endforeach()
 
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/arc4.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/argon2.c)
@@ -70,15 +175,10 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/compress.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/cpuid.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/cryptocb.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/curve25519.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/curve448.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/des3.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_mldsa.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/dsa.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ecc_fp.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/eccsi.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ed25519.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ed448.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/error.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/falcon.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/fe_448.c)
@@ -98,34 +198,20 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/pkcs12.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/pkcs7.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/poly1305.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/pwdbased.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ripemd.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sakke.c)
     #zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/selftest.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/signature.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/siphash.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_arm32.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_arm64.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_armthumb.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_c32.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_c64.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_cortexm.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_dsp32.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_int.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sp_x86_64.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/srp.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/tfm.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_dsp.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_encrypt.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_mlkem.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_mlkem_poly.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_lms.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_lms_impl.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_keystore.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_pkcs11.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_port.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_slhdsa.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_xmss.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_xmss_impl.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wolfevent.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wolfmath.c)
 
@@ -135,54 +221,46 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/psa/psa_pkcbs.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/st/stm32.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/realtek/rtl8735b.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/nxp/els_pkc_port.c)
 
-    if(CONFIG_WOLFCRYPT_ARMASM)
-      # tested with board: "qemu_kvm_arm64"
-      if(CONFIG_WOLFCRYPT_ARMASM_THUMB2)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-aes-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-chacha-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-curve25519_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-mlkem-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-poly1305-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha256-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha512-asm_c.c)
-      else()
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-aes-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-chacha-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-curve25519_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-mlkem-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-poly1305-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha3-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha256-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-chacha-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-curve25519_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-mlkem-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-poly1305-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha512-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha3-asm_c.c)
-        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c)
-      endif()
-
-
-      # Note: The cmake/gcc-m-cpu.cmake make need updated to add "+crypto -mstrict-align"
-      set(TOOLCHAIN_C_FLAGS "-mcpu=cortex-a53+crypto -mstrict-align")
+    # Not under TF-M, where els_pkc does not create McuxElsPkc.
+    if(CONFIG_MCUX_ELS_PKC AND NOT CONFIG_BUILD_WITH_TFM)
+      zephyr_library_include_directories(
+        $<TARGET_PROPERTY:McuxElsPkc,INTERFACE_INCLUDE_DIRECTORIES>
+      )
     endif()
 
-    if(CONFIG_WOLFCRYPT_INTELASM)
-      # tested with board: "qemu_x86_64"
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha256_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha512_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/sha3_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/chacha_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/poly1305_asm.S)
-
-      # AESNI
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_asm.S)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/aes_gcm_x86_asm.S)
-      set(TOOLCHAIN_C_FLAGS "-march=native -maes -msse4 -mpclmul ")
+    if(CONFIG_WOLFCRYPT_ASM)
+      if(CONFIG_WOLFCRYPT_ARM_SYMMETRIC_ASM)
+        foreach(f aes-asm_c chacha-asm_c mlkem-asm_c poly1305-asm_c sha256-asm_c
+                  sha3-asm_c sha512-asm_c curve25519_c)
+          if(NOT (WOLF_BOUNDARY_ASM AND f MATCHES "^(aes|mlkem|sha256|sha3|sha512)-|^curve25519"))
+            zephyr_library_sources(${WOLF_ARM_ASM_DIR}/${WOLF_ARM_ASM_PREFIX}-${f}.c)
+          endif()
+        endforeach()
+        # SHA-1 cannot join the loop above: it has an AArch64 port only.  When
+        # the boundary carries the assembly, WOLF_ARM_ASM_sha has placed it
+        # already, and adding it here would duplicate it and break the file
+        # order the integrity test depends on.
+        if(CONFIG_ARM64 AND NOT WOLF_BOUNDARY_ASM)
+          zephyr_library_sources(${WOLF_ARM_ASM_DIR}/armv8-sha1-asm_c.c)
+        endif()
+      elseif(CONFIG_X86_64 AND NOT CONFIG_WOLFCRYPT_FIPS_PRE_V7_ASM)
+        # fe_x25519_asm.S, wc_mlkem_asm.S and wc_mldsa_asm.S are here because
+        # curve25519.c, wc_mlkem_poly.c and wc_mldsa.c all take the Intel path
+        # whenever USE_INTEL_SPEEDUP is set, so leaving one out is a link error
+        # the moment an application enables that algorithm. Each is guarded by
+        # its own feature macro, so it costs an empty object when it is off.
+        # The AES sources are not here: everything they define is an _aesni
+        # entry point, and their callers sit behind WOLFSSL_AESNI, which this
+        # module does not define.
+        foreach(f sha256_asm sha512_asm sha3_asm chacha_asm poly1305_asm
+                  fe_x25519_asm wc_mlkem_asm wc_mldsa_asm)
+          if(NOT WOLF_BOUNDARY_ASM OR f MATCHES "^(chacha|poly1305)_asm$")
+            zephyr_library_sources(${WOLF_SRC}/${f}.S)
+          endif()
+        endforeach()
+      endif()
     endif()
 
     zephyr_library_link_libraries(wolfSSL)
@@ -222,6 +300,6 @@ if(CONFIG_WOLFSSL)
     # after wolfssl_external on the linkers command line.
   endif()
 
-  target_link_libraries(wolfSSL INTERFACE zephyr_interface)
+  zephyr_link_libraries(wolfSSL)
 
 endif()

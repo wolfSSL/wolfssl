@@ -66,7 +66,8 @@ macro_rules! impl_digest_traits {
         $(#[$attr])*
         impl digest::Update for $ty {
             fn update(&mut self, data: &[u8]) {
-                <$ty>::update(self, data).expect("wolfCrypt hash update failed");
+                crate::update_in_chunks(data, |chunk| <$ty>::update(self, chunk))
+                    .expect("wolfCrypt hash update failed");
             }
         }
 

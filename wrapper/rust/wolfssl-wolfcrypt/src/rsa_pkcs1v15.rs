@@ -39,7 +39,10 @@ message and apply the PKCS#1 v1.5 DigestInfo encoding internally.
 verify-only builds do not have to pull in a random number generator.
 */
 
-#![cfg(all(feature = "signature", rsa))]
+/* Both key types are built from the flattened public key, which
+ * WOLFSSL_RSA_VERIFY_ONLY builds do not expose.  Signing and verifying need
+ * the signature wrapper, which NO_SIG_WRAPPER builds leave out. */
+#![cfg(all(feature = "signature", sig_wrapper, rsa, rsa_sign))]
 
 use core::ffi::c_void;
 use core::marker::PhantomData;
@@ -154,6 +157,9 @@ fn check_modulus_size(rsa: &RSA, expected: usize) -> Result<(), i32> {
 pub struct SigningKey<H: Hash, const N: usize> {
     inner: RSA,
     rng: RNG,
+    /// Public components, flattened and validated at construction time so
+    /// that the infallible [`Keypair::verifying_key`] cannot fail.
+    verifying: VerifyingKey<H, N>,
     _hash: PhantomData<H>,
 }
 
@@ -162,16 +168,28 @@ impl<H: Hash, const N: usize> SigningKey<H, N> {
     /// Generate a fresh `N * 8`-bit RSA key with public exponent 65537.
     #[cfg(rsa_keygen)]
     pub fn generate(rng: RNG) -> Result<Self, i32> {
-        let bits: i32 = (N * 8).try_into().map_err(|_| sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
+        // SigningKey embeds a [u8; N] (via its cached VerifyingKey), so an N
+        // large enough for N * 8 to wrap is already rejected at compile time
+        // by the object size limit on 64-bit targets. The checked conversion
+        // still guards the i32 bit count.
+        let bits = N.checked_mul(8)
+            .and_then(|b| i32::try_from(b).ok())
+            .ok_or(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
         let rsa = RSA::generate(bits, 65537, &rng)?;
-        Ok(Self { inner: rsa, rng, _hash: PhantomData })
+        Self::from_rsa(rsa, rng)
     }
 
     /// Adopt an existing [`RSA`] key, verifying that its modulus size in
-    /// bytes matches `N`.
+    /// bytes matches `N` and that its public components can be flattened
+    /// into a [`VerifyingKey`].
+    ///
+    /// Keys whose public exponent does not fit in the fixed exponent buffer,
+    /// or whose public components cannot be exported, are rejected here
+    /// rather than failing later in `Keypair::verifying_key`, which cannot
+    /// report an error.
     pub fn from_rsa(rsa: RSA, rng: RNG) -> Result<Self, i32> {
-        check_modulus_size(&rsa, N)?;
-        Ok(Self { inner: rsa, rng, _hash: PhantomData })
+        let verifying = verifying_key_from_rsa(&rsa)?;
+        Ok(Self { inner: rsa, rng, verifying, _hash: PhantomData })
     }
 
     /// Borrow the inner [`RSA`] key.
@@ -246,6 +264,45 @@ impl<H: Hash, const N: usize> PartialEq for VerifyingKey<H, N> {
 }
 impl<H: Hash, const N: usize> Eq for VerifyingKey<H, N> {}
 
+/// Flatten the public components of `rsa` into a [`VerifyingKey`].
+///
+/// Checks both that the modulus size in bytes matches `N` and that the public
+/// exponent is representable in the fixed `MAX_E_LEN` buffer, so that callers
+/// which cannot report an error later (the `Keypair` impl for `SigningKey`)
+/// can validate up front.
+fn verifying_key_from_rsa<H: Hash, const N: usize>(rsa: &RSA) -> Result<VerifyingKey<H, N>, i32> {
+    check_modulus_size(rsa, N)?;
+    let mut n = [0u8; N];
+    let mut e = [0u8; MAX_E_LEN];
+    let mut n_len: u32 = n.len() as u32;
+    let mut e_len: u32 = e.len() as u32;
+    #[cfg(rsa_const_api)]
+    let key = &rsa.wc_rsakey;
+    // SAFETY: older wolfSSL declared the first arg as non-const, but the
+    // function only reads from the key (newer versions declare it const).
+    #[cfg(not(rsa_const_api))]
+    let key = core::ptr::addr_of!(rsa.wc_rsakey) as *mut sys::RsaKey;
+    let rc = unsafe {
+        sys::wc_RsaFlattenPublicKey(
+            key,
+            e.as_mut_ptr(), &mut e_len,
+            n.as_mut_ptr(), &mut n_len,
+        )
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    if (n_len as usize) != N || e_len == 0 || (e_len as usize) > MAX_E_LEN {
+        return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+    }
+    Ok(VerifyingKey {
+        n,
+        e,
+        e_len: e_len as u8,
+        _hash: PhantomData,
+    })
+}
+
 impl<H: Hash, const N: usize> VerifyingKey<H, N> {
     /// Construct a verifying key from raw big-endian modulus (`n`) and
     /// public exponent (`e`) bytes.
@@ -268,36 +325,7 @@ impl<H: Hash, const N: usize> VerifyingKey<H, N> {
     /// Adopt an existing [`RSA`] public key, verifying its modulus size in
     /// bytes matches `N`.
     pub fn from_rsa(rsa: RSA) -> Result<Self, i32> {
-        check_modulus_size(&rsa, N)?;
-        let mut n = [0u8; N];
-        let mut e = [0u8; MAX_E_LEN];
-        let mut n_len: u32 = n.len() as u32;
-        let mut e_len: u32 = e.len() as u32;
-        #[cfg(rsa_const_api)]
-        let key = &rsa.wc_rsakey;
-        // SAFETY: older wolfSSL declared the first arg as non-const, but the
-        // function only reads from the key (newer versions declare it const).
-        #[cfg(not(rsa_const_api))]
-        let key = core::ptr::addr_of!(rsa.wc_rsakey) as *mut sys::RsaKey;
-        let rc = unsafe {
-            sys::wc_RsaFlattenPublicKey(
-                key,
-                e.as_mut_ptr(), &mut e_len,
-                n.as_mut_ptr(), &mut n_len,
-            )
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
-        if (n_len as usize) != N || e_len == 0 || (e_len as usize) > MAX_E_LEN {
-            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-        }
-        Ok(Self {
-            n,
-            e,
-            e_len: e_len as u8,
-            _hash: PhantomData,
-        })
+        verifying_key_from_rsa(&rsa)
     }
 
     /// Construct a verifying key from a DER-encoded `SubjectPublicKeyInfo`
@@ -344,34 +372,7 @@ impl<H: Hash, const N: usize> Verifier<Signature<N>> for VerifyingKey<H, N> {
 impl<H: Hash, const N: usize> Keypair for SigningKey<H, N> {
     type VerifyingKey = VerifyingKey<H, N>;
     fn verifying_key(&self) -> VerifyingKey<H, N> {
-        let mut n = [0u8; N];
-        let mut e = [0u8; MAX_E_LEN];
-        let mut n_len: u32 = n.len() as u32;
-        let mut e_len: u32 = e.len() as u32;
-        #[cfg(rsa_const_api)]
-        let key = &self.inner.wc_rsakey;
-        // SAFETY: older wolfSSL declared the first arg as non-const, but the
-        // function only reads from the key (newer versions declare it const).
-        #[cfg(not(rsa_const_api))]
-        let key = core::ptr::addr_of!(self.inner.wc_rsakey) as *mut sys::RsaKey;
-        let rc = unsafe {
-            sys::wc_RsaFlattenPublicKey(
-                key,
-                e.as_mut_ptr(), &mut e_len,
-                n.as_mut_ptr(), &mut n_len,
-            )
-        };
-        if rc != 0 {
-            panic!("wc_RsaFlattenPublicKey failed: {rc}");
-        }
-        if (n_len as usize) != N || e_len == 0 || (e_len as usize) > MAX_E_LEN {
-            panic!("wc_RsaFlattenPublicKey returned unexpected lengths: e_len: {e_len}, n_len: {n_len}");
-        }
-        VerifyingKey {
-            n,
-            e,
-            e_len: e_len as u8,
-            _hash: PhantomData,
-        }
+        // Flattened and validated by the constructors, so this cannot fail.
+        self.verifying
     }
 }

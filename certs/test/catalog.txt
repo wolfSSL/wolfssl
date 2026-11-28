@@ -19,3 +19,9 @@ cert-ext-oid-collide.der:
   OID, not the mapped one. Does not collide under WOLFSSL_OLD_OID_SUM.
   Signature is invalid; only ever parsed, never verified. Regenerate with
   certs/test/gen-oid-collide-cert.sh.
+server-self-issued-cert.pem:
+  Server cert with the name of ../ca-cert.pem as subject and issuer, signed by
+  that CA. Regenerate with certs/test/gen-verify-cb-certs.sh.
+ca-cert-unknown-crit-ext.pem:
+  ../ca-cert.pem with the same name and key, plus an unknown critical
+  extension. Regenerate with certs/test/gen-verify-cb-certs.sh.

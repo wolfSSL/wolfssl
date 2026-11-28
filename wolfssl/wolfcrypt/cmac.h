@@ -98,7 +98,6 @@ struct Cmac {
 };
 
 
-
 /* Reasonable defaults */
 #ifndef WC_CMAC_TAG_MAX_SZ
     #define WC_CMAC_TAG_MAX_SZ 16
@@ -127,6 +126,17 @@ WOLFSSL_API
 int wc_InitCmac(Cmac* cmac,
                 const byte* key, word32 keySz,
                 int type, void* unused);
+
+/* the selftest build pins an older aes.h that has no tag length field */
+#if !defined(NO_AES) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
+    #define WOLFSSL_CMAC_TAG_ASSOCIATION
+#endif
+
+#ifdef WOLFSSL_CMAC_TAG_ASSOCIATION
+WOLFSSL_API
+int wc_CmacSetTagLen(Cmac* cmac, word32 tagLen);
+#endif
 
 WOLFSSL_API
 int wc_InitCmac_ex(Cmac* cmac,
@@ -195,6 +205,29 @@ int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz);
     } /* extern "C" */
 #endif
 
+/* Heap allocation for Cmac contexts: Cmac members carry alignment
+ * attributes, so route through the aligned allocator where available.
+ * WC_ALIGNED_ALLOC marks the non-frozen aes.h, which carries the
+ * wc_alloc_aligned/wc_free_aligned declarations: in FIPS bundle builds the
+ * aes.h (and aes.c) are the frozen module versions, so the aligned branch
+ * must fall back there. The cast keeps the macro valid in C++. The fallback
+ * is a macro, not a function, so plain builds pay no indirection. */
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    !FIPS_VERSION3_GE(7,0,0)
+/* Frozen FIPS bundle: plain fallbacks come from settings.h. */
+#elif defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
+    !defined(WOLFSSL_TI_CRYPT) && defined(WC_ALIGNED_ALLOC)
+#define WC_ALLOC_CMAC(heap) ((Cmac*)wc_alloc_aligned((heap), sizeof(Cmac), \
+                                                     WC_ALIGNOF(Cmac), \
+                                                     DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    wc_free_aligned((cmac), (heap), DYNAMIC_TYPE_CMAC)
+#else
+#define WC_ALLOC_CMAC(heap) \
+    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
+#endif
 
 #endif /* WOLFSSL_CMAC */
 #endif /* WOLF_CRYPT_CMAC_H */

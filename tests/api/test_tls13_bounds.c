@@ -417,6 +417,16 @@ static int test_tls13b_ch_find_ext(const byte* rec, int rec_sz, word16 type,
     }
     return -1;
 }
+
+#endif /* guards */
+
+#if defined(WOLFSSL_TLS13) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448))
+
 /* A mutually authenticated TLS 1.3 handshake with a chosen key type on both
  * ends. DoTls13CertificateVerify()'s peer-key / peerSigAlgo dispatch has one
  * arm per algorithm and the group only ever ran the RSA one, so each arm's
@@ -916,4 +926,45 @@ int test_tls13_mutual_auth_rsa(void)
 #else
     return TEST_SKIPPED;
 #endif
+}
+
+/* A pre-master secret buffer shorter than the FFDHE prime must fail the
+ * handshake with BUFFER_E rather than let wc_DhAgree() write past it. */
+int test_tls13_ffdhe_pms_too_small(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_TLS13) && !defined(NO_DH) && defined(HAVE_FFDHE_2048) && \
+    defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int groups[1] = { WOLFSSL_FFDHE_2048 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_c, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_groups(ssl_s, groups, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_2048),
+        WOLFSSL_SUCCESS);
+
+    /* One byte short of the 2048-bit prime. */
+    if (ssl_s != NULL && ssl_s->arrays != NULL)
+        ssl_s->arrays->preMasterSz = (2048 / 8) - 1;
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(BUFFER_E));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
 }

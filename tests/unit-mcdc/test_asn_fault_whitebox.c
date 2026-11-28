@@ -57,7 +57,8 @@
  *
  * Sections (asn.c line numbers as of this writing):
  *   1.  wc_BerToDer() ber/derSz NULL OR ......................... :4269
- *   2.  EncodeObjectId() in/outSz NULL, inSz<=0 OR ............... :7403
+ *   2.  EncodeObjectId() in/outSz NULL, inSz<2, in[0]>2,
+ *       in[0]<2 && in[1]>39 OR ................................. :7403
  *   3.  wc_oid_sum() input NULL / length>MAX_OID_SZ OR ........... :7835
  *   4.  wc_CheckPrivateKeyCert() key/der NULL OR ................. :9956
  *   5.  wc_GetKeyOID() key/algoID NULL OR ......................... :10234
@@ -87,7 +88,7 @@
  *   19. ParseKeyUsageStr()/ParseExtKeyUsageStr() NULL OR .. :28135,:28198
  *   20. wc_SetSubjectKeyId()/wc_SetAuthKeyId()/wc_SetIssuer()/
  *       wc_SetSubject() cert/file NULL OR .... :31812,:31978,:32381,:32404
- *   21. SetKeyIdFromPublicKey() 11-operand cert/key/kid_type OR .... :31594
+ *   21. SetKeyIdFromPublicKey() 12-operand cert/key/kid_type OR .... :31594
  *   22. GetFormattedTime_ex() buf/len/format OR ................... :15901
  *   23. wc_MIME_parse_headers() in/inLen/terminator/headers OR .... :38530
  *   24. wc_GetFASCNFromCert() otherName/oidSum AND ................ :27036
@@ -109,9 +110,9 @@
  *     :24921/:24925 leading operands ARE reachable and are driven by the
  *     allocation sweep in section 24.
  *   - DecodeDsaAsn1Sig() :17348 both operands: the block is guarded by
- *     :17342, which has already rejected rSz + sSz > sigSz, and every
- *     caller passes a sigCpy of at least sigSz bytes, so both
- *     mp_to_unsigned_bin() calls write inside the buffer and cannot fail.
+ *     :17342, which has already rejected rSz > qSz || sSz > qSz, and every
+ *     caller passes a sigCpy of 2 * qSz bytes, so both
+ *     mp_to_unsigned_bin_len() calls write inside the buffer and cannot fail.
  *
  * the uncovered-condition report rows in the deep certificate chain-verification internals
  * (name-constraint enforcement, X.509 extension decoding/verification,
@@ -170,17 +171,22 @@ static void wb_ber_to_der_null_args(void) { WB_NOTE("ASN_BER_TO_DER off; skipped
 
 /* ------------------------------------------------------------------------- *
  * Section 2: EncodeObjectId() (:7403).
- *   if (in == NULL || outSz == NULL || inSz <= 0) return BAD_FUNC_ARG;
+ *   if (in == NULL || outSz == NULL || inSz < 2 || in[0] > 2 ||
+ *           ((in[0] < 2) && (in[1] > 39)))
+ *       return BAD_FUNC_ARG;
  * ------------------------------------------------------------------------- */
 #ifdef HAVE_OID_ENCODING
 static void wb_encode_object_id_null_args(void)
 {
     word16 dotted[3] = { 1, 2, 3 };
+    word16 badDotted[3] = { 3, 2, 3 };
+    word16 badSecond[2] = { 1, 40 };
     byte   out[16];
     word32 outSz;
     int    ret;
 
-    WB_NOTE("EncodeObjectId(): in/outSz NULL, inSz<=0 OR [:7403]");
+    WB_NOTE("EncodeObjectId(): in/outSz NULL, inSz<2, in[0]>2, "
+            "in[0]<2 && in[1]>39 OR [:7403]");
 
     outSz = sizeof(out);
     ret = EncodeObjectId(dotted, 3, out, &outSz);
@@ -195,7 +201,15 @@ static void wb_encode_object_id_null_args(void)
 
     outSz = sizeof(out);
     ret = EncodeObjectId(dotted, 0, out, &outSz);
-    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<=0");
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "inSz<2");
+
+    outSz = sizeof(out);
+    ret = EncodeObjectId(badDotted, 3, out, &outSz);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "in[0]>2");
+
+    outSz = sizeof(out);
+    ret = EncodeObjectId(badSecond, 2, out, &outSz);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "in[0]<2 && in[1]>39");
 }
 #else
 static void wb_encode_object_id_null_args(void) { WB_NOTE("HAVE_OID_ENCODING off; skipped"); }
@@ -281,8 +295,12 @@ static void wb_get_key_oid_null_args(void)
      * the false path, but one of the inner decoders then returns BAD_FUNC_ARG
      * of its own, which says nothing about this guard. */
 #ifdef USE_CERT_BUFFERS_2048
-    ret = wc_GetKeyOID(client_key_der_2048, (word32)sizeof_client_key_der_2048,
-            &curveOID, &oidSz, &algoID, NULL);
+    {
+        byte key[sizeof_client_key_der_2048];
+        XMEMCPY(key, client_key_der_2048, sizeof(key));
+        ret = wc_GetKeyOID(key, (word32)sizeof(key), &curveOID, &oidSz,
+                &algoID, NULL);
+    }
     /* wc_GetKeyOID() returns 1 when it identified the key type. */
     WB_CHECK(ret >= 0 && algoID == RSAk, "baseline (both false)");
 #else
@@ -1561,7 +1579,7 @@ static void wb_cert_file_setters_null_args(void)
 #endif
 
 /* ------------------------------------------------------------------------- *
- * Section 21: SetKeyIdFromPublicKey() (:31594), the 11-operand chain.
+ * Section 21: SetKeyIdFromPublicKey() (:31594), the 12-operand chain.
  *   if (cert == NULL ||
  *       (rsakey==NULL && eckey==NULL && ed25519Key==NULL && ed448Key==NULL &&
  *        falconKey==NULL && mldsaKey==NULL && slhDsaKey==NULL &&
@@ -1589,19 +1607,19 @@ static void wb_set_keyid_from_pubkey_operands(void)
     static byte opaque[8];
     int ret;
 
-    WB_NOTE("SetKeyIdFromPublicKey(): 11-operand cert/key/kid_type OR "
+    WB_NOTE("SetKeyIdFromPublicKey(): 12-operand cert/key/kid_type OR "
             "[:31594]");
 
     WB_CHECK(wc_InitCert(&cert) == 0, "wc_InitCert");
 
     /* 1st operand true. */
     ret = SetKeyIdFromPublicKey(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, SKID_TYPE);
+            NULL, NULL, SKID_TYPE);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "cert==NULL");
 
     /* Inner AND all true (no key supplied) -> 2nd operand true. */
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, SKID_TYPE);
+            NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG), "every key pointer NULL");
 
     /* --- one row per key-pointer operand: that operand false, guard false. */
@@ -1610,7 +1628,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
         RsaKey k;
         if (wc_InitRsaKey(&k, NULL) == 0) {
             ret = SetKeyIdFromPublicKey(&cert, &k, NULL, NULL, NULL, NULL,
-                    NULL, NULL, NULL, SKID_TYPE);
+                    NULL, NULL, NULL, NULL, SKID_TYPE);
             WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                     "rsakey!=NULL (guard false)");
             wc_FreeRsaKey(&k);
@@ -1618,7 +1636,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
     }
 #else
     ret = SetKeyIdFromPublicKey(&cert, (RsaKey*)(void*)opaque, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, SKID_TYPE);
+            NULL, NULL, NULL, NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "rsakey!=NULL (guard false, RSA not compiled)");
 #endif
@@ -1628,7 +1646,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
         ecc_key k;
         if (wc_ecc_init(&k) == 0) {
             ret = SetKeyIdFromPublicKey(&cert, NULL, &k, NULL, NULL, NULL,
-                    NULL, NULL, NULL, SKID_TYPE);
+                    NULL, NULL, NULL, NULL, SKID_TYPE);
             WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                     "eckey!=NULL (guard false)");
             wc_ecc_free(&k);
@@ -1636,7 +1654,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
     }
 #else
     ret = SetKeyIdFromPublicKey(&cert, NULL, (ecc_key*)(void*)opaque, NULL,
-            NULL, NULL, NULL, NULL, NULL, SKID_TYPE);
+            NULL, NULL, NULL, NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "eckey!=NULL (guard false, ECC not compiled)");
 #endif
@@ -1646,7 +1664,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
         ed25519_key k;
         if (wc_ed25519_init(&k) == 0) {
             ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, &k, NULL, NULL,
-                    NULL, NULL, NULL, SKID_TYPE);
+                    NULL, NULL, NULL, NULL, SKID_TYPE);
             WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                     "ed25519Key!=NULL (guard false)");
             wc_ed25519_free(&k);
@@ -1654,7 +1672,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
     }
 #else
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, (ed25519_key*)(void*)opaque,
-            NULL, NULL, NULL, NULL, NULL, SKID_TYPE);
+            NULL, NULL, NULL, NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "ed25519Key!=NULL (guard false, Ed25519 not compiled)");
 #endif
@@ -1664,7 +1682,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
         ed448_key k;
         if (wc_ed448_init(&k) == 0) {
             ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, &k, NULL,
-                    NULL, NULL, NULL, SKID_TYPE);
+                    NULL, NULL, NULL, NULL, SKID_TYPE);
             WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                     "ed448Key!=NULL (guard false)");
             wc_ed448_free(&k);
@@ -1672,7 +1690,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
     }
 #else
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL,
-            (ed448_key*)(void*)opaque, NULL, NULL, NULL, NULL, SKID_TYPE);
+            (ed448_key*)(void*)opaque, NULL, NULL, NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "ed448Key!=NULL (guard false, Ed448 not compiled)");
 #endif
@@ -1682,7 +1700,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
         falcon_key k;
         if (wc_falcon_init(&k) == 0) {
             ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, &k,
-                    NULL, NULL, NULL, SKID_TYPE);
+                    NULL, NULL, NULL, NULL, SKID_TYPE);
             WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                     "falconKey!=NULL (guard false)");
             wc_falcon_free(&k);
@@ -1690,7 +1708,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
     }
 #else
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL,
-            (falcon_key*)(void*)opaque, NULL, NULL, NULL, SKID_TYPE);
+            (falcon_key*)(void*)opaque, NULL, NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "falconKey!=NULL (guard false, Falcon not compiled)");
 #endif
@@ -1700,7 +1718,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
         wc_MlDsaKey k;
         if (wc_MlDsaKey_Init(&k, NULL, INVALID_DEVID) == 0) {
             ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL,
-                    &k, NULL, NULL, SKID_TYPE);
+                    &k, NULL, NULL, NULL, SKID_TYPE);
             WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                     "mldsaKey!=NULL (guard false)");
             wc_MlDsaKey_Free(&k);
@@ -1708,7 +1726,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
     }
 #else
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL,
-            (wc_MlDsaKey*)(void*)opaque, NULL, NULL, SKID_TYPE);
+            (wc_MlDsaKey*)(void*)opaque, NULL, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "mldsaKey!=NULL (guard false, ML-DSA not compiled)");
 #endif
@@ -1720,7 +1738,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
         if (k != NULL) {
             if (wc_SlhDsaKey_Init(k, NULL, INVALID_DEVID) == 0) {
                 ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL,
-                        NULL, NULL, k, NULL, SKID_TYPE);
+                        NULL, NULL, k, NULL, NULL, SKID_TYPE);
                 WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                         "slhDsaKey!=NULL (guard false)");
                 wc_SlhDsaKey_Free(k);
@@ -1730,7 +1748,7 @@ static void wb_set_keyid_from_pubkey_operands(void)
     }
 #else
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL, NULL,
-            (SlhDsaKey*)(void*)opaque, NULL, SKID_TYPE);
+            (SlhDsaKey*)(void*)opaque, NULL, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "slhDsaKey!=NULL (guard false, SLH-DSA not compiled)");
 #endif
@@ -1738,9 +1756,17 @@ static void wb_set_keyid_from_pubkey_operands(void)
 #if !defined(WOLFSSL_HAVE_FRODOKEM) || defined(WOLFSSL_FRODOKEM_NO_ASN1)
     /* frodoKey is a void* and its export block is compiled out here. */
     ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, (void*)opaque, SKID_TYPE);
+            NULL, (void*)opaque, NULL, SKID_TYPE);
     WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
             "frodoKey!=NULL (guard false, FrodoKEM not compiled)");
+#endif
+
+#if !defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_MLKEM_NO_ASN1)
+    /* mlKemKey is a void* and its export block is compiled out here. */
+    ret = SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL, (void*)opaque, SKID_TYPE);
+    WB_CHECK(ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG),
+            "mlKemKey!=NULL (guard false, ML-KEM not compiled)");
 #endif
 
     /* --- kid_type operands ------------------------------------------------ *
@@ -1754,12 +1780,12 @@ static void wb_set_keyid_from_pubkey_operands(void)
         RsaKey* kp = haveKey ? &k : NULL;
 #define WB_SKID_CALL(kt) \
         SetKeyIdFromPublicKey(&cert, kp, NULL, NULL, NULL, NULL, NULL, NULL, \
-                NULL, (kt))
+                NULL, NULL, (kt))
 #else
         int haveKey = 1;
 #define WB_SKID_CALL(kt) \
         SetKeyIdFromPublicKey(&cert, NULL, NULL, NULL, NULL, NULL, NULL, \
-                NULL, (void*)opaque, (kt))
+                NULL, (void*)opaque, NULL, (kt))
 #endif
         if (haveKey) {
             /* kid_type == AKID_TYPE -> 2nd operand of the kid_type AND is
@@ -2567,25 +2593,25 @@ static byte* wb_read_pem_file(const char* path, long* outLen)
 
 /* ------------------------------------------------------------------------- *
  * Section 24b: ConfirmSignature() DSA signature-size dispatch (:17703).
- *   if (sigSz != DSA_160_SIG_SIZE && sigSz != DSA_256_SIG_SIZE)
- *       ret = DecodeDsaAsn1Sig(...);
- *   else
+ *   if (sigSz == 2 * qSz)
  *       XMEMCPY(sigCtx->sigCpy, sig, sigSz);
+ *   else
+ *       ret = DecodeDsaAsn1Sig(...);
  * A DSA-signed certificate carries an ASN.1 DSA-Sig-Value, so the raw-copy
- * arm (a signature that is exactly 40 or 64 bytes) is never taken from a
+ * arm (a signature that is exactly 2 * |q| bytes) is never taken from a
  * certificate parse. Calling ConfirmSignature() directly with a DSA public
- * key and three signature lengths drives all three rows. The signature bytes
+ * key and two signature lengths drives both rows. The signature bytes
  * themselves are irrelevant -- the call always ends in a verification
  * failure; the point is which arm the size dispatch picks.
  * ------------------------------------------------------------------------- */
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && !defined(NO_ASN_CRYPT)
 static void wb_confirm_signature_dsa_sigsz(void)
 {
-    static const word32 sizes[3] = { DSA_160_SIG_SIZE, DSA_256_SIG_SIZE, 50 };
-    static const char* names[3] = {
-        "sigSz == DSA_160_SIG_SIZE (1st operand false)",
-        "sigSz == DSA_256_SIG_SIZE (1st operand true, 2nd false)",
-        "sigSz neither (both operands true, ASN.1 decode path)"
+    /* certs/dsa2048.der has a 160-bit q, so 2 * qSz is DSA_160_SIG_SIZE. */
+    static const word32 sizes[2] = { DSA_160_SIG_SIZE, 50 };
+    static const char* names[2] = {
+        "sigSz == 2 * qSz (true, raw copy)",
+        "sigSz != 2 * qSz (false, ASN.1 decode path)"
     };
     byte* pem = NULL;
     long pemSz = 0;
@@ -2629,7 +2655,7 @@ static void wb_confirm_signature_dsa_sigsz(void)
     XMEMSET(sig, 0x5A, sizeof(sig));
     XMEMSET(tbs, 0x11, sizeof(tbs));
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < 2; i++) {
         SignatureCtx sigCtx;
         InitSignatureCtx(&sigCtx, NULL, INVALID_DEVID);
         ret = ConfirmSignature(&sigCtx, tbs, (word32)sizeof(tbs), pubDer,
@@ -2984,12 +3010,12 @@ static void wb_encoder_size_guards(void)
  * are two consecutive XMALLOCs, so failing from the first allocation drives
  * the 1st operand true and failing only the second drives the 2nd.
  *
- * RESIDUAL -- :17348 (`mp_to_unsigned_bin(r, sigCpy) != MP_OKAY ||
- * mp_to_unsigned_bin(s, sigCpy + rSz) != MP_OKAY`) has no reachable true
- * side: it is guarded by :17342, which has already rejected rSz + sSz >
- * sigSz, and every caller passes a sigCpy of at least sigSz bytes, so both
- * conversions write inside the buffer. mp_to_unsigned_bin() on an
- * initialised mp_int with a large enough output cannot fail.
+ * RESIDUAL -- :17348 (`mp_to_unsigned_bin_len(r, sigCpy, qSz) != MP_OKAY ||
+ * mp_to_unsigned_bin_len(s, sigCpy + qSz, qSz) != MP_OKAY`) has no reachable
+ * true side: it is guarded by :17342, which has already rejected rSz > qSz ||
+ * sSz > qSz, and every caller passes a sigCpy of 2 * qSz bytes, so both
+ * conversions write inside the buffer. mp_to_unsigned_bin_len() on an
+ * initialised mp_int that fits the requested length cannot fail.
  * ------------------------------------------------------------------------- */
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
 static void wb_decode_dsa_asn1_sig_alloc(void)
@@ -3002,15 +3028,16 @@ static void wb_decode_dsa_asn1_sig_alloc(void)
     WB_NOTE("DecodeDsaAsn1Sig(): r/s allocation guard [:17324]");
 
     XMEMSET(sigCpy, 0, sizeof(sigCpy));
-    ret = DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    /* qSz 1: r and s are one byte each, so sigCpy holds them unpadded. */
+    ret = DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, 1, NULL);
     WB_CHECK(ret == 0, "well-formed DSA-Sig-Value (both operands false)");
 
     mcdc_fa_install();
     mcdc_fa_arm(1);
-    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, 1, NULL);
     mcdc_fa_disarm();
     mcdc_fa_arm_only(2);
-    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, NULL);
+    (void)DecodeDsaAsn1Sig(sig, (word32)sizeof(sig), sigCpy, 1, NULL);
     mcdc_fa_disarm();
     mcdc_fa_restore();
 }

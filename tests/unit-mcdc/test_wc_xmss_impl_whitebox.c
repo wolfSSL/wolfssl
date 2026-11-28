@@ -1231,7 +1231,146 @@ static void wb_full_cycle_d1(void)
         }
     }
 }
+/********************************************
+ * 3215: wc_xmss_bds_update()'s
+ *   "if ((bds->height == NULL) || (bds->offset > params->sub_h))"
+ * 2921: wc_xmss_bds_next_idx()'s retain-index guard
+ *   "if (((i >> h) < 3) || (ro * n >= XMSS_RETAIN_LEN(params->bds_k, n)))"
+ *
+ * Both were added upstream with the XMSS hardening commits. They describe a
+ * BDS state that the library's own key generation and signing never produce:
+ * a NULL height array, an offset past the subtree height, or a retain index
+ * that would run off the end of bds->retain. Only a restored or tampered
+ * private key reaches them, so an ordinary sign/verify cycle leaves both
+ * decisions permanently false.
+ *
+ * wc_xmss_bds_update returns before touching anything once the guard fires, so
+ * a BdsState with a NULL height or an out-of-range offset is safe to pass.
+ *
+ * The retain guard needs the merge loop to actually reach a height at or above
+ * hsk = sub_h - bds_k, which is where the "else" retain arm lives. bds_k = 3
+ * against sub_h = 4 puts hsk at 1, so the second iteration of the loop lands
+ * in retain, and the loop is steered entirely by the caller-supplied
+ * height[]/offset pair: offset 2 with height {1, 0} runs h = 0 then h = 1.
+ * With h = 1, ro = 1 + (((i >> 1) - 3) >> 1) and XMSS_RETAIN_LEN(3, 32) = 128,
+ * so i selects each operand:
+ *
+ *   i =  4  ->  (i >> 1) = 2  -> first operand true, second short-circuited
+ *   i =  6  ->  (i >> 1) = 3, ro = 1, ro * n =  32 -> both false, the partner
+ *   i = 18  ->  (i >> 1) = 9, ro = 4, ro * n = 128 -> second operand true
+ *
+ * sp starts several nodes into state->stack because the loop walks node
+ * downwards once per iteration.
+ ********************************************/
+static void wb_bds_hardening(void)
+{
+    XmssParams params;
+    XmssState  state;
+    BdsState   bds[1];
+    byte       sk[2048];
+    byte       sk_seed[32];
+    byte       pk_seed[32];
+    HashAddress addr;
+    word8      height[8];
+    word8      offset;
+    byte*      sp;
+    size_t     i;
+
+    /* h=4, d=1 -> sub_h = 4; bds_k = 3 -> hsk = 1. */
+    wb_params_init(&params, WC_HASH_TYPE_SHA256, 32, 32, 4, 1, 4, 3);
+
+    if (wb_state_init(&state, &params) != 0) {
+        WB_NOTE("bds_hardening: state init failed; skipped");
+        return;
+    }
+    XMEMSET(sk_seed, 0x33, sizeof(sk_seed));
+    XMEMSET(pk_seed, 0x44, sizeof(pk_seed));
+    XMEMSET(sk, 0, sizeof(sk));
+
+    /* ---- 3215: wc_xmss_bds_update() argument guard ---- */
+    if (wc_xmss_bds_state_load(&state, sk, bds, NULL) == 0) {
+        word8* savedHeight = bds[0].height;
+
+        XMEMSET(&addr, 0, sizeof(addr));
+
+        /* (T,-) no height array at all. */
+        bds[0].next   = 0;
+        bds[0].offset = 0;
+        bds[0].height = NULL;
+        state.ret = 0;
+        wc_xmss_bds_update(&state, &bds[0], sk_seed, pk_seed, addr);
+        printf("  [wb] bds_update height=NULL      -> ret %d\n", state.ret);
+        if (state.ret == 0) {
+            WB_NOTE("FAIL: bds_update accepted a NULL height array");
+            wb_fail = 1;
+        }
+
+        /* (F,T) height present, offset past the subtree height. */
+        bds[0].height = savedHeight;
+        bds[0].next   = 0;
+        bds[0].offset = (word8)(params.sub_h + 1);
+        state.ret = 0;
+        wc_xmss_bds_update(&state, &bds[0], sk_seed, pk_seed, addr);
+        printf("  [wb] bds_update offset>sub_h     -> ret %d\n", state.ret);
+        if (state.ret == 0) {
+            WB_NOTE("FAIL: bds_update accepted an out-of-range offset");
+            wb_fail = 1;
+        }
+        bds[0].height = savedHeight;
+    }
+    else {
+        WB_NOTE("bds_hardening: bds_state_load failed; bds_update skipped");
+    }
+
+    /* ---- 2921: wc_xmss_bds_next_idx() retain-index guard ---- */
+    {
+        static const struct {
+            word32      i;
+            const char* what;
+            int         expectFail;
+        } rows[] = {
+            {  4, "(i>>h) < 3        ", 1 },
+            {  6, "in range, accepted", 0 },
+            { 18, "ro past retain end", 1 }
+        };
+
+        for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+            if (wc_xmss_bds_state_load(&state, sk, bds, NULL) != 0) {
+                WB_NOTE("bds_hardening: bds_state_load failed; retain skipped");
+                break;
+            }
+            XMEMSET(&addr, 0, sizeof(addr));
+            /* offset 2 with heights {1, 0}: the loop runs h = 0 then h = 1,
+             * and h = 1 >= hsk lands in the retain arm. */
+            XMEMSET(height, 0, sizeof(height));
+            height[0] = 1;
+            height[1] = 0;
+            offset = 2;
+            /* Leave room below sp: the loop walks node down once per pass. */
+            sp = state.stack + 4 * params.n;
+            state.ret = 0;
+
+            wc_xmss_bds_next_idx(&state, &bds[0], sk_seed, pk_seed, addr,
+                rows[i].i, height, &offset, &sp);
+
+            printf("  [wb] bds_next_idx i=%-2u %s -> ret %d\n",
+                   (unsigned)rows[i].i, rows[i].what, state.ret);
+            if (rows[i].expectFail && (state.ret == 0)) {
+                WB_NOTE("FAIL: retain guard did not fire");
+                wb_fail = 1;
+            }
+            if (!rows[i].expectFail && (state.ret != 0)) {
+                WB_NOTE("FAIL: retain guard fired on an in-range index");
+                wb_fail = 1;
+            }
+        }
+    }
+
+    wb_state_free(&state);
+}
+
 #else /* verify-only, or the small signing path */
+static void wb_bds_hardening(void) {}
 static void wb_bds_next_idx(void)
 {
     WB_NOTE("BDS helpers not compiled in; wb_bds_next_idx skipped");
@@ -1498,6 +1637,7 @@ static void wb_smallmt_bad_idx_len(void)
 {
     WB_NOTE("WOLFSSL_HAVE_XMSS not compiled in; skipped");
 }
+static void wb_bds_hardening(void) {}
 
 #endif /* WOLFSSL_HAVE_XMSS */
 
@@ -1508,6 +1648,7 @@ int main(void)
     wb_hash_family_pairs();
     wb_wots_chain_loop();
     wb_bds_next_idx();
+    wb_bds_hardening();
     wb_bds_auth_path();
     wb_full_cycle_d2();
     wb_full_cycle_d1();

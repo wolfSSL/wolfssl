@@ -44,9 +44,8 @@
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
     defined(HAVE_TLS_EXTENSIONS)
 
-/* TLSX_SNI_Free() is file-static in src/tls.c. A test that detaches an SNI
- * list from its extension has to release it the same way: the host name, then
- * the node. */
+/* TLSX_SNI_Free() is file-static in src/tls.c. Each SNI node is one
+ * allocation that also holds the host name. */
 #ifdef HAVE_SNI
 TEST_TLS_MSGTYPE_UNUSED
 static void test_tls_msgtype_free_sni(void* p, void* heap)
@@ -56,8 +55,6 @@ static void test_tls_msgtype_free_sni(void* p, void* heap)
     while (sni != NULL) {
         SNI* next = sni->next;
 
-        if (sni->type == WOLFSSL_SNI_HOST_NAME)
-            XFREE(sni->data.host_name, heap, DYNAMIC_TYPE_TLSX);
         XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
         sni = next;
     }
@@ -222,7 +219,9 @@ int test_tls_msgtype_certificate_ext_offered(void)
     ExpectIntNE(TLSX_Parse(ssl, buf, len, finished, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Baseline reject (op0..op4 all "true", via the ctx->extensions arm):
      * Certificate message, TLS 1.3, type not offered anywhere. */
@@ -232,7 +231,9 @@ int test_tls_msgtype_certificate_ext_offered(void)
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, certificate, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op1 false: Certificate message, but not TLS 1.3. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
@@ -241,7 +242,9 @@ int test_tls_msgtype_certificate_ext_offered(void)
     ExpectIntNE(TLSX_Parse(ssl, buf, len, certificate, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op2 false: the type was offered at the ssl level. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -251,7 +254,9 @@ int test_tls_msgtype_certificate_ext_offered(void)
     ExpectIntNE(TLSX_Parse(ssl, buf, len, certificate, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op3 false, op4 false: not offered at the ssl level, but the ctx has
      * it - so the type was still offered (CTX-level extensions apply to
@@ -263,7 +268,9 @@ int test_tls_msgtype_certificate_ext_offered(void)
     ExpectIntNE(TLSX_Parse(ssl, buf, len, certificate, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op3 true: ctx forcibly NULL (restored before free). */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -277,7 +284,9 @@ int test_tls_msgtype_certificate_ext_offered(void)
         ssl->ctx = savedCtx;
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1182,7 +1191,7 @@ int test_tls_msgtype_connection_id(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS_CID) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS) && \
-    defined(HAVE_TLS_EXTENSIONS)
+    defined(HAVE_TLS_EXTENSIONS) && defined(WOLFSSL_TLS13)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte buf[8];
@@ -1494,7 +1503,9 @@ int test_tls_msgtype_sni_parse_match(void)
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* M2: configured host does not match, and differs in length, so
      * XSTRLEN(hostName) == size is false (masking XSTRNCMP). No mismatch
@@ -1509,7 +1520,9 @@ int test_tls_msgtype_sni_parse_match(void)
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
                 WC_NO_ERR_TRACE(UNKNOWN_SNI_HOST_NAME_E));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* M3: configured host does not match, but is the same length, so
      * XSTRLEN(hostName) == size is true and XSTRNCMP(...) == 0 is false. */
@@ -1523,7 +1536,9 @@ int test_tls_msgtype_sni_parse_match(void)
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
                 WC_NO_ERR_TRACE(UNKNOWN_SNI_HOST_NAME_E));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* M4: mismatch, but WOLFSSL_SNI_ANSWER_ON_MISMATCH is set on the
      * configured name - the handshake proceeds with a fake match instead
@@ -1539,7 +1554,9 @@ int test_tls_msgtype_sni_parse_match(void)
     len = build_ext_with_body(buf, TLSX_SERVER_NAME, sniBody, sniLen);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* M5: mismatch, but WOLFSSL_SNI_CONTINUE_ON_MISMATCH is set - the
      * handshake continues without installing a response or aborting. */
@@ -1554,7 +1571,9 @@ int test_tls_msgtype_sni_parse_match(void)
     len = build_ext_with_body(buf, TLSX_SERVER_NAME, sniBody, sniLen);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #endif
     return EXPECT_RESULT();
@@ -1595,16 +1614,28 @@ int test_tls_msgtype_sni_parse_ech_public(void)
     ExpectNotNull(ech = (WOLFSSL_ECH*)XMALLOC(sizeof(WOLFSSL_ECH), ssl->heap,
                 DYNAMIC_TYPE_TMP_BUFFER));
     if (ech != NULL) {
+        int echPushRet;
         XMEMSET(ech, 0, sizeof(WOLFSSL_ECH));
         ech->echConfig = &echConfig;
-        ExpectIntEQ(TLSX_Push(&ssl->extensions, TLSX_ECH, ech, ssl->heap), 0);
+        /* On success ssl->extensions takes ownership of ech and frees it in
+         * wolfSSL_free(). On failure (e.g. an injected allocation failure in
+         * TLSX_New()) ownership is not transferred, so free it here to avoid
+         * leaking it. */
+        echPushRet = TLSX_Push(&ssl->extensions, TLSX_ECH, ech, ssl->heap);
+        ExpectIntEQ(echPushRet, 0);
+        if (echPushRet != 0) {
+            XFREE(ech, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        ech = NULL;
     }
     XMEMSET(&suites, 0, sizeof(suites));
     sniLen = build_sni_body(sniBody, publicName);
     len = build_ext_with_body(buf, TLSX_SERVER_NAME, sniBody, sniLen);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Outer SNI is the same length as the publicName but differs in
      * content: XSTRLEN(...) == size is true, XSTRNCMP(...) == 0 is false,
@@ -1618,16 +1649,28 @@ int test_tls_msgtype_sni_parse_ech_public(void)
     ExpectNotNull(ech = (WOLFSSL_ECH*)XMALLOC(sizeof(WOLFSSL_ECH), ssl->heap,
                 DYNAMIC_TYPE_TMP_BUFFER));
     if (ech != NULL) {
+        int echPushRet;
         XMEMSET(ech, 0, sizeof(WOLFSSL_ECH));
         ech->echConfig = &echConfig;
-        ExpectIntEQ(TLSX_Push(&ssl->extensions, TLSX_ECH, ech, ssl->heap), 0);
+        /* On success ssl->extensions takes ownership of ech and frees it in
+         * wolfSSL_free(). On failure (e.g. an injected allocation failure in
+         * TLSX_New()) ownership is not transferred, so free it here to avoid
+         * leaking it. */
+        echPushRet = TLSX_Push(&ssl->extensions, TLSX_ECH, ech, ssl->heap);
+        ExpectIntEQ(echPushRet, 0);
+        if (echPushRet != 0) {
+            XFREE(ech, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        ech = NULL;
     }
     XMEMSET(&suites, 0, sizeof(suites));
     sniLen = build_sni_body(sniBody, "pub.examplx");
     len = build_ext_with_body(buf, TLSX_SERVER_NAME, sniBody, sniLen);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1636,7 +1679,7 @@ int test_tls_msgtype_sni_parse_ech_public(void)
 /* if (len < MIN_PSK_ID_LEN || length - idx < len) return BUFFER_E;
  * ...
  * if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
- *         identityLen > MAX_PSK_ID_LEN) return BUFFER_E; */
+ *         identityLen > MAX_PSK_ID_WIRE_LEN) return BUFFER_E; */
 int test_tls_msgtype_psk_ch_id_gates(void)
 {
     EXPECT_DECLS;
@@ -1644,8 +1687,8 @@ int test_tls_msgtype_psk_ch_id_gates(void)
     defined(HAVE_TLS_EXTENSIONS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    byte buf[MAX_PSK_ID_LEN + 64];
-    byte body[MAX_PSK_ID_LEN + 48];
+    byte buf[MAX_PSK_ID_WIRE_LEN + 64];
+    byte body[MAX_PSK_ID_WIRE_LEN + 48];
     word16 len;
     Suites suites;
 
@@ -1664,7 +1707,9 @@ int test_tls_msgtype_psk_ch_id_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 false, op1 true: identities length (6) meets MIN_PSK_ID_LEN, but
      * fewer than 6 bytes actually follow in the extension. (op0 false,
@@ -1680,7 +1725,9 @@ int test_tls_msgtype_psk_ch_id_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Per-identity op0 true: identities length (6) is consistent with the
      * outer check, but the single identity inside it claims a 10-byte
@@ -1696,15 +1743,17 @@ int test_tls_msgtype_psk_ch_id_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Per-identity op0 false, op1 true: identityLen is one more than
-     * MAX_PSK_ID_LEN, with enough buffer supplied to hold it in full. */
+     * MAX_PSK_ID_WIRE_LEN, with enough buffer supplied to hold it in full. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     XMEMSET(&suites, 0, sizeof(suites));
     {
-        word16 idLen = MAX_PSK_ID_LEN + 1;
+        word16 idLen = (word16)(MAX_PSK_ID_WIRE_LEN + 1);
         word16 identitiesLen = (word16)(OPAQUE16_LEN + idLen + OPAQUE32_LEN);
         word16 idx = 0;
 
@@ -1720,7 +1769,9 @@ int test_tls_msgtype_psk_ch_id_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1784,7 +1835,9 @@ int test_tls_msgtype_psk_sh_index(void)
             ExpectIntEQ(list->next->chosen, 1);
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 false: a single identity, server selects index 1 - the loop
      * runs out of list (masking op1) before idx reaches 0. */
@@ -1800,7 +1853,9 @@ int test_tls_msgtype_psk_sh_index(void)
     ExpectIntEQ(TLSX_Parse(ssl, shBuf, shLen, server_hello, NULL),
                 WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1838,7 +1893,9 @@ int test_tls_msgtype_psk_sh_resumption(void)
         ssl->session->version = ssl->ctx->method->version;
     ExpectIntEQ(TLSX_Parse(ssl, shBuf, shLen, server_hello, NULL), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 true: cipherSuite0 mismatch. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1854,7 +1911,9 @@ int test_tls_msgtype_psk_sh_resumption(void)
     ExpectIntEQ(TLSX_Parse(ssl, shBuf, shLen, server_hello, NULL),
                 WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op1 true: cipherSuite mismatch. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1870,7 +1929,9 @@ int test_tls_msgtype_psk_sh_resumption(void)
     ExpectIntEQ(TLSX_Parse(ssl, shBuf, shLen, server_hello, NULL),
                 WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op2 true: session version.major mismatch. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1886,7 +1947,9 @@ int test_tls_msgtype_psk_sh_resumption(void)
     ExpectIntEQ(TLSX_Parse(ssl, shBuf, shLen, server_hello, NULL),
                 WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op3 true: session version.minor mismatch. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1902,7 +1965,9 @@ int test_tls_msgtype_psk_sh_resumption(void)
     ExpectIntEQ(TLSX_Parse(ssl, shBuf, shLen, server_hello, NULL),
                 WC_NO_ERR_TRACE(PSK_KEY_ERROR));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -1944,7 +2009,9 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 false, op1 true: binders length (33) meets MIN_PSK_BINDERS_LEN,
      * but far fewer bytes actually remain in the extension. */
@@ -1964,7 +2031,9 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Per-binder op0 true: the binder length byte (10) is below
      * WC_SHA256_DIGEST_SIZE (32). The declared binders length (34) still
@@ -1989,7 +2058,9 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Per-binder op1 true (op0 false): the binder length byte (100) is
      * above WC_MAX_DIGEST_SIZE (64). The declared binders length (34) only
@@ -2014,7 +2085,9 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* while(list!=NULL && len>0) op1 (len>0), and the trailing "list !=
      * NULL" gate: two identities, but only one binder - after consuming
@@ -2038,7 +2111,9 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* Trailing "len != 0" gate: one identity but two binders' worth of
      * data - list runs out (becomes NULL) while len still has a second
@@ -2062,7 +2137,46 @@ int test_tls_msgtype_psk_ch_binder_gates(void)
                     WC_NO_ERR_TRACE(BUFFER_E));
     }
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Trailing "idx != length" gate: a complete, valid OfferedPsks followed
+     * by one extra byte inside the extension data must be rejected
+     * (RFC 8446 Section 4.2). */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    {
+        Suites suites;
+
+        XMEMCPY(body, psk_ch_body, sizeof(psk_ch_body));
+        body[sizeof(psk_ch_body)] = 0xAA;
+        XMEMSET(&suites, 0, sizeof(suites));
+        len = build_ext_with_body(buf, TLSX_PRE_SHARED_KEY, body,
+                (word16)(sizeof(psk_ch_body) + 1));
+        ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
+                    WC_NO_ERR_TRACE(BUFFER_E));
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Control: the same OfferedPsks without the trailing byte is accepted. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    {
+        Suites suites;
+
+        XMEMSET(&suites, 0, sizeof(suites));
+        len = build_ext_with_body(buf, TLSX_PRE_SHARED_KEY, psk_ch_body,
+                (word16)sizeof(psk_ch_body));
+        ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
+    }
+    wolfSSL_free(ssl);
+    ssl = NULL;
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2105,7 +2219,9 @@ int test_tls_msgtype_cookie_parse_gates(void)
     len = build_ext_with_body(buf, TLSX_COOKIE, body, 6);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
 
     /* dtls operand false: same setup, but a plain (non-DTLS) TLS 1.3
@@ -2119,7 +2235,9 @@ int test_tls_msgtype_cookie_parse_gates(void)
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
                 WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
 #if defined(WOLFSSL_TEST_STATIC_BUILD)
     /* An existing Cookie extension (as if this SSL object had already
@@ -2139,7 +2257,9 @@ int test_tls_msgtype_cookie_parse_gates(void)
         ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites),
                     WC_NO_ERR_TRACE(HRR_COOKIE_ERROR));
         wolfSSL_free(ssl);
+        ssl = NULL;
         wolfSSL_CTX_free(ctx);
+        ctx = NULL;
 
         /* op0 false, op1 false: length and content both match - the
          * cookie is accepted and the request-seen flag is cleared. */
@@ -2153,7 +2273,9 @@ int test_tls_msgtype_cookie_parse_gates(void)
         len = build_ext_with_body(buf, TLSX_COOKIE, body, 6);
         ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
         wolfSSL_free(ssl);
+        ssl = NULL;
         wolfSSL_CTX_free(ctx);
+        ctx = NULL;
     }
 #endif /* WOLFSSL_TEST_STATIC_BUILD */
 #endif
@@ -2191,7 +2313,9 @@ int test_tls_msgtype_tca_parse_gates(void)
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, server_hello, NULL),
                 WC_NO_ERR_TRACE(UNSUPPORTED_EXTENSION));
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* 3131 op1 true: TCA configured, but its data was cleared - same
      * outcome via the other operand. */
@@ -2211,7 +2335,12 @@ int test_tls_msgtype_tca_parse_gates(void)
     if (extension != NULL)
         extension->data = savedExtData;
     wolfSSL_free(ssl);
+    ssl = NULL;
+    /* extension pointed into ssl->extensions (freed above); clear the stale
+     * handle so a later block does not touch freed memory. */
+    extension = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* 3131 both false: TCA configured normally, empty response body -
      * accepted, response flag set. */
@@ -2222,7 +2351,9 @@ int test_tls_msgtype_tca_parse_gates(void)
     len = build_ext(buf, TLSX_TRUSTED_CA_KEYS, 0);
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, server_hello, NULL), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* 3145 op1 true: server side, TCA configured but its data was
      * cleared - "not enabled at server side" is taken, not a crash. */
@@ -2249,7 +2380,10 @@ int test_tls_msgtype_tca_parse_gates(void)
     if (extension != NULL)
         extension->data = savedExtData;
     wolfSSL_free(ssl);
+    ssl = NULL;
+    extension = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2294,7 +2428,9 @@ int test_tls_msgtype_tca_find(void)
             (word16)(2 + entryLen));
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 true, op1 false: type matches, but the query's idSz (5)
      * differs from the configured entry's idSz (4). */
@@ -2312,7 +2448,9 @@ int test_tls_msgtype_tca_find(void)
             (word16)(2 + entryLen));
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 true, op1 true, op2 false: type and length match, content
      * does not. */
@@ -2330,7 +2468,9 @@ int test_tls_msgtype_tca_find(void)
             (word16)(2 + entryLen));
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 true, op1 true, op2 true: exact match - found on the first
      * (only) list entry. */
@@ -2348,7 +2488,9 @@ int test_tls_msgtype_tca_find(void)
             (word16)(2 + entryLen));
     ExpectIntEQ(TLSX_Parse(ssl, buf, len, client_hello, &suites), 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2387,13 +2529,7 @@ static void* tca_fail_realloc(void* ptr, size_t size)
 }
 #endif /* HAVE_TRUSTED_CA && !NO_WOLFSSL_CLIENT && !NO_TLS */
 
-/* ---- TLSX_TCA_New(): id allocation failure ------------------------------ */
-/* KEY_SHA1/CERT_SHA1: if (idSz == WC_SHA_DIGEST_SIZE &&
- *     (tca->id = XMALLOC(idSz, ...))) {...}
- * X509_NAME:          if (idSz > 0 &&
- *     (tca->id = XMALLOC(idSz, ...))) {...}
- * In both cases the length operand's pair is already covered elsewhere;
- * only the allocation succeeding vs. failing is exercised here. */
+/* ---- TLSX_TCA_New(): allocation failure ---------------------------------- */
 int test_tls_msgtype_tca_new_alloc(void)
 {
     EXPECT_DECLS;
@@ -2413,37 +2549,39 @@ int test_tls_msgtype_tca_new_alloc(void)
     };
     const byte nameId[] = { 5, 6, 7, 8 };
 
-    /* CERT_SHA1: the TCA struct itself (allocation #0) succeeds, the id
-     * buffer (allocation #1) fails. */
+    /* CERT_SHA1: the TCA and its identifier share one allocation. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
     ExpectIntEQ(wolfSSL_SetAllocators(tca_fail_malloc, tca_fail_free,
                 tca_fail_realloc), 0);
     tca_alloc_seen = 0;
-    tca_fail_after = 1;
+    tca_fail_after = 0;
     ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_CERT_SHA1,
                 sha1Id, sizeof(sha1Id)), WC_NO_ERR_TRACE(MEMORY_E));
     tca_fail_after = -1;
     (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
-    /* X509_NAME: same shape - struct allocation succeeds, id buffer
-     * allocation fails. */
+    /* X509_NAME: the same single allocation. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
     ExpectIntEQ(wolfSSL_SetAllocators(tca_fail_malloc, tca_fail_free,
                 tca_fail_realloc), 0);
     tca_alloc_seen = 0;
-    tca_fail_after = 1;
+    tca_fail_after = 0;
     ExpectIntEQ(wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_X509_NAME,
                 nameId, (word32)sizeof(nameId)), WC_NO_ERR_TRACE(MEMORY_E));
     tca_fail_after = -1;
     (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
     wolfSSL_free(ssl);
+    ssl = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }
@@ -2484,7 +2622,15 @@ int test_tls_msgtype_psk_write_chosen(void)
     ExpectIntEQ(TLSX_WriteResponse(ssl, output, server_hello, &offset), 0);
     ExpectIntGT(offset, 0);
     wolfSSL_free(ssl);
+    ssl = NULL;
+    /* pskA, pskB and extension were owned by ssl->extensions and freed by
+     * wolfSSL_free() above; clear the stale handles so the next block does
+     * not dereference freed memory if an Expect assignment is skipped. */
+    pskA = NULL;
+    pskB = NULL;
+    extension = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 
     /* op0 false: a single, unchosen identity - the loop runs off the end
      * of the list before finding a chosen entry. */
@@ -2500,7 +2646,12 @@ int test_tls_msgtype_psk_write_chosen(void)
     ExpectIntEQ(TLSX_WriteResponse(ssl, output, server_hello, &offset),
                 WC_NO_ERR_TRACE(BUILD_MSG_ERROR));
     wolfSSL_free(ssl);
+    ssl = NULL;
+    pskA = NULL;
+    pskB = NULL;
+    extension = NULL;
     wolfSSL_CTX_free(ctx);
+    ctx = NULL;
 #endif
     return EXPECT_RESULT();
 }

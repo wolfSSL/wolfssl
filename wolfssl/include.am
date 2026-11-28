@@ -27,7 +27,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfio.h
 
 noinst_HEADERS+= \
-                         wolfssl/internal.h
+                         wolfssl/internal.h \
+                         wolfssl/ssl_sess.h
 
 # For distro build don't install options.h.
 # It depends on the architecture and conflicts with Multi-Arch.

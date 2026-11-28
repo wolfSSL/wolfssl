@@ -26,6 +26,13 @@
 
 #ifdef WOLFSSL_HAVE_XMSS
 
+#if FIPS_VERSION3_GE(7,0,0)
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
+        #pragma code_seg(".fipsA$ng")
+        #pragma const_seg(".fipsB$ng")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 
 #if FIPS_VERSION3_GE(7,0,0)
@@ -49,6 +56,17 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+/* A key named by id, label or device context is held by a device. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    #define XMSS_KEY_ON_DEVICE(key) (((key)->devCtx != NULL) || \
+        ((key)->idLen > 0) || ((key)->labelLen > 0))
+#elif defined(WOLF_CRYPTO_CB)
+    #define XMSS_KEY_ON_DEVICE(key) ((key)->devCtx != NULL)
+#else
+    #define XMSS_KEY_ON_DEVICE(key) 0
+#endif
+
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
 /***************************
  * DIGEST init and free.
  ***************************/
@@ -158,6 +176,7 @@ static WC_INLINE void wc_xmss_state_free(XmssState* state)
 {
     wc_xmss_digest_free(state);
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 
 
 /***************************
@@ -678,6 +697,7 @@ static int wc_xmssmt_str_to_params(const char *s, word32* oid,
  * @return  BAD_FUNC_ARG when private key already allocated.
  * @return  MEMORY_E when allocating dynamic memory fails.
  */
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
 static int wc_xmsskey_alloc_sk(XmssKey* key)
 {
     int ret = 0;
@@ -787,6 +807,8 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* Zeroize working state before free. */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
@@ -814,6 +836,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
 
     return ret;
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 #endif /* !WOLFSSL_XMSS_VERIFY_ONLY */
 
 /***************************
@@ -852,6 +875,11 @@ int wc_XmssKey_Init(XmssKey* key, void* heap, int devId)
         key->devId = devId;
     #endif
         key->state = WC_XMSS_STATE_INITED;
+
+    #ifndef WOLF_CRYPTO_CB_ONLY_XMSS
+        /* Ensure the CPU features are known. */
+        wc_xmss_init();
+    #endif
     }
 
     return ret;
@@ -867,7 +895,7 @@ int wc_XmssKey_Init(XmssKey* key, void* heap, int devId)
  * @param [in]     devId  Device identifier.
  *
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  BAD_FUNC_ARG when key is NULL, or id is NULL with a positive len.
  * @return  BUFFER_E when len is negative or exceeds XMSS_MAX_ID_LEN.
  */
 int wc_XmssKey_InitId(XmssKey* key, const unsigned char* id, int len,
@@ -875,7 +903,7 @@ int wc_XmssKey_InitId(XmssKey* key, const unsigned char* id, int len,
 {
     int ret = 0;
 
-    if (key == NULL)
+    if (key == NULL || (id == NULL && len > 0))
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > XMSS_MAX_ID_LEN))
         ret = BUFFER_E;
@@ -1051,6 +1079,17 @@ void wc_XmssKey_Free(XmssKey* key)
 {
     /* Validate parameter. */
     if (key != NULL) {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                                   WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN,
+                                   WC_PQC_STATEFUL_SIG_TYPE_XMSS, (void*)key);
+            /* always continue to software cleanup */
+        }
+#endif
     #ifndef WOLFSSL_XMSS_VERIFY_ONLY
         if (key->sk != NULL) {
             /* Zeroize private key. */
@@ -1196,12 +1235,18 @@ int wc_XmssKey_SetContext(XmssKey* key, void* context)
 int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
 {
     int            ret = 0;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     enum wc_XmssRc cb_rc = WC_XMSS_RC_NONE;
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* seed = NULL;
 #else
     unsigned char  seed[3 * WC_XMSS_MAX_N];
 #endif
+#endif /* !WOLF_CRYPTO_CB_ONLY_XMSS */
 
     /* Validate parameters */
     if ((key == NULL) || (rng == NULL)) {
@@ -1212,11 +1257,22 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         WOLFSSL_MSG("error: XmssKey not ready for generation");
         ret = BAD_STATE_E;
     }
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (ret == 0) {
+        idKey = WC_CRYPTOCB_HAS_ID(key);
+        idDevId = key->devId;
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
      * software checks below still run. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         ret = wc_CryptoCb_PqcStatefulSigKeyGen(WC_PQC_STATEFUL_SIG_TYPE_XMSS,
             key, rng);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
@@ -1224,13 +1280,24 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
              * subsequent Sign/Verify calls don't fail with BAD_STATE_E. */
             if (ret == 0) {
                 key->state = WC_XMSS_STATE_OK;
+                key->pubSet = 1;
             }
             return ret;
         }
         ret = 0; /* fall through to software path */
     }
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if ((ret == 0) && idKey && wc_CryptoCb_HasPkDevice(idDevId)) {
+        ret = NO_VALID_DEVID;
+    }
+    #endif
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Ensure write callback available. */
     if ((ret == 0) && (key->write_private_key == NULL)) {
         WOLFSSL_MSG("error: XmssKey write callback is not set");
@@ -1284,6 +1351,8 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* Zeroize working state before free. */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
@@ -1303,9 +1372,20 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
 
     if (ret == 0) {
         key->state = WC_XMSS_STATE_OK;
+        key->pubSet = 1;
     }
 
+    /* Zeroize the secret seed (SK_seed || SK_PRF) before freeing the buffer. */
+#ifdef WOLFSSL_SMALL_STACK
+    if (seed != NULL) {
+        ForceZero(seed, 3U * key->params->n);
+    }
+#else
+    ForceZero(seed, sizeof(seed));
+#endif
     WC_FREE_VAR_EX(seed, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
+
     return ret;
 }
 
@@ -1327,6 +1407,11 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
  *
  * With a crypto callback device, the read callback and not the devId decides
  * whether the software reload runs. See wc_XmssKey_Reload below.
+ * WOLF_CRYPTO_CB_ONLY_XMSS removes the software reload, so the read callback
+ * is never called.
+ *
+ * Neither arm populates key->pk, so the reloaded key can sign but cannot
+ * export a public key or verify.
  *
  * @params [in] key  XMSS key to load.
  *
@@ -1338,11 +1423,15 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
  * @return  MEMORY_E when allocating dynamic memory fails.
  * @return  BAD_STATE_E when wrong state for operation.
  * @return  IO_FAILED_E when reading private key failed.
+ * @return  NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_XMSS unless the key is
+ *          device-backed.
  */
 int wc_XmssKey_Reload(XmssKey* key)
 {
     int            ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     enum wc_XmssRc cb_rc = WC_XMSS_RC_NONE;
+#endif
 
     /* Validate parameter. */
     if (key == NULL) {
@@ -1367,6 +1456,12 @@ int wc_XmssKey_Reload(XmssKey* key)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    /* No software reload exists to use the read callback. */
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Ensure read and write callbacks are available. */
     if ((ret == 0) && ((key->write_private_key == NULL) ||
             (key->read_private_key == NULL))) {
@@ -1395,6 +1490,7 @@ int wc_XmssKey_Reload(XmssKey* key)
     if (ret == 0) {
         key->state = WC_XMSS_STATE_OK;
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
 
     return ret;
 }
@@ -1462,10 +1558,18 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
 {
     int ret = 0;
 
-    /* Validate parameters. */
-    if ((key == NULL) || (sig == NULL) || (sigLen == NULL) || (msg == NULL) ||
-            (msgLen <= 0)) {
+    /* Validate parameters.  A NULL msg is valid for the empty message
+     * (msgLen == 0), which RFC 8391 permits. */
+    if ((key == NULL) || (sig == NULL) || (sigLen == NULL) ||
+            ((msg == NULL) && (msgLen != 0)) || (msgLen < 0)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte xmss_empty_msg[] = {0};
+        msg = xmss_empty_msg;
     }
     /* Validate state. */
     if ((ret == 0) && (key->state == WC_XMSS_STATE_NOSIGS)) {
@@ -1489,7 +1593,12 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
      * software checks below still run. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         ret = wc_CryptoCb_PqcStatefulSigSign(msg, (word32)msgLen, sig, sigLen,
             WC_PQC_STATEFUL_SIG_TYPE_XMSS, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
@@ -1498,11 +1607,20 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Check read and write callbacks available. */
     if ((ret == 0) && ((key->write_private_key == NULL) ||
             (key->read_private_key == NULL))) {
         WOLFSSL_MSG("error: XmssKey write/read callbacks are not set");
         ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (key->sk == NULL)) {
+        WOLFSSL_MSG("error: XMSS secret key not held in software");
+        ret = BAD_STATE_E;
     }
 
     if (ret == 0) {
@@ -1510,6 +1628,7 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
         /* Finally, sign and update the secret key. */
         ret = wc_xmsskey_signupdate(key, sig, msg, msgLen);
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
 
     return ret;
 }
@@ -1519,6 +1638,7 @@ int wc_XmssKey_Sign(XmssKey* key, byte* sig, word32* sigLen, const byte* msg,
  * @param [in] key  XMSS key to check.
  * @return  1 when signatures possible.
  * @return  0 when key exhausted.
+ * @return  0 when the device declines and software holds no private key.
  */
 int  wc_XmssKey_SigsLeft(XmssKey* key)
 {
@@ -1529,7 +1649,10 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         return 0;
 
 #ifdef WOLF_CRYPTO_CB
-    if (key->devId != INVALID_DEVID) {
+#ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+#endif
+    {
         word32 sigsLeft = 0;
         int cbRet = wc_CryptoCb_PqcStatefulSigSigsLeft(
             WC_PQC_STATEFUL_SIG_TYPE_XMSS, key, &sigsLeft);
@@ -1542,13 +1665,11 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
             WOLFSSL_MSG("PqcStatefulSigSigsLeft returned an error");
             return 0;
         }
-        /* Cryptocb declined. Fall through to the software path: state
-         * reflects the CRYPTOCB_UNAVAILABLE fall-through in MakeKey/Reload,
-         * and read_private_key can repopulate sk from NV storage. */
         WOLFSSL_MSG("XMSS SigsLeft not supported by device, using software");
     }
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_XMSS
     /* Validate state. */
     if (key->state == WC_XMSS_STATE_NOSIGS) {
         WOLFSSL_MSG("error: XMSS signatures exhausted");
@@ -1556,6 +1677,11 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
     }
     else if (key->state != WC_XMSS_STATE_OK) {
         WOLFSSL_MSG("error: can't sign, XMSS key not in good state");
+        ret = 0;
+    }
+    /* A key held by a device has no secret key in software. */
+    else if ((key->sk == NULL) || (key->read_private_key == NULL)) {
+        WOLFSSL_MSG("error: XMSS secret key not held in software");
         ret = 0;
     }
     /* Read the current secret key from NV storage.*/
@@ -1568,6 +1694,7 @@ int  wc_XmssKey_SigsLeft(XmssKey* key)
         /* Ask implementation to check index in private key. */
         ret = wc_xmss_sigsleft(key->params, key->sk);
     }
+#endif
 
     return ret;
 }
@@ -1609,6 +1736,7 @@ int wc_XmssKey_GetPubLen(const XmssKey* key, word32* len)
  *
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a key is NULL.
+ * @return  BAD_STATE_E when the source holds no public key.
  * @return  Other negative when digest algorithm initialization failed.
  */
 int wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
@@ -1624,6 +1752,15 @@ int wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
     if ((keyDst == NULL) || (keySrc == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+    /* A signing-ready state doesn't mean a public key exists; Reload
+     * reaches WC_XMSS_STATE_OK without populating key->pk. */
+    if ((ret == 0) && ((!keySrc->pubSet) ||
+            ((keySrc->state != WC_XMSS_STATE_OK) &&
+             (keySrc->state != WC_XMSS_STATE_VERIFYONLY) &&
+             (keySrc->state != WC_XMSS_STATE_NOSIGS)))) {
+        WOLFSSL_MSG("error: XMSS key not ready for export");
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         /* Zeroize the new key. */
@@ -1631,6 +1768,7 @@ int wc_XmssKey_ExportPub_ex(XmssKey* keyDst, const XmssKey* keySrc,
 
         /* Copy over the public key. */
         XMEMCPY(keyDst->pk, keySrc->pk, sizeof(keySrc->pk));
+        keyDst->pubSet = 1;
 
         /* Copy over the key info. */
         keyDst->oid = keySrc->oid;
@@ -1667,6 +1805,7 @@ int wc_XmssKey_ExportPub(XmssKey* keyDst, const XmssKey* keySrc)
  *
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  BAD_STATE_E when the key holds no public key.
  * @return  BUFFER_E if array is too small.
  */
 int wc_XmssKey_ExportPubRaw(const XmssKey* key, byte* out, word32* outLen)
@@ -1677,6 +1816,15 @@ int wc_XmssKey_ExportPubRaw(const XmssKey* key, byte* out, word32* outLen)
     /* Validate parameters. */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Params and a signing-ready state don't mean a public key exists;
+     * Reload reaches WC_XMSS_STATE_OK without populating key->pk. */
+    if ((ret == 0) && ((!key->pubSet) ||
+            ((key->state != WC_XMSS_STATE_OK) &&
+             (key->state != WC_XMSS_STATE_VERIFYONLY) &&
+             (key->state != WC_XMSS_STATE_NOSIGS)))) {
+        WOLFSSL_MSG("error: XMSS key not ready for export");
+        ret = BAD_STATE_E;
     }
 
     /* Get the public key length. */
@@ -1841,6 +1989,7 @@ int wc_XmssKey_ImportPubRaw_ex(XmssKey* key, const byte* in, word32 inLen,
             key->is_xmssmt = is_xmssmt ? 1 : 0;
         }
         XMEMCPY(key->pk, in + XMSS_OID_LEN, matched->pk_len);
+        key->pubSet = 1;
         key->state = WC_XMSS_STATE_VERIFYONLY;
     }
 
@@ -1894,6 +2043,7 @@ int wc_XmssKey_ImportPubRaw(XmssKey* key, const byte* in, word32 inLen)
     if (ret == 0) {
         /* Copy the public key data into key. */
         XMEMCPY(key->pk, in + XMSS_OID_LEN, pubLen - XMSS_OID_LEN);
+        key->pubSet = 1;
 
         /* Update state to verify-only as we don't have a private key. */
         key->state = WC_XMSS_STATE_VERIFYONLY;
@@ -1967,15 +2117,24 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
 {
     int ret = 0;
 
-    /* Validate parameters. */
-    if ((key == NULL) || (sig == NULL) || (m == NULL) || (mLen <= 0)) {
+    /* Validate parameters.  A NULL m is valid for the empty message
+     * (mLen == 0), which RFC 8391 permits. */
+    if ((key == NULL) || (sig == NULL) ||
+            ((m == NULL) && (mLen != 0)) || (mLen < 0)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Validate state. */
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (m == NULL)) {
+        static const byte xmss_empty_msg[] = {0};
+        m = xmss_empty_msg;
+    }
+    /* Validate state. A key named by id may have only its parameters set. */
     if ((ret == 0) && (key->state != WC_XMSS_STATE_OK) &&
-            (key->state != WC_XMSS_STATE_VERIFYONLY)) {
-        /* XMSS key not ready for verification. Param str must be
-         * set first, and Reload() called. */
+            (key->state != WC_XMSS_STATE_VERIFYONLY) &&
+            ((key->state != WC_XMSS_STATE_PARMSET) ||
+             !XMSS_KEY_ON_DEVICE(key))) {
         WOLFSSL_MSG("error: XMSS key not ready for verification");
         ret = BAD_STATE_E;
     }
@@ -1987,7 +2146,12 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         int res = 0;
         ret = wc_CryptoCb_PqcStatefulSigVerify(sig, sigLen, m, (word32)mLen,
             &res, WC_PQC_STATEFUL_SIG_TYPE_XMSS, key);
@@ -1999,6 +2163,16 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
         ret = 0; /* fall through to software path */
     }
 #endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_XMSS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+    if ((ret == 0) && (!key->pubSet)) {
+        WOLFSSL_MSG("error: XMSS key contains no public key");
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         WC_DECLARE_VAR(state, XmssState, 1, 0);
@@ -2015,9 +2189,12 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
+            /* Zeroize working state before free. */
+            ForceZero(state, sizeof(XmssState));
             WC_FREE_VAR_EX(state, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_XMSS */
 
     return ret;
 }

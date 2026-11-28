@@ -173,6 +173,24 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
 #define MATCH_PQC(b, s, l) ((l) == sizeof(s) - 1 && \
     XSTRNCMP((b), (s), sizeof(s) - 1) == 0)
 
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP)
+    #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && \
+        (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256)) && \
+        ECC_MIN_KEY_SZ <= 256
+        #define SUITES_HAVE_SECP256R1
+    #endif
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+        (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384)) && \
+        ECC_MIN_KEY_SZ <= 384
+        #define SUITES_HAVE_SECP384R1
+    #endif
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+        (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521)) && \
+        ECC_MIN_KEY_SZ <= 521
+        #define SUITES_HAVE_SECP521R1
+    #endif
+#endif
+
 static int IsKyberLevelAvailable(const char* line)
 {
     int available = 0;
@@ -214,26 +232,25 @@ static int IsKyberLevelAvailable(const char* line)
         #endif
     #endif /* WOLFSSL_TLS_NO_MLKEM_STANDALONE */
     #ifdef WOLFSSL_PQC_HYBRIDS
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-            (!defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_NO_256))
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(SUITES_HAVE_SECP256R1)
             if (MATCH_PQC(begin, "SecP256r1MLKEM768", len)) {
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519)
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519) && \
+            ECC_MIN_KEY_SZ <= 256
             if (MATCH_PQC(begin, "X25519MLKEM768", len)) {
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(SUITES_HAVE_SECP384R1)
             if (MATCH_PQC(begin, "SecP384r1MLKEM1024", len)) {
                 available = 1;
             }
         #endif
     #endif /* WOLFSSL_PQC_HYBRIDS */
     #ifdef WOLFSSL_EXTRA_PQC_HYBRIDS
-        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_ECC)
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(SUITES_HAVE_SECP256R1)
             if (MATCH_PQC(begin, "SecP256r1MLKEM512", len)) {
                 available = 1;
             }
@@ -243,13 +260,13 @@ static int IsKyberLevelAvailable(const char* line)
             }
         #endif
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519)
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519) && \
+            ECC_MIN_KEY_SZ <= 256
             if (MATCH_PQC(begin, "X25519MLKEM512", len)) {
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_ECC) && \
-            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384))
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(SUITES_HAVE_SECP384R1)
             if (MATCH_PQC(begin, "SecP384r1MLKEM768", len)) {
                 available = 1;
             }
@@ -259,13 +276,13 @@ static int IsKyberLevelAvailable(const char* line)
             }
         #endif
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448)
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448) && \
+            ECC_MIN_KEY_SZ <= 448
             if (MATCH_PQC(begin, "X448MLKEM768", len)) {
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(HAVE_ECC) && \
-            (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521))
+        #if !defined(WOLFSSL_NO_ML_KEM_1024) && defined(SUITES_HAVE_SECP521R1)
             if (MATCH_PQC(begin, "SecP521r1MLKEM1024", len)) {
                 available = 1;
             }
@@ -283,7 +300,7 @@ static int IsKyberLevelAvailable(const char* line)
             if (MATCH_PQC(begin, "KYBER_LEVEL1", len)) {
                 available = 1;
             }
-        #ifdef HAVE_ECC
+        #ifdef SUITES_HAVE_SECP256R1
             if (MATCH_PQC(begin, "P256_KYBER_LEVEL1", len)) {
                 available = 1;
             }
@@ -293,12 +310,12 @@ static int IsKyberLevelAvailable(const char* line)
             if (MATCH_PQC(begin, "KYBER_LEVEL3", len)) {
                 available = 1;
             }
-        #ifdef HAVE_ECC
-            #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_384)
+        #ifdef SUITES_HAVE_SECP384R1
             if (MATCH_PQC(begin, "P384_KYBER_LEVEL3", len)) {
                 available = 1;
             }
-            #endif
+        #endif
+        #ifdef SUITES_HAVE_SECP256R1
             if (MATCH_PQC(begin, "P256_KYBER_LEVEL3", len)) {
                 available = 1;
             }
@@ -308,25 +325,26 @@ static int IsKyberLevelAvailable(const char* line)
             if (MATCH_PQC(begin, "KYBER_LEVEL5", len)) {
                 available = 1;
             }
-        #ifdef HAVE_ECC
-            #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_521)
+        #ifdef SUITES_HAVE_SECP521R1
             if (MATCH_PQC(begin, "P521_KYBER_LEVEL5", len)) {
                 available = 1;
             }
-            #endif
         #endif
         #endif
-        #if !defined(WOLFSSL_NO_KYBER512) && defined(HAVE_CURVE25519)
+        #if !defined(WOLFSSL_NO_KYBER512) && defined(HAVE_CURVE25519) && \
+            ECC_MIN_KEY_SZ <= 256
             if (MATCH_PQC(begin, "X25519_KYBER_LEVEL1", len)) {
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE25519)
+        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE25519) && \
+            ECC_MIN_KEY_SZ <= 256
             if (MATCH_PQC(begin, "X25519_KYBER_LEVEL3", len)) {
                 available = 1;
             }
         #endif
-        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE448)
+        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE448) && \
+            ECC_MIN_KEY_SZ <= 448
             if (MATCH_PQC(begin, "X448_KYBER_LEVEL3", len)) {
                 available = 1;
             }
@@ -1159,6 +1177,18 @@ int SuiteTest(int argc, char** argv)
     }
 #endif
 
+#ifdef WOLFSSL_ALLOW_PARTIAL_WILDCARDS
+    /* partial-label wildcard names, matched only with RFC 6125 behavior */
+    XSTRLCPY(argv0[1], "tests/test-wildcard-partial.conf", sizeof(argv0[1]));
+    printf("starting partial-label wildcard name tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+
 #ifdef WOLFSSL_TLS13
     /* add TLSv13 extra suites */
     XSTRLCPY(argv0[1], "tests/test-tls13.conf", sizeof(argv0[1]));
@@ -1173,6 +1203,20 @@ int SuiteTest(int argc, char** argv)
     /* add TLSv13 ECC extra suites */
     XSTRLCPY(argv0[1], "tests/test-tls13-ecc.conf", sizeof(argv0[1]));
     printf("starting TLSv13 ECC extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
+    #if defined(HAVE_NULL_CIPHER) && \
+        defined(WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT)
+    /* add TLSv13 integrity-only suites; the harness repeats each case with
+     * the default cipher list on one side, so these can only pass when the
+     * default list includes the integrity-only suites */
+    XSTRLCPY(argv0[1], "tests/test-tls13-null.conf", sizeof(argv0[1]));
+    printf("starting TLSv13 integrity-only cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
@@ -1327,10 +1371,13 @@ int SuiteTest(int argc, char** argv)
     }
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA) && \
-    !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && defined(WOLFSSL_HAVE_MLDSA) && \
+    defined(WOLFSSL_HAVE_MLDSA) && \
     defined(WOLFSSL_SLHDSA_PARAM_128S) && \
-    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
-    /* SLH-DSA-SHAKE-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    /* SLH-DSA-SHAKE-128s root + ML-DSA-44 entity cert tests (TLS 1.3).
+     * Both sides use ML-DSA-44 entity certs, so this needs ML-DSA sign and
+     * verify; SLH-DSA sign is not needed as the certs are pre-generated. */
     XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-shake.conf",
              sizeof(argv0[1]));
     printf("starting TLSv13 SLH-DSA-SHAKE-128s root + ML-DSA-44 entity tests\n");
@@ -1358,10 +1405,13 @@ int SuiteTest(int argc, char** argv)
     args.argc = 2;
 #endif
 #if defined(WOLFSSL_HAVE_SLHDSA) && \
-    !defined(WOLFSSL_MLDSA_VERIFY_ONLY) && defined(WOLFSSL_SLHDSA_SHA2) && \
+    defined(WOLFSSL_SLHDSA_SHA2) && \
     defined(WOLFSSL_SLHDSA_PARAM_SHA2_128S) && defined(WOLFSSL_HAVE_MLDSA) && \
-    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44)
-    /* SLH-DSA-SHA2-128s root + ML-DSA-44 entity cert tests (TLS 1.3) */
+    defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_ML_DSA_44) && \
+    !defined(WOLFSSL_MLDSA_NO_SIGN) && !defined(WOLFSSL_MLDSA_NO_VERIFY)
+    /* SLH-DSA-SHA2-128s root + ML-DSA-44 entity cert tests (TLS 1.3).
+     * Both sides use ML-DSA-44 entity certs, so this needs ML-DSA sign and
+     * verify; SLH-DSA sign is not needed as the certs are pre-generated. */
     XSTRLCPY(argv0[1], "tests/test-tls13-slhdsa-sha2.conf",
              sizeof(argv0[1]));
     printf("starting TLSv13 SLH-DSA-SHA2-128s root + ML-DSA-44 entity tests\n");
@@ -1650,6 +1700,19 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+
+#if defined(HAVE_NULL_CIPHER) && \
+    defined(WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT)
+    /* see the test-tls13-null.conf note on the default-cipher-list repeat */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-null.conf", sizeof(argv0[1]));
+    printf("starting DTLSv1.3 integrity-only cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif /* HAVE_NULL_CIPHER && WOLFSSL_TLS13_NULL_CIPHER_IN_DEFAULT */
 
 #ifndef WOLFSSL_NO_TLS12
     args.argc = 2;

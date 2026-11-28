@@ -17,6 +17,7 @@
         <Path>..\..\..\..\..\..\..\src\tls.c</Path>
         <Path>..\..\..\..\..\..\..\src\tls13.c</Path>
         <Path>..\..\..\..\..\..\..\src\wolfio.c</Path>
+        <Path>..\..\..\..\..\..\..\src\x509.c</Path>
       </Category>
       <Category Name="wolfcrypt">
         <Category Name="port">
@@ -89,7 +90,7 @@
       </Category>
     </Files>
     <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F572NNHxFB</Device>
-    <BuildOptions Name="CC-RX" Version="v3.04.00">
+    <BuildOptions Name="CC-RX" Version="v3.06.00">
       <BuildMode Active="True" Name="Debug">
         <GeneralOptions/>
         <CompileOptions>
@@ -127,7 +128,7 @@
           <Option>-output="${ProjName}.lib"</Option>
           <Option>-form=library=u</Option>
           <Option>-nomessage</Option>
-          <Option>-list=${ProjName}.lbp</Option>
+          <Option>-list</Option>
           <Option>-nologo</Option>
           <PreLinker>Auto</PreLinker>
         </LinkOptions>
@@ -144,6 +145,7 @@
           <Path>Debug\tls.obj</Path>
           <Path>Debug\tls13.obj</Path>
           <Path>Debug\wolfio.obj</Path>
+          <Path>Debug\x509.obj</Path>
           <Path>Debug\renesas_common.obj</Path>
           <Path>Debug\renesas_tsip_aes.obj</Path>
           <Path>Debug\renesas_tsip_rsa.obj</Path>

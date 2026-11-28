@@ -29,7 +29,8 @@
  *     mlkem_hash512()     if ((ret == 0) && (data2 != NULL) && (data2Len > 0))
  *     mlkem_gen_matrix_c()  for (i = 0; (ret == 0) && (i < k); i++, ...)
  *                           for (j = 0; (ret == 0) && (j < k); j++)
- *     mlkem_gen_matrix_i()  for (j = 0; (ret == 0) && (j < k); j++)
+ *     mlkem_gen_matrix_i_acc()
+ *                           for (j = 0; (ret == 0) && (j < k); j++)
  *     mlkem_get_noise_c()   for (i = 0; (ret == 0) && (i < k); i++)
  *                           if ((ret == 0) && (vec2 != NULL))
  *                           for (i = 0; (ret == 0) && (i < k); i++)
@@ -58,6 +59,17 @@
  *      nothing to break; mcdc_fault_hash.h macro-interposes them for THIS
  *      translation unit only and mcdc_fh_arm(n) makes the n-th primitive call
  *      -- and every later one -- return BAD_FUNC_ARG.
+ *
+ * CONTINUATION SQUEEZE
+ * --------------------
+ * The matrix generators squeeze GEN_MATRIX_NBLOCKS blocks up front and only
+ * squeeze one more block per loop when rejection sampling comes up short --
+ * roughly 1 seed in 140. The fixed sweep seed never reaches that loop, so a
+ * failure there went unnoticed while its return code was ignored. The
+ * continuation rows search seeds in a fixed order for one whose first
+ * polynomial needs another block (more than absorb + initial squeeze seen
+ * disarmed), then fail primitive call 3 -- the first continuation squeeze --
+ * and require the error to be returned with the polynomial left incomplete.
  *
  * The sweep is a short dense range (1..WB_SWEEP) per helper. Each helper's
  * whole chain is only a handful of primitive calls deep, and index 1 alone
@@ -97,6 +109,20 @@ static int wb_fail = 0;
 /* Small, generic vector length. It is not tied to a compiled parameter set:
  * every helper below takes k as a plain argument. */
 #define WB_K      2
+
+/* Seeds tried when looking for one that needs a continuation squeeze. About
+ * 1 in 140 does, so this bound is never close to being reached. */
+#define WB_SEED_TRIES  4096
+
+/* Primitive calls made for one polynomial without a continuation squeeze:
+ * the absorb and the initial GEN_MATRIX_NBLOCKS squeeze. Reset is not
+ * interposed. */
+#define WB_XOF_CALLS   2
+
+/* The last coefficient was never sampled: it still holds the -1 sentinel or a
+ * rejected (>= q) value that the 64-bit sampler stores speculatively. */
+#define WB_POLY_INCOMPLETE(a) \
+    (((a)[MLKEM_N - 1] < 0) || ((a)[MLKEM_N - 1] >= MLKEM_Q))
 
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
@@ -166,7 +192,11 @@ static void wb_get_noise_rows(void)
     byte    seed[WC_ML_KEM_SYM_SZ + 4];
     long    n;
 
-    mlkem_prf_init(&prf);
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
 
     /* Disarmed: the all-true row for every decision below. */
     XMEMSET(seed, 0x37, sizeof(seed));
@@ -222,7 +252,11 @@ static void wb_gen_matrix_c_rows(void)
     byte           seed[WC_ML_KEM_SYM_SZ + 2];
     long           n;
 
-    mlkem_prf_init(&prf);
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
     XMEMSET(seed, 0x5c, sizeof(seed));
 
     mcdc_fh_disarm();
@@ -244,6 +278,62 @@ static void wb_gen_matrix_c_rows(void)
     WB_NOTE("mlkem_gen_matrix_c success-chain rows exercised");
 }
 
+/* mlkem_gen_matrix_c(): a failing continuation squeeze must be returned, not
+ * ignored with the stale buffer sampled again. */
+static void wb_gen_matrix_c_continuation(void)
+{
+    MLKEM_PRF_T    prf;
+    static sword16 a[MLKEM_N];
+    byte           seed[WC_ML_KEM_SYM_SZ];
+    word32         s;
+    int            i;
+    int            ret;
+
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
+    XMEMSET(seed, 0x5c, sizeof(seed));
+
+    for (s = 0; s < WB_SEED_TRIES; s++) {
+        seed[0] = (byte)s;
+        seed[1] = (byte)(s >> 8);
+        mcdc_fh_disarm();
+        if (mlkem_gen_matrix_c(&prf, a, 1, seed, 0) != 0) {
+            WB_NOTE("mlkem_gen_matrix_c seed search failed");
+            wb_fail = 1;
+            break;
+        }
+        if (mcdc_fh_seen() > WB_XOF_CALLS) {
+            break;
+        }
+    }
+    if (s == WB_SEED_TRIES) {
+        WB_NOTE("no seed needing a continuation squeeze found");
+        wb_fail = 1;
+    }
+    else if (wb_fail == 0) {
+        for (i = 0; i < MLKEM_N; i++) {
+            a[i] = -1;
+        }
+        mcdc_fh_arm(WB_XOF_CALLS + 1);
+        ret = mlkem_gen_matrix_c(&prf, a, 1, seed, 0);
+        mcdc_fh_disarm();
+        if (ret != MCDC_FH_ERR) {
+            WB_NOTE("mlkem_gen_matrix_c ignored a continuation squeeze error");
+            wb_fail = 1;
+        }
+        if (!WB_POLY_INCOMPLETE(a)) {
+            WB_NOTE("mlkem_gen_matrix_c sampled after a failed squeeze");
+            wb_fail = 1;
+        }
+    }
+
+    mlkem_prf_free(&prf);
+    WB_NOTE("mlkem_gen_matrix_c continuation-squeeze error row exercised");
+}
+
 #else
 
 static void wb_gen_matrix_c_rows(void)
@@ -251,53 +341,214 @@ static void wb_gen_matrix_c_rows(void)
     WB_NOTE("mlkem_gen_matrix_c arm not compiled in this variant; skipped");
 }
 
+static void wb_gen_matrix_c_continuation(void)
+{
+    WB_NOTE("mlkem_gen_matrix_c arm not compiled in this variant; skipped");
+}
+
 #endif
 
 /* ------------------------------------------------------------------------- *
- * mlkem_gen_matrix_i(): the small-memory single-row generator. Only compiled
- * when one of the small-mem arms is on.
+ * mlkem_gen_matrix_i_acc(): the small-memory single-row generator.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_HAVE_MLKEM) && \
     !(defined(WOLFSSL_ARMASM) && defined(__aarch64__)) && \
-    (defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
-     defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM))
+    ((defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) && \
+      !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)) || \
+     (defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+      (!defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+       !defined(WOLFSSL_MLKEM_NO_DECAPSULATE))))
 
 static void wb_gen_matrix_i_rows(void)
 {
     MLKEM_PRF_T    prf;
-    static sword16 a[WB_K * MLKEM_N];
+    static sword16 a[WB_K * WB_K * MLKEM_N];
+    static sword16 v[WB_K * MLKEM_N];
+    static sword16 r[MLKEM_N];
     byte           seed[WC_ML_KEM_SYM_SZ + 2];
     long           n;
+    unsigned int   j;
 
-    mlkem_prf_init(&prf);
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
     XMEMSET(seed, 0x5c, sizeof(seed));
+    for (j = 0; j < WB_K * MLKEM_N; j++) {
+        v[j] = (sword16)(j & 0x7);
+    }
 
     mcdc_fh_disarm();
-    if (mlkem_gen_matrix_i(&prf, a, WB_K, seed, 0, 0) != 0) {
-        WB_NOTE("baseline mlkem_gen_matrix_i failed");
+    if (mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 0, 0) != 0) {
+        WB_NOTE("baseline mlkem_gen_matrix_i_acc failed");
         wb_fail = 1;
     }
 
     for (n = 1; n <= (long)WB_SWEEP; n++) {
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i(&prf, a, WB_K, seed, 0, 0);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 0, 0);
         mcdc_fh_disarm();
         mcdc_fh_arm(n);
-        (void)mlkem_gen_matrix_i(&prf, a, WB_K, seed, 1, 1);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, WB_K, seed, 1, 1);
+        mcdc_fh_disarm();
+        mcdc_fh_arm(n);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, MLKEM_N, v, WB_K, seed, 1, 0);
+        mcdc_fh_disarm();
+        mcdc_fh_arm(n);
+        (void)mlkem_gen_matrix_i_acc(&prf, r, a, WB_K * MLKEM_N, v, WB_K,
+            seed, 1, 1);
         mcdc_fh_disarm();
     }
 
     mlkem_prf_free(&prf);
-    WB_NOTE("mlkem_gen_matrix_i success-chain rows exercised");
+    WB_NOTE("mlkem_gen_matrix_i_acc success-chain rows exercised");
+}
+
+/* mlkem_gen_matrix_i_acc(): a failing continuation squeeze must be returned,
+ * not ignored with the stale buffer sampled again. */
+static void wb_gen_matrix_i_continuation(void)
+{
+    MLKEM_PRF_T    prf;
+    static sword16 a[MLKEM_N];
+    static sword16 v[MLKEM_N];
+    static sword16 r[MLKEM_N];
+    byte           seed[WC_ML_KEM_SYM_SZ];
+    word32         s;
+    int            i;
+    int            ret;
+
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
+    XMEMSET(seed, 0x5c, sizeof(seed));
+
+    for (s = 0; s < WB_SEED_TRIES; s++) {
+        seed[0] = (byte)s;
+        seed[1] = (byte)(s >> 8);
+        mcdc_fh_disarm();
+        if (mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, 1, seed, 0, 0) != 0) {
+            WB_NOTE("mlkem_gen_matrix_i_acc seed search failed");
+            wb_fail = 1;
+            break;
+        }
+        if (mcdc_fh_seen() > WB_XOF_CALLS) {
+            break;
+        }
+    }
+    if (s == WB_SEED_TRIES) {
+        WB_NOTE("no seed needing a continuation squeeze found");
+        wb_fail = 1;
+    }
+    else if (wb_fail == 0) {
+        for (i = 0; i < MLKEM_N; i++) {
+            a[i] = -1;
+        }
+        mcdc_fh_arm(WB_XOF_CALLS + 1);
+        ret = mlkem_gen_matrix_i_acc(&prf, r, a, 0, v, 1, seed, 0, 0);
+        mcdc_fh_disarm();
+        if (ret != MCDC_FH_ERR) {
+            WB_NOTE("mlkem_gen_matrix_i_acc ignored a continuation squeeze "
+                "error");
+            wb_fail = 1;
+        }
+        if (!WB_POLY_INCOMPLETE(a)) {
+            WB_NOTE("mlkem_gen_matrix_i_acc sampled after a failed squeeze");
+            wb_fail = 1;
+        }
+    }
+
+    mlkem_prf_free(&prf);
+    WB_NOTE("mlkem_gen_matrix_i_acc continuation-squeeze error row "
+        "exercised");
 }
 
 #else
 
 static void wb_gen_matrix_i_rows(void)
 {
-    WB_NOTE("mlkem_gen_matrix_i arm not compiled in this variant; skipped");
+    WB_NOTE("mlkem_gen_matrix_i_acc arm not compiled in this variant; "
+        "skipped");
 }
 
+static void wb_gen_matrix_i_continuation(void)
+{
+    WB_NOTE("mlkem_gen_matrix_i_acc arm not compiled in this variant; "
+        "skipped");
+}
+
+#endif
+
+#if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+static int wb_encapsulate_compare(void)
+{
+    MLKEM_PRF_T prf;
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE] = {0};
+    byte block[MLKEM_POLY_COMPRESSED_SZ(11)];
+    byte seed[WC_ML_KEM_SYM_SZ] = {0};
+    byte msg[WC_ML_KEM_SYM_SZ] = {0};
+    byte coins[WC_ML_KEM_SYM_SZ + 1] = {0};
+    sword16 pub[WC_ML_KEM_1024_K * MLKEM_N] = {0};
+    sword16 y[WC_ML_KEM_1024_K * MLKEM_N] = {0};
+    sword16 u[MLKEM_N];
+    sword16 tmp[MLKEM_N];
+#if defined(WOLFSSL_WC_ML_KEM_512) || defined(WOLFSSL_KYBER512)
+    const int k = WC_ML_KEM_512_K;
+#elif defined(WOLFSSL_WC_ML_KEM_768) || defined(WOLFSSL_KYBER768)
+    const int k = WC_ML_KEM_768_K;
+#else
+    const int k = WC_ML_KEM_1024_K;
+#endif
+    const int argErr = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    int cmpFail = 0;
+    int fail = -1;
+    int ok;
+
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        return 0;
+    }
+    ok = mlkem_encapsulate_seeds_row(&prf, ct, NULL, NULL, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == 0;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, ct, NULL, NULL, 0, u,
+        tmp, y, k, msg, coins) == 0;
+
+    /* Re-encode a row and the tail into single-block scratch for compare. */
+    XMEMSET(y, 0, sizeof(y));
+    ok &= mlkem_encapsulate_seeds_row(&prf, block, ct, &cmpFail, u, tmp, y,
+        k, seed, coins, NULL, NULL, 0) == 0;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, block, ct, &fail, cmpFail,
+        u, tmp, y, k, msg, coins) == 0;
+    ok &= (cmpFail == 0 && fail == 0);
+
+    ct[0] ^= 1;
+    XMEMSET(y, 0, sizeof(y));
+    cmpFail = 0;
+    fail = 0;
+    ok &= mlkem_encapsulate_seeds_row(&prf, block, ct, &cmpFail, u, tmp, y,
+        k, seed, coins, NULL, NULL, 0) == 0;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, block, ct, &fail, cmpFail,
+        u, tmp, y, k, msg, coins) == 0;
+    ok &= (cmpFail != 0 && fail == -1);
+    ct[0] ^= 1;
+
+    ok &= mlkem_encapsulate_seeds_row(&prf, NULL, NULL, NULL, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == argErr;
+    ok &= mlkem_encapsulate_seeds_row(&prf, NULL, ct, &cmpFail, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == argErr;
+    ok &= mlkem_encapsulate_seeds_row(&prf, block, ct, NULL, u, tmp, y, k,
+        seed, coins, NULL, NULL, 0) == argErr;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, NULL, ct, &fail, 0, u,
+        tmp, y, k, msg, coins) == argErr;
+    ok &= mlkem_encapsulate_seeds_tail(pub, &prf, block, ct, NULL, 0, u,
+        tmp, y, k, msg, coins) == argErr;
+    mlkem_prf_free(&prf);
+    return ok;
+}
 #endif
 
 int main(void)
@@ -308,9 +559,44 @@ int main(void)
     mcdc_fh_disarm();
     wb_hash512_rows();
     wb_gen_matrix_c_rows();
+    wb_gen_matrix_c_continuation();
     wb_gen_matrix_i_rows();
+    wb_gen_matrix_i_continuation();
     wb_get_noise_rows();
     mcdc_fh_disarm();
+
+#if defined(WOLFSSL_HAVE_MLKEM) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    {
+        byte z[WC_ML_KEM_SYM_SZ] = {0};
+        byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE] = {0};
+        byte secret[WC_ML_KEM_SS_SZ];
+        wc_Shake prf;
+        int ret;
+
+        if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+            return 1;
+        }
+        ret = mlkem_derive_secret(&prf, z, ct, sizeof(ct), secret);
+        mlkem_prf_free(&prf);
+        if (ret != 0 || mlkem_derive_secret(NULL, z, ct, sizeof(ct), secret) !=
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            WB_NOTE("FAIL: rejection secret derivation must propagate reset errors");
+            return 1;
+        }
+    }
+#endif
+
+#if defined(WOLFSSL_HAVE_MLKEM) && \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    if (!wb_encapsulate_compare()) {
+        WB_NOTE("FAIL: small-memory encapsulation comparison");
+        return 1;
+    }
+#endif
 
     printf("done (%s)\n", wb_fail ? "with failures" : "ok");
     /* A non-zero exit makes the harness discard this binary's coverage. */

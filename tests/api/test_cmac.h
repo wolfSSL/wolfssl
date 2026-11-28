@@ -28,6 +28,7 @@ int test_wc_InitCmac(void);
 int test_wc_CmacUpdate(void);
 int test_wc_CmacFinal(void);
 int test_wc_AesCmacGenerate(void);
+int test_wc_CmacSetTagLen(void);
 int test_wc_CMAC_Grow(void);
 int test_wc_InitCmac_Id(void);
 int test_wc_InitCmac_Label(void);
@@ -35,18 +36,21 @@ int test_wc_AesCmacGenerateExDecisionCoverage(void);
 int test_wc_AesCmacVerifyExDecisionCoverage(void);
 int test_wc_AesCmacVerify_CryptoCb_LenMismatch(void);
 int test_wc_CryptoCb_CmacFree(void);
+int test_wc_CryptoCb_CmacTagLen(void);
 
 #define TEST_CMAC_DECLS                                 \
     TEST_DECL_GROUP("cmac", test_wc_InitCmac),          \
     TEST_DECL_GROUP("cmac", test_wc_CmacUpdate),        \
     TEST_DECL_GROUP("cmac", test_wc_CmacFinal),         \
     TEST_DECL_GROUP("cmac", test_wc_AesCmacGenerate),   \
+    TEST_DECL_GROUP("cmac", test_wc_CmacSetTagLen),     \
     TEST_DECL_GROUP("cmac", test_wc_CMAC_Grow),         \
     TEST_DECL_GROUP("cmac", test_wc_InitCmac_Id),       \
     TEST_DECL_GROUP("cmac", test_wc_InitCmac_Label),    \
     TEST_DECL_GROUP("cmac", test_wc_AesCmacGenerateExDecisionCoverage), \
     TEST_DECL_GROUP("cmac", test_wc_AesCmacVerifyExDecisionCoverage), \
     TEST_DECL_GROUP("cmac", test_wc_AesCmacVerify_CryptoCb_LenMismatch), \
-    TEST_DECL_GROUP("cmac", test_wc_CryptoCb_CmacFree)
+    TEST_DECL_GROUP("cmac", test_wc_CryptoCb_CmacFree),                     \
+    TEST_DECL_GROUP("cmac", test_wc_CryptoCb_CmacTagLen)
 
 #endif /* WOLFCRYPT_TEST_CMAC_H */

@@ -117,6 +117,8 @@ tests/bio_write_test.txt
 tests/test-log-dump-to-file.txt
 tests/cert_cache.tmp
 test-write-dhparams.pem
+wolfssl_test_lms*.key
+wolfssl_test_xmss*.key
 cert.der
 cert.pem
 certecc.der
@@ -235,6 +237,9 @@ NTRU_algorithm/
 NTRU/
 build-test/
 build/
+# tools/sbom/build is vendored source, not a compiler output directory.
+!tools/sbom/build/
+!tools/sbom/build/**
 # Out-of-tree build dirs created by .github/scripts/parallel-make-check.py
 /build-*/
 cyassl.xcodeproj/
@@ -338,6 +343,8 @@ mqx/wolfcrypt_benchmark/SaAnalysispointsManager.apconfig
 
 # wolfSSL CSharp wrapper
 wrapper/CSharp/x64/
+wrapper/CSharp/wolfCrypt-FIPS*/bin/
+wrapper/CSharp/wolfCrypt-FIPS*/obj/
 
 # Visual Studio Code Workspace Files
 *.vscode
@@ -416,6 +423,9 @@ IDE/**/DerivedData
 /IDE/Renesas/e2studio/RX72N/EnvisionKit/smc/trash
 /IDE/Renesas/e2studio/RX72N/EnvisionKit/test/src/smc_gen
 /IDE/Renesas/e2studio/RX72N/EnvisionKit/test/generate
+
+/IDE/Renesas/e2studio/RA6M4/wolfssl/script/fsp.ld
+/IDE/Renesas/e2studio/RA6M4/test/script/fsp.ld
 
 # QNX CAAM
 /IDE/QNX/example-server/server-tls

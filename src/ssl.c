@@ -66,6 +66,9 @@
     || defined(OPENSSL_EXTRA_X509_SMALL)                    \
     || defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN))
     #include <wolfssl/openssl/evp.h>
+    /* ed25519 compat helpers (wolfSSL_ED25519_new/free) are used by the X509
+     * Ed25519 paths, which also build under OPENSSL_EXTRA_X509_SMALL. */
+    #include <wolfssl/openssl/ed25519.h>
     /* openssl headers end, wolfssl internal headers next */
 #endif
 
@@ -93,7 +96,6 @@
     #include <wolfssl/openssl/pem.h>
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/ec25519.h>
-    #include <wolfssl/openssl/ed25519.h>
     #include <wolfssl/openssl/ec448.h>
     #include <wolfssl/openssl/ed448.h>
     #include <wolfssl/openssl/ecdsa.h>
@@ -107,6 +109,7 @@
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
+    #include <wolfssl/wolfcrypt/rng_bank.h>
     #include <wolfssl/wolfcrypt/des3.h>
     #include <wolfssl/wolfcrypt/ecc.h>
     #include <wolfssl/wolfcrypt/md4.h>
@@ -172,7 +175,8 @@ static struct SystemCryptoPolicy crypto_policy;
  * OPENSSL_COMPATIBLE_DEFAULTS:
  *                  Default behavior compatible with OpenSSL           default: off
  * NO_WOLFSSL_STUB:            Disable stubs for unimplemented funcs   default: off
- * WOLFSSL_DEBUG_OPENSSL:      Debug logging for OpenSSL compat layer  default: off
+ * WOLFSSL_DEBUG_OPENSSL:
+ *                  Alias for WOLFSSL_VERBOSE_LOGGING                  default: off
  * WOLFSSL_HAVE_ERROR_QUEUE:   OpenSSL-compatible error queue          default: off
  * WOLFSSL_ERROR_CODE_OPENSSL: Use OpenSSL-compatible error codes      default: off
  * WOLFSSL_CIPHER_INTERNALNAME:
@@ -195,7 +199,11 @@ static struct SystemCryptoPolicy crypto_policy;
  * Session & Cache:
  * NO_SESSION_CACHE:           Disable server session cache            default: off
  * NO_SESSION_CACHE_REF:       wolfSSL_get_session returns ssl->session
- *                             reference instead of ClientCache ref    default: off
+ *                             reference instead of ClientCache ref    default: on
+ * WOLFSSL_SESSION_CACHE_REF:  Opt back into the deprecated
+ *                             ClientCache reference                   default: off
+ * CLIENT_SESSIONS_MULTIPLIER: ClientCache size relative to the
+ *                             session cache                           default: 1
  * SESSION_CACHE_DYNAMIC_MEM:  Dynamically allocate session cache      default: off
  * NO_CLIENT_CACHE:            Disable client-side session cache       default: off
  * SESSION_CERTS:              Store full cert chain in session         default: off
@@ -217,8 +225,10 @@ static struct SystemCryptoPolicy crypto_policy;
  * WOLFSSL_CALLBACKS:          Handshake monitoring callbacks           default: off
  * NO_HANDSHAKE_DONE_CB:       Disable handshake completion callback   default: off
  * WOLFSSL_SHUTDOWNONCE:       Send close_notify only once             default: off
- * WOLFSSL_COPY_CERT:          Copy certificate buffer (own copy)      default: off
- * WOLFSSL_COPY_KEY:           Copy private key buffer (own copy)      default: off
+ * WOLFSSL_COPY_CERT:          SSL keeps CTX cert if CTX replaces it   default: off
+ *                             (on with OPENSSL_ALL)
+ * WOLFSSL_COPY_KEY:           SSL keeps CTX key if CTX replaces it    default: off
+ *                             (on with OPENSSL_ALL)
  * WOLF_PRIVATE_KEY_ID:        Reference private keys by ID            default: off
  * WOLFSSL_REFCNT_ERROR_RETURN:
  *                  Return errors on ref counting failures             default: off
@@ -283,7 +293,7 @@ static struct SystemCryptoPolicy crypto_policy;
 
 #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
 static WC_RNG globalRNG;
-static volatile int initGlobalRNG = 0;
+static wolfSSL_Atomic_Int initGlobalRNG = WOLFSSL_ATOMIC_INITIALIZER(0);
 
 #if defined(OPENSSL_EXTRA) || !defined(WOLFSSL_MUTEX_INITIALIZER)
 static WC_MAYBE_UNUSED wolfSSL_Mutex globalRNGMutex
@@ -293,6 +303,149 @@ static WC_MAYBE_UNUSED wolfSSL_Mutex globalRNGMutex
 static int globalRNGMutex_valid = 0;
 #endif
 
+#ifdef OPENSSL_EXTRA
+/* Serialise use of globalRNG. The mutex is not needed when the RNG locks
+ * itself. A crypto callback found by WOLF_CRYPTO_CB_FIND runs outside the RNG
+ * lock, so keep the mutex then. globalRNGMutex still guards init and free.
+ * Only for the helpers below. */
+#if defined(WC_RNG_HAVE_AUTO_LOCK) && \
+    !defined(WC_RNG_AUTO_LOCK_DEFAULT_OFF) && \
+    !defined(WOLF_CRYPTO_CB_FIND) && !defined(WOLFSSL_NO_ATOMICS)
+static int wolfssl_global_rng_lock(void)
+{
+    return 0;
+}
+
+static void wolfssl_global_rng_unlock(void)
+{
+}
+#else
+static int wolfssl_global_rng_lock(void)
+{
+    return (wc_LockMutex(&globalRNGMutex) == 0) ? 0 : BAD_MUTEX_E;
+}
+
+static void wolfssl_global_rng_unlock(void)
+{
+    wc_UnLockMutex(&globalRNGMutex);
+}
+#endif
+
+/* Init the global RNG if needed. Call without the lock held:
+ * wolfSSL_RAND_Init() takes globalRNGMutex. Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_init(void)
+{
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) != 0)
+        return 0;
+    return (wolfSSL_RAND_Init() == WOLFSSL_SUCCESS) ? 0 : BAD_STATE_E;
+}
+
+/* Fill out with sz bytes from the global RNG. Inits it if needed.
+ * Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_generate(byte* out, word32 sz)
+{
+    int ret = wolfssl_global_rng_init();
+
+    if (ret == 0)
+        ret = wolfssl_global_rng_lock();
+    if (ret != 0)
+        return ret;
+    /* Pairs with the store in wolfSSL_RAND_Init(). */
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0) {
+        wolfssl_global_rng_unlock();
+        return BAD_STATE_E;
+    }
+    while ((ret == 0) && (sz > 0)) {
+        word32 len = min(sz, (word32)RNG_MAX_BLOCK_LEN);
+
+        ret = wc_RNG_GenerateBlock(&globalRNG, out, len);
+        out += len;
+        sz -= len;
+    }
+    wolfssl_global_rng_unlock();
+
+    return ret;
+}
+
+#ifdef HAVE_HASHDRBG
+/* Mix caller material into the global RNG. It gets no entropy credit.
+ * Inits the RNG if needed. Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_mix(const byte* in, word32 sz)
+{
+    int ret = wolfssl_global_rng_init();
+
+    if (ret == 0)
+        ret = wolfssl_global_rng_lock();
+    if (ret != 0)
+        return ret;
+    /* Pairs with the store in wolfSSL_RAND_Init(). */
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0) {
+        wolfssl_global_rng_unlock();
+        return BAD_STATE_E;
+    }
+#ifdef WC_RNG_HAVE_STIR
+    /* An uncredited stir: credited user-class reseeds of conformant
+     * instances are refused with WC_RNG_RBGC_STRATUM_IMMUTABLE. A standing
+     * reseed or recovery obligation (NEEDS_RECOVERY_E: credited reseed due,
+     * invalidation latched, or epoch stale; NOT_READY_E: the reseed interval
+     * tripped within the call) outranks advisory material and is not a
+     * failure: the next generate performs the credited reseed. */
+    ret = wc_RNG_DRBG_Stir(&globalRNG, in, sz);
+    if ((ret == WC_NO_ERR_TRACE(NOT_READY_E)) ||
+            (ret == WC_NO_ERR_TRACE(NEEDS_RECOVERY_E))) {
+        ret = 0;
+    }
+#else
+    ret = wc_RNG_DRBG_Reseed(&globalRNG, in, sz);
+#endif
+    wolfssl_global_rng_unlock();
+
+    return ret;
+}
+
+/* Reseed the global RNG from the system. Returns 0 on success. */
+WC_MAYBE_UNUSED static int wolfssl_global_rng_reseed(void)
+{
+    /* The lock also covers wc_GenerateSeed(), which writes globalRNG.seed. */
+    int ret = wolfssl_global_rng_lock();
+
+    if (ret != 0)
+        return ret;
+    /* Pairs with the store in wolfSSL_RAND_Init(). */
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0) {
+        wolfssl_global_rng_unlock();
+        return BAD_STATE_E;
+    }
+#ifdef WC_RNG_HAVE_RESEED_NOW
+    ret = wc_RNG_DRBG_Reseed_Now(&globalRNG, NULL, 0);
+    if (ret != 0) {
+        WOLFSSL_MSG("Bad wc_RNG_DRBG_Reseed_Now");
+    }
+#else /* random.h predates wc_RNG_DRBG_Reseed_Now() */
+    {
+        byte   entropy[16];
+        word32 entropy_sz = 16;
+
+        ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
+        if (ret != 0) {
+            WOLFSSL_MSG("Bad wc_GenerateSeed");
+        }
+        else {
+            ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
+            if (ret != 0) {
+                WOLFSSL_MSG("Error reseeding DRBG");
+            }
+        }
+        ForceZero(entropy, sizeof(entropy));
+    }
+#endif /* WC_RNG_HAVE_RESEED_NOW */
+    wolfssl_global_rng_unlock();
+
+    return ret;
+}
+#endif /* HAVE_HASHDRBG */
+#endif /* OPENSSL_EXTRA */
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
 static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
 #endif
@@ -301,7 +454,7 @@ WC_RNG* wolfssl_get_global_rng(void)
 {
     WC_RNG* ret = NULL;
 
-    if (initGlobalRNG == 0)
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0)
         WOLFSSL_MSG("Global RNG no Init");
     else
         ret = &globalRNG;
@@ -612,6 +765,10 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
         }
+        else {
+            /* a default, not a minimum the user asked for */
+            ctx->minVersionSet = 0;
+        }
     }
 #endif
 
@@ -789,11 +946,15 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 WOLFSSL_ABI
 void wolfSSL_free(WOLFSSL* ssl)
 {
+    void *heap = NULL;
     WOLFSSL_ENTER("wolfSSL_free");
 
     if (ssl) {
         WOLFSSL_MSG_EX("Free SSL: %p", (wc_ptr_t)ssl);
-        FreeSSL(ssl, ssl->ctx->heap);
+        if (ssl->ctx != NULL) {
+            heap = ssl->ctx->heap;
+        }
+        FreeSSL(ssl, heap);
     }
     else {
         WOLFSSL_MSG("Free SSL: wolfSSL_free already null");
@@ -928,6 +1089,10 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     XMEMCPY(&dup->encrypt, &ssl->encrypt, sizeof(Ciphers));
     XMEMCPY(&dup->version, &ssl->version, sizeof(ProtocolVersion));
     XMEMCPY(&dup->chVersion, &ssl->chVersion, sizeof(ProtocolVersion));
+#ifdef HAVE_MAX_FRAGMENT
+    /* The negotiated limit applies to the records the writer sends. */
+    dup->max_fragment = ssl->max_fragment;
+#endif
 
     /* dup side now owns encrypt/write ciphers */
     XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
@@ -979,6 +1144,7 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     dup->CBIOSend = ssl->CBIOSend;
 #ifdef OPENSSL_EXTRA
     dup->cbioFlag = ssl->cbioFlag;
+    dup->maxSendFragment = ssl->maxSendFragment;
 #endif
     dup->wfd    = ssl->wfd;
     dup->wflags = ssl->wflags;
@@ -1584,6 +1750,14 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
     if (inSz > maxSize)
         return INPUT_SIZE_E;
 
+#ifdef HAVE_LIBZ
+    /* SendData() sizes the record for deflate's worst case, so report that
+     * same bound: an incompressible fragment emits more than its plaintext
+     * length. */
+    if (ssl->options.usingCompression)
+        inSz += MAX_COMP_EXTRA;
+#endif
+
     return wolfssl_local_GetRecordSize(ssl, inSz, 1);
 }
 
@@ -1653,6 +1827,28 @@ int wolfSSL_state(WOLFSSL* ssl)
 }
 
 
+#ifdef OPENSSL_EXTRA
+/* Whether err is from a record that failed authentication or decryption.
+ * OpenSSL reports these as SSL_ERROR_SSL, with the detail on the error queue.
+ */
+static int IsRecordCorruptError(int err)
+{
+    switch (err) {
+        case WC_NO_ERR_TRACE(VERIFY_MAC_ERROR):
+        case WC_NO_ERR_TRACE(DECRYPT_ERROR):
+        case WC_NO_ERR_TRACE(SANITY_CIPHER_E):
+        case WC_NO_ERR_TRACE(AES_GCM_AUTH_E):
+        case WC_NO_ERR_TRACE(AES_CCM_AUTH_E):
+        case WC_NO_ERR_TRACE(MAC_CMP_FAILED_E):
+        case WC_NO_ERR_TRACE(SM4_GCM_AUTH_E):
+        case WC_NO_ERR_TRACE(SM4_CCM_AUTH_E):
+            return 1;
+        default:
+            return 0;
+    }
+}
+#endif
+
 WOLFSSL_ABI
 int wolfSSL_get_error(WOLFSSL* ssl, int ret)
 {
@@ -1678,6 +1874,10 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
     else if (ssl->error == WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E))
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
+    /* ssl->error keeps the detail. DTLS drops a bad record and goes on, so it
+     * keeps reporting the detail. */
+    else if (!ssl->options.dtls && IsRecordCorruptError(ssl->error))
+        return WOLFSSL_ERROR_SSL;               /* convert to OpenSSL type */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     else if (ssl->error == WC_NO_ERR_TRACE(MP_WOULDBLOCK))
@@ -2196,6 +2396,8 @@ static int SetMinVersionHelper(byte* minVersion, int version)
 WOLFSSL_ABI
 int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinVersion");
 
     if (ctx == NULL) {
@@ -2209,13 +2411,36 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ctx->minDowngrade, version);
+    ret = SetMinVersionHelper(&ctx->minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS)
+        ctx->minVersionSet = 1;
+
+    return ret;
 }
 
+
+/* Work out whether the version set by wolfSSL_SetVersion() is one pinned
+ * version or the top of a range. */
+static void RestoreDowngrade(WOLFSSL* ssl)
+{
+    if (ssl->options.versionSet && ssl->ctx != NULL) {
+        if (ssl->options.failNoPSK || !ssl->options.minVersionSet) {
+            /* A PSK requirement is TLS 1.3 only, and with no minimum there is
+             * one version, so both keep the version pinned */
+            ssl->options.downgrade = 0;
+        }
+        else {
+            /* Set the connection's downgrade option to the context's default */
+            ssl->options.downgrade = (word16)(ssl->ctx->method->downgrade);
+        }
+    }
+}
 
 /* Set minimum downgrade version allowed, WOLFSSL_SUCCESS on ok */
 int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_SetMinVersion");
 
     if (ssl == NULL) {
@@ -2229,7 +2454,13 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    return SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    ret = SetMinVersionHelper(&ssl->options.minDowngrade, version);
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->options.minVersionSet = 1;
+        RestoreDowngrade(ssl);
+    }
+
+    return ret;
 }
 
 
@@ -2323,7 +2554,12 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
             return BAD_FUNC_ARG;
     }
 
-    ssl->options.downgrade = 0;
+    ssl->options.versionSet = 1;
+    ssl->options.maxVersionMinor = ssl->version.minor;
+    if (!ssl->options.minVersionSet) {
+        /* no minimum asked for, so this version is the whole range */
+        ssl->options.downgrade = 0;
+    }
 
     #ifdef NO_RSA
         haveRSA = 0;
@@ -3135,10 +3371,13 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if ((ctx != NULL && !IsAtLeastTLSv1_3(ctx->method->version) &&
                 !ctx->method->downgrade) ||
                 (ssl != NULL && !IsAtLeastTLSv1_3(ssl->version) &&
-                !ssl->options.downgrade)) {
+                (!ssl->options.downgrade || ssl->options.versionSet))) {
             /* Fail only for methods that can never reach TLS 1.3 (downgrade
-             * disabled). A version merely capped via set_max_proto_version()
-             * still silently ignores the list, matching OpenSSL. */
+             * disabled) or when SetVersion() put the maximum below TLS 1.3.
+             * A minimum version does not raise the maximum, so it is not
+             * considered here. A version merely capped via
+             * set_max_proto_version() still silently ignores the list,
+             * matching OpenSSL. */
             WOLFSSL_MSG("Cipher list has only TLS 1.3 suites but TLS 1.3 "
                         "is not negotiable");
             return WOLFSSL_FAILURE;
@@ -3176,10 +3415,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
      * Since we direct both API here we attempt to provide API compatibility. If
      * we only get suites from <= 1.2 or == 1.3 then we will only update those
      * suites and keep the suites from the other group.
-     * If downgrade is disabled, skip preserving the other group's suites. */
-    if ((ssl != NULL && !ssl->options.downgrade) ||
+     * If a single version is in use, skip preserving the other group's
+     * suites. A min version makes it a range again, so both groups are kept. */
+    if ((ssl != NULL && (!ssl->options.downgrade ||
+            (ssl->options.versionSet && !ssl->options.minVersionSet))) ||
         (ctx != NULL && !ctx->method->downgrade)) {
-        /* Downgrade disabled - don't preserve other group's suites */
+        /* One version only - don't preserve the other group's suites */
         WC_FREE_VAR_EX(suitesCpy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
@@ -3343,6 +3584,16 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
     if (ssl == NULL || out == NULL || label == NULL ||
             (use_context && contextLen && context == NULL)) {
         WOLFSSL_MSG("Bad argument");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* RFC 8446 Section 7.5 / RFC 5705: keying-material exporters derive from
+     * exporter_master_secret, which exists only after the handshake is
+     * complete. Refuse the export until the handshake has completed so that
+     * a premature call cannot derive material from an uninitialised
+     * exporterSecret buffer. */
+    if (ssl->options.handShakeDone == 0) {
+        WOLFSSL_MSG("Handshake not complete; refusing keying-material export");
         return WOLFSSL_FAILURE;
     }
 
@@ -3726,7 +3977,7 @@ int wolfSSL_Cleanup(void)
 #endif
 
 #ifdef OPENSSL_EXTRA
-    wolfSSL_RAND_Cleanup();
+    wolfssl_rand_cleanup();
 #endif
 
     if (wolfCrypt_Cleanup() != 0) {
@@ -3791,16 +4042,20 @@ int wolfssl_local_IsValidFQDN(const char* name, word32 nameSz)
     int curLabelHasAlpha = 0;
     int curLabelHasUnderscore = 0;
 
-    if (name == NULL || nameSz == 0)
+    if (name == NULL || nameSz == 0 || nameSz > 254)
         return 0;
 
+    /* Bound before touching name[]: a valid name is at most 253 octets
+     * plus an optional trailing dot, so longer sizes are rejected here
+     * without reading past the caller's buffer.
+     */
     /* Strip a single optional trailing dot before measuring.  "example.com."
      * is the absolute form of the same FQDN.
      */
     if (name[nameSz - 1] == '.')
         --nameSz;
 
-    if (nameSz < 1 || nameSz > 253)
+    if (nameSz > 253)
         return 0;
 
     for (i = 0; i < nameSz; i++) {
@@ -3839,7 +4094,12 @@ int wolfssl_local_IsValidFQDN(const char* name, word32 nameSz)
         return 0;
     ++labelCount;
 
+#ifdef WOLFSSL_ALLOW_SINGLE_LABEL_HOSTNAME
+    (void)labelCount;
+    return curLabelHasAlpha;
+#else
     return ((labelCount > 1) && curLabelHasAlpha);
+#endif
 }
 
 /* call before SSL_connect, if verifying will add name check to
@@ -3937,8 +4197,8 @@ const char *wolfSSL_get0_peername(WOLFSSL *ssl) {
     else if (ssl->session && ssl->session->peer)
         return ssl->session->peer->subjectCN;
 #ifdef KEEP_PEER_CERT
-    else if (ssl->peerCert.subjectCN[0])
-        return ssl->peerCert.subjectCN;
+    else if (GetPeerCert(ssl) != NULL && GetPeerCert(ssl)->subjectCN[0])
+        return GetPeerCert(ssl)->subjectCN;
 #endif
     else {
         ssl->error = NO_PEER_CERT;
@@ -3956,6 +4216,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_set_compression");
     (void)ssl;
 #ifdef HAVE_LIBZ
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+#ifdef WOLFSSL_DTLS
+    /* zlib keeps one deflate stream running across records, so a datagram
+     * that is lost, duplicated or reordered desyncs the peer's inflate state
+     * for the rest of the connection. */
+    if (ssl->options.dtls) {
+        WOLFSSL_MSG("Compression not supported over DTLS");
+        return BAD_FUNC_ARG;
+    }
+#endif
     ssl->options.usingCompression = 1;
     return WOLFSSL_SUCCESS;
 #else
@@ -4634,33 +4905,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_set_rfd(WOLFSSL* ssl, int rfd)
     {
         WOLFSSL_ENTER("wolfSSL_set_rfd");
-        ssl->rfd = rfd;      /* not used directly to allow IO callbacks */
-
-        ssl->IOCB_ReadCtx  = &ssl->rfd;
-
-    #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
-            ssl->buffers.dtlsCtx.rfd = rfd;
-        #ifdef USE_WOLFSSL_IO
-            ssl->buffers.dtlsCtx.rfdIsDGram =
-                (byte)(wolfIO_SockIsDGram(rfd) != 0);
-        #endif
-        }
-    #endif
-
-        return WOLFSSL_SUCCESS;
+        return wolfSSL_set_read_fd(ssl, rfd);
     }
 
 
     int wolfSSL_set_wfd(WOLFSSL* ssl, int wfd)
     {
         WOLFSSL_ENTER("wolfSSL_set_wfd");
-        ssl->wfd = wfd;      /* not used directly to allow IO callbacks */
-
-        ssl->IOCB_WriteCtx  = &ssl->wfd;
-
-        return WOLFSSL_SUCCESS;
+        return wolfSSL_set_write_fd(ssl, wfd);
     }
 #endif /* OPENSSL_EXTRA */
 
@@ -4816,8 +5068,21 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
         return WOLFSSL_FAILURE;
     }
 
+    /* Clear up front: the per-curve export failures below return early, and a
+     * caller reusing one variable across calls must not see a stale pointer. */
+    *pkey = NULL;
+
 #ifdef HAVE_ECC
-    if (ssl->peerEccKey != NULL) {
+    /* Keys kept for this call outlive the connection they came from, so pick
+     * the one the current key exchange used rather than the first one set. */
+    if ((ssl->peerEccKey != NULL) && ssl->peerEccKeyPresent
+#ifdef HAVE_CURVE25519
+        && (ssl->ecdhCurveOID != ECC_X25519_OID)
+#endif
+#ifdef HAVE_CURVE448
+        && (ssl->ecdhCurveOID != ECC_X448_OID)
+#endif
+        ) {
         unsigned char* der;
         const unsigned char* pt;
         unsigned int   derSz = 0;
@@ -4851,13 +5116,43 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
     }
 #endif
 
-    *pkey = ret;
-#ifdef HAVE_ECC
-    if (ret != NULL)
-        return WOLFSSL_SUCCESS;
-    else
+#ifdef HAVE_CURVE25519
+    if ((ret == NULL) && (ssl->ecdhCurveOID == ECC_X25519_OID) &&
+            (ssl->peerX25519Key != NULL) && ssl->peerX25519KeyPresent) {
+        byte pub[CURVE25519_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        /* Raw X25519 keys are little-endian (RFC 7748). */
+        if (wc_curve25519_export_public_ex(ssl->peerX25519Key, pub, &pubSz,
+                EC25519_LITTLE_ENDIAN) != 0) {
+            WOLFSSL_MSG("get curve25519 public key failed");
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_EVP_PKEY_new_raw_public_key(WC_EVP_PKEY_X25519, NULL,
+            pub, (size_t)pubSz);
+    }
 #endif
-        return WOLFSSL_FAILURE;
+
+#ifdef HAVE_CURVE448
+    if ((ret == NULL) && (ssl->ecdhCurveOID == ECC_X448_OID) &&
+            (ssl->peerX448Key != NULL) && ssl->peerX448KeyPresent) {
+        byte pub[CURVE448_PUB_KEY_SIZE];
+        word32 pubSz = (word32)sizeof(pub);
+
+        /* Raw X448 keys are little-endian (RFC 7748). */
+        if (wc_curve448_export_public_ex(ssl->peerX448Key, pub, &pubSz,
+                EC448_LITTLE_ENDIAN) != 0) {
+            WOLFSSL_MSG("get curve448 public key failed");
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_EVP_PKEY_new_raw_public_key(WC_EVP_PKEY_X448, NULL,
+            pub, (size_t)pubSz);
+    }
+#endif
+
+    *pkey = ret;
+
+    return (ret != NULL) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 #endif /* !NO_WOLFSSL_SERVER */
@@ -5091,6 +5386,11 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     ret = Set_CTX_min_proto_version(ctx, proto);
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Version 0 picks the lowest, so the user set no minimum */
+        ctx->minVersionSet = (version != 0);
+    }
+
     return ret;
 }
 
@@ -5228,6 +5528,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     int i;
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int minProto;
+    byte minVersionSet;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
 
@@ -5240,7 +5541,9 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     wolfSSL_CTX_clear_options(ctx,
             WOLFSSL_OP_NO_TLSv1 | WOLFSSL_OP_NO_TLSv1_1 |
             WOLFSSL_OP_NO_TLSv1_2 | WOLFSSL_OP_NO_TLSv1_3);
+    minVersionSet = ctx->minVersionSet;
     wolfSSL_CTX_set_min_proto_version(ctx, minProto);
+    ctx->minVersionSet = minVersionSet; /* restoring, not setting, a minimum */
     if (version != 0) {
         ctx->maxProto = 0; /* turn max proto flag off */
         return Set_CTX_max_proto_version(ctx, version);
@@ -5355,14 +5658,21 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
         return WOLFSSL_FAILURE;
     }
     if (version != 0) {
-        return Set_SSL_min_proto_version(ssl, version);
+        ret = Set_SSL_min_proto_version(ssl, version);
+    }
+    else {
+        /* when 0 is specified as version, try to find out the min version */
+        for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
+            if (ret == WOLFSSL_SUCCESS)
+                break;
+        }
     }
 
-    /* when 0 is specified as version, try to find out the min version */
-    for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
-        ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
-        if (ret == WOLFSSL_SUCCESS)
-            break;
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Version 0 picks the lowest, so the user set no minimum */
+        ssl->options.minVersionSet = (version != 0);
+        RestoreDowngrade(ssl);
     }
 
     return ret;
@@ -5644,23 +5954,48 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
         }
 
-        if (!ssl->options.handShakeDone) {
-            /* Only reset the session if we didn't complete a handshake */
+        /* A client keeps the session it may resume. A server's is per
+         * connection: take a new one when the application holds a reference,
+         * else reset ours, as wolfSSL_get_session() hands out a pointer
+         * without taking one. */
+        if (!ssl->options.handShakeDone ||
+                ((ssl->options.side == WOLFSSL_SERVER_END) &&
+                 (wolfSSL_RefCur(ssl->session->ref) > 1))) {
             wolfSSL_FreeSession(ssl->ctx, ssl->session);
             ssl->session = wolfSSL_NewSession(ssl->heap);
             if (ssl->session == NULL) {
                 return WOLFSSL_FAILURE;
             }
         }
+        else if (ssl->options.side == WOLFSSL_SERVER_END) {
+            ssl->session->haveAltSessionID = 0;
+            ForceZero(ssl->session->altSessionID, ID_LEN);
+#ifndef NO_WOLFSSL_SERVER
+            ssl->session->peerAuthOk = 0;
+            ssl->session->isPSK = 0;
+#endif
+        #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
+            ssl->session->ticketNonce.len = 0;
+        #endif
+        }
+
+#ifndef NO_CERTS
+        /* Trust for the previous peer must not carry into the next. */
+        SslWaivedCAsFree(ssl);
+#endif
 
         /* reset error */
         ssl->error = 0;
 
         /* reset option bits */
         ssl->options.isClosed = 0;
+        ssl->options.fatalAlert = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
         ssl->options.closeNotify = 0;
+        /* Per-connection budgets, not cumulative across a reused object. */
+        ssl->options.alertCount = 0;
+        ssl->options.emptyRecordCount = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
@@ -5684,38 +6019,137 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
               DYNAMIC_TYPE_TMP_BUFFER);
         ssl->buffers.certVerifyMsg.buffer = NULL;
         ssl->buffers.certVerifyMsg.length = 0;
-        ssl->fragOffset = 0;
 #endif
+        ssl->fragOffset = 0;
+        ssl->options.buildingMsg = 0;
         ssl->options.processReply = 0; /* doProcessInit */
         ssl->options.havePeerVerify = 0;
         ssl->options.havePeerCert = 0;
         ssl->options.peerAuthGood = 0;
+        ssl->options.usingPSK_cipher = 0;
+        ssl->options.usingAnon_cipher = 0;
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+        ssl->options.pskNegotiated = 0;
+#endif
         ssl->options.tls1_3 = 0;
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
         ssl->options.tls1_1 = 0;
+#ifdef HAVE_EXTENDED_MASTER
+        /* haveEMS is negotiated per handshake: re-arm an EMS-capable client
+         * unless the user disabled EMS, and clear a server until the next
+         * ClientHello. The requireEMS/disableEMS policy persists. */
+        ssl->options.haveEMS = 0;
+        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                !ssl->options.disableEMS) {
+            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
+                    ssl->ctx->method->version.minor >= TLSv1_MINOR) {
+                ssl->options.haveEMS = 1;
+            }
+        #ifdef WOLFSSL_DTLS
+            if (ssl->ctx->method->version.major == DTLS_MAJOR)
+                ssl->options.haveEMS = 1;
+        #endif
+        }
+#endif
     #ifdef WOLFSSL_TLS13
     #ifdef WOLFSSL_TLS13_COOKIE
         ssl->options.hrrSentCookie = 0;
     #endif
         ssl->options.hrrSentKeyShare = 0;
+        ssl->options.sentChangeCipher = 0;
+        ssl->options.ccsIgnoredCount = 0;
+        /* Matches InitSSL_Tls13Options(); the server clears it again when the
+         * next ClientHello carries an empty session id. */
+        ssl->options.tls13MiddleBoxCompat = 1;
+        ssl->options.shSentKeyShare = 0;
+        XFREE(ssl->certHashSigAlgo, ssl->heap, DYNAMIC_TYPE_TLSX);
+        ssl->certHashSigAlgo = NULL;
+        ssl->certHashSigAlgoSz = 0;
     #endif
+    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+        /* The group the previous connection negotiated. Nothing else clears
+         * it, and a handshake that negotiates none - TLS 1.3 psk_ke - would
+         * leave it readable as this connection's. */
+        ssl->namedGroup = 0;
+    #endif
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+        defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
+        defined(HAVE_CURVE448)
+        /* The peer's ephemeral key is now kept past the handshake for
+         * wolfSSL_get_peer_tmp_key(). A next handshake that negotiates no
+         * (EC)DH would otherwise report the previous connection's key.
+         * Back to what SetSSL_CTX() starts from, so a curve set with
+         * wolfSSL_CTX_set_tmp_ecdh() survives. */
+        ssl->ecdhCurveOID = ssl->ctx->ecdhCurveOID;
+        ssl->peerEccKeyPresent = 0;
+    #endif
+    #ifdef HAVE_CURVE25519
+        ssl->peerX25519KeyPresent = 0;
+    #endif
+    #ifdef HAVE_CURVE448
+        ssl->peerX448KeyPresent = 0;
+    #endif
+        /* Drop the peer certificate public key left by an abandoned handshake. */
+        FreePeerCertKeys(ssl);
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
+        #ifndef NO_ASN_TIME
+        ssl->dtls_timer_len = 0;
+        #endif
     #endif
     #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        ssl->options.pskNegotiated = 0;
         ssl->options.noPskDheKe = ssl->ctx->noPskDheKe;
+        ssl->options.noPskDheKePolicy = ssl->ctx->noPskDheKe;
         #ifdef HAVE_SUPPORTED_CURVES
         ssl->options.onlyPskDheKe = ssl->ctx->onlyPskDheKe;
         #endif
     #endif
+        /* An abandoned handshake can leave a key-schedule or record-build
+         * resume marker set; a reused object must not resume into the new
+         * handshake. */
+        ssl->kdfDeriveStep = TLS13_SEND_KDF_NONE;
+        ssl->kdfMsgStep = TLS13_MSG_KDF_NONE;
+        ssl->kdfMsgType = 0;
+        #if defined(WOLFSSL_ASYNC_REINVOKE) && !defined(NO_HMAC)
+        Tls13FreeHsHmac(ssl);
+        #endif
+        #ifdef WOLFSSL_ASYNC_CRYPT
+        ssl->options.buildArgs13Set = 0;
+        /* An abandoned handshake can leave a mid-flight handler resume
+         * state and a queued key-schedule event behind; a reused object
+         * must start fresh. */
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
+        if (ssl->asyncDev == &ssl->kdfAsyncDev) {
+            if (ssl->kdfAsyncDev.event.state == WOLF_EVENT_STATE_PENDING &&
+                    ssl->ctx != NULL) {
+                (void)wolfEventQueue_Remove(&ssl->ctx->event_queue,
+                                            &ssl->kdfAsyncDev.event);
+            }
+            XMEMSET(&ssl->kdfAsyncDev.event, 0, sizeof(WOLF_EVENT));
+            ssl->asyncDev = NULL;
+        }
+        #endif
     #endif
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
         ssl->options.ticketsSent = 0;
+        #if !defined(NO_WOLFSSL_SERVER) && \
+            defined(WOLFSSL_TLS13_TICKET_CHECK_PSK_MODES)
+        /* Recorded from the ClientHello, so it must not carry into the next
+         * connection on a reused object. */
+        ssl->options.pskKeModes = 0;
+        ssl->options.pskKeModesRecvd = 0;
+        #endif
+        #if defined(WOLFSSL_EARLY_DATA) && !defined(NO_SESSION_CACHE)
+        ssl->options.ticketCacheHit = 0;
+        #endif
         #endif
         ssl->options.rejectTicket = 0;
+        ssl->options.useTicket = 0;
+        ssl->options.createTicket = 0;
     #endif
     #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;
@@ -5729,6 +6163,15 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.rpkState.sending_ServerCertTypeCnt = 0;
         ssl->options.rpkState.received_ClientCertTypeCnt = 0;
         ssl->options.rpkState.received_ServerCertTypeCnt = 0;
+    #endif
+
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
+        defined(WOLFSSL_TLS13)
+        /* The peer list belongs to the connection that just ended. Left in
+         * place, the getters report the previous peer's authorities when the
+         * next one sends no certificate_authorities extension. */
+        TLSX_CertificateAuthorities_FreeAll(ssl->ws_peer_ca_names, ssl->heap);
+        ssl->ws_peer_ca_names = NULL;
     #endif
 
     #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
@@ -5753,6 +6196,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                 ssl->buffers.inputBuffer.bufferSize);
         #endif
         }
+        ssl->buffers.clearOutputBuffer.buffer = NULL;
+        ssl->buffers.clearOutputBuffer.length = 0;
+        ssl->buffers.inputBuffer.idx = 0;
+        ssl->buffers.inputBuffer.length = 0;
         /* Recycling the object for a new connection must not carry the
          * previous connection's key material along with it. A freshly
          * created object has all of this zeroed. */
@@ -5816,13 +6263,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
          * An application that asked to keep the arrays still gets back
          * everything the API can hand it, so only the rest goes. */
         if (ssl->arrays != NULL) {
-            if (ssl->arrays->preMasterSecret != NULL) {
-                ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
-                /* The key agreement routines take this as the size of the
-                 * buffer they may write, so put back what a freshly
-                 * allocated Arrays would carry. */
-                ssl->arrays->preMasterSz = ENCRYPT_LEN;
-            }
+            /* The buffer lives as long as the arrays do. */
+            ForceZero(ssl->arrays->preMasterSecret, MAX_PREMASTER_SZ);
+            /* Key agreement reads this as the writable capacity. */
+            ssl->arrays->preMasterSz = MAX_PREMASTER_SZ;
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             ForceZero(ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
             ssl->arrays->psk_keySz = 0;
@@ -5861,8 +6305,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
 
 #ifdef KEEP_PEER_CERT
-        FreeX509(&ssl->peerCert);
-        InitX509(&ssl->peerCert, 0, ssl->heap);
+        FreePeerCert(ssl);
 #endif
 
 #ifdef WOLFSSL_QUIC
@@ -6110,15 +6553,57 @@ int wolfSSL_get_current_cipher_suite(WOLFSSL* ssl)
     return 0;
 }
 
+/* Fill in all of cipher. The accessors only read these fields. */
+static void wolfssl_cipher_set(WOLFSSL_CIPHER* cipher, byte suite0,
+    byte suite, const ProtocolVersion* pv)
+{
+    XMEMSET(cipher, 0, sizeof(*cipher));
+    cipher->cipherSuite0 = suite0;
+    cipher->cipherSuite  = suite;
+    cipher->pv           = *pv;
+}
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+/* Is the specified cipher suite a fake one used an an extension proxy? */
+static WC_INLINE int SCSV_Check(byte suite0, byte suite)
+{
+    (void)suite0;
+    (void)suite;
+#ifdef HAVE_RENEGOTIATION_INDICATION
+    if (suite0 == CIPHER_BYTE && suite == TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
+        return 1;
+#endif
+    return 0;
+}
+
+/* Fill in cipher as a cipher list entry. It describes the suite itself: its
+ * own version, not that of a session. */
+static void wolfssl_cipher_init_suite(WOLFSSL_CIPHER* cipher, byte suite0,
+    byte suite)
+{
+    const CipherSuiteInfo* names = GetCipherNames();
+    int idx = GetCipherNamesIdx(suite0, suite);
+    ProtocolVersion pv;
+
+    pv.major = 0;
+    pv.minor = 0;
+    if (idx >= 0) {
+        pv.major = names[idx].major;
+        pv.minor = names[idx].minor;
+    }
+    wolfssl_cipher_set(cipher, suite0, suite, &pv);
+}
+#endif
+
+/* The cipher of the session. Filled in from ssl on each call, so a pointer
+ * kept from an earlier call reports the session as it was then. */
 WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_current_cipher");
     if (ssl) {
-        ssl->cipher.cipherSuite0 = ssl->options.cipherSuite0;
-        ssl->cipher.cipherSuite  = ssl->options.cipherSuite;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        ssl->cipher.bits = ssl->specs.key_size * 8;
-#endif
+        wolfssl_cipher_set(&ssl->cipher, ssl->options.cipherSuite0,
+            ssl->options.cipherSuite, &ssl->version);
         return &ssl->cipher;
     }
     else
@@ -6147,11 +6632,11 @@ const char*  wolfSSL_CIPHER_get_version(const WOLFSSL_CIPHER* cipher)
 {
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_version");
 
-    if (cipher == NULL || cipher->ssl == NULL) {
+    if (cipher == NULL) {
         return NULL;
     }
 
-    return wolfSSL_get_version(cipher->ssl);
+    return wolfSSL_internal_get_version(&cipher->pv);
 }
 
 const char* wolfSSL_get_cipher(WOLFSSL* ssl)
@@ -6197,9 +6682,11 @@ word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_id");
 
-    if (cipher && cipher->ssl) {
-        cipher_id = (word16)(cipher->ssl->options.cipherSuite0 << 8) |
-                     cipher->ssl->options.cipherSuite;
+    /* Read the suite of this entry: stack entries and SSL_CIPHER_find()
+     * results are not the negotiated suite. */
+    if (cipher != NULL) {
+        cipher_id = (word16)((word16)cipher->cipherSuite0 << 8) |
+                     cipher->cipherSuite;
     }
 
     return cipher_id;
@@ -6247,9 +6734,6 @@ const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* sk;
     WOLFSSL_STACK* node;
-    const CipherSuiteInfo* cipher_names;
-    int cipherSz;
-    int i;
 
     WOLFSSL_ENTER("wolfSSL_SSL_CIPHER_find");
 
@@ -6266,26 +6750,12 @@ const WOLFSSL_CIPHER* wolfSSL_SSL_CIPHER_find(WOLFSSL* ssl,
 
     /* Not enabled on this SSL - fall back to a library-wide lookup so suite
      * ids seen on the wire can still be decoded, matching OpenSSL. */
-    cipher_names = GetCipherNames();
-    cipherSz = GetCipherNamesSize();
-    for (i = 0; i < cipherSz; i++) {
-        if (cipher_names[i].cipherSuite0 == ptr[0] &&
-            cipher_names[i].cipherSuite  == ptr[1]) {
-            XMEMSET(&ssl->cipher, 0, sizeof(ssl->cipher));
-            ssl->cipher.cipherSuite0 = ptr[0];
-            ssl->cipher.cipherSuite  = ptr[1];
-            ssl->cipher.ssl          = ssl;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            ssl->cipher.offset       = (unsigned long)i;
-            /* Describe from cipher_names[offset]: ssl->specs holds the
-             * negotiated suite, not this one. */
-            ssl->cipher.in_stack     = TRUE;
-#endif
-            return &ssl->cipher;
-        }
-    }
+    if (GetCipherNamesIdx(ptr[0], ptr[1]) < 0)
+        return NULL;
 
-    return NULL;
+    /* Describe the suite looked up, not the session. */
+    wolfssl_cipher_init_suite(&ssl->cipher, ptr[0], ptr[1]);
+    return &ssl->cipher;
 }
 #endif
 
@@ -6463,6 +6933,40 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 #endif
 
 #ifdef OPENSSL_EXTRA
+/* Append str to the string at *in, cut to fit the *len bytes left. */
+static void wolfssl_cipher_desc_append(char** in, int* len, const char* str)
+{
+    size_t strLen;
+
+    if (str == NULL)
+        return;
+    XSTRNCPY(*in, str, (size_t)*len);
+    (*in)[*len - 1] = '\0';
+    strLen = XSTRLEN(*in);
+    *len -= (int)strLen;
+    *in += strLen;
+}
+
+/* Write a cipher description into in, cut to fit len bytes:
+ *   <name> <version> Kx=<kx> Au=<au> Enc=<enc> Mac=<mac> */
+static void wolfssl_cipher_desc_write(char* in, int len, const char* name,
+    const char* ver, const char* kx, const char* au, const char* enc,
+    const char* mac)
+{
+    in[0] = '\0';
+    wolfssl_cipher_desc_append(&in, &len, name);
+    wolfssl_cipher_desc_append(&in, &len, " ");
+    wolfssl_cipher_desc_append(&in, &len, ver);
+    wolfssl_cipher_desc_append(&in, &len, " Kx=");
+    wolfssl_cipher_desc_append(&in, &len, kx);
+    wolfssl_cipher_desc_append(&in, &len, " Au=");
+    wolfssl_cipher_desc_append(&in, &len, au);
+    wolfssl_cipher_desc_append(&in, &len, " Enc=");
+    wolfssl_cipher_desc_append(&in, &len, enc);
+    wolfssl_cipher_desc_append(&in, &len, " Mac=");
+    wolfssl_cipher_desc_append(&in, &len, mac);
+}
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* return authentication NID corresponding to cipher suite
  * @param cipher a pointer to WOLFSSL_CIPHER
@@ -6488,6 +6992,11 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
     if (GetCipherSegment(cipher, n) == NULL) {
         WOLFSSL_MSG("no suitable cipher name found");
         return WC_NID_undef;
+    }
+
+    /* in TLS 1.3 case, NID will be WC_NID_auth_any */
+    if (XSTRCMP(n[0], "TLS13") == 0) {
+        return WC_NID_auth_any;
     }
 
     authStr = GetCipherAuthStr(n);
@@ -6663,148 +7172,44 @@ int wolfSSL_CIPHER_is_aead(const WOLFSSL_CIPHER* cipher)
 
     return IsCipherAEAD(n);
 }
-/* Creates cipher->description based on cipher->offset
- * cipher->offset is set in wolfSSL_get_ciphers_compat when it is added
- * to a stack of ciphers.
- * @param [in] cipher: A cipher from a stack of ciphers.
- * return WOLFSSL_SUCCESS if cipher->description is set, else WOLFSSL_FAILURE
- */
-int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
-{
-    int strLen;
-    unsigned long offset;
-    char* dp;
-    const char* name;
-    const char *keaStr, *authStr, *encStr, *macStr, *protocol;
-    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    int len = MAX_DESCRIPTION_SZ-1;
-    const CipherSuiteInfo* cipher_names;
-    ProtocolVersion pv;
-    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_description");
-
-    if (cipher == NULL)
-        return WOLFSSL_FAILURE;
-
-    dp = cipher->description;
-    if (dp == NULL)
-        return WOLFSSL_FAILURE;
-
-    cipher_names = GetCipherNames();
-
-    offset = cipher->offset;
-    if (offset >= (unsigned long)GetCipherNamesSize())
-        return WOLFSSL_FAILURE;
-    pv.major = cipher_names[offset].major;
-    pv.minor = cipher_names[offset].minor;
-    protocol = wolfSSL_internal_get_version(&pv);
-
-    if ((name = GetCipherSegment(cipher, n)) == NULL) {
-        WOLFSSL_MSG("no suitable cipher name found");
-        return WOLFSSL_FAILURE;
-    }
-
-    /* keaStr */
-    keaStr = GetCipherKeaStr(n);
-    /* authStr */
-    authStr = GetCipherAuthStr(n);
-    /* encStr */
-    encStr = GetCipherEncStr(n);
-    if ((cipher->bits = SetCipherBits(encStr)) ==
-        WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
-    {
-       WOLFSSL_MSG("Cipher Bits Not Set.");
-    }
-    /* macStr */
-    macStr = GetCipherMacStr(n);
-
-
-    /* Build up the string by copying onto the end. */
-    XSTRNCPY(dp, name, (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-
-    XSTRNCPY(dp, " ", (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-    XSTRNCPY(dp, protocol, (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-
-    XSTRNCPY(dp, " Kx=", (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-    XSTRNCPY(dp, keaStr, (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-
-    XSTRNCPY(dp, " Au=", (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-    XSTRNCPY(dp, authStr, (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-
-    XSTRNCPY(dp, " Enc=", (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-    XSTRNCPY(dp, encStr, (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += strLen;
-
-    XSTRNCPY(dp, " Mac=", (size_t)len);
-    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= strLen; dp += (size_t)strLen;
-    XSTRNCPY(dp, macStr, (size_t)len);
-    dp[len-1] = '\0';
-
-    return WOLFSSL_SUCCESS;
-}
 #endif /* OPENSSL_ALL || WOLFSSL_QT */
 
-static WC_INLINE const char* wolfssl_kea_to_string(int kea)
+/* The parts of a suite are named as OpenSSL's SSL_CIPHER_description() names
+ * them. */
+
+static WC_INLINE const char* wolfssl_kea_to_string(const CipherSpecs* specs)
 {
     const char* keaStr;
 
-    switch (kea) {
+    switch (specs->kea) {
         case no_kea:
             keaStr = "None";
             break;
-#ifndef NO_RSA
         case rsa_kea:
             keaStr = "RSA";
             break;
-#endif
-#ifndef NO_DH
         case diffie_hellman_kea:
-            keaStr = "DHE";
+            keaStr = "DH";
             break;
-#endif
-        case fortezza_kea:
-            keaStr = "FZ";
-            break;
-#ifndef NO_PSK
         case psk_kea:
             keaStr = "PSK";
             break;
-    #ifndef NO_DH
         case dhe_psk_kea:
             keaStr = "DHEPSK";
             break;
-    #endif
-    #ifdef HAVE_ECC
         case ecdhe_psk_kea:
             keaStr = "ECDHEPSK";
             break;
-    #endif
-#endif
-#ifdef HAVE_ECC
         case ecc_diffie_hellman_kea:
-            keaStr = "ECDHE";
+            /* Static ECDH is named after the signature of the CA, as in
+             * OpenSSL 1.0.2. */
+            if (!specs->static_ecdh)
+                keaStr = "ECDH";
+            else if (specs->sig_algo == rsa_sa_algo)
+                keaStr = "ECDH/RSA";
+            else
+                keaStr = "ECDH/ECDSA";
             break;
-        case ecc_static_diffie_hellman_kea:
-            keaStr = "ECDH";
-            break;
-#endif
         case any_kea:
             keaStr = "any";
             break;
@@ -6816,49 +7221,32 @@ static WC_INLINE const char* wolfssl_kea_to_string(int kea)
     return keaStr;
 }
 
-static WC_INLINE const char* wolfssl_sigalg_to_string(int sig_algo)
+static WC_INLINE const char* wolfssl_sigalg_to_string(
+    const CipherSpecs* specs)
 {
     const char* authStr;
 
-    switch (sig_algo) {
+    switch (specs->sig_algo) {
         case anonymous_sa_algo:
-            authStr = "None";
+            /* The PSK authenticates the peer. */
+            if ((specs->kea == psk_kea) || (specs->kea == dhe_psk_kea) ||
+                    (specs->kea == ecdhe_psk_kea))
+                authStr = "PSK";
+            else
+                authStr = "None";
             break;
-#ifndef NO_RSA
         case rsa_sa_algo:
             authStr = "RSA";
             break;
-    #ifdef WC_RSA_PSS
-        case rsa_pss_sa_algo:
-            authStr = "RSA-PSS";
-            break;
-    #endif
-#endif
-#ifndef NO_DSA
         case dsa_sa_algo:
-            authStr = "DSA";
+            authStr = "DSS";
             break;
-#endif
-#ifdef HAVE_ECC
         case ecc_dsa_sa_algo:
             authStr = "ECDSA";
             break;
-#endif
-#ifdef WOLFSSL_SM2
         case sm2_sa_algo:
             authStr = "SM2";
             break;
-#endif
-#ifdef HAVE_ED25519
-        case ed25519_sa_algo:
-            authStr = "Ed25519";
-            break;
-#endif
-#ifdef HAVE_ED448
-        case ed448_sa_algo:
-            authStr = "Ed448";
-            break;
-#endif
         case any_sa_algo:
             authStr = "any";
             break;
@@ -6866,87 +7254,79 @@ static WC_INLINE const char* wolfssl_sigalg_to_string(int sig_algo)
             authStr = "unknown";
             break;
     }
+    /* Static ECDH: the ECDH key of the certificate authenticates. */
+    if (specs->static_ecdh)
+        authStr = "ECDH";
 
     return authStr;
 }
 
-static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
+/* str128 or str256 by the key size of the cipher. */
+static WC_INLINE const char* wolfssl_cipher_by_size(const CipherSpecs* specs,
+    const char* str128, const char* str256)
+{
+    const char* encStr = "unknown";
+
+    if (8 * specs->key_size == 128)
+        encStr = str128;
+    else if (8 * specs->key_size == 256)
+        encStr = str256;
+
+    return encStr;
+}
+
+static WC_INLINE const char* wolfssl_cipher_to_string(
+    const CipherSpecs* specs)
 {
     const char* encStr;
 
-    (void)key_size;
-
-    switch (cipher) {
+    switch (specs->bulk_cipher_algorithm) {
         case wolfssl_cipher_null:
             encStr = "None";
             break;
-#ifndef NO_RC4
         case wolfssl_rc4:
             encStr = "RC4(128)";
             break;
-#endif
-#ifndef NO_DES3
         case wolfssl_triple_des:
             encStr = "3DES(168)";
             break;
-#endif
-#ifndef NO_AES
         case wolfssl_aes:
-            if (key_size == AES_128_KEY_SIZE)
-                encStr = "AES(128)";
-            else if (key_size == AES_256_KEY_SIZE)
-                encStr = "AES(256)";
-            else
-                encStr = "AES(?)";
+            encStr = wolfssl_cipher_by_size(specs, "AES(128)", "AES(256)");
             break;
-    #ifdef HAVE_AESGCM
         case wolfssl_aes_gcm:
-            if (key_size == AES_128_KEY_SIZE)
-                encStr = "AESGCM(128)";
-            else if (key_size == AES_256_KEY_SIZE)
-                encStr = "AESGCM(256)";
-            else
-                encStr = "AESGCM(?)";
+            encStr = wolfssl_cipher_by_size(specs, "AESGCM(128)",
+                "AESGCM(256)");
             break;
-    #endif
-    #ifdef HAVE_AESCCM
         case wolfssl_aes_ccm:
-            if (key_size == AES_128_KEY_SIZE)
-                encStr = "AESCCM(128)";
-            else if (key_size == AES_256_KEY_SIZE)
-                encStr = "AESCCM(256)";
-            else
-                encStr = "AESCCM(?)";
+            if (specs->aead_mac_size == AES_CCM_8_AUTH_SZ) {
+                encStr = wolfssl_cipher_by_size(specs, "AESCCM8(128)",
+                    "AESCCM8(256)");
+            }
+            else {
+                encStr = wolfssl_cipher_by_size(specs, "AESCCM(128)",
+                    "AESCCM(256)");
+            }
             break;
-    #endif
-#endif
-#ifdef HAVE_CHACHA
         case wolfssl_chacha:
             encStr = "CHACHA20/POLY1305(256)";
             break;
-#endif
-#ifdef HAVE_ARIA
-        case wolfssl_aria_gcm:
-            if (key_size == ARIA_128_KEY_SIZE)
-                encStr = "Aria(128)";
-            else if (key_size == ARIA_192_KEY_SIZE)
-                encStr = "Aria(192)";
-            else if (key_size == ARIA_256_KEY_SIZE)
-                encStr = "Aria(256)";
-            else
-                encStr = "Aria(?)";
-            break;
-#endif
-#ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
-            if (key_size == CAMELLIA_128_KEY_SIZE)
-                encStr = "Camellia(128)";
-            else if (key_size == CAMELLIA_256_KEY_SIZE)
-                encStr = "Camellia(256)";
-            else
-                encStr = "Camellia(?)";
+            encStr = wolfssl_cipher_by_size(specs, "Camellia(128)",
+                "Camellia(256)");
             break;
-#endif
+        case wolfssl_aria_gcm:
+            encStr = wolfssl_cipher_by_size(specs, "ARIAGCM(128)",
+                "ARIAGCM(256)");
+            break;
+        case wolfssl_sm4_cbc:
+            encStr = "SM4";
+            break;
+        case wolfssl_sm4_gcm:
+            encStr = "SM4GCM";
+            break;
+        case wolfssl_sm4_ccm:
+            encStr = "SM4CCM";
+            break;
         default:
             encStr = "unknown";
             break;
@@ -6955,44 +7335,31 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
     return encStr;
 }
 
-static WC_INLINE const char* wolfssl_mac_to_string(int mac)
+static WC_INLINE const char* wolfssl_mac_to_string(const CipherSpecs* specs)
 {
     const char* macStr;
 
-    switch (mac) {
-        case no_mac:
-            macStr = "None";
-            break;
-#ifndef NO_MD5
+    /* Integrity-only suites are set up as AEAD but use an HMAC. */
+    if ((specs->cipher_type == aead) &&
+            (specs->bulk_cipher_algorithm != wolfssl_cipher_null))
+        return "AEAD";
+
+    switch (specs->mac_algorithm) {
         case md5_mac:
             macStr = "MD5";
             break;
-#endif
-#ifndef NO_SHA
         case sha_mac:
             macStr = "SHA1";
             break;
-#endif
-#ifdef WOLFSSL_SHA224
-        case sha224_mac:
-            macStr = "SHA224";
-            break;
-#endif
-#ifndef NO_SHA256
         case sha256_mac:
             macStr = "SHA256";
             break;
-#endif
-#ifdef WOLFSSL_SHA384
         case sha384_mac:
             macStr = "SHA384";
             break;
-#endif
-#ifdef WOLFSSL_SHA512
-        case sha512_mac:
-            macStr = "SHA512";
+        case sm3_mac:
+            macStr = "SM3";
             break;
-#endif
         default:
             macStr = "unknown";
             break;
@@ -7001,68 +7368,50 @@ static WC_INLINE const char* wolfssl_mac_to_string(int mac)
     return macStr;
 }
 
+/* Get the specs of the suite of cipher. They depend only on the suite.
+ * Only suites in cipher_names are looked up: GetCipherSpec() matches some
+ * others on their second byte alone. The SCSV has no specs: looking it up
+ * would queue an error. */
+static void wolfssl_cipher_get_specs(const WOLFSSL_CIPHER* cipher,
+    CipherSpecs* specs)
+{
+    InitCipherSpecs(specs);
+#ifndef NO_TLS
+    /* Server side: the client side check needs the SSL's PSK option. */
+    if ((GetCipherNamesIdx(cipher->cipherSuite0, cipher->cipherSuite) >= 0) &&
+            !SCSV_Check(cipher->cipherSuite0, cipher->cipherSuite) &&
+            (GetCipherSpec(WOLFSSL_SERVER_END, cipher->cipherSuite0,
+                cipher->cipherSuite, specs, NULL) != 0)) {
+        InitCipherSpecs(specs);
+    }
+#else
+    (void)cipher;
+#endif
+}
+
 char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
                                  int len)
 {
-    char *ret = in;
-    const char *keaStr, *authStr, *encStr, *macStr;
-    size_t strLen;
+    const char* name = NULL;
+    CipherSpecs specs;
     WOLFSSL_ENTER("wolfSSL_CIPHER_description");
 
-    if (cipher == NULL || in == NULL)
+    if (cipher == NULL || in == NULL || len <= 0)
         return NULL;
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    /* if cipher is in the stack from wolfSSL_get_ciphers_compat then
-     * Return the description based on cipher_names[cipher->offset]
-     */
-    if (cipher->in_stack == TRUE) {
-        wolfSSL_sk_CIPHER_description((WOLFSSL_CIPHER*)cipher);
-        XSTRNCPY(in,cipher->description,(size_t)len);
-        return ret;
-    }
-#endif
+    wolfssl_cipher_get_specs(cipher, &specs);
+    /* OpenSSL names TLS 1.3 suites by their IANA name. */
+    if (specs.kea == any_kea)
+        name = GetCipherNameIana(cipher->cipherSuite0, cipher->cipherSuite);
+    if (name == NULL)
+        name = GetCipherNameInternal(cipher->cipherSuite0, cipher->cipherSuite);
 
-    /* Get the cipher description based on the SSL session cipher */
-    keaStr = wolfssl_kea_to_string(cipher->ssl->specs.kea);
-    authStr = wolfssl_sigalg_to_string(cipher->ssl->specs.sig_algo);
-    encStr = wolfssl_cipher_to_string(cipher->ssl->specs.bulk_cipher_algorithm,
-                                      cipher->ssl->specs.key_size);
-    if (cipher->ssl->specs.cipher_type == aead)
-        macStr = "AEAD";
-    else
-        macStr = wolfssl_mac_to_string(cipher->ssl->specs.mac_algorithm);
+    wolfssl_cipher_desc_write(in, len, name,
+        wolfSSL_internal_get_version(&cipher->pv),
+        wolfssl_kea_to_string(&specs), wolfssl_sigalg_to_string(&specs),
+        wolfssl_cipher_to_string(&specs), wolfssl_mac_to_string(&specs));
 
-    /* Build up the string by copying onto the end. */
-    XSTRNCPY(in, wolfSSL_CIPHER_get_name(cipher), (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-
-    XSTRNCPY(in, " ", (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-    XSTRNCPY(in, wolfSSL_get_version(cipher->ssl), (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-
-    XSTRNCPY(in, " Kx=", (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-    XSTRNCPY(in, keaStr, (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-
-    XSTRNCPY(in, " Au=", (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-    XSTRNCPY(in, authStr, (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-
-    XSTRNCPY(in, " Enc=", (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-    XSTRNCPY(in, encStr, (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-
-    XSTRNCPY(in, " Mac=", (size_t)len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
-    XSTRNCPY(in, macStr, (size_t)len);
-    in[len-1] = '\0';
-
-    return ret;
+    return in;
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -7229,6 +7578,25 @@ void wolfSSL_set_info_callback(WOLFSSL* ssl,
 
 
 #ifndef NO_TLS
+/* The info callback (DoAlert/SendAlert) passes alerts packed as
+ * (level << 8) | code. Unpack for the string lookups; a raw level or code
+ * (high byte zero) passes through unchanged. */
+static int unpackAlertCode(int alertID)
+{
+    if ((alertID >> 8) != 0)
+        alertID = alertID & 0xff;
+
+    return alertID;
+}
+
+static int unpackAlertLevel(int alertID)
+{
+    if ((alertID >> 8) != 0)
+        alertID = (alertID >> 8) & 0xff;
+
+    return alertID;
+}
+
 /* returns a string that describes the alert
  *
  * alertID the alert value to look up
@@ -7237,14 +7605,14 @@ const char* wolfSSL_alert_type_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_type_string_long");
 
-    return AlertTypeToString(alertID);
+    return AlertTypeToString(unpackAlertCode(alertID));
 }
 
 const char* wolfSSL_alert_type_string(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_type_string");
 
-    switch (alertID) {
+    switch (unpackAlertLevel(alertID)) {
         case alert_warning:
             return "W";
         case alert_fatal:
@@ -7258,14 +7626,14 @@ const char* wolfSSL_alert_desc_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string_long");
 
-    return AlertTypeToString(alertID);
+    return AlertTypeToString(unpackAlertCode(alertID));
 }
 
 const char* wolfSSL_alert_desc_string(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string");
 
-    switch (alertID) {
+    switch (unpackAlertCode(alertID)) {
         case close_notify:
             return "CN";
         case unexpected_message:
@@ -7506,9 +7874,12 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
              * options limit the allowed ciphers so let's try to get as many as
              * possible.
              * - haveStaticECC turns off haveRSA
-             * - haveECDSAsig turns off haveRSAsig */
+             * - haveECDSAsig turns off haveRSAsig
+             * - SUITES_NULL_EXPLICIT includes the integrity-only suites, so
+             *   an explicitly configured one is preserved */
             InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
-                    haveStaticECC, 1, 1, 1, 1, 1, ssl->options.side);
+                    haveStaticECC, 1, SUITES_NULL_EXPLICIT, 1, 1, 1,
+                    ssl->options.side);
             for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
                 if (FindSuite(&tmpSuites, ssl->suites->suites[in],
                         ssl->suites->suites[in+1]) >= 0) {
@@ -8409,6 +8780,13 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     /* ctx still owns certificate, certChain, key, dh, and cm */
     if (ssl->buffers.weOwnCert) {
         FreeDer(&ssl->buffers.certificate);
+    #ifdef KEEP_OUR_CERT
+        /* ourCert is only made when this SSL owns the certificate. */
+        if (ssl->ourCert != NULL) {
+            wolfSSL_X509_free(ssl->ourCert);
+            ssl->ourCert = NULL;
+        }
+    #endif
         ssl->buffers.weOwnCert = 0;
     }
     ssl->buffers.certificate = NULL;
@@ -8417,11 +8795,15 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
         ssl->buffers.weOwnCertChain = 0;
     }
     ssl->buffers.certChain = NULL;
-#ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = 0;
+#ifdef KEEP_OUR_CERT
+    if (ssl->ourCertChain != NULL) {
+        wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
+        ssl->ourCertChain = NULL;
+    }
 #endif
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -8438,7 +8820,7 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     ssl->buffers.keyDevId = 0;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if (ssl->buffers.weOwnAltKey) {
-        FreeDer(&ssl->buffers.altKey);
+        FreeKeyDer(&ssl->buffers.altKey);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.altKeyMask);
     #endif
@@ -8497,11 +8879,11 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
     case SSL_CTRL_CHAIN:
 #ifdef SESSION_CERTS
     {
-        /*
-         * We don't care about opt here because a copy of the certificate is
-         * stored anyway so increasing the reference counter is not necessary.
-         * Just check to make sure that it is set to one of the correct values.
-         */
+        /* Build ctx->certChain (DER copies) from sk. A reference is taken on
+         * each certificate because wolfSSL_CTX_add_extra_chain_cert() consumes
+         * one on success. The ctx takes ownership of sk only on success; on
+         * failure no chain is set and the caller still owns sk.
+         * opt: 0 = set0, 1 = set1. */
         WOLF_STACK_OF(WOLFSSL_X509)* sk = (WOLF_STACK_OF(WOLFSSL_X509)*) pt;
         WOLFSSL_X509* x509;
         int i;
@@ -8511,35 +8893,50 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         }
         /* Clear certificate chain */
         FreeDer(&ctx->certChain);
+        ctx->certChainCnt = 0;
         if (sk) {
             for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
                 x509 = wolfSSL_sk_X509_value(sk, i);
+                if (x509 == NULL) {
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
                 /* Prevent wolfSSL_CTX_add_extra_chain_cert from freeing cert */
                 if (wolfSSL_X509_up_ref(x509) != 1) {
                     WOLFSSL_MSG("Error increasing reference count");
-                    continue;
+                    ret = WOLFSSL_FAILURE;
+                    break;
                 }
                 if (wolfSSL_CTX_add_extra_chain_cert(ctx, x509) !=
                         WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Error adding certificate to context");
                     /* Decrease reference count on failure */
                     wolfSSL_X509_free(x509);
-                    x509 = NULL;
+                    ret = WOLFSSL_FAILURE;
+                    break;
                 }
             }
+            x509 = NULL;
         }
-        /* Free previous chain */
+
+        /* Free previous chain. On failure the ctx is left with no chain */
         wolfSSL_sk_X509_pop_free(ctx->x509Chain, NULL);
-        ctx->x509Chain = sk;
-        if (sk && opt == 1) {
-            /* up all refs when opt == 1 */
-            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
-                x509 = wolfSSL_sk_X509_value(sk, i);
-                if (wolfSSL_X509_up_ref(x509) != 1) {
-                    WOLFSSL_MSG("Error increasing reference count");
-                    continue;
+        ctx->x509Chain = NULL;
+        if (ret == WOLFSSL_SUCCESS) {
+            ctx->x509Chain = sk;
+            if (sk && opt == 1) {
+                /* up all refs when opt == 1 */
+                for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                    x509 = wolfSSL_sk_X509_value(sk, i);
+                    if (wolfSSL_X509_up_ref(x509) != 1) {
+                        WOLFSSL_MSG("Error increasing reference count");
+                        continue;
+                    }
                 }
             }
+        } else {
+            FreeDer(&ctx->certChain);
+            ctx->certChainCnt = 0;
         }
     }
 #else
@@ -8754,23 +9151,33 @@ int wolfSSL_FIPS_mode_set(int r)
 #endif
 }
 
+/* Returns the strength of the suite in bits and sets alg_bits to the key bits
+ * of its cipher, as OpenSSL does. */
 int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int algBits;
+    CipherSpecs specs;
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_bits");
 
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    (void)alg_bits;
-    if (c!= NULL)
-        ret = c->bits;
-    #else
-    if (c != NULL && c->ssl != NULL) {
-        ret = 8 * c->ssl->specs.key_size;
-        if (alg_bits != NULL) {
-            *alg_bits = ret;
-        }
+    if (c == NULL)
+        return ret;
+
+    wolfssl_cipher_get_specs(c, &specs);
+    algBits = 8 * specs.key_size;
+    ret = algBits;
+    if (specs.bulk_cipher_algorithm == wolfssl_triple_des) {
+        /* 168 key bits, without parity, give a strength of 112. */
+        algBits = 168;
+        ret = 112;
     }
-    #endif
+    else if (specs.bulk_cipher_algorithm == wolfssl_cipher_null) {
+        /* No strength. Integrity-only suites keep their HMAC key bits. */
+        ret = 0;
+    }
+    if (alg_bits != NULL)
+        *alg_bits = algBits;
+
     return ret;
 }
 
@@ -8805,6 +9212,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return NULL;
     if (ssl->ctx == ctx)
         return ssl->ctx;
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* the SSL and its heap hint are freed through ssl->ctx->heap */
+    if (ssl->ctx != NULL && ssl->ctx->heap != ctx->heap) {
+        WOLFSSL_MSG("Cannot switch to a CTX with a different heap");
+        return NULL;
+    }
+#endif
 
     /* suites, allocated and derived under the CTX mutex as this CTX may be
      * shared with other threads. Done before taking a reference below so that
@@ -8828,92 +9242,24 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->ctx = ctx;
 
 #ifndef NO_CERTS
-#ifdef WOLFSSL_COPY_CERT
-    /* If WOLFSSL_COPY_CERT defined, always make new copy of cert from ctx */
-    if (ctx->certificate != NULL) {
-        if (ssl->buffers.certificate != NULL) {
-            FreeDer(&ssl->buffers.certificate);
-            ssl->buffers.certificate = NULL;
-        }
-        ret = AllocCopyDer(&ssl->buffers.certificate, ctx->certificate->buffer,
-            ctx->certificate->length, ctx->certificate->type,
-            ctx->certificate->heap);
-        if (ret != 0) {
-            ssl->buffers.weOwnCert = 0;
-            return NULL;
-        }
-
-        ssl->buffers.weOwnCert = 1;
+    /* Release the certificate, chain and keys this SSL owns so that a ctx
+     * without them leaves none of the old ones behind. */
+    wolfSSL_certs_clear(ssl);
+    /* Same certificate, chain and keys as an SSL made from this ctx. */
+    if (SetSSL_CTX_CertsAndKeys(ssl, ctx) != 0) {
+        return NULL;
     }
-    if (ctx->certChain != NULL) {
-        if (ssl->buffers.certChain != NULL) {
-            FreeDer(&ssl->buffers.certChain);
-            ssl->buffers.certChain = NULL;
-        }
-        ret = AllocCopyDer(&ssl->buffers.certChain, ctx->certChain->buffer,
-            ctx->certChain->length, ctx->certChain->type,
-            ctx->certChain->heap);
-        if (ret != 0) {
-            ssl->buffers.weOwnCertChain = 0;
-            return NULL;
-        }
-
-        ssl->buffers.weOwnCertChain = 1;
-    }
-#else
-    /* ctx owns certificate, certChain and key */
-    ssl->buffers.certificate = ctx->certificate;
-    ssl->buffers.certChain = ctx->certChain;
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+    defined(WOLFSSL_HAVE_SLHDSA)
+    ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
-#ifdef WOLFSSL_TLS13
-    ssl->buffers.certChainCnt = ctx->certChainCnt;
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
+    ssl->useRsaPss     = ctx->useRsaPss;
+    ssl->rsaPssHash    = ctx->rsaPssHash;
+    ssl->rsaPssMgf     = ctx->rsaPssMgf;
+    ssl->rsaPssSaltLen = ctx->rsaPssSaltLen;
 #endif
-#ifndef WOLFSSL_BLIND_PRIVATE_KEY
-#ifdef WOLFSSL_COPY_KEY
-    if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
-    }
-    if (ctx->privateKey != NULL) {
-        ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
-            ctx->privateKey->length, ctx->privateKey->type,
-            ctx->privateKey->heap);
-        if (ret != 0) {
-            ssl->buffers.weOwnKey = 0;
-            return NULL;
-        }
-        ssl->buffers.weOwnKey = 1;
-    }
-    else {
-        ssl->buffers.key      = ctx->privateKey;
-    }
-#else
-    ssl->buffers.key      = ctx->privateKey;
-#endif
-#else
-    if (ctx->privateKey != NULL) {
-        if (ssl->buffers.key != NULL && ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
-        }
-        ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
-            ctx->privateKey->length, ctx->privateKey->type,
-            ctx->privateKey->heap);
-        if (ret != 0) {
-            return NULL;
-        }
-        /* Blind the private key for the SSL with new random mask. */
-        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ctx->privateKeyMask);
-        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
-            &ssl->buffers.keyMask);
-        if (ret != 0) {
-            return NULL;
-        }
-    }
-#endif
-    ssl->buffers.keyType  = ctx->privateKeyType;
-    ssl->buffers.keyId    = ctx->privateKeyId;
-    ssl->buffers.keyLabel = ctx->privateKeyLabel;
-    ssl->buffers.keySz    = ctx->privateKeySz;
-    ssl->buffers.keyDevId = ctx->privateKeyDevId;
     /* flags indicating what certs/keys are available */
     ssl->options.haveRSA          = ctx->haveRSA;
     ssl->options.haveDH           = ctx->haveDH;
@@ -8923,30 +9269,6 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.haveFalconSig    = ctx->haveFalconSig;
     ssl->options.haveMlDsaSig     = ctx->haveMlDsaSig;
     ssl->options.haveSlhDsaSig    = ctx->haveSlhDsaSig;
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-#ifndef WOLFSSL_BLIND_PRIVATE_KEY
-    ssl->buffers.altKey   = ctx->altPrivateKey;
-#else
-    if (ctx->altPrivateKey != NULL) {
-        ret = AllocCopyDer(&ssl->buffers.altKey, ctx->altPrivateKey->buffer,
-            ctx->altPrivateKey->length, ctx->altPrivateKey->type,
-            ctx->altPrivateKey->heap);
-        if (ret != 0) {
-            return NULL;
-        }
-        /* Blind the private key for the SSL with new random mask. */
-        wolfssl_priv_der_blind_toggle(ssl->buffers.altKey,
-                                      ctx->altPrivateKeyMask);
-        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
-            &ssl->buffers.altKeyMask);
-        if (ret != 0) {
-            return NULL;
-        }
-    }
-#endif
-    ssl->buffers.altKeySz   = ctx->altPrivateKeySz;
-    ssl->buffers.altKeyType = ctx->altPrivateKeyType;
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif
 
 #ifdef WOLFSSL_SESSION_ID_CTX
@@ -9226,33 +9548,26 @@ WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa)
 }
 #endif /* !WOLFSSL_USER_IO */
 
-/* Is the specified cipher suite a fake one used an an extension proxy? */
-static WC_INLINE int SCSV_Check(byte suite0, byte suite)
-{
-    (void)suite0;
-    (void)suite;
-#ifdef HAVE_RENEGOTIATION_INDICATION
-    if (suite0 == CIPHER_BYTE && suite == TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
-        return 1;
-#endif
-    return 0;
-}
-
-static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
-        byte suite)
+/* Is the suite outside the versions allowed by minDowngrade and the
+ * WOLFSSL_OP_NO_* bits of mask? */
+static WC_INLINE int CipherMinMaxCheck(byte minDowngrade, unsigned long mask,
+        byte suite0, byte suite)
 {
     const CipherSuiteInfo* cipher_names = GetCipherNames();
-    int cipherSz = GetCipherNamesSize();
-    int i;
-    for (i = 0; i < cipherSz; i++)
-        if (cipher_names[i].cipherSuite0 == suite0 &&
-                cipher_names[i].cipherSuite == suite)
-            break;
-    if (i == cipherSz)
+    int i = GetCipherNamesIdx(suite0, suite);
+
+    if (i < 0)
         return 1;
+    /* Suites are tagged with TLS minors. Map DTLS to the matching TLS. */
+    if (minDowngrade == DTLS_MINOR)
+        minDowngrade = TLSv1_1_MINOR;
+    else if (minDowngrade == DTLSv1_2_MINOR)
+        minDowngrade = TLSv1_2_MINOR;
+    else if (minDowngrade == DTLSv1_3_MINOR)
+        minDowngrade = TLSv1_3_MINOR;
     /* Check min version */
-    if (cipher_names[i].minor < ssl->options.minDowngrade) {
-        if (ssl->options.minDowngrade <= TLSv1_2_MINOR &&
+    if (cipher_names[i].minor < minDowngrade) {
+        if (minDowngrade <= TLSv1_2_MINOR &&
                 cipher_names[i].minor >= TLSv1_MINOR)
             /* 1.0 ciphersuites are in general available in 1.1 and
              * 1.1 ciphersuites are in general available in 1.2 */
@@ -9262,19 +9577,94 @@ static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
     /* Check max version */
     switch (cipher_names[i].minor) {
     case SSLv3_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_SSLv3;
+        return mask & WOLFSSL_OP_NO_SSLv3;
     case TLSv1_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1;
+        return mask & WOLFSSL_OP_NO_TLSv1;
     case TLSv1_1_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1;
+        return mask & WOLFSSL_OP_NO_TLSv1_1;
     case TLSv1_2_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2;
+        return mask & WOLFSSL_OP_NO_TLSv1_2;
     case TLSv1_3_MINOR :
-        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3;
+        return mask & WOLFSSL_OP_NO_TLSv1_3;
     default:
         WOLFSSL_MSG("Unrecognized minor version");
         return 1;
     }
+}
+
+static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
+        byte suite)
+{
+    return CipherMinMaxCheck(ssl->options.minDowngrade, ssl->options.mask,
+                             suite0, suite);
+}
+
+/* Is the suite at index i left out of a cipher stack? */
+static WC_INLINE int CipherStackSkip(const Suites* suites, int i,
+        byte minDowngrade, unsigned long mask)
+{
+    /* A couple of suites are placeholders for special options, skip those. */
+    return SCSV_Check(suites->suites[i], suites->suites[i+1]) ||
+           CipherMinMaxCheck(minDowngrade, mask, suites->suites[i],
+                             suites->suites[i+1]);
+}
+
+/* Build a stack of the suites that can be offered, highest priority first.
+ * Returns NULL when no suite can be offered or on error. */
+static WOLF_STACK_OF(WOLFSSL_CIPHER)* CipherStackNew(const Suites* suites,
+        byte minDowngrade, unsigned long mask, void* heap)
+{
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk;
+    int i;
+
+    sk = wolfssl_sk_new_type_ex(STACK_TYPE_CIPHER, heap);
+    if (sk == NULL)
+        return NULL;
+
+    /* Walk lowest priority first: each suite is inserted at index 0, so
+     * the highest priority suite ends up on top of the stack. */
+    for (i = suites->suiteSz - 2; i >= 0; i -= 2) {
+        struct WOLFSSL_CIPHER cipher;
+
+        if (CipherStackSkip(suites, i, minDowngrade, mask))
+            continue;
+
+        wolfssl_cipher_init_suite(&cipher, suites->suites[i],
+            suites->suites[i+1]);
+        if (wolfSSL_sk_insert(sk, &cipher, 0) <= 0) {
+            WOLFSSL_MSG("Error inserting cipher onto stack");
+            wolfSSL_sk_CIPHER_free(sk);
+            return NULL;
+        }
+    }
+
+    /* If no ciphers were added, free empty stack and return NULL */
+    if (wolfSSL_sk_num(sk) == 0) {
+        wolfSSL_sk_CIPHER_free(sk);
+        sk = NULL;
+    }
+    return sk;
+}
+
+/* Does sk hold the suites CipherStackNew() would build, in the same order? */
+static int CipherStackMatches(WOLFSSL_STACK* sk, const Suites* suites,
+        byte minDowngrade, unsigned long mask)
+{
+    int num = wolfSSL_sk_num(sk);
+    int i;
+
+    for (i = 0; i < suites->suiteSz; i += 2) {
+        if (CipherStackSkip(suites, i, minDowngrade, mask))
+            continue;
+        if (num == 0 || sk == NULL ||
+                sk->data.cipher.cipherSuite0 != suites->suites[i] ||
+                sk->data.cipher.cipherSuite != suites->suites[i+1]) {
+            return 0;
+        }
+        num--;
+        sk = sk->next;
+    }
+    return num == 0;
 }
 
 /* returns a pointer to internal cipher suite list. Should not be free'd by
@@ -9283,10 +9673,6 @@ static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
     const Suites* suites;
-#if defined(OPENSSL_ALL)
-    const CipherSuiteInfo* cipher_names = GetCipherNames();
-    int cipherSz = GetCipherNamesSize();
-#endif
 
     WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
     if (ssl == NULL)
@@ -9298,59 +9684,66 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 
     /* check if stack needs populated */
     if (ssl->suitesStack == NULL) {
-        int i;
-
-        ((WOLFSSL*)ssl)->suitesStack =
-                wolfssl_sk_new_type_ex(STACK_TYPE_CIPHER, ssl->heap);
-        if (ssl->suitesStack == NULL)
-            return NULL;
-
-        /* Walk lowest priority first: each suite is inserted at index 0, so
-         * the highest priority suite ends up on top of the stack. */
-        for (i = suites->suiteSz - 2; i >= 0; i -= 2)
-        {
-            struct WOLFSSL_CIPHER cipher;
-
-            /* A couple of suites are placeholders for special options,
-             * skip those. */
-            if (SCSV_Check(suites->suites[i], suites->suites[i+1])
-                    || sslCipherMinMaxCheck(ssl, suites->suites[i],
-                                            suites->suites[i+1])) {
-                continue;
-            }
-
-            XMEMSET(&cipher, 0, sizeof(cipher));
-            cipher.cipherSuite0 = suites->suites[i];
-            cipher.cipherSuite  = suites->suites[i+1];
-            cipher.ssl          = ssl;
-#if defined(OPENSSL_ALL)
-            cipher.in_stack     = 1;
-            {
-                int j;
-                for (j = 0; j < cipherSz; j++) {
-                    if (cipher_names[j].cipherSuite0 == cipher.cipherSuite0 &&
-                            cipher_names[j].cipherSuite == cipher.cipherSuite) {
-                        cipher.offset = (unsigned long)j;
-                        break;
-                    }
-                }
-            }
-#endif
-            if (wolfSSL_sk_insert(ssl->suitesStack, &cipher, 0) <= 0) {
-                WOLFSSL_MSG("Error inserting cipher onto stack");
-                wolfSSL_sk_CIPHER_free(ssl->suitesStack);
-                ((WOLFSSL*)ssl)->suitesStack = NULL;
-                break;
-            }
-        }
-
-        /* If no ciphers were added, free empty stack and return NULL */
-        if (ssl->suitesStack != NULL && wolfSSL_sk_num(ssl->suitesStack) == 0) {
-            wolfSSL_sk_CIPHER_free(ssl->suitesStack);
-            ((WOLFSSL*)ssl)->suitesStack = NULL;
-        }
+        ((WOLFSSL*)ssl)->suitesStack = CipherStackNew(suites,
+            ssl->options.minDowngrade, ssl->options.mask, ssl->heap);
     }
     return ssl->suitesStack;
+}
+
+/* OpenSSL SSL_CTX_get_ciphers(): the cipher list of ctx, highest priority
+ * first. The stack is owned by ctx and must not be freed. Changing the list
+ * invalidates it, as in OpenSSL; here the next call frees the old stack.
+ * As in SSL_get_ciphers(), suites outside the version range are left out
+ * and NULL is returned when none is left.
+ * Before wolfSSL_new() derives ctx->suites the defaults are reported, as
+ * OpenSSL does after SSL_CTX_new(). ctx->suites is only read, under the CTX
+ * mutex that guards its derivation. Entries describe their own suite and are
+ * not written after the stack is built, so threads may share them. */
+WOLF_STACK_OF(WOLFSSL_CIPHER)* wolfSSL_CTX_get_ciphers_compat(
+    const WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_CTX* c = (WOLFSSL_CTX*)ctx;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* sk = NULL;
+    const Suites* suites;
+    WC_DECLARE_VAR(defSuites, Suites, 1, 0);
+
+    WOLFSSL_ENTER("wolfSSL_CTX_get_ciphers_compat");
+    if (ctx == NULL)
+        return NULL;
+
+    if (wolfSSL_RefWithMutexLock(&c->ref) != 0) {
+        WOLFSSL_MSG("Failed to lock CTX mutex");
+        return NULL;
+    }
+
+    suites = ctx->suites;
+    if (suites == NULL) {
+        /* Not derived yet: use the list wolfSSL_new() would derive. */
+        WC_ALLOC_VAR_EX(defSuites, Suites, 1, ctx->heap, DYNAMIC_TYPE_SUITES,
+            WOLFSSL_MSG("Memory alloc for Suites failed"));
+        if (WC_VAR_OK(defSuites)) {
+            XMEMSET(defSuites, 0, sizeof(Suites));
+            InitSSL_CTX_Suites(ctx, defSuites);
+            suites = defSuites;
+        }
+    }
+
+    if (suites != NULL) {
+        if (!CipherStackMatches(c->suitesStack, suites, ctx->minDowngrade,
+                ctx->mask)) {
+            wolfSSL_sk_CIPHER_free(c->suitesStack);
+            c->suitesStack = CipherStackNew(suites, ctx->minDowngrade,
+                ctx->mask, ctx->heap);
+        }
+        sk = c->suitesStack;
+    }
+
+    if (wolfSSL_RefWithMutexUnlock(&c->ref) != 0) {
+        WOLFSSL_MSG("Failed to unlock CTX mutex");
+    }
+
+    WC_FREE_VAR_EX(defSuites, ctx->heap, DYNAMIC_TYPE_SUITES);
+    return sk;
 }
 
 /* Get the name of the cipher at index priority in the cipher list configured
@@ -9402,8 +9795,6 @@ const char* wolfSSL_get_cipher_list_compat(const WOLFSSL* ssl, int priority)
 WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
-    const CipherSuiteInfo* cipher_names = GetCipherNames();
-    int cipherSz = GetCipherNamesSize();
     const Suites* suites;
 
     WOLFSSL_ENTER("wolfSSL_get_client_ciphers");
@@ -9426,7 +9817,6 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
     }
     else { /* generate cipher suites stack if not already done */
         int i;
-        int j;
 
         ret = wolfSSL_sk_new_node(ssl->heap);
         if (ret != NULL) {
@@ -9444,22 +9834,8 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
                     continue;
                 }
 
-                cipher.cipherSuite0 = suites->suites[i];
-                cipher.cipherSuite  = suites->suites[i+1];
-                cipher.ssl          = ssl;
-                for (j = 0; j < cipherSz; j++) {
-                    if (cipher_names[j].cipherSuite0 ==
-                            cipher.cipherSuite0 &&
-                            cipher_names[j].cipherSuite ==
-                                    cipher.cipherSuite) {
-                        cipher.offset = (unsigned long)j;
-                        break;
-                    }
-                }
-
-                /* in_stack is checked in wolfSSL_CIPHER_description */
-                cipher.in_stack     = 1;
-
+                wolfssl_cipher_init_suite(&cipher, suites->suites[i],
+                    suites->suites[i+1]);
                 if (wolfSSL_sk_CIPHER_push(ret, &cipher) <= 0) {
                     WOLFSSL_MSG("Error pushing client cipher onto stack");
                     wolfSSL_sk_CIPHER_free(ret);
@@ -9548,8 +9924,10 @@ void wolfSSL_WOLFSSL_STRING_free(WOLFSSL_STRING s)
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 
-#if (defined(HAVE_ECC) || \
-    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
+/* The FFDHE groups have no curve behind them, but they are named and reported
+ * through these same APIs, so an FFDHE-only build needs this block too. */
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_CURVE448) || !defined(NO_DH))
 #define CURVE_NAME(c) XSTR_SIZEOF((c)), (c)
 
 const WOLF_EC_NIST_NAME kNistCurves[] = {
@@ -9632,6 +10010,26 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 #endif
 #endif /* WOLFSSL_MLKEM_KYBER */
 #endif /* WOLFSSL_HAVE_MLKEM */
+#ifndef NO_DH
+    /* Finite field groups are not EC curves, but they do have NIDs of their
+     * own (RFC 7919, same values as OpenSSL). Use those rather than the TLS
+     * code point, which would collide with an unrelated WC_NID_* value. */
+    #ifdef HAVE_FFDHE_2048
+    {CURVE_NAME("ffdhe2048"), WC_NID_ffdhe2048, WOLFSSL_FFDHE_2048},
+    #endif
+    #ifdef HAVE_FFDHE_3072
+    {CURVE_NAME("ffdhe3072"), WC_NID_ffdhe3072, WOLFSSL_FFDHE_3072},
+    #endif
+    #ifdef HAVE_FFDHE_4096
+    {CURVE_NAME("ffdhe4096"), WC_NID_ffdhe4096, WOLFSSL_FFDHE_4096},
+    #endif
+    #ifdef HAVE_FFDHE_6144
+    {CURVE_NAME("ffdhe6144"), WC_NID_ffdhe6144, WOLFSSL_FFDHE_6144},
+    #endif
+    #ifdef HAVE_FFDHE_8192
+    {CURVE_NAME("ffdhe8192"), WC_NID_ffdhe8192, WOLFSSL_FFDHE_8192},
+    #endif
+#endif /* !NO_DH */
 #ifdef WOLFSSL_SM2
     {CURVE_NAME("SM2"),     WC_NID_sm2, WOLFSSL_ECC_SM2P256V1},
 #endif
@@ -9794,7 +10192,168 @@ leave:
     return ret;
 }
 
-#endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
+/* Get the group used for key exchange.
+ *
+ * Mirrors OpenSSL's SSL_get_negotiated_group(): the NID is returned for groups
+ * wolfSSL gives one, the IANA code point otherwise. NID values are wolfSSL's
+ * WC_NID_* (not every one matches OpenSSL's), so compare against those rather
+ * than against literals. The result can be passed to wolfSSL_group_to_name().
+ * Only a completed handshake reports a group.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @return  Group identifier on success.
+ * @return  0 when ssl is NULL or no group has been negotiated.
+ */
+int wolfSSL_get_negotiated_group(const WOLFSSL* ssl)
+{
+    word16 group = 0;
+    const WOLF_EC_NIST_NAME* nist_name;
+#if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || defined(HAVE_ECC)
+    int ecdhDone;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_get_negotiated_group");
+
+    if (ssl == NULL)
+        return 0;
+
+#if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+    /* Only a completed handshake has a negotiated group. Mid-handshake this
+     * can hold a group no key exchange used: the server seeds it from the
+     * resumed session in CheckPreSharedKeys(), and the client stores the group
+     * a HelloRetryRequest asked for. */
+    if (ssl->options.handShakeDone)
+        group = ssl->namedGroup;
+#endif
+
+#if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || defined(HAVE_ECC)
+    /* Below TLS 1.3 the negotiated curve is only in ecdhCurveOID, which
+     * InitSSL() also seeds from ctx->ecdhCurveOID - what
+     * SSL_CTX_set_tmp_ecdh() writes. Report it only once an EC(DH) exchange
+     * has actually run, or a configured preference reads back as a
+     * negotiated group on a connection that never used one. */
+    ecdhDone = ssl->options.handShakeDone &&
+               ((ssl->specs.kea == ecc_diffie_hellman_kea) ||
+                (ssl->specs.kea == ecdhe_psk_kea));
+#endif
+
+#ifdef HAVE_CURVE25519
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID == ECC_X25519_OID))
+        group = WOLFSSL_ECC_X25519;
+#endif
+#ifdef HAVE_CURVE448
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID == ECC_X448_OID))
+        group = WOLFSSL_ECC_X448;
+#endif
+#ifdef HAVE_ECC
+    if ((group == 0) && ecdhDone && (ssl->ecdhCurveOID != 0))
+        group = GetCurveByOID((int)ssl->ecdhCurveOID);
+#endif
+
+    if (group == 0)
+        return 0;
+
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if (nist_name->curve == group)
+            return nist_name->nid;
+    }
+
+    return (int)group;
+}
+
+/* Names OpenSSL gives the TLS supported groups. These are the TLS group
+ * registry spellings, which differ from both the NIST curve names in
+ * kNistCurves ("P-256" is "secp256r1" here) and from wolfSSL_get_curve_name().
+ */
+static const struct {
+    word16      group;
+    const char* name;
+} kTlsGroupNames[] = {
+#ifdef HAVE_ECC
+    {WOLFSSL_ECC_SECP256R1,        "secp256r1"},
+    {WOLFSSL_ECC_SECP384R1,        "secp384r1"},
+    {WOLFSSL_ECC_SECP521R1,        "secp521r1"},
+    {WOLFSSL_ECC_SECP224R1,        "secp224r1"},
+    {WOLFSSL_ECC_SECP192R1,        "secp192r1"},
+    {WOLFSSL_ECC_SECP256K1,        "secp256k1"},
+#ifdef HAVE_ECC_BRAINPOOL
+    {WOLFSSL_ECC_BRAINPOOLP256R1,  "brainpoolP256r1"},
+    {WOLFSSL_ECC_BRAINPOOLP384R1,  "brainpoolP384r1"},
+    {WOLFSSL_ECC_BRAINPOOLP512R1,  "brainpoolP512r1"},
+    {WOLFSSL_ECC_BRAINPOOLP256R1TLS13, "brainpoolP256r1tls13"},
+    {WOLFSSL_ECC_BRAINPOOLP384R1TLS13, "brainpoolP384r1tls13"},
+    {WOLFSSL_ECC_BRAINPOOLP512R1TLS13, "brainpoolP512r1tls13"},
+#endif
+#endif /* HAVE_ECC */
+#ifdef HAVE_CURVE25519
+    {WOLFSSL_ECC_X25519,           "x25519"},
+#endif
+#ifdef HAVE_CURVE448
+    {WOLFSSL_ECC_X448,             "x448"},
+#endif
+#ifndef NO_DH
+    {WOLFSSL_FFDHE_2048,           "ffdhe2048"},
+    {WOLFSSL_FFDHE_3072,           "ffdhe3072"},
+    {WOLFSSL_FFDHE_4096,           "ffdhe4096"},
+    {WOLFSSL_FFDHE_6144,           "ffdhe6144"},
+    {WOLFSSL_FFDHE_8192,           "ffdhe8192"},
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_NO_ML_KEM)
+    {WOLFSSL_ML_KEM_512,           "MLKEM512"},
+    {WOLFSSL_ML_KEM_768,           "MLKEM768"},
+    {WOLFSSL_ML_KEM_1024,          "MLKEM1024"},
+#if defined(HAVE_ECC) && defined(WOLFSSL_PQC_HYBRIDS)
+    {WOLFSSL_SECP256R1MLKEM768,    "SecP256r1MLKEM768"},
+    {WOLFSSL_SECP384R1MLKEM1024,   "SecP384r1MLKEM1024"},
+#ifdef HAVE_CURVE25519
+    {WOLFSSL_X25519MLKEM768,       "X25519MLKEM768"},
+#endif
+#endif
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_NO_ML_KEM */
+    {0, NULL}
+};
+
+/* Get the name of a group.
+ *
+ * @param [in] ssl  SSL/TLS object. Unused, present for OpenSSL compatibility.
+ * @param [in] id   NID or IANA code point of the group.
+ * @return  Name of the group on success.
+ * @return  NULL when the group is unknown.
+ */
+const char* wolfSSL_group_to_name(const WOLFSSL* ssl, int id)
+{
+    const WOLF_EC_NIST_NAME* nist_name;
+    int group = id;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_group_to_name");
+
+    (void)ssl;
+
+    /* wolfSSL_get_negotiated_group() reports a NID where one exists, so map
+     * NIDs back to their code point before looking the name up. */
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if (nist_name->nid == id) {
+            group = (int)nist_name->curve;
+            break;
+        }
+    }
+
+    for (i = 0; kTlsGroupNames[i].name != NULL; i++) {
+        if ((int)kTlsGroupNames[i].group == group)
+            return kTlsGroupNames[i].name;
+    }
+
+    /* Not a group OpenSSL names - fall back to the wolfSSL name. */
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if ((int)nist_name->curve == group)
+            return nist_name->name;
+    }
+
+    return NULL;
+}
+
+#endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 || !NO_DH) */
 #endif /* OPENSSL_EXTRA || HAVE_CURL */
 
 
@@ -9866,6 +10425,43 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
         return WOLFSSL_FAILURE;
 
     ssl->protoMsgCtx = arg;
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* OpenSSL SSL_CTX_set_max_send_fragment(): cap the plaintext of each record
+ * sent. Local only: the peer is not told and receiving is not limited.
+ * Accepts 512 to 16384. Unset means no cap. wolfSSL_new() copies the value,
+ * so later changes do not reach existing objects, as in OpenSSL.
+ * With a negotiated max_fragment_length the smaller limit applies, where
+ * OpenSSL uses the negotiated one. A DTLS write over the cap fails with
+ * DTLS_SIZE_ERROR, like one over the MTU.
+ *
+ * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on bad argument
+ */
+int wolfSSL_CTX_set_max_send_fragment(WOLFSSL_CTX* ctx, long max_fragment)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_max_send_fragment");
+    if (ctx == NULL || max_fragment < 512 || max_fragment > MAX_RECORD_SIZE)
+        return WOLFSSL_FAILURE;
+
+    ctx->maxSendFragment = (word16)max_fragment;
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* OpenSSL SSL_set_max_send_fragment(): as above for one object. Replaces the
+ * value copied from the WOLFSSL_CTX.
+ *
+ * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on bad argument
+ */
+int wolfSSL_set_max_send_fragment(WOLFSSL* ssl, long max_fragment)
+{
+    WOLFSSL_ENTER("wolfSSL_set_max_send_fragment");
+    if (ssl == NULL || max_fragment < 512 || max_fragment > MAX_RECORD_SIZE)
+        return WOLFSSL_FAILURE;
+
+    ssl->maxSendFragment = (word16)max_fragment;
     return WOLFSSL_SUCCESS;
 }
 
@@ -10852,8 +11448,16 @@ int wolfSSL_FIPS_drbg_reseed(WOLFSSL_DRBG_CTX* ctx, const unsigned char* adin,
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL && ctx->rng != NULL) {
-    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
+    #ifdef WC_RNG_HAVE_RESEED_NOW
+        /* OpenSSL FIPS_drbg_reseed semantics: reseed from the module's
+         * source with adin as additional input.  (A credited user-class
+         * reseed of a conformant instance is refused with
+         * WC_RNG_RBGC_STRATUM_IMMUTABLE.) */
+        if (wc_RNG_DRBG_Reseed_Now(ctx->rng, adin, (word32)adinlen) == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+    #elif !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+          (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
         if (wc_RNG_DRBG_Reseed(ctx->rng, adin, (word32)adinlen) == 0) {
             ret = WOLFSSL_SUCCESS;
         }
@@ -10870,7 +11474,8 @@ int wolfSSL_FIPS_drbg_generate(WOLFSSL_DRBG_CTX* ctx, unsigned char* out,
     size_t adinlen)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-    if (ctx != NULL && ctx->rng != NULL) {
+    if (ctx != NULL && ctx->rng != NULL &&
+            outlen <= (size_t)WC_MAX_UINT_OF(word32)) {
         ret = wc_RNG_GenerateBlock(ctx->rng, out, (word32)outlen);
         if (ret == 0) {
             ret = WOLFSSL_SUCCESS;

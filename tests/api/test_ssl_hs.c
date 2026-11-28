@@ -481,6 +481,311 @@ int test_wolfSSL_is_init_finished(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+/* Check that the handshake of an object that sent or received a fatal alert
+ * is over: it is not finished, and a handshake call fails without asking to
+ * be called again and without sending anything.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] out  Length of the memio buffer ssl sends into.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_hs_ended_by_alert(WOLFSSL* ssl, const int* out)
+{
+    EXPECT_DECLS;
+    int sent = *out;
+    int err = WOLFSSL_ERROR_NONE;
+
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl), 0);
+    ExpectIntEQ(wolfSSL_negotiate(ssl), WOLFSSL_FATAL_ERROR);
+    if (ssl != NULL) {
+        err = wolfSSL_get_error(ssl, WOLFSSL_FATAL_ERROR);
+    }
+    ExpectIntNE(err, WOLFSSL_ERROR_NONE);
+    ExpectIntNE(err, WOLFSSL_ERROR_WANT_READ);
+    ExpectIntNE(err, WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntNE(err, WOLFSSL_ERROR_ZERO_RETURN);
+#ifdef OPENSSL_EXTRA
+    ExpectIntEQ(wolfSSL_SSL_in_init(ssl), 1);
+    ExpectIntEQ(wolfSSL_SSL_do_handshake(ssl), WOLFSSL_FATAL_ERROR);
+#endif
+    ExpectIntEQ(*out, sent);
+
+    return EXPECT_RESULT();
+}
+
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+/* The client can't verify the server's certificate, so it sends a fatal alert
+ * during the handshake and the server receives it. Neither can carry on with
+ * the handshake. Both can be reused after wolfSSL_clear().
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_fatal_alert_in_hs(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    /* OpenSSL compatible defaults don't verify the peer. */
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx_c), WOLFSSL_SUCCESS);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(FATAL_ERROR));
+
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_c, &test_ctx.s_len), TEST_SUCCESS);
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_s, &test_ctx.c_len), TEST_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, caCertFile, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+#ifndef WOLFSSL_NO_CLIENT_AUTH
+/* The server requires a certificate the client doesn't have, so it sends a
+ * fatal alert and the client receives it. With TLS 1.3 the client finished its
+ * handshake first and receives the alert when it reads.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @param [in] tls13     Whether TLS 1.3 is negotiated.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_fatal_alert_from_server(method_provider method_c,
+    method_provider method_s, int tls13)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char buf[8];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    wolfSSL_set_verify(ssl_s,
+        WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+
+    ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (tls13) {
+        ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+        ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+            WOLFSSL_FATAL_ERROR);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    }
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(FATAL_ERROR));
+
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_s, &test_ctx.c_len), TEST_SUCCESS);
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_c, &test_ctx.s_len), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* After the handshake, the server gets a record that fails authentication. It
+ * sends a fatal alert, which the client receives. The handshake of neither is
+ * finished any more, and it can't be run again.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_fatal_alert_after_hs(method_provider method_c,
+    method_provider method_s)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "fatal alert";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    if (EXPECT_SUCCESS()) {
+        /* The last byte is part of the tag or MAC. */
+        test_ctx.s_buff[test_ctx.s_len - 1] ^= 0x01;
+    }
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WC_NO_ERR_TRACE(FATAL_ERROR));
+
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_s, &test_ctx.c_len), TEST_SUCCESS);
+    ExpectIntEQ(test_hs_ended_by_alert(ssl_c, &test_ctx.s_len), TEST_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+
+/* Waiting to read or write, a close_notify and, with TLS 1.3, a user_canceled
+ * alert don't end the handshake. Data sent after the close_notify is still
+ * read.
+ *
+ * @param [in] method_c  Client method.
+ * @param [in] method_s  Server method.
+ * @param [in] tls13     Whether TLS 1.3 is negotiated.
+ * @return  TEST_SUCCESS on success.
+ */
+static int test_no_fatal_alert(method_provider method_c,
+    method_provider method_s, int tls13)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char msg[] = "not fatal";
+    char buf[sizeof(msg)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        method_c, method_s), 0);
+    /* Some builds free the server's key after the handshake. The server needs
+     * it to call wolfSSL_accept() again. */
+    ExpectIntEQ(wolfSSL_KeepHandshakeResources(ssl_s), 0);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), WOLFSSL_SUCCESS);
+
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
+    ExpectIntEQ(wolfSSL_write(ssl_c, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)),
+        (int)sizeof(msg));
+
+    if (tls13) {
+        ExpectIntEQ(wolfSSL_SendUserCanceled(ssl_c),
+            WOLFSSL_SHUTDOWN_NOT_DONE);
+    }
+    else {
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    }
+    ExpectIntEQ(wolfSSL_write(ssl_s, msg, (int)sizeof(msg)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_read(ssl_c, buf, (int)sizeof(buf)),
+        (int)sizeof(msg));
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_read(ssl_s, buf, (int)sizeof(buf)), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_ZERO_RETURN);
+    ExpectIntEQ(wolfSSL_is_init_finished(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), WOLFSSL_SUCCESS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return EXPECT_RESULT();
+}
+#endif
+
+/* A fatal alert, sent or received, during or after the handshake, ends the
+ * handshake, as in OpenSSL. Other alerts and retryable errors don't.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_fatal_alert_ends_hs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS)
+#ifndef WOLFSSL_NO_TLS12
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    ExpectIntEQ(test_fatal_alert_in_hs(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_CLIENT_AUTH
+    ExpectIntEQ(test_fatal_alert_from_server(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_fatal_alert_after_hs(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method), TEST_SUCCESS);
+    ExpectIntEQ(test_no_fatal_alert(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 0), TEST_SUCCESS);
+#endif
+#ifdef WOLFSSL_TLS13
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    ExpectIntEQ(test_fatal_alert_in_hs(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+#endif
+#ifndef WOLFSSL_NO_CLIENT_AUTH
+    ExpectIntEQ(test_fatal_alert_from_server(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 1), TEST_SUCCESS);
+#endif
+    ExpectIntEQ(test_fatal_alert_after_hs(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method), TEST_SUCCESS);
+    ExpectIntEQ(test_no_fatal_alert(wolfTLSv1_3_client_method,
+        wolfTLSv1_3_server_method, 1), TEST_SUCCESS);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(NO_HANDSHAKE_DONE_CB) && !defined(NO_TLS) && \
     !defined(WOLFSSL_NO_TLS12)
@@ -810,10 +1115,19 @@ int test_wolfSSL_set_accept_state_reinit(void)
 
     wolfSSL_set_accept_state(ssl);
 
+    /* Picked up as the object's own copy, not the context's buffers. */
     if ((ssl != NULL) && (ctx != NULL)) {
         ExpectIntEQ(ssl->options.haveDH, 1);
-        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
-        ExpectPtrEq(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectNotNull(ssl->buffers.serverDH_G.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer);
+        ExpectIntEQ(ssl->buffers.serverDH_P.length, ctx->serverDH_P.length);
+        ExpectIntEQ(ssl->buffers.serverDH_G.length, ctx->serverDH_G.length);
+        ExpectBufEQ(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer,
+            ctx->serverDH_P.length);
+        ExpectBufEQ(ssl->buffers.serverDH_G.buffer, ctx->serverDH_G.buffer,
+            ctx->serverDH_G.length);
     }
 
     wolfSSL_free(ssl);
@@ -968,8 +1282,8 @@ int test_wolfSSL_SSL_do_handshake_quic(void)
 /* Test that wolfSSL_set_connect_state() discards server DH parameters.
  *
  * A client generates its own DH parameters, so any server ones are dropped.
- * Parameters the object owns are freed; parameters merely borrowed from the
- * context are only unlinked, since the context still owns them.
+ * The object holds its own copy either way, whether set on it directly or
+ * taken from the context, so the context is left untouched.
  *
  * @return  TEST_SUCCESS on success.
  */
@@ -1016,7 +1330,7 @@ int test_wolfSSL_set_connect_state_dh(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
-    /* Parameters borrowed from the context are left for the context to free. */
+    /* Parameters taken from the context are a copy the object owns. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
@@ -1026,10 +1340,14 @@ int test_wolfSSL_set_connect_state_dh(void)
         WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
-    /* Inherited from the context, so not owned here. */
-    if (ssl != NULL) {
-        ExpectPtrEq(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
-        ExpectIntEQ(ssl->buffers.weOwnDH, 0);
+    /* Copied from the context, so owned here. */
+    if ((ssl != NULL) && (ctx != NULL)) {
+        ExpectNotNull(ssl->buffers.serverDH_P.buffer);
+        ExpectPtrNE(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectIntEQ(ssl->buffers.serverDH_P.length, ctx->serverDH_P.length);
+        ExpectBufEQ(ssl->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer,
+            ctx->serverDH_P.length);
+        ExpectIntEQ(ssl->buffers.weOwnDH, 1);
     }
 
     wolfSSL_set_connect_state(ssl);
@@ -1044,11 +1362,285 @@ int test_wolfSSL_set_connect_state_dh(void)
         ExpectNotNull(ctx->serverDH_G.buffer);
     }
     ExpectNotNull(ssl2 = wolfSSL_new(ctx));
-    if (ssl2 != NULL) {
-        ExpectPtrEq(ssl2->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+    if ((ssl2 != NULL) && (ctx != NULL)) {
+        ExpectNotNull(ssl2->buffers.serverDH_P.buffer);
+        ExpectPtrNE(ssl2->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer);
+        ExpectIntEQ(ssl2->buffers.serverDH_P.length, ctx->serverDH_P.length);
+        ExpectBufEQ(ssl2->buffers.serverDH_P.buffer, ctx->serverDH_P.buffer,
+            ctx->serverDH_P.length);
     }
 
     wolfSSL_free(ssl2);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+#ifdef HAVE_SUPPORTED_CURVES
+/* Offer the first compiled-in group that is not FFDHE. */
+static WC_MAYBE_UNUSED int test_dh_use_non_ffdhe_group(WOLFSSL* ssl)
+{
+    static const word16 groups[] = {
+        WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_X25519, WOLFSSL_ML_KEM_768
+    };
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    size_t i;
+
+    for (i = 0; (i < XELEM_CNT(groups)) && (ret != WOLFSSL_SUCCESS); i++) {
+        ret = wolfSSL_UseSupportedCurve(ssl, groups[i]);
+    }
+    return ret;
+}
+#endif
+
+/* DH parameters taken from the context are the object's own copy, given back
+ * at the end of the handshake and taken again when next needed.
+ *
+ * The copy is what lets the context replace its parameters while sessions are
+ * running. Holding it only for the handshake keeps the cost off connections
+ * that are established and idle.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_dh_ctx_params_reuse(void)
+{
+    EXPECT_DECLS;
+/* Handing the object a second connection needs its certificate and key to
+ * outlast the first handshake, which only these builds arrange. */
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_DH) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_WOLFSSL_CLIENT)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = test_ctx.s_ciphers = "DHE-RSA-AES128-GCM-SHA256";
+
+    /* The parameters go on the context before any session takes them. A
+     * context made here is used as-is, so it gets the credentials and the
+     * memio wiring that test_memio_setup would otherwise have given it. */
+    ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_set_cipher_list(ctx_s, test_ctx.s_ciphers),
+        WOLFSSL_SUCCESS);
+    wolfSSL_SetIORecv(ctx_s, test_memio_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_memio_write_cb);
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx_s, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+
+    /* test_memio_setup puts its own parameters on the server session, which
+     * would stand in for the ones under test. Take a fresh session from the
+     * same context so the parameters really are the context's. */
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    ExpectNotNull(ssl_s = wolfSSL_new(ctx_s));
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+
+    /* Its own copy, matching the context's but not the same buffers. */
+    if ((ssl_s != NULL) && (ctx_s != NULL)) {
+        ExpectNotNull(ssl_s->buffers.serverDH_P.buffer);
+        ExpectNotNull(ssl_s->buffers.serverDH_G.buffer);
+        ExpectPtrNE(ssl_s->buffers.serverDH_P.buffer, ctx_s->serverDH_P.buffer);
+        ExpectPtrNE(ssl_s->buffers.serverDH_G.buffer, ctx_s->serverDH_G.buffer);
+        ExpectIntEQ(ssl_s->buffers.serverDH_P.length, ctx_s->serverDH_P.length);
+        ExpectIntEQ(ssl_s->buffers.serverDH_G.length, ctx_s->serverDH_G.length);
+        ExpectBufEQ(ssl_s->buffers.serverDH_P.buffer, ctx_s->serverDH_P.buffer,
+            ctx_s->serverDH_P.length);
+        ExpectBufEQ(ssl_s->buffers.serverDH_G.buffer, ctx_s->serverDH_G.buffer,
+            ctx_s->serverDH_G.length);
+        ExpectIntEQ(ssl_s->buffers.weOwnDH, 1);
+    }
+
+    /* Offering no FFDHE group keeps the server on the parameters it was
+     * given, rather than switching to a named group and dropping them. A build
+     * without supported curves sends no groups at all, so there is nothing to
+     * narrow down. */
+#ifdef HAVE_SUPPORTED_CURVES
+    ExpectIntEQ(test_dh_use_non_ffdhe_group(ssl_c), WOLFSSL_SUCCESS);
+#endif
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* The handshake ran on them and then gave them back. A build that may
+     * renegotiate holds on to every handshake resource, parameters included. */
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->specs.kea, diffie_hellman_kea);
+#ifndef HAVE_SECURE_RENEGOTIATION
+        ExpectNull(ssl_s->buffers.serverDH_P.buffer);
+        ExpectNull(ssl_s->buffers.serverDH_G.buffer);
+#endif
+    }
+
+    /* So the object can be handed a second connection. */
+    ExpectIntEQ(wolfSSL_clear(ssl_s), WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    ExpectNotNull(ssl_c = wolfSSL_new(ctx_c));
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+#ifdef HAVE_SUPPORTED_CURVES
+    ExpectIntEQ(test_dh_use_non_ffdhe_group(ssl_c), WOLFSSL_SUCCESS);
+#endif
+    test_memio_clear_buffer(&test_ctx, 0);
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* The second handshake took a fresh copy from the context. Without it
+     * there would be no parameters left to send and it would not complete. */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    if (ssl_s != NULL) {
+        ExpectIntEQ(ssl_s->specs.kea, diffie_hellman_kea);
+#ifndef HAVE_SECURE_RENEGOTIATION
+        ExpectNull(ssl_s->buffers.serverDH_P.buffer);
+        ExpectNull(ssl_s->buffers.serverDH_G.buffer);
+#endif
+    }
+
+    /* And the context still has its own to hand out. */
+    if (ctx_s != NULL) {
+        ExpectNotNull(ctx_s->serverDH_P.buffer);
+        ExpectNotNull(ctx_s->serverDH_G.buffer);
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || \
+     defined(WOLFSSL_WPAS_SMALL)) && \
+    !defined(NO_DH) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+#define TEST_DH_OOM
+
+/* Makes every allocation fail, so the DH copy is certain to run out of
+ * memory whichever allocations a build makes. */
+static int dhOomFailAll = 0;
+static int dhOomFailed = 0;
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* dhOomMalloc(size_t size, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* dhOomMalloc(size_t size)
+{
+#endif
+    if (dhOomFailAll) {
+        dhOomFailed = 1;
+        return NULL;
+    }
+    return malloc(size);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void dhOomFree(void* ptr, const char* func, unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void dhOomFree(void* ptr)
+{
+#endif
+    free(ptr);
+}
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void* dhOomRealloc(void* ptr, size_t size, const char* func,
+    unsigned int line)
+{
+    (void)func;
+    (void)line;
+#else
+static void* dhOomRealloc(void* ptr, size_t size)
+{
+#endif
+    if (dhOomFailAll) {
+        dhOomFailed = 1;
+        return NULL;
+    }
+    return realloc(ptr, size);
+}
+#endif /* TEST_DH_OOM */
+
+/* Running out of memory while copying the context's DH parameters.
+ *
+ * wolfSSL_set_accept_state has nothing to report a failure through, so it
+ * must leave the object without DH rather than claim parameters it does not
+ * hold. Every allocation fails here rather than a chosen one: the call
+ * reaches the copy whatever else runs out of memory, and only the copy
+ * failing can leave haveDH clear.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_dh_ctx_params_oom(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_DH_OOM
+    wolfSSL_Malloc_cb  prevM = NULL;
+    wolfSSL_Free_cb    prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+
+    /* The parameters reach the context after the object is made, so the
+     * object has none of its own to lose. */
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+        CERT_FILETYPE), WOLFSSL_SUCCESS);
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    ExpectIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile, CERT_FILETYPE),
+        WOLFSSL_SUCCESS);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.haveDH, 0);
+        ExpectNull(ssl->buffers.serverDH_P.buffer);
+    }
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(wolfSSL_SetAllocators(dhOomMalloc, dhOomFree,
+            dhOomRealloc), 0);
+        dhOomFailed = 0;
+        dhOomFailAll = 1;
+        wolfSSL_set_accept_state(ssl);
+        dhOomFailAll = 0;
+        (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+    }
+
+    ExpectIntEQ(dhOomFailed, 1);
+    if (ssl != NULL) {
+        ExpectIntEQ(ssl->options.haveDH, 0);
+        ExpectNull(ssl->buffers.serverDH_P.buffer);
+        ExpectNull(ssl->buffers.serverDH_G.buffer);
+    }
+    /* The context kept its own, so a later object still gets them. */
+    if (ctx != NULL) {
+        ExpectNotNull(ctx->serverDH_P.buffer);
+        ExpectNotNull(ctx->serverDH_G.buffer);
+    }
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
@@ -1693,6 +2285,114 @@ int test_wolfSSL_hs_send_buffered_advance(void)
     return EXPECT_RESULT();
 }
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Number of interrupts left to report before sending through memio. */
+static int test_ssl_hs_isr_left = 0;
+/* Number of times the send callback was called. */
+static int test_ssl_hs_isr_calls = 0;
+
+/* Send callback that reports an interrupt a set number of times.
+ *
+ * Fails outright after many calls so an unbounded retry loop shows up as a
+ * test failure rather than a hang.
+ *
+ * @param [in] ssl  SSL/TLS object.
+ * @param [in] buf  Data to send.
+ * @param [in] sz   Size of data in bytes.
+ * @param [in] ctx  memio context.
+ * @return  Bytes sent, WOLFSSL_CBIO_ERR_ISR or WOLFSSL_CBIO_ERR_GENERAL.
+ */
+static int test_ssl_hs_send_isr(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    test_ssl_hs_isr_calls++;
+    if (test_ssl_hs_isr_calls > WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 1000) {
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+    if (test_ssl_hs_isr_left > 0) {
+        test_ssl_hs_isr_left--;
+        return WOLFSSL_CBIO_ERR_ISR;
+    }
+    return test_memio_write_cb(ssl, buf, sz, ctx);
+}
+#endif
+
+/* Test that an interrupted send is retried a bounded number of times.
+ *
+ * A few interrupts are absorbed and the flush completes. An interrupt that
+ * persists makes the call return WANT_WRITE with the output still buffered,
+ * and the handshake completes once the transport recovers.
+ *
+ * @return  TEST_SUCCESS on success.
+ */
+int test_wolfSSL_hs_send_buffered_isr(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int isrTransient = (WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS < 3) ?
+        WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS : 3;
+
+    /* Transient: interrupts within the retry limit are absorbed. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (ssl_c != NULL) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_ssl_hs_send_isr);
+    }
+    test_ssl_hs_isr_calls = 0;
+    test_ssl_hs_isr_left = isrTransient;
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ssl_hs_isr_calls, isrTransient + 1);
+    ExpectIntEQ(test_ctx.s_msg_count, 1);
+
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    wolfSSL_CTX_free(ctx_s);
+    ctx_s = NULL;
+
+    /* Persistent: the call returns instead of looping forever. */
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    if (ssl_c != NULL) {
+        wolfSSL_SSLSetIOSend(ssl_c, test_ssl_hs_send_isr);
+    }
+    test_ssl_hs_isr_calls = 0;
+    test_ssl_hs_isr_left = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 2000;
+    ExpectIntEQ(wolfSSL_connect(ssl_c), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(test_ssl_hs_isr_calls, WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS + 1);
+    if (ssl_c != NULL) {
+        ExpectIntGT(ssl_c->buffers.outputBuffer.length, 0);
+    }
+    ExpectIntEQ(test_ctx.s_msg_count, 0);
+
+    /* Once the interrupts stop the buffered output goes out. */
+    test_ssl_hs_isr_left = 0;
+    test_ssl_hs_isr_calls = 0;
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(WOLFSSL_CALLBACKS) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 /* Timeout callback that does nothing.
@@ -1942,6 +2642,418 @@ int test_wolfSSL_hs_info_cb(void)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Handshakes corrupted in flight.
+ *
+ * A conforming pair of endpoints produces one handshake, and every error path
+ * in the receive code stays dark no matter how many times it is run. Those
+ * paths are most of what remains uncovered in src/internal.c, and they are
+ * reached only by a peer that sends something wrong.
+ *
+ * No transport is needed to be that peer. test_memio already runs both
+ * endpoints through a plain byte buffer with credentials from certs/, and both
+ * sides are ours, so the buffer between them can be edited between rounds --
+ * flip a bit in a length, in a type byte, in the middle of a certificate, in
+ * the key exchange -- and the handshake continues into whatever the receiver
+ * does about it. Same idea as sitting on the wire with a packet mangler, with
+ * neither a socket nor a second process.
+ *
+ * The assertion is deliberately weak: a corrupted handshake is *expected* to
+ * fail. What is being tested is that it fails rather than crashes, leaks or
+ * hangs, and the coverage comes from the paths it takes on the way out.
+ * ------------------------------------------------------------------------- */
+/* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES, not the _BUILD variant: the _BUILD
+ * macro is certificate-agnostic and is also defined for NO_CERTS builds, where
+ * test_memio_setup() installs neither credentials nor a PSK callback and no
+ * handshake can complete. This sweep asserts that unmodified handshakes do
+ * complete, so it needs the credential-bearing guard. Keep it identical on the
+ * test body below, or the helper is compiled unused. */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
+
+/* One handshake, with one byte flipped at one point.
+ *
+ * `dir` selects whose bytes get hit. test_memio_write_cb stores by the
+ * WRITER's side, so c_buff holds what the server wrote and s_buff what the
+ * client wrote:
+ *
+ *   dir 0 (server -> client): one round of test_memio_do_handshake() runs the
+ *   client and then the server, so at the end of a round the client's bytes
+ *   have already been consumed and only the server's are in flight. Mangle
+ *   c_buff.
+ *
+ *   dir 1 (client -> server): step the client on its own so its output is
+ *   left pending, then mangle s_buff before the server reads it. This is the
+ *   only way to reach the server's receive and error paths -- driving whole
+ *   rounds and mangling s_buff corrupted nothing at all, because s_buff was
+ *   empty every time.
+ *
+ * `round` is how many exchange rounds to let pass first, which is what selects
+ * WHICH handshake message gets hit -- the ClientHello, the certificate, the
+ * key exchange, the Finished.
+ *
+ * Returns 1 if a byte was actually corrupted, 0 otherwise, and reports through
+ * *hsDone whether the handshake nevertheless completed on both sides. Without
+ * the second output a broken fixture -- no handshake ever completing -- looks
+ * exactly like a healthy sweep. */
+static int test_wire_mangle_one(method_provider mc, method_provider ms,
+                                int dir, int round, int off, byte mask,
+                                int* hsDone)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+    int ret = 0;
+
+    if (hsDone != NULL)
+        *hsDone = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s, mc, ms)
+            != 0) {
+        /* This build has no usable credentials for these methods; that is a
+         * configuration fact, not a failure. */
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        return 0;   /* no usable credentials: no mutation either */
+    }
+
+    for (i = 0; i < 12; i++) {
+        int rounds = 0;
+
+        if (i == round && dir == 1) {
+            /* Client only, so what it writes stays queued in s_buff. */
+            (void)wolfSSL_connect(ssl_c);
+        }
+        else {
+            (void)test_memio_do_handshake(ssl_c, ssl_s, 1, &rounds);
+        }
+
+        if (i == round) {
+            byte* buf = (dir == 0) ? test_ctx.c_buff : test_ctx.s_buff;
+            int   len = (dir == 0) ? test_ctx.c_len  : test_ctx.s_len;
+
+            if (len > off) {
+                buf[off] ^= mask;
+                ret = 1;    /* a byte was actually corrupted */
+            }
+            /* else: nothing in flight at this round/offset; ret stays 0 */
+        }
+    }
+
+    if (hsDone != NULL) {
+        *hsDone = (wolfSSL_is_init_finished(ssl_c) &&
+                   wolfSSL_is_init_finished(ssl_s));
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return ret;
+}
+
+#endif
+
+int test_tls_wire_mangle(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
+    /* Offsets chosen against the record and handshake framing rather than at
+     * random: 0 is the record type, 1-2 the record version, 3-4 the record
+     * length, 5 the handshake type, 6-8 the handshake length, and the rest
+     * land inside the body -- a session id, a certificate, a key share. */
+    static const int offsets[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13,
+                                   20, 45, 80, 120, 200, 400, 900 };
+    static const byte masks[] = { 0x01, 0x80, 0xff };
+    /* Per method and per direction, not just in total: one aggregate count is
+     * satisfied by a single mutation anywhere, which lets an entire protocol's
+     * sweep -- or one whole direction of it -- be a no-op unnoticed. A method
+     * that is not compiled stays zero and is excluded from the assertions by
+     * the same #ifdef that skips its calls. */
+    enum { WM_TLS12, WM_TLS13, WM_DTLS12, WM_DTLS13, WM_METHODS };
+    enum { WM_S2C, WM_C2S, WM_DIRS };
+    int round, o, m, d;
+/* The client-to-server half is not run under WOLFSSL_ASYNC_CRYPT. A
+ * ClientHello with one byte flipped drives the TLS 1.3 server through
+ * SendTls13Certificate -> BuildTls13Message -> wolfAsync_EventInit, which
+ * takes SIGSEGV. Measured with --enable-asynccrypt --enable-all --enable-dtls13
+ * --disable-mlkem, at method TLS 1.3, round 0, offset 200, mask 0x01. It is not
+ * the harness leaving an async operation unserviced: the client-only step
+ * returns WANT_READ on every one of its 194 calls in that build and never
+ * WC_PENDING_E. Whether the library ought to survive a malformed ClientHello in
+ * that configuration is a library question, reported separately; this sweep has
+ * no business asserting it either way. The server-to-client half runs
+ * everywhere. */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define WM_LAST_DIR WM_S2C
+#else
+    #define WM_LAST_DIR WM_C2S
+#endif
+    int applied[WM_METHODS][WM_DIRS];
+    int broke[WM_METHODS][WM_DIRS];
+
+    XMEMSET(applied, 0, sizeof(applied));
+    XMEMSET(broke, 0, sizeof(broke));
+
+#define WM_RUN(idx, cm, sm)                                                  \
+    do {                                                                     \
+        int hs = 0;                                                          \
+        int hit = test_wire_mangle_one((cm), (sm), d, round, offsets[o],     \
+                                       masks[m], &hs);                       \
+        applied[idx][d] += hit;                                              \
+        if (hit && !hs)                                                      \
+            broke[idx][d]++;                                                 \
+    } while (0)
+
+    for (d = 0; d <= WM_LAST_DIR; d++) {
+    for (round = 0; round < 7; round++) {
+        for (o = 0; o < (int)(sizeof(offsets) / sizeof(offsets[0])); o++) {
+            for (m = 0; m < (int)(sizeof(masks) / sizeof(masks[0])); m++) {
+                    WM_RUN(WM_TLS12, wolfTLSv1_2_client_method,
+                        wolfTLSv1_2_server_method);
+#ifdef WOLFSSL_TLS13
+                    WM_RUN(WM_TLS13, wolfTLSv1_3_client_method,
+                        wolfTLSv1_3_server_method);
+#endif
+#ifdef WOLFSSL_DTLS
+                    WM_RUN(WM_DTLS12, wolfDTLSv1_2_client_method,
+                        wolfDTLSv1_2_server_method);
+#endif
+#ifdef WOLFSSL_DTLS13
+                    WM_RUN(WM_DTLS13, wolfDTLSv1_3_client_method,
+                        wolfDTLSv1_3_server_method);
+#endif
+            }
+        }
+    }
+    }
+
+#undef WM_RUN
+
+    /* A clean run of the same fixture, per method and per direction, before
+     * any of the counts above are believed. Without one for each method,
+     * broke[] cannot tell "the mutation broke this handshake" from "this
+     * method's fixture never completes a handshake at all" -- a pre-broken
+     * TLS 1.3 or DTLS setup that still puts bytes on the wire satisfies both
+     * applied[] and broke[] while proving nothing. It also gives every
+     * decision the corrupted runs took one way its partner in this same
+     * binary.
+     *
+     * Round 99 matches no iteration, so the first call flips nothing and runs
+     * whole rounds. The second uses an offset past the end of any buffer, so
+     * it takes the client-only step -- costing the round one server turn --
+     * and still flips nothing: that is what shows the stepping itself does
+     * not stop a handshake. */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* No client-to-server sweep in this build, so no control for one. */
+    #define WM_CLEAN_C2S(cm, sm) do { } while (0)
+#else
+    #define WM_CLEAN_C2S(cm, sm)                                             \
+    do {                                                                     \
+        int chs = 0;                                                         \
+        ExpectIntEQ(test_wire_mangle_one((cm), (sm), WM_C2S, 0,              \
+                                         TEST_MEMIO_BUF_SZ, 0x00, &chs), 0); \
+        ExpectIntEQ(chs, 1);                                                 \
+    } while (0)
+#endif
+
+#define WM_CLEAN(cm, sm)                                                     \
+    do {                                                                     \
+        int hs = 0;                                                          \
+        ExpectIntEQ(test_wire_mangle_one((cm), (sm), WM_S2C, 99, 0, 0x00,    \
+                                         &hs), 0);                           \
+        ExpectIntEQ(hs, 1);                                                  \
+        WM_CLEAN_C2S((cm), (sm));                                            \
+    } while (0)
+
+    WM_CLEAN(wolfTLSv1_2_client_method, wolfTLSv1_2_server_method);
+#ifdef WOLFSSL_TLS13
+    WM_CLEAN(wolfTLSv1_3_client_method, wolfTLSv1_3_server_method);
+#endif
+#ifdef WOLFSSL_DTLS
+    WM_CLEAN(wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method);
+#endif
+#ifdef WOLFSSL_DTLS13
+    WM_CLEAN(wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method);
+#endif
+
+#undef WM_CLEAN
+#undef WM_CLEAN_C2S
+
+    /* Every compiled method must have corrupted a byte in each direction; a
+     * zero means that whole protocol's sweep, or that whole direction of it,
+     * ran clean traffic. And a corrupted byte must have broken at least one
+     * handshake: if none of them ever failed, the mutations never reached a
+     * parser and the error arms this test claims are untouched. Not every
+     * applied vector may fail -- a flipped byte in a session id, a random or
+     * an ignored extension is carried through to a complete handshake -- so
+     * this is asserted over the sweep, not per vector. */
+    for (d = 0; d <= WM_LAST_DIR; d++) {
+        ExpectIntGT(applied[WM_TLS12][d], 0);
+        ExpectIntGT(broke[WM_TLS12][d], 0);
+#ifdef WOLFSSL_TLS13
+        ExpectIntGT(applied[WM_TLS13][d], 0);
+        ExpectIntGT(broke[WM_TLS13][d], 0);
+#endif
+#ifdef WOLFSSL_DTLS
+        ExpectIntGT(applied[WM_DTLS12][d], 0);
+        ExpectIntGT(broke[WM_DTLS12][d], 0);
+#endif
+#ifdef WOLFSSL_DTLS13
+        ExpectIntGT(applied[WM_DTLS13][d], 0);
+        ExpectIntGT(broke[WM_DTLS13][d], 0);
+#endif
+    }
+
+#undef WM_LAST_DIR
+
+#endif
+    return EXPECT_RESULT();
+}
+
+/* ---------------------------------------------------------------------------
+ * Handshakes with messages dropped, duplicated, reordered and truncated.
+ *
+ * Flipping a byte reaches the parsers' error arms. It does not reach the
+ * ordering and retransmit logic, because a flipped byte still arrives once, in
+ * sequence, at the right length. That logic -- duplicate detection, out-of-
+ * order rejection, the DTLS retransmit pool, the fragment reassembler -- is
+ * only entered when the SEQUENCE is wrong, and a conforming peer never gets it
+ * wrong.
+ *
+ * test_memio already knows how to do this to the buffer between the two
+ * endpoints: drop a message, move one ahead of another, copy one back in a
+ * second time, or rewrite its declared length. All four are on the same
+ * fixture as the byte mangler, and none of them needs a socket.
+ * ------------------------------------------------------------------------- */
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
+
+enum wire_op { WIRE_DROP, WIRE_DUP, WIRE_MOVE, WIRE_TRUNC, WIRE_SHORTEN,
+               WIRE_NONE };
+
+static int test_wire_seq_one(method_provider mc, method_provider ms,
+                             int round, int op, int msgPos)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX* ctx_c = NULL;
+    WOLFSSL_CTX* ctx_s = NULL;
+    WOLFSSL* ssl_c = NULL;
+    WOLFSSL* ssl_s = NULL;
+    int i;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    if (test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s, mc, ms)
+            != 0) {
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+        return 0;
+    }
+
+    for (i = 0; i < 12; i++) {
+        int rounds = 0;
+
+        (void)test_memio_do_handshake(ssl_c, ssl_s, 1, &rounds);
+
+        if (i != round)
+            continue;
+
+        switch (op) {
+            case WIRE_DROP:
+                /* the receiver never sees this message at all */
+                (void)test_memio_drop_message(&test_ctx, 1, msgPos);
+                break;
+            case WIRE_DUP: {
+                /* the same message twice: what duplicate detection is for */
+                char copy[2048];
+                int  copySz = (int)sizeof(copy);
+
+                if (test_memio_copy_message(&test_ctx, 1, copy, &copySz,
+                                            msgPos) == 0) {
+                    (void)test_memio_inject_message(&test_ctx, 1, copy, copySz);
+                }
+                break;
+            }
+            case WIRE_MOVE:
+                /* arrives before the message it must follow */
+                (void)test_memio_move_message(&test_ctx, 1, msgPos,
+                                              msgPos + 1);
+                break;
+            case WIRE_TRUNC:
+                /* declares more than it carries */
+                (void)test_memio_modify_message_len(&test_ctx, 1, msgPos,
+                                                    4096);
+                break;
+            case WIRE_SHORTEN:
+                /* declares less than it carries, and loses its tail */
+                (void)test_memio_modify_message_len(&test_ctx, 1, msgPos, 4);
+                (void)test_memio_remove_from_buffer(&test_ctx, 1, 5, 4);
+                break;
+            default:
+                break;
+        }
+    }
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    return 0;
+}
+
+#endif
+
+int test_tls_wire_sequence(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_WIRE_MANGLE_TESTS)
+    int round, op, pos;
+
+    for (round = 0; round < 6; round++) {
+        for (op = 0; op < (int)WIRE_NONE; op++) {
+            for (pos = 0; pos < 3; pos++) {
+                (void)test_wire_seq_one(wolfTLSv1_2_client_method,
+                    wolfTLSv1_2_server_method, round, op, pos);
+#ifdef WOLFSSL_TLS13
+                (void)test_wire_seq_one(wolfTLSv1_3_client_method,
+                    wolfTLSv1_3_server_method, round, op, pos);
+#endif
+#ifdef WOLFSSL_DTLS
+                /* DTLS is where dropping and reordering are not merely
+                 * hostile but expected, so the retransmit and reassembly
+                 * paths are entered rather than just refused. */
+                (void)test_wire_seq_one(wolfDTLSv1_2_client_method,
+                    wolfDTLSv1_2_server_method, round, op, pos);
+#endif
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+                (void)test_wire_seq_one(wolfDTLSv1_3_client_method,
+                    wolfDTLSv1_3_server_method, round, op, pos);
+#endif
+            }
+        }
+    }
+
+    /* the untouched partner, in this same binary */
+    ExpectIntEQ(test_wire_seq_one(wolfTLSv1_2_client_method,
+        wolfTLSv1_2_server_method, 99, (int)WIRE_NONE, 0), 0);
 #endif
     return EXPECT_RESULT();
 }

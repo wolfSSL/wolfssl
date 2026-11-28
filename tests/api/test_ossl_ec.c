@@ -300,7 +300,7 @@ int test_wolfSSL_i2d_ECPKParameters(void)
 int test_wolfSSL_EC_POINT(void)
 {
     EXPECT_DECLS;
-#if !defined(WOLFSSL_SP_MATH) && \
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
 
 #ifdef OPENSSL_EXTRA
@@ -431,7 +431,7 @@ int test_wolfSSL_EC_POINT(void)
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     ExpectIntEQ(EC_POINT_add(NULL, NULL, NULL, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_add(group, NULL, NULL, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_add(NULL, new_point, NULL, NULL, ctx), 0);
@@ -514,18 +514,25 @@ int test_wolfSSL_EC_POINT(void)
     ExpectNotNull(dup_point = EC_POINT_dup(set_point, group));
     ExpectIntEQ(EC_POINT_cmp(group, dup_point, set_point, ctx), 0);
 
-    /* Test inverting */
+    /* Test inverting.
+     * Skipped under WOLFSSL_NO_ECC_SW: inverting a point whose z-ordinate is
+     * not one needs the Jacobian-to-affine conversion, which reports failure
+     * without the software point arithmetic. The block below that relies on
+     * new_point having been inverted is excluded by the same macro. */
+#ifndef WOLFSSL_NO_ECC_SW
     ExpectIntEQ(EC_POINT_invert(NULL, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(NULL, new_point, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(group, NULL, ctx), 0);
     ExpectIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
+#endif
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     {
         EC_POINT* orig_point = NULL;
+        EC_POINT* neg_g = NULL;
         ExpectNotNull(orig_point = EC_POINT_new(group));
         ExpectIntEQ(EC_POINT_add(group, orig_point, set_point, set_point, NULL),
                     1);
@@ -540,11 +547,30 @@ int test_wolfSSL_EC_POINT(void)
         ExpectIntEQ(EC_POINT_add(group, orig_point, orig_point, new_point,
                                  NULL), 1);
         ExpectIntEQ(EC_POINT_cmp(group, orig_point, set_point, NULL), 0);
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
+        /* new_point is set_point inverted, so the sum is infinity */
+        ExpectIntEQ(EC_POINT_add(group, orig_point, set_point, new_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+        ExpectIntEQ(EC_POINT_add(group, orig_point, new_point, set_point,
+                                 NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+        /* 1*G + 1*(-G) is infinity */
+        ExpectNotNull(neg_g = EC_POINT_dup(Gxy, group));
+        ExpectIntEQ(EC_POINT_invert(group, neg_g, NULL), 1);
+        ExpectIntEQ(EC_POINT_mul(group, orig_point, BN_value_one(), neg_g,
+                                 BN_value_one(), NULL), 1);
+        ExpectIntEQ(EC_POINT_is_at_infinity(group, orig_point), 1);
+#endif
+        EC_POINT_free(neg_g);
         EC_POINT_free(orig_point);
     }
 #endif
 
-    /* Test getting affine converts from projective. */
+    /* Test getting affine converts from projective.
+     * Skipped under WOLFSSL_NO_ECC_SW: the conversion is built on ecc_map(),
+     * which that build leaves out, so the get below reports failure. */
+#ifndef WOLFSSL_NO_ECC_SW
     ExpectIntEQ(EC_POINT_copy(set_point, new_point), 1);
     /* Force non-affine coordinates */
     ExpectIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
@@ -558,6 +584,7 @@ int test_wolfSSL_EC_POINT(void)
     /* check if point ordinates have changed. */
     ExpectIntNE(BN_cmp(X, set_point->X), 0);
     ExpectIntNE(BN_cmp(Y, set_point->Y), 0);
+#endif
 
     /* Test check for infinity */
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
@@ -870,13 +897,103 @@ int test_wolfSSL_EC_POINT(void)
     return EXPECT_RESULT();
 }
 
+/* EC_POINT_mul() reduces a negative or over-wide scalar modulo the order, as
+ * OpenSSL does. */
+int test_wolfSSL_EC_POINT_mul_negative(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_SP_MATH) && \
+    (!defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(NO_ECC256) && \
+    !defined(NO_ECC_SECP) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+    EC_GROUP* group = NULL;
+    EC_POINT* g = NULL;
+    EC_POINT* r1 = NULL;
+    EC_POINT* r2 = NULL;
+    BIGNUM* order = NULL;
+    BIGNUM* neg = NULL;
+    BIGNUM* pos = NULL;
+
+    ExpectNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(g = EC_POINT_new(group));
+    ExpectNotNull(r1 = EC_POINT_new(group));
+    ExpectNotNull(r2 = EC_POINT_new(group));
+    ExpectNotNull(order = BN_new());
+    ExpectNotNull(neg = BN_new());
+    ExpectNotNull(pos = BN_new());
+    ExpectIntEQ(EC_GROUP_get_order(group, order, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, g, BN_value_one(), NULL, NULL, NULL), 1);
+
+    /* -5 and order - 5 */
+    ExpectIntGT(BN_hex2bn(&neg, "-5"), 0);
+    ExpectIntEQ(BN_is_negative(neg), 1);
+    ExpectIntEQ(BN_add(pos, order, neg), 1);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, pos, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, NULL, g, neg, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, NULL, g, pos, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, neg, g, BN_value_one(), NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, pos, g, BN_value_one(), NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    ExpectIntEQ(EC_POINT_mul(group, r1, BN_value_one(), g, neg, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    /* The caller's scalar is left as it was. */
+    ExpectIntEQ(BN_is_negative(neg), 1);
+
+    /* -order is 0 modulo the order. */
+    BN_zero(neg);
+    ExpectIntEQ(BN_sub(neg, neg, order), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r1, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_is_at_infinity(group, r1), 1);
+
+    /* order * 2^64 + 5 is 5 modulo the order. */
+    ExpectIntEQ(BN_lshift(pos, order, 64), 1);
+    ExpectIntEQ(BN_add_word(pos, 5), 1);
+    ExpectIntEQ(BN_set_word(neg, 5), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r1, pos, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+    ExpectIntEQ(EC_POINT_mul(group, r1, NULL, g, pos, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    /* 2^256 + 5 is one bit wider than the prime. */
+    ExpectIntEQ(BN_set_word(pos, 1), 1);
+    ExpectIntEQ(BN_lshift(pos, pos, 256), 1);
+    ExpectIntEQ(BN_add_word(pos, 5), 1);
+    ExpectIntEQ(BN_mod(neg, pos, order, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r1, pos, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_mul(group, r2, neg, NULL, NULL, NULL), 1);
+    ExpectIntEQ(EC_POINT_cmp(group, r1, r2, NULL), 0);
+
+    BN_free(pos);
+    BN_free(neg);
+    BN_free(order);
+    EC_POINT_free(r2);
+    EC_POINT_free(r1);
+    EC_POINT_free(g);
+    EC_GROUP_free(group);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_SPAKE(void)
 {
     EXPECT_DECLS;
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(WOLFSSL_ATECC508A) \
     && !defined(WOLFSSL_ATECC608A) && !defined(HAVE_SELFTEST) && \
-       !defined(WOLFSSL_MICROCHIP_TA100) && \
+       !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_NO_ECC_SW) && \
        !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     BIGNUM* x = NULL; /* kdc priv */
     BIGNUM* y = NULL; /* client priv */
@@ -1396,6 +1513,50 @@ int test_wolfSSL_EC_KEY_private_key(void)
     return EXPECT_RESULT();
 }
 
+/* A private scalar wider than the curve, which EC_KEY_set_private_key() does
+ * not range check, must fail to export rather than lose its high bytes.
+ * FIPS and selftest builds use a frozen ecc.c without this check. */
+int test_wolfSSL_EC_KEY_private_key_oversized(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_ECC_BLIND_K) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+    WOLFSSL_EC_KEY* key = NULL;
+    WOLFSSL_BIGNUM* priv = NULL;
+    /* 2^256 + 1: truncated to 32 bytes it would be the scalar 1. */
+    byte            big[33];
+    byte            out[32];
+    word32          outLen = (word32)sizeof(out);
+    byte            der[256];
+    unsigned char*  p = der;
+
+    XMEMSET(big, 0, sizeof(big));
+    big[0] = 0x01;
+    big[32] = 0x01;
+
+    ExpectNotNull(key = wolfSSL_EC_KEY_new_by_curve_name(
+        NID_X9_62_prime256v1));
+    ExpectNotNull(priv = wolfSSL_BN_bin2bn(big, (int)sizeof(big), NULL));
+    ExpectIntEQ(wolfSSL_EC_KEY_set_private_key(key, priv), 1);
+
+    /* The raw export reports the scalar does not fit. */
+    if (key != NULL) {
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ecc_export_private_only((ecc_key*)key->internal, out,
+            &outLen), WC_NO_ERR_TRACE(BUFFER_E));
+        PRIVATE_KEY_LOCK();
+    }
+    /* So DER encoding fails, leaving the caller's pointer where it was. */
+    ExpectIntEQ(wolfSSL_i2d_ECPrivateKey(key, &p), 0);
+    ExpectPtrEq(p, der);
+
+    wolfSSL_BN_free(priv);
+    wolfSSL_EC_KEY_free(key);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_EC_KEY_public_key(void)
 {
     EXPECT_DECLS;
@@ -1649,11 +1810,49 @@ int test_ECDSA_size_sign(void)
     return EXPECT_RESULT();
 }
 
+int test_ECDSA_do_verify_oversized_sig(void)
+{
+    EXPECT_DECLS;
+    /* NO_RSA builds may size big integers too small to hold an r of
+     * ECC_MAX_SIG_SIZE bytes. */
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !defined(NO_RSA)
+    EC_KEY* key = NULL;
+    ECDSA_SIG* sig = NULL;
+    BIGNUM* r = NULL;
+    BIGNUM* s = NULL;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    byte big[ECC_MAX_SIG_SIZE];
+
+    XMEMSET(hash, 123, sizeof(hash));
+    XMEMSET(big, 0xff, sizeof(big));
+
+    ExpectNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(sig = ECDSA_SIG_new());
+    /* r alone DER encodes to more than ECC_MAX_SIG_SIZE bytes. */
+    ExpectNotNull(r = BN_bin2bn(big, (int)sizeof(big), NULL));
+    ExpectNotNull(s = BN_new());
+    ExpectIntEQ(BN_set_word(s, 1), 1);
+    ExpectIntEQ(ECDSA_SIG_set0(sig, r, s), 1);
+    if (EXPECT_FAIL()) {
+        BN_free(r);
+        BN_free(s);
+    }
+
+    ExpectIntEQ(ECDSA_do_verify(hash, sizeof(hash), sig, key),
+        WOLFSSL_FATAL_ERROR);
+
+    ECDSA_SIG_free(sig);
+    EC_KEY_free(key);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_ECDH_compute_key(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
     EC_KEY* key1 = NULL;
     EC_KEY* key2 = NULL;
     EC_POINT* pub1 = NULL;
@@ -1696,6 +1895,82 @@ int test_ECDH_compute_key(void)
     EC_KEY_free(key1);
 #endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP &&
         * !WOLF_CRYPTO_CB_ONLY_ECC */
+    return EXPECT_RESULT();
+}
+
+/*
+ * testing EC_POINT_point2hex() rejects a point whose ordinates are wider than
+ * the curve.
+ *
+ * The x-ordinate offset was computed as sz - mp_unsigned_bin_size(X) + 1,
+ * which goes negative once an ordinate exceeds the curve size, writing
+ * attacker-chosen bytes in front of the freshly allocated buffer.
+ */
+int test_wolfSSL_EC_POINT_point2hex_oversized(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !defined(WOLFSSL_SP_MATH) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION > 2)))
+    EC_GROUP* group = NULL;
+    EC_POINT* point = NULL;
+    BIGNUM* x = NULL;
+    BIGNUM* y = NULL;
+    char* hexStr = NULL;
+    /* P-256 point (5, y). */
+    static const byte smallX[32] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05
+    };
+    static const byte smallY[32] = {
+        0x45, 0x92, 0x43, 0xB9, 0xAA, 0x58, 0x18, 0x06,
+        0xFE, 0x91, 0x3B, 0xCE, 0x99, 0x81, 0x7A, 0xDE,
+        0x11, 0xCA, 0x50, 0x3C, 0x64, 0xD9, 0xA3, 0xC5,
+        0x33, 0x41, 0x5C, 0x08, 0x32, 0x48, 0xFB, 0xCC
+    };
+    /* 64 bytes: twice the P-256 ordinate size. */
+    static const byte wideOrdinate[64] = {
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x00,
+        0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47,
+        0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4, 0x40, 0xF2,
+        0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0,
+        0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96
+    };
+
+    ExpectNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    ExpectNotNull(point = EC_POINT_new(group));
+    ExpectNotNull(x = BN_bin2bn(smallX, (int)sizeof(smallX), NULL));
+    ExpectNotNull(y = BN_bin2bn(smallY, (int)sizeof(smallY), NULL));
+    ExpectIntEQ(EC_POINT_set_affine_coordinates_GFp(group, point, x, y, NULL),
+        1);
+
+    /* Control: a well-formed point converts. */
+    ExpectNotNull(hexStr = EC_POINT_point2hex(group, point,
+        POINT_CONVERSION_UNCOMPRESSED, NULL));
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+    hexStr = NULL;
+
+    /* Widen the x-ordinate the way an over-long X9.63 import used to. */
+    ExpectNotNull(BN_bin2bn(wideOrdinate, (int)sizeof(wideOrdinate), point->X));
+    ExpectNull(hexStr = EC_POINT_point2hex(group, point,
+        POINT_CONVERSION_UNCOMPRESSED, NULL));
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+    hexStr = NULL;
+    ExpectNull(hexStr = EC_POINT_point2hex(group, point,
+        POINT_CONVERSION_COMPRESSED, NULL));
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    BN_free(y);
+    BN_free(x);
+    EC_POINT_free(point);
+    EC_GROUP_free(group);
+#endif
     return EXPECT_RESULT();
 }
 

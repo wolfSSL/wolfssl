@@ -21,6 +21,7 @@ permissions:
 jobs:
   retrigger:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Post GHPRB trigger comment
         uses: actions/github-script@v8

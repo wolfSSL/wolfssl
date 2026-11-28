@@ -172,7 +172,6 @@ static int is_hs_key = 0;
 static int aes_key_id_arr[AES_KEY_ID_MAX_NUM];
 static int ecc_key_id_arr[ECC_KEY_ID_MAX_NUM];
 
-static int init_pk_callbacks = 0;
 static int device_key_len = 32;
 
 #if defined(WOLFSSL_MAXQ108X)
@@ -1894,7 +1893,12 @@ int wolfSSL_MAXQ10XX_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     }
 #ifdef WOLFSSL_MAXQ108X
     else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
-        if (info->hmac.in != NULL && info->hmac.digest == NULL) {
+        if (WC_CRYPTOCB_HMAC_IS_ONESHOT(info)) {
+            /* Decline the one-shot call and take the update and final calls
+             * that follow it. */
+            rc = CRYPTOCB_UNAVAILABLE;
+        }
+        else if (info->hmac.in != NULL && info->hmac.digest == NULL) {
             rc = 0;
             if (mac_comp_active == 0) {
                 rc = wc_MAXQ10XX_HmacSetKey(info->hmac.macType);
@@ -3843,9 +3847,6 @@ void maxq10xx_SetupPkCallbacks(struct WOLFSSL_CTX* ctx, ProtocolVersion *pv)
     }
 
     WOLFSSL_ENTER("maxq10xx_SetupPkCallbacks");
-    if (init_pk_callbacks) {
-        return;
-    }
 
 #ifdef WOLFSSL_MAXQ108X
     #ifdef HAVE_HKDF
@@ -3881,8 +3882,6 @@ void maxq10xx_SetupPkCallbacks(struct WOLFSSL_CTX* ctx, ProtocolVersion *pv)
     wolfSSL_CTX_SetTlsFinishedCb(ctx, maxq10xx_perform_client_finished);
 
     wolfSSL_CTX_SetEccSignCb(ctx, maxq10xx_ecc_sign);
-
-    init_pk_callbacks = 1;
 }
 
 #endif /* WOLFSSL_MAXQ1065 || WOLFSSL_MAXQ108X */

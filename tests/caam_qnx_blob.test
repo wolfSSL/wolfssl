@@ -1,0 +1,196 @@
+#!/bin/sh
+#
+# Portable white-box regression for the QNX CAAM BLOB handler. The generated
+# harness uses the source function with safe stubs, so it can verify that an
+# oversized key modifier is rejected before request data is read without a
+# QNX SDK or device.
+
+set -eu
+
+script_dir=$(unset CDPATH; cd "$(dirname "$0")" && pwd)
+source_file=""
+
+for source_root in "${top_srcdir:-}" "${srcdir:-}/.." "$script_dir/.."; do
+    if test -n "$source_root" && \
+            test -r "$source_root/wolfcrypt/src/port/caam/caam_qnx.c"; then
+        source_file="$source_root/wolfcrypt/src/port/caam/caam_qnx.c"
+        break
+    fi
+done
+
+if test -z "$source_file"; then
+    echo "caam_qnx_blob_keymod_bound: source file not found" >&2
+    exit 1
+fi
+
+compiler=${CC_FOR_BUILD:-cc}
+compiler_bin=${compiler%% *}
+if ! command -v "$compiler_bin" >/dev/null 2>&1; then
+    echo "caam_qnx_blob_keymod_bound: compiler not available, skipping" >&2
+    exit 77
+fi
+
+tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/wolfssl-caam-qnx.XXXXXX")
+trap 'rm -rf "$tmp_dir"' 0 1 2 3 15
+harness="$tmp_dir/caam_qnx_blob.c"
+binary="$tmp_dir/caam_qnx_blob"
+
+cat > "$harness" <<'EOF'
+#include <errno.h>
+#include <stddef.h>
+#include <stdio.h>
+
+#ifndef EOVERFLOW
+    #define EOVERFLOW 75
+#endif
+#ifndef EBADMSG
+    #define EBADMSG 74
+#endif
+#ifndef ECANCELED
+    #define ECANCELED 125
+#endif
+
+#define EOK 0
+#define BLACK_KEY_MAC_SZ 16
+#define BLACK_BLOB_KEYMOD_SZ 16
+#define CAAM_BLOB_ENCAP 1
+#define CAAM_BLOB_DECAP 2
+#define WC_CAAM_BLOB_ENCAP 3
+#define Success 1
+
+typedef unsigned long CAAM_ADDRESS;
+
+typedef struct DESCSTRUCT {
+    int unused;
+} DESCSTRUCT;
+
+typedef struct CAAM_BUFFER {
+    CAAM_ADDRESS TheAddress;
+    int Length;
+} CAAM_BUFFER;
+
+typedef struct iov {
+    void* iov_base;
+    unsigned int iov_len;
+} iov_t;
+
+typedef struct resmgr_context {
+    unsigned int size;
+} resmgr_context_t;
+
+typedef struct io_devctl {
+    struct {
+        int dcmd;
+    } i;
+    struct {
+        unsigned int nbytes;
+    } o;
+} io_devctl_t;
+
+#define SETIOV(iov, addr, sz) \
+    do { \
+        (iov)->iov_base = (void*)(addr); \
+        (iov)->iov_len = (unsigned int)(sz); \
+    } while (0)
+
+static unsigned char mapped[1];
+static int read_calls;
+
+static void* CAAM_ADR_MAP(CAAM_ADDRESS in, int inSz, unsigned char copy)
+{
+    (void)in;
+    (void)inSz;
+    (void)copy;
+    return mapped;
+}
+
+static void CAAM_ADR_UNMAP(void* vaddr, CAAM_ADDRESS out, int outSz,
+        unsigned char copy)
+{
+    (void)vaddr;
+    (void)out;
+    (void)outSz;
+    (void)copy;
+}
+
+static int CAAM_ADR_SYNC(void* vaddr, int sz)
+{
+    (void)vaddr;
+    (void)sz;
+    return 0;
+}
+
+static int resmgr_msgreadv(resmgr_context_t* ctp, iov_t* iov, int iovcnt,
+        unsigned int idx)
+{
+    (void)ctp;
+    (void)iov;
+    (void)iovcnt;
+    (void)idx;
+    read_calls++;
+    return 0;
+}
+
+static int resmgr_msgwritev(resmgr_context_t* ctp, iov_t* iov, int iovcnt,
+        unsigned int idx)
+{
+    (void)ctp;
+    (void)iov;
+    (void)iovcnt;
+    (void)idx;
+    return 0;
+}
+
+static void caamDescInit(DESCSTRUCT* desc, int dir, unsigned int args[4],
+        CAAM_BUFFER tmp[3], int count)
+{
+    (void)desc;
+    (void)dir;
+    (void)args;
+    (void)tmp;
+    (void)count;
+}
+
+static int caamBlob(DESCSTRUCT* desc)
+{
+    (void)desc;
+    return 0;
+}
+EOF
+
+sed -n '/^static int doBLOB(/,/^}/p' "$source_file" >> "$harness"
+
+cat >> "$harness" <<'EOF'
+int main(void)
+{
+    resmgr_context_t ctp;
+    io_devctl_t msg;
+    unsigned int args[4] = { 0, 0, 1, BLACK_BLOB_KEYMOD_SZ };
+    int ret;
+
+    ctp.size = 64;
+    msg.i.dcmd = WC_CAAM_BLOB_ENCAP;
+    msg.o.nbytes = 64;
+
+    read_calls = 0;
+    ret = doBLOB(&ctp, &msg, args, 0);
+    if (ret != EBADMSG || read_calls != 1) {
+        printf("caam_qnx_blob_keymod_bound: valid boundary failed\n");
+        return 1;
+    }
+
+    args[3] = BLACK_BLOB_KEYMOD_SZ + 1;
+    read_calls = 0;
+    ret = doBLOB(&ctp, &msg, args, 0);
+    if (ret != EOVERFLOW || read_calls != 0) {
+        printf("caam_qnx_blob_keymod_bound: oversized value was not rejected\n");
+        return 1;
+    }
+
+    printf("caam_qnx_blob_keymod_bound: PASS\n");
+    return 0;
+}
+EOF
+
+$compiler -Wall -Wextra -o "$binary" "$harness"
+"$binary"

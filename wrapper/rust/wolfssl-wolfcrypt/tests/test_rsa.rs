@@ -2,17 +2,29 @@
 
 mod common;
 
-#[cfg(any(all(sha256, random, rsa_pss), random, rsa_direct))]
+/* Every test below other than test_rsa_generate() loads a key from a file and
+ * runs a private key operation, both of which the RSA "only" build options
+ * take away. */
+#[cfg(any(all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private),
+          all(rsa_direct, rsa_private)))]
 use std::fs;
-#[cfg(random)]
+#[cfg(any(all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private)))]
 use std::rc::Rc;
-#[cfg(random)]
+#[cfg(any(rsa_keygen,
+          all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private),
+          all(rsa_direct, rsa_private)))]
 use wolfssl_wolfcrypt::random::RNG;
-#[cfg(any(random, rsa_direct, rsa_keygen))]
+#[cfg(any(rsa_keygen,
+          all(random, rsa_private, rsa_sign),
+          all(sha256, random, rsa_oaep, rsa_private),
+          all(rsa_direct, rsa_private)))]
 use wolfssl_wolfcrypt::rsa::*;
 
 #[test]
-#[cfg(rsa_keygen)]
+#[cfg(all(random, rsa_keygen, rsa_sign))]
 fn test_rsa_generate() {
     common::setup();
 
@@ -58,7 +70,7 @@ fn test_rsa_generate() {
 }
 
 #[test]
-#[cfg(random)]
+#[cfg(all(random, rsa_private, rsa_sign))]
 fn test_rsa_encrypt_decrypt() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));
     let key_path = "../../../certs/client-keyPub.der";
@@ -81,7 +93,7 @@ fn test_rsa_encrypt_decrypt() {
 }
 
 #[test]
-#[cfg(all(sha256, random, rsa_pss))]
+#[cfg(all(sha256, random, rsa_pss, rsa_const_api, rsa_private, rsa_sign))]
 fn test_rsa_pss() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));
 
@@ -108,7 +120,7 @@ fn test_rsa_pss() {
 }
 
 #[test]
-#[cfg(rsa_direct)]
+#[cfg(all(random, rsa_direct, rsa_const_api, rsa_private))]
 fn test_rsa_direct() {
     let rng = RNG::new().expect("Error creating RNG");
 
@@ -128,7 +140,7 @@ fn test_rsa_direct() {
 }
 
 #[test]
-#[cfg(all(sha256, random, rsa_oaep))]
+#[cfg(all(sha256, random, rsa_oaep, rsa_private))]
 fn test_rsa_oaep() {
     common::setup();
 
@@ -159,7 +171,7 @@ fn test_rsa_oaep() {
 }
 
 #[test]
-#[cfg(all(sha256, random, rsa_oaep))]
+#[cfg(all(sha256, random, rsa_oaep, rsa_private))]
 fn test_rsa_oaep_with_label() {
     common::setup();
 
@@ -192,7 +204,7 @@ fn test_rsa_oaep_with_label() {
 }
 
 #[test]
-#[cfg(random)]
+#[cfg(all(random, rsa_private, rsa_sign, rsa_ssl_verify))]
 fn test_rsa_ssl() {
     let rng = Rc::new(RNG::new().expect("Error creating RNG"));
 
@@ -212,4 +224,40 @@ fn test_rsa_ssl() {
     let mut verify_out: [u8; 512] = [0; 512];
     let verify_out_size = rsa.ssl_verify(signature, &mut verify_out).expect("Error with ssl_verify()");
     assert!(verify_out_size > 0 && verify_out_size <= 512);
+}
+
+#[test]
+#[cfg(all(sig_wrapper, sha256, random, rsa_private, rsa_sign))]
+fn test_rsa_pkcs1v15_sign_verify() {
+    common::setup();
+    let rng = RNG::new().expect("Error creating RNG");
+    let msg: &[u8] = b"This is the string to be signed!";
+
+    // A 2048 and a 4096 bit key, so the size must be taken at run time.
+    for (dir, size) in [("../../../certs", 256), ("../../../certs/4096", 512)] {
+        let der = fs::read(format!("{dir}/client-key.der")).expect("Error reading key file");
+        let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+        let mut sig = [0u8; 512];
+        let sig_len = rsa.pkcs1v15_sign(msg, &mut sig, RSA::HASH_TYPE_SHA256, &rng)
+            .expect("Error with pkcs1v15_sign()");
+        assert_eq!(sig_len, size);
+        assert!(rsa.pkcs1v15_sign(b"", &mut sig, RSA::HASH_TYPE_SHA256, &rng).is_err());
+        let sig = &sig[..sig_len];
+
+        let der = fs::read(format!("{dir}/client-keyPub.der")).expect("Error reading key file");
+        let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+        rsa.pkcs1v15_verify(msg, sig, RSA::HASH_TYPE_SHA256)
+            .expect("Error with pkcs1v15_verify()");
+        assert!(rsa.pkcs1v15_verify(b"Some other message", sig, RSA::HASH_TYPE_SHA256).is_err());
+    }
+
+    // A signature from one key must not pass with another.
+    let der = fs::read("../../../certs/client-key.der").expect("Error reading key file");
+    let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    let mut sig = [0u8; 256];
+    let sig_len = rsa.pkcs1v15_sign(msg, &mut sig, RSA::HASH_TYPE_SHA256, &rng)
+        .expect("Error with pkcs1v15_sign()");
+    let der = fs::read("../../../certs/server-keyPub.der").expect("Error reading key file");
+    let mut other = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    assert!(other.pkcs1v15_verify(msg, &sig[..sig_len], RSA::HASH_TYPE_SHA256).is_err());
 }

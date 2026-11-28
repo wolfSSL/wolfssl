@@ -85,6 +85,25 @@
         #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
     #endif /* _MSC_VER */
 
+    /* Read XCR0. Only valid once CPUID.1:ECX.OSXSAVE[27] is known set. */
+    #ifndef _MSC_VER
+        static WC_INLINE word32 cpuid_xgetbv0(void)
+        {
+            word32 eax, edx;
+            __asm__ __volatile__ ("xgetbv"
+                : "=a" (eax), "=d" (edx) : "c" (0));
+            (void)edx;
+            return eax;
+        }
+    #else
+        #define cpuid_xgetbv0() ((word32)_xgetbv(0))
+    #endif /* _MSC_VER */
+
+    /* i386 kernel <asm/ptrace-abi.h> uses these names for ptrace offsets. */
+    #undef EAX
+    #undef EBX
+    #undef ECX
+    #undef EDX
     #define EAX 0
     #define EBX 1
     #define ECX 2
@@ -116,6 +135,31 @@
                 XMEMCMP((char *)&(reg[ECX]), "cAMD", 4) == 0);
     }
 
+    /* XCR0 state-component masks. AVX needs the SSE and AVX regions; AVX-512
+     * also needs opmask, ZMM_Hi256 and Hi16_ZMM on top of them. */
+    #define WC_XCR0_AVX     0x06
+    #define WC_XCR0_AVX512  0xe6
+
+    /* Return 1 when the OS has enabled XSAVE and every state component in
+     * 'mask'. CPUID's feature bits only say the silicon has the unit;
+     * executing the instruction also needs CR4.OSXSAVE and the matching XCR0
+     * bits, which an OS that does not context-switch those registers leaves
+     * clear. Without this test wolfSSL dispatches the vector code on such a
+     * system and it faults with #UD. */
+    static int cpuid_os_state_enabled(word32 mask)
+    {
+        unsigned int reg[5];
+
+        XMEMSET(reg, '\0', sizeof(reg));
+        cpuid(reg, 1, 0);
+
+        /* CPUID.1:ECX.OSXSAVE[27] - XGETBV is illegal when this is clear. */
+        if (((reg[ECX] >> 27) & 0x1) == 0)
+            return 0;
+
+        return (cpuid_xgetbv0() & mask) == mask;
+    }
+
     static cpuid_flags_t cpuid_flag(word32 leaf, word32 sub, word32 num,
         word32 bit)
     {
@@ -130,17 +174,57 @@
     }
 
 
+#ifndef WC_CPUID_NO_TUNING
+    /* Return the tuning bits (CPUID_SLOW_*) for an Intel CPU, chosen from the
+     * family and display model in CPUID.1:EAX. */
+    static cpuid_flags_t cpuid_intel_tuning(void)
+    {
+        unsigned int reg[5];
+        word32 family;
+        word32 model;
+
+        XMEMSET(reg, '\0', sizeof(reg));
+        cpuid(reg, 1, 0);
+
+        family = (reg[EAX] >> 8) & 0xf;
+        model  = (reg[EAX] >> 4) & 0xf;
+        if ((family == 0x6) || (family == 0xf)) {
+            model |= ((reg[EAX] >> 16) & 0xf) << 4;
+        }
+        if (family == 0xf) {
+            family += (reg[EAX] >> 20) & 0xff;
+        }
+
+        if (family == 0x6) {
+            switch (model) {
+                /* Arrow Lake and Lunar Lake (Lion Cove / Skymont): VAES AES
+                 * is no faster than AVX2, and the AVX2 Keccak block is slower
+                 * than BMI2 and C. */
+                case 0xB5: /* Arrow Lake U */
+                case 0xC5: /* Arrow Lake H */
+                case 0xC6: /* Arrow Lake S */
+                case 0xBD: /* Lunar Lake M */
+                    return CPUID_SLOW_VAES | CPUID_SLOW_AVX2_SHA3;
+                default:
+                    break;
+            }
+        }
+        return 0;
+    }
+#endif
+
     static WC_INLINE void cpuid_set_flags(void)
     {
-        #ifdef WOLFSSL_BSDKM
-        if (WOLFSSL_ATOMIC_LOAD_UINT(cpuid_flags) == WC_CPUID_INITIALIZER) {
-        #else
         if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
-        #endif
             cpuid_flags_t new_cpuid_flags = 0,
                 old_cpuid_flags = WC_CPUID_INITIALIZER;
-            if (cpuid_flag(1, 0, ECX, 28)) { new_cpuid_flags |= CPUID_AVX1  ; }
-            if (cpuid_flag(7, 0, EBX,  5)) { new_cpuid_flags |= CPUID_AVX2  ; }
+            int os_avx    = cpuid_os_state_enabled(WC_XCR0_AVX);
+            int os_avx512 = cpuid_os_state_enabled(WC_XCR0_AVX512);
+
+            if (os_avx) {
+                if (cpuid_flag(1, 0, ECX, 28)) { new_cpuid_flags |= CPUID_AVX1; }
+                if (cpuid_flag(7, 0, EBX,  5)) { new_cpuid_flags |= CPUID_AVX2; }
+            }
             if (cpuid_flag(7, 0, EBX,  8)) { new_cpuid_flags |= CPUID_BMI2  ; }
             if (cpuid_flag(1, 0, ECX, 30)) { new_cpuid_flags |= CPUID_RDRAND; }
             if (cpuid_flag(7, 0, EBX, 18)) { new_cpuid_flags |= CPUID_RDSEED; }
@@ -149,29 +233,39 @@
             if (cpuid_flag(1, 0, ECX, 22)) { new_cpuid_flags |= CPUID_MOVBE ; }
             if (cpuid_flag(7, 0, EBX,  3)) { new_cpuid_flags |= CPUID_BMI1  ; }
             if (cpuid_flag(7, 0, EBX, 29)) { new_cpuid_flags |= CPUID_SHA   ; }
-            if (cpuid_flag(7, 0, ECX,  9)) { new_cpuid_flags |= CPUID_VAES  ; }
-            if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
-            if (cpuid_flag(7, 0, ECX,  1)) {
-                new_cpuid_flags |= CPUID_AVX512_VBMI;
+            /* VAES is VEX/EVEX encoded, so it needs the AVX state too. */
+            if (os_avx && cpuid_flag(7, 0, ECX, 9)) {
+                new_cpuid_flags |= CPUID_VAES;
             }
-            if (cpuid_flag(7, 0, ECX,  6)) {
-                new_cpuid_flags |= CPUID_AVX512_VBMI2;
-            }
-            if (cpuid_flag(7, 0, EBX, 21)) {
-                new_cpuid_flags |= CPUID_AVX512_IFMA;
-            }
-            if (cpuid_flag(7, 0, EBX, 31)) {
-                new_cpuid_flags |= CPUID_AVX512_VL;
-            }
-            if (cpuid_flag(7, 0, EBX, 17)) {
-                new_cpuid_flags |= CPUID_AVX512_DQ;
-            }
-            if (cpuid_flag(7, 0, EBX, 30)) {
-                new_cpuid_flags |= CPUID_AVX512_BW;
+            if (os_avx512) {
+                if (cpuid_flag(7, 0, EBX, 16)) { new_cpuid_flags |= CPUID_AVX512; }
+                if (cpuid_flag(7, 0, ECX,  1)) {
+                    new_cpuid_flags |= CPUID_AVX512_VBMI;
+                }
+                if (cpuid_flag(7, 0, ECX,  6)) {
+                    new_cpuid_flags |= CPUID_AVX512_VBMI2;
+                }
+                if (cpuid_flag(7, 0, EBX, 21)) {
+                    new_cpuid_flags |= CPUID_AVX512_IFMA;
+                }
+                if (cpuid_flag(7, 0, EBX, 31)) {
+                    new_cpuid_flags |= CPUID_AVX512_VL;
+                }
+                if (cpuid_flag(7, 0, EBX, 17)) {
+                    new_cpuid_flags |= CPUID_AVX512_DQ;
+                }
+                if (cpuid_flag(7, 0, EBX, 30)) {
+                    new_cpuid_flags |= CPUID_AVX512_BW;
+                }
             }
             if (cpuid_is_intel())          { new_cpuid_flags |= CPUID_INTEL ; }
             if (cpuid_is_amd())            { new_cpuid_flags |= CPUID_AMD   ; }
             if (cpuid_flag(1, 0, ECX,  9)) { new_cpuid_flags |= CPUID_SSSE3 ; }
+        #ifndef WC_CPUID_NO_TUNING
+            if (cpuid_is_intel()) {
+                new_cpuid_flags |= cpuid_intel_tuning();
+            }
+        #endif
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
@@ -180,6 +274,7 @@
 
 #define CPUID_AARCH64_FEAT_AES         ((word64)1 << 4)
 #define CPUID_AARCH64_FEAT_AES_PMULL   ((word64)1 << 5)
+#define CPUID_AARCH64_FEAT_SHA1        ((word64)1 << 8)
 #define CPUID_AARCH64_FEAT_SHA256      ((word64)1 << 12)
 #define CPUID_AARCH64_FEAT_SHA256_512  ((word64)1 << 13)
 #define CPUID_AARCH64_FEAT_RDM         ((word64)1 << 28)
@@ -255,6 +350,8 @@
                 new_cpuid_flags |= CPUID_AES;
                 new_cpuid_flags |= CPUID_PMULL;
             }
+            if (features & CPUID_AARCH64_FEAT_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
             if (features & CPUID_AARCH64_FEAT_SHA256)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -283,12 +380,52 @@
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
-#elif defined(__linux__)
+/* A trusted application is cross compiled with a Linux toolchain that
+ * predefines __linux__, but libutee has no getauxval, so it takes the
+ * compiled-in flags below instead. */
+#elif defined(__linux__) && !defined(WOLFSSL_OPTEE)
     /* https://community.arm.com/arm-community-blogs/b/operating-systems-blog/
      * posts/runtime-detection-of-cpu-features-on-an-armv8-a-cpu */
 
     #include <sys/auxv.h>
-    #include <asm/hwcap.h>
+
+    /* Kernel <asm/hwcap.h> values, for C libraries that lack them. */
+    #ifndef AT_HWCAP2
+        #define AT_HWCAP2       26
+    #endif
+    #ifndef HWCAP_ASIMD
+        #define HWCAP_ASIMD     (1 << 1)
+    #endif
+    #ifndef HWCAP_AES
+        #define HWCAP_AES       (1 << 3)
+    #endif
+    #ifndef HWCAP_PMULL
+        #define HWCAP_PMULL     (1 << 4)
+    #endif
+    #ifndef HWCAP_SHA2
+        #define HWCAP_SHA2      (1 << 6)
+    #endif
+    #ifndef HWCAP_ASIMDRDM
+        #define HWCAP_ASIMDRDM  (1 << 12)
+    #endif
+    #ifndef HWCAP_SHA3
+        #define HWCAP_SHA3      (1 << 17)
+    #endif
+    #ifndef HWCAP_SM3
+        #define HWCAP_SM3       (1 << 18)
+    #endif
+    #ifndef HWCAP_SM4
+        #define HWCAP_SM4       (1 << 19)
+    #endif
+    #ifndef HWCAP_SHA512
+        #define HWCAP_SHA512    (1 << 21)
+    #endif
+    #ifndef HWCAP_SVE
+        #define HWCAP_SVE       (1 << 22)
+    #endif
+    #ifndef HWCAP2_SME
+        #define HWCAP2_SME      (1 << 23)
+    #endif
 
     static WC_INLINE void cpuid_set_flags(void)
     {
@@ -307,6 +444,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (hwcaps & HWCAP_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef HWCAP_SHA1
+            if (hwcaps & HWCAP_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (hwcaps & HWCAP_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -314,7 +455,7 @@
             if (hwcaps & HWCAP_SHA512)
                 new_cpuid_flags |= CPUID_SHA512;
         #endif
-        #if defined(HWCAP_ASIMDRDM) && !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
+        #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
             if (hwcaps & HWCAP_ASIMDRDM)
                 new_cpuid_flags |= CPUID_RDM;
         #endif
@@ -330,17 +471,12 @@
             if (hwcaps & HWCAP_SM4)
                 new_cpuid_flags |= CPUID_SM4;
         #endif
-        #ifdef HWCAP_SVE
             if (hwcaps & HWCAP_SVE)
                 new_cpuid_flags |= CPUID_SVE;
-        #endif
-        #ifdef HWCAP2_SME
             /* SME is reported in the second HWCAP word. */
             if (getauxval(AT_HWCAP2) & HWCAP2_SME)
                 new_cpuid_flags |= CPUID_SME;
-        #endif
 
-            (void)hwcaps;
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
@@ -367,6 +503,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (features & ANDROID_CPU_ARM_FEATURE_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef ANDROID_CPU_ARM_FEATURE_SHA1
+            if (features & ANDROID_CPU_ARM_FEATURE_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (features & ANDROID_CPU_ARM_FEATURE_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -406,6 +546,8 @@
                 new_cpuid_flags |= CPUID_AES;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_PMULL") != 0)
                 new_cpuid_flags |= CPUID_PMULL;
+            if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA1") != 0)
+                new_cpuid_flags |= CPUID_SHA1;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA256") != 0)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -456,6 +598,10 @@
                 new_cpuid_flags |= CPUID_AES;
             if (features & HWCAP_PMULL)
                 new_cpuid_flags |= CPUID_PMULL;
+        #ifdef HWCAP_SHA1
+            if (features & HWCAP_SHA1)
+                new_cpuid_flags |= CPUID_SHA1;
+        #endif
             if (features & HWCAP_SHA2)
                 new_cpuid_flags |= CPUID_SHA256;
         #endif
@@ -529,6 +675,7 @@
                     PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
                 new_cpuid_flags |= CPUID_AES;
                 new_cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_SHA1;
                 new_cpuid_flags |= CPUID_SHA256;
             }
         #endif
@@ -564,6 +711,7 @@
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             new_cpuid_flags |= CPUID_AES;
             new_cpuid_flags |= CPUID_PMULL;
+            new_cpuid_flags |= CPUID_SHA1;
             new_cpuid_flags |= CPUID_SHA256;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
@@ -947,6 +1095,28 @@
         return WOLFSSL_ATOMIC_LOAD(cpuid_flags);
     }
 
+    /* FIPS v7 reads the CPU features once at power on and ignores changes.
+     * Linux only warns when microcode changes features while running and
+     * says to reboot (Documentation/arch/x86/microcode.rst, late loading);
+     * Intel marks such updates unfit to load while running ("Minimum Runtime
+     * Microcode Update Revision").  A reboot re-reads the features. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_DEV_NO_POST)
+    void cpuid_select_flags(cpuid_flags_t flags)
+    {
+        (void)flags;
+    }
+
+    void cpuid_set_flag(cpuid_flags_t flag)
+    {
+        (void)flag;
+    }
+
+    void cpuid_clear_flag(cpuid_flags_t flag)
+    {
+        (void)flag;
+    }
+#else
     void cpuid_select_flags(cpuid_flags_t flags)
     {
         WOLFSSL_ATOMIC_STORE(cpuid_flags, flags);
@@ -967,5 +1137,6 @@
                (&cpuid_flags, &current_flags, current_flags & ~flag))
             WC_RELAX_LONG_LOOP();
     }
+#endif
 
 #endif /* HAVE_CPUID */

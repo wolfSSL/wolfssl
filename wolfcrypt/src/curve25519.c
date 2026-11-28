@@ -518,6 +518,9 @@ int wc_curve25519_generic(int public_size, byte* pub,
     return WC_HW_E;
 #else
     int ret;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte pubVal[CURVE25519_KEYSIZE];
+#endif
 
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE) ||
@@ -531,6 +534,19 @@ int wc_curve25519_generic(int public_size, byte* pub,
     ret = curve25519_priv_clamp_check(priv);
     if (ret != 0)
         return ret;
+
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
+    /* avoid implementation fingerprinting - make sure signed bit is not set */
+    if (basepoint[CURVE25519_KEYSIZE-1] & 0x80) {
+        return ECC_BAD_ARG_E;
+    }
+#else
+    /* RFC 7748 section 5: clear the reserved top bit of the u-coordinate.
+     * basepoint is const, and the backends do not allow pub to alias it. */
+    XMEMCPY(pubVal, basepoint, CURVE25519_KEYSIZE);
+    pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+    basepoint = pubVal;
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     /* no key names a device, so offer the scalar to the build default one */
@@ -588,6 +604,9 @@ int wc_curve25519_generic_blind(int public_size, byte* pub,
     return WC_HW_E;
 #else
     int ret;
+#ifndef WOLFSSL_X25519_NO_MASK_PEER
+    byte pubVal[CURVE25519_KEYSIZE];
+#endif
 
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE) ||
@@ -604,6 +623,19 @@ int wc_curve25519_generic_blind(int public_size, byte* pub,
     ret = curve25519_priv_clamp_check(priv);
     if (ret != 0)
         return ret;
+
+#ifdef WOLFSSL_X25519_NO_MASK_PEER
+    /* avoid implementation fingerprinting - make sure signed bit is not set */
+    if (basepoint[CURVE25519_KEYSIZE-1] & 0x80) {
+        return ECC_BAD_ARG_E;
+    }
+#else
+    /* RFC 7748 section 5: clear the reserved top bit of the u-coordinate.
+     * basepoint is const, and the backends do not allow pub to alias it. */
+    XMEMCPY(pubVal, basepoint, CURVE25519_KEYSIZE);
+    pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+    basepoint = pubVal;
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     /* no key names a device, so offer the scalar to the build default one */
@@ -822,19 +854,32 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             privKey->nb_ctx->ssState = 1;
             break;
         case 1:
+        {
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            const byte* pubVal = pubKey->p.point;
+        #else
+            /* RFC 7748 section 5: curve25519_nb() does not clear the reserved
+             * top bit, so pass a masked copy. curve25519_nb() reads the point
+             * on every resumption but never keeps the pointer, so rebuilding
+             * the copy each call is equivalent. */
+            byte pubVal[CURVE25519_KEYSIZE];
+
+            XMEMCPY(pubVal, pubKey->p.point, CURVE25519_KEYSIZE);
+            pubVal[CURVE25519_KEYSIZE-1] &= 0x7f;
+        #endif
             /* Write the result directly into the caller's 'out' buffer.
              * curve25519_nb() zeroes the non-blocking context on completion,
              * so any output buffer that lives inside nb_ctx (e.g.
              * nb_ctx->o.point) would be clobbered to zero before we could
              * read it. The output is little-endian; case 2 handles the
              * optional byte-reversal for EC25519_BIG_ENDIAN. */
-            ret = curve25519_nb(out, privKey->k, pubKey->p.point,
-                      privKey->nb_ctx);
+            ret = curve25519_nb(out, privKey->k, pubVal, privKey->nb_ctx);
             if (ret == 0) {
                 ret = FP_WOULDBLOCK;
                 privKey->nb_ctx->ssState = 2;
             }
             break;
+        }
         case 2:
         #ifndef WOLFSSL_NO_ECDHX_SHARED_ZERO_CHECK
             {
@@ -951,9 +996,20 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         XMEMSET(&o, 0, sizeof(o));
 
 #ifdef FREESCALE_LTC_ECC
-        /* input point P on Curve25519 */
-        ret = nxp_ltc_curve25519(&o, private_key->k, &public_key->p,
-            kLTC_Curve25519);
+        {
+            /* input point P on Curve25519 */
+        #ifdef WOLFSSL_X25519_NO_MASK_PEER
+            const ECPoint* pub = &public_key->p;
+        #else
+            ECPoint pubMasked;
+            const ECPoint* pub = &pubMasked;
+
+            XMEMCPY(&pubMasked, &public_key->p, sizeof(pubMasked));
+            pubMasked.point[CURVE25519_KEYSIZE-1] &= 0x7f;
+        #endif
+            ret = nxp_ltc_curve25519(&o, private_key->k, pub,
+                kLTC_Curve25519);
+        }
 #else
     #ifdef WOLFSSL_SE050
         if (!private_key->privSet) {
@@ -1115,9 +1171,15 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
  * returns BAD_FUNC_ARGS when pub is NULL,
  *         BUFFER_E when size of public key is zero;
  *         ECC_OUT_OF_RANGE_E if the high bit is set;
- *         ECC_BAD_ARG_E if key length is not 32 bytes, public key value is
- *         zero or one; and
+ *         ECC_BAD_ARG_E if key length is not 32 bytes, or the public key
+ *         value is a cheaply detectable low-order point: 0, 1, p-1 (u = -1)
+ *         or the non-canonical encodings p and p+1 (p = 2^255-19); and
  *         0 otherwise.
+ *
+ * RFC 7748 Section 5 requires the non-canonical range [p, 2^255-1] to be
+ * accepted and processed as if reduced modulo p, so p+2 .. p+18 are valid
+ * inputs (the field arithmetic performs the reduction) and are not rejected
+ * here.
  */
 int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian)
 {
@@ -1148,15 +1210,18 @@ int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian)
         if (pub[CURVE25519_KEYSIZE - 1] & 0x80)
             return ECC_OUT_OF_RANGE_E;
 
-        /* Check for order-1 or higher. */
+        /* Check for p-1, p or p+1: 0x7fff..ffec, 0x7fff..ffed, 0x7fff..ffee.
+         * p-1 is the low-order point u = -1; p and p+1 reduce to 0 and 1.
+         * Larger values (p+2 .. p+18) are non-canonical encodings of 2 .. 18
+         * and must be accepted (RFC 7748 Section 5). */
         if (pub[CURVE25519_KEYSIZE - 1] == 0x7f) {
             for (i = CURVE25519_KEYSIZE - 2; i > 0; i--) {
                 if (pub[i] != 0xff)
                     break;
             }
-            if (i == 0 && (pub[0] >= 0xec))
+            if (i == 0 && (pub[0] >= 0xec) && (pub[0] <= 0xee))
                 return ECC_BAD_ARG_E;
-         }
+        }
     }
     else {
         /* Check for value of zero or one */
@@ -1171,15 +1236,16 @@ int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian)
         if (pub[0] & 0x80)
             return ECC_OUT_OF_RANGE_E;
 
-        /* Check for order-1 or higher. */
+        /* Check for p-1, p or p+1 (see little-endian case above). */
         if (pub[0] == 0x7f) {
             for (i = 1; i < CURVE25519_KEYSIZE - 1; i++) {
                 if (pub[i] != 0xff)
                     break;
             }
-            if (i == CURVE25519_KEYSIZE - 1 && (pub[i] >= 0xec))
+            if (i == CURVE25519_KEYSIZE - 1 && (pub[i] >= 0xec) &&
+                    (pub[i] <= 0xee))
                 return ECC_BAD_ARG_E;
-         }
+        }
     }
 
     return 0;
@@ -1374,6 +1440,11 @@ int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId)
     if (key == NULL) {
        ret = BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    else if (!WC_CTX_IS_ALIGNED(key, curve25519_key)) {
+        ret = BAD_ALIGN_E;
+    }
+#endif
     else {
         XMEMSET(key, 0, sizeof(*key));
 
@@ -1416,6 +1487,12 @@ void wc_curve25519_free(curve25519_key* key)
 {
     if (key == NULL)
        return;
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(key, curve25519_key)) {
+        ForceZero(key, sizeof(*key));
+        return;
+    }
+#endif
 
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);
@@ -1434,6 +1511,17 @@ int wc_curve25519_set_rng(curve25519_key* key, WC_RNG* rng)
     if (key == NULL)
         return BAD_FUNC_ARG;
     key->rng = rng;
+    return 0;
+}
+
+/* Companion to wc_curve25519_set_rng(): detach the key's RNG association.
+ * Subsequent blinded operations then fail in the RNG service (BAD_FUNC_ARG
+ * on the NULL WC_RNG) until a new one is set. */
+int wc_curve25519_clear_rng(curve25519_key* key)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    key->rng = NULL;
     return 0;
 }
 #endif

@@ -753,6 +753,15 @@ void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
 
 }
 
+void wolfSSL_CertManagerSetUnknownExtCallback32(WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32 cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetUnknownExtCallback32");
+    if (cm != NULL) {
+        cm->unknownExtCallback32 = cb;
+    }
+}
+
 #ifdef HAVE_CRL
 int wolfSSL_CertManagerSetCRLUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallback cb)
@@ -776,8 +785,96 @@ int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(WOLFSSL_CERT_MANAGER* cm,
     cm->crlUnknownExtCallbackExCtx = ctx;
     return WOLFSSL_SUCCESS;
 }
+
+int wolfSSL_CertManagerSetCRLUnknownExtCallback32(WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32 cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRLUnknownExtCallback32");
+    if (cm == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    cm->crlUnknownExtCallback32 = cb;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex(WOLFSSL_CERT_MANAGER* cm,
+        wc_UnknownExtCallback32Ex cb,
+        void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRLUnknownExtCallback32Ex");
+    if (cm == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    cm->crlUnknownExtCallback32Ex  = cb;
+    cm->crlUnknownExtCallback32ExCtx = ctx;
+    return WOLFSSL_SUCCESS;
+}
 #endif /* HAVE_CRL */
 #endif /* WC_ASN_UNKNOWN_EXT_CB */
+
+#ifdef HAVE_CRL
+/* Combine a certificate's date result with its CRL result.
+ *
+ * @param [in] ret     0 or the certificate's date error.
+ * @param [in] crlRet  CRL result.
+ * @return  The CRL result, or ret when the CRL result is 0 or CRL_MISSING.
+ */
+static int cm_crl_merge(int ret, int crlRet)
+{
+    /* A caller may waive the date error, so it may hide only a missing CRL. */
+    if ((ret == 0) || ((crlRet != 0) &&
+            (crlRet != WC_NO_ERR_TRACE(CRL_MISSING)))) {
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+        }
+        ret = crlRet;
+    }
+    else if (crlRet != 0) {
+        WOLFSSL_ERROR(crlRet);
+    }
+    return ret;
+}
+#endif /* HAVE_CRL */
+
+#if !defined(NO_WOLFSSL_CM_VERIFY) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+/* Certificate verdicts a verify callback may override, matching the errors the
+ * TLS path also hands to it: validity dates, an untrusted or self-signed chain,
+ * a failed signature, weak key sizes, name, path length, key usage, unhandled
+ * critical extensions, and revocation. This is an allowlist, so any other error
+ * such as a parse, algorithm, resource, or lock failure that left no verified
+ * certificate fails closed and never reaches the callback. */
+static int cm_verify_err_overridable(int err)
+{
+    switch (err) {
+        case WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E):
+        case WC_NO_ERR_TRACE(ASN_AFTER_DATE_E):
+        case WC_NO_ERR_TRACE(ASN_NO_SIGNER_E):
+        case WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E):
+        case WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E):
+        case WC_NO_ERR_TRACE(BAD_PADDING_E):
+        case WC_NO_ERR_TRACE(ASN_NAME_INVALID_E):
+        case WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E):
+        case WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E):
+        case WC_NO_ERR_TRACE(ASN_CRIT_EXT_E):
+        case WC_NO_ERR_TRACE(KEYUSAGE_E):
+        case WC_NO_ERR_TRACE(EXTKEYUSAGE_E):
+        case WC_NO_ERR_TRACE(RSA_KEY_SIZE_E):
+        case WC_NO_ERR_TRACE(ECC_KEY_SIZE_E):
+        case WC_NO_ERR_TRACE(FALCON_KEY_SIZE_E):
+        case WC_NO_ERR_TRACE(MLDSA_KEY_SIZE_E):
+#ifdef HAVE_CRL
+        case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
+        case WC_NO_ERR_TRACE(CRL_MISSING):
+        case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
+#endif
+            return 1;
+
+        default:
+            return 0;
+    }
+}
+#endif
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
     defined(OPENSSL_EXTRA)
@@ -791,15 +888,19 @@ int wolfSSL_CertManagerSetCRLUnknownExtCallbackEx(WOLFSSL_CERT_MANAGER* cm,
  * @param [in] format    Format of encoding. Valid values:
  *                         WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
  * @param [in] prev_err  Previous error. Passed to callback.
+ * @param [in] extraCa   Signers to search besides the manager's. May be NULL.
+ * @param [out] crlErr   CRL result, not merged into the return value. May be
+ *                       NULL.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  NOT_COMPILED_IN when converting from PEM to DER is not a feature of
  *          the wolfSSL build.
  */
 int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
-    long sz, int format, int prev_err)
+    Signer* extraCa, long sz, int format, int prev_err, int* crlErr)
 {
     int ret = 0;
+    int crlRet = 0;
     int fatal = 0;
     DerBuffer* der = NULL;
     WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
@@ -807,6 +908,10 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     WOLFSSL_ENTER("CM_VerifyBuffer_ex");
 
     (void)prev_err;
+
+    if (crlErr != NULL) {
+        *crlErr = 0;
+    }
 
     /* Allocate memory for decoded certificate. */
     WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
@@ -842,19 +947,25 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         InitDecodedCert(cert, buff, (word32)sz, cm->heap);
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+        if (cm->unknownExtCallback32 != NULL)
+            wc_SetUnknownExtCallback32(cert, cm->unknownExtCallback32);
         if (cm->unknownExtCallback != NULL)
             wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
 #endif
 
         /* Parse DER into decoded certificate fields and verify signature
          * against a known CA. */
-        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, NULL);
+        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, extraCa);
      }
 
 #ifdef HAVE_CRL
-    if ((ret == 0) && cm->crlEnabled) {
-        /* Check for a CRL for the CA and check validity of certificate. */
-        ret = CheckCertCRL(cm->crl, cert);
+    if (cm->crlEnabled && ((ret == 0) ||
+            (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) ||
+            (ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)))) {
+        crlRet = CheckCertCRLFromCm(cm, cm->crl, cert, extraCa);
+        if (crlRet != 0) {
+            WOLFSSL_MSG("CheckCertCRL failed");
+        }
     }
 #endif
 
@@ -862,6 +973,26 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
 #if !defined(NO_WOLFSSL_CM_VERIFY) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+    /* Only a certificate-policy verdict may be handed to the callback; any
+     * other error leaves no verified certificate and fails closed. Classify
+     * this attempt's own result first so it cannot be lost. */
+    if ((ret != 0) && !cm_verify_err_overridable(ret)) {
+        fatal = 1;
+    }
+    if ((crlRet != 0) && !cm_verify_err_overridable(crlRet)) {
+        ret = crlRet;
+        crlRet = 0;
+        fatal = 1;
+    }
+    /* A prior load failure is what the callback should see, but only when this
+     * attempt did not fail closed; it too fails closed when not a verdict. */
+    if ((!fatal) && (prev_err != 0)) {
+        ret = prev_err;
+        crlRet = 0;
+        if (!cm_verify_err_overridable(ret)) {
+            fatal = 1;
+        }
+    }
     /* Use callback to perform verification too if available. */
     if ((!fatal) && cm->verifyCallback) {
         WC_DECLARE_VAR(args, ProcPeerCertArgs, 1, 0);
@@ -890,16 +1021,39 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
             args->dCert = cert;
             args->dCertInit = 1;
 
-            /* Replace value in ret with an error value passed in. */
-            if (prev_err != 0) {
-                ret = prev_err;
+            if (ret == 0) {
+                ret = crlRet;
+                crlRet = 0;
             }
             /* Use callback to verify certificate. */
             ret = DoVerifyCallback(cm, NULL, ret, args);
+            /* Waiving the date error must not waive the CRL result. */
+            if ((ret == 0) && (crlRet != 0)) {
+                ret = DoVerifyCallback(cm, NULL, crlRet, args);
+                crlRet = 0;
+            }
         }
         WC_FREE_VAR_EX(args, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
+#ifdef HAVE_CRL
+    if (!fatal) {
+        if (crlErr != NULL) {
+            if ((crlRet == 0) && ((ret == WC_NO_ERR_TRACE(CRL_MISSING)) ||
+                    (ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)) ||
+                    (ret == WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)))) {
+                /* The callback rejected it. */
+                crlRet = ret;
+                ret = 0;
+            }
+            *crlErr = crlRet;
+        }
+        else {
+            ret = cm_crl_merge(ret, crlRet);
+        }
+    }
+#endif
+    (void)crlRet;
 
     /* Dispose of allocated memory. */
     FreeDecodedCert(cert);
@@ -944,7 +1098,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
     }
     else {
         /* No previous error. */
-        ret = CM_VerifyBuffer_ex(cm, buff, sz, format, 0);
+        ret = CM_VerifyBuffer_ex(cm, buff, NULL, sz, format, 0, NULL);
     }
 
     return ret;
@@ -1983,12 +2137,16 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
 
             /* Parse certificate and perform CRL checks. */
             ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm, NULL);
-            if (ret != 0) {
+            if ((ret != 0) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E)) &&
+                    (ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E))) {
                 WOLFSSL_MSG("ParseCert failed");
             }
-            /* Do CRL checks with decoded certificate. */
-            else if ((ret = CheckCertCRL(cm->crl, cert)) != 0) {
-                WOLFSSL_MSG("CheckCertCRL failed");
+            else {
+                /* A date error is returned only after the parse completed,
+                 * so still answer the revocation question that was asked. */
+                ret = cm_crl_merge(ret,
+                    CheckCertCRLFromCm(cm, cm->crl, cert, NULL));
             }
 
             /* Dispose of dynamically allocated memory. */
@@ -2728,39 +2886,31 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 }
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
-/* hash is the SHA digest of name, just use first 32 bits as hash */
+/* use the first 32 bits of the digest as the table row */
 static WC_INLINE word32 TrustedPeerHashSigner(const byte* hash)
 {
     return MakeWordFromHash(hash) % TP_TABLE_SIZE;
 }
 
-/* does trusted peer already exist on signer list */
+/* does trusted peer already exist in the table */
 int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
 {
     TrustedPeerCert* tp;
     int     ret = 0;
-    word32  row = TrustedPeerHashSigner(cert->subjectHash);
+    byte    certHash[KEYID_SIZE];
+    word32  row;
+
+    if (cert->source == NULL || cert->maxIdx == 0 ||
+            CalcHashId(cert->source, cert->maxIdx, certHash) != 0)
+        return ret;
+    row = TrustedPeerHashSigner(certHash);
 
     if (wc_LockMutex(&cm->tpLock) != 0)
         return  ret;
     tp = cm->tpTable[row];
     while (tp) {
-        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
-                SIGNER_DIGEST_SIZE) == 0)
-    #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
-         && (XMEMCMP(cert->issuerHash, tp->issuerHash,
-                SIGNER_DIGEST_SIZE) == 0)
-    #endif
-        )
+        if (XMEMCMP(tp->certHash, certHash, KEYID_SIZE) == 0)
             ret = 1;
-    #ifndef NO_SKID
-        if (cert->extSubjKeyIdSet) {
-            /* Compare SKID as well if available */
-            if (ret == 1 && XMEMCMP(cert->extSubjKeyId, tp->subjectKeyIdHash,
-                    SIGNER_DIGEST_SIZE) != 0)
-                ret = 0;
-        }
-    #endif
         if (ret == 1)
             break;
         tp = tp->next;
@@ -2773,39 +2923,31 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
 /* return Trusted Peer if found, otherwise NULL
     type is what to match on
  */
-TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
+TrustedPeerCert* GetTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     TrustedPeerCert* ret = NULL;
     TrustedPeerCert* tp  = NULL;
+    byte    certHash[KEYID_SIZE];
     word32  row;
 
     if (cm == NULL || cert == NULL)
         return NULL;
 
-    row = TrustedPeerHashSigner(cert->subjectHash);
+    /* whole-certificate identity test: index the table by the hash of the
+     * presented certificate's exact bytes and compare the full digest */
+    if (cert->source == NULL || cert->maxIdx == 0 ||
+            CalcHashId(cert->source, cert->maxIdx, certHash) != 0)
+        return NULL;
+
+    row = TrustedPeerHashSigner(certHash);
 
     if (wc_LockMutex(&cm->tpLock) != 0)
         return ret;
 
     tp = cm->tpTable[row];
     while (tp) {
-        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
-                SIGNER_DIGEST_SIZE) == 0)
-        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
-             && (XMEMCMP(cert->issuerHash, tp->issuerHash,
-                SIGNER_DIGEST_SIZE) == 0)
-        #endif
-            )
+        if (XMEMCMP(tp->certHash, certHash, KEYID_SIZE) == 0)
             ret = tp;
-    #ifndef NO_SKID
-        if (cert->extSubjKeyIdSet) {
-            /* Compare SKID as well if available */
-            if (ret != NULL && XMEMCMP(cert->extSubjKeyId, tp->subjectKeyIdHash,
-                    SIGNER_DIGEST_SIZE) != 0)
-                ret = NULL;
-        }
-    #endif
         if (ret != NULL)
             break;
         tp = tp->next;
@@ -2814,34 +2956,11 @@ TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
 
     return ret;
 }
-
-
-int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
-{
-    if (tp == NULL || cert == NULL)
-        return BAD_FUNC_ARG;
-
-    /* subject key id or subject hash has been compared when searching
-       tpTable for the cert from function GetTrustedPeer */
-
-    /* compare signatures */
-    if (tp->sigLen == cert->sigLength) {
-        if (XMEMCMP(tp->sig, cert->signature, cert->sigLength)) {
-            return WOLFSSL_FAILURE;
-        }
-    }
-    else {
-        return WOLFSSL_FAILURE;
-    }
-
-    return WOLFSSL_SUCCESS;
-}
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 /* return CA if found, otherwise NULL */
-Signer* GetCA(void* vp, byte* hash)
+Signer* GetCA(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
     word32  row = 0;
@@ -2874,9 +2993,8 @@ Signer* GetCA(void* vp, byte* hash)
 }
 
 #if defined(HAVE_OCSP)
-Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
+Signer* GetCAByKeyHash(WOLFSSL_CERT_MANAGER* cm, const byte* keyHash)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
     int row;
@@ -2885,7 +3003,7 @@ Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
         return NULL;
 
     /* try lookup using keyHash as subjKeyID first */
-    ret = GetCA(vp, (byte*)keyHash);
+    ret = GetCA(cm, (byte*)keyHash);
     if (ret != NULL && XMEMCMP(ret->subjectKeyHash, keyHash, KEYID_SIZE) == 0) {
         return ret;
     }
@@ -2910,10 +3028,9 @@ Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
 }
 #endif
 #ifdef WOLFSSL_AKID_NAME
-Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
-        const byte* serial, word32 serialSz)
+Signer* GetCAByAKID(WOLFSSL_CERT_MANAGER* cm, const byte* issuer,
+        word32 issuerSz, const byte* serial, word32 serialSz)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
     byte nameHash[SIGNER_DIGEST_SIZE];
@@ -2952,9 +3069,15 @@ Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
 
 #ifndef NO_SKID
 /* return CA if found, otherwise NULL. Walk through hash table. */
-Signer* GetCAByName(void* vp, byte* hash)
+Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
-    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
+    return GetCAByNameSkip(cm, hash, NULL);
+}
+
+/* As GetCAByName() but never returns skip. */
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip)
+{
     Signer* ret = NULL;
     Signer* signers;
     word32  row;
@@ -2968,7 +3091,7 @@ Signer* GetCAByName(void* vp, byte* hash)
     for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
         signers = cm->caTable[row];
         while (signers && ret == NULL) {
-            if (XMEMCMP(hash, signers->subjectNameHash,
+            if (signers != skip && XMEMCMP(hash, signers->subjectNameHash,
                         SIGNER_DIGEST_SIZE) == 0) {
                 ret = signers;
             }
@@ -3001,6 +3124,14 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
     }
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (cm->unknownExtCallback32 != NULL) {
+        wc_SetUnknownExtCallback32(cert, cm->unknownExtCallback32);
+    }
+    if (cm->unknownExtCallback != NULL) {
+        wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
+    }
+#endif
     if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
         FreeDecodedCert(cert);
         XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
@@ -3019,68 +3150,39 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
     }
     XMEMSET(peerCert, 0, sizeof(TrustedPeerCert));
 
+    /* hash of the whole certificate DER: table index and identity test */
+    ret = CalcHashId(der->buffer, der->length, peerCert->certHash);
+    if (ret != 0) {
+        FreeDecodedCert(cert);
+        XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+        FreeTrustedPeer(peerCert, cm->heap);
+        FreeDer(&der);
+        return ret;
+    }
+
     if (AlreadyTrustedPeer(cm, cert)) {
         WOLFSSL_MSG("\tAlready have this CA, not adding again");
         FreeTrustedPeer(peerCert, cm->heap);
         (void)ret;
     }
     else {
-        /* add trusted peer signature */
-        peerCert->sigLen = cert->sigLength;
-        peerCert->sig = (byte *)XMALLOC(cert->sigLength, cm->heap,
-                                                        DYNAMIC_TYPE_SIGNATURE);
-        if (peerCert->sig == NULL) {
+        peerCert->next = NULL;
+        row = (int)TrustedPeerHashSigner(peerCert->certHash);
+
+        if (wc_LockMutex(&cm->tpLock) == 0) {
+            peerCert->next = cm->tpTable[row];
+            cm->tpTable[row] = peerCert;   /* takes ownership */
+            wc_UnLockMutex(&cm->tpLock);
+        }
+        else {
+            WOLFSSL_MSG("\tTrusted Peer Cert Mutex Lock failed");
             FreeDecodedCert(cert);
             XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
             FreeTrustedPeer(peerCert, cm->heap);
             FreeDer(&der);
-            return MEMORY_E;
+            return BAD_MUTEX_E;
         }
-        XMEMCPY(peerCert->sig, cert->signature, cert->sigLength);
-
-        /* add trusted peer name */
-        peerCert->nameLen = cert->subjectCNLen;
-        peerCert->name    = cert->subjectCN;
-        #ifndef IGNORE_NAME_CONSTRAINTS
-            peerCert->permittedNames = cert->permittedNames;
-            peerCert->excludedNames  = cert->excludedNames;
-        #endif
-
-        /* add SKID when available and hash of name */
-        #ifndef NO_SKID
-            XMEMCPY(peerCert->subjectKeyIdHash, cert->extSubjKeyId,
-                   SIGNER_DIGEST_SIZE);
-        #endif
-            XMEMCPY(peerCert->subjectNameHash, cert->subjectHash,
-                    SIGNER_DIGEST_SIZE);
-        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
-            XMEMCPY(peerCert->issuerHash, cert->issuerHash,
-                    SIGNER_DIGEST_SIZE);
-        #endif
-            /* If Key Usage not set, all uses valid. */
-            peerCert->next    = NULL;
-            cert->subjectCN = 0;
-        #ifndef IGNORE_NAME_CONSTRAINTS
-            cert->permittedNames = NULL;
-            cert->excludedNames = NULL;
-        #endif
-
-            row = (int)TrustedPeerHashSigner(peerCert->subjectNameHash);
-
-            if (wc_LockMutex(&cm->tpLock) == 0) {
-                peerCert->next = cm->tpTable[row];
-                cm->tpTable[row] = peerCert;   /* takes ownership */
-                wc_UnLockMutex(&cm->tpLock);
-            }
-            else {
-                WOLFSSL_MSG("\tTrusted Peer Cert Mutex Lock failed");
-                FreeDecodedCert(cert);
-                XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
-                FreeTrustedPeer(peerCert, cm->heap);
-                FreeDer(&der);
-                return BAD_MUTEX_E;
-            }
-        }
+    }
 
     WOLFSSL_MSG("\tFreeing parsed trusted peer cert");
     FreeDecodedCert(cert);
@@ -3155,8 +3257,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #endif
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    /* A signer doesn't keep the X509_NAMEs, don't build them. */
+    cert->noX509Name = 1;
+#endif
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
+    if (cm->unknownExtCallback32 != NULL) {
+        wc_SetUnknownExtCallback32(cert, cm->unknownExtCallback32);
+    }
     if (cm->unknownExtCallback != NULL) {
         wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
     }
@@ -3313,21 +3422,11 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         WOLFSSL_MSG("\tCan't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
-    /* Enforced by default. ALLOW_INVALID_CERTSIGN is a deliberate,
-     * RFC-non-conformant opt-out for interop with deployed certs that carry
-     * malformed keyUsage; see the macro list at the top of
-     * wolfcrypt/src/asn.c. */
+    /* ALLOW_INVALID_CERTSIGN is a deliberate, RFC-non-conformant opt-out. */
 #ifndef ALLOW_INVALID_CERTSIGN
     else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
         !cert->selfSigned && cert->extKeyUsageSet &&
         (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
-        /* Intermediate CA certs - including chain-supplied temporary CAs
-        * (WOLFSSL_TEMP_CA) added while building a path - are required to have
-        * the keyCertSign key usage when a Key Usage extension is present.
-        * Only operator-loaded root certs (WOLFSSL_USER_CA) and self-signed
-        * roots are exempt. Per RFC 5280 an absent Key Usage extension implies
-        * all usages, so only enforce this when the extension is actually
-        * present (extKeyUsageSet). */
         WOLFSSL_MSG("\tDoesn't have key usage certificate signing");
         ret = NOT_CA_ERROR;
     }

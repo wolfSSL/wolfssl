@@ -1,0 +1,161 @@
+name: "Microchip PolarFire SoC Athena port"
+
+# Compiles the PolarFire SoC Athena F5200 port, which no other job builds,
+# against the genuine Microchip CAL headers at a pinned commit, in every
+# configuration below, and checks each CAL symbol it references is defined in
+# the archive. A host build on purpose: both CAL archives are soft-float lp64,
+# which Ubuntu's riscv64 glibc cannot link, and what this guards (CAL header
+# renames, refactors of wolfCrypt or cryptocb.h) the host compiler sees.
+# Functional validation is on an MPFS250TS Video Kit; see the port's README.
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+    paths:
+      - 'wolfcrypt/src/**'
+      - 'wolfssl/wolfcrypt/**'
+      - '.github/workflows/mpfs-athena-compile.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ '**' ]
+    paths:
+      - 'wolfcrypt/src/**'
+      - 'wolfssl/wolfcrypt/**'
+      - '.github/workflows/mpfs-athena-compile.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+# END OF COMMON SECTION
+
+env:
+  # Pinned so a CAL change cannot break a PR that did not touch the port. Bump
+  # it deliberately.
+  HSS_REF: 19c8c0dbc0b37ae3b1197f6e817d2d766ad2af87
+
+jobs:
+  compile:
+    name: Compile every configuration
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Checkout the Microchip CAL
+        run: |
+          set -e
+          # Only services/crypto is needed, and the repository is large.
+          git clone --filter=blob:none --no-checkout --sparse \
+            https://github.com/polarfire-soc/hart-software-services \
+            "$GITHUB_WORKSPACE/hss"
+          cd "$GITHUB_WORKSPACE/hss"
+          git sparse-checkout set services/crypto
+          git fetch --depth 1 origin "$HSS_REF"
+          git checkout "$HSS_REF"
+          test -f services/crypto/calini.h
+          test -f services/crypto/mpfs-rv64imac-user-crypto-lib.a
+
+      - name: Compile and check each configuration
+        run: |
+          CAL="$GITHUB_WORKSPACE/hss/services/crypto"
+          CFG="$GITHUB_WORKSPACE/cfg"
+          OUT="$GITHUB_WORKSPACE/obj"
+          mkdir -p "$CFG" "$OUT"
+
+          # Algorithm gates come from each leg, so each can be left out.
+          cat > "$CFG/user_settings.h" <<'EOF'
+          #ifndef CI_USER_SETTINGS_H
+          #define CI_USER_SETTINGS_H
+          #define WOLFSSL_MICROCHIP_MPFS
+          #define WOLFSSL_MPFS_ATHENA
+          #define SINGLE_THREADED
+          #define NO_FILESYSTEM
+          #define NO_WOLFSSL_DIR
+          /* The first targets have no heap: static pools unless CI_HEAP. */
+          #ifndef CI_HEAP
+          #define WOLFSSL_NO_MALLOC
+          #define NO_WOLFSSL_MEMORY
+          #endif
+          #define WC_NO_HARDEN
+          #if !defined(HAVE_ECC) && !defined(CI_RSA)
+          #define NO_BIG_INT
+          #endif
+          #ifndef CI_RSA
+          #define NO_RSA
+          #endif
+          #define NO_DH
+          #define NO_DSA
+          #endif
+          EOF
+
+          nm --defined-only "$CAL/mpfs-rv64imac-user-crypto-lib.a" \
+            | awk '{print $3}' | sort -u > "$OUT/cal_defined"
+
+          # name | flags | r to compile random.c too
+          # Each leg is built without and with the opt-in self-test.
+          LEGS=$(cat <<'EOF'
+          sha384-and-aesctr | -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DWOLFSSL_AES_COUNTER | r
+          aesctr-only | -DWOLFSSL_AES_COUNTER -DWC_MPFS_ATHENA_NO_SHA256 |
+          sha384-only | -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 |
+          aesecb-only | -DHAVE_AES_ECB -DWC_MPFS_ATHENA_NO_SHA256 |
+          aesxts | -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DWOLFSSL_AES_COUNTER -DHAVE_AES_ECB -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT -DWC_MPFS_ATHENA_AES_MIN_SZ=512 |
+          sha2-all | -DWOLFSSL_SHA224 -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DCI_HEAP -DWOLFSSL_SMALL_STACK -DWOLFSSL_SMALL_STACK_CACHE -DWOLFSSL_HASH_KEEP -DWOLFSSL_HASH_FLAGS |
+          aes-all | -DHAVE_AES_CBC -DHAVE_AESGCM -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_KEYWRAP_PADDING -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT -DWOLFSSL_AES_COUNTER -DHAVE_AES_ECB -DWOLFSSL_AES_XTS -DWC_MPFS_ATHENA_GCM_MIN_SZ=64 |
+          rng-drbg | -DWC_MPFS_ATHENA_RNG_DRBG | r
+          custom-rng | -DWC_NO_HASHDRBG -DCUSTOM_RAND_GENERATE_BLOCK=my_rng -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DHAVE_AES_ECB |
+          custom-seed | -DCUSTOM_RAND_GENERATE_SEED=wc_MpfsAthena_GenerateSeed -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 | r
+          ecc-all | -DHAVE_ECC -DHAVE_ECC192 -DHAVE_ECC224 -DHAVE_ECC384 -DHAVE_ECC521 -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 |
+          ecc-verify-only | -DHAVE_ECC -DNO_ECC_SIGN -DNO_ECC_DHE |
+          ecc-sign-only | -DHAVE_ECC -DNO_ECC_VERIFY -DNO_ECC_DHE |
+          ecc-dhe-only | -DHAVE_ECC -DNO_ECC_SIGN -DNO_ECC_VERIFY |
+          ecc-no-asn | -DHAVE_ECC -DHAVE_ECC384 -DNO_ASN -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 |
+          ecc-blind-set-k | -DHAVE_ECC -DWOLFSSL_ECC_BLIND_K -DWOLFSSL_ECDSA_SET_K -DWOLFSSL_ECDSA_DETERMINISTIC_K |
+          rsa | -DCI_RSA -DCI_HEAP -DWOLFSSL_SMALL_STACK -DWOLF_CRYPTO_CB_RSA_PAD |
+          rsa-public-only | -DCI_RSA -DWOLFSSL_RSA_PUBLIC_ONLY -DWC_MPFS_ATHENA_RSA_PUBLIC |
+          all-opted-out | -DCI_RSA -DHAVE_ECC -DHAVE_AESGCM -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT -DHAVE_AES_KEYWRAP -DWOLFSSL_SHA512 -DWOLFSSL_SHA384 -DWC_MPFS_ATHENA_NO_SHA256 -DWC_MPFS_ATHENA_NO_SHA512 -DWC_MPFS_ATHENA_NO_CBC -DWC_MPFS_ATHENA_NO_GCM -DWC_MPFS_ATHENA_NO_KEYWRAP -DWC_MPFS_ATHENA_NO_CMAC -DWC_MPFS_ATHENA_NO_RNG -DWC_MPFS_ATHENA_NO_ECC -DWC_MPFS_ATHENA_NO_RSA |
+          EOF
+          )
+
+          fail=0
+          while IFS='|' read -r name flags rnd; do
+            name=$(echo $name)
+            rnd=$(echo $rnd)
+            [ -n "$name" ] || continue
+            for kat in "" "-DWC_MPFS_ATHENA_SELFTEST"; do
+              leg="$name${kat:+ +selftest}"
+              obj="$OUT/port.o"
+              if ! cc -c -Wall -Wextra -Werror -I. -I"$CFG" -I"$CAL" \
+                  -DWOLFSSL_USER_SETTINGS $flags $kat \
+                  wolfcrypt/src/port/microchip/mpfs_athena.c -o "$obj" \
+                  2> "$OUT/err.txt"; then
+                echo "FAIL compile  $leg"; cat "$OUT/err.txt"; fail=1; continue
+              fi
+              if [ "$rnd" = "r" ] && ! cc -c -Wall -Wextra -Werror -I. \
+                  -I"$CFG" -I"$CAL" -DWOLFSSL_USER_SETTINGS $flags $kat \
+                  wolfcrypt/src/random.c -o "$OUT/random.o" \
+                  2> "$OUT/err.txt"; then
+                echo "FAIL random.c $leg"; cat "$OUT/err.txt"; fail=1; continue
+              fi
+              # A gate that compiles the whole port out leaves no callback.
+              if ! nm --defined-only "$obj" | grep -q wc_MpfsAthena_CryptoDevCb
+              then
+                echo "FAIL empty    $leg"; fail=1; continue
+              fi
+              # A missing CAL symbol only fails at the board's link.
+              miss=$(nm --undefined-only "$obj" | awk '{print $2}' \
+                | grep -E '^(CAL|aesf5200|shaf5200|uiROMMods$)' \
+                | grep -vxF -f "$OUT/cal_defined" || true)
+              if [ -n "$miss" ]; then
+                echo "FAIL symbols  $leg:" $miss; fail=1; continue
+              fi
+              echo "ok            $leg"
+            done
+          done <<< "$LEGS"
+          exit $fail

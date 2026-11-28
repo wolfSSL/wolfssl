@@ -60,9 +60,8 @@
  * exactly that, so defining it here -- BEFORE any wolfSSL header is pulled in
  * by the .c below -- routes all 58 SAVE_VECTOR_REGISTERS2() sites through a
  * variable this file controls, using the library's own hook rather than
- * overriding a macro behind its back. Setting it non-zero makes each dispatch
- * fall through to the portable C path, which is what the operand's false side
- * selects on a platform that really can refuse.
+ * overriding a macro behind its back. Setting it non-zero refuses the save,
+ * which each dispatch reports as an error rather than switching lanes.
  *
  * The file uses only SAVE_VECTOR_REGISTERS2(); the SAVE_VECTOR_REGISTERS(
  * fail_clause) form, whose expansion also changes under this hook, appears
@@ -72,14 +71,14 @@
  * the save-refused answer at a CHOSEN call index instead of only "always" or
  * "never".  Two dispatch guards nest inside one another:
  *
- *     mlkem_gen_matrix()                 if (IS_INTEL_AVX2(..) && save == 0)
+ *     mlkem_gen_matrix()                 if (IS_INTEL_AVX2(..)) save
  *       mlkem_gen_matrix_k3_avx2()         for (..) { if (IS_INTEL_BMI2(..))
- *                                                    else if (IS_INTEL_AVX2(..)
- *                                                          && save == 0)
+ *                                                    else if (IS_INTEL_AVX2(..))
+ *                                                        save
  *
- * so the inner guard's operands can only be reached when the OUTER one was
- * already satisfied.  A process-wide "always refuse" therefore never lets the
- * inner site run at all, and its false side would stay unreachable.  Letting
+ * so the inner save can only be reached when the OUTER one was already
+ * granted.  A process-wide "always refuse" therefore never lets the inner
+ * site run at all, and its refusal branch would stay unreachable.  Letting
  * call 0..n-1 succeed and calls >= n refuse gives the inner site a genuine
  * (T,F) row while the outer one still took (T,T).
  *
@@ -94,7 +93,11 @@ static long wb_intr_count = 0;      /* SAVE_VECTOR_REGISTERS2() calls seen */
 static long wb_intr_fail_from = -1; /* >= 0: refuse from this call index on */
 static void (*wb_intr_action)(long ix) = 0; /* runs on every call */
 
+#if defined(__GNUC__) || defined(__clang__)
+static int __attribute__((unused)) wb_intr_hook(void)
+#else
 static int wb_intr_hook(void)
+#endif
 {
     long ix = wb_intr_count++;
 
@@ -203,7 +206,12 @@ static int          wb_rej_lane = -1;
  * the grouping turns out to be. */
 static long         wb_rej_abs = -1;
 
+#if defined(__GNUC__) || defined(__clang__)
+static unsigned int __attribute__((unused)) wb_rej_trim(unsigned int got,
+        unsigned int len)
+#else
 static unsigned int wb_rej_trim(unsigned int got, unsigned int len)
+#endif
 {
     long ix = (long)wb_rej_ix++;
     int  hit = 0;
@@ -425,7 +433,11 @@ static void wb_get_noise_c_vec2_null(void)
     XMEMSET(poly, 0, sizeof(poly));
     XMEMSET(seed, 0x37, sizeof(seed));
 
-    mlkem_prf_init(&prf);
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
     /* vec2 != NULL True side (also poly != NULL True side). */
     ret = mlkem_get_noise_c(&prf, k, vec1, MLKEM_CBD_ETA2, vec2,
         MLKEM_CBD_ETA2, poly, seed);
@@ -769,7 +781,11 @@ static void wb_leaf_sha3_rows(void)
 #endif
 
     XMEMSET(key, 0x5a, sizeof(key));
-    mlkem_prf_init(&prf);
+    if (mlkem_prf_new(&prf, NULL, INVALID_DEVID) != 0) {
+        WB_NOTE("mlkem_prf_new failed");
+        wb_fail = 1;
+        return;
+    }
 
     for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
         wb_set_flags(rows[i].clear);

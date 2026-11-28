@@ -3,8 +3,15 @@
     \brief This function initializes an AES structure by setting the key and
     then setting the initialization vector.
 
+    If a crypto callback device claims the key without a software key
+    schedule, a mode the callback does not handle returns MISSING_KEY when
+    WOLFSSL_AES_REQUIRE_KEY_SET is in effect (the default).
+
     \return 0 On successfully setting key and initialization vector.
     \return BAD_FUNC_ARG Returned if key length is invalid.
+    \return BAD_FUNC_ARG Returned if aes is NULL.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
+    \return other negative values An error from a crypto callback device.
 
     \param aes pointer to the AES structure to modify
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -222,7 +229,16 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
     wc_AesSetKey should have been called with the iv set to NULL. This is only
     enabled if the configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__
     In nearly all use cases ECB mode is considered to be less secure. Please
-    avoid using ECB API’s directly whenever possible.
+    avoid using ECB API’s directly whenever possible. When
+    WC_AES_DIRECT_CRYPTO_CB is defined (set automatically for WOLF_CRYPTO_CB
+    builds that use the generic AES Direct code, not a port's own version), if
+    the AES object has a crypto callback device (devId), that device is asked
+    first to encrypt the block as a one-block ECB request. The software key is
+    used only if the device declines, and a device error is returned as-is.
+    A device that owns the key must handle the request or return an error; it
+    must not return CRYPTOCB_UNAVAILABLE. With WOLF_CRYPTO_CB_FIND, the device
+    find callback picks the device, so a device can be asked even when the AES
+    object has no devId.
 
     \return int integer values corresponding to wolfSSL error or success
     status
@@ -256,7 +272,16 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     wc_AesSetKey should have been called with the iv set to NULL. This is only
     enabled if the configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__
     In nearly all use cases ECB mode is considered to be less secure. Please
-    avoid using ECB API’s directly whenever possible.
+    avoid using ECB API’s directly whenever possible. When
+    WC_AES_DIRECT_CRYPTO_CB is defined (set automatically for WOLF_CRYPTO_CB
+    builds that use the generic AES Direct code, not a port's own version), if
+    the AES object has a crypto callback device (devId), that device is asked
+    first to decrypt the block as a one-block ECB request. The software key is
+    used only if the device declines, and a device error is returned as-is.
+    A device that owns the key must handle the request or return an error; it
+    must not return CRYPTOCB_UNAVAILABLE. With WOLF_CRYPTO_CB_FIND, the device
+    find callback picks the device, so a device can be asked even when the AES
+    object has no devId.
 
     \return int integer values corresponding to wolfSSL error or success
     status
@@ -295,6 +320,8 @@ int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
     \return 0 On successfully setting the key.
     \return BAD_FUNC_ARG Returned if the given key is an invalid length.
+    \return BAD_FUNC_ARG Returned if aes is NULL.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
 
     \param aes pointer to the AES object used to encrypt data
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -335,6 +362,13 @@ int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
     given key. It is only enabled if the configure option
     HAVE_AESGCM is enabled at compile time.
 
+    A new key drops the streaming state, so wc_AesGcmInit() must be called
+    again before wc_AesGcmEncryptUpdate() or wc_AesGcmDecryptUpdate(),
+    which return MISSING_IV until then. A nonce cached with
+    wc_AesGcmSetIV() or wc_AesGcmSetExtIV() is kept. If a crypto callback
+    device claims the key without a software key schedule, the streaming
+    API returns MISSING_KEY.
+
     \return 0 On successfully setting the key.
     \return BAD_FUNC_ARG Returned if the given key is an invalid length.
 
@@ -359,6 +393,69 @@ int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
     \sa wc_AesGcmDecrypt
 */
 int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
+
+/*!
+    \ingroup AES
+    \brief This function associates one tag length with the key held by an
+    AES object, as SP 800-38D section 5.2.1.2 and SP 800-38C section 5.3
+    require. Once set, AES-GCM and AES-CCM calls with that key accept only
+    that tag length. wc_AesGcmSetKey() and wc_AesCcmSetKey() clear the
+    association. The mode still applies its own list of allowed tag lengths
+    on top of this.
+
+    WOLFSSL_NO_AES_TAG_ASSOCIATION builds all of this out, which departs from
+    the requirement above, so a FIPS v7 or later build refuses it.
+
+    The first use of a key writes the length into the AES object, so a keyed
+    object shared read only between threads for one-shot AES-GCM or AES-CCM
+    needs its length set here before it is handed out.
+
+    The first use of a key fixes its tag length even without this call. Once
+    a length is associated this call can repeat it but not change or clear
+    it; set the key again through one of those two to start over.
+    wc_AesSetKey() clears it as well on builds that use the software key
+    schedule, but a backend with its own key setter does not. Hardware
+    offload ports do not apply this association, and such a build would be
+    validated as a hybrid module.
+
+    A crypto callback is checked here before the work is handed over, because
+    the key it forwards is the one this object holds. A callback that builds a
+    fresh context per call cannot see the association, so this is the only
+    place it can be caught. A device key installed by id or label is the
+    exception, it is never seen here, so its first tag length stays associated
+    until the object is freed.
+
+    An OpenSSL-compat EVP context re-initialized without a new key keeps the
+    association, so a later verify asking for a different tag length fails.
+    That is the one key one tag length rule, not a caller error. EVP encrypt
+    always tags at the full length and shortens afterwards, so it never
+    reaches this check.
+
+    \return 0 On success.
+    \return BAD_FUNC_ARG Returned if aes is NULL, the length is zero or
+    larger than the AES block size, or a different length is already
+    associated.
+
+    \param aes pointer to the AES object holding the key
+    \param tagLen tag length to associate with the key
+
+    _Example_
+    \code
+    Aes enc;
+    byte key[] = { some 16, 24, 32 byte key };
+    if (wc_AesGcmSetKey(&enc, key, sizeof(key)) != 0) {
+        // failed to set aes key
+    }
+    if (wc_AesSetTagLen(&enc, 16) != 0) {
+        // failed to associate the tag length
+    }
+    \endcode
+
+    \sa wc_AesGcmSetKey
+    \sa wc_AesCcmSetKey
+    \sa wc_CmacSetTagLen
+*/
+int  wc_AesSetTagLen(Aes* aes, word32 tagLen);
 
 /*!
     \ingroup AES
@@ -556,9 +653,13 @@ int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     \ingroup AES
     \brief This function sets the key for an AES object using CCM
     (Counter with CBC-MAC). It takes a pointer to an AES structure and
-    initializes it with supplied key.
+    initializes it with supplied key. A nonce cached with
+    wc_AesCcmSetNonce() is kept.
 
-    \return none
+    \return 0 On successfully setting the key.
+    \return BAD_FUNC_ARG Returned if aes is NULL or key length is invalid.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
+    \return other negative values An error from a crypto callback device.
 
     \param aes aes structure in which to store the supplied key
     \param key 16, 24, or 32 byte secret key for encryption and decryption
@@ -690,6 +791,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
     wc_AesXtsFree on aes key when done.
 
     \return 0 Success
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes   AES keys for encrypt/decrypt process
     \param heap  heap hint to use for memory. Can be NULL
@@ -996,10 +1099,15 @@ int wc_AesXtsFree(XtsAes* aes);
     with async hardware. It is up to the user to call wc_AesFree on the Aes
     structure when done.
     \return 0 Success
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes aes structure in to initialize
     \param heap heap hint to use for malloc / free if needed
     \param devId ID to use with crypto callbacks or async hardware. Set to INVALID_DEVID (-2) if not used
+
+    \note Aes has 16-byte alignment (64 on Xilinx Versal) if WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -1758,48 +1866,11 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
 /*!
     \ingroup AES
     \brief This function performs AES encryption using Ciphertext Stealing (CTS)
-    mode. It is a one-shot API that handles all operations in a single call.
-
-    \return 0 on successful encryption.
-    \return BAD_FUNC_ARG if input arguments are invalid.
-    \return other negative error codes for encryption failures.
-
-    \param [in] key pointer to the AES key used for encryption.
-    \param [in] keySz size of the AES key in bytes (16, 24, or 32 bytes).
-    \param[out] out buffer to hold the encrypted ciphertext. Must be at least
-    the size of the input.
-    \param [in] in pointer to the plaintext input data to encrypt.
-    \param [in] inSz size of the plaintext input data in bytes.
-    \param [in] iv pointer to the initialization vector (IV) used for encryption.
-    Must be 16 bytes.
-
-    _Example_
-    \code
-        byte key[16] = { 0 };
-        byte iv[16] = { 0 };
-        byte plaintext[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
-        byte ciphertext[sizeof(plaintext)];
-
-        int ret = wc_AesCtsEncrypt(key, sizeof(key), ciphertext, plaintext,
-            sizeof(plaintext), iv);
-        if (ret != 0) {
-        // handle encryption error
-    }
-    \endcode
-
-    \sa wc_AesCtsDecrypt
-*/
-int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
-                     const byte* in, word32 inSz,
-                     const byte* iv);
-
-/*!
-    \ingroup AES
-    \brief This function performs AES encryption using Ciphertext Stealing (CTS)
      mode. It is a one-shot API that handles all operations in a single call.
 
     \return 0 on successful encryption.
-    \return BAD_FUNC_ARG if input arguments are invalid.
+    \return BAD_FUNC_ARG if input arguments are invalid, or if inSz is less
+            than WC_AES_BLOCK_SIZE (16 bytes).
     \return other negative error codes for encryption failures.
 
     \param [in] key pointer to the AES key used for encryption.
@@ -1807,14 +1878,16 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
     \param[out] out buffer to hold the encrypted ciphertext. Must be at least
                  the same size as the input plaintext.
     \param [in] in pointer to the plaintext input data to encrypt.
-    \param [in] inSz size of the plaintext input data in bytes.
+    \param [in] inSz size of the plaintext input data in bytes. Must be at
+             least WC_AES_BLOCK_SIZE (16). Exactly one block is encrypted
+             as plain AES-CBC, since there is nothing to steal.
     \param [in] iv pointer to the initialization vector (IV) used for encryption.
              Must be 16 bytes.
     _Example_
     \code
         byte key[16] = { 0 };
         byte iv[16] = { 0 };
-        byte plaintext[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        byte plaintext[17] = { 0 };   // at least one full block
         byte ciphertext[sizeof(plaintext)];
         int ret = wc_AesCtsEncrypt(key, sizeof(key), ciphertext, plaintext,
                                    sizeof(plaintext), iv);
@@ -1833,21 +1906,24 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
     \brief This function performs AES decryption using Ciphertext Stealing (CTS) mode.
            It is a one-shot API that handles all operations in a single call.
     \return 0 on successful decryption.
-    \return BAD_FUNC_ARG if input arguments are invalid.
+    \return BAD_FUNC_ARG if input arguments are invalid, or if inSz is less
+            than WC_AES_BLOCK_SIZE (16 bytes).
     \return other negative error codes for decryption failures.
     \param [in] key pointer to the AES key used for decryption.
     \param [in] keySz size of the AES key in bytes (16, 24, or 32 bytes).
     \param[out] out buffer to hold the decrypted plaintext. Must be at least
                  the same size as the input ciphertext.
     \param [in] in pointer to the ciphertext input data to decrypt.
-    \param [in] inSz size of the ciphertext input data in bytes.
+    \param [in] inSz size of the ciphertext input data in bytes. Must be at
+             least WC_AES_BLOCK_SIZE (16). Exactly one block is decrypted
+             as plain AES-CBC, since nothing was stolen from it.
     \param [in] iv pointer to the initialization vector (IV) used for decryption.
              Must be 16 bytes.
     _Example_
     \code
         byte key[16] = { 0 };
         byte iv[16] = { 0 };
-        byte ciphertext[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        byte ciphertext[17] = { 0 };   // at least one full block
         byte plaintext[sizeof(ciphertext)];
         int ret = wc_AesCtsDecrypt(key, sizeof(key), plaintext, ciphertext,
                                    sizeof(ciphertext), iv);
@@ -1901,7 +1977,9 @@ int wc_AesCtsEncryptUpdate(Aes* aes, byte* out, word32* outSz,
     \brief This function finalizes the AES CTS encryption operation.
            It processes any remaining plaintext and completes the encryption.
     \return 0 on successful encryption completion.
-    \return BAD_FUNC_ARG if input arguments are invalid.
+    \return BAD_FUNC_ARG if input arguments are invalid, or if fewer than
+            WC_AES_BLOCK_SIZE (16) bytes in total were passed to the update
+            calls.
     \param [in] aes pointer to the Aes structure holding the context of the operation.
     \param[out] out buffer to hold the final encrypted ciphertext. Must be large
                  enough to store any remaining ciphertext from this final step.
@@ -1969,7 +2047,9 @@ int wc_AesCtsDecryptUpdate(Aes* aes, byte* out, word32* outSz,
     \brief This function finalizes the AES CTS decryption operation.
            It processes any remaining ciphertext and completes the decryption.
     \return 0 on successful decryption completion.
-    \return BAD_FUNC_ARG if input arguments are invalid.
+    \return BAD_FUNC_ARG if input arguments are invalid, or if fewer than
+            WC_AES_BLOCK_SIZE (16) bytes in total were passed to the update
+            calls.
     \param [in] aes pointer to the Aes structure holding the context of the operation.
     \param[out] out buffer to hold the final decrypted plaintext. Must be large
                  enough to store any remaining plaintext from this final step.
@@ -2302,8 +2382,8 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
     decryption.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG If aes, key, or iv is NULL, or if key length
-    is invalid.
+    \return BAD_FUNC_ARG If aes is NULL, or if key length is invalid.
+    \return BAD_FUNC_ARG Returned if key is NULL and no SetKey device takes it.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer (16, 24, or 32 bytes)
@@ -2373,10 +2453,13 @@ int wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup);
     \ingroup AES
     \brief This function initializes an AES GCM cipher with key and IV.
     It can be called with NULL key to only set the IV, or with NULL IV
-    to only set the key.
+    to only set the key. An IV given before the key is kept, and the first
+    wc_AesGcmInit() call after the key is set uses it.
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
     \return MEMORY_E If dynamic memory allocation fails.
 
     \param aes pointer to the AES structure to initialize
@@ -2413,6 +2496,8 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer, or NULL to skip key setting
@@ -2497,6 +2582,7 @@ int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len,
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
     buffer is NULL.
+    \return BAD_STATE_E If AAD is passed after plaintext.
 
     \param aes pointer to the AES structure
     \param out pointer to buffer to store ciphertext (can be NULL if sz=0)
@@ -2578,6 +2664,8 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz);
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or if parameters are invalid.
+    \return MISSING_KEY If an IV longer than WC_AES_BLOCK_SIZE is given and no
+    software GCM key is set, such as a key a crypto callback device owns.
 
     \param aes pointer to the AES structure to initialize
     \param key pointer to the key buffer, or NULL to skip key setting
@@ -2620,6 +2708,7 @@ int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len,
     \return 0 On success.
     \return BAD_FUNC_ARG If aes is NULL, or a length is non-zero but
     buffer is NULL.
+    \return BAD_STATE_E If AAD is passed after ciphertext.
 
     \param aes pointer to the AES structure
     \param out pointer to buffer to store plaintext (can be NULL if sz=0)
@@ -2773,8 +2862,24 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz, const byte* ivFixed,
     parameters, including IV output. This is a one-shot encryption
     function that outputs the generated IV.
 
+    The IV is taken from an internal counter that is advanced whenever an IV
+    is consumed - on success, and on submission to an asynchronous device - so
+    no two encryptions under one key use the same IV. A call that fails before
+    the cipher consumes the IV leaves the counter where it was. ivOut must not
+    overlap out, in, authTag or authIn: the buffer is the working copy of the
+    IV that was consumed, and overwriting it corrupts the counter for the next
+    call. ivOut may be written even when the function returns an error.
+
+    When the Aes carries an asynchronous device, a return of WC_PENDING_E
+    means the operation was submitted, not that it finished. ivOut - like out,
+    in, authTag and authIn - must stay allocated and unmodified until the
+    operation completes, because the backend reads the IV from it at
+    completion time.
+
     \return 0 On success.
     \return BAD_FUNC_ARG If parameters are invalid.
+    \return WC_PENDING_E If submitted to an asynchronous device and still
+    in progress.
     \return Other negative values on error.
 
     \param aes pointer to the AES structure
@@ -2936,6 +3041,15 @@ int wc_AesCcmSetNonce(Aes* aes, const byte* nonce, word32 nonceSz);
     \brief This function performs AES CCM encryption with extended
     parameters, including nonce output. This is useful when part of the
     nonce is generated internally.
+
+    The nonce is taken from an internal counter that is advanced whenever a
+    nonce is consumed - on success, and on submission to an asynchronous
+    device - so no two encryptions under one key use the same nonce. A call
+    that fails before the cipher consumes the nonce leaves the counter where
+    it was. ivOut must not overlap out, in, authTag or authIn: the buffer is
+    the working copy of the nonce that was consumed, and overwriting it
+    corrupts the counter for the next call. ivOut may be written even when the
+    function returns an error - earlier releases left it untouched on failure.
 
     \return 0 On success.
     \return BAD_FUNC_ARG If parameters are invalid.
@@ -3485,7 +3599,11 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize);
     which is set for PKCS11 support.
 
     \return 0 On success.
-    \return BAD_FUNC_ARG If aes or id is NULL, or if len is invalid.
+    \return BAD_FUNC_ARG If aes is NULL, or if id is NULL while len is
+    positive.
+    \return BUFFER_E If len is negative or greater than AES_MAX_ID_LEN.
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes pointer to the AES structure to initialize
     \param id pointer to the ID buffer
@@ -3523,6 +3641,8 @@ int wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap,
 
     \return 0 On success.
     \return BAD_FUNC_ARG If aes or label is NULL.
+    \return BAD_ALIGN_E On x86_64, if aes is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param aes pointer to the AES structure to initialize
     \param label pointer to the null-terminated label string

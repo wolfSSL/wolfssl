@@ -36,6 +36,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/types.h>
 
+/* One tag length per key is a shall in SP 800-38D 5.2.1.2, so a FIPS 140-3
+ * v7 or later module is not allowed to build it out. */
+#if defined(WOLFSSL_NO_AES_TAG_ASSOCIATION) && defined(HAVE_FIPS) && \
+    FIPS_VERSION3_GE(7,0,0)
+    #error "WOLFSSL_NO_AES_TAG_ASSOCIATION is not allowed in FIPS v7 or later"
+#endif
+
 #if defined(WOLFSSL_ARMASM) && !defined(GCM_SMALL) && !defined(GCM_TABLE) && \
     !defined(GCM_TABLE_4BIT)
     #define GCM_TABLE_4BIT
@@ -71,10 +78,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 typedef struct Gcm {
     ALIGN16 byte H[16];
-#ifdef OPENSSL_EXTRA
-    word32 aadH[4]; /* additional authenticated data GHASH */
-    word32 aadLen;  /* additional authenticated data len */
-#endif
 #ifdef GCM_TABLE
     /* key-based fast multiplication table. */
     ALIGN16 byte M0[256][16];
@@ -154,7 +157,7 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL
+#ifdef WOLFSSL_SILABS_SE_TYPES
     #include <wolfssl/wolfcrypt/port/silabs/silabs_aes.h>
 #endif
 
@@ -165,10 +168,6 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
 #include <psa/crypto.h>
-#endif
-
-#if defined(WOLFSSL_CRYPTOCELL)
-    #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
@@ -197,7 +196,6 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
     defined(FREESCALE_LTC) || \
     defined(FREESCALE_MMCAU) || \
     (defined(MAX3266X_AES) && !defined(MAX3266X_CB)) || \
-    (defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)) || \
     (defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || \
     defined(WOLFSSL_TI_CRYPT) || \
@@ -225,7 +223,19 @@ WOLFSSL_LOCAL void WC_ARG_NOT_NULL(1) GHASH(Gcm* gcm, const byte* a,
 #ifdef WOLFSSL_AES_REQUIRE_KEY_SET
     #define WC_AES_KEY_IS_SET(aes)  ((aes)->keyInstalled != 0)
 #else
-    #define WC_AES_KEY_IS_SET(aes)  (1)
+    #define WC_AES_KEY_IS_SET(aes)  1
+#endif
+
+/* Set when wc_AesEncryptDirect/DecryptDirect try the crypto callback first. */
+#if defined(WOLFSSL_AES_DIRECT) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_AES) && \
+    !(defined(MAX3266X_CB) && defined(HAVE_AES_ECB)) && \
+    !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
+      !defined(WOLFSSL_QNX_CAAM)) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_DEVCRYPTO_AES) && !defined(WOLFSSL_TI_CRYPT) && \
+    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
+        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    #define WC_AES_DIRECT_CRYPTO_CB
 #endif
 
 #ifdef __cplusplus
@@ -464,9 +474,6 @@ struct Aes {
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     WC_CRYPTODEV ctx;
 #endif
-#if defined(WOLFSSL_CRYPTOCELL)
-    aes_context_t ctx;
-#endif
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)) ||\
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
@@ -478,7 +485,7 @@ struct Aes {
 #if defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;
 #endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     silabs_aes_t ctx;
 #endif
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
@@ -523,7 +530,8 @@ struct Aes {
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 
     /* Set to 1 once a key has been installed (wc_AesSetKey/SetKeyDirect/
-     * GcmSetKey), including when a crypto callback takes ownership of it.
+     * GcmSetKey). A key a crypto callback claims counts only if the callback
+     * also wrote a software key schedule.
      * Checked by the mode APIs so they fail instead of running with the
      * all-zero key schedule left by wc_AesInit. Distinct from the Cavium-only
      * keySet field. Appended at the end of the struct so existing member
@@ -537,6 +545,12 @@ struct Aes {
      * path, which is exactly the case that would otherwise encrypt with an
      * all-zero key. */
     WC_BITFIELD keyInstalled:1;
+
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_CMAC)
+    /* tag length associated with the key, at the end so offsets do not move.
+     * Always present, so the opt-out cannot change the struct size. */
+    word32 tagLen;
+#endif
 };
 
 #ifndef WC_AES_TYPE_DEFINED
@@ -546,11 +560,14 @@ struct Aes {
 
 #ifdef WOLFSSL_AES_XTS
     #if FIPS_VERSION3_GE(6,0,0)
-        /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-         * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-         * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
-         */
+        /* SP 800-38E section 4: a data unit (one tweak) is at most 2^20 AES
+         * blocks, 16,777,216 bytes.  Per data unit, not per key. */
         #define FIPS_AES_XTS_MAX_BYTES_PER_TWEAK 16777216
+        #if defined(WOLFSSL_AESXTS_STREAM) && \
+            defined(WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING)
+            /* Without the accounting the streaming limit is never enforced. */
+            #error "SP 800-38E per-data-unit limit would go unenforced."
+        #endif
     #endif
     struct XtsAes {
         Aes aes;
@@ -621,6 +638,17 @@ typedef int (*wc_AesAuthDecryptFunc)(Aes* aes, byte* out,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+     defined(WOLFSSL_CMAC)) && !defined(WOLFSSL_NO_AES_TAG_ASSOCIATION)
+/* no tag length is associated with the key yet; only a new key returns
+ * it to this state */
+enum {
+    WC_NO_TAG_ASSOCIATION = 0
+};
+
+WOLFSSL_API int  wc_AesSetTagLen(Aes* aes, word32 tagLen);
+#endif
 
 /* AES-CBC */
 WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
@@ -1221,6 +1249,14 @@ WOLFSSL_LOCAL void AES_XTS_encrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
 WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH64(const byte* in, byte* out,
     word32 sz, const byte* i, byte* key, byte* key2, byte* tmp, int nr);
+#ifdef WOLFSSL_AESXTS_STREAM
+/* Streaming twins of the pair above: "tweak" is read and written back, "tmp"
+ * is one block of caller scratch, and sz must be at least one block. */
+WOLFSSL_LOCAL void AES_XTS_encrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+WOLFSSL_LOCAL void AES_XTS_decrypt_update_AARCH64(const byte* in, byte* out,
+    word32 sz, byte* key, byte* tweak, byte* tmp, int nr);
+#endif /* WOLFSSL_AESXTS_STREAM */
 #endif /* WOLFSSL_AES_XTS */
 #endif /* __aarch64__ && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
@@ -1442,10 +1478,50 @@ WOLFSSL_LOCAL void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #endif /* WOLFSSL_PPC32_ASM */
 
+/* Aligned allocation for heap contexts whose members carry alignment
+ * attributes (Aes, Cmac). Declared unconditionally: memory.h is included
+ * mid-types.h, before WOLFSSL_USE_ALIGN exists in ARMASM/AESNI builds, so a
+ * guarded declaration there is invisible exactly where it is needed. Must
+ * stay inside the extern "C" block: a C++-linked declaration would mangle
+ * the definition in aes.c. */
+WOLFSSL_API
+void* wc_alloc_aligned(void* heap, size_t size, size_t align, int type);
+WOLFSSL_API
+void wc_free_aligned(void* p, void* heap, int type);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
+/* Heap allocation for Aes contexts: Aes members carry alignment
+ * attributes, so route through the aligned allocator where available.
+ * WC_ALIGNED_ALLOC marks that wc_alloc_aligned/wc_free_aligned are
+ * declared here and defined in aes.c: non-frozen consumers (cmac.h)
+ * must guard on it, not on defined(WC_ALLOC_AES), because settings.h
+ * defines plain-allocator WC_ALLOC_AES fallbacks in FIPS bundle builds
+ * where the aligned allocator is absent. The fallback is a macro, not
+ * a function, so plain builds pay no indirection. */
+#if defined(WOLFSSL_USE_ALIGN) && defined(WC_ALIGNOF) && \
+    !defined(WOLFSSL_TI_CRYPT)
+#define WC_ALIGNED_ALLOC
+#define WC_ALLOC_AES(heap) ((Aes*)wc_alloc_aligned((heap), sizeof(Aes), \
+                                                   WC_ALIGNOF(Aes), \
+                                                   DYNAMIC_TYPE_AES))
+#define WC_FREE_AES(aes, heap) wc_free_aligned((aes), (heap), DYNAMIC_TYPE_AES)
+#define WC_ALLOC_XTS(heap) ((XtsAes*)wc_alloc_aligned((heap), sizeof(XtsAes), \
+                                                      WC_ALIGNOF(XtsAes), \
+                                                      DYNAMIC_TYPE_AES))
+#define WC_FREE_XTS(aes, heap) wc_free_aligned((aes), (heap), DYNAMIC_TYPE_AES)
+#else
+#define WC_ALLOC_AES(heap) \
+    ((Aes*)XMALLOC(sizeof(Aes), (heap), DYNAMIC_TYPE_AES))
+#define WC_FREE_AES(aes, heap) \
+    do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
+#define WC_ALLOC_XTS(heap) \
+    ((XtsAes*)XMALLOC(sizeof(XtsAes), (heap), DYNAMIC_TYPE_AES))
+#define WC_FREE_XTS(aes, heap) \
+    do {XFREE((aes), (heap), DYNAMIC_TYPE_AES);} while (0)
+#endif
 
 #endif /* NO_AES */
 #endif /* WOLF_CRYPT_AES_H */

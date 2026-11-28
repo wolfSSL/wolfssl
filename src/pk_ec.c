@@ -64,6 +64,15 @@
 
 /* Start EC_curve */
 
+/* kNistCurves also carries the finite field (FFDHE) groups, which are not EC
+ * curves. OpenSSL's EC_curve_nid2nist()/nist2nid() do not resolve them, so
+ * skip any row whose group is in the RFC 7919 code point range. */
+static int wolfssl_ec_nist_row_is_curve(const WOLF_EC_NIST_NAME* nist_name)
+{
+    return (nist_name->curve < WOLFSSL_FFDHE_START) ||
+           (nist_name->curve > WOLFSSL_FFDHE_END);
+}
+
 /* Get the NIST name for the numeric ID.
  *
  * @param [in] nid  Numeric ID of an EC curve.
@@ -77,7 +86,8 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
 
     /* Attempt to find the curve info matching the NID passed in. */
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-        if (nist_name->nid == nid) {
+        if (wolfssl_ec_nist_row_is_curve(nist_name) &&
+                (nist_name->nid == nid)) {
             /* NID found - return name. */
             name = nist_name->name;
             break;
@@ -100,7 +110,8 @@ int wolfSSL_EC_curve_nist2nid(const char* name)
 
     /* Attempt to find the curve info matching the NIST name passed in. */
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-        if (XSTRCMP(nist_name->name, name) == 0) {
+        if (wolfssl_ec_nist_row_is_curve(nist_name) &&
+                (XSTRCMP(nist_name->name, name) == 0)) {
             /* Name found - return NID. */
             nid = nist_name->nid;
             break;
@@ -1236,6 +1247,11 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
     if ((group == NULL) || (point == NULL)) {
         err = 1;
     }
+    /* A point that has never been set carries NULL ordinates. */
+    if ((!err) && ((point->X == NULL) || (point->Y == NULL) ||
+            (point->X->internal == NULL) || (point->Y->internal == NULL))) {
+        err = 1;
+    }
     /* Get curve id expects a positive index. */
     if ((!err) && (group->curve_idx < 0)) {
         err = 1;
@@ -1248,6 +1264,12 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
         if ((sz = wc_ecc_get_curve_size_from_id(id)) < 0) {
             err = 1;
         }
+    }
+    /* Ordinates wider than the curve would make the offsets below negative. */
+    if ((!err) &&
+            ((mp_unsigned_bin_size((mp_int*)point->X->internal) > sz) ||
+             (mp_unsigned_bin_size((mp_int*)point->Y->internal) > sz))) {
+        err = 1;
     }
     if (!err) {
         /* <format byte> <x-ordinate> [<y-ordinate>] */
@@ -1845,6 +1867,16 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
 int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     WOLFSSL_EC_POINT *point)
 {
+#ifdef WOLFSSL_NO_ECC_SW
+    /* ecc_map() is part of the software point arithmetic that this build leaves
+     * out, so a Jacobian point cannot be converted here. Report failure, as
+     * wolfSSL_EC_POINT_is_at_infinity() does when its helper is compiled out;
+     * both callers treat a non-zero return as an error. */
+    (void)group;
+    (void)point;
+    WOLFSSL_MSG("ec_point_convert_to_affine compiled out");
+    return 1;
+#else
     int err = 0;
     mp_digit mp = 0;
     WC_DECLARE_VAR(modulus, mp_int, 1, 0);
@@ -1890,6 +1922,7 @@ int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
     WC_FREE_VAR_EX(modulus, NULL, DYNAMIC_TYPE_BIGINT);
 
     return err;
+#endif /* WOLFSSL_NO_ECC_SW */
 }
 
 /* Get the affine coordinates of the EC point on a Prime curve.
@@ -2039,7 +2072,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
 /* Add two points on the same together.
  *
  * @param [in]  curveIdx  Index of curve in ecc_set.
@@ -2332,6 +2365,9 @@ static int ec_mul2add(ecc_point* r, ecc_point* b, mp_int* n, ecc_point* q,
  *
  * r = base point * n + q * m
  *
+ * With both n and q/m given the sum uses Shamir's trick, which is variable
+ * time: do not pass secret scalars that way.
+ *
  * @param [in]  curveIdx  Index of curve in ecc_set.
  * @param [out] r         EC point that is result of operation.
  * @param [in]  n         Scalar to multiply by base point. May be NULL.
@@ -2451,6 +2487,57 @@ static int wolfssl_ec_point_mul(int curveIdx, ecc_point* r, mp_int* n,
     return ret;
 }
 
+/* Reduce a scalar that is negative or wider than the prime modulo the number
+ * of points on the curve, as OpenSSL does.
+ *
+ * @param [in]      group  EC group.
+ * @param [in, out] s      Scalar. May point to NULL. Set to *r when reduced.
+ * @param [out]     r      New BN holding the reduced scalar.
+ * @param [in, out] card   Order times cofactor. Computed when first needed.
+ * @return  1 on success.
+ * @return  0 on error.
+ */
+static int ec_scalar_nnmod(const WOLFSSL_EC_GROUP* group,
+    const WOLFSSL_BIGNUM** s, WOLFSSL_BIGNUM** r, WOLFSSL_BIGNUM** card)
+{
+    int ret = 1;
+
+    if ((*s == NULL) || ((!wolfSSL_BN_is_negative(*s)) &&
+            (wolfSSL_BN_num_bits(*s) <= wolfSSL_EC_GROUP_get_degree(group)))) {
+        return 1;
+    }
+
+    if (*card == NULL) {
+        *card = wolfSSL_BN_new();
+        if ((*card == NULL) ||
+                (wolfSSL_EC_GROUP_get_order(group, *card, NULL) != 1) ||
+                (wolfSSL_BN_mul_word(*card,
+                    (WOLFSSL_BN_ULONG)ecc_sets[group->curve_idx].cofactor) !=
+                    1)) {
+            WOLFSSL_MSG("Getting the number of points failed");
+            ret = 0;
+        }
+    }
+    if (ret == 1) {
+        *r = wolfSSL_BN_new();
+        if ((*r == NULL) || (wolfSSL_BN_mod(*r, *s, *card, NULL) != 1)) {
+            WOLFSSL_MSG("wolfSSL_BN_mod error");
+            ret = 0;
+        }
+    }
+    /* The remainder keeps the sign of s with some math libraries. */
+    if ((ret == 1) && wolfSSL_BN_is_negative(*r) &&
+            (wolfSSL_BN_add(*r, *r, *card) != 1)) {
+        WOLFSSL_MSG("wolfSSL_BN_add error");
+        ret = 0;
+    }
+    if (ret == 1) {
+        *s = *r;
+    }
+
+    return ret;
+}
+
 /* Sum the scalar multiplications of the base point and n, and q and m.
  *
  * r = base point * n + q * m
@@ -2471,6 +2558,9 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     WOLFSSL_BN_CTX *ctx)
 {
     int ret = 1;
+    WOLFSSL_BIGNUM* nr = NULL;
+    WOLFSSL_BIGNUM* mr = NULL;
+    WOLFSSL_BIGNUM* card = NULL;
 
     /* No BN operations performed. */
     (void)ctx;
@@ -2510,6 +2600,13 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 #endif
 
     if (ret == 1) {
+        ret = ec_scalar_nnmod(group, &n, &nr, &card);
+    }
+    if (ret == 1) {
+        ret = ec_scalar_nnmod(group, &m, &mr, &card);
+    }
+
+    if (ret == 1) {
         mp_int* ni = (n != NULL) ? (mp_int*)n->internal : NULL;
         ecc_point* qi = (q != NULL) ? (ecc_point*)q->internal : NULL;
         mp_int* mi = (m != NULL) ? (mp_int*)m->internal : NULL;
@@ -2535,10 +2632,13 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     }
 #endif
 
+    wolfSSL_BN_free(card);
+    wolfSSL_BN_clear_free(mr);
+    wolfSSL_BN_clear_free(nr);
     return ret;
 }
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A && !HAVE_SELFTEST &&
-        * !WOLFSSL_SP_MATH */
+        * !WOLFSSL_SP_MATH && !WOLFSSL_NO_ECC_SW */
 
 /* Invert the point on the curve.
  * (x, y) -> (x, -y) = (x, (prime - y) % prime)
@@ -3586,6 +3686,10 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
         }
     }
 
+    /* A failed encoding into the caller's buffer must not report a length. */
+    if (err) {
+        len = 0;
+    }
     return (int)len;
 }
 
@@ -4383,6 +4487,11 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
                 WOLFSSL_MSG("SetECKeyExternal ec_point_external_set failed");
                 ret = WOLFSSL_FATAL_ERROR;
             }
+            /* Both sides of the point match now, so readers of a shared key
+             * do not rebuild the internal one. */
+            if (ret == 1) {
+                eckey->pub_key->inSet = 1;
+            }
         }
 
         /* set the external privkey */
@@ -4750,6 +4859,79 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
         wolfSSL_EC_POINT_dump("pub", pub);
         wolfSSL_EC_POINT_dump("key->pub_key", key->pub_key);
     }
+
+    return ret;
+}
+
+/*
+ * Decode an octet-encoded EC public point into @key.
+ *
+ * The point conversion form of @key is set from the encoding byte so that
+ * re-encoding with wolfSSL_i2o_ECPublicKey() reproduces @buf. Hybrid
+ * encodings have no wolfSSL equivalent and leave the form unchanged.
+ *
+ * Return code compliant with OpenSSL.
+ *
+ * @param [in, out] key  EC key (must already have a group set).
+ * @param [in]      buf  Octet-encoded public point.
+ * @param [in]      len  Length of @buf in bytes.
+ * @param [in]      ctx  BN context. May be NULL.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_EC_KEY_oct2key(WOLFSSL_EC_KEY *key, const unsigned char *buf,
+    size_t len, WOLFSSL_BN_CTX *ctx)
+{
+    int ret = 1;
+    const WOLFSSL_EC_GROUP *group = NULL;
+    WOLFSSL_EC_POINT *point = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_EC_KEY_oct2key");
+
+    if ((key == NULL) || (buf == NULL) || (len == 0)) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_oct2key Bad arguments");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        group = wolfSSL_EC_KEY_get0_group(key);
+        if (group == NULL) {
+            WOLFSSL_MSG("EC_KEY has no group set");
+            ret = 0;
+        }
+    }
+
+    if (ret == 1) {
+        point = wolfSSL_EC_POINT_new((WOLFSSL_EC_GROUP*)group);
+        if (point == NULL) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_new failed");
+            ret = 0;
+        }
+    }
+
+    if ((ret == 1) &&
+            (wolfSSL_EC_POINT_oct2point(group, point, buf, len, ctx) != 1)) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_oct2point failed");
+        ret = 0;
+    }
+
+    if ((ret == 1) && (wolfSSL_EC_KEY_set_public_key(key, point) != 1)) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_set_public_key failed");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        /* SEC 1: 0x02/0x03 compressed, 0x04 uncompressed. Clearing the low
+         * bit turns the leading byte into the conversion form. Any other
+         * leading byte - hybrid, or the single 0x00 of the point at infinity -
+         * names no form wolfSSL_EC_KEY_set_conv_form() takes, so leave the
+         * key's form alone rather than handing it a value it rejects. */
+        if ((buf[0] == 0x02) || (buf[0] == 0x03) || (buf[0] == 0x04)) {
+            wolfSSL_EC_KEY_set_conv_form(key, buf[0] & ~0x01);
+        }
+    }
+
+    wolfSSL_EC_POINT_free(point);
 
     return ret;
 }
@@ -5373,12 +5555,20 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
             ret = 0;
         }
 #else
-        signatureLen = i2d_ECDSA_SIG(sig, &p);
-        if (signatureLen > 0) {
+        signatureLen = wolfSSL_i2d_ECDSA_SIG(sig, NULL);
+        if ((signatureLen <= 0) || (signatureLen > (int)sizeof(signature))) {
+            WOLFSSL_MSG("wolfSSL_ECDSA_do_verify signature length error");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (wolfSSL_i2d_ECDSA_SIG(sig, &p) != signatureLen) {
+            WOLFSSL_MSG("wolfSSL_i2d_ECDSA_SIG failed");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else {
             /* verify hash. expects to call wc_CryptoCb_EccVerify internally */
-            ret = wc_ecc_verify_hash(signature, signatureLen, dgst,
-                (word32)dLen, &verified, (ecc_key*)key->internal);
-            if (ret != MP_OKAY) {
+            if (wc_ecc_verify_hash(signature, (word32)signatureLen, dgst,
+                    (word32)dLen, &verified, (ecc_key*)key->internal) !=
+                    MP_OKAY) {
                 WOLFSSL_MSG("wc_ecc_verify_hash failed");
                 ret = WOLFSSL_FATAL_ERROR;
             }
@@ -5386,10 +5576,6 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dLen,
                 WOLFSSL_MSG("wc_ecc_verify_hash incorrect signature detected");
                 ret = 0;
             }
-        }
-        else {
-            WOLFSSL_MSG("i2d_ECDSA_SIG failed");
-            ret = WOLFSSL_FATAL_ERROR;
         }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
     }
@@ -5503,7 +5689,7 @@ int wolfSSL_ECDSA_verify(int type, const unsigned char *digest, int digestSz,
 
 /* Start ECDH */
 
-#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#if !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_NO_ECC_SW)
 /* Compute the shared secret (key) using ECDH.
  *
  * KDF not supported.
@@ -5578,9 +5764,10 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
                 setKeyRng = 1;
             }
         }
-    #endif
 
-        if (!err) {
+        if (!err)
+    #endif
+        {
             PRIVATE_KEY_UNLOCK();
             /* Create secret using wolfSSL. */
             ret = wc_ecc_shared_secret_ex(key, (ecc_point*)pubKey->internal,
@@ -5612,7 +5799,7 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
     }
     return (int)len;
 }
-#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
+#endif /* !WOLF_CRYPTO_CB_ONLY_ECC && !WOLFSSL_NO_ECC_SW */
 
 /* End ECDH */
 

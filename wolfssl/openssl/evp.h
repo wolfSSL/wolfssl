@@ -382,6 +382,8 @@ typedef union {
 #define WC_NID_ffdhe2048                   1126
 #define WC_NID_ffdhe3072                   1127
 #define WC_NID_ffdhe4096                   1128
+#define WC_NID_ffdhe6144                   1129
+#define WC_NID_ffdhe8192                   1130
 #define WC_NID_rc4                         5
 #define WC_NID_bf_cbc                      91
 #define WC_NID_bf_ecb                      92
@@ -664,6 +666,8 @@ enum {
 #define NID_ffdhe2048 WC_NID_ffdhe2048
 #define NID_ffdhe3072 WC_NID_ffdhe3072
 #define NID_ffdhe4096 WC_NID_ffdhe4096
+#define NID_ffdhe6144 WC_NID_ffdhe6144
+#define NID_ffdhe8192 WC_NID_ffdhe8192
 #define NID_rc4 WC_NID_rc4
 #define NID_bf_cbc WC_NID_bf_cbc
 #define NID_bf_ecb WC_NID_bf_ecb
@@ -726,6 +730,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #if !defined(NO_AES)
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[WC_AES_BLOCK_SIZE];
+#elif defined(HAVE_ARIA)
+    ALIGN16 unsigned char  iv[ARIA_BLOCK_SIZE];
 #elif defined(WOLFSSL_SM4)
     ALIGN16 unsigned char  iv[SM4_BLOCK_SIZE];
 #elif defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -739,12 +745,13 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
 #if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_AESGCM) || \
+    defined(HAVE_ARIA) || \
     defined (WOLFSSL_AES_XTS) || (defined(HAVE_CHACHA) || \
     defined(HAVE_POLY1305) || defined(HAVE_AESCCM)) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     byte*   authBuffer;
     int     authBufferLen;
@@ -766,10 +773,11 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #endif
     int     authTagSz;
 #endif
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     WC_BITFIELD authIvGenEnable:1;
     WC_BITFIELD authIncIv:1;
+    WC_BITFIELD authIvUsed:1;
 #endif
 #endif
 };
@@ -865,7 +873,7 @@ WOLFSSL_API int wolfSSL_EVP_DigestFinal_ex(WOLFSSL_EVP_MD_CTX* ctx,
 WOLFSSL_API int wolfSSL_EVP_DigestFinalXOF(WOLFSSL_EVP_MD_CTX* ctx,
                                             unsigned char* md, size_t sz);
 WOLFSSL_API int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx,
-                                             const void *d, unsigned int cnt);
+                                             const void *d, size_t cnt);
 WOLFSSL_API int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
                                             unsigned char *sig, size_t *siglen);
 WOLFSSL_API int wolfSSL_EVP_DigestSign(WOLFSSL_EVP_MD_CTX *ctx,
@@ -1055,13 +1063,15 @@ WOLFSSL_API int  wolfSSL_SetInternalIV(WOLFSSL_EVP_CIPHER_CTX* ctx);
 
 WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher);
-WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
+WOLFSSL_API int WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx);
-WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx);
+WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx);
+WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_is_encrypting(
+    const WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
 WOLFSSL_API int  wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest);
 WOLFSSL_API int  wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher);
@@ -1071,16 +1081,20 @@ WOLFSSL_API int  wolfSSL_OpenSSL_add_all_algorithms_conf(void);
 WOLFSSL_API int  wolfSSL_OpenSSL_add_all_algorithms_noconf(void);
 WOLFSSL_API int wolfSSL_EVP_read_pw_string(char*, int, const char*, int);
 
+#if defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && !defined(NO_HMAC)
+#ifndef NO_SHA
 WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char * pass, int passlen,
                                                const unsigned char * salt,
                                                int saltlen, int iter,
                                                int keylen, unsigned char *out);
+#endif /* !NO_SHA */
 
 WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const unsigned char *salt,
                                            int saltlen, int iter,
                                            const WOLFSSL_EVP_MD *digest,
                                            int keylen, unsigned char *out);
+#endif /* HAVE_PBKDF2 && !NO_PWDBASED && !NO_HMAC */
 
 #if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
                                                     !defined(NO_SHA256)
@@ -1467,6 +1481,8 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_CIPHER_CTX_clear_flags wolfSSL_EVP_CIPHER_CTX_clear_flags
 #define EVP_CIPHER_CTX_set_padding wolfSSL_EVP_CIPHER_CTX_set_padding
 #define EVP_CIPHER_CTX_flags       wolfSSL_EVP_CIPHER_CTX_flags
+#define EVP_CIPHER_CTX_is_encrypting wolfSSL_EVP_CIPHER_CTX_is_encrypting
+#define EVP_CIPHER_CTX_encrypting  wolfSSL_EVP_CIPHER_CTX_is_encrypting
 #define EVP_CIPHER_CTX_set_iv      wolfSSL_EVP_CIPHER_CTX_set_iv
 #define EVP_CIPHER_CTX_get_iv      wolfSSL_EVP_CIPHER_CTX_get_iv
 #define EVP_add_digest             wolfSSL_EVP_add_digest

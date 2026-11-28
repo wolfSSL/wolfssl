@@ -32,7 +32,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -89,6 +89,39 @@ jobs:
             "--enable-slhdsa=yes,sha2", "--enable-mldsa", "--enable-lms",
             "--enable-xmss",
             "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC -DWOLFSSL_WC_LMS_SERIALIZE_STATE -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual"],
+           "check": false},
+          {"name": "smallest-mem", "minutes": 1,
+           "configure": ["--enable-cryptonly", "--enable-all-crypto",
+            "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa", "--enable-lms",
+            "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM -DWOLFSSL_MLDSA_VERIFY_SMALLEST_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -Wdeclaration-after-statement"],
+           "check": false},
+          {"name": "smallest-mem-no-verify", "minutes": 1,
+           "configure": ["--enable-cryptonly", "--enable-all-crypto",
+            "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa", "--enable-lms",
+            "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALLEST_MEM -DWOLFSSL_MLDSA_NO_VERIFY -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -Wdeclaration-after-statement"],
+           "check": false},
+          {"name": "precalc-a-intelasm", "minutes": 1,
+           "configure": ["--enable-cryptonly", "--enable-all-crypto",
+            "--enable-intelasm", "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa", "--enable-lms",
+            "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A=1 -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -Wdeclaration-after-statement"],
+           "check": false},
+          {"name": "mlkem-cache-a-small-mem", "minutes": 1,
+           "configure": ["--disable-intelasm", "--enable-cryptonly",
+            "--enable-all-crypto",
+            "--disable-examples", "--disable-benchmark",
+            "--disable-crypttests", "--enable-mlkem",
+            "--enable-slhdsa=yes,sha2", "--enable-mldsa", "--enable-lms",
+            "--enable-xmss",
+            "CPPFLAGS=-DWOLFSSL_MLKEM_CACHE_A -DWOLFSSL_MLKEM_MAKEKEY_SMALL_MEM -DWOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -Wcast-qual -Wdeclaration-after-statement"],
            "check": false},
           {"name": "precalc-a-no-int128", "minutes": 1,
            "configure": ["--enable-cryptonly", "--enable-all-crypto",
@@ -150,6 +183,8 @@ jobs:
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=10 \
+            --deadline=10 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/wconversion-configs.json"
 

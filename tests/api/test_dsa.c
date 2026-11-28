@@ -179,6 +179,10 @@ int test_wc_DsaPublicPrivateKeyDecode(void)
 
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
     ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    idx = 0;
+    ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_DsaPrivateKeyDecode(NULL, &idx, &key, bytes), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, NULL, &key, bytes), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -189,6 +193,10 @@ int test_wc_DsaPublicPrivateKeyDecode(void)
 
     ExpectIntEQ(wc_InitDsaKey(&key), 0);
     idx = 0; /* Reset */
+    ExpectIntEQ(wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes), 0);
+    /* Decode again into the same key; the first values must be released,
+     * not orphaned. */
+    idx = 0;
     ExpectIntEQ(wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_DsaPublicKeyDecode(NULL, &idx, &key, bytes), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -219,12 +227,18 @@ int test_wc_MakeDsaKey(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF, &genKey), 0);
+    /* Generate again into the same key; the first values must be released,
+     * not orphaned. */
+    ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF, &genKey), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_MakeDsaParameters(NULL, ONEK_BUF, &genKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF + 1, &genKey),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    ExpectIntEQ(wc_MakeDsaKey(&rng, &genKey), 0);
+    /* Generate again into the same key; the first key must be wiped and
+     * released, not orphaned. */
     ExpectIntEQ(wc_MakeDsaKey(&rng, &genKey), 0);
     /* Test bad args. */
     ExpectIntEQ(wc_MakeDsaKey(NULL, &genKey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -756,6 +770,82 @@ static void dsa_test_fill_hex(char* dst, int len)
  * (WC_MIN_DIGEST_SIZE_FOR_SIGN/_VERIFY / WC_MAX_DIGEST_SIZE) and the
  * qMinus1 iszero/isneg guard in wc_DsaSign_ex (q == 1 -> qMinus1 == 0).
  */
+/* FIPS 186-4 4.2: when the digest is longer than q, only its leftmost N bits
+ * take part, so two digests that differ only past |q| share a signature. The
+ * truncation sits inside wc_DsaSign_ex()/wc_DsaVerify_ex(), after their length
+ * checks, so a caller-supplied length is validated as given. */
+int test_wc_DsaSign_digest_truncation(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DSA) && !defined(WC_FIPS_186_5_PLUS) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    DsaKey key;
+    WC_RNG rng;
+    byte   signature[DSA_SIG_SIZE];
+    byte   digest[WC_MAX_DIGEST_SIZE];
+    byte   other[WC_MAX_DIGEST_SIZE];
+    word32 pSz = 0, qSz = 0, gSz = 0;
+    int    answer = 0;
+#ifdef USE_CERT_BUFFERS_1024
+    byte   tmp[ONEK_BUF];
+    word32 bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte   tmp[TWOK_BUF];
+    word32 bytes = sizeof_dsa_key_der_2048;
+#else
+    byte   tmp[TWOK_BUF];
+    XFILE  fp = XBADFILE;
+    word32 bytes = 0;
+#endif
+    word32 idx = 0;
+
+    XMEMSET(digest, 0x3c, sizeof(digest));
+    XMEMSET(other, 0x3c, sizeof(other));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+#else
+    XMEMSET(tmp, 0, sizeof(tmp));
+    ExpectTrue((fp = XFOPEN("./certs/dsa2048.der", "rb")) != XBADFILE);
+    ExpectTrue((bytes = (word32)XFREAD(tmp, 1, sizeof(tmp), fp)) > 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+#endif
+
+    ExpectIntEQ(wc_InitDsaKey(&key), 0);
+    ExpectIntEQ(wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* Length-only query: all three buffers NULL reports the parameter sizes. */
+    ExpectIntEQ(wc_DsaExportParamsRaw(&key, NULL, &pSz, NULL, &qSz, NULL,
+        &gSz), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectIntGT(qSz, 0);
+
+    ExpectIntEQ(wc_DsaSign_ex(digest, (word32)sizeof(digest), signature, &key,
+        &rng), 0);
+    ExpectIntEQ(wc_DsaVerify_ex(digest, (word32)sizeof(digest), signature,
+        &key, &answer), 0);
+    ExpectIntEQ(answer, 1);
+
+    /* Only meaningful while the digest is longer than q. */
+    if (qSz < (word32)sizeof(other)) {
+        other[qSz] = (byte)~other[qSz];
+        answer = 0;
+        ExpectIntEQ(wc_DsaVerify_ex(other, (word32)sizeof(other), signature,
+            &key, &answer), 0);
+        ExpectIntEQ(answer, 1);
+    }
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_FreeDsaKey(&key);
+#endif /* !NO_DSA && !WC_FIPS_186_5_PLUS */
+    return EXPECT_RESULT();
+}
+
 int test_wc_DsaSign_bad_digestSz(void)
 {
     EXPECT_DECLS;
@@ -1039,3 +1129,66 @@ int test_wc_DsaExportKeyRaw_individual_args(void)
 #endif /* !NO_DSA && WOLFSSL_KEY_GEN */
     return EXPECT_RESULT();
 } /* END test_wc_DsaExportKeyRaw_individual_args */
+
+/*
+ * Testing that a certificate signature field holding fewer bytes than the
+ * verifying DSA key's 2 * |q| is rejected without reading past the copy
+ * ConfirmSignature() makes of it.
+ */
+int test_wc_DsaVerify_cert_sig_narrower_than_q(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && !defined(NO_CERTS) && \
+    !defined(NO_SHA256) && !defined(NO_FILESYSTEM) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_SMALL_CERT_VERIFY))
+    /* v1 certificate signed with dsa-with-SHA256 whose signature field is
+     * DSA_MIN_SIG_SIZE bytes, as produced by splicing a 40 byte signature into
+     * a DSA certificate. The key it is checked against is supplied separately,
+     * so only the signature algorithm and the signature length matter here. */
+    static const byte cert[] = {
+        0x30, 0x81, 0x9f,
+          0x30, 0x65,
+            0x02, 0x01, 0x01,
+            0x30, 0x0b,
+              0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+              0x02,
+            0x30, 0x0e,
+              0x31, 0x0c, 0x30, 0x0a, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c,
+              0x03, 0x64, 0x73, 0x61,
+            0x30, 0x1e,
+              0x17, 0x0d, 0x32, 0x35, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30,
+              0x30, 0x30, 0x30, 0x30, 0x5a,
+              0x17, 0x0d, 0x33, 0x35, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30,
+              0x30, 0x30, 0x30, 0x30, 0x5a,
+            0x30, 0x0e,
+              0x31, 0x0c, 0x30, 0x0a, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c,
+              0x03, 0x64, 0x73, 0x61,
+            0x30, 0x13,
+              0x30, 0x0b,
+                0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x38, 0x04, 0x01,
+                0x05, 0x00,
+              0x03, 0x04, 0x00, 0x02, 0x01, 0x01,
+          0x30, 0x0b,
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+            0x02,
+          0x03, 0x29, 0x00,
+            0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01
+    };
+    /* 256 bit q, so the verifier reads r and s as 32 bytes each. */
+    byte   key[TWOK_BUF];
+    word32 keySz = 0;
+    XFILE  fp = XBADFILE;
+
+    ExpectTrue((fp = XFOPEN("./certs/dsa-pubkey-2048.der", "rb")) != XBADFILE);
+    ExpectIntGT(keySz = (word32)XFREAD(key, 1, sizeof(key), fp), 0);
+    if (fp != XBADFILE)
+        XFCLOSE(fp);
+
+    ExpectIntNE(wc_CheckCertSigPubKey(cert, (word32)sizeof(cert), NULL, key,
+        keySz, DSAk), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_DsaVerify_cert_sig_narrower_than_q */

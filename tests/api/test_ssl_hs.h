@@ -22,6 +22,9 @@
 #ifndef TESTS_API_SSL_HS_H
 #define TESTS_API_SSL_HS_H
 
+int test_tls_wire_mangle(void);
+int test_tls_wire_sequence(void);
+
 #include <tests/api/api_decl.h>
 
 int test_wolfSSL_state_string_long(void);
@@ -30,6 +33,7 @@ int test_wolfSSL_set_connect_accept_state(void);
 int test_wolfSSL_SSL_do_handshake(void);
 int test_wolfSSL_SSL_in_init_hs(void);
 int test_wolfSSL_is_init_finished(void);
+int test_wolfSSL_fatal_alert_ends_hs(void);
 int test_wolfSSL_SetHsDoneCb(void);
 int test_wolfSSL_pk_callback_ctx(void);
 int test_wolfSSL_set_accept_state_reinit(void);
@@ -37,12 +41,15 @@ int test_wolfSSL_set_accept_state_static_ecc(void);
 int test_wolfSSL_negotiate_bad_args(void);
 int test_wolfSSL_SSL_do_handshake_quic(void);
 int test_wolfSSL_set_connect_state_dh(void);
+int test_wolfSSL_dh_ctx_params_reuse(void);
+int test_wolfSSL_dh_ctx_params_oom(void);
 int test_wolfSSL_connect_bad_args(void);
 int test_wolfSSL_accept_bad_args(void);
 int test_wolfSSL_connect_step_failures(void);
 int test_wolfSSL_accept_step_failures(void);
 int test_wolfSSL_hs_send_buffered_fail(void);
 int test_wolfSSL_hs_send_buffered_advance(void);
+int test_wolfSSL_hs_send_buffered_isr(void);
 int test_wolfSSL_hs_retry_alert_fail(void);
 int test_wolfSSL_connect_ex_no_side(void);
 int test_wolfSSL_hs_done_cb_error(void);
@@ -55,6 +62,7 @@ int test_wolfSSL_hs_info_cb(void);
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_do_handshake),              \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_in_init_hs),                \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_is_init_finished),              \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_fatal_alert_ends_hs),           \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SetHsDoneCb),                   \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_pk_callback_ctx),               \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_set_accept_state_reinit),       \
@@ -62,15 +70,20 @@ int test_wolfSSL_hs_info_cb(void);
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_negotiate_bad_args),            \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_SSL_do_handshake_quic),         \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_set_connect_state_dh),          \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_dh_ctx_params_reuse),           \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_dh_ctx_params_oom),             \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_connect_bad_args),              \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_accept_bad_args),               \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_connect_step_failures),         \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_accept_step_failures),          \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_send_buffered_fail),         \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_send_buffered_advance),      \
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_send_buffered_isr),          \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_retry_alert_fail),           \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_connect_ex_no_side),            \
         TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_done_cb_error),              \
-        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_info_cb)
+        TEST_DECL_GROUP("ssl_hs", test_wolfSSL_hs_info_cb),                    \
+        TEST_DECL_GROUP("ssl_hs", test_tls_wire_mangle),                       \
+        TEST_DECL_GROUP("ssl_hs", test_tls_wire_sequence)
 
 #endif /* TESTS_API_SSL_HS_H */

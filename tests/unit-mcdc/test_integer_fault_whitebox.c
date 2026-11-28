@@ -77,16 +77,16 @@
  *
  *   mp_sub(&ta, &tb, &ta): ta and tb are both MP_ZPOS (mp_abs results;
  *   mp_mul_2d, s_mp_sub and mp_clamp all preserve/reassert MP_ZPOS), so
- *   mp_sub takes the sa == sb arm at :1913; the loop guard at :1600
+ *   mp_sub takes the sa == sb arm at :1977; the loop guard at :1600
  *   (mp_cmp(&tb,&ta) != MP_GT, which for two MP_ZPOS values is
  *   mp_cmp_mag) guarantees mp_cmp_mag(ta,tb) != MP_LT, so it dispatches to
- *   s_mp_sub(ta, tb, ta) at :1921. There c == a, so "c->alloc < max_a"
- *   (:1834) is "ta->alloc < ta->used", false under the mp_int invariant
+ *   s_mp_sub(ta, tb, ta) at :1993. There c == a, so "c->alloc < max_a"
+ *   (:1900) is "ta->alloc < ta->used", false under the mp_int invariant
  *   alloc >= used -- mp_grow is never called. The two sanity returns cannot
  *   fire either: ta->dp is non-NULL because mp_abs -> mp_copy -> mp_grow
  *   always allocates into a zero-alloc destination (:350, :392), and tb->dp
  *   is non-NULL for the same reason whenever min_b = tb->used > 0.
- *   s_mp_sub therefore returns MP_OKAY at :1896 unconditionally.
+ *   s_mp_sub therefore returns MP_OKAY at :1965 unconditionally.
  *
  * The allocation injector cannot change this: the only allocation-bearing op
  * inside the loop is the mp_add at :1602, and its failure goes straight to
@@ -99,6 +99,10 @@
  * zero operands, and the mp_radix_size / mp_toradix radix<MP_RADIX_BIN guards,
  * plus mp_add_d's negative multi-digit inner operand. These are deterministic
  * direct calls (no injection) providing both halves of each pair in-binary.
+ *
+ * A third section covers mp_addmod_ct, mp_submod_ct and mp_div_2_mod_ct. Each
+ * grows only its output, or a temporary when c == d, and that grow is failed;
+ * NULL and negative-operand rows drive each argument guard operand TRUE.
  *
  * Crash-safety: every armed call fails an allocation that mp_div's own
  * goto-LBL_ERR cleanup absorbs (that cleanup is what is under test); operands
@@ -208,13 +212,13 @@ static void wb_argument_residuals(void)
     (void)mp_exptmod(&a, &b, &zero, &y);  /* mp_iszero(P) == YES: cond0 T */
     (void)mp_exptmod(&a, &b, &c, &y);     /* positive P: both F */
 
-    /* mp_prime_is_prime: "t <= 0 || t > PRIME_SIZE" 4920:*:0 -- the t<=0 half.
+    /* mp_prime_is_prime: "t <= 0 || t > PRIME_SIZE" 5065:*:0 -- the t<=0 half.
      * t == 0 (T) returns MP_VAL; t == 8 (both operands F) runs the test. */
     (void)mp_set(&a, 17);
     (void)mp_prime_is_prime(&a, 0, &res);   /* t <= 0: cond0 T */
     (void)mp_prime_is_prime(&a, 8, &res);   /* both F */
 
-    /* mp_lcm: "mp_iszero(a) == MP_YES || mp_iszero(b) == MP_YES" 5167:*:0/1.
+    /* mp_lcm: "mp_iszero(a) == MP_YES || mp_iszero(b) == MP_YES" 5312:*:0/1.
      * lcm(0,b): cond0 T. lcm(a,0): cond0 F, cond1 T. lcm(a,b): both F. */
     (void)mp_set(&a, 6);
     (void)mp_set(&b, 8);
@@ -222,7 +226,7 @@ static void wb_argument_residuals(void)
     (void)mp_lcm(&a, &zero, &c);   /* iszero(a) F, iszero(b) T: cond1 T */
     (void)mp_lcm(&a, &b, &c);      /* both F */
 
-    /* mp_radix_size: "radix < MP_RADIX_BIN || radix > MP_RADIX_MAX" 5404:*:0 --
+    /* mp_radix_size: "radix < MP_RADIX_BIN || radix > MP_RADIX_MAX" 5549:*:0 --
      * the radix<BIN half. radix 1 (< 2): cond0 T. radix 65 (> MAX): cond0 F,
      * cond1 T. radix 10 (valid): both F. */
     (void)mp_set(&a, 0x1234);
@@ -230,14 +234,14 @@ static void wb_argument_residuals(void)
     (void)mp_radix_size(&a, 65, &size);             /* radix>MAX: cond1 T */
     (void)mp_radix_size(&a, MP_RADIX_DEC, &size);   /* both F */
 
-    /* mp_toradix: same guard, its own copy 5465:*:0. */
+    /* mp_toradix: same guard, its own copy 5610:*:0. */
     XMEMSET(buf, 0, sizeof(buf));
     (void)mp_toradix(&a, buf, 1);                   /* radix<BIN: cond0 T */
     (void)mp_toradix(&a, buf, 65);                  /* radix>MAX: cond1 T */
     XMEMSET(buf, 0, sizeof(buf));
     (void)mp_toradix(&a, buf, MP_RADIX_DEC);        /* both F */
 
-    /* mp_add_d: "a->sign == MP_NEG && (a->used > 1 || a->dp[0] >= b)" 4411:*:1
+    /* mp_add_d: "a->sign == MP_NEG && (a->used > 1 || a->dp[0] >= b)" 4549:*:1
      * -- the "a->used > 1" inner-OR operand. A negative TWO-digit value drives
      * used>1 T (inner OR T -> outer AND T, the |a|-b subtraction path). A
      * negative ONE-digit value with dp[0] < b drives used>1 F AND dp[0]>=b F
@@ -252,6 +256,160 @@ static void wb_argument_residuals(void)
 
     mp_clear(&a); mp_clear(&b); mp_clear(&c); mp_clear(&y); mp_clear(&zero);
     WB_NOTE("argument residuals (exptmod/prime/lcm/radix/add_d) exercised");
+}
+
+/* ---- Constant-time modular helpers: mp_addmod_ct / mp_submod_ct /
+ * mp_div_2_mod_ct. Each grows its output (or, when c == d, a temporary) to
+ * the modulus size before the branchless loops, and that grow can return
+ * MP_MEM; the inputs are only read. The NULL and negative rows give each
+ * argument guard operand its TRUE side. ---- */
+#define WB_CT_ADD   0
+#define WB_CT_SUB   1
+#define WB_CT_DIV2  2
+
+/* Build the operands DISARMED; m is the P-256 prime. With fresh set, a, b and
+ * d keep the dp == NULL that mp_init() leaves, so the inputs are read with no
+ * allocation behind them. Otherwise a = 5 and b = 7, grown to m.used. Either
+ * way the output's (or the c == d temporary's) grow is the only allocation.
+ * Returns 0 on success. */
+static int wb_ct_setup(mp_int* m, mp_int* a, mp_int* b, mp_int* d, int fresh)
+{
+    if (mp_init_multi(m, a, b, d, NULL, NULL) != MP_OKAY)
+        return -1;
+    if (mp_read_radix(m, "FFFFFFFF00000001000000000000000000000000FFFFFFFF"
+            "FFFFFFFFFFFFFFFF", MP_RADIX_HEX) != MP_OKAY)
+        goto fail;
+    if (!fresh) {
+        if ((mp_set(a, 5) != MP_OKAY) || (mp_set(b, 7) != MP_OKAY) ||
+                (mp_grow(a, m->used) != MP_OKAY) ||
+                (mp_grow(b, m->used) != MP_OKAY))
+            goto fail;
+    }
+    return 0;
+fail:
+    mp_clear(m); mp_clear(a); mp_clear(b); mp_clear(d);
+    return -1;
+}
+
+#ifndef MCDC_FA_UNAVAILABLE
+static const char* const wb_ct_name[3] = {
+    "mp_addmod_ct", "mp_submod_ct", "mp_div_2_mod_ct"
+};
+
+/* mp_div_2_mod_ct() has no d, so alias applies to add and sub only. */
+static int wb_ct_call(int op, mp_int* a, mp_int* b, mp_int* m, mp_int* d,
+    int alias)
+{
+    mp_int* out = alias ? m : d;
+
+    if (op == WB_CT_ADD)
+        return mp_addmod_ct(a, b, m, out);
+    if (op == WB_CT_SUB)
+        return mp_submod_ct(a, b, m, out);
+    return mp_div_2_mod_ct(a, m, d);
+}
+
+/* Count the call's allocations unarmed, then fail each one in turn and
+ * require MP_MEM; one past the count must succeed. The fresh case fails the
+ * grow of d (c for mp_div_2_mod_ct); the c == d case fails the temporary's
+ * grow, whose error path clears it. */
+static void wb_ct_alloc_sweep(int op, int alias)
+{
+    mp_int m, a, b, d;
+    unsigned long allocs;
+    unsigned long want;
+    unsigned long n;
+    int r;
+
+    want = 1;
+
+    if (wb_ct_setup(&m, &a, &b, &d, !alias) != 0) {
+        WB_NOTE("ct alloc sweep: setup failed, skipped");
+        wb_fail = 1;
+        return;
+    }
+    mcdc_fa_arm(1000000);
+    r = wb_ct_call(op, &a, &b, &m, &d, alias);
+    allocs = mcdc_fa_count;
+    mcdc_fa_disarm();
+    mp_clear(&m); mp_clear(&a); mp_clear(&b); mp_clear(&d);
+    if ((r != MP_OKAY) || (allocs != want)) {
+        printf("  [wb] %s alias %d: r %d, %lu allocations, expected %lu\n",
+               wb_ct_name[op], alias, r, allocs, want);
+        wb_fail = 1;
+        return;
+    }
+
+    for (n = 1; n <= allocs + 1; n++) {
+        if (wb_ct_setup(&m, &a, &b, &d, !alias) != 0) {
+            wb_fail = 1;
+            continue;
+        }
+        mcdc_fa_arm(n);
+        r = wb_ct_call(op, &a, &b, &m, &d, alias);
+        mcdc_fa_disarm();
+        if (r != ((n <= allocs) ? WC_NO_ERR_TRACE(MP_MEM) : MP_OKAY)) {
+            printf("  [wb] %s alias %d: fail-index %lu -> %d\n",
+                   wb_ct_name[op], alias, n, r);
+            wb_fail = 1;
+        }
+        mp_clear(&m); mp_clear(&a); mp_clear(&b); mp_clear(&d);
+    }
+    printf("  [wb] %s%s: %lu allocations, each failed in turn\n",
+           wb_ct_name[op], alias ? " (c == d)" : "", allocs);
+}
+#endif
+
+/* Each NULL, then each negative operand, in turn must return MP_VAL; the
+ * sweep's successful calls give the all-FALSE row. */
+static void wb_ct_null_args(void)
+{
+    mp_int m, a, b, d;
+    mp_int* p[4];
+    int k;
+
+    if (wb_ct_setup(&m, &a, &b, &d, 0) != 0) {
+        WB_NOTE("ct NULL args: setup failed, skipped");
+        wb_fail = 1;
+        return;
+    }
+    for (k = 0; k < 4; k++) {
+        p[0] = &a; p[1] = &b; p[2] = &m; p[3] = &d;
+        p[k] = NULL;
+        if ((mp_addmod_ct(p[0], p[1], p[2], p[3]) !=
+                WC_NO_ERR_TRACE(MP_VAL)) ||
+                (mp_submod_ct(p[0], p[1], p[2], p[3]) !=
+                WC_NO_ERR_TRACE(MP_VAL))) {
+            printf("  [wb] ct add/sub NULL arg %d not rejected\n", k);
+            wb_fail = 1;
+        }
+    }
+    for (k = 0; k < 3; k++) {
+        p[0] = &a; p[1] = &m; p[2] = &d;
+        p[k] = NULL;
+        if (mp_div_2_mod_ct(p[0], p[1], p[2]) != WC_NO_ERR_TRACE(MP_VAL)) {
+            printf("  [wb] mp_div_2_mod_ct NULL arg %d not rejected\n", k);
+            wb_fail = 1;
+        }
+    }
+    for (k = 0; k < 2; k++) {
+        p[0] = &a; p[1] = &b;
+        p[k]->sign = MP_NEG;
+        if ((mp_addmod_ct(&a, &b, &m, &d) != WC_NO_ERR_TRACE(MP_VAL)) ||
+                (mp_submod_ct(&a, &b, &m, &d) != WC_NO_ERR_TRACE(MP_VAL))) {
+            printf("  [wb] ct add/sub negative arg %d not rejected\n", k);
+            wb_fail = 1;
+        }
+        p[k]->sign = MP_ZPOS;
+    }
+    a.sign = MP_NEG;
+    if (mp_div_2_mod_ct(&a, &m, &d) != WC_NO_ERR_TRACE(MP_VAL)) {
+        WB_NOTE("mp_div_2_mod_ct negative arg not rejected");
+        wb_fail = 1;
+    }
+    a.sign = MP_ZPOS;
+    mp_clear(&m); mp_clear(&a); mp_clear(&b); mp_clear(&d);
+    WB_NOTE("ct NULL and sign argument guards exercised");
 }
 
 int main(int argc, char** argv)
@@ -322,7 +480,16 @@ int main(int argc, char** argv)
         }
         WB_NOTE("mp_div fault-index sweep done");
 
+#ifndef MCDC_FA_UNAVAILABLE
+        wb_ct_alloc_sweep(WB_CT_ADD, 0);
+        wb_ct_alloc_sweep(WB_CT_ADD, 1);
+        wb_ct_alloc_sweep(WB_CT_SUB, 0);
+        wb_ct_alloc_sweep(WB_CT_SUB, 1);
+        wb_ct_alloc_sweep(WB_CT_DIV2, 0);
+#endif
+
         wb_argument_residuals();
+        wb_ct_null_args();
     }
 
     mcdc_fa_disarm();

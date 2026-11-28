@@ -243,7 +243,7 @@ WOLFSSL_API void wc_Md5Free(Md5* md5)
 #endif /* !NO_MD5 */
 
 #if !defined(NO_SHA)
-WOLFSSL_API int wc_InitSha_ex(Md5* sha, void* heap, int devId)
+WOLFSSL_API int wc_InitSha_ex(Sha* sha, void* heap, int devId)
 {
     if (sha == NULL)
         return BAD_FUNC_ARG;

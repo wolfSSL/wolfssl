@@ -50,7 +50,9 @@ int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \return WOLFSSL_CBIO_ERR_CONN_RST returned with a “Connection reset”
     message if the last error was SOCKET_ECONNRESET.
     \return WOLFSSL_CBIO_ERR_ISR returned with a “Socket interrupted” message
-    if the last error was SOCKET_EINTR.
+    if the last error was SOCKET_EINTR. The library retries the send up to
+    WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS times and then reports WANT_WRITE, so a
+    custom send callback that keeps returning this value does not block.
     \return WOLFSSL_CBIO_ERR_CONN_CLOSE returned with a “Socket EPIPE” message
     if the last error was SOCKET_EPIPE.
     \return WOLFSSL_CBIO_ERR_GENERAL returned with a “General error” message
@@ -126,7 +128,9 @@ int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \return WOLFSSL_CBIO_ERR_CONN_RST returned with a “Connection reset”
     message if the last error was SOCKET_ECONNRESET.
     \return WOLFSSL_CBIO_ERR_ISR returned with a “Socket interrupted” message
-    if the last error was SOCKET_EINTR.
+    if the last error was SOCKET_EINTR. The library retries the send up to
+    WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS times and then reports WANT_WRITE, so a
+    custom send callback that keeps returning this value does not block.
     \return WOLFSSL_CBIO_ERR_CONN_CLOSE returned with a “Socket EPIPE” message
     if the last error was WOLFSSL_CBIO_ERR_CONN_CLOSE.
     \return WOLFSSL_CBIO_ERR_GENERAL returned with a “General error” message
@@ -459,7 +463,9 @@ void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     \param nxsocket a pointer to type NX_TCP_SOCKET that is set to the
     nxTcpSocket member of the nxCtx structure.
     \param waitoption a ULONG type that is set to the nxWait member of
-    the nxCtx structure.
+    the nxCtx structure. With NX_NO_WAIT, or any wait option that can expire,
+    the callbacks report WANT_READ/WANT_WRITE instead of a fatal error, so
+    the wolfSSL call can be retried.
 
     _Example_
     \code
@@ -496,6 +502,10 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
     \param nxdip the destination NXD_ADDRESS (passed by value; IPv4 or IPv6).
     \param nxport the destination UDP port number.
     \param waitoption a ULONG NetX wait option (e.g. NX_WAIT_FOREVER or ticks).
+    With NX_NO_WAIT, or any wait option that can expire, NetX_SendTo reports
+    WANT_WRITE instead of a fatal error. A receive that expires reports
+    WANT_READ when the session is set non blocking, and a timeout otherwise so
+    that DTLS can retransmit.
 
     _Example_
     \code
@@ -1327,29 +1337,6 @@ void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend);
 
 /*!
     \ingroup IO
-    \brief Sets I/O for Mynewt platform.
-
-    \return none No returns
-
-    \param ssl SSL object
-    \param mnSocket Mynewt socket
-    \param mnSockAddrIn Mynewt socket address
-
-    _Example_
-    \code
-    WOLFSSL* ssl;
-    struct mn_socket sock;
-    struct mn_sockaddr_in addr;
-    wolfSSL_SetIO_Mynewt(ssl, &sock, &addr);
-    \endcode
-
-    \sa wolfSSL_SetIO_LwIP
-*/
-void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
-                          struct mn_sockaddr_in* mnSockAddrIn);
-
-/*!
-    \ingroup IO
     \brief Sets I/O for LwIP platform.
 
     \return 0 on success
@@ -1368,7 +1355,6 @@ void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
     int ret = wolfSSL_SetIO_LwIP(ssl, pcb, myRecv, mySent, NULL);
     \endcode
 
-    \sa wolfSSL_SetIO_Mynewt
 */
 int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void *pcb, tcp_recv_fn recv,
                        tcp_sent_fn sent, void *arg);

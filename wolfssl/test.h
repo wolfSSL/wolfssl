@@ -224,6 +224,27 @@
     #define SOCKET_T int
     #define WOLFSSL_USE_GETADDRINFO
 
+    #if KERNEL_VERSION_NUMBER >= 0x40100
+    /* Zephyr 4.1 dropped CONFIG_NET_SOCKETS_POSIX_NAMES, so this harness calls
+     * the zsock_ API. Function-like on purpose: an object-like macro would also
+     * rewrite identically named structure members, such as sendto/recvfrom in
+     * WOLFSSL_DTLS_CTX or Zephyr's own struct socket_op_vtable. */
+    #define socket(a,b,c)           zsock_socket((a),(b),(c))
+    #define bind(a,b,c)             zsock_bind((a),(b),(c))
+    #define connect(a,b,c)          zsock_connect((a),(b),(c))
+    #define listen(a,b)             zsock_listen((a),(b))
+    #define accept(a,b,c)           zsock_accept((a),(b),(c))
+    #define send(a,b,c,d)           zsock_send((a),(b),(c),(d))
+    #define recv(a,b,c,d)           zsock_recv((a),(b),(c),(d))
+    #define sendto(a,b,c,d,e,f)     zsock_sendto((a),(b),(c),(d),(e),(f))
+    #define recvfrom(a,b,c,d,e,f)   zsock_recvfrom((a),(b),(c),(d),(e),(f))
+    #define setsockopt(a,b,c,d,e)   zsock_setsockopt((a),(b),(c),(d),(e))
+    #define getsockopt(a,b,c,d,e)   zsock_getsockopt((a),(b),(c),(d),(e))
+    #define shutdown(a,b)           zsock_shutdown((a),(b))
+    #define getpeername(a,b,c)      zsock_getpeername((a),(b),(c))
+    #define getsockname(a,b,c)      zsock_getsockname((a),(b),(c))
+    #endif
+
     #if !defined(CONFIG_POSIX_API)
     #define SOL_SOCKET 1
     static unsigned long inet_addr(const char *cp)
@@ -642,10 +663,6 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
 #define noIssuerCertFile  "certs/empty-issuer-cert.der"
 #endif
 #define caCertFolder      "certs/"
-#ifdef HAVE_WNR
-    /* Whitewood netRandom default config file */
-    #define wnrConfig     "wnr-example.conf"
-#endif
 #elif defined(NETOS) && defined(HAVE_FIPS)
     /* These defines specify the file system volume and root directory used by
      * the FTP server used in the only supported NETOS FIPS solution (at this
@@ -667,10 +684,6 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
     #define cliEccCertFile FS_VOLUME1_DIR "certs/client-ecc-cert.pem"
     #define caEccCertFile  FS_VOLUME1_DIR "certs/ca-ecc-cert/pem"
     #define crlPemDir      FS_VOLUME1_DIR "certs/crl"
-    #ifdef HAVE_WNR
-        /* Whitewood netRandom default config file */
-        #define wnrConfig  "wnr-example.conf"
-    #endif
 #else
 #ifdef WOLFSSL_PEM_TO_DER
 #define caCertFile        "./certs/ca-cert.pem"
@@ -742,10 +755,6 @@ err_sys_with_errno_func(const char* msg, const char *file, int line)
 #define noIssuerCertFile  "./certs/empty-issuer-cert.der"
 #endif
 #define caCertFolder      "./certs/"
-#ifdef HAVE_WNR
-    /* Whitewood netRandom default config file */
-    #define wnrConfig     "./wnr-example.conf"
-#endif
 #endif
 
 /* ML-DSA (FIPS 204) certificate material. The mldsa<N>-cert files are
@@ -1436,7 +1445,11 @@ static WC_INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
     WOLFSSL_X509* chainX509;
 
     for (i = 0; i < count; i++) {
-        wolfSSL_get_chain_cert_pem(chain, i, certPem, sizeof(certPem), &length);
+        if (wolfSSL_get_chain_cert_pem(chain, i, certPem, sizeof(certPem),
+                &length) != WOLFSSL_SUCCESS || length < 0 ||
+                (size_t)length >= sizeof(certPem)) {
+            length = 0;
+        }
         certPem[length] = 0;
         printf("\n%s: %d has length %d data = \n%s\n", hdr, i, length, certPem);
 
@@ -1562,7 +1575,11 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         #endif
 
         if (entry) {
-            XMEMCPY(&addr->sin_addr.s_addr, entry->h_addr_list[0],
+            char* hAddr;
+
+            /* macOS does not align h_addr_list, so copy the pointer out. */
+            XMEMCPY(&hAddr, entry->h_addr_list, sizeof(hAddr));
+            XMEMCPY(&addr->sin_addr.s_addr, hAddr,
                    (size_t) entry->h_length);
             useLookup = 1;
         }
@@ -1957,7 +1974,7 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys_with_errno("tcp bind failed");
 
-    #if !defined(WOLFSSL_TIRTOS) && !defined(SINGLE_THREADED)
+    #if !defined(WOLFSSL_TIRTOS)
         if (port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -1973,7 +1990,6 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
     if (args != NULL && args->signal != NULL) {
-#ifndef SINGLE_THREADED
         tcp_ready* ready = args->signal;
     #ifdef WOLFSSL_COND
         THREAD_CHECK_RET(wolfSSL_CondStart(&ready->cond));
@@ -1985,7 +2001,6 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         THREAD_CHECK_RET(wolfSSL_CondSignal(&ready->cond));
         THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
     #endif
-#endif /* !SINGLE_THREADED */
     }
     else {
         fprintf(stderr, "args or args->signal was NULL. Not setting ready info.");
@@ -2015,7 +2030,6 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
-#ifndef SINGLE_THREADED
         /* signal ready to tcp_accept */
         if (args)
             ready = args->signal;
@@ -2030,7 +2044,6 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
             THREAD_CHECK_RET(wolfSSL_CondEnd(&ready->cond));
         #endif
         }
-#endif /* !SINGLE_THREADED */
 
         if (ready_file) {
             write_ready_file(args, port);
@@ -2283,7 +2296,12 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     int i;
     WOLFSSL_SESSION* lsess;
     char buf[256];
+    /* Descriptions name TLS 1.3 suites as OpenSSL does. */
+#ifndef NO_ERROR_STRINGS
+    const char* cipher_id = "TLS_AES_128_GCM_SHA256";
+#else
     const char* cipher_id = "TLS13-AES128-GCM-SHA256";
+#endif
     const SSL_CIPHER* cipher = NULL;
     STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
     int numCiphers = 0;
@@ -3432,38 +3450,115 @@ static WC_INLINE int wolfSSL_PrintStatsConn(WOLFSSL_MEM_CONN_STATS* stats)
 
 #ifdef HAVE_PK_CALLBACKS
 
+/* How many generated ECC keys one connection can have to hold at once. A TLS
+ * v1.3 client offers a key share per group it is willing to start with, and
+ * the example client offers SM2 alongside secp256r1 where both are built, so
+ * one is not enough; a HelloRetryRequest then adds the group the server
+ * names. */
+#define PKCB_MAX_ECC_KEYGEN 4
+
 typedef struct PkCbInfo {
     const char* ourKey;
-#ifdef TEST_PK_PRIVKEY
-    union {
-    #ifdef HAVE_ECC
-        /* only ECC PK callback with TLS v1.2 needs this */
-        ecc_key ecc;
-    #endif
-    } keyGen;
-    int hasKeyGen;
+#ifdef HAVE_ECC
+    /* Our own ephemeral keys, kept out of the library's key objects. TLS v1.3
+     * generates each key share in the key gen callback and computes the shared
+     * secret in a later callback that is handed only the peer's key, so the
+     * private halves have to live here until the group is settled. Held by
+     * pointer: an ecc_key is several kilobytes, and this struct is a stack
+     * local in the example client and server. */
+    ecc_key* keyGen[PKCB_MAX_ECC_KEYGEN];
+    int      keyGenCnt;
 #endif
 } PkCbInfo;
 
 #ifdef HAVE_ECC
+
+/* The key we generated for a curve, or NULL if we have none for it. */
+static WC_INLINE ecc_key* myEccKeptKey(PkCbInfo* cbInfo, int ecc_curve)
+{
+    int i;
+
+    if (cbInfo == NULL)
+        return NULL;
+
+    for (i = 0; i < cbInfo->keyGenCnt; i++) {
+        if (cbInfo->keyGen[i]->dp != NULL &&
+                cbInfo->keyGen[i]->dp->id == ecc_curve) {
+            return cbInfo->keyGen[i];
+        }
+    }
+
+    return NULL;
+}
+
+static WC_INLINE void myEccFreeKeptKeys(PkCbInfo* cbInfo)
+{
+    int i;
+
+    if (cbInfo == NULL)
+        return;
+
+    for (i = 0; i < cbInfo->keyGenCnt; i++) {
+        wc_ecc_free(cbInfo->keyGen[i]);
+        XFREE(cbInfo->keyGen[i], NULL, DYNAMIC_TYPE_ECC);
+        cbInfo->keyGen[i] = NULL;
+    }
+    cbInfo->keyGenCnt = 0;
+}
+
+/* Whether this connection has to keep its own private key. TEST_PK_PRIVKEY
+ * asks for it on every version to model an application that never hands the
+ * library a private key; TLS v1.3 needs it either way, because the shared
+ * secret callback only receives the peer's key. Test the 1.3 versions rather
+ * than ordering the enum: the DTLS values sort above the TLS ones, so DTLS
+ * v1.2 would otherwise be taken for a 1.3. */
+static WC_INLINE int myEccKeepPrivKey(WOLFSSL* ssl)
+{
+#ifdef TEST_PK_PRIVKEY
+    (void)ssl;
+    return 1;
+#else
+    int version = wolfSSL_GetVersion(ssl);
+
+    return version == WOLFSSL_TLSV1_3 || version == WOLFSSL_DTLSV1_3;
+#endif
+}
 
 static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     int ecc_curve, void* ctx)
 {
     int       ret;
     PkCbInfo* cbInfo = (PkCbInfo*)ctx;
-    ecc_key*  new_key;
-
-#ifdef TEST_PK_PRIVKEY
-    new_key = cbInfo ? &cbInfo->keyGen.ecc : key;
-#else
-    new_key = key;
-#endif
-
-    (void)ssl;
-    (void)cbInfo;
+    ecc_key*  new_key = key;
 
     WOLFSSL_PKMSG("PK ECC KeyGen: keySz %u, Curve ID %d\n", keySz, ecc_curve);
+
+    if (cbInfo != NULL && myEccKeepPrivKey(ssl)) {
+        /* A key we already kept for this curve is stale - a TLS v1.3 client
+         * regenerates its key share when the server names a group in a
+         * HelloRetryRequest - so release it and take its slot back. */
+        new_key = myEccKeptKey(cbInfo, ecc_curve);
+        if (new_key != NULL) {
+            wc_ecc_free(new_key);
+        }
+        else if (cbInfo->keyGenCnt < PKCB_MAX_ECC_KEYGEN) {
+            new_key = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL,
+                DYNAMIC_TYPE_ECC);
+            if (new_key == NULL) {
+                WOLFSSL_PKMSG("PK ECC KeyGen: out of memory\n");
+                return MEMORY_E;
+            }
+            /* Zero it before it is counted: a wc_ecc_init() failure below
+             * still leaves it for myEccFreeKeptKeys() to release. */
+            XMEMSET(new_key, 0, sizeof(ecc_key));
+            cbInfo->keyGen[cbInfo->keyGenCnt++] = new_key;
+        }
+        else {
+            WOLFSSL_PKMSG("PK ECC KeyGen: no room to keep curve %d\n",
+                ecc_curve);
+            return MEMORY_E;
+        }
+    }
 
     ret = wc_ecc_init(new_key);
     if (ret == 0) {
@@ -3472,7 +3567,6 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
         /* create new key */
         ret = wc_ecc_make_key_ex(rng, (int) keySz, new_key, ecc_curve);
 
-    #ifdef TEST_PK_PRIVKEY
         if (ret == 0 && new_key != key) {
             byte qx[MAX_ECC_BYTES], qy[MAX_ECC_BYTES];
             word32 qxLen = sizeof(qx), qyLen = sizeof(qy);
@@ -3486,10 +3580,6 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
             (void)qxLen;
             (void)qyLen;
         }
-        if (ret == 0 && cbInfo != NULL) {
-            cbInfo->hasKeyGen = 1;
-        }
-    #endif
     }
 
     WOLFSSL_PKMSG("PK ECC KeyGen: ret %d\n", ret);
@@ -3620,32 +3710,39 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
     /* for client: create and export public key */
     if (side == WOLFSSL_CLIENT_END) {
-    #ifdef TEST_PK_PRIVKEY
-        privKey = cbInfo ? &cbInfo->keyGen.ecc : &tmpKey;
-    #else
-        privKey = &tmpKey;
-    #endif
         pubKey = otherKey;
 
         /* TLS v1.2 and older we must generate a key here for the client only.
-         * TLS v1.3 calls key gen early with key share. Test the 1.3 versions
-         * rather than ordering the enum: the DTLS values sort above the TLS
-         * ones, so DTLS v1.2 would otherwise be taken for a 1.3 and skipped. */
+         * TLS v1.3 calls key gen early with each key share it offers, and
+         * myEccKeepPrivKey() made that callback leave the private halves in
+         * cbInfo for us; the peer's key names the group the server settled on.
+         * Test the 1.3 versions rather than ordering the enum: the DTLS values
+         * sort above the TLS ones, so DTLS v1.2 would otherwise be taken for a
+         * 1.3 and skipped. */
         if (version != WOLFSSL_TLSV1_3 && version != WOLFSSL_DTLSV1_3) {
-            ret = myEccKeyGen(ssl, privKey, 0, otherKey->dp->id, ctx);
+            ret = myEccKeyGen(ssl, &tmpKey, 0, otherKey->dp->id, ctx);
             if (ret == 0) {
+                privKey = myEccKeptKey(cbInfo, otherKey->dp->id);
+                if (privKey == NULL)
+                    privKey = &tmpKey;
                 ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);
+            }
+        }
+        else {
+            privKey = myEccKeptKey(cbInfo, otherKey->dp->id);
+            if (privKey == NULL) {
+                WOLFSSL_PKMSG("PK ECC PMS: no key kept for curve %d\n",
+                    otherKey->dp->id);
+                ret = ECC_CURVE_OID_E;
             }
         }
     }
 
     /* for server: import public key */
     else if (side == WOLFSSL_SERVER_END) {
-    #ifdef TEST_PK_PRIVKEY
-        privKey = cbInfo ? &cbInfo->keyGen.ecc : otherKey;
-    #else
-        privKey = otherKey;
-    #endif
+        privKey = myEccKeptKey(cbInfo, otherKey->dp->id);
+        if (privKey == NULL)
+            privKey = otherKey;
         pubKey = &tmpKey;
 
         ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, pubKey,
@@ -3655,7 +3752,7 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         ret = BAD_FUNC_ARG;
     }
 
-    if (privKey == NULL || pubKey == NULL) {
+    if (ret == 0 && (privKey == NULL || pubKey == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -3677,13 +3774,6 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         }
     #endif
     }
-
-#ifdef TEST_PK_PRIVKEY
-    if (cbInfo && cbInfo->hasKeyGen) {
-        wc_ecc_free(&cbInfo->keyGen.ecc);
-        cbInfo->hasKeyGen = 0;
-    }
-#endif
 
     wc_ecc_free(&tmpKey);
 
@@ -4708,6 +4798,11 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
 static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 {
     #ifdef HAVE_ECC
+        /* The kept keys belong to one connection: whatever a previous one left
+         * behind is stale, and a TLS v1.2 handshake would otherwise derive
+         * with it instead of the key the library just handed us. */
+        myEccFreeKeptKeys((PkCbInfo*)myCtx);
+
         wolfSSL_SetEccKeyGenCtx(ssl, myCtx);
         wolfSSL_SetEccSignCtx(ssl, myCtx);
         wolfSSL_SetEccVerifyCtx(ssl, myCtx);
@@ -4758,6 +4853,15 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
     #endif
 
     wolfSSL_SetTlsFinishedCtx(ssl, myCtx);
+    #endif
+}
+
+/* Release what the callbacks kept for the last connection. */
+static WC_INLINE void CleanupPkCallbackContexts(void* myCtx)
+{
+    (void)myCtx;
+    #ifdef HAVE_ECC
+        myEccFreeKeptKeys((PkCbInfo*)myCtx);
     #endif
 }
 
@@ -5113,6 +5217,33 @@ static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
     }
 }
 #endif /* WOLFSSL_EARLY_DATA */
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+static WC_INLINE void PrintEchStatus(WOLFSSL* ssl)
+{
+    const char* status;
+
+    switch (wolfSSL_GetEchStatus(ssl)) {
+        case WOLFSSL_ECH_STATUS_NOT_OFFERED:
+            status = "not offered";
+            break;
+        case WOLFSSL_ECH_STATUS_GREASE:
+            status = "GREASE";
+            break;
+        case WOLFSSL_ECH_STATUS_REJECTED:
+            status = "rejected";
+            break;
+        case WOLFSSL_ECH_STATUS_ACCEPTED:
+            status = "accepted";
+            break;
+        default:
+            status = "unknown";
+            break;
+    }
+
+    printf("ECH status: %s\n", status);
+}
+#endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 #if defined(HAVE_SESSION_TICKET) || defined (WOLFSSL_DTLS13)
 static WC_INLINE int process_handshake_messages(WOLFSSL* ssl, int blocking,

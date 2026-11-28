@@ -1,0 +1,13 @@
+--- a/src/crypto/crypto_wolfssl.c
++++ b/src/crypto/crypto_wolfssl.c
+@@ -2239,8 +2239,8 @@
+ 	ecc_point *point = NULL;
+ 	size_t need_key_len = inc_y ? 2 * key_len : key_len;
+
+-	if (len < need_key_len) {
+-		LOG_WOLF_ERROR("key len too small");
++	if (len != need_key_len) {
++		LOG_WOLF_ERROR("invalid key len");
+ 		goto fail;
+ 	}
+ 	pubkey = wpabuf_alloc(1 + 2 * key_len);

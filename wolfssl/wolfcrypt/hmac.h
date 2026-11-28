@@ -65,6 +65,14 @@
 #define WC_HMAC_INNER_HASH_KEYED_SW     1
 #define WC_HMAC_INNER_HASH_KEYED_DEV    2
 
+/* Hmac.keyLocation exists for the generic SetKey crypto callback, which sets
+ * it with wc_CryptoCb_SetKeyLocation() (WC_KEY_* values in cryptocb.h).
+ * Define WOLFSSL_NO_HMAC_KEY_LOCATION to compile it out. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(WOLFSSL_NO_HMAC_KEY_LOCATION)
+    #define WC_HMAC_HAVE_KEY_LOCATION
+#endif
+
 enum {
     HMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum. Note that this
                                * minimum also applies to the salt length for
@@ -135,6 +143,9 @@ struct Hmac {
     void*   heap;                 /* heap hint */
     byte    macType;              /* md5 sha or sha256 */
     byte    innerHashKeyed;       /* keyed flag */
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+    byte    keyLocation;          /* WC_KEY_SW_STORED or WC_KEY_HW_STORED */
+#endif
 #ifdef WOLFSSL_KCAPI_HMAC
     struct kcapi_handle* handle;
 #endif
@@ -185,6 +196,9 @@ WOLFSSL_API int wc_HmacFinal(Hmac* hmac, byte* hash);
 #ifdef WOLFSSL_KCAPI_HMAC
 WOLFSSL_API int wc_HmacSetKey_Software(Hmac* hmac, int type, const byte* key,
                                        word32 keySz);
+WOLFSSL_API int wc_HmacSetKey_ex_Software(Hmac* hmac, int type,
+                                          const byte* key, word32 keySz,
+                                          int allowFlag);
 WOLFSSL_API int wc_HmacUpdate_Software(Hmac* hmac, const byte* in, word32 sz);
 WOLFSSL_API int wc_HmacFinal_Software(Hmac* hmac, byte* out);
 #endif
@@ -202,8 +216,28 @@ WOLFSSL_API void wc_HmacFree(Hmac* hmac);
 
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
+WOLFSSL_API int wc_HmacGenerate(int type, byte* out, word32* outSz,
+                                const byte* in, word32 inSz,
+                                const byte* key, word32 keySz);
+WOLFSSL_API int wc_HmacGenerate_ex(Hmac* hmac, int type,
+                                   byte* out, word32* outSz,
+                                   const byte* in, word32 inSz,
+                                   const byte* key, word32 keySz,
+                                   void* heap, int devId);
+WOLFSSL_API int wc_HmacVerify(int type, const byte* check, word32 checkSz,
+                              const byte* in, word32 inSz,
+                              const byte* key, word32 keySz);
+WOLFSSL_API int wc_HmacVerify_ex(Hmac* hmac, int type,
+                                 const byte* check, word32 checkSz,
+                                 const byte* in, word32 inSz,
+                                 const byte* key, word32 keySz,
+                                 void* heap, int devId);
+
 WOLFSSL_LOCAL int _InitHmac(Hmac* hmac, int type, void* heap);
 WOLFSSL_LOCAL int _HmacInitIOHashes(Hmac* hmac);
+#ifdef WC_HMAC_HAVE_KEY_LOCATION
+WOLFSSL_LOCAL int wc_HmacSetKeyLocation(Hmac* hmac, int location);
+#endif
 
 #ifdef HAVE_HKDF
 

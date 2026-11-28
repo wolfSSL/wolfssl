@@ -126,6 +126,8 @@ extern "C" {
 #define HAVE_OID_ENCODING
 #define WOLFSSL_ASN_TEMPLATE
 #define WOLFSSL_ALT_NAMES /* Support subject alternative names extension */
+/* Replace peer chain verification with an application callback */
+#define WOLFSSL_CHAIN_VERIFY_CB
 
 /* Certificate Revocation */
 #define HAVE_OCSP
@@ -266,6 +268,8 @@ extern "C" {
     #define NO_OLD_MD5_NAME
     #define OPENSSL_NO_EC /* macro to enable ECC in openssl */
     #define WOLFSSL_VERBOSE_ERRORS
+    /* Needs HAVE_THREAD_LS; without it a threaded build uses the shared,
+     * mutex protected queue. */
     #define ERROR_QUEUE_PER_THREAD
     #define WOLFSSL_ERROR_CODE_OPENSSL
     #define HAVE_WOLFSSL_SSL_H 1

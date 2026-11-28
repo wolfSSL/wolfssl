@@ -149,6 +149,8 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 static int AesAlign16(Aes* aes, byte* out, const byte* in, word32 sz,
     word32 dir, word32 mode)
 {
+    bool ok;
+
     /* Processed aligned chunk to HW AES */
     wolfSSL_TI_lockCCM();
     ROM_AESReset(AES_BASE);
@@ -160,8 +162,11 @@ static int AesAlign16(Aes* aes, byte* out, const byte* in, word32 sz,
         /* if input and output same will overwrite input iv */
         XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     }
-    ROM_AESDataProcess(AES_BASE, (uint32_t *)in, (uint32_t *)out, sz);
+    ok = ROM_AESDataProcess(AES_BASE, (uint32_t *)in, (uint32_t *)out, sz);
     wolfSSL_TI_unlockCCM();
+
+    if (ok == false)
+        return WC_HW_E;
 
     /* store iv for next call */
     if (mode == AES_CFG_MODE_CBC) {
@@ -182,7 +187,7 @@ static int AesAlign16(Aes* aes, byte* out, const byte* in, word32 sz,
         } while ((int)sz > 0);
     }
 
-    return true;
+    return 0;
 }
 
 static int AesProcess(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -191,6 +196,7 @@ static int AesProcess(Aes* aes, byte* out, const byte* in, word32 sz,
     const byte *in_p; byte *out_p;
     word32 size;
     byte buff[TI_BUFFSIZE];
+    int ret;
 
     if ((aes == NULL) || (in == NULL) || (out == NULL))
         return BAD_FUNC_ARG;
@@ -209,7 +215,9 @@ static int AesProcess(Aes* aes, byte* out, const byte* in, word32 sz,
             out_p = buff;
         }
 
-        AesAlign16(aes, out_p, in_p, size, dir, mode);
+        ret = AesAlign16(aes, out_p, in_p, size, dir, mode);
+        if (ret != 0)
+            return ret;
 
         if (!IS_ALIGN16(out)) {
             XMEMCPY(out, buff, size);
@@ -341,7 +349,11 @@ static int AesAuthSetKey(Aes* aes, const byte* key, word32 keySz)
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
         return BAD_FUNC_ARG;
 
-    XMEMSET(nonce, 0, sizeof(nonce));
+    /* Keep a nonce cached by wc_AesGcmSetIV() or wc_AesCcmSetNonce(). */
+    if (aes->nonceSz != 0)
+        XMEMCPY(nonce, aes->reg, sizeof(nonce));
+    else
+        XMEMSET(nonce, 0, sizeof(nonce));
     return wc_AesSetKey(aes, key, keySz, nonce, AES_ENCRYPTION);
 }
 
@@ -411,7 +423,7 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     return 0;
 }
 
-static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
+static int AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
     int mode)
 {
     if (mode == AES_CFG_MODE_CCM) {
@@ -461,7 +473,11 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
             ROM_AESReset(AES_BASE);
             ROM_AESConfigSet(AES_BASE, (aes->keylen-8) | AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_ECB);
             ROM_AESKey1Set(AES_BASE, aes->key, (aes->keylen-8));
-            ROM_AESDataProcess(AES_BASE, zeros, subkey, sizeof zeros);
+            if (ROM_AESDataProcess(AES_BASE, zeros, subkey, sizeof zeros) ==
+                    false) {
+                wolfSSL_TI_unlockCCM();
+                return WC_HW_E;
+            }
 
             /* GHASH */
             ROM_AESReset(AES_BASE);
@@ -485,6 +501,8 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
             wolfSSL_TI_unlockCCM();
         }
     }
+
+    return 0;
 }
 
 /* Allocates a 16 byte aligned, whole block sized temporary for sz bytes and,
@@ -522,6 +540,46 @@ static int AesAuthBounce(const byte* src, word32 sz, void* heap, byte** save,
     return 0;
 }
 
+#ifdef HAVE_AESCCM
+/* Tag for an empty message with no AAD: CBC-MAC over B0 alone, masked with
+ * S0 (RFC 3610 section 2.2). B0 and A0 differ only in the flags byte, and the
+ * length field of each is zero, so A0, already in aes->reg, supplies both. */
+static int AesCcmEmptyTag(Aes* aes, word32 authTagSz, word32* tag)
+{
+    ALIGN16 word32 blocks[2 * (WC_AES_BLOCK_SIZE / sizeof(word32))];
+    ALIGN16 word32 enc[2 * (WC_AES_BLOCK_SIZE / sizeof(word32))];
+    word32 i;
+    int    ret = 0;
+    bool   ok;
+
+    XMEMCPY(blocks, aes->reg, WC_AES_BLOCK_SIZE);
+    XMEMCPY(&blocks[WC_AES_BLOCK_SIZE / sizeof(word32)], aes->reg,
+        WC_AES_BLOCK_SIZE);
+    ((byte*)blocks)[0] |= (byte)((((authTagSz - 2U) / 2U) & 0x7U) << 3);
+
+    wolfSSL_TI_lockCCM();
+    ROM_AESReset(AES_BASE);
+    ROM_AESConfigSet(AES_BASE,
+        (aes->keylen-8) | AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_ECB);
+    ROM_AESKey1Set(AES_BASE, aes->key, (aes->keylen-8));
+    ok = ROM_AESDataProcess(AES_BASE, blocks, enc, sizeof(blocks));
+    wolfSSL_TI_unlockCCM();
+
+    if (ok == false) {
+        ret = WC_HW_E;
+    }
+    else {
+        for (i = 0; i < WC_AES_BLOCK_SIZE / sizeof(word32); i++) {
+            tag[i] = enc[i] ^ enc[i + (WC_AES_BLOCK_SIZE / sizeof(word32))];
+        }
+    }
+
+    ForceZero(enc, sizeof(enc));
+
+    return ret;
+}
+#endif /* HAVE_AESCCM */
+
 static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                               const byte* nonce, word32 nonceSz,
                               byte* authTag, word32 authTagSz,
@@ -543,9 +601,21 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    ret = AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    if (ret != 0) {
+        return ret;
+    }
 
     if (inSz == 0 && authInSz == 0) {
+#ifdef HAVE_AESCCM
+        if (mode == AES_CFG_MODE_CCM) {
+            ret = AesCcmEmptyTag(aes, authTagSz, tmpTag);
+            if (ret == 0) {
+                XMEMCPY(authTag, tmpTag, authTagSz);
+            }
+            return ret;
+        }
+#endif
         /* This is a special case that cannot use the GCM mode because the
          * data and AAD lengths are both zero. The work around is to perform
          * an ECB encryption on IV. */
@@ -553,10 +623,15 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         ROM_AESReset(AES_BASE);
         ROM_AESConfigSet(AES_BASE, (aes->keylen-8) | AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_ECB);
         ROM_AESKey1Set(AES_BASE, aes->key, (aes->keylen-8));
-        ROM_AESDataProcess(AES_BASE, aes->reg, tmpTag, WC_AES_BLOCK_SIZE);
+        if (ROM_AESDataProcess(AES_BASE, aes->reg, tmpTag,
+                WC_AES_BLOCK_SIZE) == false) {
+            ret = WC_HW_E;
+        }
         wolfSSL_TI_unlockCCM();
-        XMEMCPY(authTag, tmpTag, authTagSz);
-        return 0;
+        if (ret == 0) {
+            XMEMCPY(authTag, tmpTag, authTagSz);
+        }
+        return ret;
     }
 
     /* Bounce each buffer that is not 16 byte aligned, and each buffer whose
@@ -610,7 +685,7 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (out != NULL)
             ForceZero(out, inSz);
         ForceZero(authTag, authTagSz);
-        ret = AES_GCM_AUTH_E;
+        ret = (mode == AES_CFG_MODE_CCM) ? AES_CCM_AUTH_E : AES_GCM_AUTH_E;
     }
     else {
         if (out_save != NULL)
@@ -655,9 +730,23 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    ret = AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    if (ret != 0) {
+        return ret;
+    }
 
     if (inSz == 0 && authInSz == 0) {
+#ifdef HAVE_AESCCM
+        if (mode == AES_CFG_MODE_CCM) {
+            ret = AesCcmEmptyTag(aes, authTagSz, tmpTag);
+            if ((ret == 0) &&
+                    (ConstantCompare(authTag, (byte*)tmpTag,
+                        (int)authTagSz) != 0)) {
+                ret = AES_CCM_AUTH_E;
+            }
+            return ret;
+        }
+#endif
         /* This is a special case that cannot use the GCM mode because the
          * data and AAD lengths are both zero. The work around is to perform
          * an ECB encryption on IV. */
@@ -665,10 +754,14 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         ROM_AESReset(AES_BASE);
         ROM_AESConfigSet(AES_BASE, (aes->keylen-8) | AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_ECB);
         ROM_AESKey1Set(AES_BASE, aes->key, (aes->keylen-8));
-        ROM_AESDataProcess(AES_BASE, aes->reg, tmpTag, WC_AES_BLOCK_SIZE);
+        if (ROM_AESDataProcess(AES_BASE, aes->reg, tmpTag,
+                WC_AES_BLOCK_SIZE) == false) {
+            ret = WC_HW_E;
+        }
         wolfSSL_TI_unlockCCM();
 
-        if (ConstantCompare(authTag, tmpTag, authTagSz) != 0) {
+        if ((ret == 0) &&
+                (ConstantCompare(authTag, (byte*)tmpTag, authTagSz) != 0)) {
             ret = AES_GCM_AUTH_E;
         }
         return ret;
@@ -719,11 +812,12 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         (unsigned int*)tmpTag);
     wolfSSL_TI_unlockCCM();
 
-    if ((ret == false) || (ConstantCompare(authTag, tmpTag, authTagSz) != 0)) {
+    if ((ret == false) ||
+            (ConstantCompare(authTag, (byte*)tmpTag, authTagSz) != 0)) {
         /* out is NULL for the GMAC case, where inSz is zero. */
         if (out != NULL)
             ForceZero(out, inSz);
-        ret = AES_GCM_AUTH_E;
+        ret = (mode == AES_CFG_MODE_CCM) ? AES_CCM_AUTH_E : AES_GCM_AUTH_E;
     }
     else {
         if (out_save != NULL)
@@ -865,11 +959,17 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
+        /* Pass the encrypt its nonce out of ivOut rather than aes->reg -
+         * AesAuthSetIv() leaves the GHASH result in aes->reg for a nonce that
+         * is not 96 bits, so aes->reg does not survive the call. */
         XMEMCPY(ivOut, aes->reg, ivOutSz);
         ret = wc_AesGcmEncrypt(aes, out, in, sz,
-                               (byte*)aes->reg, ivOutSz,
+                               ivOut, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
+        /* Put the nonce back over any scratch data the driver left behind,
+         * then advance so the next record cannot reuse this nonce. */
+        XMEMCPY(aes->reg, ivOut, ivOutSz);
         if (ret == 0)
             IncCtr((byte*)aes->reg, ivOutSz);
     }
@@ -891,8 +991,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -907,7 +1006,9 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 
     return ret;
 }
@@ -928,8 +1029,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_AES)) == NULL)
+    if ((aes = WC_ALLOC_AES(NULL)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -942,7 +1042,9 @@ int wc_GmacVerify(const byte* key, word32 keySz,
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
-    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
+#ifdef WOLFSSL_SMALL_STACK
+    WC_FREE_AES(aes, NULL);
+#endif
 #else
     (void)key;
     (void)keySz;
@@ -1036,14 +1138,16 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
+        /* Keep the nonce being consumed in ivOut - see wc_AesGcmEncrypt_ex()
+         * for why aes->reg does not survive the call. */
+        XMEMCPY(ivOut, aes->reg, aes->nonceSz);
         ret = wc_AesCcmEncrypt(aes, out, in, sz,
-                               (byte*)aes->reg, aes->nonceSz,
+                               ivOut, aes->nonceSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        if (ret == 0) {
-            XMEMCPY(ivOut, aes->reg, aes->nonceSz);
+        XMEMCPY(aes->reg, ivOut, aes->nonceSz);
+        if (ret == 0)
             IncCtr((byte*)aes->reg, aes->nonceSz);
-        }
     }
 
     return ret;

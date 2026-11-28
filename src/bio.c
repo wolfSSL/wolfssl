@@ -112,6 +112,7 @@ static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
     int sz;
+    int memSz;
 
 #ifndef WOLFSSL_DEBUG_OPENSSL
     if (len > 1)
@@ -131,71 +132,70 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
     }
 
     sz = wolfSSL_BIO_pending(bio);
-    if (sz > 0) {
-        int memSz;
-
-        if (bio->mem_buf == NULL) {
-            WOLFSSL_MSG("bio->mem_buf is null");
-            return WOLFSSL_BIO_ERROR;
-        }
-
-        if (sz > len) {
-            sz = len;
-        }
-
-        memSz = (int)bio->mem_buf->length - bio->rdIdx;
-        if (memSz < sz) {
-            WOLFSSL_MSG("Not enough memory for reading");
-            return WOLFSSL_BIO_ERROR;
-        }
-
-        XMEMCPY(buf, bio->mem_buf->data + bio->rdIdx, (size_t)sz);
-        bio->rdIdx += sz;
-
-        if (bio->rdIdx >= bio->wrSz) {
-            if (bio->flags & WOLFSSL_BIO_FLAG_MEM_RDONLY) {
-                bio->wrSz = bio->wrSzReset;
-            }
-            else {
-                /* All data read resize down to WOLFSSL_BIO_RESIZE_THRESHOLD */
-                if (bio->mem_buf->max > WOLFSSL_BIO_RESIZE_THRESHOLD &&
-                    wolfSSL_BUF_MEM_resize(bio->mem_buf, WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
-                    WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
-                    return WOLFSSL_BIO_ERROR;
-                }
-                bio->rdIdx = 0;
-                bio->wrSz = 0;
-                bio->mem_buf->length = 0;
-            }
-            bio->ptr.mem_buf_data = (byte *)bio->mem_buf->data;
-        }
-        else if (bio->rdIdx >= WOLFSSL_BIO_RESIZE_THRESHOLD &&
-                !(bio->flags & WOLFSSL_BIO_FLAG_MEM_RDONLY)) {
-            /* Resize the memory so we are not taking up more than necessary.
-             * memmove reverts internally to memcpy if areas don't overlap */
-            XMEMMOVE(bio->mem_buf->data, bio->mem_buf->data + bio->rdIdx,
-                    (size_t)bio->wrSz - (size_t)bio->rdIdx);
-            bio->wrSz -= bio->rdIdx;
-            bio->rdIdx = 0;
-            /* Resize down to WOLFSSL_BIO_RESIZE_THRESHOLD for fewer
-             * allocations. */
-            if (wolfSSL_BUF_MEM_resize(bio->mem_buf,
-                bio->wrSz > WOLFSSL_BIO_RESIZE_THRESHOLD ?
-                (size_t)bio->wrSz : WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
-                WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
-                return WOLFSSL_BIO_ERROR;
-            }
-            bio->mem_buf->length = (size_t)bio->wrSz;
-            bio->ptr.mem_buf_data = (byte *)bio->mem_buf->data;
-        }
-    }
-    else {
+    if (sz <= 0) {
         if (bio->eof < 0) /* Sanity check the eof value */
             return bio->eof;
         else {
             WOLFSSL_MSG("Weird bio->eof value. Returning default");
             return WOLFSSL_BIO_ERROR;
         }
+    }
+
+    if (bio->mem_buf == NULL) {
+        WOLFSSL_MSG("bio->mem_buf is null");
+        return WOLFSSL_BIO_ERROR;
+    }
+
+    if (sz > len) {
+        sz = len;
+    }
+
+    memSz = (int)bio->mem_buf->length - bio->rdIdx;
+    if (memSz < sz) {
+        WOLFSSL_MSG("Not enough memory for reading");
+        return WOLFSSL_BIO_ERROR;
+    }
+
+    XMEMCPY(buf, bio->mem_buf->data + bio->rdIdx, (size_t)sz);
+    bio->rdIdx += sz;
+
+    if (bio->rdIdx >= bio->wrSz) {
+        if (bio->flags & WOLFSSL_BIO_FLAG_MEM_RDONLY) {
+            bio->wrSz = bio->wrSzReset;
+        }
+        else {
+            /* All data read resize down to WOLFSSL_BIO_RESIZE_THRESHOLD */
+            if (bio->mem_buf->max > WOLFSSL_BIO_RESIZE_THRESHOLD &&
+                wolfSSL_BUF_MEM_resize(bio->mem_buf, WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
+                WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
+                /* we don't need to fail here we already read and we can just
+                 * have the old buffer */
+            }
+            bio->rdIdx = 0;
+            bio->wrSz = 0;
+            bio->mem_buf->length = 0;
+        }
+        bio->ptr.mem_buf_data = (byte *)bio->mem_buf->data;
+    }
+    else if (bio->rdIdx >= WOLFSSL_BIO_RESIZE_THRESHOLD &&
+            !(bio->flags & WOLFSSL_BIO_FLAG_MEM_RDONLY)) {
+        /* Resize the memory so we are not taking up more than necessary.
+         * memmove reverts internally to memcpy if areas don't overlap */
+        XMEMMOVE(bio->mem_buf->data, bio->mem_buf->data + bio->rdIdx,
+                (size_t)bio->wrSz - (size_t)bio->rdIdx);
+        bio->wrSz -= bio->rdIdx;
+        bio->rdIdx = 0;
+        /* Resize down to WOLFSSL_BIO_RESIZE_THRESHOLD for fewer
+         * allocations. */
+        if (wolfSSL_BUF_MEM_resize(bio->mem_buf,
+            bio->wrSz > WOLFSSL_BIO_RESIZE_THRESHOLD ?
+            (size_t)bio->wrSz : WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
+            WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
+            /* we don't need to fail here we already read and we can just
+             * have the old buffer */
+        }
+        bio->mem_buf->length = (size_t)bio->wrSz;
+        bio->ptr.mem_buf_data = (byte *)bio->mem_buf->data;
     }
 
     return sz;
@@ -1112,7 +1112,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 return WOLFSSL_BIO_ERROR;
             }
 
-            #if defined(MICRIUM) || defined(LSR_FS) || defined(EBSNET)
+            #if defined(MICRIUM) || defined(EBSNET)
             WOLFSSL_MSG("XFGETS not ported for this system yet");
             ret = XFGETS(buf, sz, bio->ptr.fh);
             #else
@@ -1329,9 +1329,7 @@ int wolfSSL_BIO_supports_pending(const WOLFSSL_BIO *bio)
 /* Return the number of pending bytes in read and write buffers */
 size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 {
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BIO_ctrl_pending");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BIO_ctrl_pending");
 
     for (; bio != NULL; bio = bio->next) {
         if (bio->method != NULL && bio->method->ctrlCb != NULL) {
@@ -1699,12 +1697,6 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
 #ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
         bio->bytes_written += (word32)sz;
 #endif
-
-        /* if at the end of the buffer and space for wrap around then set
-         * write index back to 0 */
-        if (bio->wrIdx == bio->wrSz && bio->rdIdx > 0) {
-            bio->wrIdx = 0;
-        }
     }
 
     return sz;
@@ -2352,9 +2344,7 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
 {
     WOLFSSL_BIO* mem_bio;
 
-#ifdef WOLFSSL_DEBUG_OPENSSL
-    WOLFSSL_ENTER("wolfSSL_BIO_get_mem_data");
-#endif
+    WOLFSSL_ENTER_VERBOSE("wolfSSL_BIO_get_mem_data");
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
@@ -2560,6 +2550,39 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
 
     /**
+     * Parse a decimal port string. Only digits are accepted, no sign or
+     * whitespace.
+     * @param str port string to parse
+     * @param port parsed port value
+     * @return 0 on success and -1 on failure
+     */
+    static int wolfssl_bio_parse_port(const char* str, word16* port)
+    {
+        const char* p;
+        word32 portVal = 0;
+
+        if (*str == '\0') {
+            WOLFSSL_MSG("Invalid port format");
+            return -1;
+        }
+        for (p = str; *p != '\0'; p++) {
+            if (*p < '0' || *p > '9') {
+                WOLFSSL_MSG("Invalid port value could not parse as number");
+                return -1;
+            }
+            portVal = (portVal * 10) + (word32)(*p - '0');
+            if (portVal > WOLFSSL_MAX_16BIT) {
+                WOLFSSL_MSG("Invalid port value not in range: [0, 65535]");
+                return -1;
+            }
+        }
+
+        *port = (word16)portVal;
+        return 0;
+    }
+
+
+    /**
      * Create new socket BIO object. This is a pure TCP connection with
      * no SSL or TLS protection.
      * @param str IP address to connect to
@@ -2572,7 +2595,6 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
             const char* port;
-            int portVal = 0;
 #ifdef WOLFSSL_IPV6
             const char* ipv6Start = XSTRSTR(str, "[");
             const char* ipv6End = XSTRSTR(str, "]");
@@ -2584,11 +2606,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 port = XSTRSTR(str, ":");
 
             if (port != NULL) {
-                portVal = XATOI(port + 1);
-                /* Reject out-of-range ports instead of truncating to word16. */
-                if ((portVal < 0) || (portVal > 65535))
-                    portVal = 0;
-                bio->port = (word16)portVal;
+                /* Invalid ports leave the port as 0 instead of truncating
+                 * to word16. */
+                if (wolfssl_bio_parse_port(port + 1, &bio->port) != 0)
+                    bio->port = 0;
             }
             else
                 port = str + XSTRLEN(str); /* point to null terminator */
@@ -2617,30 +2638,43 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     /**
      * Create new socket BIO object. This is a pure TCP connection with
-     * no SSL or TLS protection.
-     * @param port port  to connect to
+     * no SSL or TLS protection. If host is passed it is ignored.
+     * @param port port to listen on: host:port, *:port, port, [ipv6]:port
      * @return New BIO object or NULL on failure
      */
     WOLFSSL_BIO *wolfSSL_BIO_new_accept(const char *port)
     {
         WOLFSSL_BIO *bio;
+        word16 portVal = 0;
+        const char* portStr;
+        const char* hostEnd;
+        const char* sep;
         WOLFSSL_ENTER("wolfSSL_BIO_new_accept");
 
         if (port == NULL) {
             return NULL;
         }
 
+        portStr = port;
+        hostEnd = XSTRSTR(port, "]");
+        sep = XSTRSTR(hostEnd != NULL ? hostEnd : port, ":");
+        if (sep != NULL) {
+            portStr = sep + 1;
+        }
+        else if (hostEnd != NULL) {
+            WOLFSSL_MSG("Invalid port format");
+            return NULL;
+        }
+
+        /* explicit 0 port will let rest of system decide if it is valid */
+        if (wolfssl_bio_parse_port(portStr, &portVal) != 0) {
+            return NULL;
+        }
+
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
-        if (bio) {
-            const char* portStr = port;
-#ifdef WOLFSSL_IPV6
-            const char* ipv6End = XSTRSTR(port, "]");
-            if (ipv6End) {
-                portStr = XSTRSTR(ipv6End, ":");
-            }
-#endif
-            bio->port = (word16)XATOI(portStr);
+        if (bio != NULL) {
             bio->type  = WOLFSSL_BIO_SOCKET;
+            bio->port = portVal;
         }
         return bio;
     }
@@ -2654,7 +2688,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
      */
     long wolfSSL_BIO_set_conn_port(WOLFSSL_BIO *b, char* port)
     {
-        int p;
+        word16 p = 0;
         WOLFSSL_ENTER("wolfSSL_BIO_set_conn_port");
 
         if (!b || !port) {
@@ -2662,8 +2696,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             return WOLFSSL_FAILURE;
         }
 
-        p = XATOI(port);
-        if (!p || p < 0) {
+        if (wolfssl_bio_parse_port(port, &p) != 0 || p == 0) {
             WOLFSSL_MSG("Port parsing error");
             return WOLFSSL_FAILURE;
         }
@@ -2676,7 +2709,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             return WOLFSSL_FAILURE;
         }
 
-        b->port = (word16)p;
+        b->port = p;
         return WOLFSSL_SUCCESS;
     }
 
@@ -2926,6 +2959,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         if (err) {
             wolfSSL_free(ssl);
             wolfSSL_BIO_free(sslBio);
+            return NULL;
         }
 
         return sslBio;
@@ -3297,6 +3331,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append)
     {
+        WOLFSSL_BIO* tail;
         WOLFSSL_ENTER("wolfSSL_BIO_push");
         if (top == NULL) {
             return append;
@@ -3309,14 +3344,23 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 cur = cur->next;
             }
         }
-        top->next = append;
+
+        /* go to the end of the top chain so we don't lose any linked list
+         * nodes */
+        tail = top;
+        while (tail->next != NULL) {
+            if (tail->next == append)
+                return top; /* already in chain, would create cycle */
+            tail = tail->next;
+        }
+        tail->next = append;
         if (append != NULL) {
-            append->prev = top;
+            append->prev = tail;
         }
 
         /* SSL BIO's should use the next object in the chain for IO */
-        if (top->type == WOLFSSL_BIO_SSL && top->ptr.ssl)
-            wolfSSL_set_bio(top->ptr.ssl, append, append);
+        if (tail->type == WOLFSSL_BIO_SSL && tail->ptr.ssl)
+            wolfSSL_set_bio(tail->ptr.ssl, append, append);
 
         return top;
     }
@@ -3650,11 +3694,15 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
     #ifndef NO_FILESYSTEM
         XFILE fp;
 
-        WOLFSSL_ENTER("wolfSSL_BIO_new_file");
+        WOLFSSL_ENTER("wolfSSL_BIO_read_filename");
 
         if ((wolfSSL_BIO_get_fp(b, &fp) == WOLFSSL_SUCCESS) && (fp != XBADFILE))
         {
-            XFCLOSE(fp);
+            /* Only close the old file if the BIO owns it. */
+            if (b->shutdown == WOLFSSL_BIO_CLOSE) {
+                XFCLOSE(fp);
+            }
+            b->ptr.fh = XBADFILE;
         }
 
         fp = XFOPEN(name, "rb");

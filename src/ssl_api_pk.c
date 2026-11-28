@@ -73,6 +73,18 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                 type = DYNAMIC_TYPE_ECC;
                 break;
         #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+        defined(ED25519_MAX_ID_LEN)
+            case ED25519k:
+                type = DYNAMIC_TYPE_ED25519;
+                break;
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+        defined(ED448_MAX_ID_LEN)
+            case ED448k:
+                type = DYNAMIC_TYPE_ED448;
+                break;
+    #endif
     #if defined(WOLFSSL_HAVE_MLDSA)
             case ML_DSA_44k:
             case ML_DSA_65k:
@@ -135,6 +147,28 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                     pubSz);
                 break;
     #endif
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+        defined(ED25519_MAX_ID_LEN)
+            /* Not wc_ed*_check_key: its software fallback skips the device
+             * private key. */
+            case ED25519k:
+                ret = wc_ed25519_import_public_ex(pubKey, pubSz,
+                    (ed25519_key*)pkey, 1);
+                if (ret == 0) {
+                    ret = wc_CryptoCb_Ed25519CheckKey((ed25519_key*)pkey);
+                }
+                break;
+    #endif
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+        defined(ED448_MAX_ID_LEN)
+            case ED448k:
+                ret = wc_ed448_import_public_ex(pubKey, pubSz,
+                    (ed448_key*)pkey, 1);
+                if (ret == 0) {
+                    ret = wc_CryptoCb_Ed448CheckKey((ed448_key*)pkey);
+                }
+                break;
+    #endif
     #if defined(WOLFSSL_HAVE_MLDSA)
             case ML_DSA_44k:
             case ML_DSA_65k:
@@ -195,6 +229,16 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
     #ifdef HAVE_ECC
         case ECDSAk:
             wc_ecc_free((ecc_key*)pkey);
+            break;
+    #endif
+    #ifdef HAVE_ED25519
+        case ED25519k:
+            wc_ed25519_free((ed25519_key*)pkey);
+            break;
+    #endif
+    #ifdef HAVE_ED448
+        case ED448k:
+            wc_ed448_free((ed448_key*)pkey);
             break;
     #endif
     #if defined(WOLFSSL_HAVE_MLDSA)
@@ -1835,7 +1879,10 @@ int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable)
  *
  * @param [in] ctx         SSL/TLS context object.
  * @param [in] keySz_bits  Minimum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8. A floor above what the build's
+ *                         math supports is accepted: it simply refuses every
+ *                         DH key a peer can offer, which is what a caller
+ *                         tightening its policy asked for.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL or keySz_bits is invalid.
  * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
@@ -1861,7 +1908,10 @@ int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
  *
  * @param [in] ssl         SSL/TLS object.
  * @param [in] keySz_bits  Minimum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8. A floor above what the build's
+ *                         math supports is accepted: it simply refuses every
+ *                         DH key a peer can offer, which is what a caller
+ *                         tightening its policy asked for.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or keySz_bits is invalid.
  * @return  CRYPTO_POLICY_FORBIDDEN when below the active crypto-policy minimum.
@@ -1887,7 +1937,8 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
  *
  * @param [in] ctx         SSL/TLS context object.
  * @param [in] keySz_bits  Maximum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8, and no more than what the build's
+ *                         math supports.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ctx is NULL or keySz_bits is invalid.
  */
@@ -1904,6 +1955,15 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
+    /* The pre-master secret buffer is sized for the largest prime the build's
+     * math supports, so a ceiling above that cannot be honoured. Checked
+     * after the crypto policy so a request that breaks both is still reported
+     * as the policy violation it is. */
+    if ((keySz_bits / 8) > MAX_DHKEY_SZ) {
+        WOLFSSL_MSG("Requested maximum DH key size exceeds MAX_DHKEY_SZ");
+        return BAD_FUNC_ARG;
+    }
+
     ctx->maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
@@ -1912,7 +1972,8 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
  *
  * @param [in] ssl         SSL/TLS object.
  * @param [in] keySz_bits  Maximum DH key size in bits. No more than 16000 and
- *                         a multiple of 8.
+ *                         a multiple of 8, and no more than what the build's
+ *                         math supports.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  BAD_FUNC_ARG when ssl is NULL or keySz_bits is invalid.
  */
@@ -1928,6 +1989,15 @@ int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
         }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
+    /* The pre-master secret buffer is sized for the largest prime the build's
+     * math supports, so a ceiling above that cannot be honoured. Checked
+     * after the crypto policy so a request that breaks both is still reported
+     * as the policy violation it is. */
+    if ((keySz_bits / 8) > MAX_DHKEY_SZ) {
+        WOLFSSL_MSG("Requested maximum DH key size exceeds MAX_DHKEY_SZ");
+        return BAD_FUNC_ARG;
+    }
 
     ssl->options.maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
@@ -2951,10 +3021,18 @@ int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff)
                 WOLFSSL_MSG("wc_SrpSetPassword failed.");
                 return WOLFSSL_FAILURE;
             }
+            if (ctx->srp_password != NULL) {
+                ForceZero(ctx->srp_password,
+                          (word32)XSTRLEN((char*)ctx->srp_password));
+            }
             XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
             ctx->srp_password = NULL;
         } else {
             /* save password for wolfSSL_set_srp_username */
+            if (ctx->srp_password != NULL) {
+                ForceZero(ctx->srp_password,
+                          (word32)XSTRLEN((char*)ctx->srp_password));
+            }
             XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
 
             ctx->srp_password = (byte*)XMALLOC(XSTRLEN(password) + 1, ctx->heap,

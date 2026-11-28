@@ -50,61 +50,63 @@
  *
  * Guards covered (operand order matches the source's left-to-right ||/&&):
  *
- * wc_InitSakkeKey_ex()  (sakke.c:119)   key == NULL
- * wc_FreeSakkeKey()     (sakke.c:193)   key != NULL
- * wc_MakeSakkeKey()     (sakke.c:507)   key == NULL || rng == NULL
- * wc_MakeSakkePublicKey (sakke.c:566)   key == NULL || pub == NULL
- * wc_ExportSakkeKey     (sakke.c:604,608,612)
+ * wc_InitSakkeKey_ex()  (sakke.c:132)   key == NULL
+ * wc_FreeSakkeKey()     (sakke.c:200)   key != NULL
+ * wc_MakeSakkeKey()     (sakke.c:552)   key == NULL || rng == NULL
+ * wc_MakeSakkePublicKey (sakke.c:597)   key == NULL || pub == NULL
+ * wc_ExportSakkeKey     (sakke.c:635,639,643)
  *     key == NULL || sz == NULL; data == NULL (LENGTH_ONLY_E);
  *     *sz < 3*size (BUFFER_E)
- * wc_ImportSakkeKey     (sakke.c:659,662)
+ * wc_ImportSakkeKey     (sakke.c:690,693)
  *     key == NULL || data == NULL; sz != size*3 (BUFFER_E)
- * wc_ExportSakkePrivateKey (sakke.c:713,717,721) -- same shape as
+ * wc_ExportSakkePrivateKey (sakke.c:747,751,755) -- same shape as
  *     wc_ExportSakkeKey with size instead of 3*size
- * wc_ImportSakkePrivateKey (sakke.c:756,760) -- same shape as
+ * wc_ImportSakkePrivateKey (sakke.c:790,794) -- same shape as
  *     wc_ImportSakkeKey with size instead of size*3
- * wc_ExportSakkePublicKey  (sakke.c:938,942)
+ * wc_ExportSakkePublicKey  (sakke.c:975,979)
  *     key == NULL || sz == NULL; data != NULL (drives sakke_z_from_mont())
- * wc_MakeSakkeRsk       (sakke.c:976)   key==NULL || id==NULL || rsk==NULL
- * wc_EncodeSakkeRsk     (sakke.c:1036)  key==NULL || rsk==NULL || sz==NULL
- * wc_ImportSakkePublicKey (sakke.c:1077,1089)
+ * wc_MakeSakkeRsk_ex    (sakke.c:1055)  key==NULL || id==NULL || rsk==NULL
+ * wc_MakeSakkeRsk       -- same guard, via wc_MakeSakkeRsk_ex() with no RNG
+ * wc_EncodeSakkeRsk     (sakke.c:1157)  key==NULL || rsk==NULL || sz==NULL
+ * wc_ImportSakkePublicKey (sakke.c:1198,1210)
  *     key==NULL || data==NULL; !trusted (drives wc_ecc_check_key())
- * wc_DecodeSakkeRsk     (sakke.c:1119)  key==NULL||data==NULL||rsk==NULL
- * wc_ImportSakkeRsk     (sakke.c:1151)  key==NULL || data==NULL
- * wc_GenerateSakkeRskTable (sakke.c:1319/1400 -- WOLFSSL_HAVE_SP_ECC has a
+ * wc_DecodeSakkeRsk     (sakke.c:1240)  key==NULL||data==NULL||rsk==NULL
+ * wc_ImportSakkeRsk     (sakke.c:1272)  key==NULL || data==NULL
+ * wc_GenerateSakkeRskTable (sakke.c:1440/1521 -- WOLFSSL_HAVE_SP_ECC has a
  *     second, functionally-equivalent definition at the argument-validation
  *     level) key==NULL || rsk==NULL || len==NULL; table==NULL
  *     (LENGTH_ONLY_E); *len != 0 (BUFFER_E)
- * wc_SetSakkeRsk        (sakke.c:2350)  key==NULL || rsk==NULL
- * wc_ValidateSakkeRsk   (sakke.c:2430)
- *     key==NULL||id==NULL||rsk==NULL||valid==NULL
- * wc_GetSakkeAuthSize   (sakke.c:2491)  key==NULL || authSz==NULL
- * wc_SetSakkeIdentity   (sakke.c:6357)
+ * wc_SetSakkeRsk        (sakke.c:2481)  key==NULL || rsk==NULL
+ * wc_ValidateSakkeRsk   (sakke.c:2706)
+ *     key==NULL||id==NULL||rsk==NULL||valid==NULL;
+ *     idSz > SAKKE_ID_MAX_SIZE
+ * wc_GetSakkeAuthSize   (sakke.c:2622)  key==NULL || authSz==NULL
+ * wc_SetSakkeIdentity   (sakke.c:6488)
  *     key==NULL || id==NULL || idSz > SAKKE_ID_MAX_SIZE
- * wc_MakeSakkePointI    (sakke.c:6388) -- same shape as
+ * wc_MakeSakkePointI    (sakke.c:6519) -- same shape as
  *     wc_SetSakkeIdentity
- * wc_GetSakkePointI     (sakke.c:6428,6432,6436)
+ * wc_GetSakkePointI     (sakke.c:6559,6563,6567)
  *     key==NULL || sz==NULL; data==NULL (LENGTH_ONLY_E);
  *     *sz < size*2 (BUFFER_E)
- * wc_SetSakkePointI     (sakke.c:6478,6481)
+ * wc_SetSakkePointI     (sakke.c:6609,6612)
  *     key==NULL||id==NULL||data==NULL;
  *     idSz > SAKKE_ID_MAX_SIZE || sz != size*2 (BUFFER_E)
- * wc_GenerateSakkePointITable (sakke.c:6527,6540,6544)
+ * wc_GenerateSakkePointITable (sakke.c:6658,6671,6675)
  *     key==NULL || len==NULL; table==NULL (LENGTH_ONLY_E);
  *     *len != 0 (BUFFER_E)
- * wc_SetSakkePointITable (sakke.c:6575,6590)
+ * wc_SetSakkePointITable (sakke.c:6706,6721)
  *     key==NULL || table==NULL; len != 0 (BUFFER_E)
- * wc_ClearSakkePointITable (sakke.c:6616)  key == NULL
- * wc_MakeSakkeEncapsulatedSSV (sakke.c:6714,6717,6735,6738,6745)
+ * wc_ClearSakkePointITable (sakke.c:6747)  key == NULL
+ * wc_MakeSakkeEncapsulatedSSV (sakke.c:6845,6848,6866,6869,6876)
  *     key==NULL||ssv==NULL||authSz==NULL||ssvSz==0;
  *     key->idSz == 0 (BAD_STATE_E); ssvSz > n; auth!=NULL && *authSz<outSz;
  *     auth == NULL (LENGTH_ONLY_E); hashType (drives wc_HashInit_ex() in
  *     sakke_calc_a(), called before the digest-size check in
  *     sakke_hash_to_range() -- see note below)
- * wc_GenerateSakkeSSV   (sakke.c:6820,6822,6831,6837)
+ * wc_GenerateSakkeSSV   (sakke.c:6951,6953,6962,6968)
  *     key==NULL||rng==NULL||ssvSz==NULL;
  *     ssv!=NULL && (*ssvSz==0 || *ssvSz>n); ssv==NULL (LENGTH_ONLY_E)
- * wc_DeriveSakkeSSV     (sakke.c:6897,6900,6911,6916)
+ * wc_DeriveSakkeSSV     (sakke.c:7028,7031,7042,7047)
  *     key==NULL||ssv==NULL||auth==NULL||ssvSz==0;
  *     !key->rsk.set || key->idSz==0 (BAD_STATE_E);
  *     authSz != 2*n+1; ssvSz > n; hashType (as above)
@@ -146,6 +148,7 @@ int test_wc_Sakke_DecisionCoverage(void)
     SakkeKey key2;
     ecc_point* pub = NULL;
     ecc_point* rsk = NULL;
+    ecc_point* rsk2 = NULL;
     byte id[1] = { 0x00 };
     byte idMax[SAKKE_ID_MAX_SIZE];
     byte data[600];
@@ -173,6 +176,7 @@ int test_wc_Sakke_DecisionCoverage(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectNotNull(rsk = wc_ecc_new_point());
+    ExpectNotNull(rsk2 = wc_ecc_new_point());
     ExpectNotNull(pub = wc_ecc_new_point());
 
     /* --- wc_InitSakkeKey_ex() / wc_InitSakkeKey() --- */
@@ -212,6 +216,18 @@ int test_wc_Sakke_DecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_MakeSakkeRsk(&key, id, 1, rsk), 0);
 
+    /* --- wc_MakeSakkeRsk_ex() --- */
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(NULL, id, 1, rsk2, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, NULL, 1, rsk2, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, id, 1, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* The blinding factor comes from the caller's RNG; the RSK itself is
+     * deterministic, so it must match the one made with a local RNG. */
+    ExpectIntEQ(wc_MakeSakkeRsk_ex(&key, id, 1, rsk2, &rng), 0);
+    ExpectIntEQ(wc_ecc_cmp_point(rsk, rsk2), MP_EQ);
+
     /* --- wc_ValidateSakkeRsk() --- */
     ExpectIntEQ(wc_ValidateSakkeRsk(NULL, id, 1, rsk, &valid),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -221,6 +237,8 @@ int test_wc_Sakke_DecisionCoverage(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, 1, rsk, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, data, SAKKE_ID_MAX_SIZE + 1, rsk,
+        &valid), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, 1, rsk, &valid), 0);
     ExpectIntEQ(valid, 1);
 
@@ -630,6 +648,10 @@ int test_wc_Sakke_DecisionCoverage(void)
         wc_ecc_forcezero_point(rsk);
         wc_ecc_del_point(rsk);
     }
+    if (rsk2 != NULL) {
+        wc_ecc_forcezero_point(rsk2);
+        wc_ecc_del_point(rsk2);
+    }
     if (pub != NULL) {
         wc_ecc_del_point(pub);
     }
@@ -813,6 +835,613 @@ int test_wc_Sakke_FeatureCoverage(void)
     }
     wc_FreeSakkeKey(&key);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFCRYPT_HAVE_SAKKE) && defined(WOLFCRYPT_SAKKE_CLIENT)
+/* Returns the OR of all bytes in the range: 0 when every byte is zero. */
+static byte sakke_zero_or(const void* ptr, size_t len)
+{
+    const byte* p = (const byte*)ptr;
+    size_t i;
+    byte acc = 0;
+
+    for (i = 0; i < len; i++) {
+        acc |= p[i];
+    }
+    return acc;
+}
+#endif
+
+/* wc_FreeSakkeKey() must wipe the key: its temporaries hold secrets such as
+ * the pairing value w and the ephemeral r. Temporary allocator hooks check the
+ * blocks the key hands back to the allocator: the tmp.m1 and tmp.m2 digits
+ * under heap math, and the RSK, temporary and base points under SP math.
+ * WOLFSSL_CHECK_MEM_ZERO and WOLFSSL_MEMORY_LOG put a header in front of each
+ * allocation, so the hooks would never be handed the pointers they watch.
+ * Fast math is left out: fp_clear() already zeroes every digit, so the point
+ * wipes cannot be told apart there. */
+#if defined(WOLFCRYPT_HAVE_SAKKE) && defined(WOLFCRYPT_SAKKE_CLIENT) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_CHECK_MEM_ZERO) && \
+    !defined(WOLFSSL_MEMORY_LOG) && (defined(USE_INTEGER_HEAP_MATH) || \
+    defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    !defined(USE_FAST_MATH)
+#define TEST_SAKKE_FREE_HOOKS
+
+/* These callback types take (func, line) too under WOLFSSL_DEBUG_MEMORY. */
+#ifdef WOLFSSL_DEBUG_MEMORY
+    #define SAKKE_ZERO_CB_TAIL   , const char* func, unsigned int line
+    #define SAKKE_ZERO_CB_ARGS   , func, line
+#else
+    #define SAKKE_ZERO_CB_TAIL
+    #define SAKKE_ZERO_CB_ARGS
+#endif
+
+/* The hooks delegate to the allocators that were installed before the test
+ * (e.g. WOLFSSL_TRACK_MEMORY's), so blocks that outlive the test, such as
+ * cached ECC curve values, can still be freed by them later. */
+static wolfSSL_Malloc_cb  sakke_zero_prev_mc;
+static wolfSSL_Free_cb    sakke_zero_prev_fc;
+static wolfSSL_Realloc_cb sakke_zero_prev_rc;
+
+/* State for sakke_zero_probe(). */
+static int         sakke_zero_probing;
+static const void* sakke_zero_probe_alloc;
+static int         sakke_zero_probe_freed;
+
+/* A byte range inside a block that must be zero when the block is freed: two
+ * heap math digit blocks, or the x, y and z digits of five points. */
+#define SAKKE_ZERO_WATCH_CNT 15
+typedef struct sakke_zero_watch_t {
+    const void* ptr;
+    size_t      off;
+    size_t      len;
+    int         seen;
+    int         clean;
+} sakke_zero_watch_t;
+static sakke_zero_watch_t sakke_zero_watch[SAKKE_ZERO_WATCH_CNT];
+static int                sakke_zero_watchCnt;
+
+static void* sakke_zero_malloc_cb(size_t size SAKKE_ZERO_CB_TAIL)
+{
+    void* p;
+
+    if (sakke_zero_prev_mc != NULL) {
+        p = sakke_zero_prev_mc(size SAKKE_ZERO_CB_ARGS);
+    }
+    else {
+        p = malloc(size);
+    }
+    if (sakke_zero_probing && (sakke_zero_probe_alloc == NULL)) {
+        sakke_zero_probe_alloc = p;
+    }
+    return p;
+}
+
+static void sakke_zero_free_cb(void* ptr SAKKE_ZERO_CB_TAIL)
+{
+    int w;
+
+    if (sakke_zero_probing && (ptr != NULL) &&
+            (ptr == sakke_zero_probe_alloc)) {
+        sakke_zero_probe_freed = 1;
+    }
+    for (w = 0; (ptr != NULL) && (w < sakke_zero_watchCnt); w++) {
+        if (ptr == sakke_zero_watch[w].ptr) {
+            sakke_zero_watch[w].seen = 1;
+            sakke_zero_watch[w].clean = (sakke_zero_or(
+                (const byte*)ptr + sakke_zero_watch[w].off,
+                sakke_zero_watch[w].len) == 0);
+        }
+    }
+    if (sakke_zero_prev_fc != NULL) {
+        sakke_zero_prev_fc(ptr SAKKE_ZERO_CB_ARGS);
+    }
+    else {
+        free(ptr);
+    }
+}
+
+static void* sakke_zero_realloc_cb(void* ptr, size_t size SAKKE_ZERO_CB_TAIL)
+{
+    if (sakke_zero_prev_rc != NULL) {
+        return sakke_zero_prev_rc(ptr, size SAKKE_ZERO_CB_ARGS);
+    }
+    return realloc(ptr, size);
+}
+
+/* Checks that XMALLOC()/XFREE() reach the hooks with the pointer unchanged.
+ * Returns 1 when they do and 0 when both bypass the hooks, as on platforms
+ * that map them to an OS or pool allocator (see types.h); the wipe cannot be
+ * observed there. Returns -1 when the hooks are reached but see a different
+ * pointer, or only one of the pair reaches them: that is a failure. */
+static int sakke_zero_probe(void)
+{
+    void* probe;
+    int ret;
+
+    sakke_zero_probe_alloc = NULL;
+    sakke_zero_probe_freed = 0;
+    sakke_zero_probing = 1;
+    probe = XMALLOC(8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (probe == NULL) {
+        ret = -1;
+    }
+    else {
+        ret = (sakke_zero_probe_alloc == probe) ? 1 :
+              (sakke_zero_probe_alloc == NULL) ? 0 : -1;
+        XFREE(probe, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sakke_zero_probe_freed != ret) {
+            ret = -1;
+        }
+    }
+    sakke_zero_probing = 0;
+    return ret;
+}
+
+/* Returns 0 when the watch is added and -1 when the table is full, so a watch
+ * is never dropped without failing the test. */
+static int sakke_zero_add_watch(const void* ptr, size_t off, size_t len)
+{
+    if (sakke_zero_watchCnt >= SAKKE_ZERO_WATCH_CNT) {
+        return -1;
+    }
+    sakke_zero_watch[sakke_zero_watchCnt].ptr = ptr;
+    sakke_zero_watch[sakke_zero_watchCnt].off = off;
+    sakke_zero_watch[sakke_zero_watchCnt].len = len;
+    sakke_zero_watchCnt++;
+    return 0;
+}
+#endif
+
+int test_wc_Sakke_FreeZeroizes(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFCRYPT_HAVE_SAKKE) && defined(WOLFCRYPT_SAKKE_CLIENT)
+    WC_RNG rng;
+    SakkeKey key;
+    ecc_point* rsk = NULL;
+    char mail[] = "test@wolfssl.com";
+    byte* id = (byte*)mail;
+    word16 idSz = (word16)XSTRLEN(mail);
+    byte ssv[16];
+    word16 ssvSz = sizeof(ssv);
+    byte auth[257];
+    word16 authSz = sizeof(auth);
+    /* USE_WOLFSSL_MEMORY is implied by TEST_SAKKE_FREE_HOOKS but is spelled
+     * out here and below so check-api-guards.py sees it at the allocator
+     * calls. */
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+    int hooked = 0;
+    int w;
+#if !defined(USE_INTEGER_HEAP_MATH)
+    ecc_point* pts[5];
+    mp_int* coord[3];
+    int c;
+    int seeded = 0;
+#endif
+
+    XMEMSET(sakke_zero_watch, 0, sizeof(sakke_zero_watch));
+    sakke_zero_watchCnt = 0;
+    sakke_zero_prev_mc = NULL;
+    sakke_zero_prev_fc = NULL;
+    sakke_zero_prev_rc = NULL;
+    ExpectIntEQ(wolfSSL_GetAllocators(&sakke_zero_prev_mc,
+        &sakke_zero_prev_fc, &sakke_zero_prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(sakke_zero_malloc_cb,
+        sakke_zero_free_cb, sakke_zero_realloc_cb), 0);
+    if (EXPECT_SUCCESS()) {
+        hooked = sakke_zero_probe();
+        ExpectIntGE(hooked, 0);
+    }
+#endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(ssv, 0xA5, sizeof(ssv));
+    XMEMSET(auth, 0, sizeof(auth));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(rsk = wc_ecc_new_point());
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    ExpectIntEQ(wc_SetSakkeIdentity(&key, id, idSz), 0);
+    ExpectIntEQ(wc_SetSakkeRsk(&key, rsk, NULL, 0), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA256, ssv,
+        ssvSz, auth, &authSz), 0);
+    ExpectIntEQ(wc_DeriveSakkeSSV(&key, WC_HASH_TYPE_SHA256, ssv, ssvSz,
+        auth, authSz), 0);
+
+    /* Derivation leaves r in tmp.m1. mp_iszero() is a private function under
+     * fast math, so check the used count directly. */
+    ExpectIntGT(key.tmp.m1.used, 0);
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+#ifdef USE_INTEGER_HEAP_MATH
+    /* tmp.m2 can be left unused, e.g. with WOLFSSL_SP_1024, or zero. Give it
+     * digits so its wipe is checked too, reusing an existing block. The mp_*
+     * setters are only exported with WOLFSSL_PUBLIC_MP, so allocate the digits
+     * as integer.c does. */
+    if (EXPECT_SUCCESS() && (key.tmp.m2.dp == NULL)) {
+        ExpectNotNull(key.tmp.m2.dp = (mp_digit*)XMALLOC(4 * sizeof(mp_digit),
+            NULL, DYNAMIC_TYPE_BIGINT));
+        if (key.tmp.m2.dp != NULL) {
+            key.tmp.m2.alloc = 4;
+            key.tmp.m2.used = 0;
+        }
+    }
+    if (EXPECT_SUCCESS() && (key.tmp.m2.used == 0)) {
+        for (w = 0; (w < 4) && (w < key.tmp.m2.alloc); w++) {
+            key.tmp.m2.dp[w] = (mp_digit)(w + 1);
+        }
+        key.tmp.m2.used = w;
+    }
+    /* The digits are separate blocks; watch the used ones. A watch of no
+     * digits would pass without checking anything. */
+    ExpectNotNull(key.tmp.m1.dp);
+    ExpectNotNull(key.tmp.m2.dp);
+    ExpectIntGT(key.tmp.m1.used, 0);
+    ExpectIntGT(key.tmp.m2.used, 0);
+    if (EXPECT_SUCCESS()) {
+        ExpectIntEQ(sakke_zero_add_watch(key.tmp.m1.dp, 0,
+            (size_t)key.tmp.m1.used * sizeof(mp_digit)), 0);
+        ExpectIntEQ(sakke_zero_add_watch(key.tmp.m2.dp, 0,
+            (size_t)key.tmp.m2.used * sizeof(mp_digit)), 0);
+    }
+#else
+    /* The point digits live inside each ecc_point block. mp_clear() only
+     * zeroes the used digits, so fill the unused ones: only the full wipe in
+     * wc_FreeSakkeKey() leaves every digit zero when the block is freed. */
+    pts[0] = key.rsk.rsk;
+    pts[1] = key.tmp.p1;
+    pts[2] = key.tmp.p2;
+    pts[3] = key.tmp.p3;
+    /* Without SP ECC, the pairing uses the base point as its accumulator. */
+    pts[4] = key.params.base;
+    for (w = 0; w < 5; w++) {
+        ExpectNotNull(pts[w]);
+        if (EXPECT_FAIL()) {
+            break;
+        }
+        coord[0] = pts[w]->x;
+        coord[1] = pts[w]->y;
+        coord[2] = pts[w]->z;
+        for (c = 0; c < 3; c++) {
+            size_t off = (size_t)((const byte*)coord[c]->dp -
+                                  (const byte*)pts[w]);
+            size_t len = (size_t)coord[c]->size * sizeof(mp_digit);
+
+            ExpectTrue(off + len <= sizeof(ecc_point));
+            if (EXPECT_FAIL()) {
+                break;
+            }
+            if (coord[c]->used < coord[c]->size) {
+                XMEMSET(&coord[c]->dp[coord[c]->used], 0xA5,
+                    (size_t)(coord[c]->size - coord[c]->used) *
+                    sizeof(mp_digit));
+                seeded++;
+            }
+            ExpectIntEQ(sakke_zero_add_watch(pts[w], off, len), 0);
+        }
+    }
+    ExpectIntGT(seeded, 0);
+#endif
+#endif
+
+    wc_FreeSakkeKey(&key);
+
+    /* The data buffer and hash state can hold r, g^r, w and the SSV. */
+    ExpectIntEQ(sakke_zero_or(key.data, sizeof(key.data)), 0);
+    ExpectIntEQ(sakke_zero_or(&key.hash, sizeof(key.hash)), 0);
+#ifndef USE_INTEGER_HEAP_MATH
+    /* The temporaries' digits are inline; check every one, not just the used
+     * ones. */
+    ExpectIntEQ(sakke_zero_or(key.tmp.m1.dp, sizeof(key.tmp.m1.dp)), 0);
+    ExpectIntEQ(sakke_zero_or(key.tmp.m2.dp, sizeof(key.tmp.m2.dp)), 0);
+#endif
+    ExpectNull(key.rsk.rsk);
+    ExpectNull(key.tmp.p1);
+    ExpectNull(key.tmp.p2);
+    ExpectNull(key.tmp.p3);
+    ExpectNull(key.params.base);
+    /* The ECC key's devId must stay a "no device" sentinel, not become 0, so
+     * a second free does not reach crypto callback device 0. */
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+    ExpectIntEQ(key.ecc.devId, INVALID_DEVID);
+#endif
+    /* Freeing again, as callers do after a failed init, must be harmless. */
+    wc_FreeSakkeKey(&key);
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+    for (w = 0; w < sakke_zero_watchCnt; w++) {
+        sakke_zero_watch[w].ptr = NULL;
+        if (hooked == 1) {
+            ExpectIntEQ(sakke_zero_watch[w].seen, 1);
+            ExpectIntEQ(sakke_zero_watch[w].clean, 1);
+        }
+    }
+#endif
+
+    if (rsk != NULL) {
+        wc_ecc_forcezero_point(rsk);
+        wc_ecc_del_point(rsk);
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#if defined(TEST_SAKKE_FREE_HOOKS) && defined(USE_WOLFSSL_MEMORY)
+    (void)wolfSSL_SetAllocators(sakke_zero_prev_mc, sakke_zero_prev_fc,
+        sakke_zero_prev_rc);
+    /* Report the hook checks as skipped, not passed, where XMALLOC() and
+     * XFREE() bypass the hooks. */
+    if ((hooked == 0) && EXPECT_SUCCESS()) {
+        return TEST_SKIPPED;
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A KMS key object that also runs a client operation keeps its key pair. */
+int test_wc_Sakke_KmsKeyAfterClientOp(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_SAKKE
+    WC_RNG rng;
+    SakkeKey key;
+    ecc_point* rsk = NULL;
+    char mail[] = "test@wolfssl.com";
+    byte* id = (byte*)mail;
+    word16 idSz = (word16)XSTRLEN(mail);
+    int valid = 0;
+    byte keyData[384];
+    word32 keySz = sizeof(keyData);
+    byte keyData2[384];
+    word32 keySz2 = sizeof(keyData2);
+    byte privData[128];
+    word32 privSz = sizeof(privData);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(rsk = wc_ecc_new_point());
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_ExportSakkeKey(&key, keyData, &keySz), 0);
+
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(valid, 1);
+
+    ExpectIntEQ(wc_ExportSakkePrivateKey(&key, privData, &privSz), 0);
+    ExpectBufEQ(privData, keyData, sizeof(privData));
+    ExpectIntEQ(wc_ExportSakkeKey(&key, keyData2, &keySz2), 0);
+    ExpectBufEQ(keyData2, keyData, sizeof(keyData));
+
+    /* Validate again to set zMont before wc_ImportSakkeKey() and
+     * wc_MakeSakkeKey() store a normal-form key pair. */
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(wc_ImportSakkeKey(&key, keyData, keySz), 0);
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    valid = 0;
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(valid, 1);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_MakeSakkeRsk(&key, id, idSz, rsk), 0);
+    valid = 0;
+    ExpectIntEQ(wc_ValidateSakkeRsk(&key, id, idSz, rsk, &valid), 0);
+    ExpectIntEQ(valid, 1);
+
+    if (rsk != NULL) {
+        wc_ecc_forcezero_point(rsk);
+        wc_ecc_del_point(rsk);
+    }
+    wc_FreeSakkeKey(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A reused sender key object encapsulates the same bytes as a fresh one. */
+int test_wc_Sakke_PointICache(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_SAKKE
+    WC_RNG rng;
+    SakkeKey key;
+    SakkeKey key2;
+    char mailA[] = "alice@wolfssl.com";
+    char mailB[] = "bob@wolfssl.com";
+    byte* idA = (byte*)mailA;
+    byte* idB = (byte*)mailB;
+    word16 idASz = (word16)XSTRLEN(mailA);
+    word16 idBSz = (word16)XSTRLEN(mailB);
+    byte pubData[256];
+    word32 pubSz = sizeof(pubData);
+    byte pubData2[256];
+    word32 pubSz2 = sizeof(pubData2);
+    byte* table = NULL;
+    word32 tableLen = 0;
+    byte ssv[16];
+    byte ssv2[16];
+    byte auth[257];
+    byte auth2[257];
+    word16 authSz = sizeof(auth);
+    word16 authSz2 = sizeof(auth2);
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(ssv, 0x5A, sizeof(ssv));
+    XMEMSET(ssv2, 0x5A, sizeof(ssv2));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_ExportSakkePublicKey(&key, pubData, &pubSz, 1), 0);
+    ExpectIntEQ(wc_MakeSakkeKey(&key, &rng), 0);
+    ExpectIntEQ(wc_ExportSakkePublicKey(&key, pubData2, &pubSz2, 1), 0);
+    wc_FreeSakkeKey(&key);
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key, pubData, pubSz, 1), 0);
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key2, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key2, pubData, pubSz, 1), 0);
+
+    /* Point I table for id A, then point I for id B. */
+    ExpectIntEQ(wc_MakeSakkePointI(&key, idA, idASz), 0);
+    ExpectIntEQ(wc_GenerateSakkePointITable(&key, NULL, &tableLen),
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    if (tableLen > 0) {
+        ExpectNotNull(table = (byte*)XMALLOC(tableLen, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectIntEQ(wc_GenerateSakkePointITable(&key, table, &tableLen), 0);
+    }
+    ExpectIntEQ(wc_MakeSakkePointI(&key, idB, idBSz), 0);
+
+    ExpectIntEQ(wc_SetSakkeIdentity(&key, idB, idBSz), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA256, ssv,
+        sizeof(ssv), auth, &authSz), 0);
+    ExpectIntEQ(wc_SetSakkeIdentity(&key2, idB, idBSz), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key2, WC_HASH_TYPE_SHA256, ssv2,
+        sizeof(ssv2), auth2, &authSz2), 0);
+    ExpectBufEQ(auth, auth2, sizeof(auth));
+    ExpectBufEQ(ssv, ssv2, sizeof(ssv));
+
+    /* Same identity after a new KMS public key, against a new key object. */
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key, pubData2, pubSz2, 1), 0);
+    wc_FreeSakkeKey(&key2);
+    XMEMSET(&key2, 0, sizeof(key2));
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key2, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key2, pubData2, pubSz2, 1), 0);
+    ExpectIntEQ(wc_SetSakkeIdentity(&key2, idB, idBSz), 0);
+    XMEMSET(ssv, 0x5A, sizeof(ssv));
+    XMEMSET(ssv2, 0x5A, sizeof(ssv2));
+    authSz = sizeof(auth);
+    authSz2 = sizeof(auth2);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA256, ssv,
+        sizeof(ssv), auth, &authSz), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key2, WC_HASH_TYPE_SHA256, ssv2,
+        sizeof(ssv2), auth2, &authSz2), 0);
+    ExpectBufEQ(auth, auth2, sizeof(auth));
+    ExpectBufEQ(ssv, ssv2, sizeof(ssv));
+
+    ExpectIntEQ(wc_ClearSakkePointITable(&key), 0);
+    XFREE(table, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeSakkeKey(&key2);
+    wc_FreeSakkeKey(&key);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Sakke_HashToIntegerRange(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFCRYPT_HAVE_SAKKE) && defined(WOLFSSL_SHA384)
+    /* RFC 6508 sections 5.1 and 6.2.1 with the appendix A curve from
+     * RFC 6509 and SHA-384. Fixture: Z = [2]P, b = 1, SSV = 00..0f.
+     * The expected point is [3r]P, calculated independently by affine
+     * double-and-add. All three 48-byte hash blocks contribute to r. */
+    static const byte pubKey[] = {
+        0x04, 0x1a, 0x2c, 0x77, 0xa5, 0x90, 0xa1, 0xcb,
+        0xba, 0x9c, 0x6b, 0xb2, 0xe6, 0x04, 0x2a, 0x9e,
+        0x17, 0x96, 0x88, 0x56, 0xf1, 0xec, 0x6c, 0xea,
+        0x68, 0xb4, 0x24, 0x6e, 0xe1, 0xfc, 0x52, 0x08,
+        0xb3, 0xef, 0x37, 0x18, 0x78, 0xf2, 0xe4, 0x59,
+        0xa3, 0xe3, 0x1a, 0xb5, 0xf6, 0x30, 0x22, 0x35,
+        0xe9, 0x56, 0x1e, 0x55, 0xf2, 0x55, 0x52, 0x7b,
+        0xb7, 0x74, 0xab, 0xc5, 0x25, 0x57, 0x7c, 0x86,
+        0xfd, 0x74, 0xd8, 0x73, 0x2b, 0x04, 0xa4, 0x0f,
+        0x4b, 0xb8, 0x56, 0x51, 0x94, 0x38, 0x29, 0x65,
+        0x8d, 0xb1, 0xc5, 0x9c, 0xc0, 0xf7, 0x12, 0x9d,
+        0xeb, 0x65, 0x33, 0xbc, 0x14, 0x6f, 0x15, 0x6f,
+        0xb7, 0x31, 0x25, 0x7f, 0x2e, 0x3f, 0x78, 0x1a,
+        0xc7, 0xd9, 0xaa, 0xc2, 0xc4, 0x0b, 0x39, 0x00,
+        0x58, 0xbf, 0xc0, 0x72, 0x0a, 0x22, 0xbc, 0x3c,
+        0x3e, 0xff, 0x69, 0xf0, 0xb4, 0xa2, 0x0b, 0xca,
+        0xb8, 0x83, 0xe5, 0xc3, 0xdf, 0x80, 0xef, 0x8b,
+        0x89, 0x43, 0xbc, 0xb6, 0xba, 0xd6, 0x12, 0xf9,
+        0xa3, 0xef, 0x8b, 0x4e, 0x73, 0xe1, 0x20, 0xa3,
+        0xc9, 0x35, 0xfb, 0x05, 0x78, 0xd5, 0x1a, 0xdc,
+        0x65, 0x79, 0xfb, 0x55, 0xbd, 0x6f, 0xa7, 0x1a,
+        0x31, 0x82, 0x99, 0x25, 0xcc, 0xbb, 0x84, 0xf6,
+        0x67, 0xed, 0x23, 0x2b, 0x1f, 0x62, 0xfd, 0x7c,
+        0xe9, 0x44, 0x77, 0xa6, 0x8c, 0xfd, 0x25, 0x19,
+        0x60, 0xb7, 0xa4, 0xe9, 0xf3, 0x1b, 0xd5, 0xbc,
+        0x22, 0xeb, 0x18, 0x2d, 0x7d, 0x2e, 0x8f, 0x42,
+        0xb9, 0x47, 0xa6, 0x29, 0x1a, 0x26, 0x52, 0xb5,
+        0x5c, 0xc1, 0x1d, 0x4d, 0xda, 0x8a, 0x7f, 0x86,
+        0x9f, 0xbf, 0x86, 0x96, 0x2c, 0x2c, 0xf8, 0x23,
+        0xcd, 0x42, 0x52, 0xbb, 0x06, 0x68, 0xf8, 0x66,
+        0xf3, 0x51, 0x8d, 0x02, 0x4c, 0xe5, 0x43, 0x2b,
+        0xf5, 0xf7, 0xd7, 0x47, 0x71, 0x17, 0xe5, 0xbd,
+        0xc6,
+    };
+    static const byte expectedR[] = {
+        0x04, 0x2e, 0xa1, 0x64, 0xd2, 0x4a, 0x02, 0x82,
+        0x27, 0x11, 0x2f, 0xb2, 0x51, 0xed, 0x02, 0x4b,
+        0xb2, 0x60, 0xb5, 0x93, 0xa5, 0x41, 0x49, 0x5a,
+        0x2b, 0x4a, 0x0f, 0xa2, 0x73, 0xdd, 0xa7, 0x3e,
+        0x21, 0xbb, 0x82, 0x9f, 0x7b, 0xfb, 0x2e, 0xd6,
+        0xb4, 0x33, 0x3c, 0x91, 0xa7, 0xb3, 0x3b, 0xac,
+        0x99, 0xa7, 0xea, 0x42, 0x8e, 0x86, 0xb3, 0xd5,
+        0xca, 0xd9, 0xa4, 0xb2, 0xdc, 0x2d, 0x99, 0xce,
+        0xea, 0x86, 0xee, 0x0e, 0x4f, 0xb5, 0x0d, 0xfb,
+        0xbc, 0xd8, 0xfb, 0x84, 0x4f, 0x66, 0x77, 0xa4,
+        0xa8, 0x89, 0x83, 0x05, 0x5b, 0x2d, 0x33, 0xf1,
+        0x3a, 0x6c, 0x7a, 0xe4, 0xce, 0x28, 0x73, 0x42,
+        0x25, 0x88, 0x1b, 0x81, 0x80, 0x76, 0x64, 0x69,
+        0x51, 0x2c, 0xc9, 0x0d, 0x6b, 0xac, 0x55, 0x63,
+        0x44, 0x52, 0xca, 0xbd, 0xa2, 0x23, 0xed, 0x8c,
+        0xd0, 0xe9, 0xae, 0xdb, 0xa6, 0x27, 0xc9, 0x28,
+        0x88, 0x40, 0x8d, 0x02, 0x18, 0x68, 0x4b, 0xb5,
+        0x9f, 0x01, 0x7a, 0xd8, 0xa3, 0xb4, 0x8a, 0xbb,
+        0xdb, 0x30, 0xe6, 0xf0, 0x68, 0x29, 0x89, 0x43,
+        0x50, 0x16, 0xa5, 0x17, 0xd3, 0xd6, 0x1a, 0x76,
+        0xbf, 0xce, 0xb6, 0xdf, 0xc2, 0x85, 0x64, 0xf0,
+        0x65, 0x3f, 0xda, 0x67, 0xd3, 0xbe, 0x7e, 0x8a,
+        0xa2, 0xc1, 0xa6, 0x0d, 0xbe, 0x3f, 0xe3, 0x6f,
+        0xa2, 0x6e, 0x93, 0x2a, 0xd4, 0xeb, 0x80, 0xe8,
+        0x0e, 0x5b, 0x47, 0x1c, 0x13, 0x7a, 0xf8, 0xe4,
+        0x17, 0xd8, 0x93, 0x1b, 0xff, 0x2e, 0x26, 0xcd,
+        0x8e, 0x73, 0xfe, 0x35, 0xf1, 0x41, 0xc1, 0xd0,
+        0x74, 0x25, 0x15, 0xa4, 0x4e, 0x5f, 0x4b, 0x20,
+        0x2c, 0x2e, 0x59, 0xdd, 0x8f, 0xe8, 0x42, 0x4f,
+        0x8e, 0x7b, 0xc9, 0x53, 0xc1, 0xf8, 0xef, 0xb8,
+        0xe4, 0x7b, 0x66, 0x27, 0xec, 0x09, 0x5a, 0xcf,
+        0xc6, 0x9c, 0x2e, 0x87, 0x97, 0xdf, 0xde, 0xc1,
+        0x52,
+    };
+    SakkeKey key;
+    const byte id[] = { 1 };
+    byte ssv[16];
+    byte auth[sizeof(expectedR)];
+    word16 authSz = sizeof(auth);
+    word16 i;
+
+    XMEMSET(&key, 0, sizeof(key));
+    for (i = 0; i < (word16)sizeof(ssv); i++) {
+        ssv[i] = (byte)i;
+    }
+
+    ExpectIntEQ(wc_InitSakkeKey_ex(&key, 128, ECC_SAKKE_1, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ImportSakkePublicKey(&key, pubKey, sizeof(pubKey), 0), 0);
+    ExpectIntEQ(wc_SetSakkeIdentity(&key, id, sizeof(id)), 0);
+    ExpectIntEQ(wc_MakeSakkeEncapsulatedSSV(&key, WC_HASH_TYPE_SHA384, ssv,
+        sizeof(ssv), auth, &authSz), 0);
+    ExpectIntEQ(authSz, sizeof(expectedR));
+    ExpectBufEQ(auth, expectedR, sizeof(expectedR));
+    wc_FreeSakkeKey(&key);
 #endif
     return EXPECT_RESULT();
 }

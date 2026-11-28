@@ -42,9 +42,31 @@ runs:
         if command -v ccache >/dev/null 2>&1; then
           echo "ccache already installed: $(ccache --version | head -1)"
         elif [ "${{ runner.os }}" = "Linux" ]; then
-          sudo apt-get update -q
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            --no-install-recommends ccache
+          export DEBIAN_FRONTEND=noninteractive
+          # install-apt-deps exports the ghcr bundle it unpacked as a local apt
+          # repository, and ccache is in every bundle's package list. Reuse it:
+          # same repository, same versions, no apt-get update, nothing to stall
+          # on. Every other path here reaches the mirror, which is what used to
+          # hang these jobs for 10-40 min after the bundle had already
+          # installed cleanly.
+          sudo dpkg --configure -a >/dev/null 2>&1 || true
+          if [ -n "${WOLFSSL_APT_BUNDLE_SOURCES:-}" ] && \
+             sudo DEBIAN_FRONTEND=noninteractive apt-get \
+               -o Dir::Etc::SourceList="$WOLFSSL_APT_BUNDLE_SOURCES" \
+               -o Dir::Etc::SourceParts=/dev/null \
+               -o Dir::State::Lists="$WOLFSSL_APT_BUNDLE_LISTS" \
+               -o Acquire::Languages=none -o Acquire::Retries=0 \
+               -o APT::Sandbox::User=root \
+               -o Acquire::http::Proxy=http://127.0.0.1:9 \
+               -o Acquire::https::Proxy=http://127.0.0.1:9 \
+               install -y --no-install-recommends ccache; then
+            echo "ccache installed offline from the staged .deb bundle"
+          else
+            # Short limits: this follows install-apt-deps in 10-minute jobs.
+            "$GITHUB_ACTION_PATH/../install-apt-deps/apt-install.sh" --tries 2 \
+              --update-timeout 60 --install-timeout 90 --drop-vendor-sources \
+              --no-install-recommends ccache
+          fi
         elif [ "${{ runner.os }}" = "macOS" ]; then
           brew install ccache
         else
@@ -54,8 +76,9 @@ runs:
 
     # read-only=false (default): restore + post-job save (the run_id in the
     # key never hits, so it always saves its contribution).
+    # Skip restore on reseed-only scheduled runs, cache built from scratch.
     - name: Restore + save ccache
-      if: inputs.read-only != 'true'
+      if: inputs.read-only != 'true' && github.event_name != 'schedule'
       uses: actions/cache@v5
       with:
         path: ~/.ccache
@@ -66,6 +89,13 @@ runs:
         restore-keys: |
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-
           ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-
+    # Scheduled reseed: no restore, save only
+    - name: Save ccache (scheduled reseed, no restore)
+      if: inputs.read-only != 'true' && github.event_name == 'schedule'
+      uses: actions/cache@v5
+      with:
+        path: ~/.ccache
+        key: ccache-${{ inputs.workflow-id }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.config-hash }}-${{ github.run_id }}-${{ github.run_attempt }}
     # read-only=true: restore the shared cache but never upload (PR runs).
     - name: Restore ccache (read-only)
       if: inputs.read-only == 'true'

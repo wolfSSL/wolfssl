@@ -166,12 +166,19 @@ typedef struct Poly1305 {
     unsigned char buffer[POLY1305_BLOCK_SIZE];
     unsigned char finished;
 #ifdef WOLFSSL_ARM_POLY1305_NEED_C
-    /* Software fallback state (radix 2^44), used when NEON is unavailable.
-     * Appended after the assembly state so the asm field offsets are unchanged.
-     */
+    /* Software fallback state, used when NEON is unavailable. Appended after
+     * the assembly state so the asm field offsets are unchanged. Laid out for
+     * whichever C implementation poly1305.c compiles: radix 2^44 with
+     * POLY130564, else radix 2^26 (compilers without a 128-bit integer). */
+#ifdef POLY130564
     word64 c_r[3];
     word64 c_h[3];
     word64 c_pad[2];
+#else
+    word32 c_r[5];
+    word32 c_h[5];
+    word32 c_pad[4];
+#endif
 #endif
 #elif defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_THUMB2) && \
     !defined(WOLFSSL_ARMASM_NO_NEON)

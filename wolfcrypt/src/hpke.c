@@ -370,7 +370,16 @@ int wc_HpkeSerializePublicKey(Hpke* hpke, void* key, byte* out, word16* outSz)
         case DHKEM_P384_HKDF_SHA384:
         case DHKEM_P521_HKDF_SHA512:
             /* export x963 uncompressed */
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+            /* in FIPS v6, but only v6, wc_ecc_export_x963_ex_fips() checks
+             * privateKeyReadEnable. */
+            PRIVATE_KEY_UNLOCK();
+#endif
             ret = wc_ecc_export_x963_ex((ecc_key*)key, out, &tmpOutSz, 0);
+#if FIPS_VERSION3_GE(6,0,0) && FIPS_VERSION3_LT(7,0,0)
+            PRIVATE_KEY_LOCK();
+#endif
+
             break;
 #endif
 #if defined(HAVE_CURVE25519) && !defined(NO_SHA256)
@@ -961,6 +970,8 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
 int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
     void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz)
 {
+    int ret;
+
     if (hpke == NULL || context == NULL || ephemeralKey == NULL ||
         receiverKey == NULL || (info == NULL && infoSz != 0)) {
         return BAD_FUNC_ARG;
@@ -969,11 +980,21 @@ int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
     /* zero out all fields */
     XMEMSET(context, 0, sizeof(HpkeBaseContext));
 
-    return wc_HpkeSetupBaseSender(hpke, context, ephemeralKey, receiverKey,
+    /* the derived secrets are consumed internally -- do the FIPS
+     * private-key unlock for the caller, as wc_HpkeSealBase() does. */
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_HpkeSetupBaseSender(hpke, context, ephemeralKey, receiverKey,
         info, infoSz);
+    PRIVATE_KEY_LOCK();
+
+    return ret;
 }
 
-/* encrypt a message using an hpke base context, return 0 or error */
+/* encrypt a message using an hpke base context, return 0 or error.
+ * out must hold at least ptSz + hpke->Nt bytes: ptSz bytes of ciphertext
+ * followed by the hpke->Nt byte AEAD tag written at out + ptSz. hpke->Nt is
+ * 16 for the supported AES-GCM AEADs. No output length is taken, so the
+ * caller is responsible for sizing out. */
 int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     byte* aad, word32 aadSz, byte* plaintext, word32 ptSz, byte* out)
 {
@@ -989,8 +1010,11 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     if (context->seq == WC_MAX_SINT_OF(int))
         return SEQ_OVERFLOW_E;
 
-    WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
-        return MEMORY_E);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(hpke->heap);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
     ret = wc_AesInit(aes, hpke->heap, INVALID_DEVID);
     if (ret == 0) {
         /* compute nonce */
@@ -1008,11 +1032,15 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
         }
         wc_AesFree(aes);
     }
-    WC_FREE_VAR_EX(aes, hpke->heap, DYNAMIC_TYPE_AES);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, hpke->heap);
+#endif
     return ret;
 }
 
-/* encrypt a message using the provided ephemeral and receiver kem keys */
+/* encrypt a message using the provided ephemeral and receiver kem keys.
+ * ciphertext must hold at least ptSz + hpke->Nt bytes (ciphertext plus the
+ * in-line AEAD tag); see wc_HpkeContextSealBase. */
 int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     byte* info, word32 infoSz, byte* aad, word32 aadSz, byte* plaintext,
     word32 ptSz, byte* ciphertext)
@@ -1397,13 +1425,21 @@ int wc_HpkeInitOpenContext(Hpke* hpke, HpkeBaseContext* context,
     void* receiverKey, const byte* pubKey, word16 pubKeySz, byte* info,
     word32 infoSz)
 {
+    int ret;
+
     if (hpke == NULL || context == NULL || receiverKey == NULL || pubKey == NULL
         || (info == NULL && infoSz != 0)) {
         return BAD_FUNC_ARG;
     }
 
-    return wc_HpkeSetupBaseReceiver(hpke, context, receiverKey, pubKey,
+    /* the derived secrets are consumed internally -- do the FIPS
+     * private-key unlock for the caller, as wc_HpkeOpenBase() does. */
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_HpkeSetupBaseReceiver(hpke, context, receiverKey, pubKey,
         pubKeySz, info, infoSz);
+    PRIVATE_KEY_LOCK();
+
+    return ret;
 }
 
 /* decrypt a message using a setup hpke context, return 0 or error */
@@ -1423,8 +1459,11 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
         return SEQ_OVERFLOW_E;
 
     XMEMSET(nonce, 0, sizeof(nonce));
-    WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
-        return MEMORY_E);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(hpke->heap);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
     /* compute nonce */
     ret = wc_HpkeContextComputeNonce(hpke, context, nonce);
     if (ret == 0)
@@ -1441,7 +1480,9 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
         }
         wc_AesFree(aes);
     }
-    WC_FREE_VAR_EX(aes, hpke->heap, DYNAMIC_TYPE_AES);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, hpke->heap);
+#endif
     return ret;
 }
 

@@ -115,12 +115,25 @@ void  wc_CertFree(Cert* cert);
     either an rsaKey or an eccKey to generate the certificate.  The certificate
     must be initialized with wc_InitCert before this method is called.
 
+    A serial number left at the wc_InitCert default (cert->serialSz of 0) is
+    randomly generated. A caller-supplied serial is taken as a big-endian
+    value of at most CTC_SERIAL_SIZE bytes and is normalized to a minimal DER
+    INTEGER: redundant leading zero bytes are stripped and the sign pad is
+    added back when the high bit is set. Supplying the magnitude alone is
+    enough; a sign pad the caller adds is accepted and is not duplicated.
+    The encoded value, including any sign pad, must not exceed
+    CTC_SERIAL_SIZE octets.
+
     \return Success On successfully making an x509 certificate from the
     specified input cert, returns the size of the cert generated.
     \return MEMORY_E Returned if there is an error allocating memory
     with XMALLOC
     \return BUFFER_E Returned if the provided derBuffer is too small to
     store the generated certificate
+    \return BAD_FUNC_ARG Returned if cert->serialSz is negative, if the
+    encoded serial would exceed CTC_SERIAL_SIZE octets, or if the serial
+    number is zero. RFC 5280 4.1.2.2 requires a positive serial of at most
+    20 octets; define WOLFSSL_ASN_ALLOW_0_SERIAL to permit a zero serial.
     \return Others Additional error messages may be returned if the cert
     generation is not successful.
 
@@ -156,9 +169,13 @@ int  wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
     \ingroup ASN
     \brief Makes certificate with generic key type support.
 
+    The serial number contract is the same as wc_MakeCert().
+
     \return Size of certificate on success
     \return MEMORY_E if memory allocation fails
     \return BUFFER_E if buffer too small
+    \return BAD_FUNC_ARG if the serial number is zero, negative in size, or
+    longer than CTC_SERIAL_SIZE
     \return Other error codes on failure
 
     \param cert Initialized cert structure
@@ -2137,7 +2154,11 @@ int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
     \code
     DsaKey key;
     word32 idx = 0;
-    int ret = wc_DsaParamsDecode(derBuf, &idx, &key, derSz);
+    int ret = wc_InitDsaKey(&key);
+    if (ret == 0) {
+        ret = wc_DsaParamsDecode(derBuf, &idx, &key, derSz);
+        wc_FreeDsaKey(&key);
+    }
     \endcode
 
     \sa wc_DsaKeyToParamsDer
@@ -2192,7 +2213,7 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
                              word32* outLen);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH parameters to DER format.
 
     \return 0 on success
@@ -2215,7 +2236,7 @@ int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
 int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH public key to DER format.
 
     \return 0 on success
@@ -2238,7 +2259,7 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
 
 /*!
-    \ingroup DH
+    \ingroup Diffie-Hellman
     \brief Encodes DH private key to DER format.
 
     \return 0 on success
@@ -2810,7 +2831,7 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 outLen,
                           int withAlg);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 private key from DER format.
 
     \return 0 on success
@@ -2836,7 +2857,7 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                 ed25519_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 private key from DER format with control over
     validation of a bundled public key. When the DER contains a public key
     and trusted is 0, the public key is validated with
@@ -2873,7 +2894,7 @@ int wc_Ed25519PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
                                   ed25519_key* key, word32 inSz, int trusted);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Decodes Ed25519 public key from DER format.
 
     \return 0 on success
@@ -2898,7 +2919,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
                                ed25519_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 key to DER format.
 
     \return Size on success
@@ -2921,7 +2942,7 @@ int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
                        word32 outLen);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 private key to DER format.
 
     \return Size on success
@@ -2945,7 +2966,7 @@ int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
                                word32 outLen);
 
 /*!
-    \ingroup Ed25519
+    \ingroup ED25519
     \brief Encodes Ed25519 public key to DER format.
 
     \return Size on success
@@ -2970,7 +2991,7 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
         word32 outLen, int withAlg);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 private key from DER format.
 
     \return 0 on success
@@ -2996,7 +3017,7 @@ int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
                               ed448_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 private key from DER format with control over
     validation of a bundled public key. When the DER contains a public key
     and trusted is 0, the public key is validated with wc_ed448_check_key(),
@@ -3033,7 +3054,7 @@ int wc_Ed448PrivateKeyDecode_ex(const byte* input, word32* inOutIdx,
                                 ed448_key* key, word32 inSz, int trusted);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Decodes Ed448 public key from DER format.
 
     \return 0 on success
@@ -3058,7 +3079,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
                              ed448_key* key, word32 inSz);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 key to DER format.
 
     \return Size on success
@@ -3080,7 +3101,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 int wc_Ed448KeyToDer(const ed448_key* key, byte* output, word32 outLen);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 private key to DER format.
 
     \return Size on success
@@ -3104,7 +3125,7 @@ int wc_Ed448PrivateKeyToDer(const ed448_key* key, byte* output,
                              word32 outLen);
 
 /*!
-    \ingroup Ed448
+    \ingroup ED448
     \brief Encodes Ed448 public key to DER format.
 
     \return Size on success
@@ -3234,10 +3255,13 @@ int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output,
 
     \return Success On successfully writing the encoded signature to output,
     returns the length written to the buffer
+    \return 0 Returned on error, including when digSz is larger than
+    WC_MAX_DIGEST_SIZE
 
     \param out pointer to the buffer where the encoded signature will be written
     \param digest pointer to the digest to use to encode the signature
-    \param digSz the length of the buffer containing the digest
+    \param digSz the length of the buffer containing the digest; at most
+    WC_MAX_DIGEST_SIZE
     \param hashOID OID identifying the hash type used to generate the
     signature. Valid options, depending on build configurations, are: SHAh,
     SHA256h, SHA384h, SHA512h, MD2h, MD5h, DESb, DES3b, CTC_MD5wRSA,
@@ -3613,7 +3637,15 @@ int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     This function copies the subject name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    The format is similar to, but not byte-identical with, OpenSSL's
+    X509_NAME_oneline(): wolfSSL also escapes "\\", does not hex-escape
+    bytes outside 0x20-0x7E other than NUL (OpenSSL writes them as "\\xHH"), and always
+    separates attributes with "/", even within a multi-valued RDN (OpenSSL
+    uses "+"). Compare against strings produced by this library rather
+    than by OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.
@@ -3647,7 +3679,15 @@ int wc_GetDecodedCertSubject(const struct DecodedCert* cert,
     This function copies the issuer name string from a DecodedCert
     structure into the provided buffer. The string uses a one-line
     distinguished name format with "/" delimiters
-    (e.g. "/C=US/O=Org/CN=example.com"). The output is NOT
+    (e.g. "/C=US/O=Org/CN=example.com"). Within an attribute value,
+    each "\\", "/" and "+" is prefixed with a "\\" so that it cannot be
+    mistaken for a separator (e.g. a CN of "a/b" is written "/CN=a\\/b").
+    The format is similar to, but not byte-identical with, OpenSSL's
+    X509_NAME_oneline(): wolfSSL also escapes "\\", does not hex-escape
+    bytes outside 0x20-0x7E other than NUL (OpenSSL writes them as "\\xHH"), and always
+    separates attributes with "/", even within a multi-valued RDN (OpenSSL
+    uses "+"). Compare against strings produced by this library rather
+    than by OpenSSL or by hand. The output is NOT
     NUL-terminated; the caller should append a NUL byte if needed.
     If buf is NULL, the required buffer size is returned
     in bufSz and LENGTH_ONLY_E is returned.
@@ -4033,7 +4073,8 @@ void wc_InitDecodedCert(struct DecodedCert* cert,
     \sa wc_InitDecodedCert
     \sa wc_FreeDecodedCert
 */
-int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm);
+int wc_ParseCert(DecodedCert* cert, int type, int verify,
+    WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup ASN
@@ -4178,7 +4219,12 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     \param cert the DecodedCert struct that is to be associated with this
     callback.
-    \param cb function to register as the time callback.
+    \param cb function to register as the unknown extension callback.
+
+    \note Each OID arc is passed to the callback as a word16, so arcs with
+    values > 65535 are truncated. Use wc_SetUnknownExtCallback32() in new
+    code. When both a word16 and a word32 callback are registered on the same
+    DecodedCert, only the word32 callback is invoked.
 
     _Example_
     \code
@@ -4193,13 +4239,13 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         // failed to set the callback
     }
 
-    // oid: Array of integers that are the dot separated values in an oid.
+    // oid: Array of word16 that are the dot separated values in an oid.
     // oidSz: Number of values in oid.
-    // crit: Whether the extension was mark critical.
+    // crit: Whether the extension was marked critical.
     // der: The der encoding of the content of the extension.
     // derSz: The size in bytes of the der encoding.
-    int myCustomExtCallback(const word16* oid, word32 oidSz, int crit,
-                            const unsigned char* der, word32 derSz) {
+    int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
+                             const unsigned char* der, word32 derSz) {
 
         // Logic to parse extension goes here.
 
@@ -4216,9 +4262,71 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     \sa ParseCert
     \sa wc_SetCustomExtension
+    \sa wc_SetUnknownExtCallback32
 */
 int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
+
+/*!
+    \ingroup ASN
+
+    \brief This function registers a callback that will be used anytime
+    wolfSSL encounters an unknown X.509 extension in a certificate while
+    parsing a certificate. It behaves exactly like wc_SetUnknownExtCallback()
+    except that each OID arc is passed to the callback as a word32, so arcs
+    with values > 65535 are represented without truncation.
+
+    \return 0 Returned on success.
+    \return BAD_FUNC_ARG Returned if cert is NULL.
+
+    \param cert the DecodedCert struct that is to be associated with this
+    callback.
+    \param cb function to register as the unknown extension callback.
+
+    \note A word32 callback takes precedence over a word16 one: when both
+    wc_SetUnknownExtCallback() and wc_SetUnknownExtCallback32() have been
+    called on the same DecodedCert, only the word32 callback is invoked.
+
+    _Example_
+    \code
+    int ret = 0;
+    // Unknown extension callback prototype
+    int myUnknownExtCallback32(const word32* oid, word32 oidSz, int crit,
+                               const unsigned char* der, word32 derSz);
+
+    // Register it
+    ret = wc_SetUnknownExtCallback32(cert, myUnknownExtCallback32);
+    if (ret != 0) {
+        // failed to set the callback
+    }
+
+    // oid: Array of word32 that are the dot separated values in an oid.
+    // oidSz: Number of values in oid.
+    // crit: Whether the extension was marked critical.
+    // der: The der encoding of the content of the extension.
+    // derSz: The size in bytes of the der encoding.
+    int myUnknownExtCallback32(const word32* oid, word32 oidSz, int crit,
+                               const unsigned char* der, word32 derSz) {
+
+        // Logic to parse extension goes here.
+
+        // NOTE: by returning zero, we are accepting this extension and
+        // informing wolfSSL that it is acceptable. If you find an extension
+        // that you do not find acceptable, you should return an error. The
+        // standard behavior upon encountering an unknown extension with the
+        // critical flag set is to return ASN_CRIT_EXT_E.
+        return 0;
+    }
+    \endcode
+
+    \sa ParseCert
+    \sa wc_SetCustomExtension
+    \sa wc_SetUnknownExtCallback
+    \sa wc_SetUnknownExtCallback32Ex
+*/
+int wc_SetUnknownExtCallback32(DecodedCert* cert,
+                                             wc_UnknownExtCallback32 cb);
+
 /*!
     \ingroup ASN
 
@@ -4404,4 +4512,59 @@ int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts, unsigned char* data,
     \sa wc_Asn1_PrintAll
 */
 int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb);
+
+/*!
+    \ingroup ASN
+
+    \brief Retrieves the raw DER-encoded subject Name content from a parsed
+    DecodedCert.
+
+    The returned pointer and size reference the inner content of the subject
+    Name SEQUENCE (i.e. the bytes after the SEQUENCE tag and length). The
+    pointer aliases the DER buffer supplied to wc_InitDecodedCert(), which the
+    DecodedCert does not own, and must not be freed by the caller. The data
+    remains valid only while that buffer is alive and unmodified.
+
+    This function is intended for use with wolfSSL_UseCertificateAuthority(),
+    which expects the subject content without the outer SEQUENCE header.
+
+    Requires IGNORE_NAME_CONSTRAINTS to be undefined or WOLFSSL_CERT_EXT to
+    be defined.
+
+    \param cert       Pointer to the DecodedCert (must have been parsed).
+    \param subjectRaw Output pointer that receives the address of the raw
+                      DER subject content.
+    \param subjectRawSz Output pointer that receives the size in bytes of the
+                        raw subject content.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if any argument is NULL.
+    \return ASN_PARSE_E if the subject was not populated during parsing.
+    \return NOT_COMPILED_IN if the required build options are not enabled.
+
+    _Example_
+    \code
+    DecodedCert decoded;
+    const byte* subject = NULL;
+    int subjectSz = 0;
+
+    wc_InitDecodedCert(&decoded, certDer, certDerSz, NULL);
+    if (wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL) == 0) {
+        if (wc_GetDecodedCertSubjectRaw(&decoded, &subject,
+                &subjectSz) == 0) {
+            // subject and subjectSz now reference the raw DER content
+        }
+    }
+    wc_FreeDecodedCert(&decoded);
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_ParseCert
+    \sa wc_FreeDecodedCert
+    \sa wc_GetDecodedCertSubject
+    \sa wolfSSL_UseCertificateAuthority
+*/
+int wc_GetDecodedCertSubjectRaw(const struct DecodedCert* cert,
+                                const byte** subjectRaw,
+                                int* subjectRawSz);
 

@@ -26,7 +26,7 @@ This module provides a Rust wrapper for the wolfCrypt library's EdDSA Curve
 #![cfg(ed25519)]
 
 use crate::sys;
-#[cfg(random)]
+#[cfg(all(ed25519_make_key, random))]
 use crate::random::RNG;
 use core::mem::MaybeUninit;
 
@@ -38,6 +38,12 @@ use core::mem::MaybeUninit;
 /// An instance can be created with `generate()` or `new()`.
 pub struct Ed25519 {
     ws_key: sys::ed25519_key,
+    /// Number of bytes passed to `verify_msg_update()` so far when a
+    /// streaming verification was initialized with the prehash variant, or
+    /// `None` otherwise. Used to enforce that exactly one prehash of
+    /// `PREHASH_SIZE` bytes is verified.
+    #[cfg(ed25519_streaming_verify)]
+    ph_stream_len: Option<usize>,
 }
 
 impl Ed25519 {
@@ -54,6 +60,39 @@ impl Ed25519 {
     pub const ED25519CTX: u8 = sys::Ed25519ctx as u8;
     pub const ED25519PH: u8 = sys::Ed25519ph as u8;
 
+    /** Size of the prehashed message for the prehash variant. */
+    pub const PREHASH_SIZE: usize = sys::WC_SHA512_DIGEST_SIZE as usize;
+
+    /// Validate an Ed25519 variant and optional context, returning the
+    /// context pointer and length to pass to wolfCrypt.
+    ///
+    /// wolfCrypt only binds the context into the signature for the
+    /// Ed25519ctx and Ed25519ph variants. A non-empty context with pure
+    /// Ed25519 would be silently ignored, so it is rejected here, as are
+    /// unknown variant values.
+    #[cfg(any(ed25519_sign, ed25519_verify, ed25519_streaming_verify))]
+    fn check_variant_context(typ: u8, context: Option<&[u8]>) -> Result<(*const u8, u8), i32> {
+        let context = context.unwrap_or(&[]);
+        if context.len() > 255 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        match typ {
+            Self::ED25519 => {
+                if !context.is_empty() {
+                    return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+                }
+            }
+            Self::ED25519CTX | Self::ED25519PH => {}
+            _ => return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG),
+        }
+        let context_ptr = if context.is_empty() {
+            core::ptr::null()
+        } else {
+            context.as_ptr()
+        };
+        Ok((context_ptr, context.len() as u8))
+    }
+
     /// Generate a new Ed25519 key.
     ///
     /// # Parameters
@@ -68,7 +107,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(random)]
+    /// #[cfg(all(ed25519_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -76,7 +115,7 @@ impl Ed25519 {
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// }
     /// ```
-    #[cfg(random)]
+    #[cfg(all(ed25519_make_key, random))]
     pub fn generate(rng: &RNG) -> Result<Self, i32> {
         Self::generate_ex(rng, None, None)
     }
@@ -97,7 +136,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(random)]
+    /// #[cfg(all(ed25519_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -105,7 +144,7 @@ impl Ed25519 {
     /// let ed = Ed25519::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
     /// }
     /// ```
-    #[cfg(random)]
+    #[cfg(all(ed25519_make_key, random))]
     pub fn generate_ex(rng: &RNG, heap: Option<*mut core::ffi::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<sys::ed25519_key> = MaybeUninit::uninit();
         let heap = match heap {
@@ -121,7 +160,11 @@ impl Ed25519 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let mut ed25519 = Ed25519 { ws_key };
+        let mut ed25519 = Ed25519 {
+            ws_key,
+            #[cfg(ed25519_streaming_verify)]
+            ph_stream_len: None,
+        };
         let rc = unsafe {
             sys::wc_ed25519_make_key(rng.wc_rng,
                 sys::ED25519_KEY_SIZE as i32, &mut ed25519.ws_key)
@@ -189,7 +232,11 @@ impl Ed25519 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
-        let ed25519 = Ed25519 { ws_key };
+        let ed25519 = Ed25519 {
+            ws_key,
+            #[cfg(ed25519_streaming_verify)]
+            ph_stream_len: None,
+        };
         Ok(ed25519)
     }
 
@@ -207,7 +254,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(random)]
+    /// #[cfg(all(ed25519_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -235,13 +282,19 @@ impl Ed25519 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
-    /// library error code value.
+    /// Returns either Ok((private_size, public_size)) containing the number
+    /// of bytes written to `private` and `public` on success or Err(e)
+    /// containing the wolfSSL library error code value.
     ///
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_export, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -253,18 +306,26 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(usize, usize), i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does, private first.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        if self.ws_key.pubKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_PUBLIC_KEY_E);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_key(&self.ws_key,
+            sys::wc_ed25519_export_key(crate::ptr_for_read(&self.ws_key),
                 private.as_mut_ptr(), &mut private_size,
                 public.as_mut_ptr(), &mut public_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok((private_size as usize, public_size as usize))
     }
 
     /// Export public key to buffer.
@@ -283,7 +344,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_export, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -294,16 +355,21 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_public(&self, public: &mut [u8]) -> Result<(), i32> {
+    pub fn export_public(&self, public: &mut [u8]) -> Result<usize, i32> {
         let mut public_size = crate::buffer_len_to_u32(public.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.pubKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_PUBLIC_KEY_E);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_public(&self.ws_key, public.as_mut_ptr(),
+            sys::wc_ed25519_export_public(crate::ptr_for_read(&self.ws_key), public.as_mut_ptr(),
                 &mut public_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(public_size as usize)
     }
 
     /// Export public/private key pair to buffer.
@@ -322,7 +388,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_export, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -333,16 +404,21 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_private(&self, keyout: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private(&self, keyout: &mut [u8]) -> Result<usize, i32> {
         let mut keyout_size = crate::buffer_len_to_u32(keyout.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_private(&self.ws_key, keyout.as_mut_ptr(),
+            sys::wc_ed25519_export_private(crate::ptr_for_read(&self.ws_key), keyout.as_mut_ptr(),
                 &mut keyout_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(keyout_size as usize)
     }
 
     /// Export private key only to buffer.
@@ -361,7 +437,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_export, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -372,16 +453,21 @@ impl Ed25519 {
     /// }
     /// ```
     #[cfg(ed25519_export)]
-    pub fn export_private_only(&self, private: &mut [u8]) -> Result<(), i32> {
+    pub fn export_private_only(&self, private: &mut [u8]) -> Result<usize, i32> {
         let mut private_size = crate::buffer_len_to_u32(private.len())?;
+        // Older modules such as FIPS v6 export whatever is in memory, so
+        // refuse a missing part here like newer wolfSSL does.
+        if self.ws_key.privKeySet() == 0 {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
         let rc = unsafe {
-            sys::wc_ed25519_export_private_only(&self.ws_key,
+            sys::wc_ed25519_export_private_only(crate::ptr_for_read(&self.ws_key),
                 private.as_mut_ptr(), &mut private_size)
         };
         if rc != 0 {
             return Err(rc);
         }
-        Ok(())
+        Ok(private_size as usize)
     }
 
     /// Import a public Ed25519 key from buffer.
@@ -402,7 +488,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_import, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -446,7 +537,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_import, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -486,7 +582,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_import, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -530,7 +631,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_import, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -570,7 +676,7 @@ impl Ed25519 {
     /// # Parameters
     ///
     /// * `private`: Input buffer containing private key.
-    /// * `public`: Optional input buffer containing private key.
+    /// * `public`: Optional input buffer containing public key.
     /// * `trusted`: Whether the public key buffer is trusted.
     ///
     /// # Returns
@@ -581,7 +687,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_import, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_import, ed25519_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -630,7 +741,12 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_export, ed25519_import, random))]
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
+    /// #[cfg(all(ed25519_make_key, ed25519_export, ed25519_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -644,14 +760,27 @@ impl Ed25519 {
     /// ed.make_public(&mut public).expect("Error with make_public()");
     /// }
     /// ```
+    #[cfg(ed25519_make_key)]
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
         let pubkey_size = crate::buffer_len_to_u32(pubkey.len())?;
+        // The C code keeps a public half that is already set, so a later
+        // check_key can still catch a mismatched pair.
+        // We store the public half here (if present).
+        let had_public = self.ws_key.pubKeySet() != 0;
         let rc = unsafe {
             sys::wc_ed25519_make_public(&mut self.ws_key,
                 pubkey.as_mut_ptr(), pubkey_size)
         };
         if rc != 0 {
             return Err(rc);
+        }
+        // Older modules such as FIPS v6 return the public key without storing
+        // it in the key, so store it here like newer wolfSSL does, but only
+        // when the key had no public half before.
+        if !had_public {
+            let public = &pubkey[..Self::PUB_KEY_SIZE];
+            self.ws_key.p.copy_from_slice(public);
+            self.ws_key.k[Self::KEY_SIZE..].copy_from_slice(public);
         }
         Ok(())
     }
@@ -672,7 +801,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_sign, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -716,7 +845,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_sign, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -750,11 +879,12 @@ impl Ed25519 {
     /// Sign a message digest with context using Ed25519 key.
     ///
     /// The context is part of the data signed.
-    /// The message is pre-hashed before signature calculation.
+    /// For Ed25519ph interoperability, `hash` must be the 64-byte SHA-512
+    /// prehash of the message (as computed by `sign_msg_ph()`).
     ///
     /// # Parameters
     ///
-    /// * `hash`: Message digest to sign.
+    /// * `hash`: 64-byte SHA-512 message digest to sign.
     /// * `context`: Optional buffer containing context for which hash is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -767,7 +897,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_sign, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -819,7 +949,7 @@ impl Ed25519 {
     ///
     /// # Parameters
     ///
-    /// * `message`: Message digest to sign.
+    /// * `message`: Message to prehash and sign; this method hashes it internally.
     /// * `context`: Optional buffer containing context for which message is being signed.
     /// * `signature`: Output buffer to hold signature.
     ///
@@ -832,7 +962,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_sign, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -877,6 +1007,10 @@ impl Ed25519 {
     /// * `din`: Data to sign.
     /// * `context`: Optional buffer containing context for which `din` is being signed.
     /// * `typ`: One of `Ed25519::ED25519`, `Ed25519::ED25519CTX`, or `Ed25519::ED25519PH`.
+    ///   A non-empty context is only allowed with `Ed25519::ED25519CTX` or
+    ///   `Ed25519::ED25519PH`; pure `Ed25519::ED25519` does not bind a
+    ///   context, so passing one with it returns `BAD_FUNC_ARG`, as does an
+    ///   unknown variant value.
     /// * `signature`: Output buffer to hold signature.
     ///
     /// # Returns
@@ -888,7 +1022,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_sign, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -897,20 +1031,16 @@ impl Ed25519 {
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed25519::SIG_SIZE];
-    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519, &mut signature).expect("Error with sign_msg_ex()");
+    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519CTX, &mut signature).expect("Error with sign_msg_ex()");
     /// }
     /// ```
     #[cfg(ed25519_sign)]
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
+        // Older modules such as FIPS v6 take a prehash of any length.
+        if typ == Self::ED25519PH && din.len() != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E);
         }
         let mut signature_size = crate::buffer_len_to_u32(signature.len())?;
         let rc = unsafe {
@@ -939,7 +1069,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -990,7 +1120,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1032,13 +1162,13 @@ impl Ed25519 {
     /// Verify the Ed25519 signature of a message digest and context to ensure authenticity.
     ///
     /// The context is included as part of the data verified.
-    /// The hash algorithm used to create message digest must be SHA-512.
-    /// The message is pre-hashed before verification.
+    /// For Ed25519ph interoperability, `hash` must be the 64-byte SHA-512
+    /// prehash of the message (as computed by `verify_msg_ph()`).
     ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
-    /// * `hash`: Message to verify the signature of.
+    /// * `hash`: 64-byte SHA-512 message digest to verify the signature of.
     /// * `context`: Optional buffer containing context for which the hash was signed.
     ///
     /// # Returns
@@ -1049,7 +1179,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1121,7 +1251,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1175,6 +1305,10 @@ impl Ed25519 {
     /// * `din`: Message to verify the signature of.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed25519::ED25519`, `Ed25519::ED25519CTX`, or `Ed25519::ED25519PH`.
+    ///   A non-empty context is only allowed with `Ed25519::ED25519CTX` or
+    ///   `Ed25519::ED25519PH`; pure `Ed25519::ED25519` does not bind a
+    ///   context, so passing one with it returns `BAD_FUNC_ARG`, as does an
+    ///   unknown variant value.
     ///
     /// # Returns
     ///
@@ -1184,7 +1318,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1193,8 +1327,8 @@ impl Ed25519 {
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed25519::SIG_SIZE];
-    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519, &mut signature).expect("Error with sign_msg_ex()");
-    /// let signature_valid = ed.verify_msg_ex(&signature, &message, Some(context), Ed25519::ED25519).expect("Error with verify_msg_ex()");
+    /// ed.sign_msg_ex(&message, Some(context), Ed25519::ED25519CTX, &mut signature).expect("Error with sign_msg_ex()");
+    /// let signature_valid = ed.verify_msg_ex(&signature, &message, Some(context), Ed25519::ED25519CTX).expect("Error with verify_msg_ex()");
     /// assert!(signature_valid);
     /// }
     /// ```
@@ -1202,14 +1336,10 @@ impl Ed25519 {
     pub fn verify_msg_ex(&mut self, signature: &[u8], din: &[u8], context: Option<&[u8]>, typ: u8) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
         let din_size = crate::buffer_len_to_u32(din.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
+        // Older modules such as FIPS v6 take a prehash of any length.
+        if typ == Self::ED25519PH && din.len() != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_LENGTH_E);
         }
         let mut res = 0i32;
         let rc = unsafe {
@@ -1230,11 +1360,20 @@ impl Ed25519 {
 
     /// Initialize Ed25519 key to perform streaming verification.
     ///
+    /// When `typ` is `Ed25519::ED25519PH`, the data passed to `verify_msg_update()`
+    /// must total exactly `Ed25519::PREHASH_SIZE` bytes (the prehashed
+    /// message); otherwise `verify_msg_update()` or `verify_msg_final()`
+    /// returns `BAD_FUNC_ARG`.
+    ///
     /// # Parameters
     ///
     /// * `signature`: Signature to verify.
     /// * `context`: Optional buffer containing context for which the input data was signed.
     /// * `typ`: One of `Ed25519::ED25519`, `Ed25519::ED25519CTX`, or `Ed25519::ED25519PH`.
+    ///   A non-empty context is only allowed with `Ed25519::ED25519CTX` or
+    ///   `Ed25519::ED25519PH`; pure `Ed25519::ED25519` does not bind a
+    ///   context, so passing one with it returns `BAD_FUNC_ARG`, as does an
+    ///   unknown variant value.
     ///
     /// # Returns
     ///
@@ -1244,7 +1383,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_streaming_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1263,26 +1402,24 @@ impl Ed25519 {
     #[cfg(ed25519_streaming_verify)]
     pub fn verify_msg_init(&mut self, signature: &[u8], context: Option<&[u8]>, typ: u8) -> Result<(), i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
-        let mut context_ptr: *const u8 = core::ptr::null();
-        let mut context_size = 0u8;
-        if let Some(context) = context {
-            context_ptr = context.as_ptr();
-            if context.len() > 255 {
-                return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
-            }
-            context_size = context.len() as u8;
-        }
+        let (context_ptr, context_size) = Self::check_variant_context(typ, context)?;
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_init(signature.as_ptr(), signature_size,
                 &mut self.ws_key, typ, context_ptr, context_size)
         };
         if rc != 0 {
+            self.ph_stream_len = None;
             return Err(rc);
         }
+        self.ph_stream_len = if typ == Self::ED25519PH { Some(0) } else { None };
         Ok(())
     }
 
     /// Add input data to Ed25519 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed25519::ED25519PH`, a
+    /// segment that would bring the total input beyond
+    /// `Ed25519::PREHASH_SIZE` bytes is rejected with `BAD_FUNC_ARG`.
     ///
     /// # Parameters
     ///
@@ -1296,7 +1433,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_streaming_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1315,6 +1452,19 @@ impl Ed25519 {
     #[cfg(ed25519_streaming_verify)]
     pub fn verify_msg_update(&mut self, din: &[u8]) -> Result<(), i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
+        // For the prehash variant, the total input must be exactly one
+        // prehash. Reject any segment that would exceed it.
+        let new_ph_len = match self.ph_stream_len {
+            Some(len) => {
+                let new_len = len.checked_add(din.len())
+                    .ok_or(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
+                if new_len > Self::PREHASH_SIZE {
+                    return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+                }
+                Some(new_len)
+            }
+            None => None,
+        };
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_update(din.as_ptr(), din_size,
                 &mut self.ws_key)
@@ -1322,10 +1472,15 @@ impl Ed25519 {
         if rc != 0 {
             return Err(rc);
         }
+        self.ph_stream_len = new_ph_len;
         Ok(())
     }
 
     /// Finalize Ed25519 streaming verification.
+    ///
+    /// When streaming verification was initialized with `Ed25519::ED25519PH` and
+    /// the total input was not exactly `Ed25519::PREHASH_SIZE` bytes,
+    /// `BAD_FUNC_ARG` is returned.
     ///
     /// # Parameters
     ///
@@ -1339,7 +1494,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(ed25519_streaming_verify, random))]
+    /// #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_streaming_verify, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1358,6 +1513,12 @@ impl Ed25519 {
     #[cfg(ed25519_streaming_verify)]
     pub fn verify_msg_final(&mut self, signature: &[u8]) -> Result<bool, i32> {
         let signature_size = crate::buffer_len_to_u32(signature.len())?;
+        // For the prehash variant, the input must have been exactly one
+        // prehash. The streaming state is consumed either way.
+        if let Some(len) = self.ph_stream_len && len != Self::PREHASH_SIZE {
+            return Err(sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG);
+        }
+        self.ph_stream_len = None;
         let mut res = 0i32;
         let rc = unsafe {
             sys::wc_ed25519_verify_msg_final(signature.as_ptr(), signature_size,
@@ -1384,7 +1545,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(random)]
+    /// #[cfg(all(ed25519_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1395,7 +1556,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1412,7 +1573,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(random)]
+    /// #[cfg(all(ed25519_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1423,7 +1584,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn priv_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_priv_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_priv_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1440,7 +1601,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(random)]
+    /// #[cfg(all(ed25519_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1451,7 +1612,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn pub_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_pub_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_pub_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1468,7 +1629,7 @@ impl Ed25519 {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(random)]
+    /// #[cfg(all(ed25519_make_key, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ed25519::Ed25519;
@@ -1479,7 +1640,7 @@ impl Ed25519 {
     /// }
     /// ```
     pub fn sig_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { sys::wc_ed25519_sig_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_sig_size(crate::ptr_for_read(&self.ws_key)) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1503,13 +1664,17 @@ impl Drop for Ed25519 {
 
 /// RustCrypto `signature` crate trait implementations.
 ///
-/// Provides a fixed-size [`Signature`] and a [`VerifyingKey`] type so that
-/// [`Ed25519`] can be used wherever the `signature` crate's
-/// [`signature::SignerMut`], [`signature::Keypair`], and
+/// Provides a fixed-size [`Signature`], a [`VerifyingKey`] and a
+/// [`SigningKey`] type so that Ed25519 keys can be used wherever the
+/// `signature` crate's [`signature::SignerMut`], [`signature::Keypair`], and
 /// [`signature::Verifier`] traits are accepted.
 #[cfg(feature = "signature")]
 mod signature_impl {
     use super::Ed25519;
+    #[cfg(all(ed25519_sign, ed25519_export))]
+    use zeroize::Zeroize;
+    #[cfg(all(ed25519_make_key, ed25519_sign, ed25519_export, random))]
+    use crate::random::RNG;
     use signature::Error;
 
     /// Ed25519 signature in its standard 64-byte encoded form.
@@ -1586,13 +1751,211 @@ mod signature_impl {
         }
     }
 
+    /// Ed25519 signing (private) key that is guaranteed to carry a public key.
+    ///
+    /// An [`Ed25519`] on its own may hold no public key: `Ed25519::new()`
+    /// leaves the key empty and `Ed25519::import_private_only()` loads only
+    /// the private scalar. [`signature::Keypair::verifying_key()`] cannot
+    /// fail, so it is implemented for this type rather than for [`Ed25519`].
+    /// Every constructor here derives or validates the public key and caches
+    /// it, which makes handing out a [`VerifyingKey`] infallible.
     #[cfg(all(ed25519_sign, ed25519_export))]
-    impl signature::Keypair for Ed25519 {
+    pub struct SigningKey {
+        inner: Ed25519,
+        public: [u8; Ed25519::PUB_KEY_SIZE],
+    }
+
+    #[cfg(all(ed25519_sign, ed25519_export))]
+    impl SigningKey {
+        /// Generate a new Ed25519 signing key.
+        ///
+        /// # Parameters
+        ///
+        /// * `rng`: Random number generator to use.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_sign, ed25519_export, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed25519::SigningKey;
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let sk = SigningKey::generate(&rng).expect("Error with generate()");
+        /// }
+        /// ```
+        #[cfg(all(ed25519_make_key, random))]
+        pub fn generate(rng: &RNG) -> Result<Self, i32> {
+            Self::from_key(Ed25519::generate(rng)?)
+        }
+
+        /// Create a signing key from a private key, deriving its public key.
+        ///
+        /// # Parameters
+        ///
+        /// * `private`: Input buffer containing the private key.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_import, ed25519_export, ed25519_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed25519::{Ed25519, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed25519::generate(&rng).expect("Error with generate()");
+        /// let mut private = [0u8; Ed25519::KEY_SIZE];
+        /// ed.export_private_only(&mut private).expect("Error with export_private_only()");
+        /// let sk = SigningKey::from_private_only(&private).expect("Error with from_private_only()");
+        /// }
+        /// ```
+        #[cfg(all(ed25519_import, ed25519_make_key))]
+        pub fn from_private_only(private: &[u8; Ed25519::KEY_SIZE]) -> Result<Self, i32> {
+            let mut key = Ed25519::new()?;
+            key.import_private_only(private)?;
+            let mut public = [0u8; Ed25519::PUB_KEY_SIZE];
+            key.make_public(&mut public)?;
+            Ok(Self { inner: key, public })
+        }
+
+        /// Create a signing key from a private key and its public key.
+        ///
+        /// The public key is untrusted and is checked against the private key.
+        ///
+        /// # Parameters
+        ///
+        /// * `private`: Input buffer containing the private key.
+        /// * `public`: Input buffer containing the public key.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_import, ed25519_export, ed25519_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed25519::{Ed25519, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed25519::generate(&rng).expect("Error with generate()");
+        /// let mut private = [0u8; Ed25519::KEY_SIZE];
+        /// let mut public = [0u8; Ed25519::PUB_KEY_SIZE];
+        /// ed.export_private_only(&mut private).expect("Error with export_private_only()");
+        /// ed.export_public(&mut public).expect("Error with export_public()");
+        /// let sk = SigningKey::from_keypair(&private, &public).expect("Error with from_keypair()");
+        /// }
+        /// ```
+        #[cfg(ed25519_import)]
+        pub fn from_keypair(private: &[u8; Ed25519::KEY_SIZE],
+            public: &[u8; Ed25519::PUB_KEY_SIZE]) -> Result<Self, i32>
+        {
+            let mut key = Ed25519::new()?;
+            key.import_private_key(private, Some(public))?;
+            Ok(Self { inner: key, public: *public })
+        }
+
+        /// Create a signing key from an existing [`Ed25519`] key.
+        ///
+        /// Both key components must be present. Fails with the wolfSSL error
+        /// code `PUBLIC_KEY_E` when `key` holds no public key, for instance
+        /// after `Ed25519::new()` or `Ed25519::import_private_only()`, and with
+        /// `BAD_FUNC_ARG` when it holds no private key, for instance after
+        /// `Ed25519::import_public()`.
+        ///
+        /// # Parameters
+        ///
+        /// * `key`: The Ed25519 key to wrap.
+        ///
+        /// # Returns
+        ///
+        /// Returns either Ok(signing_key) containing the SigningKey struct
+        /// instance or Err(e) containing the wolfSSL library error code value.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// #[cfg(fips)]
+        /// {
+        /// use wolfssl_wolfcrypt::fips;
+        /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+        /// }
+        /// #[cfg(all(feature = "signature", ed25519_make_key, ed25519_export, ed25519_sign, random))]
+        /// {
+        /// use wolfssl_wolfcrypt::random::RNG;
+        /// use wolfssl_wolfcrypt::ed25519::{Ed25519, SigningKey};
+        /// let rng = RNG::new().expect("Error creating RNG");
+        /// let ed = Ed25519::generate(&rng).expect("Error with generate()");
+        /// let sk = SigningKey::from_key(ed).expect("Error with from_key()");
+        /// }
+        /// ```
+        pub fn from_key(key: Ed25519) -> Result<Self, i32> {
+            let mut public = [0u8; Ed25519::PUB_KEY_SIZE];
+            key.export_public(&mut public)?;
+            /* A key carrying only a public component would build a SigningKey
+             * that cannot sign, so require the private component too.
+             * Exporting it is the only way to ask wolfCrypt whether it is
+             * there; the copy is wiped again right away. */
+            let mut private = [0u8; Ed25519::KEY_SIZE];
+            let ret = key.export_private_only(&mut private);
+            private.zeroize();
+            ret?;
+            Ok(Self { inner: key, public })
+        }
+
+        /// Borrow the wrapped [`Ed25519`] key for operations that are not
+        /// covered by the signature traits.
+        pub fn as_key(&self) -> &Ed25519 {
+            &self.inner
+        }
+
+        /// Consume the signing key and return the wrapped [`Ed25519`] key.
+        pub fn into_key(self) -> Ed25519 {
+            self.inner
+        }
+    }
+
+    #[cfg(all(ed25519_sign, ed25519_export))]
+    impl signature::Keypair for SigningKey {
         type VerifyingKey = VerifyingKey;
         fn verifying_key(&self) -> Self::VerifyingKey {
-            let mut pub_key = [0u8; Ed25519::PUB_KEY_SIZE];
-            self.export_public(&mut pub_key).expect("ed25519 export_public failed");
-            VerifyingKey(pub_key)
+            VerifyingKey(self.public)
+        }
+    }
+
+    #[cfg(all(ed25519_sign, ed25519_export))]
+    impl signature::SignerMut<Signature> for SigningKey {
+        fn try_sign(&mut self, msg: &[u8]) -> Result<Signature, Error> {
+            let mut sig = [0u8; Ed25519::SIG_SIZE];
+            self.inner.sign_msg(msg, &mut sig).map_err(|_| Error::new())?;
+            Ok(Signature(sig))
         }
     }
 
@@ -1620,3 +1983,5 @@ mod signature_impl {
 
 #[cfg(feature = "signature")]
 pub use signature_impl::{Signature, VerifyingKey};
+#[cfg(all(feature = "signature", ed25519_sign, ed25519_export))]
+pub use signature_impl::SigningKey;

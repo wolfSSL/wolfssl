@@ -284,6 +284,10 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
          * backend's own error (MP_MEM from the heap backends) and, on failure,
          * leaves every argument either cleared or never touched, so the
          * cleanup must not mp_clear() any of them. */
+        /* Wipe and free x and y from wc_InitDsaKey() or an earlier key
+         * before re-init. */
+        mp_forcezero(&dsa->x);
+        mp_clear(&dsa->y);
         err = mp_init_multi(&dsa->x, &dsa->y, tmpQ, NULL, NULL, NULL);
         if (err != MP_OKAY)
             err = MP_INIT_E;
@@ -436,6 +440,11 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
          * that code to skip mp_clear() on objects the failed init never
          * constructed, but mp_init_multi() returns the backend's own error
          * (MP_MEM from the heap backends), so the guard never fired. */
+        /* Free p, q and g from wc_InitDsaKey() or earlier parameters before
+         * re-init. */
+        mp_clear(&dsa->p);
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->g);
         err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, &dsa->g, 0);
         if (err != MP_OKAY)
             err = MP_INIT_E;
@@ -806,15 +815,11 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
     mp_int  *r = NULL;
     mp_int  *s = NULL;
     mp_int  *H = NULL;
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     mp_int  *b = NULL;
-#endif
     byte    *buffer = NULL;
 #else
     mp_int  k[1], kInv[1], r[1], s[1], H[1];
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     mp_int  b[1];
-#endif
     byte    buffer[DSA_MAX_HALF_SIZE];
 #endif
     mp_int* qMinus1;
@@ -838,9 +843,7 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
         r = (mp_int *)XMALLOC(sizeof *r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         s = (mp_int *)XMALLOC(sizeof *s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         H = (mp_int *)XMALLOC(sizeof *H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
         b = (mp_int *)XMALLOC(sizeof *b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
         buffer = (byte *)XMALLOC(DSA_MAX_HALF_SIZE, key->heap,
                                  DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -848,25 +851,18 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             (kInv == NULL) ||
             (r == NULL) ||
             (s == NULL) ||
-            (H == NULL)
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-            || (b == NULL)
-#endif
-            || (buffer == NULL)) {
+            (H == NULL) ||
+            (b == NULL) ||
+            (buffer == NULL)) {
             ret = MEMORY_E;
             break;
         }
 #endif
 
-#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-        if (mp_init_multi(k, kInv, r, s, H, 0) != MP_OKAY)
-#else
-            if (mp_init_multi(k, kInv, r, s, H, b) != MP_OKAY)
-#endif
-                {
-                    ret = MP_INIT_E;
-                    break;
-                }
+        if (mp_init_multi(k, kInv, r, s, H, b) != MP_OKAY) {
+            ret = MP_INIT_E;
+            break;
+        }
 
         halfSz = min(DSA_MAX_HALF_SIZE, (word32)mp_unsigned_bin_size(&key->q));
         /* NIST FIPS 186-4: Sections 4.1
@@ -880,6 +876,12 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             ret = BAD_FUNC_ARG;
             break;
         }
+
+        /* FIPS 186-4 4.2: a digest longer than q contributes only its leftmost
+         * N bits. Done after the length check above so that check sees what
+         * the caller passed, not what is left of it. */
+        if (digestSz > halfSz)
+            digestSz = halfSz;
 
 #if !defined(WOLFSSL_SMALL_STACK) && defined(WOLFSSL_CHECK_MEM_ZERO)
         /* buffer will hold the secret nonce k and blinding value b. Register
@@ -935,46 +937,6 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             break;
         }
 
-#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-        /* inverse k mod q */
-        if (mp_invmod(k, &key->q, kInv) != MP_OKAY) {
-            ret = MP_INVMOD_E;
-            break;
-        }
-
-        /* generate r, r = (g exp k mod p) mod q */
-        if (mp_exptmod_ex(&key->g, k, key->q.used, &key->p, r) != MP_OKAY) {
-            ret = MP_EXPTMOD_E;
-            break;
-        }
-
-        if (mp_mod(r, &key->q, r) != MP_OKAY) {
-            ret = MP_MOD_E;
-            break;
-        }
-
-        /* generate H from sha digest */
-        if (mp_read_unsigned_bin(H, digest, digestSz) != MP_OKAY) {
-            ret = MP_READ_E;
-            break;
-        }
-
-        /* generate s, s = (kInv * (H + x*r)) % q */
-        if (mp_mul(&key->x, r, s) != MP_OKAY) {
-            ret = MP_MUL_E;
-            break;
-        }
-
-        if (mp_add(s, H, s) != MP_OKAY) {
-            ret = MP_ADD_E;
-            break;
-        }
-
-        if (mp_mulmod(s, kInv, &key->q, s) != MP_OKAY) {
-            ret = MP_MULMOD_E;
-            break;
-        }
-#else
         /* Blinding value
          * Generate b in range [1, q-1].
          */
@@ -1063,7 +1025,6 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             ret = MP_MOD_E;
             break;
         }
-#endif
 
         /* detect zero r or s */
         if ((mp_iszero(r) == MP_YES) || (mp_iszero(s) == MP_YES)) {
@@ -1113,14 +1074,12 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
             mp_clear(H);
         XFREE(H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     if (b) {
         if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
             (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_forcezero(b);
         XFREE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif
     if (buffer) {
         ForceZero(buffer, halfSz);
         XFREE(buffer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1133,9 +1092,7 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
 #endif
         mp_forcezero(kInv);
         mp_forcezero(k);
-#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
         mp_forcezero(b);
-#endif
         mp_clear(H);
         mp_clear(s);
         mp_clear(r);
@@ -1216,8 +1173,10 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
             break;
         }
 
+        /* sig holds r||s as 2 * |q| bytes and carries no length, so bound |q|
+         * to keep the read within DSA_MAX_SIG_SIZE. */
         qSz = mp_unsigned_bin_size(&key->q);
-        if (qSz <= 0) {
+        if (qSz <= 0 || qSz > DSA_MAX_HALF_SIZE) {
             ret = BAD_FUNC_ARG;
             break;
         }
@@ -1235,6 +1194,12 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
             ret = MP_ZERO_E;
             break;
         }
+
+        /* FIPS 186-4 4.2: a digest longer than q contributes only its leftmost
+         * N bits. Done after the length check above so that check sees what
+         * the caller passed, not what is left of it. */
+        if (digestSz > (word32)qSz)
+            digestSz = (word32)qSz;
 
         /* put H into u1 from sha digest */
         if (mp_read_unsigned_bin(u1,digest, digestSz) != MP_OKAY) {

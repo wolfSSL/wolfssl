@@ -361,15 +361,18 @@
 //  </h>
 
 //      <e>Random Seed, for TEST Only
-#define MDK_CONF_RNDSEED 1
+#define MDK_CONF_RNDSEED 0
 #if MDK_CONF_RNDSEED == 1
+#ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+    #error "Test seed only: define WOLFSSL_ACCEPT_WEAK_ENTROPY for development; remove both before deployment"
+#endif
 #define WOLFSSL_GENSEED_FORTEST
 #endif
 //  </e>
 
 //  <h>Hardware Crypt (See document for usage)
 //      <e>Hardware RNG
-#define MDK_CONF_STM32F2_RNG 0
+#define MDK_CONF_STM32F2_RNG 1
 #if MDK_CONF_STM32F2_RNG == 1
 #define WOLFSSL_STM32_CUBEMX
 #define STM32_RNG
@@ -386,6 +389,13 @@
 
 #endif
 //  </e>
+#if MDK_CONF_STM32F2_RNG == 0 && MDK_CONF_RNDSEED == 0 && \
+    !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #error "Enable the STM32 hardware RNG or provide a real custom seed; test only: MDK_CONF_RNDSEED=1 and WOLFSSL_ACCEPT_WEAK_ENTROPY"
+#endif
 //      <e>Hardware Crypt
 #define MDK_CONF_STM32F2_CRYPTO 0
 #if MDK_CONF_STM32F2_CRYPTO == 1
@@ -422,6 +432,13 @@
 
 #endif
 //  </e>
+#if MDK_CONF_STM32F2_CRYPTO == 0
+#define NO_STM32_CRYPTO
+#endif
+#if MDK_CONF_STM32F2_HASH == 0
+#define NO_STM32_HASH
+#define NO_STM32_HMAC
+#endif
 // </h>
 
 //  <h>Cert/Key Storage

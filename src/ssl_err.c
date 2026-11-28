@@ -149,7 +149,8 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
         const char* reason = NULL;
         int ret;
         int line = 0;
-        char buf[WOLFSSL_MAX_ERROR_SZ * 2];
+        /* Two bounded strings, plus 64 for the fixed text and two ints. */
+        char buf[WOLFSSL_MAX_ERROR_SZ * 2 + 64];
 
         WOLFSSL_ENTER("wolfSSL_ERR_print_errors");
 
@@ -164,8 +165,9 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
             const char* r = wolfSSL_ERR_reason_error_string(
                 (unsigned long)(0 - ret));
             if (XSNPRINTF(buf, sizeof(buf),
-                          "error:%d:wolfSSL library:%s:%s:%d\n",
-                          ret, r, file, line)
+                          "error:%d:wolfSSL library:%.*s:%.*s:%d\n",
+                          ret, WOLFSSL_MAX_ERROR_SZ - 1, r,
+                          WOLFSSL_MAX_ERROR_SZ - 1, file, line)
                 >= (int)sizeof(buf))
             {
                 WOLFSSL_MSG("Buffer overrun formatting error message");
@@ -692,6 +694,32 @@ void wolfSSL_ERR_remove_state(unsigned long id)
     if (wc_ERR_remove_state() != 0) {
         WOLFSSL_MSG("Error with removing the state");
     }
+}
+
+/* Mark the newest entry of the error queue.
+ *
+ * Marks nest: each mark is removed by one call to wolfSSL_ERR_pop_to_mark().
+ *
+ * @return  1 on success.
+ * @return  0 when the queue is empty and no mark was set.
+ */
+int wolfSSL_ERR_set_mark(void)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_set_mark");
+
+    return wc_SetErrorNodeMark();
+}
+
+/* Remove the entries added after the newest mark, then remove the mark.
+ *
+ * @return  1 on success.
+ * @return  0 when there was no mark. The queue is empty then.
+ */
+int wolfSSL_ERR_pop_to_mark(void)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_pop_to_mark");
+
+    return wc_PopErrorNodesToMark();
 }
 #endif
 

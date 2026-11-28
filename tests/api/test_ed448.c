@@ -90,6 +90,97 @@ int test_wc_ed448_make_key(void)
 
 
 /*
+ * Testing that wc_ed448_make_public() adopts the derived key into the key
+ * object when the key arrived without a public half.
+ */
+int test_wc_ed448_make_public_stores_pub(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+
+    ed448_key key;
+    ed448_key privOnly;
+    WC_RNG    rng;
+    byte      priv[ED448_KEY_SIZE];
+    byte      pub[ED448_PUB_KEY_SIZE];
+    byte      derived[ED448_PUB_KEY_SIZE];
+    byte      exported[ED448_PRV_KEY_SIZE];
+    word32    privSz = sizeof(priv);
+    word32    pubSz = sizeof(pub);
+    word32    exportedSz = sizeof(exported);
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    ed448_key pubOnly;
+    byte      msg[] = "Everybody gets Friday off.\n";
+    byte      sig[ED448_SIG_SIZE];
+    word32    sigSz = sizeof(sig);
+    int       verify_ok = 0;
+#endif
+
+    XMEMSET(&key, 0, sizeof(ed448_key));
+    XMEMSET(&privOnly, 0, sizeof(ed448_key));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(derived, 0, sizeof(derived));
+    XMEMSET(exported, 0, sizeof(exported));
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    XMEMSET(&pubOnly, 0, sizeof(ed448_key));
+    XMEMSET(sig, 0, sizeof(sig));
+#endif
+
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_init(&privOnly), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private_only(&key, priv, &privSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ed448_export_public(&key, pub, &pubSz), 0);
+
+    /* A PKCS#8 v1 PrivateKeyInfo has no public-key field, so this is the
+     * state a decoded private key arrives in. */
+    ExpectIntEQ(wc_ed448_import_private_only(priv, privSz, &privOnly), 0);
+    ExpectIntEQ(wc_ed448_make_public(&privOnly, derived, sizeof(derived)), 0);
+    ExpectIntEQ(XMEMCMP(derived, pub, ED448_PUB_KEY_SIZE), 0);
+
+    /* Setting pubKeySet is not enough: wc_ed448_sign_msg() gates on the flag
+     * and hashes key->p, so a key left with an empty p signs over zeros. */
+    ExpectIntEQ(XMEMCMP(privOnly.p, pub, ED448_PUB_KEY_SIZE), 0);
+
+    /* wc_ed448_export_private() gates on privKeySet alone and hands back all
+     * of key->k, so the mirrored public half has to be there too. */
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private(&privOnly, exported, &exportedSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(exportedSz, ED448_PRV_KEY_SIZE);
+    ExpectIntEQ(XMEMCMP(exported, priv, ED448_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(exported + ED448_KEY_SIZE, pub, ED448_PUB_KEY_SIZE), 0);
+
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    /* Verify against a key that only ever saw the real public half, so a
+     * signature made over an empty p cannot verify against itself. */
+    ExpectIntEQ(wc_ed448_init(&pubOnly), 0);
+    ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &pubOnly), 0);
+    ExpectIntEQ(wc_ed448_sign_msg(msg, sizeof(msg), sig, &sigSz, &privOnly,
+        NULL, 0), 0);
+    ExpectIntEQ(wc_ed448_verify_msg(sig, sigSz, msg, sizeof(msg), &verify_ok,
+        &pubOnly, NULL, 0), 0);
+    ExpectIntEQ(verify_ok, 1);
+#endif
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&key);
+    wc_ed448_free(&privOnly);
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY)
+    wc_ed448_free(&pubOnly);
+#endif
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_make_public_stores_pub */
+
+
+/*
  * Testing wc_ed448_init()
  */
 int test_wc_ed448_init(void)
@@ -108,6 +199,56 @@ int test_wc_ed448_init(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ed448_init */
+
+/*
+ * Testing wc_ed448_init_id() and wc_ed448_init_label()
+ */
+int test_wc_ed448_init_id(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(ED448_MAX_ID_LEN)
+    ed448_key key;
+    byte id[ED448_MAX_ID_LEN + 1];
+    char label[ED448_MAX_LABEL_LEN + 2];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(id, 0x11, sizeof(id));
+    XMEMSET(label, 'a', sizeof(label) - 1);
+    label[sizeof(label) - 1] = '\0';
+
+    ExpectIntEQ(wc_ed448_init_id(NULL, id, 4, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_init_id(&key, NULL, 4, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_init_id(&key, id, -1, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_ed448_init_id(&key, id, ED448_MAX_ID_LEN + 1, NULL,
+        INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_ed448_init_id(&key, NULL, 0, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(key.idLen, 0);
+    wc_ed448_free(&key);
+    ExpectIntEQ(wc_ed448_init_id(&key, id, ED448_MAX_ID_LEN, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(key.idLen, ED448_MAX_ID_LEN);
+    ExpectBufEQ(key.id, id, ED448_MAX_ID_LEN);
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_label(NULL, "lbl", NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_init_label(&key, NULL, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed448_init_label(&key, "", NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_ed448_init_label(&key, label, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    label[ED448_MAX_LABEL_LEN] = '\0';
+    ExpectIntEQ(wc_ed448_init_label(&key, label, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(key.labelLen, ED448_MAX_LABEL_LEN);
+    ExpectBufEQ(key.label, label, ED448_MAX_LABEL_LEN);
+    wc_ed448_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_init_id */
 
 /*
  * Test wc_ed448_sign_msg() and wc_ed448_verify_msg()
@@ -1159,6 +1300,151 @@ int test_wc_ed448_reject_small_order_keys(void)
     return EXPECT_RESULT();
 }
 
+/* Ed448 public keys whose y-coordinate is not in [0, p - 1] must be rejected
+ * (RFC 8032 5.2.3: "If the resulting value is >= p, decoding fails").
+ * fe448_from_bytes() reads bytes 0-55 modulo p and ignores bits 0-6 of byte
+ * 56, so without the range test in wc_ed448_check_key() every such encoding
+ * decodes to the same point as a canonical one and is accepted. */
+int test_wc_ed448_reject_noncanonical_y(void)
+{
+    EXPECT_DECLS;
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)) && \
+    defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    /* RFC 8032 section 7.4 "Blank" public key: y < p, x-sign bit set. */
+    static const byte canonical_key[ED448_PUB_KEY_SIZE] = {
+        0x5f,0xd7,0x44,0x9b,0x59,0xb4,0x61,0xfd,
+        0x2c,0xe7,0x87,0xec,0x61,0x6a,0xd4,0x6a,
+        0x1d,0xa1,0x34,0x24,0x85,0xa7,0x0e,0x1f,
+        0x8a,0x0e,0xa7,0x5d,0x80,0xe9,0x67,0x78,
+        0xed,0xf1,0x24,0x76,0x9b,0x46,0xc7,0x06,
+        0x1b,0xd6,0x78,0x3d,0xf1,0xe5,0x0f,0x6c,
+        0xd1,0xfa,0x1a,0xbe,0xaf,0xe8,0x25,0x61,
+        0x80
+    };
+    /* y = 3 is on the curve; its canonical encoding is the control. */
+    static const byte y3_key[ED448_PUB_KEY_SIZE] = {
+        0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00
+    };
+    /* y = 3 + p: same point as y3_key but y >= p. Bytes 29-55 are all 0xff
+     * and byte 28 is 0xff > 0xfe, so the range test must reject it before
+     * decompression; p = 2^448 - 2^224 - 1. */
+    static const byte y3_plus_p_key[ED448_PUB_KEY_SIZE] = {
+        0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0x00
+    };
+    byte bad[ED448_PUB_KEY_SIZE];
+    ed448_key key;
+    word32 i;
+    int rc;
+
+    /* Controls: canonical encodings import. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public(canonical_key, ED448_PUB_KEY_SIZE,
+        &key), 0);
+    wc_ed448_free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public(y3_key, ED448_PUB_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    /* y + p encoding: rejected by untrusted import and by a direct
+     * wc_ed448_check_key() after a trusted import. */
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public(y3_plus_p_key, ED448_PUB_KEY_SIZE,
+        &key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed448_free(&key);
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_ed448_init(&key), 0);
+    ExpectIntEQ(wc_ed448_import_public_ex(y3_plus_p_key, ED448_PUB_KEY_SIZE,
+        &key, 1), 0);
+    ExpectIntEQ(wc_ed448_check_key(&key), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    wc_ed448_free(&key);
+
+    /* Bits 448-454 (byte 56 bits 0-6) are part of y and must be zero. Set
+     * each one in turn on an otherwise valid key: y >= 2^448 > p. */
+    for (i = 0; i < 7; i++) {
+        XMEMCPY(bad, canonical_key, sizeof(bad));
+        bad[ED448_PUB_KEY_SIZE - 1] |= (byte)(1U << i);
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed448_init(&key), 0);
+        rc = wc_ed448_import_public(bad, ED448_PUB_KEY_SIZE, &key);
+        if (rc != WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+            fprintf(stderr, "byte 56 bit %u set: import_public returned %d, "
+                "expected PUBLIC_KEY_E\n", (unsigned)i, rc);
+        }
+        ExpectIntEQ(rc, WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        wc_ed448_free(&key);
+    }
+
+#ifndef NO_ED448_VERIFY
+    /* A trusted import bypasses wc_ed448_check_key(); wc_ed448_verify_msg()
+     * must still refuse to verify under a y >= p key. Signature bytes are
+     * arbitrary with S = 1 (below the group order) so the key check is what
+     * decides. */
+    {
+        static const byte sig[ED448_SIG_SIZE] = {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,
+            0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00
+        };
+        const char* msg = "non-canonical key";
+        int verify_result = 1;
+
+        XMEMCPY(bad, canonical_key, sizeof(bad));
+        bad[ED448_PUB_KEY_SIZE - 1] |= 0x7f;
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed448_init(&key), 0);
+        ExpectIntEQ(wc_ed448_import_public_ex(bad, ED448_PUB_KEY_SIZE, &key,
+            1), 0);
+        ExpectIntEQ(wc_ed448_verify_msg(sig, sizeof(sig), (const byte*)msg,
+            (word32)XSTRLEN(msg), &verify_result, &key, NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(verify_result, 0);
+        wc_ed448_free(&key);
+
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed448_init(&key), 0);
+        ExpectIntEQ(wc_ed448_import_public_ex(y3_plus_p_key,
+            ED448_PUB_KEY_SIZE, &key, 1), 0);
+        ExpectIntEQ(wc_ed448_verify_msg(sig, sizeof(sig), (const byte*)msg,
+            (word32)XSTRLEN(msg), &verify_result, &key, NULL, 0),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(verify_result, 0);
+        wc_ed448_free(&key);
+    }
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * MC/DC decision coverage for wolfcrypt/src/ed448.c decisions the pre-existing
  * ed448 API tests never drive: the sign/verify (context == NULL && contextLen
@@ -1265,6 +1551,25 @@ int test_wc_Ed448DecisionCoverage(void)
     ExpectIntEQ(verify, 1);
 
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* A type other than Ed448 or Ed448ph is refused on every entry point. */
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key, 2, ctx,
+        ctxLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(hash, sizeof(hash), sig, &sigLen, &key,
+        255, NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    sigLen = sizeof(sig);
+    ExpectIntEQ(wc_ed448_sign_msg_ex(msg, msgLen, sig, &sigLen, &key,
+        (byte)Ed448, ctx, ctxLen), 0);
+    verify = 0;
+    ExpectIntEQ(wc_ed448_verify_msg_ex(sig, sigLen, msg, msgLen, &verify, &key,
+        2, ctx, ctxLen), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(verify, 0);
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
+    ExpectIntEQ(wc_ed448_verify_msg_init(sig, sigLen, &key, 2, ctx, ctxLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
+
     /* type == Ed448ph && inLen != ED448_PREHASH_SIZE -> BAD_LENGTH_E
      * (sign_hash forwards hashLen as inLen with type Ed448ph). */
     sigLen = sizeof(sig);
@@ -1679,6 +1984,312 @@ int test_wc_ed448_cryptocb(void)
 
     WC_FREE_VAR(sig, HEAP_HINT);
     WC_FREE_VAR(key, HEAP_HINT);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && \
+    defined(ED448_MAX_ID_LEN)
+typedef struct ed448DevPubCtx {
+    int decline;
+    int calls;
+} ed448DevPubCtx;
+
+/* Device that knows the public key of the key it holds by reference. */
+static int ed448_dev_pub_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    ed448DevPubCtx* dev = (ed448DevPubCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((info->algo_type != WC_ALGO_TYPE_PK) ||
+            (info->pk.type != WC_PK_TYPE_ED448_MAKE_PUB)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    dev->calls++;
+    if (dev->decline) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    XMEMSET(info->pk.ed448makepub.pubOut, 0x5a,
+        info->pk.ed448makepub.pubOutSz);
+    return 0;
+}
+#endif
+
+/*
+ * Testing wc_ed448_make_public() on a key held by a device.
+ */
+int test_wc_ed448_make_public_dev_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && \
+    defined(ED448_MAX_ID_LEN)
+    int devId = 4480;
+    ed448DevPubCtx dev;
+    ed448_key key;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    byte pub[ED448_PUB_KEY_SIZE];
+    byte expPub[ED448_PUB_KEY_SIZE];
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(expPub, 0x5a, sizeof(expPub));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_dev_pub_cb, &dev), 0);
+
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_public(&key, pub, (word32)sizeof(pub)), 0);
+    ExpectIntEQ(dev.calls, 1);
+    ExpectBufEQ(pub, expPub, sizeof(pub));
+    ExpectIntEQ(key.pubKeySet, 1);
+    ExpectBufEQ(key.p, expPub, sizeof(expPub));
+    wc_ed448_free(&key);
+
+    /* Declined by the device, there is no private key to derive from. */
+    dev.decline = 1;
+    ExpectIntEQ(wc_ed448_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_public(&key, pub, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(dev.calls, 2);
+    ExpectIntEQ(key.pubKeySet, 0);
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ed448_make_public(&key, pub, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(dev.calls, 2);
+    wc_ed448_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_make_public_dev_key */
+
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+typedef struct ed448DevKgCtx {
+    int decline;
+    int calls;
+    int makePubCalls;
+} ed448DevKgCtx;
+
+/* Device that fails key generation unless told to decline it. */
+static int ed448_dev_kg_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    ed448DevKgCtx* dev = (ed448DevKgCtx*)ctx;
+
+    (void)devIdArg;
+
+    if (info->algo_type != WC_ALGO_TYPE_PK) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type == WC_PK_TYPE_ED448_MAKE_PUB) {
+        dev->makePubCalls++;
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->pk.type != WC_PK_TYPE_ED448_KEYGEN) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    dev->calls++;
+    if (dev->decline) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    return WC_NO_ERR_TRACE(WC_HW_E);
+}
+#endif
+
+/*
+ * Testing wc_ed448_make_key() with a device that fails or declines keygen.
+ */
+int test_wc_ed448_make_key_dev_error(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(WOLF_CRYPTO_CB) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+    int devId = 4481;
+    ed448DevKgCtx dev;
+    WC_RNG rng;
+    ed448_key key;
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_dev_kg_cb, &dev), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    ExpectIntEQ(wc_ed448_init_ex(&key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(WC_HW_E));
+    ExpectIntEQ(dev.calls, 1);
+    ExpectIntEQ(dev.makePubCalls, 0);
+    ExpectIntEQ(key.privKeySet, 0);
+    ExpectIntEQ(key.pubKeySet, 0);
+    wc_ed448_free(&key);
+
+    /* Declined by the device, software generates the key. */
+    dev.decline = 1;
+    ExpectIntEQ(wc_ed448_init_ex(&key, HEAP_HINT, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    ExpectIntEQ(dev.calls, 2);
+    ExpectIntEQ(dev.makePubCalls, 1);
+    ExpectIntEQ(key.privKeySet, 1);
+    ExpectIntEQ(key.pubKeySet, 1);
+    ExpectIntEQ(wc_ed448_check_key(&key), 0);
+    wc_ed448_free(&key);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed448_make_key_dev_error */
+
+#if defined(HAVE_ED448) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+static int ed448_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_ed448_make_key() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_ed448_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && \
+    !defined(WC_NO_RNG) && !defined(HAVE_FIPS)
+    int devId = 2404;
+    ed448_key key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed448_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed448_free(&key);
+
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ed448_init_id(&key, id, (int)sizeof(id), NULL, devId + 100),
+        0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    ExpectIntEQ(wc_ed448_init_ex(&key, NULL, devId), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
+    wc_ed448_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify that separately imported Ed448 keys export a valid key pair. */
+int test_wc_ed448_separate_import_roundtrip(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && \
+    defined(HAVE_ED448_KEY_EXPORT) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    ed448_key original;
+    ed448_key imported;
+    ed448_key restored;
+    WC_RNG rng;
+    byte seed[ED448_KEY_SIZE];
+    byte wrongSeed[ED448_KEY_SIZE];
+    byte pub[ED448_PUB_KEY_SIZE];
+    byte combined[ED448_PRV_KEY_SIZE];
+    word32 seedSz = sizeof(seed);
+    word32 pubSz = sizeof(pub);
+    word32 combinedSz;
+    int order;
+
+    XMEMSET(&original, 0, sizeof(original));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_ed448_init(&original), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &original), 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed448_export_private_only(&original, seed,
+        &seedSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ed448_export_public(&original, pub, &pubSz), 0);
+    ExpectIntEQ(seedSz, ED448_KEY_SIZE);
+    ExpectIntEQ(pubSz, ED448_PUB_KEY_SIZE);
+
+    XMEMCPY(wrongSeed, seed, sizeof(seed));
+    wrongSeed[0] ^= 1;
+
+    for (order = 0; order < 2 && EXPECT_SUCCESS(); order++) {
+        XMEMSET(&imported, 0, sizeof(imported));
+        XMEMSET(&restored, 0, sizeof(restored));
+        ExpectIntEQ(wc_ed448_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed448_import_private_only(seed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+        }
+        else {
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed448_import_private_only(seed, seedSz,
+                &imported), 0);
+        }
+        ExpectIntEQ(wc_ed448_check_key(&imported), 0);
+        combinedSz = sizeof(combined);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ed448_export_private(&imported, combined,
+            &combinedSz), 0);
+        PRIVATE_KEY_LOCK();
+        ExpectIntEQ(combinedSz, ED448_PRV_KEY_SIZE);
+        ExpectBufEQ(combined, seed, ED448_KEY_SIZE);
+        ExpectBufEQ(combined + ED448_KEY_SIZE, pub, ED448_PUB_KEY_SIZE);
+
+        ExpectIntEQ(wc_ed448_init(&restored), 0);
+        ExpectIntEQ(wc_ed448_import_private_key(combined, combinedSz,
+            NULL, 0, &restored), 0);
+        ExpectIntEQ(wc_ed448_check_key(&restored), 0);
+        wc_ed448_free(&restored);
+        wc_ed448_free(&imported);
+
+        /* A different seed must not be accepted with the public key. */
+        XMEMSET(&imported, 0, sizeof(imported));
+        ExpectIntEQ(wc_ed448_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed448_import_private_only(wrongSeed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported),
+                WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        else {
+            ExpectIntEQ(wc_ed448_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed448_import_private_only(wrongSeed, seedSz,
+                &imported), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        wc_ed448_free(&imported);
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed448_free(&original);
+    ForceZero(seed, sizeof(seed));
+    ForceZero(wrongSeed, sizeof(wrongSeed));
+    ForceZero(combined, sizeof(combined));
 #endif
     return EXPECT_RESULT();
 }

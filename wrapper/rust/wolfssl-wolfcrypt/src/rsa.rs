@@ -29,7 +29,7 @@ wolfSSL `RsaKey` object. It ensures proper initialization and deallocation.
 
 ```rust
 # extern crate std;
-#[cfg(all(random, feature = "alloc"))]
+#[cfg(all(random, rsa_private, rsa_sign, feature = "alloc"))]
 {
 use std::fs;
 use wolfssl_wolfcrypt::random::RNG;
@@ -86,11 +86,11 @@ impl RSA {
     pub const HASH_TYPE_MD5        : u32 = sys::wc_HashType_WC_HASH_TYPE_MD5;
     #[cfg(sha)]
     pub const HASH_TYPE_SHA        : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA;
-    #[cfg(sha256)]
+    #[cfg(sha224)]
     pub const HASH_TYPE_SHA224     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA224;
     #[cfg(sha256)]
     pub const HASH_TYPE_SHA256     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA256;
-    #[cfg(sha512)]
+    #[cfg(sha384)]
     pub const HASH_TYPE_SHA384     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA384;
     #[cfg(sha512)]
     pub const HASH_TYPE_SHA512     : u32 = sys::wc_HashType_WC_HASH_TYPE_SHA512;
@@ -147,7 +147,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -195,7 +195,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -268,7 +268,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -316,7 +316,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -457,7 +457,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(rsa_keygen)]
+    /// #[cfg(all(random, rsa_keygen))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
@@ -504,7 +504,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(rsa_keygen)]
+    /// #[cfg(all(random, rsa_keygen))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
@@ -571,10 +571,15 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(rsa_keygen)]
+    /// #[cfg(all(random, rsa_keygen, rsa_sign))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     ///
     /// let rng = RNG::new().expect("Error creating RNG");
     /// let mut rsa = RSA::generate(2048, 65537, &rng).expect("Error with generate()");
@@ -593,6 +598,7 @@ impl RSA {
     /// }
     /// ```
     #[allow(clippy::too_many_arguments)]
+    #[cfg(rsa_sign)]
     pub fn export_key(&mut self,
             e: &mut [u8], e_size: &mut u32,
             n: &mut [u8], n_size: &mut u32,
@@ -639,7 +645,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(rsa_keygen)]
+    /// #[cfg(all(random, rsa_keygen))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
@@ -653,6 +659,7 @@ impl RSA {
     /// rsa.export_public_key(&mut e, &mut e_size, &mut n, &mut n_size).expect("Error with export_public_key()");
     /// }
     /// ```
+    #[cfg(rsa_sign)]
     pub fn export_public_key(&mut self,
             e: &mut [u8], e_size: &mut u32,
             n: &mut [u8], n_size: &mut u32) -> Result<(), i32> {
@@ -682,7 +689,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(rsa_keygen)]
+    /// #[cfg(all(random, rsa_keygen))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
@@ -711,7 +718,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(rsa_keygen)]
+    /// #[cfg(all(random, rsa_keygen))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::rsa::RSA;
@@ -749,7 +756,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -775,7 +782,7 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// }
     /// ```
-    #[cfg(random)]
+    #[cfg(all(random, rsa_sign))]
     pub fn public_encrypt(&mut self, din: &[u8], dout: &mut [u8], rng: &RNG) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
@@ -808,7 +815,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -834,6 +841,7 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// }
     /// ```
+    #[cfg(rsa_private)]
     pub fn private_decrypt(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
@@ -871,7 +879,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, sha256, rsa_oaep, feature = "alloc"))]
+    /// #[cfg(all(random, sha256, rsa_oaep, rsa_private, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -963,7 +971,7 @@ impl RSA {
     /// error code value.
     /// The size returned specifies the number of bytes written to the `dout`
     /// buffer.
-    #[cfg(rsa_oaep)]
+    #[cfg(all(rsa_oaep, rsa_private))]
     pub fn private_decrypt_oaep(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         self.private_decrypt_oaep_ex(din, dout, hash_algo, mgf, None)
     }
@@ -986,7 +994,7 @@ impl RSA {
     /// error code value.
     /// The size returned specifies the number of bytes written to the `dout`
     /// buffer.
-    #[cfg(rsa_oaep)]
+    #[cfg(all(rsa_oaep, rsa_private))]
     pub fn private_decrypt_oaep_ex(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, label: Option<&[u8]>) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
@@ -1031,7 +1039,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1061,7 +1069,7 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// }
     /// ```
-    #[cfg(all(random, rsa_pss))]
+    #[cfg(all(random, rsa_pss, rsa_private, rsa_sign))]
     pub fn pss_sign(&mut self, din: &[u8], dout: &mut [u8], hash_algo: u32, mgf: i32, rng: &RNG) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
@@ -1077,9 +1085,6 @@ impl RSA {
 
     /// Check the PSS data to ensure the signature matches.
     ///
-    /// `set_rng()` must be called previously when wolfSSL is built with
-    /// WC_RSA_BLINDING option enabled.
-    ///
     /// # Parameters
     ///
     /// * `din`: Hash of data being verified.
@@ -1094,7 +1099,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, rsa_const_api, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1160,7 +1165,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, rsa_const_api, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1231,7 +1236,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(random, rsa_pss, rsa_const_api, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_pss, rsa_const_api, rsa_private, rsa_sign, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1261,13 +1266,14 @@ impl RSA {
     /// rsa.pss_verify_check(signature, &mut verify_out, msg, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256).expect("Error with pss_verify_check()");
     /// }
     /// ```
-    #[cfg(all(rsa_pss, rsa_const_api))]
+    #[cfg(rsa_pss)]
     pub fn pss_verify_check(&mut self, din: &[u8], dout: &mut [u8], digest: &[u8], hash_algo: u32, mgf: i32) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
         let digest_size = crate::buffer_len_to_u32(digest.len())?;
         let rc = unsafe {
-            sys::wc_RsaPSS_VerifyCheck(din.as_ptr(), din_size,
+            // Older modules such as FIPS v5 and v6 declare the input non const but only read it.
+            sys::wc_RsaPSS_VerifyCheck(din.as_ptr().cast_mut(), din_size,
                 dout.as_mut_ptr(), dout_size, digest.as_ptr(), digest_size,
                 hash_algo, mgf, &mut self.wc_rsakey)
         };
@@ -1301,7 +1307,7 @@ impl RSA {
     /// # Example
     ///
     /// ```rust
-    /// #[cfg(all(rsa_direct, rsa_const_api, random))]
+    /// #[cfg(all(rsa_direct, rsa_const_api, random, rsa_private))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1358,7 +1364,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(random)]
+    /// #[cfg(all(random, rsa_private, rsa_sign))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1385,13 +1391,7 @@ impl RSA {
     /// ```
     #[cfg(random)]
     pub fn set_rng(&mut self, rng: RNG) -> Result<(), i32> {
-        let wc_rng = rng.wc_rng;
-        let rc = unsafe {
-            sys::wc_RsaSetRNG(&mut self.wc_rsakey, wc_rng)
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
+        self.set_wc_rng(&rng)?;
         self.rng = Some(RngHandle::Owned(rng));
         Ok(())
     }
@@ -1403,14 +1403,24 @@ impl RSA {
     /// when the `alloc` feature is enabled.
     #[cfg(all(random, feature = "alloc"))]
     pub fn set_shared_rng(&mut self, rng: alloc::rc::Rc<RNG>) -> Result<(), i32> {
-        let wc_rng = rng.wc_rng;
-        let rc = unsafe {
-            sys::wc_RsaSetRNG(&mut self.wc_rsakey, wc_rng)
-        };
-        if rc != 0 {
-            return Err(rc);
-        }
+        self.set_wc_rng(&rng)?;
         self.rng = Some(RngHandle::Shared(rng));
+        Ok(())
+    }
+
+    /// Point the wolfCrypt key at `rng` for blinding.
+    #[cfg(random)]
+    #[cfg_attr(not(rsa_setrng), allow(unused_variables))]
+    fn set_wc_rng(&mut self, rng: &RNG) -> Result<(), i32> {
+        #[cfg(rsa_setrng)]
+        {
+            let rc = unsafe {
+                sys::wc_RsaSetRNG(&mut self.wc_rsakey, rng.wc_rng)
+            };
+            if rc != 0 {
+                return Err(rc);
+            }
+        }
         Ok(())
     }
 
@@ -1445,7 +1455,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, rsa_ssl_verify, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1471,7 +1481,7 @@ impl RSA {
     /// assert!(verify_out_size > 0 && verify_out_size <= 512);
     /// }
     /// ```
-    #[cfg(random)]
+    #[cfg(all(random, rsa_private, rsa_sign))]
     pub fn ssl_sign(&mut self, din: &[u8], dout: &mut [u8], rng: &RNG) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
@@ -1507,7 +1517,7 @@ impl RSA {
     ///
     /// ```rust
     /// # extern crate std;
-    /// #[cfg(all(random, feature = "alloc"))]
+    /// #[cfg(all(random, rsa_private, rsa_sign, rsa_ssl_verify, feature = "alloc"))]
     /// {
     /// use std::fs;
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1533,6 +1543,7 @@ impl RSA {
     /// assert!(verify_out_size > 0 && verify_out_size <= 512);
     /// }
     /// ```
+    #[cfg(rsa_ssl_verify)]
     pub fn ssl_verify(&mut self, din: &[u8], dout: &mut [u8]) -> Result<usize, i32> {
         let din_size = crate::buffer_len_to_u32(din.len())?;
         let dout_size = crate::buffer_len_to_u32(dout.len())?;
@@ -1544,6 +1555,56 @@ impl RSA {
             return Err(rc);
         }
         Ok(rc as usize)
+    }
+
+    /// Sign a message with RSA PKCS#1 v1.5. The message is hashed with the
+    /// given hash type and the hash is wrapped in its DigestInfo header first,
+    /// so this is the standard signature, for any key size.
+    ///
+    /// The messages must not be empty. wolfCrypt refuses an empty messages
+    /// and this returns its error code, BAD_FUNC_ARG.
+    ///
+    /// Returns the signature length in bytes, which is the key size.
+    #[cfg(all(sig_wrapper, random, rsa_private, rsa_sign))]
+    pub fn pkcs1v15_sign(&mut self, msg: &[u8], dout: &mut [u8], hash_algo: u32, rng: &RNG) -> Result<usize, i32> {
+        let msg_size = crate::buffer_len_to_u32(msg.len())?;
+        let mut sig_len = crate::buffer_len_to_u32(dout.len())?;
+        let rc = unsafe {
+            sys::wc_SignatureGenerate(hash_algo,
+                sys::wc_SignatureType_WC_SIGNATURE_TYPE_RSA_W_ENC,
+                msg.as_ptr(), msg_size,
+                dout.as_mut_ptr(), &mut sig_len,
+                &mut self.wc_rsakey as *mut _ as *mut core::ffi::c_void,
+                core::mem::size_of::<sys::RsaKey>() as u32,
+                rng.wc_rng)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(sig_len as usize)
+    }
+
+    /// Check an RSA PKCS#1 v1.5 signature over a message, made with the given
+    /// hash type, for any key size. Returns an error if it does not match.
+    ///
+    /// The messages must not be empty. wolfCrypt refuses an empty messages
+    /// and this returns its error code, BAD_FUNC_ARG.
+    #[cfg(sig_wrapper)]
+    pub fn pkcs1v15_verify(&mut self, msg: &[u8], sig: &[u8], hash_algo: u32) -> Result<(), i32> {
+        let msg_size = crate::buffer_len_to_u32(msg.len())?;
+        let sig_size = crate::buffer_len_to_u32(sig.len())?;
+        let rc = unsafe {
+            sys::wc_SignatureVerify(hash_algo,
+                sys::wc_SignatureType_WC_SIGNATURE_TYPE_RSA_W_ENC,
+                msg.as_ptr(), msg_size,
+                sig.as_ptr(), sig_size,
+                &mut self.wc_rsakey as *mut _ as *mut core::ffi::c_void,
+                core::mem::size_of::<sys::RsaKey>() as u32)
+        };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(())
     }
 }
 

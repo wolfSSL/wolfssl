@@ -289,6 +289,31 @@ int test_wc_Srp_DecisionCoverage(void)
     ExpectIntEQ(wc_SrpSetParams(&srp, srpN, SRP_N_SZ, srpN, SRP_N_SZ,
         srpSalt, SRP_SALT_SZ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
+    /* Degenerate generators of order <= 2 -> BAD_FUNC_ARG: g = 0, g = 1 and
+     * g = N - 1 make v = g ^ x % N independent of the password. An even N
+     * (N - 1 here) is rejected too since N = 2q + 1 must be odd. */
+    {
+        byte srpNm1[sizeof(srpN)];
+        byte srpGbad[] = { 0x00 };
+
+        XMEMCPY(srpNm1, srpN, sizeof(srpN));
+        srpNm1[sizeof(srpNm1) - 1]--;
+
+        ExpectIntEQ(wc_SrpSetParams(&srp, srpN, SRP_N_SZ, srpGbad,
+            (word32)sizeof(srpGbad), srpSalt, SRP_SALT_SZ),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));                     /* g = 0 */
+        srpGbad[0] = 0x01;
+        ExpectIntEQ(wc_SrpSetParams(&srp, srpN, SRP_N_SZ, srpGbad,
+            (word32)sizeof(srpGbad), srpSalt, SRP_SALT_SZ),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));                     /* g = 1 */
+        ExpectIntEQ(wc_SrpSetParams(&srp, srpN, SRP_N_SZ, srpNm1,
+            (word32)sizeof(srpNm1), srpSalt, SRP_SALT_SZ),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));                     /* g = N-1 */
+        ExpectIntEQ(wc_SrpSetParams(&srp, srpNm1, (word32)sizeof(srpNm1),
+            srpG, (word32)sizeof(srpG), srpSalt, SRP_SALT_SZ),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));                     /* even N */
+    }
+
     /* Baseline + salt re-set branch (srp.c:378-383): first call finds
      * srp->salt NULL (false branch, first allocation); the second call on
      * the same instance finds a previously-allocated salt (true branch,

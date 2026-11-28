@@ -1,0 +1,118 @@
+name: hitch Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-24.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 8
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-hitch
+          install: true
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v6
+        with:
+          name: wolf-install-hitch
+          path: build-dir.tgz
+          retention-days: 5
+
+  hitch_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        include:
+          # The osp patch adapts the bundled tests to wolfSSL, so no tests
+          # are ignored: test15 (NPN) skips itself via the hitch configure
+          # NPN check.
+          - ref: 1.8.0
+    name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: build_wolfssl
+    steps:
+      - name: Checkout the dependency action
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/actions/install-apt-deps
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-apt-deps
+        with:
+          packages: libev-dev automake python3-docutils flex bison pkg-config make
+          ghcr-debs-tag: ubuntu-24.04-full
+          budget-seconds: '300'
+          pull-timeout: '120'
+
+      - name: Download lib
+        uses: actions/download-artifact@v7
+        with:
+          name: wolf-install-hitch
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v5
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout hitch
+        uses: actions/checkout@v5
+        with:
+          repository: varnish/hitch
+          ref: ${{ matrix.ref }}
+          path: hitch
+
+      # Do this before configuring so that it only detects the updated list of
+      # tests
+      - if: ${{ matrix.ignore-tests }}
+        name: Remove tests that we want to ignore
+        working-directory: ./hitch/src/tests
+        run: |
+          rm ${{ matrix.ignore-tests }}
+
+      - name: Configure and build hitch
+        run: |
+            cd $GITHUB_WORKSPACE/hitch/
+            patch -p1 < $GITHUB_WORKSPACE/osp/hitch/hitch_${{ matrix.ref }}.patch
+            export SSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl"
+            export SSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl"
+            ./bootstrap --with-wolfssl=$GITHUB_WORKSPACE/build-dir/ --prefix=$GITHUB_WORKSPACE/build-dir
+            make -j$(nproc)
+
+      - name: Confirm hitch built with wolfSSL
+        working-directory: ./hitch
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          ldd src/hitch | grep wolfssl
+
+      - name: Run hitch tests
+        working-directory: ./hitch
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          make check

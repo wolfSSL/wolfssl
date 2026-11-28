@@ -26,6 +26,14 @@
 
 #if defined(WOLFSSL_HAVE_LMS)
 
+#if FIPS_VERSION3_GE(7,0,0)
+    /* the letter d is skipped, codespell rejects it; do not reuse it */
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
+        #pragma code_seg(".fipsA$ne")
+        #pragma const_seg(".fipsB$ne")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/wc_lms.h>
 
 #if FIPS_VERSION3_GE(7,0,0)
@@ -47,6 +55,16 @@
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+/* A key named by id, label or device context is held by a device. */
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_PRIVATE_KEY_ID)
+    #define LMS_KEY_ON_DEVICE(key) (((key)->devCtx != NULL) || \
+        ((key)->idLen > 0) || ((key)->labelLen > 0))
+#elif defined(WOLF_CRYPTO_CB)
+    #define LMS_KEY_ON_DEVICE(key) ((key)->devCtx != NULL)
+#else
+    #define LMS_KEY_ON_DEVICE(key) 0
 #endif
 
 
@@ -112,6 +130,7 @@
       LMS_PARAMS_CACHE(h) }
 
 
+#ifndef WOLF_CRYPTO_CB_ONLY_LMS
 /* Initialize the working state for LMS operations.
  *
  * @param [in, out] state   LMS state.
@@ -168,6 +187,7 @@ static void wc_lmskey_state_free(LmsState* state)
     wc_Sha256Free(LMS_STATE_HASH_K(state));
     wc_Sha256Free(LMS_STATE_HASH(state));
 }
+#endif /* !WOLF_CRYPTO_CB_ONLY_LMS */
 
 /* Supported LMS parameters. */
 static const wc_LmsParamsMap wc_lms_map[] = {
@@ -645,6 +665,11 @@ int wc_LmsKey_Init(LmsKey* key, void* heap, int devId)
     #endif
         /* Start in initialized state. */
         key->state = WC_LMS_STATE_INITED;
+
+    #ifndef WOLF_CRYPTO_CB_ONLY_LMS
+        /* Ensure the CPU features are known. */
+        wc_lms_init();
+    #endif
     }
 
     return ret;
@@ -992,6 +1017,30 @@ int wc_LmsKey_GetParameters_ex(const LmsKey* key, int* levels, int* height,
     return ret;
 }
 
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+/* Wipe the private key held in software, keeping the priv_data buffer.
+ *
+ * @param [in, out] key  LMS key.
+ */
+static void wc_lmskey_wipe_priv(LmsKey* key)
+{
+    if (key->priv_data != NULL) {
+        const LmsParams* params = key->params;
+        word32 priv_data_len = LMS_PRIV_DATA_LEN(params->levels,
+            params->height, params->p, params->rootLevels,
+            params->cacheBits, params->hash_len);
+
+    #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        priv_data_len += HSS_PRIVATE_KEY_LEN(params->hash_len);
+    #endif
+        ForceZero(key->priv_data, priv_data_len);
+    }
+    ForceZero(key->priv_raw, sizeof(key->priv_raw));
+    ForceZero(&key->priv, sizeof(HssPrivKey));
+    key->privSet = 0;
+}
+#endif
+
 /* Frees the LMS key from memory.
  *
  * This does not affect the private key saved to non-volatile storage.
@@ -1001,23 +1050,21 @@ int wc_LmsKey_GetParameters_ex(const LmsKey* key, int* levels, int* height,
 void wc_LmsKey_Free(LmsKey* key)
 {
     if (key != NULL) {
-    #ifndef WOLFSSL_LMS_VERIFY_ONLY
-        if (key->priv_data != NULL) {
-            const LmsParams* params = key->params;
-            word32 priv_data_len = LMS_PRIV_DATA_LEN(params->levels,
-                params->height, params->p, params->rootLevels,
-                params->cacheBits, params->hash_len);
-
-        #ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
-            priv_data_len += HSS_PRIVATE_KEY_LEN(key->params->hash_len);
-        #endif
-            ForceZero(key->priv_data, priv_data_len);
-            XFREE(key->priv_data, key->heap, DYNAMIC_TYPE_LMS);
-            key->priv_data = NULL;
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            (void)wc_CryptoCb_Free(key->devId, WC_ALGO_TYPE_PK,
+                                   WC_PK_TYPE_PQC_STATEFUL_SIG_KEYGEN,
+                                   WC_PQC_STATEFUL_SIG_TYPE_LMS, (void*)key);
+            /* always continue to software cleanup */
         }
-
-        ForceZero(key->priv_raw, HSS_MAX_PRIVATE_KEY_LEN);
-        ForceZero(&key->priv, sizeof(HssPrivKey));
+#endif
+    #ifndef WOLFSSL_LMS_VERIFY_ONLY
+        wc_lmskey_wipe_priv(key);
+        XFREE(key->priv_data, key->heap, DYNAMIC_TYPE_LMS);
+        key->priv_data = NULL;
 
         key->write_private_key = NULL;
         key->read_private_key = NULL;
@@ -1025,6 +1072,7 @@ void wc_LmsKey_Free(LmsKey* key)
         key->heap = NULL;
     #endif
         XMEMSET(key->pub, 0, sizeof(key->pub));
+        key->pubSet = 0;
         key->params = NULL;
     #ifdef WOLF_CRYPTO_CB
         key->devId = INVALID_DEVID;
@@ -1159,7 +1207,13 @@ int wc_LmsKey_SetContext(LmsKey* key, void* context)
 int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 {
     int ret = 0;
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    int idKey = 0;
+    int idDevId = INVALID_DEVID;
+#endif
+#ifndef WOLF_CRYPTO_CB_ONLY_LMS
     word32 priv_data_len = 0;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (rng == NULL)) {
@@ -1171,17 +1225,31 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         ret = BAD_STATE_E;
     }
 
+#ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if (ret == 0) {
+        idKey = WC_CRYPTOCB_HAS_ID(key);
+        idDevId = key->devId;
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
      * software checks below still run. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         ret = wc_CryptoCb_PqcStatefulSigKeyGen(WC_PQC_STATEFUL_SIG_TYPE_LMS,
             key, rng);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            word32 sigsLeft = 1;
             /* This should not happen, but check whether signatures can be
-             * created. */
-            if ((ret == 0) && (wc_LmsKey_SigsLeft(key) == 0)) {
+             * created. Only a device that reports a count can fail this. */
+            if ((ret == 0) && (wc_CryptoCb_PqcStatefulSigSigsLeft(
+                    WC_PQC_STATEFUL_SIG_TYPE_LMS, key, &sigsLeft) == 0) &&
+                    (sigsLeft == 0)) {
                 WOLFSSL_MSG("error: generated LMS key signatures exhausted");
                 key->state = WC_LMS_STATE_NOSIGS;
                 ret = BAD_STATE_E;
@@ -1190,13 +1258,24 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
              * subsequent Sign/Verify calls don't fail with BAD_STATE_E. */
             if (ret == 0) {
                 key->state = WC_LMS_STATE_OK;
+                key->pubSet = 1;
             }
             return ret;
         }
         ret = 0; /* fall through to software path */
     }
+    #ifdef WC_CRYPTOCB_KEYGEN_ID_CHECK
+    if ((ret == 0) && idKey && wc_CryptoCb_HasPkDevice(idDevId)) {
+        ret = NO_VALID_DEVID;
+    }
+    #endif
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_LMS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Check write callback set. */
     if ((ret == 0) && (key->write_private_key == NULL)) {
         WOLFSSL_MSG("error: LmsKey write callback is not set");
@@ -1260,6 +1339,9 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
             ret = IO_FAILED_E;
         }
+        else {
+            key->privSet = 1;
+        }
     }
 
     /* This should not happen, but check whether signatures can be created. */
@@ -1269,10 +1351,16 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         ret = BAD_STATE_E;
     }
 
+    if ((ret != 0) && (priv_data_len > 0)) {
+        wc_lmskey_wipe_priv(key);
+    }
+
     if (ret == 0) {
         /* Update state. */
         key->state = WC_LMS_STATE_OK;
+        key->pubSet = 1;
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
     return ret;
 }
@@ -1287,14 +1375,23 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
  *
  * With a crypto callback device, the read callback and not the devId decides
  * whether the software reload runs. See wc_LmsKey_Reload below.
+ * WOLF_CRYPTO_CB_ONLY_LMS removes the software reload, so the read callback
+ * is never called.
+ *
+ * Neither arm populates key->pub, so the reloaded key can sign but cannot
+ * export a public key or verify.
  *
  * @param [in, out] key  LMS key.
  *
- * Returns 0 on success. */
+ * Returns 0 on success.
+ * Returns NO_VALID_DEVID with WOLF_CRYPTO_CB_ONLY_LMS unless the key is
+ * device-backed. */
 int wc_LmsKey_Reload(LmsKey* key)
 {
     int ret = 0;
+#ifndef WOLF_CRYPTO_CB_ONLY_LMS
     word32 priv_data_len = 0;
+#endif
 
     /* Validate parameter. */
     if (key == NULL) {
@@ -1319,6 +1416,12 @@ int wc_LmsKey_Reload(LmsKey* key)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_LMS
+    /* No software reload exists to use the read callback. */
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Check read callback present. */
     if ((ret == 0) && (key->read_private_key == NULL)) {
         WOLFSSL_MSG("error: LmsKey read callback is not set");
@@ -1369,6 +1472,9 @@ int wc_LmsKey_Reload(LmsKey* key)
                 HSS_PRIVATE_KEY_LEN(params->hash_len));
         }
     #endif
+        if (ret == 0) {
+            key->privSet = 1;
+        }
     }
 
     /* Double check the key actually has signatures left. */
@@ -1399,10 +1505,15 @@ int wc_LmsKey_Reload(LmsKey* key)
         }
     }
 
+    if ((ret != 0) && (priv_data_len > 0)) {
+        wc_lmskey_wipe_priv(key);
+    }
+
     if (ret == 0) {
         /* Update state. */
         key->state = WC_LMS_STATE_OK;
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
     return ret;
 }
@@ -1458,13 +1569,21 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
 {
     int ret = 0;
 
-    /* Validate parameters. */
+    /* Validate parameters.  A NULL msg is valid for the empty message
+     * (msgSz == 0), per RFC 8554 which permits empty messages. */
     if ((key == NULL) || (key->params == NULL) || (sig == NULL) ||
-            (sigSz == NULL) || (msg == NULL)) {
+            (sigSz == NULL) || ((msg == NULL) && (msgSz != 0))) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (msgSz < 0)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte lms_empty_msg[] = {0};
+        msg = lms_empty_msg;
     }
     /* Check state. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK)) {
@@ -1488,7 +1607,12 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
     /* HSM-backed keys skip the software write/context callbacks because the
      * device owns the private state. On CRYPTOCB_UNAVAILABLE fall-through the
      * software checks below still run. */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         ret = wc_CryptoCb_PqcStatefulSigSign(msg, (word32)msgSz, sig, sigSz,
             WC_PQC_STATEFUL_SIG_TYPE_LMS, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
@@ -1508,10 +1632,19 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB_ONLY_LMS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
     /* Check read and write callbacks available. */
     if ((ret == 0) && (key->write_private_key == NULL)) {
         WOLFSSL_MSG("error: LmsKey write/read callbacks are not set");
         ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (!key->privSet)) {
+        WOLFSSL_MSG("error: LMS private key not held in software");
+        ret = BAD_STATE_E;
     }
 
     if (ret == 0) {
@@ -1577,6 +1710,7 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
          * to sign with again. */
         key->state = WC_LMS_STATE_OK;
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
     return ret;
 }
@@ -1586,16 +1720,23 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
  * @param [in]  key  LMS key.
  *
  * @return  1 if there are signatures remaining.
- * @return  0 if available signatures are exhausted.
+ * @return  0 if available signatures are exhausted, or the key is NULL, has
+ *          no parameters set or is verify-only.
+ * @return  0 when the device declines and software holds no private key.
  */
 int wc_LmsKey_SigsLeft(LmsKey* key)
 {
     int ret = 0;
 
-    /* NULL keys have no signatures remaining. */
-    if (key != NULL) {
+    /* NULL keys, keys without parameters (not yet set, or freed) and
+     * verify-only keys have no signatures remaining. */
+    if ((key != NULL) && (key->params != NULL) &&
+            (key->state != WC_LMS_STATE_VERIFYONLY)) {
     #ifdef WOLF_CRYPTO_CB
-        if (key->devId != INVALID_DEVID) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
             word32 sigsLeft = 0;
             int cbRet = wc_CryptoCb_PqcStatefulSigSigsLeft(
                 WC_PQC_STATEFUL_SIG_TYPE_LMS, key, &sigsLeft);
@@ -1608,13 +1749,15 @@ int wc_LmsKey_SigsLeft(LmsKey* key)
                 WOLFSSL_MSG("PqcStatefulSigSigsLeft returned an error");
                 return 0;
             }
-            /* Cryptocb declined. priv_raw reflects software state from the
-             * CRYPTOCB_UNAVAILABLE fall-through in MakeKey/Reload, so the
-             * software check below is valid. */
             WOLFSSL_MSG("LMS SigsLeft not supported by device, using software");
         }
     #endif
-        ret = wc_hss_sigsleft(key->params, key->priv_raw);
+    #ifndef WOLF_CRYPTO_CB_ONLY_LMS
+        /* Only a software MakeKey or Reload fills priv_raw. */
+        if (key->privSet) {
+            ret = wc_hss_sigsleft(key->params, key->priv_raw);
+        }
+    #endif
     }
 
     return ret;
@@ -1668,9 +1811,10 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
     if ((keyDst == NULL) || (keySrc == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (keySrc->state != WC_LMS_STATE_OK) &&
-            (keySrc->state != WC_LMS_STATE_VERIFYONLY) &&
-            (keySrc->state != WC_LMS_STATE_NOSIGS)) {
+    if ((ret == 0) && ((!keySrc->pubSet) ||
+            ((keySrc->state != WC_LMS_STATE_OK) &&
+             (keySrc->state != WC_LMS_STATE_VERIFYONLY) &&
+             (keySrc->state != WC_LMS_STATE_NOSIGS)))) {
         ret = BAD_STATE_E;
     }
 
@@ -1680,6 +1824,7 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
     if (ret == 0) {
         keyDst->params = keySrc->params;
         XMEMCPY(keyDst->pub, keySrc->pub, sizeof(keySrc->pub));
+        keyDst->pubSet = 1;
 
         /* Mark this key as verify only, to prevent misuse. */
         keyDst->state = WC_LMS_STATE_VERIFYONLY;
@@ -1704,6 +1849,7 @@ int wc_LmsKey_ExportPub_ex(LmsKey* keyDst, const LmsKey* keySrc,
  * @param [in]  keySrc  LMS key to copy.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when keyDst or keySrc is NULL.
+ * @return  BAD_STATE_E when keySrc holds no public key.
  */
 int wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc)
 {
@@ -1728,6 +1874,7 @@ int wc_LmsKey_ExportPub(LmsKey* keyDst, const LmsKey* keySrc)
  *                          On out, the length of the public key in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, out or outLen is NULL.
+ * @return  BAD_STATE_E when in the wrong state for the operation.
  * @return  BUFFER_E when outLen is too small to hold encoded public key.
  */
 int wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out, word32* outLen)
@@ -1738,6 +1885,15 @@ int wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out, word32* outLen)
     if ((key == NULL) || (out == NULL) || (outLen == NULL) ||
             (key->params == NULL)) {
         ret = BAD_FUNC_ARG;
+    }
+    /* Params and a signing-ready state don't mean a public key exists;
+     * Reload reaches WC_LMS_STATE_OK without populating key->pub. */
+    if ((ret == 0) && ((!key->pubSet) ||
+            ((key->state != WC_LMS_STATE_OK) &&
+             (key->state != WC_LMS_STATE_VERIFYONLY) &&
+             (key->state != WC_LMS_STATE_NOSIGS)))) {
+        WOLFSSL_MSG("error: LMS key not ready for export");
+        ret = BAD_STATE_E;
     }
     /* Check size of out is sufficient. */
     if ((ret == 0) &&
@@ -1876,6 +2032,7 @@ int wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in, word32 inLen)
          * above), so promoting to VERIFYONLY is always correct. */
         key->params = matched;
         XMEMCPY(key->pub, in, inLen);
+        key->pubSet = 1;
         key->state = WC_LMS_STATE_VERIFYONLY;
     }
 
@@ -1929,19 +2086,27 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
 {
     int ret = 0;
 
-    /* Validate parameters. */
+    /* Validate parameters.  A NULL msg is valid for the empty message
+     * (msgSz == 0), per RFC 8554 which permits empty messages. */
     if ((key == NULL) || (key->params == NULL) || (sig == NULL) ||
-            (msg == NULL)) {
+            ((msg == NULL) && (msgSz != 0))) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (msgSz < 0)) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check state. */
+    /* An empty message may be passed as (NULL, 0); canonicalize it to a
+     * readable stand-in so that downstream consumers -- hash updates and
+     * crypto callbacks -- never see a NULL pointer. */
+    if ((ret == 0) && (msg == NULL)) {
+        static const byte lms_empty_msg[] = {0};
+        msg = lms_empty_msg;
+    }
+    /* Check state. A key named by id may have only its parameters set. */
     if ((ret == 0) && (key->state != WC_LMS_STATE_OK) &&
-            (key->state != WC_LMS_STATE_VERIFYONLY)) {
-        /* LMS key not ready for verification. Param str must be
-         * set first, and Reload() called. */
+            (key->state != WC_LMS_STATE_VERIFYONLY) &&
+            ((key->state != WC_LMS_STATE_PARMSET) ||
+             !LMS_KEY_ON_DEVICE(key))) {
         WOLFSSL_MSG("error: LMS key not ready for verification");
         ret = BAD_STATE_E;
     }
@@ -1951,7 +2116,12 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
     }
 
 #ifdef WOLF_CRYPTO_CB
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if ((ret == 0) && (key->devId != INVALID_DEVID))
+    #else
+    if (ret == 0)
+    #endif
+    {
         int res = 0;
         ret = wc_CryptoCb_PqcStatefulSigVerify(sig, sigSz, msg, (word32)msgSz,
             &res, WC_PQC_STATEFUL_SIG_TYPE_LMS, key);
@@ -1963,6 +2133,16 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
         ret = 0; /* fall through to software path */
     }
 #endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_LMS
+    if (ret == 0) {
+        ret = NO_VALID_DEVID;
+    }
+#else
+    if ((ret == 0) && (!key->pubSet)) {
+        WOLFSSL_MSG("error: LMS key holds no public key");
+        ret = BAD_STATE_E;
+    }
 
     if (ret == 0) {
         WC_DECLARE_VAR(state, LmsState, 1, 0);
@@ -1984,6 +2164,7 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
             WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
+#endif /* WOLF_CRYPTO_CB_ONLY_LMS */
 
     return ret;
 }
@@ -2000,7 +2181,8 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
  * @param [out] kidSz  Size of key ID.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a key, kid or kidSz is NULL.
- * @return  NOT_COMPILED_IN when key is on a device.
+ * @return  BAD_STATE_E when the private key is not in memory, such as when a
+ *          device keeps it.
  */
 int wc_LmsKey_GetKid(LmsKey* key, const byte** kid, word32* kidSz)
 {
@@ -2011,17 +2193,11 @@ int wc_LmsKey_GetKid(LmsKey* key, const byte** kid, word32* kidSz)
             (kidSz == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-
-#ifdef WOLF_CRYPTO_CB
-    /* priv_raw is not populated for HSM-backed keys where the device owns
-     * the private state. Extend the CryptoCb surface if device-side KID
-     * retrieval becomes a requirement.
-     */
-    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
-        WOLFSSL_MSG(
-                "wc_LmsKey_GetKid: priv_raw may be uninitialised for HSM keys");
+    if ((ret == 0) && (!key->privSet)) {
+        WOLFSSL_MSG("error: LMS key contains no private key");
+        ret = BAD_STATE_E;
     }
-#endif
+
     if (ret == 0) {
         /* SEED length is hash length. */
         offset = HSS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN + key->params->hash_len;

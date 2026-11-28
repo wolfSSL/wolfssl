@@ -159,7 +159,7 @@ enum wolfSSL_ErrorCodes {
     DTLS_EXPORT_VER_E            = -411,   /* export version error */
     INPUT_SIZE_E                 = -412,   /* input size too big error */
     CTX_INIT_MUTEX_E             = -413,   /* initialize ctx mutex error */
-    EXT_MASTER_SECRET_NEEDED_E   = -414,   /* need EMS enabled to resume */
+    EXT_MASTER_SECRET_NEEDED_E   = -414,   /* EMS required but not negotiated */
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
     DECODE_E                     = -416,   /* decode handshake message error */
     HTTP_TIMEOUT                 = -417,   /* HTTP timeout for OCSP or CRL req */
@@ -253,7 +253,16 @@ enum wolfSSL_ErrorCodes {
     OCSP_NO_URL                  = -522,   /* Cert advertises no OCSP responder
                                             * and no override URL is set */
 
-    WOLFSSL_LAST_E               = -522
+    CHAIN_VERIFY_WANT_E          = -523,   /* Chain verify callback has not
+                                            * reached a verdict yet */
+    CHAIN_VERIFY_CB_E            = -524,   /* Chain verify callback rejected the
+                                            * peer's certificates */
+    CHAIN_VERIFY_UNSUPPORTED_E   = -525,   /* Chain verify callback used with
+                                            * DTLS, RPK or OCSP stapling */
+
+    DTLS_MSG_SEQUENCE_E          = -526,   /* DTLS message_seq would wrap */
+
+    WOLFSSL_LAST_E               = -526
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };

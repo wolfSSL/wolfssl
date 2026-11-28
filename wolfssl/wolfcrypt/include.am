@@ -2,6 +2,7 @@
 # All paths should be given relative to the root
 
 nobase_include_HEADERS+= \
+                         wolfssl/wolfcrypt/port/altera/altera_fcs.h \
                          wolfssl/wolfcrypt/aes.h \
                          wolfssl/wolfcrypt/arc4.h \
                          wolfssl/wolfcrypt/argon2.h \
@@ -12,6 +13,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/poly1305.h \
                          wolfssl/wolfcrypt/camellia.h \
                          wolfssl/wolfcrypt/cmac.h \
+                         wolfssl/wolfcrypt/wc_keystore.h \
                          wolfssl/wolfcrypt/wc_she.h \
                          wolfssl/wolfcrypt/coding.h \
                          wolfssl/wolfcrypt/compress.h \
@@ -50,7 +52,9 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \
                          wolfssl/wolfcrypt/wolfentropy.h \
+                         wolfssl/wolfcrypt/entropy-timers.h \
                          wolfssl/wolfcrypt/rng_bank.h \
+                         wolfssl/wolfcrypt/rng_noisesrc.h \
                          wolfssl/wolfcrypt/ripemd.h \
                          wolfssl/wolfcrypt/rsa.h \
                          wolfssl/wolfcrypt/rc2.h \
@@ -98,11 +102,16 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
                          wolfssl/wolfcrypt/port/ti/ti-hash.h \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h \
+                         wolfssl/wolfcrypt/port/ti/ti-c2000.h \
+                         wolfssl/wolfcrypt/port/ti/ti-c2000-entropy.h \
+                         wolfssl/wolfcrypt/port/ti/ti-sa2ul_r5_port.h \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
                          wolfssl/wolfcrypt/port/nxp/dcp_port.h \
                          wolfssl/wolfcrypt/port/nxp/casper_port.h \
                          wolfssl/wolfcrypt/port/nxp/hashcrypt_port.h \
+                         wolfssl/wolfcrypt/port/nxp/hwpuf_port.h \
+                         wolfssl/wolfcrypt/port/nxp/els_pkc_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h \
@@ -122,18 +131,15 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/caam_error.h \
                          wolfssl/wolfcrypt/port/caam/caam_qnx.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_aes.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_ecc.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_hash.h \
-                         wolfssl/wolfcrypt/port/silabs/silabs_random.h \
+                         wolfssl/wolfcrypt/port/caam/caam_linux.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
                          wolfssl/wolfcrypt/port/realtek/rtl8735b.h \
+                         wolfssl/wolfcrypt/port/microchip/mpfs_athena.h \
                          wolfssl/wolfcrypt/port/tropicsquare/tropic01.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
                          wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h \
-                         wolfssl/wolfcrypt/port/arm/cryptoCell.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-types.h \
@@ -148,9 +154,36 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/libwolfssl_sources.h \
                          wolfssl/wolfcrypt/libwolfssl_sources_asm.h
 
+# Installed unconditionally: settings.h includes nuvoton_settings.h whenever
+# WOLFSSL_NUVOTON_M2354 is set, so an installed tree needs it to preprocess.
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nuvoton/nuvoton_settings.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nuvoton/nuvoton_cryptocb.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nuvoton/nuvoton_key.h
+
+
+# Installed unconditionally: settings.h includes silabs_settings.h whenever
+# WOLFSSL_SILABS_CRYPTOCB is set, so a consumer of an installed tree needs it
+# (and, through silabs_cryptocb.h, the host shim) to preprocess wolfssl/ssl.h.
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_aes.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_ecc.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_hash.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_random.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_settings.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_cryptocb.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/silabs/silabs_shim.h
+
+if BUILD_SHA3
+if BUILD_V5_NONFIPS_SHAKE
+nobase_nodist_include_HEADERS=wolfssl/wolfcrypt/shake.h
+endif
+endif
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h
+endif
+
+if BUILD_MPFS_ATHENA
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/microchip/mpfs_athena.h
 endif
 
 if BUILD_AFALG
@@ -232,6 +265,7 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_aes.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_linux.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h
 endif
@@ -250,6 +284,22 @@ endif
 
 if BUILD_SE050
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/se050_port.h
+endif
+
+if BUILD_SEC_QORIQ
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/sec_qoriq.h
+else
+noinst_HEADERS+= wolfssl/wolfcrypt/port/nxp/sec_qoriq.h
+endif
+
+if BUILD_ELE
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/ele.h
+else
+noinst_HEADERS+= wolfssl/wolfcrypt/port/nxp/ele.h
+endif
+
+if BUILD_ELS_PKC
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/els_pkc_port.h
 endif
 
 if BUILD_TROPIC01

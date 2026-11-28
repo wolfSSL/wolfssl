@@ -5,6 +5,7 @@
 
 if BUILD_TESTS
 noinst_PROGRAMS += tests/unit.test
+dist_noinst_SCRIPTS += tests/caam_qnx_blob.test
 tests_unit_test_SOURCES = \
                   tests/unit.c \
                   tests/api.c \
@@ -32,11 +33,17 @@ endif
 include tests/api/include.am
 endif
 EXTRA_DIST += tests/unit.h \
+              tests/arduino_entropy_guard.py \
+              tests/copilot_entropy_review.py \
+              tests/cypress_trng_failure.py \
+              tests/weak_entropy_defaults.py \
               tests/test.conf \
+              tests/test-wildcard-partial.conf \
               tests/test-sha2.conf \
               tests/test-tls13.conf \
               tests/test-tls13-down.conf \
               tests/test-tls13-ecc.conf \
+              tests/test-tls13-null.conf \
               tests/test-tls13-psk.conf \
               tests/test-tls13-pq-standalone.conf \
               tests/test-tls13-pq-hybrid.conf \
@@ -71,6 +78,7 @@ EXTRA_DIST += tests/unit.h \
               tests/test-dtls-srtp.conf \
               tests/test-dtls-srtp-fails.conf \
               tests/test-dtls13.conf \
+              tests/test-dtls13-null.conf \
               tests/test-dtls13-downgrade.conf \
               tests/test-dtls13-downgrade-fails.conf \
               tests/test-dtls13-psk.conf \
@@ -105,7 +113,16 @@ EXTRA_DIST += tests/unit.h \
               tests/freertos-mem-track-repro/FreeRTOS.h \
               tests/freertos-mem-track-repro/semphr.h \
               tests/freertos-mem-track-repro/task.h \
-              tests/freertos-mem-track-repro/run.sh
+              tests/freertos-mem-track-repro/run.sh \
+              tests/cmsis-rtos-thread-types-repro/user_settings.h \
+              tests/cmsis-rtos-thread-types-repro/repro.c \
+              tests/cmsis-rtos-thread-types-repro/cmsis_os.h \
+              tests/cmsis-rtos-thread-types-repro/cmsis_os2.h \
+              tests/cmsis-rtos-thread-types-repro/run.sh \
+              tests/altera-fcs-stub/libfcs_osal_types.h \
+              tests/altera-fcs-stub/libfcs.h \
+              tests/altera-fcs-stub/libfcs_stub.c \
+              tests/altera-fcs-stub/fdt_stub.c
 DISTCLEANFILES+= tests/.libs/unit.test
 
 # MC/DC white-box coverage supplements (tests/unit-mcdc/).
@@ -120,8 +137,11 @@ DISTCLEANFILES+= tests/.libs/unit.test
 # non-compiled files.  Do not move them to tests_unit_test_SOURCES.
 EXTRA_DIST += \
               tests/unit-mcdc/README.md \
+              tests/unit-mcdc/run-whitebox-smoke.sh \
+              tests/unit-mcdc/smoke-expected.txt \
               tests/unit-mcdc/mcdc_der_edit.h \
               tests/unit-mcdc/mcdc_fault_alloc.h \
+              tests/unit-mcdc/mcdc_fault_cryptocb.h \
               tests/unit-mcdc/mcdc_fault_hash.h \
               tests/unit-mcdc/mcdc_fault_mp.h \
               tests/unit-mcdc/mcdc_fault_mpint.h \
@@ -140,10 +160,13 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_chacha20_poly1305_whitebox.c \
               tests/unit-mcdc/test_chacha_whitebox.c \
               tests/unit-mcdc/test_cmac_whitebox.c \
+              tests/unit-mcdc/test_crl_whitebox.c \
               tests/unit-mcdc/test_cryptocb_whitebox.c \
               tests/unit-mcdc/test_curve25519_whitebox.c \
               tests/unit-mcdc/test_dh_fault_whitebox.c \
               tests/unit-mcdc/test_dsa_fault_whitebox.c \
+              tests/unit-mcdc/test_dtls13_role_whitebox.c \
+              tests/unit-mcdc/test_dtls_whitebox.c \
               tests/unit-mcdc/test_ecc_fault_whitebox.c \
               tests/unit-mcdc/test_ecc_whitebox.c \
               tests/unit-mcdc/test_eccsi_fault_whitebox.c \
@@ -163,6 +186,22 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_integer_fault_whitebox.c \
               tests/unit-mcdc/test_integer_whitebox.c \
               tests/unit-mcdc/test_kdf_hash_fault_whitebox.c \
+              tests/unit-mcdc/test_internal_domain_whitebox.c \
+              tests/unit-mcdc/test_internal_certerror_whitebox.c \
+              tests/unit-mcdc/test_internal_clienthello_whitebox.c \
+              tests/unit-mcdc/test_internal_cryptocb_whitebox.c \
+              tests/unit-mcdc/test_ssl_certman_whitebox.c \
+              tests/unit-mcdc/test_ssl_sess_whitebox.c \
+              tests/unit-mcdc/test_internal_dhskehash_whitebox.c \
+              tests/unit-mcdc/test_internal_eddsa_whitebox.c \
+              tests/unit-mcdc/test_internal_nullguard_whitebox.c \
+              tests/unit-mcdc/test_internal_peerkey_whitebox.c \
+              tests/unit-mcdc/test_keys_whitebox.c \
+              tests/unit-mcdc/test_internal_revocation_whitebox.c \
+              tests/unit-mcdc/test_internal_record_whitebox.c \
+              tests/unit-mcdc/test_internal_status_whitebox.c \
+              tests/unit-mcdc/test_internal_sanity_whitebox.c \
+              tests/unit-mcdc/test_internal_suites_whitebox.c \
               tests/unit-mcdc/test_kdf_whitebox.c \
               tests/unit-mcdc/test_lms_bds_whitebox.c \
               tests/unit-mcdc/test_lms_fault_whitebox.c \
@@ -175,6 +214,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_mlkem_fault_whitebox.c \
               tests/unit-mcdc/test_mlkem_poly_hash_fault_whitebox.c \
               tests/unit-mcdc/test_pkcs12_fault_whitebox.c \
+              tests/unit-mcdc/test_ocsp_whitebox.c \
               tests/unit-mcdc/test_pkcs12_parse_whitebox.c \
               tests/unit-mcdc/test_pkcs12_whitebox.c \
               tests/unit-mcdc/test_pkcs7_arg_whitebox.c \
@@ -206,6 +246,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_sp_arm64_fault_whitebox.c \
               tests/unit-mcdc/test_sp_arm64_whitebox.c \
               tests/unit-mcdc/test_sp_arm_fault_common.h \
+              tests/unit-mcdc/test_sp_arm_point_specials.h \
               tests/unit-mcdc/test_sp_armthumb_fault_whitebox.c \
               tests/unit-mcdc/test_sp_armthumb_whitebox.c \
               tests/unit-mcdc/test_sp_c32_fault_whitebox.c \
@@ -226,6 +267,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_tfm_whitebox.c \
               tests/unit-mcdc/test_tls13_null_whitebox.c \
               tests/unit-mcdc/test_tls13_whitebox.c \
+              tests/unit-mcdc/test_tls_whitebox.c \
               tests/unit-mcdc/test_tsp_fault_whitebox.c \
               tests/unit-mcdc/test_tsp_whitebox.c \
               tests/unit-mcdc/test_wc_encrypt_whitebox.c \
@@ -236,6 +278,7 @@ EXTRA_DIST += \
               tests/unit-mcdc/test_wc_port_whitebox.c \
               tests/unit-mcdc/test_wc_xmss_impl_whitebox.c \
               tests/unit-mcdc/test_wolfentropy_whitebox.c \
+              tests/unit-mcdc/test_wolfio_whitebox.c \
               tests/unit-mcdc/test_wolfmath_whitebox.c \
               tests/unit-mcdc/test_xmss_fault_whitebox.c \
               tests/unit-mcdc/test_xmss_hash_fault_whitebox.c

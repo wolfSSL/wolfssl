@@ -529,9 +529,15 @@ static void wb_exportpub_ex(void)
     LmsKey dst, src;
     int ret;
 
+    /* A failed export leaves keyDst untouched, so zero it before the rows
+     * that expect failure reach the Free below. */
+    XMEMSET(&dst, 0, sizeof(dst));
     XMEMSET(&src, 0, sizeof(src));
     wc_LmsKey_Init(&src, NULL, INVALID_DEVID);
     wc_LmsKey_SetParameters(&src, 1, 5, 8); /* state PARMSET */
+    /* The pubSet operand is covered by test_wc_LmsKey_reload_no_pub; hold it
+     * true so these rows isolate the state chain. */
+    src.pubSet = 1;
 
     ret = wc_LmsKey_ExportPub_ex(NULL, &src, NULL, INVALID_DEVID);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
@@ -578,7 +584,9 @@ static void wb_exportpub_ex(void)
 }
 
 /*******************************************************************
- * wc_LmsKey_ExportPubRaw: 1693-1694 (4-operand OR), 1698-1699 (buffer size).
+ * wc_LmsKey_ExportPubRaw: 1755-1756 (4-operand OR), 1761-1763 (state guard),
+ * 1768-1769 (buffer size). As in wb_exportpub_ex, the state is forced
+ * directly rather than paying for a real keygen.
  ******************************************************************/
 static void wb_exportpubraw(void)
 {
@@ -590,8 +598,21 @@ static void wb_exportpubraw(void)
     XMEMSET(&key, 0, sizeof(key));
     wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
     wc_LmsKey_SetParameters(&key, 1, 5, 8);
+    /* As in wb_exportpub_ex: hold pubSet true so these rows isolate the
+     * state chain. */
+    key.pubSet = 1;
     XMEMSET(&key2, 0, sizeof(key2));
     wc_LmsKey_Init(&key2, NULL, INVALID_DEVID); /* params left NULL */
+
+    /* State guard true: params set, but no public key made yet. */
+    outLen = (word32)sizeof(pub);
+    ret = wc_LmsKey_ExportPubRaw(&key, pub, &outLen);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        WB_NOTE("ExportPubRaw(PARMSET) did not report BAD_STATE_E");
+        wb_fail = 1;
+    }
+
+    key.state = WC_LMS_STATE_OK;
 
     outLen = (word32)sizeof(pub);
     ret = wc_LmsKey_ExportPubRaw(&key, pub, &outLen);
@@ -599,6 +620,25 @@ static void wb_exportpubraw(void)
         WB_NOTE("ExportPubRaw baseline failed");
         wb_fail = 1;
     }
+
+    /* Each accepted state independently turns the guard false. */
+    key.state = WC_LMS_STATE_VERIFYONLY;
+    outLen = (word32)sizeof(pub);
+    ret = wc_LmsKey_ExportPubRaw(&key, pub, &outLen);
+    if (ret != 0) {
+        WB_NOTE("ExportPubRaw(VERIFYONLY) failed");
+        wb_fail = 1;
+    }
+
+    key.state = WC_LMS_STATE_NOSIGS;
+    outLen = (word32)sizeof(pub);
+    ret = wc_LmsKey_ExportPubRaw(&key, pub, &outLen);
+    if (ret != 0) {
+        WB_NOTE("ExportPubRaw(NOSIGS) failed");
+        wb_fail = 1;
+    }
+
+    key.state = WC_LMS_STATE_OK;
 
     ret = wc_LmsKey_ExportPubRaw(NULL, pub, &outLen);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
@@ -630,7 +670,7 @@ static void wb_exportpubraw(void)
         wb_fail = 1;
     }
 
-    WB_NOTE("1693-1699 ExportPubRaw leaves closed");
+    WB_NOTE("1755-1769 ExportPubRaw leaves closed");
 }
 
 /*******************************************************************
@@ -901,8 +941,8 @@ static void wb_getkid_from_privraw(void)
  * its independence pair still needs the all-valid baseline row alongside it
  * (masking MC/DC on an OR chain: the operand's pair is baseline-all-false
  * vs only-that-operand-true, not two different-failure rows). No real
- * keygen needed -- GetKid does not check state, only key/params/kid/kidSz,
- * and reads a zeroed priv_raw harmlessly.
+ * keygen needed -- forcing privSet stands in for it, and GetKid reads a
+ * zeroed priv_raw harmlessly.
  ******************************************************************/
 static void wb_getkid(void)
 {
@@ -913,7 +953,13 @@ static void wb_getkid(void)
 
     XMEMSET(&key, 0, sizeof(key));
     wc_LmsKey_Init(&key, NULL, INVALID_DEVID);
-    wc_LmsKey_SetParameters(&key, 1, 5, 8); /* baseline: all operands false */
+    wc_LmsKey_SetParameters(&key, 1, 5, 8);
+    ret = wc_LmsKey_GetKid(&key, &kid, &kidSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_STATE_E)) {
+        WB_NOTE("GetKid(privSet==0) did not fail");
+        wb_fail = 1;
+    }
+    key.privSet = 1; /* baseline: all operands false */
     ret = wc_LmsKey_GetKid(&key, &kid, &kidSz);
     if (ret != 0) {
         WB_NOTE("GetKid baseline failed");

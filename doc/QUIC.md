@@ -70,7 +70,7 @@ At the base is the struct `WOLFSSL_QUIC_METHOD` which carries four callbacks:
 * `set_encryption_secrets()`: to forward generated secrets.
 * `add_handshake_data()`: to forward Handshake messages.
 * `flush_flight()`: to tell the QUIC protocol handler to flush any buffered data.
-* `send_alert()`: to forward SSL alerts.
+* `send_alert()`: to forward SSL alerts, or a `WOLFSSL_QUIC_ERR_*` transport error code where RFC 9001 requires a QUIC connection error (e.g. `PROTOCOL_VIOLATION`) instead of a TLS alert.
 
 A QUIC protocol handler installs these via `wolfSSL_CTX_set_quic_method()` or `wolfSSL_set_quic_method()`. When CRYPTO messages arrive from the peer, those are added via `wolfSSL_provide_quic_data()` to the `WOLFSSL*` instance:
 
@@ -83,6 +83,8 @@ A QUIC protocol handler installs these via `wolfSSL_CTX_set_quic_method()` or `w
                           |
   REPLY <--encrypt+send---+
 ```
+
+`wolfSSL_provide_quic_data()` returns `WOLFSSL_SUCCESS` or `WOLFSSL_FAILURE`, and on failure leaves the reason for `wolfSSL_get_error()`. A failure is fatal and cannot be recovered from: the connection has to be torn down, not continued with further data.
 
 The wolfSSL instance performs the common TLSv1.3 handshake processing with the significant change that it does not encrypt or decrypt messages itself. It computes all the secrets and MACs as usual, however.
 

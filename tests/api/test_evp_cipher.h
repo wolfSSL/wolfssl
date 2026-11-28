@@ -41,6 +41,7 @@ int test_wolfSSL_EVP_aes_256_gcm(void);
 int test_wolfSSL_EVP_aes_192_gcm(void);
 int test_wolfSSL_EVP_aes_128_gcm(void);
 int test_evp_cipher_aes_gcm(void);
+int test_evp_cipher_aes_gcm_tag_len(void);
 int test_wolfssl_EVP_aes_gcm(void);
 int test_wolfssl_EVP_aes_gcm_AAD_2_parts(void);
 int test_wolfssl_EVP_aes_gcm_zeroLen(void);
@@ -52,6 +53,8 @@ int test_wolfssl_EVP_aes_ccm_zeroLen(void);
 int test_wolfssl_EVP_chacha20(void);
 int test_wolfssl_EVP_chacha20_poly1305(void);
 int test_wolfssl_EVP_aria_gcm(void);
+int test_evp_cipher_aria_gcm_iv_required(void);
+int test_evp_cipher_aria_gcm_message_iv(void);
 int test_wolfssl_EVP_sm4_ecb(void);
 int test_wolfssl_EVP_sm4_cbc(void);
 int test_wolfssl_EVP_sm4_ctr(void);
@@ -64,8 +67,12 @@ int test_wolfSSL_EVP_enc_null(void);
 int test_wolfSSL_EVP_rc2_cbc(void);
 int test_wolfSSL_EVP_mdc2(void);
 int test_wolfSSL_EVP_des_ede3_ecb_no_key(void);
+int test_wolfSSL_EVP_Cipher_des_cbc_error(void);
 int test_evp_cipher_pkcs7_pad_zero(void);
 int test_evp_cipher_aead_aad_overflow(void);
+int test_evp_cipher_update_chunked_bound(void);
+int test_evp_cipher_update_no_padding_buffered(void);
+int test_evp_cipher_cfb1_length_overflow(void);
 
 #define TEST_EVP_CIPHER_DECLS                                               \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_CIPHER_CTX),             \
@@ -85,6 +92,7 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_192_gcm),            \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_aes_128_gcm),            \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aes_gcm),                 \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aes_gcm_tag_len),         \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_gcm),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_gcm_AAD_2_parts),    \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aes_gcm_zeroLen),        \
@@ -96,6 +104,8 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_chacha20),               \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_chacha20_poly1305),      \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_aria_gcm),               \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aria_gcm_iv_required),    \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aria_gcm_message_iv),     \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ecb),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_cbc),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfssl_EVP_sm4_ctr),                \
@@ -108,7 +118,11 @@ int test_evp_cipher_aead_aad_overflow(void);
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_rc2_cbc),                \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_mdc2),                  \
     TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_des_ede3_ecb_no_key),    \
+    TEST_DECL_GROUP("evp_cipher", test_wolfSSL_EVP_Cipher_des_cbc_error),   \
     TEST_DECL_GROUP("evp_cipher", test_evp_cipher_pkcs7_pad_zero),           \
-    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aead_aad_overflow)
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_aead_aad_overflow),      \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_update_chunked_bound),   \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_update_no_padding_buffered), \
+    TEST_DECL_GROUP("evp_cipher", test_evp_cipher_cfb1_length_overflow)
 
 #endif /* WOLFCRYPT_TEST_EVP_CIPHER_H */

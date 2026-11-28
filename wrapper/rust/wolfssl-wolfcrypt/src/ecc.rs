@@ -726,6 +726,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let hash = [0x42u8; 32];
@@ -791,6 +796,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
@@ -965,6 +975,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_import, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1030,6 +1045,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
@@ -1084,6 +1104,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let rng = RNG::new().expect("Failed to create RNG");
     /// let curve_id = ECC::SECP256R1;
     /// let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
@@ -1300,8 +1325,8 @@ impl ECC {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(ECC) containing the ECC struct instance or Err(e)
-    /// containing the wolfSSL library error code value.
+    /// Returns either Ok(()) if the key is ok or Err(e) containing the wolfSSL
+    /// library error code value.
     ///
     /// # Example
     ///
@@ -1343,6 +1368,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1398,6 +1428,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1454,6 +1489,11 @@ impl ECC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+    /// }
     /// #[cfg(all(ecc_export, random))]
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
@@ -1542,6 +1582,11 @@ impl ECC {
     /// {
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut x963 = [0u8; 128];
@@ -1781,6 +1826,11 @@ impl ECC {
     /// use std::rc::Rc;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
     /// let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
@@ -1831,6 +1881,11 @@ impl ECC {
     /// use std::rc::Rc;
     /// use wolfssl_wolfcrypt::random::RNG;
     /// use wolfssl_wolfcrypt::ecc::ECC;
+    /// #[cfg(fips)]
+    /// {
+    /// use wolfssl_wolfcrypt::fips;
+    /// fips::set_private_key_read_enable(1);
+    /// }
     /// let rng = Rc::new(RNG::new().expect("Failed to create RNG"));
     /// let mut ecc0 = ECC::generate(32, &rng, None, None).expect("Error with generate()");
     /// let mut ecc1 = ECC::generate(32, &rng, None, None).expect("Error with generate()");

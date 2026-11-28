@@ -485,11 +485,7 @@ int test_wc_Eccsi_DecisionCoverage(void)
 #endif
 
     /* --- wc_ValidateEccsiPvt() (CLIENT) ---
-     * eccsi.c ~line 1579: (key==NULL) | (pvt==NULL) || (valid==NULL)
-     * (first two operands are combined with a bitwise '|', not '&&'/'||',
-     *  so both are always evaluated; MC/DC's baseline+single-flip pattern
-     *  still applies since the result is the same 0/1 boolean algebra.)
-     */
+     * eccsi.c: (key==NULL) || (pvt==NULL) || (valid==NULL) */
     ExpectIntEQ(wc_ValidateEccsiPvt(NULL, pvt, &valid),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ValidateEccsiPvt(&keyPub, NULL, &valid),
@@ -857,6 +853,430 @@ int test_wc_Eccsi_FeatureCoverage(void)
     wc_FreeRng(&rng);
     wc_FreeEccsiKey(&pub);
     wc_FreeEccsiKey(&priv);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Eccsi_DecodeSskRange(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_ECCSI
+    EccsiKey key;
+    mp_int ssk;
+    ecc_point* pvt = NULL;
+    /* P-256 order q */
+    static const byte q[32] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
+        0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51
+    };
+    byte buf[32 * 3];
+
+    XMEMSET(&key, 0, sizeof(key));
+    ExpectIntEQ(wc_InitEccsiKey(&key, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(mp_init(&ssk), MP_OKAY);
+    ExpectNotNull(pvt = wc_ecc_new_point());
+
+    XMEMSET(buf, 0, sizeof(buf));
+    buf[31] = 1;
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk), 0);
+    ExpectIntEQ(mp_cmp_d(&ssk, 1), MP_EQ);
+    ExpectIntEQ(wc_DecodeEccsiPair(&key, buf, sizeof(buf), &ssk, pvt), 0);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt), 0);
+
+    XMEMCPY(buf, q, sizeof(q));
+    buf[31]--;
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk), 0);
+
+    buf[31]++;
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(wc_DecodeEccsiPair(&key, buf, sizeof(buf), &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(mp_read_unsigned_bin(&ssk, q, sizeof(q)), MP_OKAY);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    XMEMSET(buf, 0xFF, 32);
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+
+    XMEMSET(buf, 0, 32);
+    ExpectIntEQ(wc_DecodeEccsiSsk(&key, buf, 32, &ssk),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(wc_DecodeEccsiPair(&key, buf, sizeof(buf), &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    mp_zero(&ssk);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+#if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
+                                               defined(WOLFSSL_SP_INT_NEGATIVE))
+    ExpectIntEQ(mp_read_radix(&ssk, "-1", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_isneg(&ssk), MP_YES);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+#endif
+
+    wc_ecc_del_point(pvt);
+    mp_free(&ssk);
+    wc_FreeEccsiKey(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Reuse one KMS key object across key generations and signatures. */
+int test_wc_Eccsi_KeyReuse(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_ECCSI
+    EccsiKey key;
+    WC_RNG rng;
+    mp_int ssk;
+    ecc_point* pvt = NULL;
+    ecc_point* badPvt = NULL;
+    char mail[] = "test@wolfssl.com";
+    byte* id = (byte*)mail;
+    word32 idSz;
+    int valid;
+    int verified;
+    int round;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    byte hashSz = 0;
+    byte sig[32 * 4 + 1];
+    word32 sigSz;
+    byte msg[1] = { 0x00 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ssk, 0, sizeof(ssk));
+    idSz = (word32)XSTRLEN(mail);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pvt = wc_ecc_new_point());
+    ExpectNotNull(badPvt = wc_ecc_new_point());
+    ExpectIntEQ(mp_init(&ssk), MP_OKAY);
+    ExpectIntEQ(wc_InitEccsiKey(&key, HEAP_HINT, INVALID_DEVID), 0);
+
+    /* The second round regenerates the KPAK after a verify used it. */
+    for (round = 0; round < 2; round++) {
+        verified = 0;
+        ExpectIntEQ(wc_MakeEccsiKey(&key, &rng), 0);
+        if (round > 0) {
+            /* The identity hash set in the first round is for the old KPAK. */
+            sigSz = sizeof(sig);
+            ExpectIntEQ(wc_SignEccsiHash(&key, &rng, WC_HASH_TYPE_SHA256, msg,
+                (word32)sizeof(msg), sig, &sigSz),
+                WC_NO_ERR_TRACE(BAD_STATE_E));
+        }
+        ExpectIntEQ(wc_MakeEccsiPair(&key, &rng, WC_HASH_TYPE_SHA256, id,
+            idSz, &ssk, pvt), 0);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
+        ExpectIntEQ(wc_HashEccsiId(&key, WC_HASH_TYPE_SHA256, id, idSz, pvt,
+            hash, &hashSz), 0);
+        ExpectIntEQ(wc_SetEccsiHash(&key, hash, hashSz), 0);
+        ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt), 0);
+        sigSz = sizeof(sig);
+        ExpectIntEQ(wc_SignEccsiHash(&key, &rng, WC_HASH_TYPE_SHA256, msg,
+            (word32)sizeof(msg), sig, &sigSz), 0);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
+        ExpectIntEQ(wc_VerifyEccsiHash(&key, WC_HASH_TYPE_SHA256, msg,
+            (word32)sizeof(msg), sig, sigSz, &verified), 0);
+        ExpectIntEQ(verified, 1);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
+    }
+
+    /* A PVT off the curve or at infinity is rejected. */
+    ExpectIntEQ(wc_ecc_copy_point(pvt, badPvt), 0);
+    ExpectIntEQ(mp_add_d(badPvt->y, 1, badPvt->y), MP_OKAY);
+    valid = 1;
+    ExpectIntEQ(wc_ValidateEccsiPvt(&key, badPvt, &valid), 0);
+    ExpectIntEQ(valid, 0);
+    ExpectIntEQ(mp_set(badPvt->x, 0), MP_OKAY);
+    ExpectIntEQ(mp_set(badPvt->y, 0), MP_OKAY);
+    valid = 1;
+    ExpectIntEQ(wc_ValidateEccsiPvt(&key, badPvt, &valid), 0);
+    ExpectIntEQ(valid, 0);
+
+    if (badPvt != NULL) {
+        wc_ecc_del_point(badPvt);
+    }
+    if (pvt != NULL) {
+        wc_ecc_del_point(pvt);
+    }
+    mp_free(&ssk);
+    wc_FreeRng(&rng);
+    wc_FreeEccsiKey(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Sign and verify on each 256-bit curve compiled in. */
+int test_wc_Eccsi_Curves(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFCRYPT_HAVE_ECCSI
+    static const int curves[] = {
+        ECC_SECP256R1,
+    #ifdef HAVE_ECC_BRAINPOOL
+        ECC_BRAINPOOLP256R1,
+    #endif
+    #ifdef HAVE_ECC_KOBLITZ
+        ECC_SECP256K1,
+    #endif
+    };
+    EccsiKey key;
+    WC_RNG rng;
+    mp_int ssk;
+    ecc_point* pvt = NULL;
+    char mail[] = "test@wolfssl.com";
+    byte* id = (byte*)mail;
+    word32 idSz;
+    int valid;
+    int verified;
+    int i;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    byte hashSz = 0;
+    byte sig[32 * 4 + 1];
+    word32 sigSz;
+    byte msg[1] = { 0x00 };
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ssk, 0, sizeof(ssk));
+    idSz = (word32)XSTRLEN(mail);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pvt = wc_ecc_new_point());
+    ExpectIntEQ(mp_init(&ssk), MP_OKAY);
+
+    for (i = 0; i < (int)(sizeof(curves) / sizeof(curves[0])); i++) {
+        verified = 0;
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_InitEccsiKey_ex(&key, 32, curves[i], HEAP_HINT,
+            INVALID_DEVID), 0);
+        ExpectIntEQ(wc_MakeEccsiKey(&key, &rng), 0);
+        ExpectIntEQ(wc_MakeEccsiPair(&key, &rng, WC_HASH_TYPE_SHA256, id,
+            idSz, &ssk, pvt), 0);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPair(&key, WC_HASH_TYPE_SHA256, id, idSz,
+            &ssk, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
+        valid = 0;
+        ExpectIntEQ(wc_ValidateEccsiPvt(&key, pvt, &valid), 0);
+        ExpectIntEQ(valid, 1);
+        ExpectIntEQ(wc_HashEccsiId(&key, WC_HASH_TYPE_SHA256, id, idSz, pvt,
+            hash, &hashSz), 0);
+        ExpectIntEQ(wc_SetEccsiHash(&key, hash, hashSz), 0);
+        ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt), 0);
+        sigSz = sizeof(sig);
+        ExpectIntEQ(wc_SignEccsiHash(&key, &rng, WC_HASH_TYPE_SHA256, msg,
+            (word32)sizeof(msg), sig, &sigSz), 0);
+        ExpectIntEQ(wc_VerifyEccsiHash(&key, WC_HASH_TYPE_SHA256, msg,
+            (word32)sizeof(msg), sig, sigSz, &verified), 0);
+        ExpectIntEQ(verified, 1);
+        wc_FreeEccsiKey(&key);
+    }
+
+    if (pvt != NULL) {
+        wc_ecc_del_point(pvt);
+    }
+    mp_free(&ssk);
+    wc_FreeRng(&rng);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wc_FreeEccsiKey() must wipe the SSK before releasing it. Only the heap math
+ * backend keeps mp_int digits in a separate allocation, so only there can a
+ * free hook see what is handed back to the allocator. WOLFSSL_CHECK_MEM_ZERO
+ * and WOLFSSL_MEMORY_LOG put a header in front of each allocation, so the free
+ * hook would never be handed key.ssk.dp itself. Platforms whose XFREE skips
+ * the hooks entirely are detected at run time by eccsi_zero_probe(). */
+#if defined(WOLFCRYPT_HAVE_ECCSI) && defined(WOLFCRYPT_ECCSI_CLIENT) && \
+    defined(USE_INTEGER_HEAP_MATH) && defined(USE_WOLFSSL_MEMORY) && \
+    !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_MEMORY_LOG)
+#define TEST_ECCSI_FREE_ZEROIZE
+
+/* These callback types take (func, line) too under WOLFSSL_DEBUG_MEMORY. */
+#ifdef WOLFSSL_DEBUG_MEMORY
+    #define ECCSI_ZERO_CB_TAIL   , const char* func, unsigned int line
+    #define ECCSI_ZERO_CB_ARGS   , func, line
+#else
+    #define ECCSI_ZERO_CB_TAIL
+    #define ECCSI_ZERO_CB_ARGS
+#endif
+
+/* The hooks delegate to the allocators that were installed before the test
+ * (e.g. WOLFSSL_TRACK_MEMORY's), so blocks that outlive the test, such as
+ * cached ECC curve values, can still be freed by them later. */
+static wolfSSL_Malloc_cb  eccsi_zero_prev_mc;
+static wolfSSL_Free_cb    eccsi_zero_prev_fc;
+static wolfSSL_Realloc_cb eccsi_zero_prev_rc;
+
+/* State for eccsi_zero_probe(). */
+static int         eccsi_zero_probing;
+static const void* eccsi_zero_probe_alloc;
+static int         eccsi_zero_probe_freed;
+
+static const void* eccsi_zero_watch;
+static size_t      eccsi_zero_watchSz;
+static int         eccsi_zero_seen;
+static int         eccsi_zero_clean;
+
+static void* eccsi_zero_malloc_cb(size_t size ECCSI_ZERO_CB_TAIL)
+{
+    void* p;
+
+    if (eccsi_zero_prev_mc != NULL) {
+        p = eccsi_zero_prev_mc(size ECCSI_ZERO_CB_ARGS);
+    }
+    else {
+        p = malloc(size);
+    }
+    if (eccsi_zero_probing && (eccsi_zero_probe_alloc == NULL)) {
+        eccsi_zero_probe_alloc = p;
+    }
+    return p;
+}
+
+static void eccsi_zero_free_cb(void* ptr ECCSI_ZERO_CB_TAIL)
+{
+    if (eccsi_zero_probing && (ptr != NULL) &&
+            (ptr == eccsi_zero_probe_alloc)) {
+        eccsi_zero_probe_freed = 1;
+    }
+    if ((ptr != NULL) && (ptr == eccsi_zero_watch)) {
+        const byte* p = (const byte*)ptr;
+        size_t i;
+        byte acc = 0;
+
+        for (i = 0; i < eccsi_zero_watchSz; i++) {
+            acc |= p[i];
+        }
+        eccsi_zero_seen = 1;
+        eccsi_zero_clean = (acc == 0);
+    }
+    if (eccsi_zero_prev_fc != NULL) {
+        eccsi_zero_prev_fc(ptr ECCSI_ZERO_CB_ARGS);
+    }
+    else {
+        free(ptr);
+    }
+}
+
+static void* eccsi_zero_realloc_cb(void* ptr, size_t size ECCSI_ZERO_CB_TAIL)
+{
+    if (eccsi_zero_prev_rc != NULL) {
+        return eccsi_zero_prev_rc(ptr, size ECCSI_ZERO_CB_ARGS);
+    }
+    return realloc(ptr, size);
+}
+
+/* Checks that XMALLOC()/XFREE() reach the hooks with the pointer unchanged.
+ * Returns 1 when they do and 0 when both bypass the hooks, as on platforms
+ * that map them to an OS or pool allocator (see types.h); the wipe cannot be
+ * observed there. Returns -1 when the hooks are reached but see a different
+ * pointer, or only one of the pair reaches them: that is a failure. */
+static int eccsi_zero_probe(void)
+{
+    void* probe;
+    int ret;
+
+    eccsi_zero_probe_alloc = NULL;
+    eccsi_zero_probe_freed = 0;
+    eccsi_zero_probing = 1;
+    probe = XMALLOC(8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (probe == NULL) {
+        ret = -1;
+    }
+    else {
+        ret = (eccsi_zero_probe_alloc == probe) ? 1 :
+              (eccsi_zero_probe_alloc == NULL) ? 0 : -1;
+        XFREE(probe, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (eccsi_zero_probe_freed != ret) {
+            ret = -1;
+        }
+    }
+    eccsi_zero_probing = 0;
+    return ret;
+}
+#endif
+
+int test_wc_Eccsi_FreeZeroizesSsk(void)
+{
+    EXPECT_DECLS;
+#if defined(TEST_ECCSI_FREE_ZEROIZE) && defined(USE_WOLFSSL_MEMORY)
+    EccsiKey key;
+    WC_RNG rng;
+    mp_int ssk;
+    ecc_point* pvt = NULL;
+    char mail[] = "test@wolfssl.com";
+    int hooked = 0;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&ssk, 0, sizeof(ssk));
+    eccsi_zero_watch = NULL;
+    eccsi_zero_watchSz = 0;
+    eccsi_zero_seen = 0;
+    eccsi_zero_clean = 0;
+    eccsi_zero_prev_mc = NULL;
+    eccsi_zero_prev_fc = NULL;
+    eccsi_zero_prev_rc = NULL;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&eccsi_zero_prev_mc,
+        &eccsi_zero_prev_fc, &eccsi_zero_prev_rc), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(eccsi_zero_malloc_cb,
+        eccsi_zero_free_cb, eccsi_zero_realloc_cb), 0);
+    if (EXPECT_SUCCESS()) {
+        hooked = eccsi_zero_probe();
+        ExpectIntGE(hooked, 0);
+    }
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectNotNull(pvt = wc_ecc_new_point());
+    ExpectIntEQ(mp_init(&ssk), MP_OKAY);
+    ExpectIntEQ(wc_InitEccsiKey(&key, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MakeEccsiKey(&key, &rng), 0);
+    ExpectIntEQ(wc_MakeEccsiPair(&key, &rng, WC_HASH_TYPE_SHA256,
+        (byte*)mail, (word32)XSTRLEN(mail), &ssk, pvt), 0);
+    ExpectIntEQ(wc_SetEccsiPair(&key, &ssk, pvt), 0);
+
+    /* The key's copy of the SSK lives in its own digit allocation. */
+    ExpectFalse(mp_iszero(&key.ssk));
+    ExpectNotNull(key.ssk.dp);
+    if (EXPECT_SUCCESS()) {
+        eccsi_zero_watch = key.ssk.dp;
+        eccsi_zero_watchSz = (size_t)key.ssk.used * sizeof(mp_digit);
+    }
+
+    wc_FreeEccsiKey(&key);
+    eccsi_zero_watch = NULL;
+
+    if (hooked == 1) {
+        ExpectIntEQ(eccsi_zero_seen, 1);
+        ExpectIntEQ(eccsi_zero_clean, 1);
+    }
+
+    if (pvt != NULL) {
+        wc_ecc_del_point(pvt);
+    }
+    mp_forcezero(&ssk);
+    wc_FreeRng(&rng);
+    (void)wolfSSL_SetAllocators(eccsi_zero_prev_mc, eccsi_zero_prev_fc,
+        eccsi_zero_prev_rc);
+    /* Report the test as skipped, not passed, where XMALLOC() and XFREE()
+     * bypass the hooks. */
+    if ((hooked == 0) && EXPECT_SUCCESS()) {
+        return TEST_SKIPPED;
+    }
 #endif
     return EXPECT_RESULT();
 }

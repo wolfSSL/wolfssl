@@ -16,6 +16,8 @@ CCAS      ?= $(CC)
 LD        ?= ld
 OBJCOPY   ?= objcopy
 NM        ?= nm
+# Target OS; the parent build passes configure's host_os.
+SWDEV_HOST_OS ?= $(shell uname -s)
 
 SWDEV_LOCAL_SRCS = swdev.c
 
@@ -95,6 +97,20 @@ ASM_OBJS    = $(patsubst wolfcrypt/src/%.S,$(BUILDDIR)/wc/%.o,$(SWDEV_ASM_SRCS))
 LOCAL_OBJS  = $(patsubst %.c,$(BUILDDIR)/local/%.o,$(SWDEV_LOCAL_SRCS))
 ALL_OBJS    = $(CRYPT_OBJS) $(SSL_OBJS) $(ASM_OBJS) $(LOCAL_OBJS)
 
+SWDEV_EXPORTS = wc_SwDev_Callback wc_SwDev_InternalCleanup
+
+# macOS has no objcopy: ld64 -exported_symbol on a relocatable link
+# localizes the other globals. Mach-O prefixes C symbols with '_'.
+ifneq ($(filter darwin% Darwin,$(SWDEV_HOST_OS)),)
+SWDEV_LOCALIZE   = $(LD) -r -o $@ $< \
+                   $(patsubst %,-exported_symbol _%,$(SWDEV_EXPORTS))
+SWDEV_SYM_PREFIX = _
+else
+SWDEV_LOCALIZE   = $(OBJCOPY) $< $@ \
+                   $(addprefix --keep-global-symbol=,$(SWDEV_EXPORTS))
+SWDEV_SYM_PREFIX =
+endif
+
 .PHONY: all clean
 all: $(BUILDDIR)/swdev.o
 
@@ -114,19 +130,13 @@ $(BUILDDIR)/swdev.partial.o: $(ALL_OBJS)
 	$(LD) -r -o $@ $(ALL_OBJS)
 
 $(BUILDDIR)/swdev.o: $(BUILDDIR)/swdev.partial.o
-	@# --keep-global-symbol localizes every global symbol *except* the
-	@# named one. We can't rely on --localize-hidden here because
-	@# wolfssl/wolfcrypt/libwolfssl_sources.h auto-defines BUILDING_WOLFSSL
-	@# at the top of every compiled source, which expands WOLFSSL_API to
-	@# visibility("default") and overrides the command-line
-	@# -fvisibility=hidden. --keep-global-symbol sidesteps that by matching
-	@# on symbol name directly.
-	$(OBJCOPY) --keep-global-symbol=wc_SwDev_Callback \
-	           --keep-global-symbol=wc_SwDev_InternalCleanup $< $@
+	@# BUILDING_WOLFSSL makes WOLFSSL_API default-visible, so localize by
+	@# name with SWDEV_EXPORTS rather than by visibility.
+	$(SWDEV_LOCALIZE)
 	@# Sanity-check: only the two swdev entry points may be externally visible.
 	@visible=$$( $(NM) --extern-only --defined-only $@ | awk '{print $$3}' \
-	             | grep -v '^wc_SwDev_Callback$$' \
-	             | grep -v '^wc_SwDev_InternalCleanup$$' || true); \
+	             | sed 's/^$(SWDEV_SYM_PREFIX)//' \
+	             | grep -vx $(patsubst %,-e %,$(SWDEV_EXPORTS)) || true); \
 	if [ -n "$$visible" ]; then \
 	    echo "error: unexpected externally-visible symbols in $@:"; \
 	    echo "$$visible"; \

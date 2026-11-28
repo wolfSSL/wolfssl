@@ -60,6 +60,7 @@ jobs:
         exclude:
           - { platform: { system: 'Linux' }, library: { id: 'dll' } }
     runs-on: ${{ matrix.platform.image }}
+    timeout-minutes: 10
     name: ${{ matrix.platform.title }} (${{ matrix.thread.id }} ${{ matrix.library.id }})
     steps:
       - name: Setup Open Watcom ${{ matrix.platform.owimage }}

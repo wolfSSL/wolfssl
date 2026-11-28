@@ -185,6 +185,26 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
     ExpectTrue(paramTo->check_time == 22);
     ExpectIntEQ(paramTo->flags & WOLFSSL_USE_CHECK_TIME, 0);
 
+    /* hostFlags are inherited even when the host name is not */
+    if ((paramTo != NULL) && (paramFrom != NULL)) {
+        XMEMSET(paramTo, 0, sizeof(X509_VERIFY_PARAM));
+        XMEMSET(paramFrom, 0, sizeof(X509_VERIFY_PARAM));
+    }
+    ExpectIntEQ(X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+        (int)XSTRLEN(testhostName2)), 1);
+    X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x01);
+    ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
+    ExpectIntEQ(0x01, paramTo->hostFlags);
+    ExpectIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName2,
+        (int)XSTRLEN(testhostName2)));
+
+    /* Set hostFlags are only replaced with default or overwrite */
+    X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x04);
+    ExpectIntEQ(X509_VERIFY_PARAM_inherit(paramTo, paramFrom), 1);
+    ExpectIntEQ(0x01, paramTo->hostFlags);
+    ExpectIntEQ(X509_VERIFY_PARAM_set1(paramTo, paramFrom), 1);
+    ExpectIntEQ(0x04, paramTo->hostFlags);
+
     /* test for incorrect parameters */
     ExpectIntEQ(X509_VERIFY_PARAM_set_flags(NULL, X509_V_FLAG_CRL_CHECK_ALL),
         0);
@@ -207,6 +227,11 @@ int test_wolfSSL_X509_VERIFY_PARAM(void)
 
     ExpectIntEQ(X509_VERIFY_PARAM_get_flags(paramTo), 0);
 
+    X509_VERIFY_PARAM_set_time(NULL, 33); /* NULL parameter gives no harm */
+    X509_VERIFY_PARAM_set_time(paramTo, 33);
+    ExpectTrue(paramTo->check_time == 33);
+    ExpectIntEQ(X509_VERIFY_PARAM_get_flags(paramTo), WOLFSSL_USE_CHECK_TIME);
+
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(NULL));
     ExpectNull(wolfSSL_X509_VERIFY_PARAM_lookup(""));
     ExpectNotNull(wolfSSL_X509_VERIFY_PARAM_lookup("ssl_client"));
@@ -225,6 +250,30 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
     unsigned char buf[16] = {0};
     WOLFSSL_X509_VERIFY_PARAM* param = NULL;
+    int i;
+    static const struct {
+        unsigned char ip[16];
+        const char* asc;
+    } ip6Tests[] = {
+        { { 0x20,0x01, 0x0d,0xb8, 0,0, 0,1, 0,0, 0,0, 0,0, 0,5 },
+          "2001:db8:0:1::5" },
+        { { 0x20,0x01, 0x0d,0xb8, 0,0, 0,1, 0,0, 0,0, 0,0, 0,0 },
+          "2001:db8:0:1::" },
+        { { 0,1, 0,0, 0,0, 0,2, 0,0, 0,0, 0,0, 0,3 },
+          "1:0:0:2::3" },
+        { { 0,0, 0,0, 0,0, 0,0, 0,1, 0,0, 0,0, 0,2 },
+          "::1:0:0:2" },
+        /* equal length runs compress the first one */
+        { { 0,1, 0,0, 0,0, 0,2, 0,0, 0,0, 0,3, 0,4 },
+          "1::2:0:0:3:4" },
+        /* a single zero group is not compressed */
+        { { 0x20,0x01, 0x0d,0xb8, 0,0, 0,1, 0,2, 0,3, 0,4, 0,5 },
+          "2001:db8:0:1:2:3:4:5" },
+        { { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 },
+          "::" },
+        { { 0,0, 0,1, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 },
+          "0:1::" }
+    };
 
     ExpectNotNull(param = X509_VERIFY_PARAM_new());
 
@@ -293,6 +342,13 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
     ExpectIntEQ(XSTRNCMP(param->ipasc, "2001:db8:1::ab9:c0a8:102",
                                                 sizeof(param->ipasc)), 0);
 
+    /* Addresses with more than one zero run must not drop the later runs */
+    for (i = 0; i < (int)(sizeof(ip6Tests) / sizeof(ip6Tests[0])); i++) {
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_ip(param, ip6Tests[i].ip, 16),
+            SSL_SUCCESS);
+        ExpectStrEQ(param->ipasc, ip6Tests[i].asc);
+    }
+
     XFREE(param, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
@@ -302,6 +358,12 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
+    const char badHost[] = "example.com\0.attacker.example";
+    const char leadingNul[] = {'\0', 'x'};
+    const char doubleNul[] = {'a', '\0', '\0'};
+    const char unterminatedHost[] = {'a', 'b', 'c'};
+    char longHost[WOLFSSL_HOST_NAME_MAX + 8];
+    char savedHost[WOLFSSL_HOST_NAME_MAX];
     const char host[] = "www.example.com";
     WOLFSSL_X509_VERIFY_PARAM* pParam = NULL;
 
@@ -313,9 +375,57 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
         ExpectIntEQ(X509_VERIFY_PARAM_set1_host(NULL, host, sizeof(host)),
             WOLFSSL_FAILURE);
 
-        X509_VERIFY_PARAM_set1_host(pParam, host, sizeof(host));
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host, sizeof(host)),
+            WOLFSSL_SUCCESS);
 
         ExpectIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+
+        /* Invalid input must leave the existing hostname policy intact. */
+        XMEMCPY(savedHost, pParam->hostName, sizeof(savedHost));
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, badHost,
+            (unsigned int)(sizeof(badHost) - 1)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, badHost,
+            (unsigned int)sizeof(badHost)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, leadingNul,
+            (unsigned int)sizeof(leadingNul)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, doubleNul,
+            (unsigned int)sizeof(doubleNul)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+
+        /* Validate the full input before truncating an oversized name. */
+        XMEMSET(longHost, 'a', sizeof(longHost));
+        longHost[WOLFSSL_HOST_NAME_MAX + 2] = '\0';
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, longHost,
+            (unsigned int)sizeof(longHost)), WOLFSSL_FAILURE);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, savedHost, sizeof(savedHost)),
+            0);
+
+        /* Both explicit lengths and the C-string mode remain supported. */
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host,
+            (unsigned int)(sizeof(host) - 1)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, unterminatedHost,
+            (unsigned int)sizeof(unterminatedHost)), WOLFSSL_SUCCESS);
+        ExpectIntEQ(XMEMCMP(pParam->hostName, "abc", sizeof("abc")), 0);
+
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, "", 1),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(pParam->hostName[0], '\0');
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, host, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(X509_VERIFY_PARAM_set1_host(pParam, NULL, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(pParam->hostName[0], '\0');
 
         XMEMSET(pParam, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 
@@ -324,5 +434,54 @@ int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
         XFREE(pParam, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
     }
 #endif /* OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
+
+/* A verification flag must either take effect or be refused. */
+int test_wolfSSL_X509_VERIFY_PARAM_flag_values(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    WOLFSSL_X509_VERIFY_PARAM* param = NULL;
+    static const unsigned long flags[] = {
+        X509_V_FLAG_X509_STRICT,
+        X509_V_FLAG_ALLOW_PROXY_CERTS,
+        X509_V_FLAG_TRUSTED_FIRST,
+        X509_V_FLAG_USE_CHECK_TIME,
+        X509_V_FLAG_NO_CHECK_TIME,
+        X509_V_FLAG_PARTIAL_CHAIN
+    };
+    size_t i;
+    size_t j;
+
+    /* a flag worth zero cannot be told apart from no flag at all */
+    for (i = 0; i < XELEM_CNT(flags); i++) {
+        ExpectIntNE(flags[i], 0);
+        for (j = i + 1; j < XELEM_CNT(flags); j++) {
+            ExpectIntNE(flags[i], flags[j]);
+        }
+    }
+
+    /* each flag must read back on its own, and only itself */
+    for (i = 0; i < XELEM_CNT(flags); i++) {
+        param = NULL;
+        ExpectNotNull(param = wolfSSL_X509_VERIFY_PARAM_new());
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param, flags[i]),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_get_flags(param), flags[i]);
+        wolfSSL_X509_VERIFY_PARAM_free(param);
+    }
+
+    /* flags accumulate rather than replace */
+    param = NULL;
+    ExpectNotNull(param = wolfSSL_X509_VERIFY_PARAM_new());
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_X509_STRICT), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+        X509_V_FLAG_ALLOW_PROXY_CERTS), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_VERIFY_PARAM_get_flags(param),
+        X509_V_FLAG_X509_STRICT | X509_V_FLAG_ALLOW_PROXY_CERTS);
+    wolfSSL_X509_VERIFY_PARAM_free(param);
+#endif
     return EXPECT_RESULT();
 }

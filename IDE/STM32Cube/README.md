@@ -102,6 +102,7 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 * To enable STM32H5 support define `WOLFSSL_STM32H5`.
 * To enable STM32MP13 support define `WOLFSSL_STM32MP13`.
 * To enable STM32N6 support define `WOLFSSL_STM32N6`.
+* To enable STM32V8 support define `WOLFSSL_STM32V8` (STM32V873 only; other V8 variants such as V863 have a different peripheral set).
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 
@@ -113,6 +114,11 @@ To disable hardware crypto acceleration you can define:
 * `NO_STM32_HASH`
 * `NO_STM32_CRYPTO`
 * `NO_STM32_RNG`
+
+The STM32 RNG is used by `wc_GenerateSeed()` when available. Keep it enabled
+even if AES, HASH, and PKA acceleration are disabled. STM32F107, STM32F401,
+and STM32G071 have no RNG; their sample configurations require a real external
+seed source, such as `CUSTOM_RAND_GENERATE_SEED`.
 
 To enable the latest Cube HAL support please define `STM32_HAL_V2`.
 

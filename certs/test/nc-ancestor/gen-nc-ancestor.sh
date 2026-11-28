@@ -73,6 +73,62 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid
 EOF
 
+cat > "$WORK/selfissued-ca.cnf" <<'EOF'
+[req]
+distinguished_name = dn
+prompt = no
+[dn]
+[v3_selfissued_ca]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = 11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11:11
+authorityKeyIdentifier = keyid
+EOF
+
+cat > "$WORK/selfloop-ca.cnf" <<'EOF'
+[req]
+distinguished_name = dn
+prompt = no
+[dn]
+[v3_selfloop_ca]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = 22:22:22:00:22:22:22:22:22:22:22:22:22:22:22:22:22:22:22:22
+authorityKeyIdentifier = issuer:always
+EOF
+
+cat > "$WORK/akid-alt-issuer.cnf" <<'EOF'
+[req]
+distinguished_name = dn
+prompt = no
+[dn]
+[v3_akid_name_alt]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = 44:44:44:44:44:44:44:44:44:44:44:44:44:44:44:44:44:44:44:44
+[v3_akid_skid_alt]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
+EOF
+
+cat > "$WORK/akid-sub-ca.cnf" <<'EOF'
+[req]
+distinguished_name = dn
+prompt = no
+[dn]
+[v3_akid_name_ca]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = 33:33:33:33:33:33:33:33:33:33:33:33:33:33:33:33:33:33:33:33
+authorityKeyIdentifier = keyid, issuer:always
+[v3_akid_skid_ca]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature, keyCertSign, cRLSign
+subjectKeyIdentifier = 55:55:55:55:55:55:55:55:55:55:55:55:55:55:55:55:55:55:55:55
+authorityKeyIdentifier = keyid
+EOF
+
 cat > "$WORK/leaf-attacker.cnf" <<'EOF'
 [req]
 distinguished_name = dn
@@ -148,6 +204,97 @@ mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
 mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
     "$DIR/03-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
     v3_leaf_valid 0x31
+
+# ---- 01 uri-permit-ca-selfissued: subject == issuer == uri-permit-ca's DN
+# and uri-permit-ca's key, no NC, distinct SKID. Issued by uri-permit-ca,
+# so it reaches a peer in the chain below it. ----
+
+issuer_cert="$DIR/01-uri-permit-ca-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/01-uri-permit-ca-key.pem" "URI Permit CA" \
+    "$DIR/01-uri-permit-ca-selfissued-cert.pem" "$WORK/selfissued-ca.cnf" \
+    v3_selfissued_ca 0x13
+
+# ---- 03 leaves issued by the self-issued CA ----
+
+issuer_cert="$DIR/01-uri-permit-ca-selfissued-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
+    "$DIR/03-selfissued-leaf-cert.pem" "$WORK/leaf-attacker.cnf" \
+    v3_leaf_attacker 0x32
+mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
+    "$DIR/03-selfissued-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
+    v3_leaf_valid 0x33
+
+# ---- 01 uri-permit-ca-selfloop: same DN as uri-permit-ca, own key, and an
+# AKID with no keyIdentifier. Its SKID is pinned to uri-permit-ca's CA-table
+# row (first 4 bytes big-endian, modulo 11) so a name lookup reaches it
+# first. ----
+
+issuer_cert="$DIR/01-uri-permit-ca-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/01-uri-permit-ca-selfloop-key.pem" "URI Permit CA" \
+    "$DIR/01-uri-permit-ca-selfloop-cert.pem" "$WORK/selfloop-ca.cnf" \
+    v3_selfloop_ca 0x14
+
+issuer_cert="$DIR/01-uri-permit-ca-selfloop-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-selfloop-key.pem"
+mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
+    "$DIR/03-selfloop-leaf-cert.pem" "$WORK/leaf-attacker.cnf" \
+    v3_leaf_attacker 0x34
+mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
+    "$DIR/03-selfloop-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
+    v3_leaf_valid 0x35
+
+# ---- 02 akid-name-ca: AKID keyIdentifier matches no CA; only its AKID
+# issuer and serial lead to uri-permit-ca (WOLFSSL_AKID_NAME). Signed via a
+# copy of uri-permit-ca with another SKID. ----
+
+issuer_cert="$DIR/00-root-cert.pem"
+issuer_key="$DIR/00-root-key.pem"
+mkchild "$DIR/01-uri-permit-ca-key.pem" "URI Permit CA" \
+    "$WORK/akid-name-alt-cert.pem" "$WORK/akid-alt-issuer.cnf" \
+    v3_akid_name_alt 0x11
+
+issuer_cert="$WORK/akid-name-alt-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/02-benign-sub-ca-key.pem" "AKID Name CA" \
+    "$DIR/02-akid-name-ca-cert.pem" "$WORK/akid-sub-ca.cnf" \
+    v3_akid_name_ca 0x21
+
+issuer_cert="$DIR/02-akid-name-ca-cert.pem"
+issuer_key="$DIR/02-benign-sub-ca-key.pem"
+mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
+    "$DIR/03-akid-name-leaf-cert.pem" "$WORK/leaf-attacker.cnf" \
+    v3_leaf_attacker 0x36
+mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
+    "$DIR/03-akid-name-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
+    v3_leaf_valid 0x37
+
+# ---- 02 akid-skid-ca: AKID matches uri-permit-ca's SKID but its issuer
+# name does not (WOLFSSL_ALLOW_AKID_SKID_MATCH). Signed via a renamed copy
+# of uri-permit-ca. ----
+
+issuer_cert="$DIR/00-root-cert.pem"
+issuer_key="$DIR/00-root-key.pem"
+mkchild "$DIR/01-uri-permit-ca-key.pem" "URI Permit CA Renamed" \
+    "$WORK/akid-skid-alt-cert.pem" "$WORK/akid-alt-issuer.cnf" \
+    v3_akid_skid_alt 0x15
+
+issuer_cert="$WORK/akid-skid-alt-cert.pem"
+issuer_key="$DIR/01-uri-permit-ca-key.pem"
+mkchild "$DIR/02-benign-sub-ca-key.pem" "AKID SKID Match CA" \
+    "$DIR/02-akid-skid-ca-cert.pem" "$WORK/akid-sub-ca.cnf" \
+    v3_akid_skid_ca 0x22
+
+issuer_cert="$DIR/02-akid-skid-ca-cert.pem"
+issuer_key="$DIR/02-benign-sub-ca-key.pem"
+mkchild "$DIR/03-leaf-attacker-key.pem" "NC Test Attacker Leaf" \
+    "$DIR/03-akid-skid-leaf-cert.pem" "$WORK/leaf-attacker.cnf" \
+    v3_leaf_attacker 0x38
+mkchild "$DIR/03-valid-leaf-key.pem" "NC Test Valid Leaf" \
+    "$DIR/03-akid-skid-valid-leaf-cert.pem" "$WORK/leaf-valid.cnf" \
+    v3_leaf_valid 0x39
 
 # ---- Concatenated bundle: attacker leaf + benign-sub-ca + uri-permit-ca ----
 

@@ -11,7 +11,15 @@
 #define NO_WOLFSSL_DIR
 #define WC_NO_HARDEN
 #define WOLFSSL_NO_ASM
-#define CUSTOM_RAND_GENERATE_BLOCK custom_rand_generate_block
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE)
+    #ifndef WOLFSSL_ACCEPT_WEAK_ENTROPY
+        #error "QEMU Falcon deterministic RNG is test-only: provide a secure source or explicitly define WOLFSSL_ACCEPT_WEAK_ENTROPY"
+    #endif
+    #define CUSTOM_RAND_GENERATE_BLOCK custom_rand_generate_block
+#endif
 
 /* Native Falcon (full: keygen + sign + verify), experimental. Signing/keygen
  * run over the inline-double fpr backend with the AArch64 NEON FFT. */

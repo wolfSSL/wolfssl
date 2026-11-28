@@ -491,12 +491,35 @@ int wc_Pic32Hash(const byte* in, int inLen, word32* out, int outLen, int algo)
         NULL, 0, NULL, 0);
 }
 
-int wc_Pic32HashCopy(hashUpdCache* src, hashUpdCache* dst)
+/* Give a hash context that was shallow copied from src its own copy of the
+ * cached message. The caller has already copied the whole hash struct, so
+ * dst->buf still points at src's storage: either src's embedded block buffer
+ * (srcStdBuf), whose contents the struct copy already placed in dstStdBuf,
+ * or a heap buffer that has to be duplicated here. Sharing the buffer would
+ * let an update or final on one context corrupt the other's message. */
+int wc_Pic32HashCopy(hashUpdCache* src, hashUpdCache* dst,
+    const byte* srcStdBuf, byte* dstStdBuf, void* heap)
 {
-    /* mark destination as copy, so cache->buf is not free'd */
-    if (dst) {
-        dst->isCopy = 1;
+    if (src == NULL || dst == NULL)
+        return BAD_FUNC_ARG;
+
+    if (src->buf == NULL) {
+        dst->buf = NULL;
     }
+    else if (src->buf == srcStdBuf) {
+        dst->buf = dstStdBuf;
+    }
+    else {
+        dst->buf = (byte*)XMALLOC(src->bufLen, heap, DYNAMIC_TYPE_HASH_TMP);
+        if (dst->buf == NULL) {
+            dst->updLen = dst->bufLen = 0;
+            return MEMORY_E;
+        }
+        XMEMCPY(dst->buf, src->buf, src->updLen);
+    }
+    dst->updLen = src->updLen;
+    dst->bufLen = src->bufLen;
+
     return 0;
 }
 
@@ -548,7 +571,7 @@ static int wc_Pic32HashUpdate(hashUpdCache* cache, byte* stdBuf, int stdBufLen,
         /* alloc buffer */
         newBuf = (byte*)XMALLOC(newLenPad, heap, DYNAMIC_TYPE_HASH_TMP);
         if (newBuf == NULL) {
-            if (cache->buf != stdBuf && !cache->isCopy) {
+            if (cache->buf != stdBuf) {
                 XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
                 cache->buf = NULL;
                 cache->updLen = cache->bufLen = 0;
@@ -556,7 +579,6 @@ static int wc_Pic32HashUpdate(hashUpdCache* cache, byte* stdBuf, int stdBufLen,
             return MEMORY_E;
         }
         isNewBuf = 1;
-        cache->isCopy = 0; /* no longer using copy buffer */
     }
     else {
         /* use existing buffer */
@@ -594,7 +616,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
         if (cache->bufLen == cache->finalLen) {
             start_engine();
             if (wait_engine(digest, (word32)digestSz) != 0) {
-                if (cache->buf && cache->buf != stdBuf && !cache->isCopy) {
+                if (cache->buf && cache->buf != stdBuf) {
                     XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
                     cache->buf = NULL;
                 }
@@ -645,7 +667,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
             }
         }
 
-        if (cache->buf && cache->buf != stdBuf && !cache->isCopy) {
+        if (cache->buf && cache->buf != stdBuf) {
             XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
             cache->buf = NULL;
         }
@@ -659,7 +681,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
 
 static void wc_Pic32HashFree(hashUpdCache* cache, void* stdBuf, void* heap)
 {
-    if (cache && cache->buf && cache->buf != stdBuf && !cache->isCopy) {
+    if (cache && cache->buf && cache->buf != stdBuf) {
         XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
         cache->buf = NULL;
     }

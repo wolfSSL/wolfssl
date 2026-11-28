@@ -131,10 +131,10 @@ static int wolfssl_connect_flush(WOLFSSL* ssl)
     #endif /* WOLFSSL_DTLS13 */
 
     if ((ssl->buffers.outputBuffer.length > 0)
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an
-            async pending operation */
-        && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        /* do not send buffered or advance state if the last error
+           suspended the handshake - advancing frees the saved state */
+        && !IsHsSuspendErr(ssl->error)
     #endif
     ) {
         ret = SendBuffered(ssl);
@@ -201,10 +201,10 @@ static int wolfssl_accept_flush(WOLFSSL* ssl)
     int ret = 0;
 
     if ((ssl->buffers.outputBuffer.length > 0)
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an
-            async pending operation */
-        && (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
+    #ifdef WOLFSSL_HAVE_HS_SUSPEND
+        /* do not send buffered or advance state if the last error
+           suspended the handshake - advancing frees the saved state */
+        && !IsHsSuspendErr(ssl->error)
     #endif
     ) {
         ret = SendBuffered(ssl);
@@ -344,9 +344,9 @@ static int wolfssl_handshake_done(WOLFSSL* ssl)
  * @return  WOLFSSL_SUCCESS when the handshake completes.
  * @return  BAD_FUNC_ARG when ssl is NULL.
  * @return  WOLFSSL_FATAL_ERROR when the object is not a client, a message
- *          cannot be sent or received, or the peer reports an error. Call
- *          wolfSSL_get_error() to determine whether the operation should be
- *          retried.
+ *          cannot be sent or received, the peer reports an error, or a fatal
+ *          alert was sent or received earlier. Call wolfSSL_get_error() to
+ *          determine whether the operation should be retried.
  * @return  The error from ReinitSSL(), unchanged, when the object cannot be
  *          prepared for a handshake. This is a raw error code rather than
  *          WOLFSSL_FATAL_ERROR, and ssl->error is not set with it.
@@ -374,6 +374,10 @@ int wolfSSL_connect(WOLFSSL* ssl)
 
     if (ssl == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    if (HandshakeEndedByFatalAlert(ssl)) {
+        return WOLFSSL_FATAL_ERROR;
     }
 
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
@@ -689,6 +693,17 @@ int wolfSSL_connect(WOLFSSL* ssl)
             }
         }
 
+        #if defined(HAVE_ECH)
+        /* RFC 9849 s6.1.4: negotiating below TLS 1.3 means the server rejected
+         * ECH. Abort with ech_required instead of reporting success. */
+        if (EchRejected(ssl)) {
+            SendAlert(ssl, alert_fatal, ech_required);
+            ssl->error = ECH_REQUIRED_E;
+            WOLFSSL_ERROR_VERBOSE(ECH_REQUIRED_E);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        #endif /* HAVE_ECH */
+
         ssl->options.connectState = SECOND_REPLY_DONE;
         WOLFSSL_MSG("connect state: SECOND_REPLY_DONE");
         FALL_THROUGH;
@@ -835,9 +850,10 @@ static int wolfssl_accept_check_creds(WOLFSSL* ssl)
  *
  * @param [in, out] ssl  SSL/TLS object.
  * @return  WOLFSSL_SUCCESS when the handshake completes.
- * @return  WOLFSSL_FATAL_ERROR when ssl is NULL or the handshake fails.
- *          Call wolfSSL_get_error() for the reason. WOLFSSL_ERROR_WANT_READ
- *          and WOLFSSL_ERROR_WANT_WRITE mean call again.
+ * @return  WOLFSSL_FATAL_ERROR when ssl is NULL, the handshake fails, or a
+ *          fatal alert was sent or received earlier. Call wolfSSL_get_error()
+ *          for the reason. WOLFSSL_ERROR_WANT_READ and
+ *          WOLFSSL_ERROR_WANT_WRITE mean call again.
  * @return  The error from ReinitSSL(), unchanged, when the object cannot be
  *          prepared for a handshake. This is a raw error code rather than
  *          WOLFSSL_FATAL_ERROR, and ssl->error is not set with it.
@@ -856,6 +872,10 @@ int wolfSSL_accept(WOLFSSL* ssl)
     (void)ret;
 
     if (ssl == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (HandshakeEndedByFatalAlert(ssl)) {
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -927,9 +947,19 @@ int wolfSSL_accept(WOLFSSL* ssl)
         ssl->options.dtls   = 1;
         ssl->options.tls    = 1;
         ssl->options.tls1_1 = 1;
+        if (!ssl->options.sendCookie)
+            ssl->options.dtlsStateful = 1;
         if ((!IsDtlsNotSctpMode(ssl)) || (IsSCR(ssl))) {
             ssl->options.dtlsStateful = 1;
         }
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+        if (!ssl->options.disableECH && ssl->ctx->echConfigs != NULL) {
+            WOLFSSL_MSG("ECH configs set but ECH is not supported with DTLS");
+            ssl->error = BAD_STATE_E;
+            WOLFSSL_ERROR(ssl->error);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    #endif
     }
     #endif
 
@@ -951,6 +981,15 @@ int wolfSSL_accept(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
+        #ifdef WOLFSSL_DTLS
+        /* Notify before the existing first CH transition. */
+        if (ssl->options.acceptState == ACCEPT_BEGIN) {
+            if ((ssl->error = DtlsNoCookieChGood(ssl)) < 0) {
+                WOLFSSL_ERROR(ssl->error);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+        #endif
         #ifdef WOLFSSL_TLS13
         ssl->options.acceptState = ACCEPT_CLIENT_HELLO_DONE;
         WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
@@ -1080,11 +1119,11 @@ int wolfSSL_accept(WOLFSSL* ssl)
     case ACCEPT_SECOND_REPLY_DONE :
         #ifndef NO_CERTS
         /* SERVER: When not resuming and verifying peer but no certificate
-         * received and not failing when not received then peer auth good.
+         * received and none was required then peer auth good.
          */
         if ((!ssl->options.resuming) && (ssl->options.verifyPeer) &&
                 (!ssl->options.havePeerCert) &&
-                (!ssl->options.failNoCert)) {
+                (!ClientAuthRequired(ssl, ssl->options.usingPSK_cipher))) {
             ssl->options.peerAuthGood = 1;
         }
         #endif /* !NO_CERTS  */
@@ -1592,9 +1631,14 @@ void wolfSSL_set_accept_state(WOLFSSL* ssl)
 
         #ifndef NO_DH
         if ((!ssl->options.haveDH) && (ssl->ctx->haveDH)) {
-            ssl->buffers.serverDH_P = ssl->ctx->serverDH_P;
-            ssl->buffers.serverDH_G = ssl->ctx->serverDH_G;
-            ssl->options.haveDH = 1;
+            /* Nothing to return the failure through, so leave the object
+             * without DH rather than claim parameters it does not have. */
+            if (CopySSL_CTX_DhParams(ssl, ssl->ctx) == 0) {
+                ssl->options.haveDH = 1;
+            }
+            else {
+                WOLFSSL_MSG("Unable to copy DH parameters from context");
+            }
         }
         #endif
     }
@@ -1608,17 +1652,19 @@ void wolfSSL_set_accept_state(WOLFSSL* ssl)
 
 /* Determine whether the handshake has completed.
  *
- * Works for both TLS and DTLS.
+ * Works for both TLS and DTLS. A fatal alert ends the handshake, as in
+ * OpenSSL.
  *
  * @param [in] ssl  SSL/TLS object.
  * @return  1 when the handshake has completed.
- * @return  0 when the handshake has not completed or ssl is NULL.
+ * @return  0 when the handshake has not completed, a fatal alert was sent or
+ *          received, or ssl is NULL.
  */
 int wolfSSL_is_init_finished(const WOLFSSL* ssl)
 {
     int ret = 0;
 
-    if (ssl != NULL) {
+    if ((ssl != NULL) && (!ssl->options.fatalAlert)) {
         #if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT)
         if ((ssl->options.side == WOLFSSL_CLIENT_END) && (ssl->options.dtls)
                 && (IsAtLeastTLSv1_3(ssl->version))) {
@@ -1626,6 +1672,16 @@ int wolfSSL_is_init_finished(const WOLFSSL* ssl)
         }
         else
         #endif /* WOLFSSL_DTLS13 && !NO_WOLFSSL_CLIENT */
+        #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
+        if ((ssl->options.side == WOLFSSL_CLIENT_END) && (!ssl->options.dtls)
+                && (IsAtLeastTLSv1_3(ssl->version))) {
+            /* handShakeState is set before the Finished is flushed,
+             * so only connectState tells us if the record actually went out. */
+            ret = (ssl->options.handShakeState == HANDSHAKE_DONE) &&
+                  (ssl->options.connectState >= FINISHED_DONE);
+        }
+        else
+        #endif /* WOLFSSL_TLS13 && !NO_WOLFSSL_CLIENT */
         {
             /* Can't use ssl->options.connectState and ssl->options.acceptState
              * because they differ in meaning for TLS <=1.2 and 1.3 */

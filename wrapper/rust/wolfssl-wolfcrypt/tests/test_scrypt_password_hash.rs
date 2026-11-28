@@ -2,7 +2,8 @@
 
 mod common;
 
-use password_hash::phc::PasswordHash;
+use password_hash::Error;
+use password_hash::phc::{Output, PasswordHash};
 use password_hash::{CustomizedPasswordHasher, PasswordHasher, PasswordVerifier};
 use wolfssl_wolfcrypt::scrypt_password_hash::*;
 
@@ -136,6 +137,37 @@ fn test_invalid_params_rejected() {
     // log_n must be > 0
     let bad = Params { log_n: 0, r: 8, p: 1, output_len: 32 };
     assert!(hasher.hash_password_with_params(b"pw", salt, bad).is_err());
+}
+
+#[test]
+fn test_output_len_bounds() {
+    common::setup();
+
+    let hasher = Scrypt { params: test_params() };
+    let salt = b"0123456789abcdef";
+
+    for len in [0, 1, Output::MIN_LENGTH - 1, Output::MAX_LENGTH + 1] {
+        let bad = Params { output_len: len, ..test_params() };
+        let err = hasher.hash_password_with_params(b"pw", salt, bad).unwrap_err();
+        assert_eq!(err, Error::ParamInvalid { name: "l" });
+    }
+
+    for len in [Output::MIN_LENGTH, Output::MAX_LENGTH] {
+        let ok = Params { output_len: len, ..test_params() };
+        let hash = hasher.hash_password_with_params(b"pw", salt, ok).unwrap();
+        assert_eq!(hash.hash.unwrap().len(), len);
+    }
+
+    // PHC "l" parameter parsing must enforce the same bounds.
+    for l in [0, Output::MIN_LENGTH - 1, Output::MAX_LENGTH + 1] {
+        let s = format!("$scrypt$ln=10,r=8,p=1,l={}$c2FsdHNhbHQ", l);
+        let parsed = PasswordHash::new(&s).unwrap();
+        let err = Params::try_from(&parsed).unwrap_err();
+        assert_eq!(err, Error::ParamInvalid { name: "l" });
+    }
+    let s = format!("$scrypt$ln=10,r=8,p=1,l={}$c2FsdHNhbHQ", Output::MIN_LENGTH);
+    let parsed = PasswordHash::new(&s).unwrap();
+    assert_eq!(Params::try_from(&parsed).unwrap().output_len, Output::MIN_LENGTH);
 }
 
 #[test]

@@ -192,14 +192,12 @@ extern ${variable.value} ${variable.name};
 #elif defined(STM32F401xE)
     #define WOLFSSL_STM32F4
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
     #endif
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
     #endif
@@ -252,6 +250,15 @@ extern ${variable.value} ${variable.name};
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart1
     #endif
+#elif defined(STM32V873xx)
+    #define WOLFSSL_STM32V8
+    #define STM32_HAL_V2
+    #undef NO_STM32_HASH
+    #undef NO_STM32_CRYPTO
+    #define WOLFSSL_STM32_PKA
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart1
+    #endif
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
@@ -259,7 +266,7 @@ extern ${variable.value} ${variable.name};
     /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4,
         WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4, WOLFSSL_STM32L5,
         WOLFSSL_STM32G0, WOLFSSL_STM32G4, WOLFSSL_STM32WB, WOLFSSL_STM32U3,
-        WOLFSSL_STM32U5 and WOLFSSL_STM32MP13 */
+        WOLFSSL_STM32U5, WOLFSSL_STM32V8 and WOLFSSL_STM32MP13 */
     #define WOLFSSL_STM32F4
 
     /* Debug UART used for printf */
@@ -276,8 +283,18 @@ extern ${variable.value} ${variable.name};
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    /* if no HW RNG is available use test seed */
-    //#define WOLFSSL_GENSEED_FORTEST
+    /* If the device has no RNG, provide CUSTOM_RAND_GENERATE_SEED. */
+#endif
+
+/* These devices have no on-chip RNG. Supply a real seed source or explicitly
+ * configure a test-only seed in your project. */
+#if (!defined(WOLF_CONF_RNG) || WOLF_CONF_RNG != 0) && \
+    defined(NO_STM32_RNG) && !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST) && \
+    !defined(WOLFSSL_ACCEPT_WEAK_ENTROPY)
+    #error "STM32 device has no RNG: provide CUSTOM_RAND_GENERATE_SEED or another real seed source"
 #endif
 
 
@@ -662,9 +679,6 @@ extern ${variable.value} ${variable.name};
 /* NOTE: this is after the hashing section to override the potential SHA3 undef
  * above. */
 #if defined(WOLF_CONF_KYBER) && WOLF_CONF_KYBER == 1
-    #undef  WOLFSSL_EXPERIMENTAL_SETTINGS
-    #define WOLFSSL_EXPERIMENTAL_SETTINGS
-
     #undef  WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_HAVE_MLKEM
 
@@ -679,6 +693,22 @@ extern ${variable.value} ${variable.name};
     #undef  WOLFSSL_SHA3
     #define WOLFSSL_SHA3
 #endif /* WOLF_CONF_KYBER */
+
+#if defined(WOLF_CONF_MLDSA) && WOLF_CONF_MLDSA == 1
+    #undef  WOLFSSL_HAVE_MLDSA
+    #define WOLFSSL_HAVE_MLDSA
+
+    #undef  WOLFSSL_NO_SHAKE128
+    #undef  WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE128
+
+    #undef  WOLFSSL_NO_SHAKE256
+    #undef  WOLFSSL_SHAKE256
+    #define WOLFSSL_SHAKE256
+
+    #undef  WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
+#endif /* WOLF_CONF_MLDSA */
 
 /* ------------------------------------------------------------------------- */
 /* Crypto Acceleration */

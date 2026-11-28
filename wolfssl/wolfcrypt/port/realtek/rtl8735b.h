@@ -86,6 +86,35 @@
     #define WC_RTL8735B_DERIVED_WB_IDX    4   /* KEY_STG_IDX4 */
 #endif
 
+/* Key store (WOLF_CRYPTO_CB_KEYSTORE): AES keys imported with
+ * wc_KeyStore_ImportWrapped()/ImportPlain() are written into these key-storage
+ * slots and used from there through an Aes made with wc_AesInit_Id(). They
+ * must not overlap the PRK and derived working-key slots above. */
+#if defined(WOLF_CRYPTO_CB_KEYSTORE) && defined(WOLF_PRIVATE_KEY_ID) && \
+    defined(WOLFSSL_RTL8735B_HUK) && !defined(NO_AES)
+    #define WC_RTL8735B_HAVE_KEYSTORE
+    #ifndef WC_RTL8735B_KS_SLOT_FIRST
+        #define WC_RTL8735B_KS_SLOT_FIRST 5   /* KEY_STG_IDX5 */
+    #endif
+    #ifndef WC_RTL8735B_KS_SLOT_LAST
+        #define WC_RTL8735B_KS_SLOT_LAST  7   /* KEY_STG_IDX7 */
+    #endif
+    /* The range must be valid, inside the general slots 0..7, and clear of
+     * the PRK and derived working-key slots. */
+    #if WC_RTL8735B_KS_SLOT_FIRST > WC_RTL8735B_KS_SLOT_LAST || \
+        WC_RTL8735B_KS_SLOT_FIRST < 0 || WC_RTL8735B_KS_SLOT_LAST > 7
+        #error "WC_RTL8735B_KS_SLOT_FIRST/LAST must be 0..7, FIRST <= LAST"
+    #endif
+    #if (WC_RTL8735B_HKDF_PRK_IDX >= WC_RTL8735B_KS_SLOT_FIRST && \
+         WC_RTL8735B_HKDF_PRK_IDX <= WC_RTL8735B_KS_SLOT_LAST) || \
+        (WC_RTL8735B_DERIVED_WB_IDX >= WC_RTL8735B_KS_SLOT_FIRST && \
+         WC_RTL8735B_DERIVED_WB_IDX <= WC_RTL8735B_KS_SLOT_LAST)
+        #error "RTL8735B key-store slots overlap the HUK PRK/derived slots"
+    #endif
+    /* Size of a key reference made by wc_Rtl8735b_MakeKeyRef(). */
+    #define WC_RTL8735B_KEYREF_SZ         4
+#endif
+
 /* crypto_sel for hal_hkdf_hmac_sha256_secure_init: HKDF_CRYPTO_HW_SEL_EN. */
 #ifndef WC_RTL8735B_HKDF_CRYPTO_SEL
     #define WC_RTL8735B_HKDF_CRYPTO_SEL   0
@@ -154,15 +183,26 @@
  *     wc_ecc_sign_hash(...);   (unwraps + signs under the HUK)
  *
  * The pointed-at buffers must stay valid for the key's lifetime (borrowed, not
- * copied). seed is the 256-bit HKDF input. The private scalar is AUTHENTICATED-
- * wrapped with AES-GCM under the HUK-derived key: wrapped is the ciphertext
- * (wrappedLen == plainLen, no block padding, <= WC_RTL8735B_MAX_WRAPPED), iv the
- * 12-byte nonce, tag the 16-byte auth tag; plainLen is the scalar size (32 for
- * P-256). GCM means a tampered, corrupted, or wrong-device blob fails at unwrap
- * (AES_GCM_AUTH_E) instead of silently yielding a garbage scalar. Requires
- * HAVE_AESGCM.
+ * copied). seed is the 256-bit HKDF input; plainLen is the scalar size (32 for
+ * P-256). The private scalar is wrapped under the HUK-derived key in one of two
+ * formats, selected by the iv/tag fields:
  *
- * By default the sign runs in software after the HUK GCM-unwrap. Set useHwEngine
+ *   AES-GCM (iv, ivSz, tag, tagSz all set; recommended): wrapped is the
+ *     ciphertext (wrappedLen == plainLen, no block padding,
+ *     <= WC_RTL8735B_MAX_WRAPPED), iv the 12-byte nonce, tag the 16-byte auth
+ *     tag. A tampered, corrupted, or wrong-device blob fails at unwrap
+ *     (AES_GCM_AUTH_E) instead of yielding a garbage scalar.
+ *   AES-ECB (iv, ivSz, tag, tagSz all NULL/0): wrapped is the ECB ciphertext of
+ *     the scalar zero-padded to a multiple of 16 (plainLen <= wrappedLen <=
+ *     WC_RTL8735B_MAX_WRAPPED), the same layout as the STM32 DHUK blob for
+ *     wc_ecc_import_wrapped_private(), so one wrap format serves both. ECB has
+ *     no integrity check: a wrong blob signs with a wrong scalar and the
+ *     signature fails to verify. Needs HAVE_AES_ECB or WOLFSSL_AES_DIRECT.
+ *
+ * A partial iv/tag set is rejected with BAD_FUNC_ARG. The GCM format needs
+ * HAVE_AESGCM; a build without it fails a GCM key with ALGO_ID_E.
+ *
+ * By default the sign runs in software after the HUK unwrap. Set useHwEngine
  * to route the sign through the HW ECDSA engine (hal_ecdsa, P-256 only). With
  * otpPrkSel != 0 the private scalar is sourced from OTP via hal_ecdsa_select_prk
  * and never enters software -- seed/wrapped/iv/tag/plainLen are then unused and
@@ -171,7 +211,7 @@
 typedef struct wc_Rtl8735b_EccKey {
     const byte* seed;
     word32      seedSz;
-    const byte* wrapped;     /* AES-GCM ciphertext of the scalar (== plainLen) */
+    const byte* wrapped;     /* GCM or ECB ciphertext of the scalar */
     word32      wrappedLen;
     word32      plainLen;
     /* --- HW ECDSA engine extensions (appended; zero keeps legacy behavior) --- */
@@ -179,7 +219,7 @@ typedef struct wc_Rtl8735b_EccKey {
     byte        otpPrkSel;   /* HW private-key source: 0 = unwrapped INPUT scalar,
                               * 1 = ECDSA_OTP_PRK_1, 2 = ECDSA_OTP_PRK_2 (scalar
                               * never in software; seed/wrapped may be NULL) */
-    /* --- AES-GCM wrap parameters (authenticated unwrap) --- */
+    /* --- AES-GCM wrap parameters (all NULL/0 selects the ECB format) --- */
     const byte* iv;          /* 12-byte GCM nonce for the wrapped scalar */
     word32      ivSz;
     const byte* tag;         /* 16-byte GCM auth tag */
@@ -201,6 +241,39 @@ WOLFSSL_API int wc_Rtl8735b_HukRegister(int devId);
 WOLFSSL_API int wc_Rtl8735b_HukUnRegister(int devId);
 #endif /* WOLFSSL_RTL8735B_HUK */
 
+#ifdef WC_RTL8735B_HAVE_KEYSTORE
+/* Build the key reference for key-storage slot `slot`
+ * (WC_RTL8735B_KS_SLOT_FIRST to _LAST) into out, which must hold at least
+ * WC_RTL8735B_KEYREF_SZ bytes; *outSz is set to the size written. Pass it as
+ * keyRef to wc_KeyStore_* on the HUK device, and as the id to wc_AesInit_Id()
+ * to run AES from that slot:
+ *
+ *     byte   ref[WC_RTL8735B_KEYREF_SZ];
+ *     word32 refSz = sizeof(ref);
+ *     wc_Rtl8735b_MakeKeyRef(5, ref, &refSz);
+ *     wc_KeyStore_ImportWrapped(WC_HUK_DEVID, ref, refSz, WC_KEYSTORE_KEY_AES,
+ *         seed, 32, WC_KEYWRAP_FORMAT_AESKW, blob, blobSz, 0, NULL);
+ *     wc_AesInit_Id(&aes, ref, (int)refSz, NULL, WC_HUK_DEVID);
+ *     wc_AesGcmEncrypt(&aes, ...);
+ *
+ * ImportWrapped takes the 32-byte HUK seed as wrapKeyRef and an AES key
+ * wrapped under the HUK-derived key for that seed, in one of two formats:
+ *   WC_KEYWRAP_FORMAT_VENDOR: the raw AES-ECB ciphertext of a 16- or 32-byte
+ *     key (as wc_AesEcbEncrypt on a WC_HUK_DEVID Aes produces). The blob size
+ *     is the key size, so a 24-byte key has no VENDOR form (zero-padded to 32
+ *     it would import as a different 256-bit key); use AESKW for it. No
+ *     integrity check: a damaged blob imports a wrong key.
+ *   WC_KEYWRAP_FORMAT_AESKW: RFC 3394 (wc_AesKeyWrap_ex on a WC_HUK_DEVID Aes)
+ *     of a 16-, 24- or 32-byte key. A damaged or wrong-device blob fails with
+ *     BAD_KEYWRAP_IV_E. Needs HAVE_AES_KEYWRAP and HAVE_AES_ECB.
+ * The engine cannot unwrap directly into a slot, so the key is unwrapped into a
+ * short-lived buffer, written to the slot and scrubbed; after that it is used
+ * from the slot only. Slots are volatile (empty after reset) and cannot be read
+ * back, so EXPORT_* and DERIVE are not supported, attrs must be 0, and a slot
+ * must be deleted (wc_KeyStore_Delete) before it is imported into again. */
+WOLFSSL_API int wc_Rtl8735b_MakeKeyRef(int slot, byte* out, word32* outSz);
+#endif /* WC_RTL8735B_HAVE_KEYSTORE */
+
 #if defined(WOLFSSL_RTL8735B_AES) && !defined(NO_AES)
 /* Register / unregister the plaintext-key AES device. After registering at
  * WC_RTL8735B_AES_DEVID, init an Aes with that devId (wc_AesInit) to run AES
@@ -213,7 +286,9 @@ WOLFSSL_API int wc_Rtl8735b_AesUnRegister(int devId);
 
 #if defined(WOLFSSL_RTL8735B_HUK) && defined(WOLFSSL_RTL8735B_HOST_TEST)
 /* Host-only KAT of the port's silicon-independent helpers (BE/LE word conversion,
- * CTR counter increment, HMAC accumulator growth/overflow/cap, bounce alignment).
+ * wrapped-scalar format checks, CTR counter increment, HMAC accumulator
+ * growth/overflow/cap, bounce alignment, key-store references and slot
+ * bookkeeping).
  * A build/CI aid for the --enable-rtl8735b compile-test -- NOT shipped production
  * API. Returns 0 on success, negative on the first failing check. */
 WOLFSSL_API int wc_Rtl8735b_HukSelfTest(void);

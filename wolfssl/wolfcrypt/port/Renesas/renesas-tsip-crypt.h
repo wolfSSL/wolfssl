@@ -420,6 +420,12 @@ WOLFSSL_API int wc_tsip_RsaVerify(
         word32 keySz,
         void* ctx);
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+/* DER ECDSA signature to raw r || s; exposed for unit test */
+WOLFSSL_LOCAL int tsip_EccSigDerToRaw(const byte* sig, word32 sigSz,
+        byte* out);
+#endif
+
 WOLFSSL_API int wc_tsip_EccVerify(
         struct WOLFSSL*  ssl,
         const byte* sig,    word32  sigSz,

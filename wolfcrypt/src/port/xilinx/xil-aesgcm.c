@@ -528,7 +528,7 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     int ret;
 
     if (aes == NULL || (in == NULL && sz > 0) || (out == NULL) || iv == NULL ||
-            authTag == NULL || authTagSz > AES_GCM_AUTH_SZ) {
+            authTag == NULL || wc_local_AesGcmCheckTagSz(authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -607,7 +607,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     int ret;
 
     if (aes == NULL || in == NULL || out == NULL || iv == NULL ||
-            authTag == NULL || authTagSz < AES_GCM_AUTH_SZ) {
+            authTag == NULL || authTagSz != AES_GCM_AUTH_SZ) {
         return BAD_FUNC_ARG;
     }
 

@@ -26,6 +26,7 @@
 
 int test_wc_InitRsaKey(void);
 int test_wc_RsaPrivateKeyDecode(void);
+int test_wc_RsaPrivateKeyDecode_V1NoOtherPrimes(void);
 int test_wc_RsaPublicKeyDecode(void);
 int test_wc_RsaPublicKeyDecodeRaw(void);
 int test_wc_RsaPrivateKeyDecodeRaw(void);
@@ -35,10 +36,12 @@ int test_wc_RsaPSS_Verify(void);
 int test_wc_RsaPSS_BadTerminator(void);
 int test_wc_RsaPSS_VerifyCheck(void);
 int test_wc_RsaPSS_VerifyCheckInline(void);
+int test_wc_RsaId_CryptoCb(void);
 int test_wc_RsaKeyToDer(void);
 int test_wc_RsaKeyToPublicDer(void);
 int test_wc_RsaPublicEncryptDecrypt(void);
 int test_wc_RsaPublicEncryptDecrypt_ex(void);
+int test_wc_RsaOaep_EncryptFailureWipe(void);
 int test_wc_RsaEncryptSize(void);
 int test_wc_RsaSSL_SignVerify(void);
 int test_wc_RsaFlattenPublicKey(void);
@@ -49,10 +52,13 @@ int test_wc_RsaDecisionCoverage(void);
 int test_wc_RsaFeatureCoverage(void);
 int test_wc_CryptoCb_RsaPssVerify(void);
 int test_wc_CryptoCb_RsaPssVerifyRecover(void);
+int test_wc_MakeRsaKey_id_dev(void);
+int test_wc_FreeRsaKey_CryptoCb(void);
 
 #define TEST_RSA_DECLS                                          \
     TEST_DECL_GROUP("rsa", test_wc_InitRsaKey),                 \
     TEST_DECL_GROUP("rsa", test_wc_RsaPrivateKeyDecode),        \
+    TEST_DECL_GROUP("rsa", test_wc_RsaPrivateKeyDecode_V1NoOtherPrimes), \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicKeyDecode),         \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicKeyDecodeRaw),      \
     TEST_DECL_GROUP("rsa", test_wc_RsaPrivateKeyDecodeRaw),     \
@@ -62,10 +68,12 @@ int test_wc_CryptoCb_RsaPssVerifyRecover(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaPSS_BadTerminator),       \
     TEST_DECL_GROUP("rsa", test_wc_RsaPSS_VerifyCheck),         \
     TEST_DECL_GROUP("rsa", test_wc_RsaPSS_VerifyCheckInline),   \
+    TEST_DECL_GROUP("rsa", test_wc_RsaId_CryptoCb),             \
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToDer),                \
     TEST_DECL_GROUP("rsa", test_wc_RsaKeyToPublicDer),          \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicEncryptDecrypt),    \
     TEST_DECL_GROUP("rsa", test_wc_RsaPublicEncryptDecrypt_ex), \
+    TEST_DECL_GROUP("rsa", test_wc_RsaOaep_EncryptFailureWipe),  \
     TEST_DECL_GROUP("rsa", test_wc_RsaEncryptSize),             \
     TEST_DECL_GROUP("rsa", test_wc_RsaSSL_SignVerify),          \
     TEST_DECL_GROUP("rsa", test_wc_RsaFlattenPublicKey),        \
@@ -75,6 +83,8 @@ int test_wc_CryptoCb_RsaPssVerifyRecover(void);
     TEST_DECL_GROUP("rsa", test_wc_RsaDecisionCoverage),        \
     TEST_DECL_GROUP("rsa", test_wc_RsaFeatureCoverage),        \
     TEST_DECL_GROUP("rsa", test_wc_CryptoCb_RsaPssVerify),         \
-    TEST_DECL_GROUP("rsa", test_wc_CryptoCb_RsaPssVerifyRecover)
+    TEST_DECL_GROUP("rsa", test_wc_CryptoCb_RsaPssVerifyRecover),  \
+    TEST_DECL_GROUP("rsa", test_wc_MakeRsaKey_id_dev),          \
+    TEST_DECL_GROUP("rsa", test_wc_FreeRsaKey_CryptoCb)
 
 #endif /* WOLFCRYPT_TEST_RSA_H */

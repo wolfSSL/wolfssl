@@ -14,7 +14,11 @@
 #   configure  list of extra ./configure arguments
 #   cc         compiler passed to configure as CC=, overriding --cc
 #              ("" leaves CC entirely to configure / the environment)
-#   cflags     CFLAGS for make, overriding --cflags
+#   cflags     CFLAGS for make, replacing the ones configure chose and
+#              overriding --cflags
+#   extra_cflags  CFLAGS added to the ones configure chose rather than
+#              replacing them, overriding --extra-cflags ("" opts out of
+#              the --extra-cflags default)
 #   ldflags    LDFLAGS for make, overriding --ldflags
 #   minutes    expected duration, from the Minutes column of a previous
 #              run's summary (default 1.0). Schedule weight only - configs
@@ -86,6 +90,14 @@
 # in-flight ones get SIGTERM, then SIGKILL after a 10 s grace period) so CI
 # fails fast; pass --no-fail-fast to run everything and report every
 # failure.
+#
+# --timeout bounds each config's own wall time. Without it a wedged config
+# runs until the CI job's timeout-minutes kills the whole job, which loses
+# every other config's result and skips any "upload logs on failure" step,
+# since a job timeout cancels rather than fails. With it only the wedged
+# config dies, as a failure, and its make-check.log is still reported.
+# --deadline bounds the whole run from the script's start, so it also stops
+# configs that started late; each one it cuts off reports "run deadline".
 
 from __future__ import annotations
 
@@ -104,16 +116,20 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import NoReturn
 
-# cflags/ldflags are applied at make time only (never to ./configure) so
+# The flags below are applied at make time only (never to ./configure) so
 # autoconf feature detection is not poisoned by benign warnings in
 # conftest probes. They are omitted entirely when empty so a plain config
-# keeps the configure-chosen defaults.
+# keeps the configure-chosen defaults. "cflags" replaces what configure
+# chose, which drops wolfSSL's own warning set (configure puts -Wall
+# -Wextra and the rest in CFLAGS); "extra_cflags" adds to it instead,
+# since Makefile.am appends EXTRA_CFLAGS to AM_CFLAGS.
 @dataclass
 class Config:
     name: str
     configure: list[str] = field(default_factory=list)
     cc: str = ""
     cflags: str = ""
+    extra_cflags: str = ""
     ldflags: str = ""
     minutes: float = 1.0
     user_settings: str = ""
@@ -148,8 +164,11 @@ print_lock = threading.Lock()
 # exactly one config is reported as the origin) and kills the other
 # workers' in-flight process groups.
 stop_event = threading.Event()
+deadline_event = threading.Event()
 fail_lock = threading.Lock()
 live_procs: set[subprocess.Popen] = set()
+# Processes the --deadline sweep signalled while they were still running.
+deadline_killed: set[subprocess.Popen] = set()
 procs_lock = threading.Lock()
 
 
@@ -165,9 +184,11 @@ def kill_group(p: subprocess.Popen, sig: signal.Signals) -> None:
             pass
 
 
-def abort_others() -> None:
+def abort_others(for_deadline: bool = False) -> None:
     with procs_lock:
         procs = list(live_procs)
+        if for_deadline:
+            deadline_killed.update(p for p in procs if p.poll() is None)
     for p in procs:
         kill_group(p, signal.SIGTERM)
     # Bounded escalation: SIGKILL whatever ignored the SIGTERM, so
@@ -182,6 +203,30 @@ def abort_others() -> None:
         time.sleep(0.2)
 
 
+def wait_bounded(p: subprocess.Popen,
+                 deadline: float | None) -> tuple[int, bool]:
+    # Wait for p, but no longer than deadline (a time.monotonic() value;
+    # None waits forever). On expiry kill the process group like
+    # abort_others() does - SIGTERM, then SIGKILL after a 10 s grace - so a
+    # test that traps SIGTERM cannot outlive its timeout. Returns the exit
+    # status and whether the deadline ended the wait.
+    try:
+        if deadline is None:
+            return p.wait(), False
+        return p.wait(timeout=max(0.0, deadline - time.monotonic())), False
+    except subprocess.TimeoutExpired:
+        kill_group(p, signal.SIGTERM)
+        try:
+            p.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            kill_group(p, signal.SIGKILL)
+            p.wait()
+        return -1, True
+    except KeyboardInterrupt:
+        kill_group(p, signal.SIGTERM)
+        raise
+
+
 def nproc() -> int:
     # Like nproc(1): CPUs usable by this process, falling back to all online.
     try:
@@ -191,9 +236,9 @@ def nproc() -> int:
 
 
 # Every recognized config key (and every key allowed inside "base").
-CONFIG_KEYS = {"name", "configure", "cc", "cflags", "ldflags", "minutes",
-               "user_settings", "check", "prepare", "run", "comment",
-               "build", "netns", "shards"}
+CONFIG_KEYS = {"name", "configure", "cc", "cflags", "extra_cflags",
+               "ldflags", "minutes", "user_settings", "check", "prepare",
+               "run", "comment", "build", "netns", "shards"}
 # List-valued keys are concatenated (base first) when merging "base" into a
 # config; every other key is a default the config overrides.
 MERGE_LIST_KEYS = ("configure", "prepare", "run")
@@ -270,9 +315,13 @@ def load_configs(opts: argparse.Namespace,
                 and all(isinstance(a, str) for a in configure)):
             error(f"{opts.json}: \"configure\" must be a list of argument "
                   f"strings in {name!r}")
-        for key in ("cflags", "ldflags"):
+        for key in ("cflags", "extra_cflags", "ldflags"):
             if not isinstance(entry.get(key, ""), str):
                 error(f"{opts.json}: \"{key}\" must be a string in {name!r}")
+        if entry.get("cflags") == "" and not opts.cflags:
+            warn(f"{opts.json}: empty \"cflags\" in {name!r} has no effect "
+                 f"without --cflags; \"extra_cflags\": \"\" opts out of "
+                 f"--extra-cflags")
         minutes = entry.get("minutes", 1.0)
         if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) \
                 or minutes < 0:
@@ -304,6 +353,7 @@ def load_configs(opts: argparse.Namespace,
                       f"in {name!r}")
         configs.append(Config(name, list(configure), cc,
                               entry.get("cflags", opts.cflags),
+                              entry.get("extra_cflags", opts.extra_cflags),
                               entry.get("ldflags", opts.ldflags),
                               float(minutes), user_settings, check,
                               list(entry.get("prepare", [])),
@@ -390,10 +440,22 @@ def stale_estimate(cfg: Config, minutes: float) -> bool:
             and not 0.5 * cfg.minutes <= minutes <= 1.5 * cfg.minutes)
 
 
+def aborted_by_failure(opts: argparse.Namespace) -> bool:
+    # True when fail-fast stopped the run for a real failure.
+    return (opts.fail_fast and stop_event.is_set()
+            and not deadline_event.is_set())
+
+
+def failed_step(label: str) -> str:
+    return label.removeprefix("run deadline in ").removeprefix("timeout in ")
+
+
 def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                                                                float]:
-    if opts.fail_fast and stop_event.is_set():
+    if aborted_by_failure(opts):
         return "aborted", 0.0
+    if opts.run_deadline is not None and time.monotonic() >= opts.run_deadline:
+        return "run deadline before start", 0.0
     bdir = SRCDIR / f"build-{cfg.name}"
     if bdir.exists():
         shutil.rmtree(bdir)
@@ -402,6 +464,7 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
     if cfg.cc:
         configure.append(f"CC={cfg.cc}")
     flags = [f"CFLAGS={cfg.cflags}"] if cfg.cflags else []
+    flags += [f"EXTRA_CFLAGS={cfg.extra_cflags}"] if cfg.extra_cflags else []
     flags += [f"LDFLAGS={cfg.ldflags}"] if cfg.ldflags else []
     # No -j here: wolfSSL's configure enables make's jobserver by default
     # (AX_AM_JOBSERVER adds AM_MAKEFLAGS += -j<nproc+1>), and that explicit
@@ -438,23 +501,46 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
              if cfg.netns and BWRAP else [])
     failed: str | None = None
     start = time.monotonic()
+    # Budget for the whole step sequence, not per step: the total is what
+    # has to stay under the CI job's timeout-minutes.
+    deadline = start + opts.timeout * 60 if opts.timeout else None
+    run_binds = opts.run_deadline is not None \
+        and (deadline is None or opts.run_deadline <= deadline)
+    if run_binds:
+        deadline = opts.run_deadline
     log = bdir / "make-check.log"
 
     def record_failure(step: str) -> str:
-        # Classify a failed step, doing the fail-fast bookkeeping: the
-        # first failure wins and aborts everyone else; any failure after
-        # the abort began is reported as aborted instead.
+        # Under fail-fast the first failure aborts the others, and failures
+        # after an abort that a failure began are reported as aborted.
         if not opts.fail_fast:
             return step
         with fail_lock:
-            label = "aborted" if stop_event.is_set() else step
+            first = not stop_event.is_set()
             stop_event.set()
-        if label != "aborted":
+        if first:
             abort_others()
+        return step if first or deadline_event.is_set() else "aborted"
+
+    def deadline_failure(label: str) -> str:
+        # Every config the deadline cuts off keeps its own label and log.
+        if opts.fail_fast:
+            with fail_lock:
+                first = not stop_event.is_set()
+                deadline_event.set()
+                stop_event.set()
+            if first:
+                abort_others(for_deadline=True)
         return label
 
     with open(log, "w") as logf:
         for step, cmd in steps:
+            if run_binds and time.monotonic() >= opts.run_deadline \
+                    and not aborted_by_failure(opts):
+                print(f"+ skipped: {step} after --deadline="
+                      f"{opts.deadline:g} min", file=logf, flush=True)
+                failed = deadline_failure(f"run deadline before {step}")
+                break
             if opts.fail_fast and stop_event.is_set():
                 failed = "aborted"
                 break
@@ -483,16 +569,29 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
                 # just now, this process escaped the sweep - kill it
                 # ourselves (the wait() below then reaps it), escalating
                 # like the sweep does if SIGTERM is ignored.
+                if deadline_event.is_set():
+                    deadline_killed.add(proc)
                 kill_group(proc, signal.SIGTERM)
                 try:
                     proc.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     kill_group(proc, signal.SIGKILL)
             try:
-                rc = proc.wait()
+                rc, timed_out = wait_bounded(proc, deadline)
             finally:
                 with procs_lock:
                     live_procs.discard(proc)
+            if run_binds and (timed_out or proc in deadline_killed) \
+                    and not aborted_by_failure(opts):
+                print(f"+ killed: {step} hit --deadline={opts.deadline:g} "
+                      f"min", file=logf, flush=True)
+                failed = deadline_failure(f"run deadline in {step}")
+                break
+            if timed_out:
+                print(f"+ killed: {step} exceeded --timeout={opts.timeout:g} "
+                      f"min", file=logf, flush=True)
+                failed = record_failure(f"timeout in {step}")
+                break
             if rc != 0:
                 failed = record_failure(step)
                 break
@@ -512,9 +611,9 @@ def run_config(cfg: Config, opts: argparse.Namespace) -> tuple[str | None,
             sys.stdout.flush()
         else:
             dump(f"{cfg.name}: FAIL ({failed}) [{minutes:.1f} min]", log)
-            if failed == "configure":
+            if failed_step(failed) == "configure":
                 dump(f"{cfg.name}: config.log", bdir / "config.log")
-            elif failed == "make check":
+            elif failed_step(failed) == "make check":
                 dump(f"{cfg.name}: test-suite.log", bdir / "test-suite.log")
     return failed, minutes
 
@@ -606,12 +705,31 @@ def main() -> int:
                         "pending configs are skipped and in-flight ones "
                         "killed (--no-fail-fast runs everything and "
                         "reports every failure)")
+    p.add_argument("--timeout", type=float, default=0, metavar="MINUTES",
+                   help="kill a config that has run this long and report it "
+                        "as a failure, instead of letting it wedge until the "
+                        "CI job's own timeout takes down the whole job and "
+                        "every other config's result with it (default: 0, "
+                        "no limit). Set it well above the slowest config's "
+                        "normal time - this catches hangs, not slowness")
+    p.add_argument("--deadline", type=float, default=0, metavar="MINUTES",
+                   help="wall-clock limit for the whole run, counted from "
+                        "start: configs still running are killed and pending "
+                        "ones fail without starting, so the summary and logs "
+                        "come out before the CI job's timeout-minutes, "
+                        "including for a config that started late "
+                        "(default: 0, no limit)")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
                    else None,
                    help="compiler passed to configure as CC= for configs "
                         "that do not set their own \"cc\"")
     p.add_argument("--cflags", default="",
                    help="CFLAGS for configs that do not set their own")
+    p.add_argument("--extra-cflags", default="",
+                   help="CFLAGS added to the ones configure chose, for "
+                        "configs that do not set their own "
+                        "\"extra_cflags\": keeps wolfSSL's warning set in "
+                        "force instead of replacing it like --cflags")
     p.add_argument("--ldflags", default="",
                    help="LDFLAGS for configs that do not set their own")
     p.add_argument("--private-dir", action="append", default=[],
@@ -625,6 +743,12 @@ def main() -> int:
                         "still populates ccache, which is the point when "
                         "seeding a shared cache on a schedule")
     opts = p.parse_args()
+    if opts.timeout < 0:
+        p.error("--timeout must be a non-negative number of minutes")
+    if opts.deadline < 0:
+        p.error("--deadline must be a non-negative number of minutes")
+    opts.run_deadline = (time.monotonic() + opts.deadline * 60
+                         if opts.deadline else None)
 
     all_configs = load_configs(opts, p.error)
     if opts.build_only:
@@ -704,7 +828,16 @@ def main() -> int:
         return 0
 
     if any(cfg.build for cfg in selected) and not (SRCDIR / "configure").exists():
-        subprocess.run(["./autogen.sh"], cwd=SRCDIR, check=True)
+        proc = subprocess.Popen(["./autogen.sh"], cwd=SRCDIR,
+                                start_new_session=True)
+        rc, timed_out = wait_bounded(proc, opts.run_deadline)
+        if timed_out:
+            msg = f"autogen.sh hit --deadline={opts.deadline:g} min"
+            print(f"::error{GH_FILE_PROP}::{gh_escape(msg)}"
+                  if ON_GITHUB else msg)
+            return 1
+        if rc != 0:
+            raise subprocess.CalledProcessError(rc, ["./autogen.sh"])
 
     nthreads = max(1, min(opts.threads, len(selected)))
     wall_start = time.monotonic()

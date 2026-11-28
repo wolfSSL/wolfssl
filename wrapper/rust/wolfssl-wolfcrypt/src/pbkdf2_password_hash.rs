@@ -174,7 +174,7 @@ impl TryFrom<&PasswordHash> for Params {
         let output_len = if let Some(ref h) = hash.hash {
             h.len()
         } else if let Some(l) = hash.params.get_decimal("l") &&
-                0 < l && (l as usize) <= Output::MAX_LENGTH {
+                (l as usize) >= Output::MIN_LENGTH && (l as usize) <= Output::MAX_LENGTH {
             l as usize
         } else {
             return Err(Error::ParamInvalid { name: "l" });
@@ -194,12 +194,17 @@ impl TryFrom<&PasswordHash> for Params {
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// use password_hash::PasswordHasher;
 /// use wolfssl_wolfcrypt::pbkdf2_password_hash::Pbkdf2;
 ///
 /// let hasher = Pbkdf2::default();
 /// let salt = b"0123456789abcdef"; // 16 bytes
-/// let hash = hasher.hash_password_with_salt(b"password", salt)
+/// let hash = hasher.hash_password_with_salt(b"correct horse battery staple", salt)
 ///     .expect("hashing failed");
 /// ```
 #[derive(Clone, Debug, Default)]
@@ -243,7 +248,8 @@ impl password_hash::CustomizedPasswordHasher<PasswordHash> for Pbkdf2 {
             return Err(Error::ParamInvalid { name: "i" });
         }
 
-        if params.output_len > Output::MAX_LENGTH {
+        if params.output_len < Output::MIN_LENGTH ||
+                params.output_len > Output::MAX_LENGTH {
             return Err(Error::ParamInvalid { name: "l" });
         }
 
@@ -252,7 +258,7 @@ impl password_hash::CustomizedPasswordHasher<PasswordHash> for Pbkdf2 {
 
         let salt = Salt::new(salt)?;
 
-        let mut out_buf = [0u8; Output::MAX_LENGTH];
+        let mut out_buf = zeroize::Zeroizing::new([0u8; Output::MAX_LENGTH]);
         let out_slice = &mut out_buf[..params.output_len];
         kdf::pbkdf2(password, salt.as_ref(), iterations, algorithm.hmac_type(), out_slice)
             .map_err(|_| Error::Crypto)?;

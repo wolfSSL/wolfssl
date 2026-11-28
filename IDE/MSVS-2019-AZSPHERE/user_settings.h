@@ -26,6 +26,7 @@
 #define CUSTOM_SERVER_CONNECTION
 
 #define WOLFSSL_AZSPHERE
+/* Supply a real seed through CUSTOM_RAND_GENERATE_SEED. */
 /* Client connects to the server with these details. */
 #ifdef CUSTOM_SERVER_CONNECTION
     #ifndef SERVER_IP
@@ -60,6 +61,7 @@
 #define HAVE_ECC
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_TLS_EXTENSIONS
+#define HAVE_SERVER_RENEGOTIATION_INFO
 #define HAVE_ONE_TIME_AUTH
 #define HAVE_TRUNCATED_HMAC
 #define HAVE_EXTENDED_MASTER

@@ -331,12 +331,20 @@ int test_wc_HashUpdate(void)
         wc_HashFree(&hash, (enum wc_HashType)notSupportedHash[i]);
     }
 
-#if defined(DEBUG_WOLFSSL) && !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
+#if !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
+    /* WC_HASH_TYPE_NONE selects the type from wc_HashInit(). */
+    ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
+    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_NONE, NULL, 0), 0);
+    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_NONE, (byte*)"a", 1), 0);
+    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
+
+    /* A mismatched type is rejected. */
     ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_SHA512, (byte*)"a", 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA256), 0);
 #endif
 #endif
     return EXPECT_RESULT();
@@ -401,10 +409,25 @@ int test_wc_HashFinal(void)
 
         wc_HashFree(&hash, (enum wc_HashType)notSupportedHash[i]);
     }
-#if defined(DEBUG_WOLFSSL) && !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
+#if !defined(NO_SHA256) && defined(WOLFSSL_SHA512)
+    {
+        /* WC_HASH_TYPE_NONE selects the type from wc_HashInit(), so a
+         * SHA-256 digest is produced. */
+        byte expected[WC_SHA256_DIGEST_SIZE];
+
+        ExpectIntEQ(wc_Sha256Hash(NULL, 0, expected), 0);
+        XMEMSET(digest, 0, sizeof(digest));
+        ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
+        ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_NONE, digest), 0);
+        ExpectBufEQ(digest, expected, WC_SHA256_DIGEST_SIZE);
+        ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
+    }
+
+    /* A mismatched type is rejected. */
     ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_SHA256), 0);
     ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_SHA512, digest),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_SHA256), 0);
 #endif
 #endif
     return EXPECT_RESULT();
@@ -943,10 +966,40 @@ int test_wc_HashDecisionCoverage(void)
         /* wc_HashFree: hash == NULL. */
         ExpectIntEQ(wc_HashFree(NULL, type), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-#ifdef DEBUG_WOLFSSL
-        /* hash->type != type mismatch branches (Update/Final/Free), only
-         * built under DEBUG_WOLFSSL; needs two distinct compiled-in types
-         * for an independence pair against the matching-type calls above. */
+        /* A type argument of WC_HASH_TYPE_NONE selects the type recorded by
+         * wc_HashInit(). */
+        {
+            byte expected[WC_MAX_DIGEST_SIZE];
+            int digestSz = wc_HashGetDigestSize(type);
+
+            ExpectIntGT(digestSz, 0);
+            ExpectIntEQ(wc_Hash(type, (byte*)"a", 1, expected,
+                sizeof(expected)), 0);
+            XMEMSET(digest, 0, sizeof(digest));
+            ExpectIntEQ(wc_HashInit(&hash, type), 0);
+            ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_NONE, (byte*)"a",
+                1), 0);
+            ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_NONE, digest), 0);
+            if (digestSz > 0) {
+                ExpectBufEQ(digest, expected, digestSz);
+            }
+            ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
+        #ifdef WOLFSSL_HASH_FLAGS
+            {
+                word32 flags = 0;
+
+                ExpectIntEQ(wc_HashInit(&hash, type), 0);
+                ExpectIntEQ(wc_HashSetFlags(&hash, WC_HASH_TYPE_NONE, 0), 0);
+                ExpectIntEQ(wc_HashGetFlags(&hash, WC_HASH_TYPE_NONE,
+                    &flags), 0);
+                ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_NONE), 0);
+            }
+        #endif
+        }
+
+        /* type != WC_HASH_TYPE_NONE && type != hash->type mismatch branches;
+         * needs two distinct compiled-in types for an independence pair
+         * against the matching-type calls above. */
         if (supportedHashLen > 1) {
             enum wc_HashType type2 = supportedHash[1];
 
@@ -955,13 +1008,21 @@ int test_wc_HashDecisionCoverage(void)
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
             ExpectIntEQ(wc_HashFinal(&hash, type2, digest),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        #ifdef WOLFSSL_HASH_FLAGS
+            ExpectIntEQ(wc_HashSetFlags(&hash, type2, 0),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            {
+                word32 flags = 0;
+
+                ExpectIntEQ(wc_HashGetFlags(&hash, type2, &flags),
+                    WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+            }
+        #endif
             ExpectIntEQ(wc_HashFree(&hash, type2),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-            /* clean up with the matching type (false side already shown
-             * by the un-guarded calls above). */
+            /* clean up with the matching type. */
             ExpectIntEQ(wc_HashFree(&hash, type), 0);
         }
-#endif /* DEBUG_WOLFSSL */
 
         /* wc_Hash/wc_Hash_ex: hash_len < (word32)dig_size (true side,
          * BUFFER_E). False side already covered by every supportedHash[]
@@ -992,36 +1053,36 @@ int test_wc_HashDecisionCoverage(void)
     ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_BLAKE2S),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
 
-    /* wc_HashUpdate/wc_HashFinal/wc_HashFree reach the "not supported ->
-     * HASH_TYPE_E" switch arm only when DEBUG_WOLFSSL is off: under
-     * DEBUG_WOLFSSL each first checks (hash->type != type) and returns
-     * BAD_FUNC_ARG before the switch. wc_HashInit above legitimately refuses
-     * these types, so hash->type is never one of them and the debug check
-     * always intercepts here, making the arm unreachable in DEBUG builds
-     * (non-DEBUG builds cover it). Not a value workaround -- the arm's
-     * coverage simply comes from non-DEBUG variants in the harness union. */
-#ifndef DEBUG_WOLFSSL
+    /* wc_HashUpdate/wc_HashFinal/wc_HashFree: same "not supported ->
+     * HASH_TYPE_E" case labels. These functions dispatch on hash->type, which
+     * wc_HashInit() records even when it refuses the type, so re-run
+     * wc_HashInit() with each type before calling them. */
+    ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_MD5_SHA),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_MD5_SHA, (byte*)"a", 1),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+    ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_MD5_SHA, digest),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_MD5_SHA),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+
+    ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_BLAKE2B),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
     ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_BLAKE2B, (byte*)"a", 1),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
-    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_BLAKE2S, (byte*)"a", 1),
-        WC_NO_ERR_TRACE(HASH_TYPE_E));
-
-    ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_MD5_SHA, digest),
-        WC_NO_ERR_TRACE(HASH_TYPE_E));
     ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_BLAKE2B, digest),
-        WC_NO_ERR_TRACE(HASH_TYPE_E));
-    ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_BLAKE2S, digest),
-        WC_NO_ERR_TRACE(HASH_TYPE_E));
-
-    ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_MD5_SHA),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
     ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_BLAKE2B),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
+
+    ExpectIntEQ(wc_HashInit(&hash, WC_HASH_TYPE_BLAKE2S),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+    ExpectIntEQ(wc_HashUpdate(&hash, WC_HASH_TYPE_BLAKE2S, (byte*)"a", 1),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
+    ExpectIntEQ(wc_HashFinal(&hash, WC_HASH_TYPE_BLAKE2S, digest),
+        WC_NO_ERR_TRACE(HASH_TYPE_E));
     ExpectIntEQ(wc_HashFree(&hash, WC_HASH_TYPE_BLAKE2S),
         WC_NO_ERR_TRACE(HASH_TYPE_E));
-#endif /* !DEBUG_WOLFSSL */
 
     /* wc_Hash/wc_Hash_ex: dig_size < 0 (true side) via an unsupported
      * hashType hitting the default/NONE arm of wc_HashGetDigestSize. */

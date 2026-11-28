@@ -63,18 +63,30 @@
 
 #define XVALIDATEDATE(d, f,t) (0)
 
-#define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
 #define WC_RSA_BLINDING
 
 #define HAVE_AESGCM
+#define GCM_TABLE_4BIT
 #define WOLFSSL_SHA512
 #define HAVE_ECC
 #define HAVE_CURVE25519
 #define CURVE25519_SMALL
 
 #define WOLFSSL_SMALL_STACK
-#define USE_FAST_MATH
+
+/* SP math (replaces fastmath/TFM): faster and smaller for the fixed key
+ * sizes used here (RSA 2048, ECC P-256, Curve25519, FFDHE 2048). */
+#define SP_WORD_SIZE 32
+#define WOLFSSL_SP_MATH
+#define WOLFSSL_SP_SMALL
+#define WOLFSSL_SP_NO_MALLOC
+#define WOLFSSL_SP_NO_DYN_STACK
+#define WOLFSSL_SP_NO_3072
+#define WOLFSSL_HAVE_SP_RSA
+#define WOLFSSL_HAVE_SP_DH
+#define WOLFSSL_HAVE_SP_ECC
+#define WOLFSSL_SP_ARM_CORTEX_M_ASM
 
 /* static RSA */
 #define WOLFSSL_STATIC_RSA
@@ -91,7 +103,7 @@
 /* Enable the following definition to use TLS 1.3
  * For TLS1.3 use "extended-master" needs to turn on
  */
-/* #define WOLFSSL_TLS13 */
+#define WOLFSSL_TLS13
 
 #if defined(WOLFSSL_TLS13)
     #include <sys/time.h>

@@ -281,6 +281,7 @@ so choose according to what your target has:
 | `WC_PROTECT_ENCRYPTED_MEM` | Extra protection for operations on encrypted memory. |
 | `WC_NO_CACHE_RESISTANT` | Disable cache-resistant (constant-address) table access. Faster, weaker. |
 | `WC_NO_HARDEN` | Disable timing-attack resistance. Faster, weaker. |
+| `WOLFSSL_SP_FAST_MODEXP_COPY` | Select the cache-resistant `mod_exp` working value with a single secret-dependent pointer copy instead of touching both candidates. Faster, but leaks the exponent at cache-line granularity. Off by default; forced off on capability targets. |
 | `WOLFSSL_NO_CT_OPS` | Disable constant-time operations. |
 | `WOLFSSL_CHECK_MEM_ZERO` | Check that sensitive memory is zeroed on free (debug). |
 
@@ -288,6 +289,42 @@ wolfSSL recommends against defining `WC_NO_HARDEN`, `WC_NO_CACHE_RESISTANT` or
 `WOLFSSL_NO_CT_OPS` in any product that handles long-term private keys, unless
 your threat model genuinely excludes an attacker able to observe local timing or
 cache behaviour. The performance gain is small relative to the protection lost.
+
+The cache-resistant modular exponentiation (and the ECC/SAKKE scalar-mult
+ladders) select the working value from one of two objects on each secret
+exponent bit. By default that selection is **address-oblivious**: both objects
+are accessed every iteration through a masked constant-time copy
+(`_sp_cond_copy` in `sp_int.c`, `sp_cond_select`/`sp_cond_memcpy` in the
+specialised `sp_<arch>.c`, `fp_cond_copy` in `tfm.c`, `mp_cond_copy` in
+`sakke.c`), so the touched memory address does not depend on the secret. This
+resists a co-resident attacker that can observe cache-line accesses, for example
+`Prime+Probe` from a sibling SMT thread sharing the L1 data cache. Defining
+`WOLFSSL_SP_FAST_MODEXP_COPY` switches to the older, faster variant that computes
+a single secret-dependent pointer by address masking and copies only the
+selected object; it is a few percent faster on private-key operations but
+discloses the exponent bits at cache-line granularity, so enable it only where a
+co-resident cache observer is outside your threat model. It requires rebuilding a
+pointer from integer arithmetic on two addresses, which capability targets (those
+that define `WC_NO_PTR_INT_CAST`, such as CHERI and Fil-C) cannot do, so the
+option is ignored and the oblivious copy is always used there. It is also a no-op
+for the default windowed `mod_exp` used by the specialised SP assembly back ends,
+which select from a table scanned in full rather than from two objects.
+
+The generated SP back ends (`sp_c32.c`, `sp_c64.c` and the assembly targets
+`sp_x86_64.c`, `sp_arm64.c`, `sp_arm32.c`, `sp_armthumb.c`, `sp_cortexm.c`,
+`sp_riscv64.c`) all take the address-oblivious copy by default: both the
+`mod_exp` ladders and the non-blocking ECC scalar-multiplication ladders write
+each product/sum to a scratch object and distribute it into the secret-selected
+slot by touching both candidates, so no store address depends on the secret.
+
+One backend is not covered: the Hexagon DSP source `sp_dsp32.c` (shipped as
+`EXTRA_DIST`, not built by `./configure`, and not produced by the sp scripts).
+It holds the P-256 ECC scalar-multiplication ladder (it has no private-key
+`mod_exp`) and still selects the working point with an unconditional
+secret-dependent pointer copy, honouring neither the oblivious default nor
+`WOLFSSL_SP_FAST_MODEXP_COPY`. Treat that scalar multiplication as leaking the
+scalar at cache-line granularity until it is converted to the address-oblivious
+copy.
 
 ### Non-blocking
 
@@ -324,7 +361,7 @@ RSA/DH 2048 and 3072 and ECC P-256 are **on by default** once the corresponding
 
 | Define | Effect |
 | --- | --- |
-| `WOLFSSL_SP_NO_2048` | Drop RSA/DH 2048 |
+| `WOLFSSL_SP_NO_2048` | Drop RSA/DH 2048. Ignored with `WOLFSSL_SP_4096` and SP assembly when the 4096-bit code needs the 2048-bit functions: always on x86_64, elsewhere for RSA private keys using CRT or a non-small build (`RSA_LOW_MEM` forces small) |
 | `WOLFSSL_SP_NO_3072` | Drop RSA/DH 3072 |
 | `WOLFSSL_SP_4096` | Add RSA/DH 4096 |
 | `WOLFSSL_SP_NO_256` | Drop ECC P-256 |
@@ -420,6 +457,8 @@ kernel-module builds, `WC_C_DYNAMIC_FALLBACK` keeps a C path available.
 | `WOLFSSL_ARMASM_INLINE` | Use the `*_asm_c.c` inline-assembly variants instead of the `.S` files. Needed when the toolchain will not assemble `.S`, and used for FIPS on ARMv7. |
 | `WOLFSSL_ARMASM_NO_HW_CRYPTO` | No ARMv8 Crypto Extensions (no AES/SHA instructions) |
 | `WOLFSSL_ARMASM_NO_NEON` | No NEON |
+| `WOLFSSL_ARMASM_SHA512_NO_NEON` | 32-bit Arm: SHA-512 uses its scalar body; implied by `WOLFSSL_ARMASM_NO_NEON` |
+| `WOLFSSL_ARMASM_SHA3_NO_NEON` | 32-bit Arm: SHA-3 uses its scalar body; implied by `WOLFSSL_ARMASM_NO_NEON` |
 | `WOLFSSL_ARMASM_THUMB2` | Thumb-2 encoding (Cortex-M, ARMv7-M) |
 | `WOLFSSL_ARM_ARCH=<n>` | Architecture level: `4`, `6`, `7`… Gates instruction availability. |
 | `WOLFSSL_AARCH64_BUILD` | Aarch64 target |
@@ -677,7 +716,7 @@ no inline alternative.
 Whichever toolchain you use, the defines must reach the assembler as well as
 the compiler when building `.S` files. See the first row of section 13.
 
-Sample projects for several of these live under `IDE/` — `IDE/MDK-ARM`,
+Sample projects for several of these live under `IDE/`, including
 `IDE/MDK5-ARM`, `IDE/IAR-EWARM`, `IDE/GCC-ARM` and others.
 
 ---

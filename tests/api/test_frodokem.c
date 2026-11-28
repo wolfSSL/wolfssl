@@ -39,6 +39,7 @@
     #endif
 #endif
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 #include <tests/api/api.h>
 #include <tests/api/test_frodokem.h>
 
@@ -100,7 +101,8 @@ static const int frodokem_types[] = {
 
 /* The KAT data is only used by the make-key/encapsulate/decapsulate KAT tests,
  * all of which need key generation to reconstruct the key. */
-#if !defined(NO_SHA256) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
+#if !defined(NO_SHA256) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM)
 
 /* Known-answer test data derived from the official FrodoKEM and eFrodoKEM
  * KAT vectors (PQCkemKAT_*.rsp, count 0), for both the SHAKE and AES matrix A
@@ -740,7 +742,7 @@ static const FrodoKemKat frodokem_kats[] = {
     FKAT_640_AES FKAT_976_AES FKAT_1344_AES
     FKAT_E640_SHAKE FKAT_E976_SHAKE FKAT_E1344_SHAKE
     FKAT_E640_AES FKAT_E976_AES FKAT_E1344_AES
-    { 0 } /* sentinel so the array is never empty */
+    WC_STATIC_STRUCT_INITIALIZER /* sentinel so the array is never empty */
 };
 
 #define FRODOKEM_KAT_CNT \
@@ -755,6 +757,7 @@ int test_wc_frodokem_make_key_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(NO_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
     int i;
     FrodoKemKey* key = NULL;
@@ -801,6 +804,7 @@ int test_wc_frodokem_encapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(NO_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE)
     int i;
@@ -850,6 +854,7 @@ int test_wc_frodokem_decapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(NO_SHA256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -915,6 +920,7 @@ int test_wc_frodokem_roundtrip(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -969,6 +975,7 @@ int test_wc_frodokem_encode_decode(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1061,6 +1068,7 @@ int test_wc_frodokem_decap_implicit_reject(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1148,6 +1156,7 @@ int test_wc_frodokem_decapsulate_pubonly_fails(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1216,6 +1225,7 @@ int test_wc_frodokem_decode_privkey_bad_pkh(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY)
     int i;
     FrodoKemKey* key = NULL;
@@ -1439,6 +1449,7 @@ int test_wc_frodokem_op_len_checks(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WC_NO_RNG) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
     !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
@@ -1579,6 +1590,7 @@ int test_wc_frodokem_asn1(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
@@ -1768,6 +1780,7 @@ int test_wc_frodokem_key_pem(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
     defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
     defined(WOLFSSL_DER_TO_PEM) && defined(WOLFSSL_PEM_TO_DER) && \
@@ -1867,6 +1880,7 @@ int test_wc_frodokem_x509(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_FRODOKEM) && !defined(WOLFSSL_FRODOKEM_NO_ASN1) && \
+    (!defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) || defined(WOLFSSL_SWDEV)) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ASN_TEMPLATE) && \
     defined(HAVE_ECC) && \
     defined(WOLFSSL_WC_FRODOKEM_976) && defined(WOLFSSL_FRODOKEM_SHAKE) && \
@@ -1986,12 +2000,14 @@ int test_wc_frodokem_cert_file(void)
     } fixtures[] = {
         { "./certs/frodokem/frodokem976-cert.der",  CERT_TYPE,
           FRODOKEM_976_SHAKEk },
-        { "./certs/frodokem/frodokem976-req.der",   CERTREQ_TYPE,
-          FRODOKEM_976_SHAKEk },
         { "./certs/frodokem/frodokem1344-cert.der", CERT_TYPE,
           FRODOKEM_1344_SHAKEk },
+#ifdef WOLFSSL_CERT_REQ
+        { "./certs/frodokem/frodokem976-req.der",   CERTREQ_TYPE,
+          FRODOKEM_976_SHAKEk },
         { "./certs/frodokem/frodokem1344-req.der",  CERTREQ_TYPE,
-          FRODOKEM_1344_SHAKEk }
+          FRODOKEM_1344_SHAKEk },
+#endif
     };
     byte* buf = NULL;
     DecodedCert* dc = NULL;
@@ -2048,6 +2064,193 @@ int test_wc_frodokem_cert_verify(void)
         "./certs/frodokem/frodokem1344-cert.pem", WOLFSSL_FILETYPE_PEM),
         WOLFSSL_SUCCESS);
     wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_HAVE_FRODOKEM) && defined(WOLF_CRYPTO_CB) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_FRODOKEM) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_FRODOKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_FRODOKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_FRODOKEM_NO_DECAPSULATE)
+    #define TEST_FRODOKEM_CB_PENDING
+    #define TEST_FRODOKEM_CB_PENDING_DEVID 0x46524B50
+/* Byte written into the output buffers before each call. FrodoKEM never
+ * produces an all-0xA5 ciphertext or secret, so finding the buffer still
+ * filled with it proves nothing wrote to it. */
+    #define TEST_FRODOKEM_CB_FILL 0xA5
+
+typedef struct {
+    int calls;   /* KEM callbacks seen */
+    int ret;     /* what the callback returns */
+} FrodoKemCbPendingCtx;
+
+/* Stands in for a device that cannot complete the operation synchronously.
+ * FrodoKEM has no asyncDev, so nothing in the library could ever resume such
+ * an operation: the return has to be rejected where it arrives. */
+static int frodokem_cb_pending_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    FrodoKemCbPendingCtx* seen = (FrodoKemCbPendingCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((seen != NULL) && (info != NULL) &&
+            (info->algo_type == WC_ALGO_TYPE_PK) &&
+            ((info->pk.type == WC_PK_TYPE_PQC_KEM_KEYGEN) ||
+             (info->pk.type == WC_PK_TYPE_PQC_KEM_ENCAPS) ||
+             (info->pk.type == WC_PK_TYPE_PQC_KEM_DECAPS))) {
+        seen->calls++;
+        return seen->ret;
+    }
+
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+
+/* True when every one of len bytes is still the fill byte. */
+static int frodokem_cb_untouched(const byte* buf, word32 len)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (buf[i] != TEST_FRODOKEM_CB_FILL) {
+            return 0;
+        }
+    }
+    return 1;
+}
+#endif /* TEST_FRODOKEM_CB_PENDING */
+
+/* A crypto callback that returns WC_PENDING_E for a KEM operation is asking
+ * to be called again later, which FrodoKEM has no way to do. The library must
+ * turn that into a hard error at the call site rather than fall through to
+ * the software path, which would produce a key or shared secret the peer
+ * knows nothing about. Errors the device reports for real must still reach
+ * the caller unchanged, and a device that declines the operation must still
+ * fall through to software. Checked for every compiled-in parameter set. */
+int test_wc_frodokem_cb_pending_rejected(void)
+{
+    EXPECT_DECLS;
+#ifdef TEST_FRODOKEM_CB_PENDING
+    int i;
+    FrodoKemKey* key = NULL;
+    FrodoKemCbPendingCtx seen;
+    WC_RNG rng;
+    byte* ctGood = NULL;
+    byte* ct = NULL;
+    byte ssGood[FRODOKEM_MAX_LENSEC];
+    byte ss[FRODOKEM_MAX_LENSEC];
+    word32 ctLen = 0;
+    word32 ssLen = 0;
+    int rngInit = 0;
+    int registered = 0;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&seen, 0, sizeof(seen));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    if (EXPECT_SUCCESS()) {
+        rngInit = 1;
+    }
+    ExpectNotNull(key = (FrodoKemKey*)XMALLOC(sizeof(*key), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(ctGood = (byte*)XMALLOC(FRODOKEM_MAX_CIPHER_TEXT_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(ct = (byte*)XMALLOC(FRODOKEM_MAX_CIPHER_TEXT_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(TEST_FRODOKEM_CB_PENDING_DEVID,
+        frodokem_cb_pending_cb, &seen), 0);
+    if (EXPECT_SUCCESS()) {
+        registered = 1;
+    }
+
+    for (i = 0; (i < FRODOKEM_TYPE_CNT) && EXPECT_SUCCESS(); i++) {
+        seen.calls = 0;
+
+        /* A software key pair and a valid ciphertext to decapsulate. The key
+         * names no device yet, so the callback is not consulted. */
+        ExpectIntEQ(wc_FrodoKemKey_Init(key, frodokem_types[i], NULL,
+            INVALID_DEVID), 0);
+        ExpectIntEQ(wc_FrodoKemKey_CipherTextSize(key, &ctLen), 0);
+        ExpectIntEQ(wc_FrodoKemKey_SharedSecretSize(key, &ssLen), 0);
+        ExpectIntEQ(wc_FrodoKemKey_MakeKey(key, &rng), 0);
+        ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, ctGood, ssGood, &rng), 0);
+        ExpectIntEQ(seen.calls, 0);
+
+        /* Point the finished key at the device. */
+        if (key != NULL) {
+            key->devId = TEST_FRODOKEM_CB_PENDING_DEVID;
+        }
+
+        /* Encapsulate: pending is rejected and neither output is written. */
+        seen.ret = WC_NO_ERR_TRACE(WC_PENDING_E);
+        if (ct != NULL) {
+            XMEMSET(ct, TEST_FRODOKEM_CB_FILL, ctLen);
+        }
+        XMEMSET(ss, TEST_FRODOKEM_CB_FILL, ssLen);
+        ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(seen.calls, 1);
+        ExpectIntEQ(frodokem_cb_untouched(ct, ctLen), 1);
+        ExpectIntEQ(frodokem_cb_untouched(ss, ssLen), 1);
+
+        /* Decapsulate: same, on a ciphertext that would otherwise succeed. */
+        XMEMSET(ss, TEST_FRODOKEM_CB_FILL, ssLen);
+        ExpectIntEQ(wc_FrodoKemKey_Decapsulate(key, ss, ctGood, ctLen),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(seen.calls, 2);
+        ExpectIntEQ(frodokem_cb_untouched(ss, ssLen), 1);
+
+        /* An error the device reports for real is not rewritten. */
+        seen.ret = WC_NO_ERR_TRACE(WC_HW_E);
+        ExpectIntEQ(wc_FrodoKemKey_Encapsulate(key, ct, ss, &rng),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectIntEQ(wc_FrodoKemKey_Decapsulate(key, ss, ctGood, ctLen),
+            WC_NO_ERR_TRACE(WC_HW_E));
+        ExpectIntEQ(seen.calls, 4);
+
+        /* Declining still falls through to software. */
+        seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        ExpectIntEQ(wc_FrodoKemKey_Decapsulate(key, ss, ctGood, ctLen), 0);
+        ExpectIntEQ(seen.calls, 5);
+        ExpectIntEQ(XMEMCMP(ss, ssGood, ssLen), 0);
+
+        wc_FrodoKemKey_Free(key);
+
+        /* Key generation: pending is rejected and no key is generated, so the
+         * key is left unusable rather than holding a key pair the peer will
+         * never see. */
+        seen.ret = WC_NO_ERR_TRACE(WC_PENDING_E);
+        ExpectIntEQ(wc_FrodoKemKey_Init(key, frodokem_types[i], NULL,
+            TEST_FRODOKEM_CB_PENDING_DEVID), 0);
+        ExpectIntEQ(wc_FrodoKemKey_MakeKey(key, &rng),
+            WC_NO_ERR_TRACE(BAD_STATE_E));
+        ExpectIntEQ(seen.calls, 6);
+        if (key != NULL) {
+            ExpectIntEQ(key->flags & FRODOKEM_FLAG_BOTH_SET, 0);
+        }
+
+        /* Declining key generation still reaches the software path. */
+        seen.ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+        ExpectIntEQ(wc_FrodoKemKey_MakeKey(key, &rng), 0);
+        ExpectIntEQ(seen.calls, 7);
+        if (key != NULL) {
+            ExpectIntEQ(key->flags & FRODOKEM_FLAG_BOTH_SET,
+                FRODOKEM_FLAG_BOTH_SET);
+        }
+
+        wc_FrodoKemKey_Free(key);
+    }
+
+    if (registered) {
+        wc_CryptoCb_UnRegisterDevice(TEST_FRODOKEM_CB_PENDING_DEVID);
+    }
+    XFREE(ct, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ctGood, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (rngInit) {
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    }
 #endif
     return EXPECT_RESULT();
 }

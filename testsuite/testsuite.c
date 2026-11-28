@@ -20,6 +20,8 @@
  */
 
 
+#define WOLFSSL_VIS_FOR_TESTS
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -168,13 +170,6 @@ int testsuite_test(int argc, char** argv)
     tempName_Xnum = 6;
 #endif /* !USE_WINDOWS_API */
 
-#ifdef HAVE_WNR
-    if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
-        err_sys("Whitewood netRandom global config failed");
-        return -1237;
-    }
-#endif /* HAVE_WNR */
-
     StartTCP();
 
     server_args.argc = argc;
@@ -297,11 +292,6 @@ int testsuite_test(int argc, char** argv)
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
-
-#ifdef HAVE_WNR
-    if (wc_FreeNetRandom() < 0)
-        err_sys("Failed to free netRandom context");
-#endif /* HAVE_WNR */
 
     printf("\nAll tests passed!\n");
 
@@ -756,8 +746,7 @@ static void simple_test(func_args* args)
     svrArgs.argc = 1;
     svrArgs.argv = svrArgv;
     svrArgs.return_code = 0;
-    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
-                                     !defined(WOLFSSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
         XSTRLCPY(argvs[svrArgs.argc++], "-p", sizeof(argvs[svrArgs.argc]));
         XSTRLCPY(argvs[svrArgs.argc++], "0", sizeof(argvs[svrArgs.argc]));
     #endif

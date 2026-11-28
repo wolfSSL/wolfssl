@@ -30,11 +30,14 @@
 
 /* Defines the Crypto Callback interface version, for compatibility */
 /* Increment this when Crypto Callback interface changes are made */
-#define CRYPTO_CB_VER   3
+#define CRYPTO_CB_VER   5
 
 
 #ifdef WOLF_CRYPTO_CB
 
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
@@ -104,6 +107,15 @@
 #if defined(WOLFSSL_HAVE_XMSS)
     #include <wolfssl/wolfcrypt/wc_xmss.h>
 #endif
+#ifdef WOLFSSL_SM2
+    #include <wolfssl/wolfcrypt/sm2.h>
+#endif
+#ifdef WOLFSSL_SM3
+    #include <wolfssl/wolfcrypt/sm3.h>
+#endif
+#ifdef WOLFSSL_SM4
+    #include <wolfssl/wolfcrypt/sm4.h>
+#endif
 
 
 #ifdef WOLF_CRYPTO_CB_CMD
@@ -150,6 +162,35 @@ typedef struct {
 } wc_CryptoCb_AesAuthDec;
 #endif
 
+#if defined(WOLFSSL_SM4) && \
+    (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
+/* GCM and CCM both pass the IV through nonce/nonceSz. */
+typedef struct {
+    wc_Sm4*     sm4;
+    byte*       out;
+    const byte* in;
+    word32      sz;
+    const byte* nonce;
+    word32      nonceSz;
+    byte*       authTag;
+    word32      authTagSz;
+    const byte* authIn;
+    word32      authInSz;
+} wc_CryptoCb_Sm4AuthEnc;
+typedef struct {
+    wc_Sm4*     sm4;
+    byte*       out;
+    const byte* in;
+    word32      sz;
+    const byte* nonce;
+    word32      nonceSz;
+    const byte* authTag;
+    word32      authTagSz;
+    const byte* authIn;
+    word32      authInSz;
+} wc_CryptoCb_Sm4AuthDec;
+#endif
+
 #ifdef WOLF_CRYPTO_CB_SETKEY
 enum wc_SetKeyType {
     WC_SETKEY_NONE      = 0,
@@ -160,7 +201,76 @@ enum wc_SetKeyType {
     WC_SETKEY_ECC_PRIV  = 5,
     WC_SETKEY_AES       = 6,
 };
+
+/* Where a key given to a SetKey callback is kept; see
+ * wc_CryptoCb_SetKeyLocation() */
+#define WC_KEY_SW_STORED    0   /* default: software has the key */
+#define WC_KEY_HW_STORED    1   /* the key is on the device only */
 #endif /* WOLF_CRYPTO_CB_SETKEY */
+
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+/* Lifetime operations on a key held in a hardware key store. SETKEY and
+ * EXPORT_KEY cannot express these: both are bound to a wolfCrypt key object
+ * and carry material for that object's own use. */
+enum wc_KeyStoreType {
+    WC_KEYSTORE_NONE           = 0,
+    WC_KEYSTORE_IMPORT_PLAIN   = 1, /* plaintext key -> slot          */
+    WC_KEYSTORE_EXPORT_PLAIN   = 2, /* slot -> plaintext key          */
+    WC_KEYSTORE_IMPORT_WRAPPED = 3, /* wrapped blob -> slot           */
+    WC_KEYSTORE_EXPORT_WRAPPED = 4, /* slot -> wrapped blob           */
+    WC_KEYSTORE_DERIVE         = 5, /* slot -> slot, never in RAM     */
+    WC_KEYSTORE_DELETE         = 6, /* destroy a stored key           */
+    WC_KEYSTORE_GET_INFO       = 7  /* what is in this slot?          */
+};
+
+/* What a stored key is for. Also fixes the plaintext encoding: raw bytes for a
+ * symmetric type, DER for an asymmetric one. RSA and ECC are split because a
+ * key store grants their two purposes separately. */
+enum wc_KeyStoreKeyType {
+    WC_KEYSTORE_KEY_NONE       = 0,
+    WC_KEYSTORE_KEY_WRAP       = 1,  /* wraps and unwraps other keys */
+    WC_KEYSTORE_KEY_DERIVE     = 2,  /* parent of derived keys */
+    WC_KEYSTORE_KEY_AES        = 3,
+    WC_KEYSTORE_KEY_HMAC       = 4,
+    WC_KEYSTORE_KEY_CMAC       = 5,
+    WC_KEYSTORE_KEY_RSA_SIGN   = 6,  /* signature */
+    WC_KEYSTORE_KEY_RSA_ENC    = 7,  /* key transport */
+    WC_KEYSTORE_KEY_ECC_SIGN   = 8,  /* ECDSA */
+    WC_KEYSTORE_KEY_ECC_DH     = 9,  /* ECDH */
+    WC_KEYSTORE_KEY_ED25519    = 10,
+    WC_KEYSTORE_KEY_CURVE25519 = 11,
+    WC_KEYSTORE_KEY_ED448      = 12,
+    WC_KEYSTORE_KEY_CURVE448   = 13,
+    WC_KEYSTORE_KEY_MLDSA      = 14,
+    WC_KEYSTORE_KEY_MLKEM      = 15
+};
+
+/* Wrapped blob formats. A device that only speaks one format ignores this. */
+enum wc_KeyWrapFormat {
+    WC_KEYWRAP_FORMAT_NONE   = 0,
+    WC_KEYWRAP_FORMAT_VENDOR = 1, /* device-defined container          */
+    WC_KEYWRAP_FORMAT_AESKW  = 2  /* bare RFC 3394, no vendor wrapper  */
+};
+
+/* Attributes requested when a key is created, fixed for its lifetime; there is
+ * no operation to change them afterwards. A device that can express one must
+ * report it back through WC_KEYSTORE_GET_INFO. Attributes it cannot represent
+ * read as absent. */
+#define WC_KEYSTORE_ATTR_EXPORTABLE   0x0001 /* may later be wrapped out    */
+#define WC_KEYSTORE_ATTR_UNWRAP_ONLY  0x0002 /* KWK may unwrap, never wrap  */
+#define WC_KEYSTORE_ATTR_PERSISTENT   0x0004 /* survives reset, if supported */
+#endif /* WOLF_CRYPTO_CB_KEYSTORE */
+
+/* SHAKE ops in hash.shakeOp. WC_SHAKE_OP_NONE is an update (hash.in set)
+ * and/or final (hash.digest set). A device must keep the wc_Shake state
+ * current, as software continues from it when the device returns
+ * CRYPTOCB_UNAVAILABLE or a request is too large to dispatch. Without
+ * software a decline is an error, so split large requests in the device. */
+enum wc_ShakeOp {
+    WC_SHAKE_OP_NONE    = 0,
+    WC_SHAKE_OP_ABSORB  = 1,
+    WC_SHAKE_OP_SQUEEZE = 2
+};
 
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
@@ -222,6 +332,20 @@ typedef struct wc_CryptoInfo {
                 word32*          outLen;
             } rsa_pss_verify;
         #endif
+        #endif
+        #ifndef NO_DH
+            /* Finite field Diffie-Hellman shared secret. Key generation is
+             * deliberately not routed: the private exponent should come from
+             * the caller's WC_RNG, not from a device. */
+            struct {
+                DhKey*      key;
+                const byte* priv;
+                word32      privSz;
+                const byte* otherPub;
+                word32      pubSz;
+                byte*       agree;
+                word32*     agreeSz;
+            } dh;
         #endif
         #ifdef HAVE_ECC
             #ifdef HAVE_ECC_DHE
@@ -314,6 +438,42 @@ typedef struct wc_CryptoInfo {
             } eciesdecrypt;
             #endif /* HAVE_ECC_ENCRYPT */
         #endif /* HAVE_ECC */
+        #if defined(WOLFSSL_SM2)
+            struct {
+                const byte* in;
+                word32      inlen;
+                byte*       out;
+                word32*     outlen;
+                WC_RNG*     rng;
+                ecc_key*    key;
+            } sm2sign;
+            struct {
+                const byte* sig;
+                word32      siglen;
+                const byte* hash;
+                word32      hashlen;
+                int*        res;
+                ecc_key*    key;
+            } sm2verify;
+            struct {
+                ecc_key* private_key;
+                ecc_key* public_key;
+                byte*    out;
+                word32*  outlen;
+            } sm2dh;
+            /* Digest binds the signer id and public key point, so it needs
+             * the key the device holds. */
+            struct {
+                const byte*      id;
+                word16           idSz;
+                const byte*      msg;
+                int              msgSz;
+                enum wc_HashType hashType;
+                byte*            out;
+                int              outSz;
+                ecc_key*         key;
+            } sm2digest;
+        #endif /* WOLFSSL_SM2 */
         #ifdef HAVE_CURVE25519
             struct {
                 WC_RNG*  rng;
@@ -381,8 +541,8 @@ typedef struct wc_CryptoInfo {
                 ed25519_key* key;       /* routing, heap, resident/sw priv   */
                 const byte*  pubKey;    /* compressed public key (key->p)    */
                 word32       pubKeySz;  /* ED25519_PUB_KEY_SIZE              */
-                int          checkPriv; /* 1: private key present; also check
-                                         * priv/pub consistency              */
+                int          checkPriv; /* 1: private key set or referenced by
+                                         * id/label; also check priv/pub     */
             } ed25519checkkey;
         #endif
         #ifdef HAVE_CURVE448
@@ -436,6 +596,22 @@ typedef struct wc_CryptoInfo {
                 const byte*  context;
                 byte         contextLen;
             } ed448verify;
+            struct {
+                ed448_key*   key;
+                byte*        pubOut;
+                word32       pubOutSz;
+            } ed448makepub;
+            struct {
+                ed448_key*   key;
+                const byte*  pubKey;
+                word32       pubKeySz;
+                int          checkPriv;
+            } ed448checkkey;
+            struct {
+                WC_RNG*      rng;
+                int          size;
+                ed448_key*   key;
+            } ed448kg;
         #endif
         #if defined(WOLFSSL_HAVE_MLKEM) || defined(WOLFSSL_HAVE_FRODOKEM)
             struct {
@@ -469,6 +645,12 @@ typedef struct wc_CryptoInfo {
                 int         size;
                 void*       key;
                 int         type; /* enum wc_PqcSignatureType */
+                /* Caller supplied key generation seed, in the order the
+                 * algorithm defines. NULL when the device is to generate
+                 * its own from rng. ML-DSA is the 32-byte xi; SLH-DSA is
+                 * SK.seed || SK.prf || PK.seed, each of n bytes. */
+                const byte* seed;
+                word32      seedSz;
             } pqc_sig_kg;
             struct {
                 const byte* in;
@@ -481,6 +663,11 @@ typedef struct wc_CryptoInfo {
                 const byte* context;
                 byte        contextLen;
                 word32      preHashType; /* enum wc_HashType */
+                /* Caller supplied signing randomness. NULL when the device
+                 * is to generate its own from rng. context, contextLen and
+                 * preHashType are unused by the internal interface. */
+                const byte* addRnd;
+                byte        addRndSz;
             } pqc_sign;
             struct {
                 const byte* sig;
@@ -534,7 +721,8 @@ typedef struct wc_CryptoInfo {
         };
 #endif
     } pk;
-#if !defined(NO_AES) || !defined(NO_DES3)
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(WOLFSSL_SM4) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
     struct {
         int type; /* enum wc_CipherType */
         int enc;
@@ -617,20 +805,81 @@ typedef struct wc_CryptoInfo {
                 int         pad;      /* 1 = RFC 5649 padded, 0 = RFC 3394 */
             } aeskeywrap;
         #endif
+        #if defined(WOLFSSL_SM4)
+            #ifdef WOLFSSL_SM4_GCM
+            wc_CryptoCb_Sm4AuthEnc sm4gcm_enc;
+            wc_CryptoCb_Sm4AuthDec sm4gcm_dec;
+            #endif /* WOLFSSL_SM4_GCM */
+            #ifdef WOLFSSL_SM4_CCM
+            wc_CryptoCb_Sm4AuthEnc sm4ccm_enc;
+            wc_CryptoCb_Sm4AuthDec sm4ccm_dec;
+            #endif /* WOLFSSL_SM4_CCM */
+            #ifdef WOLFSSL_SM4_CBC
+            struct {
+                wc_Sm4*     sm4;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } sm4cbc;
+            #endif /* WOLFSSL_SM4_CBC */
+            #ifdef WOLFSSL_SM4_CTR
+            struct {
+                wc_Sm4*     sm4;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } sm4ctr;
+            #endif /* WOLFSSL_SM4_CTR */
+            #ifdef WOLFSSL_SM4_ECB
+            struct {
+                wc_Sm4*     sm4;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } sm4ecb;
+            #endif /* WOLFSSL_SM4_ECB */
+        #endif /* WOLFSSL_SM4 */
+        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+            struct {                   /* ChaCha20-Poly1305 AEAD one-shot */
+                const byte* inKey;     /* CHACHA20_POLY1305_AEAD_KEYSIZE */
+                const byte* inIV;      /* CHACHA20_POLY1305_AEAD_IV_SIZE */
+                const byte* inAAD;     /* optional additional data */
+                const byte* in;        /* plaintext */
+                byte*       out;       /* ciphertext */
+                byte*       outAuthTag;/* CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE */
+                word32      inAADSz;
+                word32      inSz;
+            } chacha20_poly1305_enc;
+            struct {
+                const byte* inKey;
+                const byte* inIV;
+                const byte* inAAD;
+                const byte* in;        /* ciphertext */
+                const byte* inAuthTag; /* tag to verify */
+                byte*       out;       /* plaintext */
+                word32      inAADSz;
+                word32      inSz;
+            } chacha20_poly1305_dec;
+        #endif /* HAVE_CHACHA && HAVE_POLY1305 */
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } cipher;
-#endif /* !NO_AES || !NO_DES3 */
+#endif /* !NO_AES || !NO_DES3 || WOLFSSL_SM4 ||
+        * (HAVE_CHACHA && HAVE_POLY1305) */
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
-    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA3)
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || \
+    defined(WOLFSSL_SHA3) || defined(WOLFSSL_SM3)
     struct {
         int type; /* enum wc_HashType */
         const byte* in;
         word32 inSz;
         byte* digest;
         word32 outSz; /* SHAKE extendable output length (0 for fixed hashes) */
+#ifdef WOLF_CRYPTO_CB_SHAKE_XOF
+        int shakeOp;  /* enum wc_ShakeOp; 0 for update and final */
+#endif
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
@@ -652,12 +901,15 @@ typedef struct wc_CryptoInfo {
         #ifdef WOLFSSL_SHA3
             wc_Sha3* sha3;
         #endif
+        #if defined(WOLFSSL_SM3)
+            wc_Sm3* sm3;
+        #endif
             void* ctx;
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } hash;
-#endif /* !NO_SHA || !NO_SHA256 */
+#endif /* !NO_SHA || !NO_SHA256 || SHA384 || SHA512 || SHA3 || SM3 */
 #ifndef NO_HMAC
     struct {
         int macType; /* enum wc_HashType */
@@ -665,6 +917,9 @@ typedef struct wc_CryptoInfo {
         word32 inSz;
         byte* digest;
         Hmac* hmac;
+        /* Set only for the one-shot call, see WC_CRYPTOCB_HMAC_IS_ONESHOT */
+        const byte* key;
+        word32 keySz;
     } hmac;
 #endif
 #ifndef WC_NO_RNG
@@ -790,8 +1045,11 @@ typedef struct wc_CryptoInfo {
         int type;               /* enum wc_SetKeyType */
         void* obj;              /* Aes*, Hmac*, RsaKey*, ecc_key* */
         void* key;              /* Raw key bytes or temp struct to export from */
+                                /* AES: NULL when the key lives on the device */
         word32 keySz;           /* Key size (0 when key is a struct ptr) */
         void* aux;              /* Auxiliary data (IV, etc.) or NULL */
+                                /* AES: the IV; a device that takes the key */
+                                /* must load it itself */
         word32 auxSz;           /* Aux data size, 0 if unused */
         int flags;              /* AES: direction (AES_ENCRYPTION/DECRYPTION) */
     } setkey;
@@ -803,7 +1061,73 @@ typedef struct wc_CryptoInfo {
         void* out;              /* Software key to fill (same type as obj) */
     } export_key;
 #endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
-#if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF)
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+    struct {                       /* uses wc_AlgoType=WC_ALGO_TYPE_KEYSTORE */
+        int         type;          /* enum wc_KeyStoreType - discriminator */
+        const void* ctx;           /* read-only caller context */
+        union {
+            struct {                       /* WC_KEYSTORE_IMPORT_PLAIN */
+                const byte* keyRef;        /* opaque: where it should land */
+                word32      keyRefSz;
+                word32      keyType;       /* enum wc_KeyStoreKeyType */
+                const byte* key;           /* plaintext key material */
+                word32      keySz;         /* in bytes */
+                word32      attrs;         /* WC_KEYSTORE_ATTR_* */
+            } importPlain;
+            struct {                       /* WC_KEYSTORE_EXPORT_PLAIN */
+                const byte* keyRef;        /* opaque: the key to export */
+                word32      keyRefSz;
+                byte*       key;           /* out: plaintext key material */
+                word32*     keySz;         /* in: capacity, out: written */
+            } exportPlain;
+            struct {                       /* WC_KEYSTORE_IMPORT_WRAPPED */
+                const byte* keyRef;        /* opaque: where it should land */
+                word32      keyRefSz;
+                word32      keyType;       /* enum wc_KeyStoreKeyType */
+                const byte* wrapKeyRef;    /* opaque: the wrapping key */
+                word32      wrapKeyRefSz;
+                const byte* blob;          /* the wrapped container */
+                word32      blobSz;
+                word32      format;        /* enum wc_KeyWrapFormat */
+                word32      attrs;         /* WC_KEYSTORE_ATTR_* */
+            } importWrapped;
+            struct {                       /* WC_KEYSTORE_EXPORT_WRAPPED */
+                const byte* keyRef;        /* opaque: the key to export */
+                word32      keyRefSz;
+                const byte* wrapKeyRef;
+                word32      wrapKeyRefSz;
+                byte*       blob;          /* out: the wrapped container */
+                word32*     blobSz;        /* in: capacity, out: written */
+                word32      format;
+            } exportWrapped;
+            struct {                       /* WC_KEYSTORE_DERIVE */
+                const byte* keyRef;        /* opaque: where it should land */
+                word32      keyRefSz;
+                word32      keyType;       /* enum wc_KeyStoreKeyType */
+                word32      keySz;         /* bytes; 0 = device's own default */
+                word32      attrs;         /* WC_KEYSTORE_ATTR_* */
+                const byte* srcKeyRef;     /* opaque: the derivation key */
+                word32      srcKeyRefSz;
+                word32      kdfType;       /* enum wc_KdfType */
+                const byte* deriv;         /* derivation data */
+                word32      derivSz;       /* size is algorithm-specific */
+            } derive;
+            struct {                       /* WC_KEYSTORE_DELETE */
+                const byte* keyRef;
+                word32      keyRefSz;
+            } deleteKey;
+            struct {                       /* WC_KEYSTORE_GET_INFO */
+                const byte* keyRef;
+                word32      keyRefSz;
+                word32*     keyType;       /* out: enum wc_KeyStoreKeyType */
+                word32*     keyBits;       /* out: key size in bits */
+                word32*     attrs;         /* out: WC_KEYSTORE_ATTR_* */
+            } getInfo;
+        } op;
+    } keystore;
+#endif /* WOLF_CRYPTO_CB_KEYSTORE */
+#if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF) || \
+    (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
     struct {
         int type; /* enum wc_KdfType */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
@@ -851,17 +1175,37 @@ typedef struct wc_CryptoInfo {
                 word32      outSz;   /* Desired size of out key material. */
             } twostep_cmac;
         #endif /* HAVE_CMAC_KDf */
+        #if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+            struct {                   /* PBKDF2 (PKCS#5 v2.0) */
+                byte*       output;    /* derived key out, kLen bytes */
+                const byte* passwd;
+                const byte* salt;
+                int         pLen;
+                int         sLen;
+                int         iterations;
+                int         kLen;
+                int         hashType;  /* enum wc_HashType */
+            } pbkdf2;
+        #endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
             /* Future KDF type structures here */
     #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
     #endif
     } kdf;
-#endif /* HAVE_HKDF || HAVE_CMAC_KDF */
+#endif /* HAVE_HKDF || HAVE_CMAC_KDF || (HAVE_PBKDF2 && !NO_HMAC) */
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
 } wc_CryptoInfo;
 
+#ifndef NO_HMAC
+/* True for the one-shot HMAC call from wc_HmacGenerate_ex(), which has both
+ * an input pointer and a digest. With hmac.key set, only the devId of
+ * hmac.hmac is set. Without it, the caller initialized hmac.hmac and it names
+ * the key. */
+#define WC_CRYPTOCB_HMAC_IS_ONESHOT(info)                              \
+    (((info)->hmac.in != NULL) && ((info)->hmac.digest != NULL))
+#endif
 
 typedef int (*CryptoDevCallbackFunc)(int devId, struct wc_CryptoInfo* info, void* ctx);
 
@@ -871,12 +1215,19 @@ typedef int (*CryptoDevCallbackFunc)(int devId, struct wc_CryptoInfo* info, void
 #endif
 
 WOLFSSL_LOCAL void wc_CryptoCb_Init(void);
-WOLFSSL_LOCAL void wc_CryptoCb_Cleanup(void);
+WOLFSSL_LOCAL int wc_CryptoCb_Cleanup(void);
 WOLFSSL_LOCAL int wc_CryptoCb_GetDevIdAtIndex(int startIdx);
 WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
+WOLFSSL_API int  wc_CryptoCb_UnRegisterDeviceEx(int devId);
 WOLFSSL_API int wc_CryptoCb_DefaultDevID(void);
 WOLFSSL_API int wc_CryptoCb_IsDeviceRegistered(int devId);
+
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK)
+#define WC_CRYPTOCB_KEYGEN_ID_CHECK
+WOLFSSL_LOCAL int wc_CryptoCb_HasPkDevice(int devId);
+#define WC_CRYPTOCB_HAS_ID(key) (((key)->idLen > 0) || ((key)->labelLen > 0))
+#endif
 
 #ifdef WOLF_CRYPTO_CB_FIND
 typedef int (*CryptoDevCallbackFind)(int devId, int algoType);
@@ -886,7 +1237,8 @@ WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLF_CRYPTO_CB_ASYNC_POLL)
 /* Poll completion for bulk cipher ops: on WC_PENDING_E the callback saves
  * the output pointers; wolfSSL_AsyncPoll() re-enters it with
- * WC_ALGO_TYPE_ASYNC_POLL to finish the job and fill the buffer. */
+ * WC_ALGO_TYPE_ASYNC_POLL to finish the job and fill the buffer. The event
+ * queue lock is held for that call, so the callback must not use the queue. */
 WOLFSSL_LOCAL int wc_CryptoCb_Poll(int devId);
 #endif
 
@@ -922,6 +1274,11 @@ WOLFSSL_LOCAL int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
 WOLFSSL_LOCAL int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize);
 #endif /* !NO_RSA */
 
+#ifndef NO_DH
+WOLFSSL_LOCAL int wc_CryptoCb_Dh(DhKey* key, const byte* priv, word32 privSz,
+    const byte* otherPub, word32 pubSz, byte* agree, word32* agreeSz);
+#endif
+
 #ifdef HAVE_ECC
 WOLFSSL_LOCAL int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize,
     ecc_key* key, int curveId);
@@ -947,13 +1304,32 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPubKey(ecc_key* key, int checkOrder,
     int checkPriv);
 #endif
 #ifdef HAVE_ECC_ENCRYPT
-WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt(ecc_key* privKey, ecc_key* pubKey,
-    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx,
-    int compressed);
-WOLFSSL_LOCAL int wc_CryptoCb_EciesDecrypt(ecc_key* privKey, ecc_key* pubKey,
-    const byte* msg, word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+/* devId is the ECIES context's device (see wc_ecc_ctx_set_dev_id), not
+ * privKey->devId.  A key with a device does not by itself send ECIES to
+ * that device.  INVALID_DEVID means software. */
+WOLFSSL_LOCAL int wc_CryptoCb_EciesEncrypt(int devId, ecc_key* privKey,
+    ecc_key* pubKey, const byte* msg, word32 msgSz, byte* out, word32* outSz,
+    ecEncCtx* ctx, int compressed);
+WOLFSSL_LOCAL int wc_CryptoCb_EciesDecrypt(int devId, ecc_key* privKey,
+    ecc_key* pubKey, const byte* msg, word32 msgSz, byte* out, word32* outSz,
+    ecEncCtx* ctx);
 #endif
 #endif /* HAVE_ECC */
+
+#if defined(WOLFSSL_SM2)
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2Sign(const byte* in, word32 inlen, byte* out,
+    word32* outlen, WC_RNG* rng, ecc_key* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2Verify(const byte* sig, word32 siglen,
+    const byte* hash, word32 hashlen, int* res, ecc_key* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2SharedSecret(ecc_key* private_key,
+    ecc_key* public_key, byte* out, word32* outlen);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm2CreateDigest(const byte* id, word16 idSz,
+    const byte* msg, int msgSz, enum wc_HashType hashType, byte* out,
+    int outSz, ecc_key* key);
+#endif /* WOLFSSL_SM2 */
 
 #ifdef HAVE_CURVE25519
 WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
@@ -1002,12 +1378,17 @@ WOLFSSL_LOCAL int wc_CryptoCb_Curve448Generic(int devId, int public_size,
 #endif /* HAVE_CURVE448 */
 
 #ifdef HAVE_ED448
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448Gen(WC_RNG* rng, int keySize,
+    ed448_key* key);
 WOLFSSL_LOCAL int wc_CryptoCb_Ed448Sign(const byte* in, word32 inLen,
     byte* out, word32 *outLen, ed448_key* key, byte type, const byte* context,
     byte contextLen);
 WOLFSSL_LOCAL int wc_CryptoCb_Ed448Verify(const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res, ed448_key* key, byte type,
     const byte* context, byte contextLen);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448MakePub(ed448_key* key, byte* pubKey,
+    word32 pubKeySz);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed448CheckKey(ed448_key* key);
 #endif /* HAVE_ED448 */
 
 #if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
@@ -1046,17 +1427,46 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcSigGetDevId(int type, void* key);
 WOLFSSL_LOCAL int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type,
     int keySize, void* key);
 
+WOLFSSL_LOCAL int wc_CryptoCb_MakePqcSignatureKeyEx(WC_RNG* rng, int type,
+    int keySize, const byte* seed, word32 seedSz, void* key);
+
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out,
     word32 *outlen, const byte* context, byte contextLen, word32 preHashType,
     WC_RNG* rng, int type, void* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_PqcSignEx(const byte* in, word32 inlen,
+    byte* out, word32 *outlen, const byte* context, byte contextLen,
+    word32 preHashType, WC_RNG* rng, const byte* addRnd, byte addRndSz,
+    int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen,
     const byte* msg, word32 msglen, const byte* context, byte contextLen,
     word32 preHashType, int* res, int type, void* key);
 
+WOLFSSL_LOCAL int wc_CryptoCb_PqcSignMsg(const byte* mprime, word32 mprimeSz,
+    byte* out, word32* outlen, WC_RNG* rng, const byte* addRnd, byte addRndSz,
+    int type, void* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_PqcVerifyMsg(const byte* sig, word32 siglen,
+    const byte* mprime, word32 mprimeSz, int* res, int type, void* key);
+
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz);
 #endif /* HAVE_FALCON || WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_SLHDSA */
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+/* ChaCha20-Poly1305 AEAD, dispatched on the devId bound by
+ * wc_Chacha_SetKey_ex() or wc_ChaCha20Poly1305_Init_ex(). The legacy one-shot
+ * wc_ChaCha20Poly1305_Encrypt()/_Decrypt() carry no devId and are not routed
+ * here - there would be nothing to select a device on. */
+WOLFSSL_LOCAL int wc_CryptoCb_Chacha20Poly1305Encrypt(int devId,
+    const byte* inKey, const byte* inIV, const byte* inAAD, word32 inAADSz,
+    const byte* in, word32 inSz, byte* out, byte* outAuthTag);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Chacha20Poly1305Decrypt(int devId,
+    const byte* inKey, const byte* inIV, const byte* inAAD, word32 inAADSz,
+    const byte* in, word32 inSz, const byte* inAuthTag, byte* out);
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
 #ifndef NO_AES
 #ifdef HAVE_AESGCM
@@ -1129,6 +1539,51 @@ WOLFSSL_LOCAL int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
                                const byte* in, word32 sz);
 #endif /* !NO_DES3 */
 
+#if defined(WOLFSSL_SM4)
+#ifdef WOLFSSL_SM4_GCM
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4GcmEncrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4GcmDecrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    const byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+#endif /* WOLFSSL_SM4_GCM */
+#ifdef WOLFSSL_SM4_CCM
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CcmEncrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CcmDecrypt(wc_Sm4* sm4, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    const byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+#endif /* WOLFSSL_SM4_CCM */
+#ifdef WOLFSSL_SM4_CBC
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CbcEncrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CbcDecrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+#endif /* WOLFSSL_SM4_CBC */
+#ifdef WOLFSSL_SM4_CTR
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4CtrEncrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+#endif /* WOLFSSL_SM4_CTR */
+#ifdef WOLFSSL_SM4_ECB
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4EcbEncrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoCb_Sm4EcbDecrypt(wc_Sm4* sm4, byte* out,
+                               const byte* in, word32 sz);
+#endif /* WOLFSSL_SM4_ECB */
+#endif /* WOLFSSL_SM4 */
+
 #ifndef NO_SHA
 WOLFSSL_LOCAL int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
     word32 inSz, byte* digest);
@@ -1162,13 +1617,18 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
 /* SHAKE is an extendable output function: out/outSz carry the requested output
  * on the final call (in/inSz carry message data on update calls). */
 WOLFSSL_LOCAL int wc_CryptoCb_Shake(wc_Sha3* shake, int type, const byte* in,
-    word32 inSz, byte* out, word32 outSz);
+    word32 inSz, byte* out, word32 outSz, int shakeOp);
 #endif
 #endif
 
-#ifndef NO_HMAC
-WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
+#if defined(WOLFSSL_SM3)
+WOLFSSL_LOCAL int wc_CryptoCb_Sm3Hash(wc_Sm3* sm3, const byte* in,
     word32 inSz, byte* digest);
+#endif /* WOLFSSL_SM3 */
+
+#ifndef NO_HMAC
+WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* key,
+    word32 keySz, const byte* in, word32 inSz, byte* digest);
 #endif /* !NO_HMAC */
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
@@ -1183,6 +1643,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hkdf_Expand(int hashType, const byte* inKey,
                     word32 inKeySz, const byte* info, word32 infoSz,
                     byte* out, word32 outSz, int devId);
 #endif /* HAVE_HKDF && !NO_HMAC */
+
+#if (defined(HAVE_PBKDF2) && !defined(NO_HMAC) && !defined(NO_PWDBASED))
+WOLFSSL_LOCAL int wc_CryptoCb_Pbkdf2(byte* output, const byte* passwd, int pLen,
+    const byte* salt, int sLen, int iterations, int kLen, int hashType,
+    int devId);
+#endif /* HAVE_PBKDF2 && !NO_HMAC && !NO_PWDBASED */
 
 #if defined(HAVE_CMAC_KDF)
 WOLFSSL_LOCAL int wc_CryptoCb_Kdf_TwostepCmac(const byte * salt, word32 saltSz,
@@ -1248,6 +1714,8 @@ WOLFSSL_LOCAL int wc_CryptoCb_Free(int devId, int algo, int type, int subType,
     void* obj);
 #endif /* WOLF_CRYPTO_CB_FREE */
 #ifdef WOLF_CRYPTO_CB_SETKEY
+WOLFSSL_API int wc_CryptoCb_SetKeyLocation(wc_CryptoInfo* info,
+                                           int location);
 WOLFSSL_LOCAL int wc_CryptoCb_SetKey(int devId, int type, void* obj,
                                       void* key, word32 keySz,
                                       void* aux, word32 auxSz,
@@ -1257,6 +1725,34 @@ WOLFSSL_LOCAL int wc_CryptoCb_SetKey(int devId, int type, void* obj,
 WOLFSSL_LOCAL int wc_CryptoCb_ExportKey(int devId, int type,
                                          const void* obj, void* out);
 #endif /* WOLF_CRYPTO_CB_EXPORT_KEY */
+#ifdef WOLF_CRYPTO_CB_KEYSTORE
+WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreImportPlain(int devId,
+    const byte* keyRef, word32 keyRefSz,
+    word32 keyType, const byte* key, word32 keySz,
+    word32 attrs, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreExportPlain(int devId,
+    const byte* keyRef, word32 keyRefSz,
+    byte* key, word32* keySz, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreImportWrapped(int devId,
+    const byte* keyRef, word32 keyRefSz, word32 keyType,
+    const byte* wrapKeyRef, word32 wrapKeyRefSz,
+    word32 format, const byte* blob, word32 blobSz,
+    word32 attrs, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreExportWrapped(int devId,
+    const byte* keyRef, word32 keyRefSz,
+    const byte* wrapKeyRef, word32 wrapKeyRefSz,
+    word32 format, byte* blob, word32* blobSz, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreDerive(int devId,
+    const byte* keyRef, word32 keyRefSz, word32 keyType, word32 keySz,
+    const byte* srcKeyRef, word32 srcKeyRefSz,
+    word32 kdfType, const byte* deriv, word32 derivSz,
+    word32 attrs, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreDelete(int devId,
+    const byte* keyRef, word32 keyRefSz, const void* ctx);
+WOLFSSL_LOCAL int wc_CryptoCb_KeyStoreGetInfo(int devId,
+    const byte* keyRef, word32 keyRefSz,
+    word32* keyType, word32* keyBits, word32* attrs, const void* ctx);
+#endif /* WOLF_CRYPTO_CB_KEYSTORE */
 
 #endif /* WOLF_CRYPTO_CB */
 

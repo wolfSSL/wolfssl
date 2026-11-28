@@ -22,9 +22,15 @@
 #define USER_SETTINGS_H_
 
 
-/* Temporary defines. Not suitable for production. */
-#define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
-/* End temporary defines */
+/* The FSP SCE can supply random data through wc_fspsm_GenerateRandBlock(),
+ * but this sample does not build the FSPSM port. Integrate that driver and
+ * select it with CUSTOM_RAND_GENERATE_BLOCK, or provide another real source. */
+#if !defined(CUSTOM_RAND_GENERATE_SEED) && \
+    !defined(CUSTOM_RAND_GENERATE_SEED_OS) && \
+    !defined(CUSTOM_RAND_GENERATE_BLOCK) && \
+    !defined(CUSTOM_RAND_GENERATE) && !defined(WOLFSSL_GENSEED_FORTEST)
+    #error "RA6M3 needs an FSP SCE or custom seed source; test only: define WOLFSSL_GENSEED_FORTEST and WOLFSSL_ACCEPT_WEAK_ENTROPY"
+#endif
 
 /* TLS 1.3 */
 #define WOLFSSL_TLS13

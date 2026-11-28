@@ -347,6 +347,8 @@ int wc_AsconAEAD128_SetAD(wc_AsconAEAD128* a, const byte* ad,
         return BAD_FUNC_ARG;
     if (!a->keySet || !a->nonceSet) /* key and nonce must be set before */
         return BAD_STATE_E;
+    if (a->adSet) /* associated data is processed in a single call */
+        return BAD_STATE_E;
 
     permutation(&a->state, ASCON_AEAD128_ROUNDS_PA);
     a->state.s64[3] ^= a->key[0];

@@ -19,7 +19,7 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/zephyr_legacy.conf)
 endif()
 
-include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wolfssl_tls_sock)
 
 FILE(GLOB app_sources src/*.c)

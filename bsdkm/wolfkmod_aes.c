@@ -41,7 +41,7 @@ static int wolfkdriv_test_aes_cbc_big(device_t dev, int crid)
     memcpy(work2, msg, sizeof(msg)); /* opencrypto work buffer */
 
     /* wolfcrypt encrypt */
-    aes_encrypt = (Aes *)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
+    aes_encrypt = WC_ALLOC_AES(NULL);
     if (aes_encrypt == NULL) {
         error = ENOMEM;
         device_printf(dev, "error: malloc failed\n");
@@ -146,7 +146,7 @@ test_aes_cbc_big_out:
 
     if (aes_encrypt != NULL) {
         wc_AesFree(aes_encrypt);
-        XFREE(aes_encrypt, NULL, DYNAMIC_TYPE_AES);
+        WC_FREE_AES(aes_encrypt, NULL);
         aes_encrypt = NULL;
     }
 
@@ -226,7 +226,7 @@ static int wolfkdriv_test_aes_gcm(device_t dev, int crid)
     XMEMCPY(resultC2, p, sizeof(p));
 
     /* wolfcrypt encrypt */
-    enc = (Aes *)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
+    enc = WC_ALLOC_AES(NULL);
     if (enc == NULL) {
         error = ENOMEM;
         device_printf(dev, "error: malloc failed\n");
@@ -343,7 +343,7 @@ test_aes_gcm_out:
 
     if (enc != NULL) {
         wc_AesFree(enc);
-        XFREE(enc, NULL, DYNAMIC_TYPE_AES);
+        WC_FREE_AES(enc, NULL);
         enc = NULL;
     }
 

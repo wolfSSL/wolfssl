@@ -50,6 +50,17 @@ static int err_sys(const char* msg)
     perror(msg);
     exit(EXIT_FAILURE);
 }
+
+/* errno says nothing about a wolfSSL failure, so report the library error. */
+static void err_ssl(WOLFSSL* ssl, int ret, const char* msg)
+{
+    char buf[WOLFSSL_MAX_ERROR_SZ];
+
+    fprintf(stderr, "%s: %s\n", msg,
+            wolfSSL_ERR_error_string((unsigned long)wolfSSL_get_error(ssl, ret),
+                                     buf));
+    exit(EXIT_FAILURE);
+}
 #endif /* WOLFSSL_SCTP && WOLFSSL_DTLS && !WOLFSSL_NO_TLS12 */
 
 int main(int argc, char **argv)
@@ -101,30 +112,44 @@ int main(int argc, char **argv)
     printf("Cipher Suite is %s\n",
            wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
 
-    wolfSSL_write(ssl, response, (int)strlen(response));
+    int len = (int)strlen(response);
+    ret = wolfSSL_write(ssl, response, len);
+    if (ret != len)
+        err_ssl(ssl, ret, "ssl write failed");
+
     int got = wolfSSL_read(ssl, buffer, sizeof(buffer) - 1);
-    if (got > 0) {
-        buffer[got] = 0;
-        printf("server said: %s\n", buffer);
-    }
+    if (got <= 0)
+        err_ssl(ssl, got, "ssl read failed");
+    buffer[got] = 0;
+    printf("server said: %s\n", buffer);
 
     unsigned char bigBuf[4096];
     unsigned int i;
 
-    for (i = 0; i < (int)sizeof(bigBuf); i++)
+    for (i = 0; i < sizeof(bigBuf); i++)
         bigBuf[i] = (unsigned char)(i & 0xFF);
-    wolfSSL_write(ssl, bigBuf, sizeof(bigBuf));
+
+    ret = wolfSSL_write(ssl, bigBuf, sizeof(bigBuf));
+    if (ret != (int)sizeof(bigBuf))
+        err_ssl(ssl, ret, "ssl write of big message failed");
     memset(bigBuf, 0, sizeof(bigBuf));
 
-    wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
+    ret = wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
+    if (ret != (int)sizeof(bigBuf))
+        err_ssl(ssl, ret, "ssl read of big message failed");
     for (i = 0; i < sizeof(bigBuf); i++) {
         if (bigBuf[i] != (unsigned char)(i & 0xFF)) {
             fprintf(stderr, "big message check fail\n");
-            break;
+            exit(EXIT_FAILURE);
         }
     }
 
-    wolfSSL_shutdown(ssl);
+    ret = wolfSSL_shutdown(ssl);
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_SHUTDOWN_NOT_DONE))
+        ret = wolfSSL_shutdown(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        err_ssl(ssl, ret, "ssl shutdown failed");
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 

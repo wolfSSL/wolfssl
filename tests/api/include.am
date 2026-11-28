@@ -26,6 +26,7 @@ tests_unit_test_SOURCES += tests/api/test_hpke.c
 tests_unit_test_SOURCES += tests/api/test_kdf.c
 # SHE
 tests_unit_test_SOURCES += tests/api/test_she.c
+tests_unit_test_SOURCES += tests/api/test_keystore.c
 # Cipher
 tests_unit_test_SOURCES += tests/api/test_async.c
 tests_unit_test_SOURCES += tests/api/test_des3.c
@@ -68,6 +69,8 @@ tests_unit_test_SOURCES += tests/api/test_slhdsa.c
 tests_unit_test_SOURCES += tests/api/test_falcon.c
 tests_unit_test_SOURCES += tests/api/test_signature.c
 tests_unit_test_SOURCES += tests/api/test_lms_xmss.c
+# PKCS#11
+tests_unit_test_SOURCES += tests/api/test_pkcs11.c
 # TLS Protocol
 tests_unit_test_SOURCES += tests/api/test_dtls.c
 tests_unit_test_SOURCES += tests/api/test_dtls13.c
@@ -146,7 +149,8 @@ tests_unit_test_SOURCES += tests/api/test_tls13_bounds.c
 tests_unit_test_SOURCES += tests/api/test_tls13_features.c
 endif
 
-EXTRA_DIST += tests/api/api.h
+EXTRA_DIST += tests/api/check-api-guards.py \
+              tests/api/api.h
 EXTRA_DIST += tests/api/api_decl.h
 EXTRA_DIST += tests/api/test_md2.h
 EXTRA_DIST += tests/api/test_md4.h
@@ -168,6 +172,7 @@ EXTRA_DIST += tests/api/test_eccsi.h
 EXTRA_DIST += tests/api/test_sakke.h
 EXTRA_DIST += tests/api/test_hpke.h
 EXTRA_DIST += tests/api/test_kdf.h
+EXTRA_DIST += tests/api/test_keystore.h
 EXTRA_DIST += tests/api/test_she.h
 EXTRA_DIST += tests/api/test_async.h
 EXTRA_DIST += tests/api/test_des3.h
@@ -207,6 +212,7 @@ EXTRA_DIST += tests/api/test_slhdsa.h
 EXTRA_DIST += tests/api/test_falcon.h
 EXTRA_DIST += tests/api/test_signature.h
 EXTRA_DIST += tests/api/test_lms_xmss.h
+EXTRA_DIST += tests/api/test_pkcs11.h
 EXTRA_DIST += tests/api/test_dtls.h
 EXTRA_DIST += tests/api/test_dtls13.h
 EXTRA_DIST += tests/api/test_ssl_cert.h

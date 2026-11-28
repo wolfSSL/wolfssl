@@ -34,7 +34,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -76,6 +76,21 @@ jobs:
            "configs": [
           {"name": "rsa-dh", "minutes": 1.2,
            "configure": ["--enable-rsa", "--enable-dh"]},
+          {"name": "rsa-dh-opensslextra", "minutes": 1.5,
+           "comment": "the group compat APIs with FFDHE as the only group",
+           "configure": ["--enable-rsa", "--enable-dh",
+             "--enable-opensslextra"]},
+          {"name": "rsa-mlkem",
+           "comment": "ML-KEM is the only key exchange, so TLS 1.2 is disabled",
+           "configure": ["--enable-rsa"]},
+          {"name": "rsa-mlkem-tlsv12",
+           "comment": "explicit --enable-tlsv12 keeps TLS 1.2 with no cipher suite",
+           "check": false,
+           "configure": ["--enable-rsa", "--enable-tlsv12"]},
+          {"name": "rsa-mlkem1024-subset-static",
+           "comment": "--enable-mlkem with a sub-option list; static for test_tls_parse.c",
+           "configure": ["--enable-rsa", "--enable-mlkem=1024,make,enc,dec,small",
+             "--disable-shared"]},
           {"name": "rsa-key-to-der-original-asn", "minutes": 0.3,
            "check": false,
            "configure": ["--enable-rsa", "--enable-asn=original",
@@ -107,10 +122,16 @@ jobs:
           {"name": "cryptonly-curve448", "minutes": 0.8,
            "configure": ["--enable-cryptonly", "--enable-curve448"]},
           {"name": "cryptonly-ed448", "minutes": 0.8,
-           "configure": ["--enable-cryptonly", "--enable-ed448"]}
+           "configure": ["--enable-cryptonly", "--enable-ed448"]},
+          {"name": "cryptonly-slhdsa-swdev", "minutes": 1,
+           "comment": "SLH-DSA as the only public key algorithm, dispatched through cryptocb to swdev. Guards swdev's WC_ALGO_TYPE_PK case, which is compiled out when none of RSA, ECC, Ed25519 and Curve25519 is enabled and would take every SLH-DSA callback with it.",
+           "configure": ["--enable-cryptonly", "--enable-slhdsa=yes,sha2",
+             "--enable-cryptocb", "--enable-swdev"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=10 \
+            --deadline=18 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             --private-dir=certs \
             "$RUNNER_TEMP/disable-pk-algs-configs.json"

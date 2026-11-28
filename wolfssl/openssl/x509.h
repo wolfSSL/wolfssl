@@ -33,7 +33,7 @@
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
-#define WOLFSSL_X509_FLAG_COMPAT        (0UL)
+#define WOLFSSL_X509_FLAG_COMPAT        0UL
 #define WOLFSSL_X509_FLAG_NO_HEADER     (1UL << 0)
 #define WOLFSSL_X509_FLAG_NO_VERSION    (1UL << 1)
 #define WOLFSSL_X509_FLAG_NO_SERIAL     (1UL << 2)
@@ -50,7 +50,6 @@
 
 #define WOLFSSL_XN_FLAG_FN_SN           0
 #define WOLFSSL_XN_FLAG_COMPAT          0
-#define WOLFSSL_XN_FLAG_RFC2253         1
 #define WOLFSSL_XN_FLAG_SEP_COMMA_PLUS  (1 << 16)
 #define WOLFSSL_XN_FLAG_SEP_CPLUS_SPC   (2 << 16)
 #define WOLFSSL_XN_FLAG_SEP_SPLUS_SPC   (3 << 16)
@@ -65,8 +64,25 @@
 #define WOLFSSL_XN_FLAG_DUMP_UNKNOWN_FIELDS (1 << 24)
 #define WOLFSSL_XN_FLAG_FN_ALIGN        (1 << 25)
 
-#define WOLFSSL_XN_FLAG_MULTILINE       0xFFFF
-#define WOLFSSL_XN_FLAG_ONELINE (WOLFSSL_XN_FLAG_SEP_CPLUS_SPC | WOLFSSL_XN_FLAG_SPC_EQ | WOLFSSL_XN_FLAG_FN_SN)
+/* wolfSSL_X509_NAME_print_ex() flattens multi-valued RDNs: their attributes
+ * are separated like RDNs, never with '+'. */
+#define WOLFSSL_XN_FLAG_RFC2253 (WOLFSSL_ASN1_STRFLGS_RFC2253 | \
+                                 WOLFSSL_XN_FLAG_SEP_COMMA_PLUS | \
+                                 WOLFSSL_XN_FLAG_DN_REV | \
+                                 WOLFSSL_XN_FLAG_FN_SN | \
+                                 WOLFSSL_XN_FLAG_DUMP_UNKNOWN_FIELDS)
+#define WOLFSSL_XN_FLAG_MULTILINE (WOLFSSL_ASN1_STRFLGS_ESC_CTRL | \
+                                   WOLFSSL_ASN1_STRFLGS_ESC_MSB | \
+                                   WOLFSSL_XN_FLAG_SEP_MULTILINE | \
+                                   WOLFSSL_XN_FLAG_SPC_EQ | \
+                                   WOLFSSL_XN_FLAG_FN_LN | \
+                                   WOLFSSL_XN_FLAG_FN_ALIGN)
+#define WOLFSSL_XN_FLAG_ONELINE (WOLFSSL_ASN1_STRFLGS_ESC_CTRL | \
+                                 WOLFSSL_ASN1_STRFLGS_RFC2253 | \
+                                 WOLFSSL_ASN1_STRFLGS_ESC_QUOTE | \
+                                 WOLFSSL_XN_FLAG_SEP_CPLUS_SPC | \
+                                 WOLFSSL_XN_FLAG_SPC_EQ | \
+                                 WOLFSSL_XN_FLAG_FN_SN)
 
 #ifndef OPENSSL_COEXIST
 
@@ -108,8 +124,8 @@
 
 #define X509_V_ERR_UNABLE_TO_GET_CRL WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL
 #define X509_V_ERR_CRL_HAS_EXPIRED   WOLFSSL_X509_V_ERR_CRL_HAS_EXPIRED
-#define X509_V_FLAG_ALLOW_PROXY_CERTS 0
-#define X509_V_FLAG_X509_STRICT       0
+#define X509_V_FLAG_ALLOW_PROXY_CERTS WOLFSSL_ALLOW_PROXY_CERTS
+#define X509_V_FLAG_X509_STRICT       WOLFSSL_X509_STRICT
 
 /*
  * Not all of these X509_V_ERR values are used in wolfSSL. Some are included to

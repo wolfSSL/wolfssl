@@ -18,6 +18,17 @@ The switches it supports are:
 | `WOLF_CRYPTO_CB_ONLY_ED25519`  | software Ed25519 | Ed25519 via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_CURVE25519` | software X25519 | X25519 via CryptoCb |
 | `WOLF_CRYPTO_CB_ONLY_CURVE448` | software X448  | X448 via CryptoCb  |
+| `WOLF_CRYPTO_CB_ONLY_SLHDSA`   | software SLH-DSA | SLH-DSA via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_FALCON`   | software Falcon | Falcon via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_MLDSA`    | software ML-DSA | ML-DSA via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_MLKEM`    | software ML-KEM | ML-KEM via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_LMS`      | software LMS/HSS | LMS via CryptoCb   |
+| `WOLF_CRYPTO_CB_ONLY_XMSS`     | software XMSS/XMSS^MT | XMSS via CryptoCb |
+| `WOLF_CRYPTO_CB_ONLY_FRODOKEM` | software FrodoKEM | FrodoKEM via CryptoCb |
+
+LMS and XMSS keys are stateful, so swdev keeps each generated key on the
+device and signs with it there. The key is released when the caller frees
+it (with `WOLF_CRYPTO_CB_FREE`) or at `wc_SwDev_Cleanup()`.
 
 When a test program calls e.g. `wc_AesCbcEncrypt()` against a libwolfssl
 built with `-DWOLF_CRYPTO_CB_ONLY_AES`, the software AES path is gone;
@@ -90,7 +101,9 @@ binary, `tests/swdev/Makefile` does the following:
   `swdev.partial.o`.
 - Runs `objcopy --keep-global-symbol=wc_SwDev_Callback
   --keep-global-symbol=wc_SwDev_InternalCleanup` to localize every
-  remaining global except the two intended exports.
+  remaining global except the two intended exports. macOS has no
+  `objcopy`, so there a second `ld -r` with `-exported_symbol` does the
+  same.
 
 The Makefile then enforces the invariant directly:
 
@@ -99,9 +112,8 @@ nm --extern-only --defined-only build/swdev.o
 ```
 
 must list **only** `wc_SwDev_Callback` and `wc_SwDev_InternalCleanup`.
-The build fails loudly otherwise (see `tests/swdev/Makefile:122-129`).
-If you add a third `WC_SWDEV_EXPORT` API, update the keep-list in the
-Makefile too.
+The build fails loudly otherwise. If you add a third `WC_SWDEV_EXPORT`
+API, add it to `SWDEV_EXPORTS` in the Makefile too.
 
 ## ABI Constraint
 
@@ -162,3 +174,22 @@ testable on a generic Linux runner. Real deployments are expected to
 provide their own CryptoCb backed by a hardware engine (TPM, HSM, SoC
 crypto block, etc.). swdev is not API-stable, not benchmarked, and not
 audited as a production cryptographic provider.
+
+## Backends That Reuse the Caller's Key Object
+
+swdev runs the software implementation against the very `SlhDsaKey` /
+`ecc_key` / `RsaKey` the caller allocated, rather than against a copy of
+its own. Two consequences worth knowing if you write a similar backend:
+
+- The key still carries the `devId` that routed the call here. swdev
+  clears it for the duration of each operation
+  (`swdev_slhdsa_take` / `swdev_slhdsa_give_back`) so the software call
+  does not dispatch straight back into the callback.
+- Any derived state the stripped code would normally maintain becomes the
+  backend's problem. For SLH-DSA the SHA-2 midstates over `PK.seed` are
+  computed by the software import path, which is gone from the parent
+  under `WOLF_CRYPTO_CB_ONLY_SLHDSA`; swdev re-imports the public key at
+  the start of each operation to bring them back.
+
+A backend that holds its own key material (an HSM handle, say) has
+neither problem.

@@ -7,6 +7,49 @@ function(override_cache VAR VAL)
             " Please select value from \"${VAR_STRINGS}\"\n")
     endif()
     set_property(CACHE ${VAR} PROPERTY VALUE ${VAL})
+    # A value the build chose stays a build choice: keep the record of it
+    # current so the next configure does not mistake it for the user's.
+    if(DEFINED CACHE{WOLFSSL_AUTO_${VAR}})
+        set_property(CACHE WOLFSSL_AUTO_${VAR} PROPERTY VALUE "${VAL}")
+    endif()
+endfunction()
+
+# Whether the user chose an option's current value, as opposed to it being
+# a default or forced value that an earlier configure left in the cache.
+#
+# add_option() records the value the build itself put in the cache as
+# WOLFSSL_AUTO_<NAME>. A cached value still equal to that record was not
+# changed by the user (-D or cmake-gui), so it is recomputed on every
+# configure - which lets a bundle switched on in a re-run still supply its
+# defaults. Only the cache entry is looked at: the user can only set that,
+# while a normal variable of the same name is set by the build itself (an
+# application bundle turning on what it needs). The one case this cannot
+# see is the user passing -D with exactly the value the build had chosen;
+# that is treated as unset.
+function(wolfssl_option_user_set NAME RESULT)
+    set(_user FALSE)
+    if(DEFINED CACHE{${NAME}})
+        set(_user TRUE)
+        if(DEFINED CACHE{WOLFSSL_AUTO_${NAME}})
+            if("$CACHE{${NAME}}" STREQUAL "$CACHE{WOLFSSL_AUTO_${NAME}}")
+                set(_user FALSE)
+            endif()
+        endif()
+    endif()
+    set(${RESULT} ${_user} PARENT_SCOPE)
+endfunction()
+
+# Whether the user explicitly turned an option off. Bundles use this to
+# leave alone a feature whose prerequisite the user disabled.
+function(wolfssl_option_user_off NAME RESULT)
+    wolfssl_option_user_set(${NAME} _user)
+    set(_off FALSE)
+    # Through a variable, so a value such as "small" counts as on.
+    set(_val "$CACHE{${NAME}}")
+    if(_user AND NOT _val)
+        set(_off TRUE)
+    endif()
+    set(${RESULT} ${_off} PARENT_SCOPE)
 endfunction()
 
 # Record that an option must be forced to a given value by a dependency (e.g. an
@@ -17,10 +60,45 @@ endfunction()
 # explicit rather than relying on cross-file cache-precedence side effects.
 function(force_option NAME VALUE)
     set_property(GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}" "${VALUE}")
-    # Track pending forces so an unconsumed one (no matching add_option) can be
-    # reported by wolfssl_warn_unconsumed_forces() -- a force on an option that
-    # is not declared via add_option() would otherwise be silently ignored.
+    # Track pending forces so wolfssl_warn_unconsumed_forces() can report one
+    # with no matching add_option(), which would otherwise be ignored.
     set_property(GLOBAL APPEND PROPERTY WOLFSSL_FORCE_PENDING "${NAME}")
+endfunction()
+
+# Forget, at the start of a configure, every option value that the build
+# chose on an earlier one (see wolfssl_option_user_set()), so the option is
+# undefined until its add_option() runs - exactly as on a first configure.
+# Without this, code that reads an option before its add_option() would see
+# what the last configure left, e.g. a bundle that has since been turned
+# off. Options the user set are kept and no longer tracked.
+function(wolfssl_forget_auto_options)
+    get_cmake_property(_vars CACHE_VARIABLES)
+    foreach(_v ${_vars})
+        if(_v MATCHES "^WOLFSSL_AUTO_(.+)$")
+            set(_n "${CMAKE_MATCH_1}")
+            if(DEFINED CACHE{${_n}} AND
+                    ("$CACHE{${_n}}" STREQUAL "$CACHE{${_v}}"))
+                unset(${_n} CACHE)
+            else()
+                unset(${_v} CACHE)
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
+# Record a bundle's preferred value for an option, unless that option has
+# already been settled -- either by the user (see wolfssl_option_user_set();
+# a value cached by an earlier configure does not count) or by an outer
+# bundle that recorded a force first. This is the CMake counterpart of the
+# `test "$enable_x" = "" &&` guard configure.ac uses in --enable-all and
+# friends: a bundle supplies a default, it does not overrule a choice
+# already made.
+function(default_option NAME VALUE)
+    get_property(_already GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}" SET)
+    wolfssl_option_user_set(${NAME} _user)
+    if(NOT _user AND NOT _already)
+        force_option(${NAME} "${VALUE}")
+    endif()
 endfunction()
 
 # Warn about any force_option() whose target option was never declared with
@@ -39,6 +117,13 @@ function(wolfssl_warn_unconsumed_forces)
 endfunction()
 
 function(add_option NAME HELP_STRING DEFAULT VALUES)
+    # Record the name for the options.h.in guard in CMakeLists.txt.
+    set_property(GLOBAL APPEND PROPERTY WOLFSSL_DECLARED_OPTIONS "${NAME}")
+
+    # Decided before the cache entry is touched: whether the current value,
+    # if any, is the user's.
+    wolfssl_option_user_set(${NAME} _wolfssl_user)
+
     if(VALUES STREQUAL "yes;no")
         # Set the default value for the option.
         set(${NAME} ${DEFAULT} CACHE BOOL ${HELP_STRING})
@@ -49,10 +134,19 @@ function(add_option NAME HELP_STRING DEFAULT VALUES)
         set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
     endif()
 
-    # Apply any dependency force recorded via force_option(). Done after the
-    # cache entry is created (so its BOOL/STRING type and help are preserved)
-    # and before the reduction below, so the forced value drives this option's
-    # own define/source emission just as an explicit setting would.
+    if(_wolfssl_user)
+        # The user's value: stop tracking it as the build's.
+        unset(WOLFSSL_AUTO_${NAME} CACHE)
+    else()
+        # Not the user's: start again from the default, as on a first
+        # configure, instead of keeping whatever an earlier one cached.
+        set_property(CACHE ${NAME} PROPERTY VALUE "${DEFAULT}")
+        set(WOLFSSL_AUTO_${NAME} "${DEFAULT}" CACHE INTERNAL
+            "Value of ${NAME} chosen by the build, not the user")
+    endif()
+
+    # Apply any force_option(), after the cache entry exists so its type and
+    # help survive, and before the reduction below.
     get_property(_wolfssl_forced GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}" SET)
     if(_wolfssl_forced)
         get_property(_wolfssl_force_val GLOBAL PROPERTY "WOLFSSL_FORCE_${NAME}")
@@ -127,6 +221,17 @@ function(generate_build_flags)
     set(BUILD_INTELASM ${WOLFSSL_INTEL_ASM} PARENT_SCOPE)
     set(BUILD_AFALG ${WOLFSSL_AFALG} PARENT_SCOPE)
     set(BUILD_DEVCRYPTO ${WOLFSSL_DEVCRYPTO} PARENT_SCOPE)
+    set(BUILD_ELE ${WOLFSSL_ELE} PARENT_SCOPE)
+    # OR WOLFSSL_USER_SETTINGS, as the feature flags around this do: a
+    # user-settings build takes WOLFSSL_AUTOSAR from user_settings.h, where
+    # CMake cannot see it, so keying the source list on the CMake option alone
+    # would leave an ECU build linking against Csm.h with nothing behind it --
+    # the unresolved Csm_* symbols this list exists to fix. The three sources
+    # are each wrapped in #ifdef WOLFSSL_AUTOSAR, so compiling them into a
+    # build that does not want them costs three empty objects.
+    if(WOLFSSL_AUTOSAR OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_AUTOSAR "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_CAMELLIA OR WOLFSSL_USER_SETTINGS)
         set(BUILD_CAMELLIA "yes" PARENT_SCOPE)
     endif()
@@ -288,9 +393,14 @@ function(generate_build_flags)
         set(BUILD_CRL_MONITOR "yes" PARENT_SCOPE)
     endif()
     set(BUILD_QUIC ${WOLFSSL_QUIC} PARENT_SCOPE)
-    set(BUILD_WNR ${WOLFSSL_WNR} PARENT_SCOPE)
     if(WOLFSSL_SRP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SRP "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_RNG_BANK OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_RNG_BANK "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_NOISESRC OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_NOISESRC "yes" PARENT_SCOPE)
     endif()
     set(USE_VALGRIND ${WOLFSSL_VALGRIND})
     if(WOLFSSL_MD4 OR WOLFSSL_USER_SETTINGS)
@@ -359,8 +469,36 @@ function(generate_build_flags)
     set(BUILD_MCAPI ${WOLFSSL_MCAPI} PARENT_SCOPE)
     set(BUILD_ASYNCCRYPT ${WOLFSSL_ASYNCCRYPT} PARENT_SCOPE)
     set(BUILD_WOLFEVENT ${WOLFSSL_ASYNCCRYPT} PARENT_SCOPE)
-    if(WOLFSSL_CRYPTOCB OR WOLFSSL_USER_SETTINGS)
+    if(WOLFSSL_CRYPTOCB OR WOLFSSL_USER_SETTINGS OR
+       (WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no"))
+        # settings.h forces WOLF_CRYPTO_CB on for the QorIQ SEC port, so the
+        # dispatcher source has to come along too.
         set(BUILD_CRYPTOCB "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_ALTERA_FCS OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_ALTERA_FCS "yes" PARENT_SCOPE)
+        if(WOLFSSL_ALTERA_FCS STREQUAL "rng")
+            if(WOLFSSL_RNG OR WOLFSSL_USER_SETTINGS)
+                set(BUILD_ALTERA_FCS_RNG "yes" PARENT_SCOPE)
+            endif()
+        else()
+            if(WOLFSSL_RNG OR WOLFSSL_USER_SETTINGS)
+                set(BUILD_ALTERA_FCS_RNG "yes" PARENT_SCOPE)
+            endif()
+            if(WOLFSSL_SHA256 OR WOLFSSL_USER_SETTINGS)
+                set(BUILD_ALTERA_FCS_HASH "yes" PARENT_SCOPE)
+            endif()
+            if(WOLFSSL_AES OR WOLFSSL_USER_SETTINGS)
+                set(BUILD_ALTERA_FCS_AES "yes" PARENT_SCOPE)
+            endif()
+            if((WOLFSSL_ECC AND WOLFSSL_ASN) OR WOLFSSL_USER_SETTINGS)
+                set(BUILD_ALTERA_FCS_ECC "yes" PARENT_SCOPE)
+            endif()
+            if(WOLFSSL_SHA256 OR WOLFSSL_SHA384 OR WOLFSSL_SHA512 OR
+               WOLFSSL_USER_SETTINGS)
+                set(BUILD_ALTERA_FCS_HMAC "yes" PARENT_SCOPE)
+            endif()
+        endif()
     endif()
     if(WOLFSSL_VAULTIC)
         set(BUILD_VAULTIC "yes" PARENT_SCOPE)
@@ -402,6 +540,9 @@ function(generate_build_flags)
     endif()
     if(WOLFSSL_CAAM)
         set(BUILD_CAAM "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_SEC_QORIQ AND NOT WOLFSSL_SEC_QORIQ STREQUAL "no")
+        set(BUILD_SEC_QORIQ "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_HPKE OR WOLFSSL_USER_SETTINGS)
         set(BUILD_HPKE "yes" PARENT_SCOPE)
@@ -488,6 +629,16 @@ function(generate_lib_src_list LIB_SOURCES)
 
             if(BUILD_SHA)
                 list(APPEND LIB_SOURCES wolfcrypt/src/sha.c)
+
+                if(BUILD_ARMASM AND BUILD_FIPS_READY)
+                    if(BUILD_ARMASM_INLINE)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha1-asm_c.c)
+                    else()
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha1-asm.S)
+                    endif()
+                endif()
             endif()
 
             if(BUILD_ARMASM AND BUILD_FIPS_READY)
@@ -635,6 +786,11 @@ function(generate_lib_src_list LIB_SOURCES)
         wolfcrypt/src/hash.c
         wolfcrypt/src/cpuid.c)
 
+    # Outside the FIPS module boundary; configure rejects it for wolfRand.
+    if(BUILD_NOISESRC)
+        list(APPEND LIB_SOURCES wolfcrypt/src/rng_noisesrc.c)
+    endif()
+
     if(NOT BUILD_FIPS_RAND)
         if(NOT BUILD_FIPS_V5)
             list(APPEND LIB_SOURCES wolfcrypt/src/kdf.c)
@@ -770,6 +926,19 @@ function(generate_lib_src_list LIB_SOURCES)
 
         if(NOT BUILD_FIPS_V2 AND BUILD_SHA)
             list(APPEND LIB_SOURCES wolfcrypt/src/sha.c)
+
+            # FIPS v5 and v6 supply their own sha.c, which has no assembly arm,
+            # so src/include.am blanks NEW_ARMASM_SHA1_ASM_{C,S} for both.  Match
+            # that here or the two builds take different low-level sources.
+            if(BUILD_ARMASM AND NOT BUILD_FIPS_V5 AND NOT BUILD_FIPS_V6)
+                if(BUILD_ARMASM_INLINE)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-sha1-asm_c.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-sha1-asm.S)
+                endif()
+            endif()
         endif()
 
         if(NOT BUILD_FIPS_V2 AND BUILD_SHA512)
@@ -1245,6 +1414,14 @@ function(generate_lib_src_list LIB_SOURCES)
             list(APPEND LIB_SOURCES wolfcrypt/src/srp.c)
         endif()
 
+        # WOLFSSL_RNG_BANK defined WC_RNG_BANK_SUPPORT without ever adding
+        # the file that implements it, so the option only linked once
+        # something else pulled rng_bank.c in. Matches BUILD_RNG_BANK in
+        # wolfcrypt/src/include.am.
+        if(BUILD_RNG_BANK)
+            list(APPEND LIB_SOURCES wolfcrypt/src/rng_bank.c)
+        endif()
+
         if(BUILD_AFALG)
             list(APPEND LIB_SOURCES wolfcrypt/src/port/af_alg/wc_afalg.c)
         endif()
@@ -1296,6 +1473,35 @@ function(generate_lib_src_list LIB_SOURCES)
     # Corresponds to wolfcrypt/src/include.am
     if(BUILD_CRYPTOCB)
         list(APPEND LIB_SOURCES wolfcrypt/src/cryptocb.c)
+        # entirely #ifdef WOLF_CRYPTO_CB_KEYSTORE, so it costs nothing when the
+        # key store facility is not enabled
+        list(APPEND LIB_SOURCES wolfcrypt/src/wc_keystore.c)
+    endif()
+
+    if(BUILD_ALTERA_FCS)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/altera/altera_fcs_glue.c
+            wolfcrypt/src/port/altera/altera_fcs_cryptocb.c)
+        if(BUILD_ALTERA_FCS_RNG)
+            list(APPEND LIB_SOURCES
+                wolfcrypt/src/port/altera/altera_fcs_rng.c)
+        endif()
+        if(BUILD_ALTERA_FCS_HASH)
+            list(APPEND LIB_SOURCES
+                wolfcrypt/src/port/altera/altera_fcs_hash.c)
+        endif()
+        if(BUILD_ALTERA_FCS_AES)
+            list(APPEND LIB_SOURCES
+                wolfcrypt/src/port/altera/altera_fcs_aes.c)
+        endif()
+        if(BUILD_ALTERA_FCS_ECC)
+            list(APPEND LIB_SOURCES
+                wolfcrypt/src/port/altera/altera_fcs_ecc.c)
+        endif()
+        if(BUILD_ALTERA_FCS_HMAC)
+            list(APPEND LIB_SOURCES
+                wolfcrypt/src/port/altera/altera_fcs_hmac.c)
+        endif()
     endif()
 
     if(BUILD_SHE)
@@ -1311,6 +1517,12 @@ function(generate_lib_src_list LIB_SOURCES)
             wolfcrypt/src/port/devcrypto/devcrypto_hash.c
             wolfcrypt/src/port/devcrypto/devcrypto_aes.c
             wolfcrypt/src/port/devcrypto/wc_devcrypto.c)
+    endif()
+
+    if(BUILD_ELE)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/nxp/ele_rng.c
+            wolfcrypt/src/port/nxp/ele_cryptocb.c)
     endif()
 
     if(BUILD_CAVIUM)
@@ -1339,6 +1551,19 @@ function(generate_lib_src_list LIB_SOURCES)
         list(APPEND LIB_SOURCES wolfcrypt/src/port/sealsq/vaultic.c)
     endif()
 
+    if(BUILD_SEC_QORIQ)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/nxp/sec_qoriq.c
+            wolfcrypt/src/port/nxp/sec_qoriq_cb.c
+            wolfcrypt/src/port/nxp/sec_qoriq_hash.c
+            wolfcrypt/src/port/nxp/sec_qoriq_aes.c
+            wolfcrypt/src/port/nxp/sec_qoriq_rng.c
+            wolfcrypt/src/port/nxp/sec_qoriq_pkha.c
+            wolfcrypt/src/port/nxp/sec_qoriq_baremetal.c
+            wolfcrypt/src/port/nxp/sec_qoriq_linux.c
+            wolfcrypt/src/port/nxp/sec_qoriq_sim.c)
+    endif()
+
     if(BUILD_CAAM)
         list(APPEND LIB_SOURCES
             wolfcrypt/src/port/caam/wolfcaam_init.c
@@ -1352,6 +1577,16 @@ function(generate_lib_src_list LIB_SOURCES)
             wolfcrypt/src/port/caam/wolfcaam_hash.c
             wolfcrypt/src/port/caam/wolfcaam_rsa.c
             wolfcrypt/src/port/caam/wolfcaam_hmac.c)
+    endif()
+
+    # Corresponds to wolfcrypt/src/port/autosar/include.am. Without these the
+    # WOLFSSL_AUTOSAR define still reaches options.h, so an application's Csm_*
+    # calls compile against Csm.h and then fail to link.
+    if(BUILD_AUTOSAR)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/autosar/csm.c
+            wolfcrypt/src/port/autosar/crypto.c
+            wolfcrypt/src/port/autosar/cryif.c)
     endif()
 
     if(BUILD_HPKE)

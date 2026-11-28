@@ -103,6 +103,10 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
     communication. On successfully generating a shared secret key, the size of
     the secret key written will be stored in agreeSz.
 
+    The value of agreeSz on input is not checked. The agree buffer must be at
+    least as large as the prime, in bytes. Use wc_DhAgree_ct() to have the
+    buffer size checked.
+
     \return 0 Returned on successfully generating an agreed upon secret key
     \return MP_INIT_E May be returned if there is an error while generating
     the shared secret key
@@ -141,6 +145,7 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
     \endcode
 
     \sa wc_DhGenerateKeyPair
+    \sa wc_DhAgree_ct
 */
 int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        const byte* priv, word32 privSz, const byte* otherPub,
@@ -933,8 +938,16 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     \code
     DhKey key;
     byte priv[256], pub[256];
-    int ret = wc_DhImportKeyPair(&key, priv, sizeof(priv), pub,
-                                sizeof(pub));
+    int ret2;
+    int ret = wc_InitDhKey(&key);
+    if (ret == 0) {
+        ret = wc_DhImportKeyPair(&key, priv, sizeof(priv), pub,
+                                 sizeof(pub));
+        ret2 = wc_FreeDhKey(&key);
+        if (ret == 0) {
+            ret = ret2;
+        }
+    }
     \endcode
 
     \sa wc_DhExportKeyPair
@@ -971,7 +984,9 @@ int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz,
 
 /*!
     \ingroup Diffie-Hellman
-    \brief Validates public key value.
+    \brief Validates public key value. Rejects 0, 1, prime - 1 and values
+    greater than or equal to prime. Leading zero bytes in either the prime or
+    the public key are ignored.
 
     \return 0 if public key is valid
     \return BAD_FUNC_ARG if parameters are invalid

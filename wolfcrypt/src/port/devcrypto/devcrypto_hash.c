@@ -117,6 +117,11 @@ int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(sha, wc_Sha256)) {
+        return BAD_ALIGN_E;
+    }
+#endif
 
     (void)devId; /* no async for now */
     XMEMSET(sha, 0, sizeof(wc_Sha256));
@@ -229,6 +234,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(dst, wc_Sha256)) {
+        return BAD_ALIGN_E;
+    }
+#endif
 
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
     wc_Sha256Free(dst);

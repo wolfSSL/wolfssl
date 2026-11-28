@@ -40,6 +40,7 @@
 #endif
 #include <tests/api/api.h>
 #include <tests/api/test_signature.h>
+#include <tests/api/test_falcon.h>
 
 /* Testing wc_SignatureGetSize() for signature type ECC */
 int test_wc_SignatureGetSize_ecc(void)
@@ -170,10 +171,21 @@ int test_wc_SignatureGetSize_rsa(void)
 int test_wc_falcon_sign_verify(void)
 {
     EXPECT_DECLS;
-#ifdef WC_FALCON_HAVE_NATIVE_SIGN
+#ifdef TEST_FALCON_HAVE_SIGN
+    /* Whichever level this build has; --enable-falcon=level1 / =level5 drops
+     * the other, and wc_falcon_set_level() then rejects it. */
+#ifndef WOLFSSL_NO_FALCON_LEVEL1
+    const byte level = FALCON_LEVEL1;
+    const byte* benchKey = bench_falcon_level1_key;
+    const word32 benchKeySz = (word32)sizeof_bench_falcon_level1_key;
+#else
+    const byte level = FALCON_LEVEL5;
+    const byte* benchKey = bench_falcon_level5_key;
+    const word32 benchKeySz = (word32)sizeof_bench_falcon_level5_key;
+#endif
     falcon_key key;
     WC_RNG rng;
-    byte sig[FALCON_LEVEL1_SIG_SIZE];
+    byte sig[FALCON_MAX_SIG_SIZE];
     word32 sigLen = (word32)sizeof(sig);
     word32 idx = 0;
     int verified = 0;
@@ -182,14 +194,14 @@ int test_wc_falcon_sign_verify(void)
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(rng));
     ExpectIntEQ(wc_falcon_init(&key), 0);
-    ExpectIntEQ(wc_falcon_set_level(&key, 1), 0);
+    ExpectIntEQ(wc_falcon_set_level(&key, level), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
     /* Use the embedded benchmark key rather than generating one: this is a
      * wrapper-level smoke test (the native suite lives in test_falcon.c), so
      * a fixed key keeps it fast and deterministic. */
-    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(bench_falcon_level1_key, &idx,
-        &key, (word32)sizeof_bench_falcon_level1_key), 0);
+    ExpectIntEQ(wc_Falcon_PrivateKeyDecode(benchKey, &idx, &key, benchKeySz),
+        0);
 
     ExpectIntGT(wc_falcon_size(&key), 0);
     ExpectIntGT(wc_falcon_pub_size(&key), 0);

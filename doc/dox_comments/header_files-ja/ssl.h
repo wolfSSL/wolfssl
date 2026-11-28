@@ -2106,7 +2106,7 @@ int        wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 /*!
     \ingroup IO
 
-    \brief NO_SESSION_CACHE_REFが定義されている場合、この関数はsslで使用されている現在のセッション(WOLFSSL_SESSION)へのポインタを返します。この関数は、WOLFSSL_SESSIONオブジェクトへの非永続的なポインタを返します。返されたポインタは、wolfSSL_freeが呼び出されたときに解放されます。この呼び出しは、現在のセッションを検査または変更するためにのみ使用する必要があります。セッション再開には、wolfSSL_get1_session()を使用することをお勧めします。後方互換性のため、NO_SESSION_CACHE_REFが定義されていない場合、この関数はローカルキャッシュに格納されている永続的なセッションオブジェクトポインタを返します。キャッシュサイズは有限であり、アプリケーションがwolfSSL_set_session()を呼び出すまでに、別のssl接続によってセッションオブジェクトが上書きされるリスクがあります。アプリケーションでNO_SESSION_CACHE_REFを定義し、セッション再開にwolfSSL_get1_session()を使用することをお勧めします。
+    \brief NO_SESSION_CACHE_REFが定義されている場合、この関数はsslで使用されている現在のセッション(WOLFSSL_SESSION)へのポインタを返します。この関数は、WOLFSSL_SESSIONオブジェクトへの非永続的なポインタを返します。返されたポインタは、wolfSSL_freeが呼び出されたときに解放されます。この呼び出しは、現在のセッションを検査または変更するためにのみ使用する必要があります。セッション再開には、wolfSSL_get1_session()を使用することをお勧めします。後方互換性のため、NO_SESSION_CACHE_REFが定義されていない場合、この関数はローカルキャッシュに格納されている永続的なセッションオブジェクトポインタを返します。キャッシュサイズは有限であり、アプリケーションがwolfSSL_set_session()を呼び出すまでに、別のssl接続によってセッションオブジェクトが上書きされるリスクがあります。アプリケーションでNO_SESSION_CACHE_REFを定義し、セッション再開にwolfSSL_get1_session()を使用することをお勧めします。settings.hはWOLFSSL_SESSION_CACHE_REFが定義されていない限りNO_SESSION_CACHE_REFを定義するため、これがすでてのビルドの既定動作です。非推奨の動作はWOLFSSL_SESSION_CACHE_REFを定義するか、--enable-session-cache-refまたは-DWOLFSSL_SESSION_CACHE_REF=yesで利用できますが、そのビルドではコンパイル時に警告が出力されます。WOLFSSL_SESSION_CACHE_REF_WARNEDを定義すると警告を抑制できます。移行時の注意点として、非推奨のポインタはwolfSSL_free()の後も有効でしたが、既定のポインタは無効になります。
 
     \return pointer 呼び出しが成功した場合、現在のSSLセッションオブジェクトへのポインタを返します。
     \return NULLは、sslがNULLの場合、SSLセッションキャッシュが無効になっている場合、wolfSSLがセッションIDを利用できない場合、またはミューテックス関数が失敗した場合に返されます。
@@ -2267,7 +2267,7 @@ int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
 /*!
     \ingroup Setup
 
-    \brief この関数はリモートピアの検証方法を設定し、また検証コールバックをSSLコンテキストに登録できるようにします。検証コールバックは検証失敗が発生した場合にのみ呼び出されます。検証コールバックが不要な場合は、verify_callbackにNULLポインタを使用できます。ピア証明書の検証モードは論理OR演算されたフラグのリストです。可能なフラグ値は以下の通りです。SSL_VERIFY_NONE クライアントモード：クライアントはサーバーから受信した証明書を検証せず、ハンドシェイクは通常通り続行されます。サーバーモード：サーバーはクライアントに証明書要求を送信しません。したがって、クライアント検証は有効になりません。SSL_VERIFY_PEER クライアントモード：クライアントはハンドシェイク中にサーバーから受信した証明書を検証します。これはwolfSSLではデフォルトで有効になっているため、このオプションを使用しても効果はありません。サーバーモード：サーバーはクライアントに証明書要求を送信し、受信したクライアント証明書を検証します。SSL_VERIFY_FAIL_IF_NO_PEER_CERT クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：クライアントが要求されたときに証明書の送信に失敗した場合（SSLサーバーでSSL_VERIFY_PEERを使用している場合）、サーバー側で検証が失敗します。SSL_VERIFY_FAIL_EXCEPT_PSK クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：検証はSSL_VERIFY_FAIL_IF_NO_PEER_CERTと同じですが、PSK接続の場合を除きます。PSK接続が行われている場合、接続はピア証明書なしで続行されます。
+    \brief この関数はリモートピアの検証方法を設定し、また検証コールバックをSSLコンテキストに登録できるようにします。検証コールバックは検証失敗が発生した場合にのみ呼び出されます。検証コールバックが不要な場合は、verify_callbackにNULLポインタを使用できます。ピア証明書の検証モードは論理OR演算されたフラグのリストです。可能なフラグ値は以下の通りです。SSL_VERIFY_NONE クライアントモード：クライアントはサーバーから受信した証明書を検証せず、ハンドシェイクは通常通り続行されます。サーバーモード：サーバーはクライアントに証明書要求を送信しません。したがって、クライアント検証は有効になりません。SSL_VERIFY_PEER クライアントモード：クライアントはハンドシェイク中にサーバーから受信した証明書を検証します。これはwolfSSLではデフォルトで有効になっているため、このオプションを使用しても効果はありません。サーバーモード：サーバーはクライアントに証明書要求を送信し、受信したクライアント証明書を検証します。SSL_VERIFY_FAIL_IF_NO_PEER_CERT クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：クライアントが要求されたときに証明書の送信に失敗した場合（SSLサーバーでSSL_VERIFY_PEERを使用している場合）、サーバー側で検証が失敗します。SSL_VERIFY_FAIL_EXCEPT_PSK クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：検証はSSL_VERIFY_FAIL_IF_NO_PEER_CERTと同じですが、PSK接続の場合を除きます。PSK接続が行われている場合、接続はピア証明書なしで続行されます。SSL_VERIFY_CLIENT_ONCE 受け入れられますが無視されます。OpenSSL由来のコードをそのままコンパイルできるように用意されているフラグで、wolfSSLはこのビットに対して何も行わず、保存もしないため、wolfSSL_get_verify_mode()やwolfSSL_CTX_get_verify_mode()から返されることはありません。modeに含めても他のフラグには影響しません。
 
     \return none 返り値はありません。
 
@@ -2291,7 +2291,7 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
 /*!
     \ingroup Setup
 
-    \brief この関数はリモートピアの検証方法を設定し、また検証コールバックをSSLセッションに登録できるようにします。検証コールバックは検証失敗が発生した場合にのみ呼び出されます。検証コールバックが不要な場合は、verify_callbackにNULLポインタを使用できます。ピア証明書の検証モードは論理OR演算されたフラグのリストです。可能なフラグ値は以下の通りです。SSL_VERIFY_NONE クライアントモード：クライアントはサーバーから受信した証明書を検証せず、ハンドシェイクは通常通り続行されます。サーバーモード：サーバーはクライアントに証明書要求を送信しません。したがって、クライアント検証は有効になりません。SSL_VERIFY_PEER クライアントモード：クライアントはハンドシェイク中にサーバーから受信した証明書を検証します。これはwolfSSLではデフォルトで有効になっているため、このオプションを使用しても効果はありません。サーバーモード：サーバーはクライアントに証明書要求を送信し、受信したクライアント証明書を検証します。SSL_VERIFY_FAIL_IF_NO_PEER_CERT クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：クライアントが要求されたときに証明書の送信に失敗した場合（SSLサーバーでSSL_VERIFY_PEERを使用している場合）、サーバー側で検証が失敗します。SSL_VERIFY_FAIL_EXCEPT_PSK クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：検証はSSL_VERIFY_FAIL_IF_NO_PEER_CERTと同じですが、PSK接続の場合を除きます。PSK接続が行われている場合、接続はピア証明書なしで続行されます。
+    \brief この関数はリモートピアの検証方法を設定し、また検証コールバックをSSLセッションに登録できるようにします。検証コールバックは検証失敗が発生した場合にのみ呼び出されます。検証コールバックが不要な場合は、verify_callbackにNULLポインタを使用できます。ピア証明書の検証モードは論理OR演算されたフラグのリストです。可能なフラグ値は以下の通りです。SSL_VERIFY_NONE クライアントモード：クライアントはサーバーから受信した証明書を検証せず、ハンドシェイクは通常通り続行されます。サーバーモード：サーバーはクライアントに証明書要求を送信しません。したがって、クライアント検証は有効になりません。SSL_VERIFY_PEER クライアントモード：クライアントはハンドシェイク中にサーバーから受信した証明書を検証します。これはwolfSSLではデフォルトで有効になっているため、このオプションを使用しても効果はありません。サーバーモード：サーバーはクライアントに証明書要求を送信し、受信したクライアント証明書を検証します。SSL_VERIFY_FAIL_IF_NO_PEER_CERT クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：クライアントが要求されたときに証明書の送信に失敗した場合（SSLサーバーでSSL_VERIFY_PEERを使用している場合）、サーバー側で検証が失敗します。SSL_VERIFY_FAIL_EXCEPT_PSK クライアントモード：クライアント側で使用しても効果はありません。サーバーモード：検証はSSL_VERIFY_FAIL_IF_NO_PEER_CERTと同じですが、PSK接続の場合を除きます。PSK接続が行われている場合、接続はピア証明書なしで続行されます。SSL_VERIFY_CLIENT_ONCE 受け入れられますが無視されます。OpenSSL由来のコードをそのままコンパイルできるように用意されているフラグで、wolfSSLはこのビットに対して何も行わず、保存もしないため、wolfSSL_get_verify_mode()やwolfSSL_CTX_get_verify_mode()から返されることはありません。modeに含めても他のフラグには影響しません。
 
     \return none 返り値はありません。
 
@@ -2535,6 +2535,38 @@ int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
     \sa wolfSSL_CTX_set_timeout
 */
 long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode);
+
+/*!
+    \ingroup Setup
+
+    \brief この関数は、アプリケーションが管理する外部セッションキャッシュからセッションを検索するためにwolfSSLが使用するコールバックを登録します。このコールバックはサーバー側で、ピアが再開のためにセッションIDを提示した際、内部キャッシュを参照する前に呼び出されます。互換レイヤのSSL_CTX_sess_set_get_cb()に相当します。
+
+    \return none 戻り値はありません。
+
+    \param ctx wolfSSL_CTX_new()で作成されたSSLコンテキストへのポインタ。
+    \param f 検索コールバック。既に登録されているコールバックを解除する場合はNULLを指定します。コールバックには、ネゴシエーション中のWOLFSSLオブジェクト、検索対象のセッションIDとその長さ、およびcopyフラグへのポインタが渡されます。コールバックは一致したWOLFSSL_SESSIONを返し、そのIDに対応するセッションがキャッシュに無い場合はNULLを返します。wolfSSLは呼び出し前にcopyフラグを1に設定します。1のままにした場合、コールバックは自身の参照を保持し続け、wolfSSLがその参照を解放することはありません。そのため、wolfSSLが検索を処理している間、セッションは有効である必要があります。セッションをより長く保持するTLS 1.3のステートフルチケットによる再開では、wolfSSLは独自に参照カウントをインクリメントし、使用を終えた時点でデクリメントします。この場合、参照カウントをインクリメントできないセッションは、該当セッション無しとして扱われます。0に設定した場合は、コールバックが保持していた参照をwolfSSLが引き継ぎ、セッションの使用を終えた時点で解放します。
+
+    _Example_
+    \code
+    WOLFSSL_SESSION* myGetSession(WOLFSSL* ssl, const unsigned char* id,
+                                  int idLen, int* copy)
+    {
+        (void)ssl;
+        // キャッシュがセッションを保持し続けるため、copyは変更しません。
+        return myCacheLookup(id, idLen);
+    }
+    ...
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_sess_set_get_cb(ctx, myGetSession);
+    \endcode
+
+    \sa wolfSSL_CTX_set_session_cache_mode
+    \sa wolfSSL_get1_session
+    \sa wolfSSL_SESSION_free
+    \sa wolfSSL_flush_sessions
+*/
+void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,
+    WOLFSSL_SESSION*(*f)(WOLFSSL* ssl, const unsigned char*, int, int*));
 
 /*!
     \brief この関数は、セッションシークレットコールバック関数を設定します。SessionSecretCb型は次のシグネチャを持ちます:int (*SessionSecretCb)(WOLFSSL* ssl, void* secret, int* secretSz, void* ctx)。WOLFSSL構造体のsessionSecretCbメンバが、パラメータcbに設定されます。
@@ -4200,7 +4232,7 @@ int  wolfSSL_X509_get_isCA(WOLFSSL_X509* x509);
 
     \sa none
 */
-int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name, int nid,
+int wolfSSL_X509_NAME_get_text_by_NID(const WOLFSSL_X509_NAME* name, int nid,
                                       char* buf, int len);
 
 /*!
@@ -4836,6 +4868,8 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
     \ingroup OCSP
 
     \brief OCSPステータスレスポンスを検証するコールバックを設定します。
+
+    クライアントは処理するステープルOCSPレスポンスごとに、デコードできないものも含めてこのコールバックを呼び出します。クライアント証明書を検証するTLS 1.3サーバーも同様です。errにはライブラリの判定結果(0または負のエラーコード)が渡されます。証明書チェーンの処理は最初に失敗したレスポンスで停止するため、それ以降のレスポンスは渡されません。戻り値がerrを置き換えます。0はレスポンスを受け入れ、負の値はハンドシェイクを失敗させ、正の値はBAD_CERTIFICATE_STATUS_ERRORとして扱われます。
 
     OCSP検証中にピアの証明書チェーンにアクセスできるようにするため、SESSION_CERTSを有効にすることを推奨します。
 
@@ -6512,6 +6546,52 @@ WC_PKCS12* wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO* bio,
 */
 int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
      WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert, WOLF_STACK_OF(WOLFSSL_X509)** ca);
+
+/*!
+    \ingroup openSSL
+
+    \brief wolfSSL_PKCS12_create(PKCS12_create)は、秘密鍵、その証明書、および任意の追加証明書のスタックから、新しいWC_PKCS12構造体を作成します。鍵と証明書はそれぞれ独自のContentInfoに配置され、keyNIDとcertNIDの指定に従ってパスワードで暗号化されます。macIttが-1でない限り、その結果に対してMACが計算されます。返された構造体はwolfSSL_i2d_PKCS12_bio()またはwc_i2d_PKCS12()で書き出すことができ、wc_PKCS12_free()で解放する必要があります。
+
+    \return WC_PKCS12 成功時に、新しいWC_PKCS12構造体へのポインタを返します。
+    \return NULL pass、pkey、certのいずれかがNULLの場合、macIttが-1より小さい場合、keyNIDまたはcertNIDがサポートされていない場合、あるいはメモリ割り当てまたはエンコードに失敗した場合に返されます。
+
+    \param pass 暗号化とMACに使用するNUL終端のパスワード。
+    \param name 設定するfriendlyName。現在は使用されていません。
+    \param pkey バンドルに格納する秘密鍵。
+    \param cert バンドルに格納する証明書。
+    \param ca 任意。バンドルに含める追加証明書のスタック。不要な場合はNULLを指定します。
+    \param keyNID 秘密鍵に適用する暗号化。NID_pbe_WithSHA1And128BitRC4、NID_pbe_WithSHA1AndDES_CBC、NID_pbe_WithSHA1And3_Key_TripleDES_CBC、PBE_AES128_CBC、PBE_AES256_CBCのいずれかを指定します。暗号化しない場合は-1を指定します。指定する暗号はビルドで有効になっている必要があります。
+    \param certNID 証明書に適用する暗号化。keyNIDと同じ値を指定します。
+    \param itt 暗号化に使用する反復回数。0以下の値を指定するとWC_PKCS12_ITT_DEFAULTが選択されます。
+    \param macItt MACの作成に使用する反復回数。0を指定するとWC_PKCS12_ITT_DEFAULTが選択され、-1を指定するとMACは作成されません。-1より小さい値はエラーになります。
+    \param keytype 署名鍵、暗号化鍵、またはその両方を示すフラグ。現在は使用されていません。
+
+    _Example_
+    \code
+    WC_PKCS12* pkcs12;
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_X509* cert;
+    WOLFSSL_BIO* bio;
+    // pkeyとcertは読み込み済み、bioは出力用に作成済みとする
+    pkcs12 = wolfSSL_PKCS12_create("a password", NULL, pkey, cert, NULL,
+            PBE_AES256_CBC, PBE_AES256_CBC,
+            PKCS12_DEFAULT_ITER, PKCS12_DEFAULT_ITER, 0);
+    if (pkcs12 == NULL) {
+        // PKCS12バンドルの作成エラー
+    }
+    wolfSSL_i2d_PKCS12_bio(bio, pkcs12);
+    wc_PKCS12_free(pkcs12);
+    \endcode
+
+    \sa wolfSSL_PKCS12_parse
+    \sa wolfSSL_i2d_PKCS12_bio
+    \sa wc_PKCS12_create
+    \sa wc_PKCS12_free
+*/
+WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
+        WOLFSSL_EVP_PKEY* pkey, WOLFSSL_X509* cert,
+        WOLF_STACK_OF(WOLFSSL_X509)* ca,
+        int keyNID, int certNID, int itt, int macItt, int keytype);
 
 /*!
     \ingroup CertsKeys
@@ -12025,7 +12105,7 @@ int  wolfSSL_connect(WOLFSSL* ssl);
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] secret secretを保持するバッファへのポインタ。NULLを渡すと、新しいランダムなsecretを生成することを示します。
-    \param [in] secretSz secretのサイズ(バイト単位)。0を渡すと、デフォルトサイズを使用することを示します:WC_SHA256_DIGEST_SIZE(SHA-256が利用できない場合はWC_SHA_DIGEST_SIZE)。
+    \param [in] secretSz secretのサイズ(バイト単位)。0を渡すと、デフォルトサイズを使用することを示します:cookie MACが使用するハッシュのダイジェストサイズで、WC_SHA256_DIGEST_SIZE、SHA-256が利用できない場合はWC_SHA384_DIGEST_SIZE、WC_SHA512_DIGEST_SIZE(WOLFSSL_TLS13_SHA512使用時)、WC_SM3_DIGEST_SIZEの順に選択されます。
 
     \return BAD_FUNC_ARG sslがNULLまたはTLS v1.3を使用していない場合。
     \return SIDE_ERROR クライアントで呼び出された場合。
@@ -12037,9 +12117,9 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \code
     int ret;
     WOLFSSL* ssl;
-    char secret[32];
+    unsigned char secret[32];
     ...
-    ret = wolfSSL__send_hrr_cookie(ssl, secret, sizeof(secret));
+    ret = wolfSSL_send_hrr_cookie(ssl, secret, sizeof(secret));
     if (ret != WOLFSSL_SUCCESS) {
         // Cookieとsecretの使用設定に失敗しました。
     }
@@ -12177,7 +12257,7 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
 
     \return BAD_FUNC_ARG sslがNULLまたはTLS v1.3を使用していない場合。
-    \return WANT_WRITE 書き込みの準備ができていない場合。
+    \return WOLFSSL_ERROR_WANT_WRITE 書き込みの準備ができていない場合。
     \return WOLFSSL_SUCCESS 成功した場合。
 
     _Example_
@@ -12186,8 +12266,8 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
     WOLFSSL* ssl;
     ...
     ret = wolfSSL_update_keys(ssl);
-    if (ret == WANT_WRITE) {
-        // I/Oの準備ができたら再度呼び出す必要があります。
+    if (ret == WOLFSSL_ERROR_WANT_WRITE) {
+        // KeyUpdateは次のwolfSSL_write()で送信されます。
     }
     else if (ret != WOLFSSL_SUCCESS) {
         // 鍵更新の送信に失敗しました。
@@ -12973,7 +13053,7 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL_CTX構造体のclient_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)が使用されます。鍵長0を返すことはPSKが無いことを示します。この関数はWOLFSSL_CTX構造体のclient_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
     \param [in] cb TLS 1.3クライアント用の事前共有鍵(PSK)コールバック。
@@ -12995,7 +13075,7 @@ void wolfSSL_CTX_set_psk_client_tls13_callback(WOLFSSL_CTX* ctx,
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL構造体のoptionsフィールドのclient_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)クライアント側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)が使用されます。鍵長0を返すことはPSKが無いことを示します。この関数はWOLFSSL構造体のoptionsフィールドのclient_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] cb TLS 1.3クライアント用の事前共有鍵(PSK)コールバック。
@@ -13017,7 +13097,7 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL_CTX構造体のserver_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが0以外の鍵長を返し暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)でPSKが受け入れられ、TLS 1.3以外のサーバーPSKコールバックは呼び出されません。鍵長0を返すことはアイデンティティが不明であることを示します。この関数はWOLFSSL_CTX構造体のserver_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ctx wolfSSL_CTX_new()で作成されたWOLFSSL_CTX構造体へのポインタ。
     \param [in] cb TLS 1.3サーバー用の事前共有鍵(PSK)コールバック。
@@ -13039,7 +13119,7 @@ void wolfSSL_CTX_set_psk_server_tls13_callback(WOLFSSL_CTX* ctx,
 /*!
     \ingroup Setup
 
-    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。この関数はWOLFSSL構造体のoptionsフィールドのserver_psk_tls13_cbメンバーを設定します。
+    \brief この関数はTLS v1.3接続のための事前共有鍵(PSK)サーバー側コールバックを設定します。コールバックはPSKアイデンティティを検索し、その鍵とハンドシェイクで使用する暗号の名前を返すために使用されます。コールバックが0以外の鍵長を返し暗号名を設定しない(NULLのままの)場合、デフォルトのPSK暗号スイートTLS13-AES128-GCM-SHA256(WOLFSSL_DEF_PSK_CIPHER)でPSKが受け入れられ、TLS 1.3以外のサーバーPSKコールバックは呼び出されません。鍵長0を返すことはアイデンティティが不明であることを示します。この関数はWOLFSSL構造体のoptionsフィールドのserver_psk_tls13_cbメンバーを設定します。
 
     \param [in,out] ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [in] cb TLS 1.3サーバー用の事前共有鍵(PSK)コールバック。

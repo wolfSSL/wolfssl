@@ -444,59 +444,54 @@ static void wb_check_probable_prime(void)
 static void wb_check_probable_prime(void) { WB_NOTE("KEY_GEN off / PUBLIC_ONLY; _CheckProbablePrime skipped"); }
 #endif
 
-/* ------------------------------------------------------------------------- *
- * Class 9: wc_RsaCleanup() data/type guard (line ~163, 4 conditions).
- *
- *   if ((key->data != NULL && key->dataLen > 0) &&
- *       (key->type == RSA_PRIVATE_DECRYPT || key->type == RSA_PRIVATE_ENCRYPT))
- *
- * File-static, called only internally after every RSA op with a key whose
- * data/dataLen/type are already self-consistent, so the individual operand
- * flips below (data==NULL, dataLen==0, type neither PRIVATE_DECRYPT nor
- * PRIVATE_ENCRYPT) are white-box only. data points at a stack buffer with
- * dataIsAlloc==0 so ForceZero runs but XFREE does not (no allocation here).
- * ------------------------------------------------------------------------- */
+/* Exercise owned and borrowed buffers in the internal cleanup routine. */
 #if !defined(WOLFSSL_NO_MALLOC) && (defined(WOLFSSL_ASYNC_CRYPT) || \
-    (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
-static void wb_rsa_cleanup(void)
+    (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE))) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+static int wb_rsa_cleanup(void)
 {
     RsaKey key;
-    byte   buf[8];
+    byte buf = 0xAA;
+    word32 len;
 
     XMEMSET(&key, 0, sizeof(key));
-    XMEMSET(buf, 0xAA, sizeof(buf));
-
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    /* all-true: data!=NULL, dataLen>0, type==PRIVATE_DECRYPT -> ForceZero */
-    key.data = buf; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
-    key.type = RSA_PRIVATE_DECRYPT;
+    key.data = &buf;
+    key.dataLen = sizeof(buf);
     wc_RsaCleanup(&key);
+    if (buf != 0xAA || key.data != NULL || key.dataLen != 0) {
+        return 0;
+    }
 
-    /* type==PRIVATE_ENCRYPT: other half of the (C||D) type pair */
-    key.data = buf; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
-    key.type = RSA_PRIVATE_ENCRYPT;
+    /* Cleanup after an allocation failure still clears the ownership flag. */
+    key.dataIsAlloc = 1;
+    key.dataLen = 1;
     wc_RsaCleanup(&key);
+    if (key.data != NULL || key.dataLen != 0 || key.dataIsAlloc) {
+        return 0;
+    }
 
-    /* data==NULL -> first AND-operand false */
-    key.data = NULL; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
-    key.type = RSA_PRIVATE_DECRYPT;
-    wc_RsaCleanup(&key);
-
-    /* dataLen==0 -> first AND-operand false (other leaf) */
-    key.data = buf; key.dataLen = 0; key.dataIsAlloc = 0;
-    key.type = RSA_PRIVATE_DECRYPT;
-    wc_RsaCleanup(&key);
+    for (len = 0; len <= 1; len++) {
+        key.data = (byte*)XMALLOC(1, key.heap, DYNAMIC_TYPE_WOLF_BIGINT);
+        if (key.data == NULL) {
+            return 0;
+        }
+        key.data[0] = 0xAA;
+        key.dataIsAlloc = 1;
+        key.dataLen = len;
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+        if (len != 0) {
+            wc_MemZero_Add("RSA test buffer", key.data, len);
+        }
 #endif
-
-    /* type neither PRIVATE_DECRYPT nor PRIVATE_ENCRYPT -> (C||D) false */
-    key.data = buf; key.dataLen = sizeof(buf); key.dataIsAlloc = 0;
-    key.type = RSA_PUBLIC_ENCRYPT;
-    wc_RsaCleanup(&key);
-
-    WB_NOTE("wc_RsaCleanup data/type guard pairs exercised");
+        wc_RsaCleanup(&key);
+        if (key.data != NULL || key.dataLen != 0 || key.dataIsAlloc) {
+            return 0;
+        }
+    }
+    return 1;
 }
 #else
-static void wb_rsa_cleanup(void) { WB_NOTE("wc_RsaCleanup body compiled out; nothing to exercise"); }
+static int wb_rsa_cleanup(void) { return 1; }
 #endif
 
 /* ------------------------------------------------------------------------- *
@@ -974,6 +969,31 @@ static void wb_private_decrypt_outlen(void)
 }
 #endif
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+    defined(WC_RSA_PSS) && !defined(WOLF_CRYPTO_CB_FIND) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int wb_pss_verify_device_without_key(void)
+{
+    RsaKey key;
+    word32 recovered = 1;
+    int ret;
+
+    /* With SHA-512 compiled in, the public API rejects NULL keys first. */
+    ret = RsaPssVerifyDevice(NULL, 0, NULL, 0, WC_HASH_TYPE_SHA256,
+        WC_MGF1SHA256, 32, 32, NULL, NULL, 0, &recovered);
+    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE) || recovered != 0) {
+        return 0;
+    }
+
+    XMEMSET(&key, 0, sizeof(key));
+    key.devId = 0x52535053; /* No callback is registered for this ID. */
+    recovered = 1;
+    ret = RsaPssVerifyDevice(NULL, 0, NULL, 0, WC_HASH_TYPE_SHA256,
+        WC_MGF1SHA256, 32, 32, &key, NULL, 0, &recovered);
+    return ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE) && recovered == 0;
+}
+#endif
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -990,7 +1010,10 @@ int main(void)
     wb_rsa_pad();
     wb_rsa_unpad();
     wb_check_probable_prime();
-    wb_rsa_cleanup();
+    if (!wb_rsa_cleanup()) {
+        WB_NOTE("RSA cleanup left an unexpected buffer state");
+        return 1;
+    }
     wb_check_probable_prime_ex_qraw();
     wb_rsa_function_nonblock();
     wb_pub_privkey_decode_raw();
@@ -999,6 +1022,14 @@ int main(void)
     wb_unpad_pss_saltlen();
     wb_public_encrypt_size_guard();
     wb_private_decrypt_outlen();
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD) && \
+    defined(WC_RSA_PSS) && !defined(WOLF_CRYPTO_CB_FIND) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (!wb_pss_verify_device_without_key()) {
+        WB_NOTE("RSA-PSS device lookup left an unexpected recovery state");
+        return 1;
+    }
+#endif
     printf("done (%s)\n", wb_fail ? "with skips" : "ok");
     /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */

@@ -57,12 +57,31 @@
     <ProjectName>wolfssl</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="WolfSSLSpAsm">
+    <!-- Single precision sizes assembled into sp_x86_64_asm.asm.  ml64.exe
+         cannot read user_settings.h, so a size enabled there must be listed
+         here too or the link fails with LNK2001 on sp_384_*, sp_521_*,
+         sp_4096_* or sp_1024_*.  ECC P-256 and RSA/DH 2048 and 3072 always
+         assemble.  4096 stays in the default because IDE/WIN/user_settings.h
+         turns on HAVE_FFDHE_4096, which makes settings.h define
+         WOLFSSL_SP_4096.  ECC P-521 and SAKKE 1024 are another 16k lines of
+         rarely used assembly, so add them only when user_settings.h asks:
+             msbuild /p:WolfSSLSpAsmDefs="/DWOLFSSL_SP_384 /DWOLFSSL_SP_4096 /DWOLFSSL_SP_521" -->
+    <WolfSSLSpAsmDefs Condition="'$(WolfSSLSpAsmDefs)'==''">/DWOLFSSL_SP_384 /DWOLFSSL_SP_4096</WolfSSLSpAsmDefs>
+  </PropertyGroup>
   <PropertyGroup Label="WolfSSLIntelAsm">
     <!-- Build the x86_64 crypto assembly (curve25519 / SHA-2 / SHA-3 / ML-KEM /
          ML-DSA) and enable the matching USE_INTEL_SPEEDUP code paths.  Off by
          default (pure C).  Enable on an x64 build with:
              msbuild /p:WolfSSLIntelAsm=true -->
     <WolfSSLIntelAsm Condition="'$(WolfSSLIntelAsm)'==''">false</WolfSSLIntelAsm>
+    <!-- With USE_INTEL_SPEEDUP, aes.c, chacha.c, poly1305.c and
+         chacha20_poly1305.c call the AVX-512 and VAES kernels unless
+         NO_AVX512_SUPPORT / NO_VAES_SUPPORT are defined.  The AES, ChaCha and
+         Poly1305 .asm files only assemble those kernels when ml64.exe is
+         given the matching defines, or the link fails with LNK2001 on
+         *_avx512, *_avx512ifma and *_vaes. -->
+    <WolfSSLIntelAsmDefs Condition="'$(WolfSSLIntelAsmDefs)'=='' And '$(WolfSSLIntelAsm)'=='true'">/DHAVE_INTEL_AVX512 /DHAVE_INTEL_VAES</WolfSSLIntelAsmDefs>
   </PropertyGroup>
   <PropertyGroup Label="WolfSSLAarch64Asm">
     <!-- Build the ARMv8 (AArch64) crypto assembly (AES / SHA-2 / SHA-3 /
@@ -76,7 +95,7 @@
          the WOLFSSL_ARMASM* defines below); a symbol that is left undefined
          here simply drops the matching assembly (safe - the C caller then uses
          a C fallback), while a symbol enabled here but not in C is dead code. -->
-    <WolfSSLArmAsmDefs>-PreDefine "HAVE_AES_CBC SETL {TRUE}" -PreDefine "HAVE_AESCCM SETL {TRUE}" -PreDefine "HAVE_AESGCM SETL {TRUE}" -PreDefine "HAVE_AES_ECB SETL {TRUE}" -PreDefine "HAVE_AES_DECRYPT SETL {TRUE}" -PreDefine "WOLFSSL_AES_COUNTER SETL {TRUE}" -PreDefine "WOLFSSL_AES_DIRECT SETL {TRUE}" -PreDefine "WOLFSSL_AES_XTS SETL {TRUE}" -PreDefine "WOLFSSL_AESGCM_STREAM SETL {TRUE}" -PreDefine "WOLFSSL_SHA224 SETL {TRUE}" -PreDefine "WOLFSSL_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_SHA384 SETL {TRUE}" -PreDefine "WOLFSSL_SHA512 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA512 SETL {TRUE}" -PreDefine "HAVE_CHACHA SETL {TRUE}" -PreDefine "HAVE_CURVE25519 SETL {TRUE}" -PreDefine "HAVE_ED25519 SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_MLKEM SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_FRODOKEM SETL {TRUE}"</WolfSSLArmAsmDefs>
+    <WolfSSLArmAsmDefs>-PreDefine "HAVE_AES_CBC SETL {TRUE}" -PreDefine "HAVE_AESCCM SETL {TRUE}" -PreDefine "HAVE_AESGCM SETL {TRUE}" -PreDefine "HAVE_AES_ECB SETL {TRUE}" -PreDefine "HAVE_AES_DECRYPT SETL {TRUE}" -PreDefine "WOLFSSL_AES_COUNTER SETL {TRUE}" -PreDefine "WOLFSSL_AES_DIRECT SETL {TRUE}" -PreDefine "WOLFSSL_AES_XTS SETL {TRUE}" -PreDefine "WOLFSSL_AESGCM_STREAM SETL {TRUE}" -PreDefine "WOLFSSL_SHA224 SETL {TRUE}" -PreDefine "WOLFSSL_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA3 SETL {TRUE}" -PreDefine "WOLFSSL_SHA384 SETL {TRUE}" -PreDefine "WOLFSSL_SHA512 SETL {TRUE}" -PreDefine "WOLFSSL_ARMASM_CRYPTO_SHA512 SETL {TRUE}" -PreDefine "HAVE_CHACHA SETL {TRUE}" -PreDefine "HAVE_POLY1305 SETL {TRUE}" -PreDefine "HAVE_CURVE25519 SETL {TRUE}" -PreDefine "HAVE_ED25519 SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_MLKEM SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_MLDSA SETL {TRUE}" -PreDefine "WOLFSSL_HAVE_FRODOKEM SETL {TRUE}"</WolfSSLArmAsmDefs>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -225,7 +244,6 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>./;./IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WOLFSSL_LIB;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -239,7 +257,6 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>./;./IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WOLFSSL_LIB;BUILDING_WOLFSSL;WOLFSSL_DLL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>
@@ -515,28 +532,28 @@
     <CustomBuild Include="wolfcrypt\src\aes_x86_64_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\aes_gcm_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
@@ -587,56 +604,56 @@
     <CustomBuild Include="wolfcrypt\src\aes_xts_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\chacha_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\poly1305_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLIntelAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\sp_x86_64_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe $(WolfSSLSpAsmDefs) /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
@@ -694,6 +711,12 @@
       <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
       <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-mldsa-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\port\arm\armv8-mlkem-asm.asm">
       <ExcludedFromBuild>true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
@@ -707,6 +730,12 @@
       <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\port\arm\armv8-poly1305-asm.asm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
+      <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>
+      <Outputs Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\port\arm\armv8-sha1-asm.asm">
       <ExcludedFromBuild>true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">false</ExcludedFromBuild>
       <Command Condition="'$(WolfSSLAarch64Asm)'=='true' And '$(Platform)'=='ARM64'">armasm64.exe -o "$(IntDir)%(Filename).obj" $(WolfSSLArmAsmDefs) %(Identity)</Command>

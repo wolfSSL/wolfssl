@@ -257,7 +257,7 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
                             const byte* iv);
 
 /*!
-    \ingroup Crypto
+    \ingroup Password
     \brief This function decrypts an encrypted key buffer using the
     provided password. It supports encryption algorithms
     DES, 3DES, and AES. The encryption information is
@@ -316,7 +316,7 @@ int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der,
                         int passwordSz, int hashType);
 
 /*!
-    \ingroup Crypto
+    \ingroup Password
     \brief This function encrypts a key buffer using the provided
     password. It supports encryption algorithms DES,
     3DES, and AES. The encryption information is provided in the

@@ -24,10 +24,24 @@
 
 int test_utils_memio_move_message(void);
 int test_tls12_unexpected_ccs(void);
+int test_tls12_early_server_ccs(void);
 int test_tls13_unexpected_ccs(void);
+int test_tls13_plaintext_record_version_ignored(void);
+int test_tls_record_version_still_checked(void);
 int test_tls_record_overflow_alert(void);
+int test_tls_peer_name_mismatch_verify_cb(void);
+int test_tls_peer_name_mismatch_verify_result(void);
+int test_tls_check_domain_name_single_label(void);
+int test_tls_set1_host_wildcard_flags(void);
+int test_tls_get_peer_tmp_key(void);
+int test_tls_get_negotiated_group(void);
+int test_tls_alert_info_cb(void);
+int test_tls_shutdown_in_init(void);
+int test_tls_unknown_record_type_alert(void);
 int test_tls12_curve_intersection(void);
 int test_tls12_dhe_rsa_pss_sigalg(void);
+int test_tls12_dhe_renegotiate_larger_prime(void);
+int test_tls12_dhe_reuse_prime_check(void);
 int test_tls12_ske_sig_param_binding(void);
 int test_tls12_bad_cv_sig_content(void);
 int test_tls13_curve_intersection(void);
@@ -38,6 +52,7 @@ int test_tls12_no_null_compression(void);
 int test_tls12_ec_point_formats_no_uncompressed(void);
 int test_tls12_ec_point_formats_no_uncompressed_non_ecc(void);
 int test_tls_fallback_scsv(void);
+int test_dhe_psk_max_premaster(void);
 int test_dtls_fallback_scsv(void);
 int test_dtls_fallback_scsv_no_downgrade(void);
 int test_tls_fallback_scsv_no_downgrade(void);
@@ -48,32 +63,101 @@ int test_tls_version_mask_alert_record(void);
 int test_tls_version_error_alert_mapping(void);
 int test_tls12_etm_failed_resumption(void);
 int test_tls12_resume_ticket_wrong_suite(void);
+int test_tls12_clear_resets_options(void);
+int test_tls_clear_resets_psk_flags(void);
+int test_tls12_clear_keeps_borrowed_session(void);
+int test_tls13_psk_clear_restores_verify_peer(void);
+int test_tls12_ticket_declined_no_id_resumption(void);
+int test_tls12_resume_ticket_mutual_auth(void);
+int test_tls13_resume_psk_post_handshake_auth(void);
+int test_tls13_resume_psk_client_auth(void);
+int test_tls13_resume_ticket_fail_except_psk(void);
+int test_tls13_resume_ticket_fail_except_psk_post_handshake(void);
+int test_tls13_resume_psk_ticket_fail_except_psk_post_handshake(void);
+int test_tls13_resume_psk_ticket_fail_except_psk_ok(void);
+int test_tls13_resume_psk_client_auth_ok(void);
+int test_tls12_ext_cache_client_auth_resume(void);
+int test_tls12_resume_ticket_client_auth(void);
+int test_tls12_resume_ticket_post_handshake_auth(void);
+int test_tls12_client_auth_flags_enforced(void);
+int test_tls12_resume_ticket_fail_except_psk(void);
+int test_tls1x_empty_cert_reject_point(void);
+int test_tls13_pha_unsolicited_blank_cert(void);
+int test_tls13_unsolicited_cert_not_recorded(void);
+int test_tls12_resume_ticket_client_auth_ok(void);
+int test_tls12_reuse_clears_use_ticket(void);
 int test_tls12_resume_ticket_decline_fallback(void);
+int test_tls12_ticket_dropped_on_bad_finished(void);
+int test_tls12_ticket_cached_after_finished(void);
+int test_tls12_empty_ticket_keeps_cached(void);
+int test_tls12_session_cache_shared_row(void);
+int test_tls12_server_hello_tls13_suite(void);
+int test_tls12_client_hello_no_tls13_suites(void);
 int test_tls_set_session_min_downgrade(void);
 int test_tls12_session_id_resumption_sni_mismatch(void);
+int test_tls12_session_id_sni_mismatch_peer_cert(void);
+int test_tls12_declined_ticket_auth_not_reminted(void);
 int test_tls13_session_resumption_sni_mismatch(void);
+int test_tls_cb_ctx_cert_load(void);
+int test_tls_ssl_ctx_certs_check(void);
+int test_tls_ssl_keeps_ctx_certs(void);
 int test_tls13_resumption_with_alpn(void);
 int test_tls12_session_id_resumption_alpn_mismatch(void);
+int test_tls12_old_hello_resumption_binding(void);
 int test_tls13_session_resumption_alpn_mismatch(void);
 int test_tls_set_curves_list_ecc_fallback(void);
 int test_tls12_corrupted_finished(void);
 int test_tls12_peerauth_failsafe(void);
 int test_tls12_ecdhe_ecdsa_rsa_client_cert(void);
 int test_tls12_ecdhe_rsa_ecdsa_client_cert(void);
+int test_tls12_ed25519_dev_private_key(void);
+int test_tls12_ed448_dev_private_key(void);
 int test_wolfSSL_alert_type_string(void);
 int test_wolfSSL_alert_desc_string(void);
+int test_tls12_chain_verify_cb(void);
+int test_tls12_chain_verify_cb_server(void);
+int test_tls13_chain_verify_cb_defer(void);
+int test_tls13_chain_verify_cb_server(void);
+int test_tls13_chain_verify_cb_reject(void);
+int test_tls13_chain_verify_cb_success_rejects(void);
+int test_tls12_chain_verify_cb_bad_der(void);
+int test_tls12_chain_verify_cb_bad_chain(void);
+int test_tls13_chain_verify_cb_postauth(void);
+int test_chain_verify_cb_min_key(void);
+int test_chain_verify_cb_dtls(void);
+int test_chain_verify_cb_stapling(void);
 int test_record_size_matches_build_message(void);
+int test_internal_SetSSL_CTX_DecisionCoverage(void);
+int test_internal_CheckVersion_DecisionCoverage(void);
 int test_record_size_preserves_build_msg_state(void);
 int test_record_size_cache_invalidated_on_renegotiation(void);
 int test_wolfSSL_get_shared_ciphers(void);
+int test_tls12_aesgcm_record_nonce_unique(void);
+int test_tls_param_flags_crl_check(void);
+int test_tls_hmac_inner_cid_decision_coverage(void);
+int test_tls_unset_fd_no_stdin_io(void);
 
 #define TEST_TLS_DECLS                                                         \
         TEST_DECL_GROUP("tls", test_utils_memio_move_message),                 \
         TEST_DECL_GROUP("tls", test_tls12_unexpected_ccs),                     \
+        TEST_DECL_GROUP("tls", test_tls12_early_server_ccs),                   \
         TEST_DECL_GROUP("tls", test_tls13_unexpected_ccs),                     \
+        TEST_DECL_GROUP("tls", test_tls13_plaintext_record_version_ignored),   \
+        TEST_DECL_GROUP("tls", test_tls_record_version_still_checked),         \
         TEST_DECL_GROUP("tls", test_tls_record_overflow_alert),                \
+        TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_cb),         \
+        TEST_DECL_GROUP("tls", test_tls_peer_name_mismatch_verify_result),     \
+        TEST_DECL_GROUP("tls", test_tls_check_domain_name_single_label),       \
+        TEST_DECL_GROUP("tls", test_tls_set1_host_wildcard_flags),             \
+        TEST_DECL_GROUP("tls", test_tls_get_peer_tmp_key),                     \
+        TEST_DECL_GROUP("tls", test_tls_get_negotiated_group),                 \
+        TEST_DECL_GROUP("tls", test_tls_alert_info_cb),                        \
+        TEST_DECL_GROUP("tls", test_tls_shutdown_in_init),                     \
+        TEST_DECL_GROUP("tls", test_tls_unknown_record_type_alert),            \
         TEST_DECL_GROUP("tls", test_tls12_curve_intersection),                 \
         TEST_DECL_GROUP("tls", test_tls12_dhe_rsa_pss_sigalg),                 \
+        TEST_DECL_GROUP("tls", test_tls12_dhe_renegotiate_larger_prime),       \
+        TEST_DECL_GROUP("tls", test_tls12_dhe_reuse_prime_check),              \
         TEST_DECL_GROUP("tls", test_tls12_ske_sig_param_binding),              \
         TEST_DECL_GROUP("tls", test_tls12_bad_cv_sig_content),                 \
         TEST_DECL_GROUP("tls", test_tls13_curve_intersection),                 \
@@ -95,18 +179,59 @@ int test_wolfSSL_get_shared_ciphers(void);
         TEST_DECL_GROUP("tls", test_tls_version_error_alert_mapping),          \
         TEST_DECL_GROUP("tls", test_tls12_etm_failed_resumption),              \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_wrong_suite),          \
+        TEST_DECL_GROUP("tls", test_tls12_clear_resets_options),               \
+        TEST_DECL_GROUP("tls", test_tls_clear_resets_psk_flags),               \
+        TEST_DECL_GROUP("tls", test_tls12_clear_keeps_borrowed_session),       \
+        TEST_DECL_GROUP("tls", test_tls13_psk_clear_restores_verify_peer),     \
+        TEST_DECL_GROUP("tls", test_tls12_ticket_declined_no_id_resumption),   \
+        TEST_DECL_GROUP("tls", test_tls12_resume_ticket_mutual_auth),          \
+        TEST_DECL_GROUP("tls", test_tls13_resume_psk_post_handshake_auth),     \
+        TEST_DECL_GROUP("tls", test_tls13_resume_psk_client_auth),             \
+        TEST_DECL_GROUP("tls", test_tls13_resume_ticket_fail_except_psk),      \
+        TEST_DECL_GROUP("tls",                                                \
+            test_tls13_resume_ticket_fail_except_psk_post_handshake),          \
+        TEST_DECL_GROUP("tls",                                                \
+            test_tls13_resume_psk_ticket_fail_except_psk_post_handshake),      \
+        TEST_DECL_GROUP("tls",                                                \
+            test_tls13_resume_psk_ticket_fail_except_psk_ok),                  \
+        TEST_DECL_GROUP("tls", test_tls13_resume_psk_client_auth_ok),          \
+        TEST_DECL_GROUP("tls", test_tls12_ext_cache_client_auth_resume),       \
+        TEST_DECL_GROUP("tls", test_tls12_resume_ticket_client_auth),          \
+        TEST_DECL_GROUP("tls",                                                \
+            test_tls12_resume_ticket_post_handshake_auth),                     \
+        TEST_DECL_GROUP("tls", test_tls12_client_auth_flags_enforced),        \
+        TEST_DECL_GROUP("tls", test_tls12_resume_ticket_fail_except_psk),    \
+        TEST_DECL_GROUP("tls", test_tls1x_empty_cert_reject_point),          \
+        TEST_DECL_GROUP("tls", test_tls13_pha_unsolicited_blank_cert),       \
+        TEST_DECL_GROUP("tls", test_tls13_unsolicited_cert_not_recorded),    \
+        TEST_DECL_GROUP("tls", test_tls12_resume_ticket_client_auth_ok),       \
+        TEST_DECL_GROUP("tls", test_tls12_reuse_clears_use_ticket),            \
         TEST_DECL_GROUP("tls", test_tls12_resume_ticket_decline_fallback),     \
+        TEST_DECL_GROUP("tls", test_tls12_ticket_dropped_on_bad_finished),     \
+        TEST_DECL_GROUP("tls", test_tls12_ticket_cached_after_finished),       \
+        TEST_DECL_GROUP("tls", test_tls12_empty_ticket_keeps_cached),          \
+        TEST_DECL_GROUP("tls", test_tls12_session_cache_shared_row),           \
+        TEST_DECL_GROUP("tls", test_tls12_server_hello_tls13_suite),           \
+        TEST_DECL_GROUP("tls", test_tls12_client_hello_no_tls13_suites),       \
         TEST_DECL_GROUP("tls", test_tls_set_session_min_downgrade),            \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_sni_mismatch), \
+        TEST_DECL_GROUP("tls", test_tls12_session_id_sni_mismatch_peer_cert),  \
+        TEST_DECL_GROUP("tls", test_tls12_declined_ticket_auth_not_reminted),  \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_sni_mismatch),    \
+        TEST_DECL_GROUP("tls", test_tls_cb_ctx_cert_load),                     \
+        TEST_DECL_GROUP("tls", test_tls_ssl_ctx_certs_check),                  \
+        TEST_DECL_GROUP("tls", test_tls_ssl_keeps_ctx_certs),                  \
         TEST_DECL_GROUP("tls", test_tls13_resumption_with_alpn),              \
         TEST_DECL_GROUP("tls", test_tls12_session_id_resumption_alpn_mismatch),\
+        TEST_DECL_GROUP("tls", test_tls12_old_hello_resumption_binding),       \
         TEST_DECL_GROUP("tls", test_tls13_session_resumption_alpn_mismatch),   \
         TEST_DECL_GROUP("tls", test_tls_set_curves_list_ecc_fallback),         \
         TEST_DECL_GROUP("tls", test_tls12_corrupted_finished),                 \
         TEST_DECL_GROUP("tls", test_tls12_peerauth_failsafe),                  \
         TEST_DECL_GROUP("tls", test_tls12_ecdhe_ecdsa_rsa_client_cert),        \
         TEST_DECL_GROUP("tls", test_tls12_ecdhe_rsa_ecdsa_client_cert),        \
+        TEST_DECL_GROUP("tls", test_tls12_ed25519_dev_private_key),            \
+        TEST_DECL_GROUP("tls", test_tls12_ed448_dev_private_key),              \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_type_string),                \
         TEST_DECL_GROUP("tls", test_wolfSSL_alert_desc_string),                \
         TEST_DECL_GROUP("tls", test_record_size_matches_build_message),        \
@@ -114,6 +239,25 @@ int test_wolfSSL_get_shared_ciphers(void);
             test_record_size_preserves_build_msg_state),                       \
         TEST_DECL_GROUP("tls",                                                 \
             test_record_size_cache_invalidated_on_renegotiation),              \
-        TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers)
+        TEST_DECL_GROUP("tls", test_wolfSSL_get_shared_ciphers),               \
+        TEST_DECL_GROUP("tls", test_tls12_aesgcm_record_nonce_unique),         \
+        TEST_DECL_GROUP("tls", test_tls_param_flags_crl_check),                \
+        TEST_DECL_GROUP("tls", test_dhe_psk_max_premaster),                    \
+        TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb),                    \
+        TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_server),             \
+        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_defer),              \
+        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_server),             \
+        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_reject),             \
+        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_success_rejects),    \
+        TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_der),            \
+        TEST_DECL_GROUP("tls", test_tls12_chain_verify_cb_bad_chain),          \
+        TEST_DECL_GROUP("tls", test_tls13_chain_verify_cb_postauth),           \
+        TEST_DECL_GROUP("tls", test_chain_verify_cb_min_key),                  \
+        TEST_DECL_GROUP("tls", test_chain_verify_cb_dtls),                     \
+        TEST_DECL_GROUP("tls", test_chain_verify_cb_stapling),                 \
+        TEST_DECL_GROUP("tls", test_internal_SetSSL_CTX_DecisionCoverage),     \
+        TEST_DECL_GROUP("tls", test_internal_CheckVersion_DecisionCoverage), \
+        TEST_DECL_GROUP("tls", test_tls_hmac_inner_cid_decision_coverage),     \
+        TEST_DECL_GROUP("tls", test_tls_unset_fd_no_stdin_io)
 
 #endif /* TESTS_API_TEST_TLS_H */

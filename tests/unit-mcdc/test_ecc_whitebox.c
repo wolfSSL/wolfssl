@@ -1136,6 +1136,9 @@ static void wb_fp_cache_internals(void)
     ecc_point *g0, *g1;
     int idx0, ret;
     unsigned x;
+    /* the parameters an entry is keyed on; stand-ins, no curve math runs */
+    mp_int a, modulus;
+    int inited = 0;
 
     wc_ecc_fp_free(); /* deterministic empty-cache start */
 
@@ -1145,21 +1148,28 @@ static void wb_fp_cache_internals(void)
         wb_fail = 1;
         goto out;
     }
+    if (mp_init_multi(&a, &modulus, NULL, NULL, NULL, NULL) != MP_OKAY) {
+        wb_fail = 1;
+        goto out;
+    }
+    inited = 1;
+    (void)mp_set(&a, 2);
+    (void)mp_set(&modulus, 97);
     (void)mp_set(g0->x, 3); (void)mp_set(g0->y, 5); (void)mp_set(g0->z, 1);
     (void)mp_set(g1->x, 11); (void)mp_set(g1->y, 13); (void)mp_set(g1->z, 1);
 
     /* find_base on an empty cache: every fp_cache[x].g == NULL -> -1. */
-    if (find_base(g0) != -1) { wb_fail = 1; }
+    if (find_base(g0, &a, &modulus) != -1) { wb_fail = 1; }
 
-    ret = add_entry(0, g0);
+    ret = add_entry(0, g0, &a, &modulus);
     if (ret != MP_OKAY) { wb_fail = 1; }
     (void)mp_init(&fp_cache[0].mu); /* stand-in for build_lut()'s own init */
 
     /* find_base: entry 0 occupied and matches (all 3 mp_cmp true) -> 0. */
-    if (find_base(g0) != 0) { wb_fail = 1; }
+    if (find_base(g0, &a, &modulus) != 0) { wb_fail = 1; }
     /* find_base: entry 0 occupied but a DIFFERENT point -> falls through
      * to -1 (isolates the mp_cmp x/y/z operands' FALSE side). */
-    if (find_base(g1) != -1) { wb_fail = 1; }
+    if (find_base(g1, &a, &modulus) != -1) { wb_fail = 1; }
 
     /* find_hole: lock entry 0 so it is excluded (lock==0 FALSE) even
      * though it has the lowest lru_count; some other (empty, g==NULL)
@@ -1185,6 +1195,10 @@ static void wb_fp_cache_internals(void)
     WB_NOTE("fp_cache find_base/find_hole/add_entry internals exercised");
 
 out:
+    if (inited) {
+        mp_clear(&a);
+        mp_clear(&modulus);
+    }
     wc_ecc_del_point(g0);
     wc_ecc_del_point(g1);
     for (x = 0; x < FP_ENTRIES; x++) {
@@ -1199,6 +1213,122 @@ static void wb_fp_cache_internals(void)
     WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH); fp_cache internals skipped");
 }
 #endif /* FP_ECC && !WOLFSSL_SP_MATH */
+
+#if defined(FP_ECC) && !defined(WOLFSSL_SP_MATH) && \
+    defined(ECC_TIMING_RESISTANT)
+/* ------------------------------------------------------------------------- *
+ * Timing-resistant wc_ecc_mulmod_ex()/wc_ecc_mulmod_ex2() take secret scalars
+ * through fp_comb_ct() once a base point's table is built. The first calls run
+ * the ladder, so each scalar's cached result must equal its uncached one,
+ * including the scalars that make the comb's accumulator or table entry the
+ * point at infinity.
+ * ------------------------------------------------------------------------- */
+static void wb_fp_comb_ct(void)
+{
+    int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    const ecc_set_type* cs;
+    ecc_point *G = NULL, *R = NULL, *L = NULL;
+    mp_int k, a, prime, order;
+    int i, s;
+    int base;
+
+    if (idx == ECC_CURVE_INVALID) {
+        wb_fail = 1;
+        return;
+    }
+    cs = wc_ecc_get_curve_params(idx);
+    if (cs == NULL) {
+        wb_fail = 1;
+        return;
+    }
+    if (mp_init_multi(&k, &a, &prime, &order, NULL, NULL) != MP_OKAY) {
+        wb_fail = 1;
+        return;
+    }
+    G = wc_ecc_new_point();
+    R = wc_ecc_new_point();
+    L = wc_ecc_new_point();
+    if ((G == NULL) || (R == NULL) || (L == NULL) ||
+            (mp_read_radix(&a, cs->Af, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(&prime, cs->prime, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(&order, cs->order, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(G->x, cs->Gx, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_read_radix(G->y, cs->Gy, MP_RADIX_HEX) != MP_OKAY) ||
+            (mp_set(G->z, 1) != MP_OKAY)) {
+        wb_fail = 1;
+        goto out;
+    }
+
+    /* 1, 2, a small value, order - 1, order, the top bit alone, and 2^gap for
+     * which the accumulator equals the table entry being added. */
+    for (s = 0; s < 7; s++) {
+        int ok;
+        if (s == 3 || s == 4) {
+            ok = (mp_copy(&order, &k) == MP_OKAY);
+            if (ok && (s == 3)) {
+                ok = (mp_sub_d(&k, 1, &k) == MP_OKAY);
+            }
+        }
+        else if (s == 5) {
+            mp_zero(&k);
+            ok = (mp_set_bit(&k, 255) == MP_OKAY);
+        }
+        else if (s == 6) {
+            mp_zero(&k);
+            ok = (mp_set_bit(&k, (256 + FP_LUT - 1) / FP_LUT) == MP_OKAY);
+        }
+        else {
+            ok = (mp_set(&k, (s == 2) ? 0x1234567 : (mp_digit)(s + 1)) ==
+                MP_OKAY);
+        }
+        if (!ok) {
+            wb_fail = 1;
+            goto out;
+        }
+
+        wc_ecc_fp_free();
+        for (i = 0; i < 4; i++) {
+            ecc_point* dst = (i == 0) ? L : R;
+            int err = (i & 1) ?
+                wc_ecc_mulmod_ex2(&k, G, dst, &a, &prime, &order, NULL, 1,
+                    NULL) :
+                wc_ecc_mulmod_ex(&k, G, dst, &a, &prime, 1, NULL);
+            if (err != MP_OKAY) {
+                WB_NOTE("timing-resistant mulmod failed");
+                wb_fail = 1;
+            }
+        }
+        base = find_base(G, &a, &prime);
+        if (FP_MULMOD_USES_LUT &&
+                ((base < 0) || (!fp_cache[base].LUT_set))) {
+            WB_NOTE("fp_cache table was not built");
+            wb_fail = 1;
+        }
+        if ((mp_cmp(R->x, L->x) != MP_EQ) || (mp_cmp(R->y, L->y) != MP_EQ) ||
+                (mp_cmp(R->z, L->z) != MP_EQ)) {
+            WB_NOTE("fp_comb_ct result differs from the ladder");
+            wb_fail = 1;
+        }
+    }
+    WB_NOTE("timing-resistant fp_comb_ct compared with the ladder");
+
+out:
+    wc_ecc_del_point(G);
+    wc_ecc_del_point(R);
+    wc_ecc_del_point(L);
+    mp_clear(&k);
+    mp_clear(&a);
+    mp_clear(&prime);
+    mp_clear(&order);
+    wc_ecc_fp_free();
+}
+#else
+static void wb_fp_comb_ct(void)
+{
+    WB_NOTE("FP_ECC off (or WOLFSSL_SP_MATH, or not timing-resistant); "
+            "fp_comb_ct check skipped");
+}
+#endif /* FP_ECC && !WOLFSSL_SP_MATH && ECC_TIMING_RESISTANT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ------------------------------------------------------------------------- *
@@ -1437,19 +1567,19 @@ static void wb_idx_dp_guard_export_paths(void)
     key.idx = 9999; key.dp = cs;
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
-        WC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN, 0);
     if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.idx = idx; key.dp = NULL;
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
-        WC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN, 0);
     if (ret != WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) { wb_fail = 1; }
 
     key.idx = idx; key.dp = cs; /* baseline: real export */
     qxLen = sizeof(qx); qyLen = sizeof(qy);
     ret = _ecc_export_ex(&key, qx, &qxLen, qy, &qyLen, NULL, NULL,
-        WC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN, 0);
     if (ret != MP_OKAY) { wb_fail = 1; }
 
     /* ---- wc_ecc_export_public_raw: qx/qxLen/qy/qyLen NULL guard,
@@ -3225,7 +3355,7 @@ static void wb_forged_order_minus_1(void)
  * ------------------------------------------------------------------------- */
 #if defined(HAVE_ECC_SIGN) && !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_MICROCHIP_TA100) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_DHUK) && \
     defined(WOLFSSL_CUSTOM_CURVES)
 static void wb_sign_hash_sw_indices(void)
@@ -3830,8 +3960,195 @@ static void wb_fp_mul2add_kb_size(void)
 }
 #endif
 
+/* These checks distinguish unavailable fixtures from assertion failures. */
+enum wb_check_result {
+    WB_CHECK_FAILED = 0,
+    WB_CHECK_PASSED = 1,
+    WB_CHECK_SKIPPED
+};
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ECC_SECP) && \
+    !defined(NO_ECC256) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+static enum wb_check_result wb_private_order_size(void)
+{
+    const ecc_set_type* curve;
+    ecc_key key;
+    byte scalar[32] = {0};
+    word32 len = 0;
+    int idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    int ok;
+
+    curve = wc_ecc_get_curve_params(idx);
+    if (curve == NULL || wc_ecc_init(&key) != 0) {
+        return WB_CHECK_SKIPPED;
+    }
+
+    ok = wc_ecc_export_private_order(NULL, NULL, &len) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    ok &= wc_ecc_export_private_order(&key, NULL, NULL) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+    ok &= ecc_check_privkey_range(NULL) == WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    ok &= ecc_check_privkey_range(&key) == WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+
+    scalar[sizeof(scalar) - 1] = 1;
+    if (wc_ecc_import_private_key_ex(scalar, sizeof(scalar), NULL, 0, &key,
+            ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+    ok &= len == sizeof(scalar);
+    ok &= ecc_check_privkey_range(&key) == 0;
+#if defined(WOLFSSL_SP_INT_NEGATIVE) && !defined(WOLFSSL_ECC_BLIND_K)
+    mp_setneg(ecc_get_k(&key));
+    ok &= ecc_check_privkey_range(&key) == WC_NO_ERR_TRACE(ECC_PRIV_KEY_E);
+    ok &= mp_abs(ecc_get_k(&key), ecc_get_k(&key)) == 0;
+#endif
+
+    /* The export rejects an invalid index even with valid curve parameters. */
+    key.idx = -2;
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(ECC_BAD_ARG_E);
+    key.idx = idx;
+    wc_ecc_free(&key);
+
+    if (wc_ecc_init(&key) != 0) {
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    if (wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, NULL,
+            ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG);
+    wc_ecc_free(&key);
+
+    if (wc_ecc_init(&key) != 0) {
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    if (wc_ecc_import_raw_ex(&key, curve->Gx, curve->Gy, "01",
+            ECC_SECP256R1) != 0) {
+        wc_ecc_free(&key);
+        return ok ? WB_CHECK_SKIPPED : WB_CHECK_FAILED;
+    }
+    ok &= wc_ecc_export_private_order(&key, NULL, &len) ==
+        WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+    ok &= len == sizeof(scalar);
+#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && defined(WOLFSSL_HAVE_SP_ECC)
+    ok &= wc_ecc_check_key(&key) == 0;
+    ok &= _ecc_validate_public_key(&key, 0, 0) == 0;
+#endif
+    wc_ecc_free(&key);
+    return ok ? WB_CHECK_PASSED : WB_CHECK_FAILED;
+}
+#define WB_ECC_PRIVATE_ORDER_SIZE
+#endif
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(WOLFSSL_SP_INT_NEGATIVE) && defined(WOLFSSL_HAVE_SP_ECC) && \
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_NO_256) && \
+    !defined(NO_ECC_SECP) && !defined(NO_ECC256) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) && \
+    (!defined(ECC_MIN_KEY_SZ) || (ECC_MIN_KEY_SZ <= 256))
+static enum wb_check_result wb_sp_mulmod_dispatch(void)
+{
+    const ecc_set_type* curve =
+        wc_ecc_get_curve_params(wc_ecc_get_curve_idx(ECC_SECP256R1));
+    ecc_key base;
+    ecc_key params;
+    ecc_point* result = NULL;
+    mp_int k;
+    enum wb_check_result status = WB_CHECK_SKIPPED;
+    int fallback = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+
+    if (curve == NULL || wc_ecc_init(&base) != 0) {
+        return status;
+    }
+    if (wc_ecc_init(&params) != 0) {
+        wc_ecc_free(&base);
+        return status;
+    }
+    if (mp_init(&k) != 0) {
+        goto out_keys;
+    }
+    result = wc_ecc_new_point();
+    if (result != NULL &&
+            wc_ecc_import_raw_ex(&base, curve->Gx, curve->Gy, NULL,
+                curve->id) == 0 &&
+            mp_read_radix(params.pubkey.x, curve->Af, MP_RADIX_HEX) == 0 &&
+            mp_read_radix(params.pubkey.y, curve->prime, MP_RADIX_HEX) == 0 &&
+            mp_set(&k, 1) == 0) {
+        mp_int* a = params.pubkey.x;
+        mp_int* p = params.pubkey.y;
+        mp_int* coords[] = {base.pubkey.x, result->x, result->y, result->z};
+        unsigned int i;
+        int ok;
+
+        ok = ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) == 0;
+        ok &= wc_ecc_cmp_point(&base.pubkey, result) == MP_EQ;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, NULL, p, 1, NULL) ==
+            fallback;
+        /* These representations must fall back before invoking SP math. */
+        for (i = 0; i < sizeof(coords) / sizeof(coords[0]); i++) {
+            mp_setneg(coords[i]);
+            ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+                fallback;
+            ok &= mp_abs(coords[i], coords[i]) == 0;
+        }
+        mp_setneg(&k);
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        ok &= mp_2expt(&k, 256) == 0;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        ok &= mp_set(&k, 1) == 0;
+        ok &= mp_set(base.pubkey.z, 2) == 0;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        ok &= mp_set(base.pubkey.z, 1) == 0;
+        ok &= mp_set(a, 0) == 0;
+        ok &= ecc_sp_mulmod(&k, &base.pubkey, result, a, p, 1, NULL) ==
+            fallback;
+        status = ok ? WB_CHECK_PASSED : WB_CHECK_FAILED;
+    }
+    wc_ecc_del_point(result);
+    mp_clear(&k);
+out_keys:
+    wc_ecc_free(&params);
+    wc_ecc_free(&base);
+    return status;
+}
+#define WB_ECC_SP_MULMOD_DISPATCH
+#endif
+
+#if defined(WB_ECC_PRIVATE_ORDER_SIZE) || defined(WB_ECC_SP_MULMOD_DISPATCH)
+static void wb_record_check(enum wb_check_result result, const char* name,
+    int* failed)
+{
+    if (result == WB_CHECK_SKIPPED) {
+        printf("  [wb] %s setup failed; skipped\n", name);
+        wb_fail = 1;
+    }
+    else if (result == WB_CHECK_FAILED) {
+        printf("  [wb][FAIL] %s returned an unexpected result\n", name);
+        *failed = 1;
+    }
+}
+#endif
+
 int main(void)
 {
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    int failed = 0;
+#endif
     /* Unbuffered: on a timeout or a fault the process is killed and anything
      * still buffered is lost, which reads as an empty log. */
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -3855,9 +4172,18 @@ int main(void)
     wb_mul2add_and_bufsize();
     wb_projective_safe_special_cases();
     wb_fp_cache_internals();
+    wb_fp_comb_ct();
     wb_export_point_der();
     wb_export_x963_internal();
     wb_idx_dp_guard_export_paths();
+#ifdef WB_ECC_PRIVATE_ORDER_SIZE
+    wb_record_check(wb_private_order_size(), "private-order size query",
+        &failed);
+#endif
+#ifdef WB_ECC_SP_MULMOD_DISPATCH
+    wb_record_check(wb_sp_mulmod_dispatch(), "SP point multiplication dispatch",
+        &failed);
+#endif
     wb_make_pub_privatekey_only();
     wb_arg_guards();
     wb_gap_pass2();
@@ -3876,9 +4202,10 @@ int main(void)
     wb_deterministic_k_retry();
     wb_ecies_bad_kdf();
     wb_fp_mul2add_kb_size();
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", failed ? "with failures" :
+        (wb_fail ? "with skips" : "ok"));
     /* Setup failures are surfaced as skips, not test failures: the harness
      * treats a nonzero exit as a failed variant and discards its coverage. */
-    return 0;
+    return failed ? 1 : 0;
 #endif
 }

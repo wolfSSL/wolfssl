@@ -228,6 +228,12 @@ int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
     if (inSz == 0 || inSz > (word32)(INT_MAX / 2)) {
         return BAD_FUNC_ARG;
     }
+
+    /* maxSz is a multiplier on inSz; -1 means no limit. 0 and other
+     * negative values are rejected. */
+    if (maxSz != -1 && maxSz <= 0) {
+        return BAD_FUNC_ARG;
+    }
     i = (maxSz == 1)? 1 : 2; /* start with output buffer twice the size of input
                               * unless max was set to 1 */
 

@@ -37,6 +37,13 @@
 #include <tests/api/api.h>
 #include <tests/api/test_ossl_x509_ext.h>
 
+/* A lone "." dNSName constraint base covers every DNS name, except with
+ * OPENSSL_COMPATIBLE_DEFAULTS where it matches no name. */
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    #define NC_DNS_DOT_BASE_MATCH 0
+#else
+    #define NC_DNS_DOT_BASE_MATCH 1
+#endif
 
 int test_wolfSSL_X509_get_extension_flags(void)
 {
@@ -268,9 +275,7 @@ static int test_X509_add_basic_constraints(WOLFSSL_X509* x509)
         obj->type = NID_basic_constraints;
     }
     ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
-    if (pathLen != NULL) {
-        pathLen->length = 2;
-    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(pathLen, 2), 1);
     if (obj != NULL) {
         obj->ca = 0;
     }
@@ -750,6 +755,74 @@ int test_wolfSSL_X509_stack_extensions(void)
     return EXPECT_RESULT();
 }
 
+/* wolfSSL_X509_get0_extensions() returns a stack the X509 owns, so a later
+ * call must hand back the same objects: an application holding an
+ * X509_EXTENSION from an earlier call still reads through it. The encodings
+ * the compat layer could not convert - here an explicit "critical FALSE",
+ * which the certificate parser accepts - used to make the entry count differ
+ * from X509_get_ext_count() and the getter rebuild the stack every call. */
+int test_wolfSSL_X509_get0_extensions_stable(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_ECC)
+    /* keyUsage extension: OID 2.5.29.15 then BOOLEAN TRUE. */
+    static const byte keyUsageCrit[] = {
+        0x06, 0x03, 0x55, 0x1d, 0x0f, 0x01, 0x01, 0xff
+    };
+    WOLFSSL_X509* x509 = NULL;
+    const WOLFSSL_STACK* sk1 = NULL;
+    const WOLFSSL_STACK* sk2 = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    const unsigned char* p = NULL;
+    byte* der = NULL;
+    word32 derSz = 0;
+    word32 i;
+    int found = 0;
+    XFILE f = XBADFILE;
+
+    ExpectTrue((f = XFOPEN("./certs/server-ecc.der", "rb")) != XBADFILE);
+    ExpectNotNull(der = (byte*)XMALLOC(FOURK_BUF, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if ((f != XBADFILE) && (der != NULL)) {
+        derSz = (word32)XFREAD(der, 1, FOURK_BUF, f);
+    }
+    if (f != XBADFILE)
+        XFCLOSE(f);
+    ExpectIntGT(derSz, sizeof(keyUsageCrit));
+
+    /* Turn the critical flag into an explicit FALSE. */
+    for (i = 0; (der != NULL) && (i + sizeof(keyUsageCrit) <= derSz); i++) {
+        if (XMEMCMP(der + i, keyUsageCrit, sizeof(keyUsageCrit)) == 0) {
+            der[i + sizeof(keyUsageCrit) - 1] = 0x00;
+            found = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    p = der;
+    ExpectNotNull(x509 = wolfSSL_d2i_X509(NULL, &p, (int)derSz));
+
+    ExpectNotNull(sk1 = wolfSSL_X509_get0_extensions(x509));
+    ExpectIntEQ(X509v3_get_ext_count(sk1),
+        wolfSSL_X509_get_ext_count(x509));
+    /* The extension that was turned into an explicit FALSE is still there. */
+    ExpectIntGE(X509v3_get_ext_by_NID(sk1, NID_key_usage, -1), 0);
+    ExpectNotNull(ext = X509v3_get_ext(sk1, 0));
+
+    /* Second call must not release what the first one returned. */
+    ExpectNotNull(sk2 = wolfSSL_X509_get0_extensions(x509));
+    ExpectPtrEq(sk1, sk2);
+    ExpectNotNull(wolfSSL_X509_EXTENSION_get_object(ext));
+    ExpectPtrEq(X509v3_get_ext(sk2, 0), ext);
+
+    wolfSSL_X509_free(x509);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_wolfSSL_X509_EXTENSION_new(void)
 {
     EXPECT_DECLS;
@@ -824,6 +897,7 @@ int test_wolfSSL_X509_EXTENSION_get_data(void)
     WOLFSSL_ASN1_STRING* str = NULL;
     XFILE file = XBADFILE;
 #ifndef WOLFSSL_OLD_EXTDATA_FMT
+    unsigned char* utf8 = NULL;
     const byte ext_data[] = {
         0x04, 0x14, 0xB3, 0x11, 0x32, 0xC9, 0x92, 0x98,
         0x84, 0xE2, 0xC9, 0xF8, 0xD0, 0x3B, 0x6E, 0x03,
@@ -843,6 +917,11 @@ int test_wolfSSL_X509_EXTENSION_get_data(void)
 #ifndef WOLFSSL_OLD_EXTDATA_FMT
     ExpectIntEQ(str->length, sizeof (ext_data));
     ExpectBufEQ(str->data, ext_data, sizeof (ext_data));
+    /* Data is NUL terminated like any other ASN1_STRING. */
+    ExpectIntEQ(str->data[str->length], '\0');
+    ExpectIntEQ(wolfSSL_ASN1_STRING_to_UTF8(&utf8, str), sizeof (ext_data));
+    ExpectBufEQ(utf8, ext_data, sizeof (ext_data));
+    XFREE(utf8, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif
 
     wolfSSL_X509_free(x509);
@@ -1254,16 +1333,14 @@ int test_wolfSSL_X509V3_EXT_bc(void)
      * end-entity certificates). It must be preserved, not conflated with an
      * absent constraint. */
     ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
-    if (pathLen != NULL) {
-        pathLen->length = 0;
-    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(pathLen, 0), 1);
     if ((ext != NULL) && (ext->obj != NULL)) {
         ext->obj->pathlen = pathLen;
         pathLen = NULL;
     }
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 0);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 0);
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     bc = NULL;
 
@@ -1273,16 +1350,14 @@ int test_wolfSSL_X509V3_EXT_bc(void)
         ext->obj->pathlen = NULL;
     }
     ExpectNotNull(pathLen = wolfSSL_ASN1_INTEGER_new());
-    if (pathLen != NULL) {
-        pathLen->length = 2;
-    }
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(pathLen, 2), 1);
     if ((ext != NULL) && (ext->obj != NULL)) {
         ext->obj->pathlen = pathLen;
         pathLen = NULL;
     }
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 2);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 2);
 
     wolfSSL_ASN1_INTEGER_free(pathLen);
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
@@ -1329,7 +1404,13 @@ int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509_get_ext_d2i(
         x509, NID_basic_constraints, &crit, NULL));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 1);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 1);
+    /* Value bytes only, as in OpenSSL. */
+    if (bc != NULL && bc->pathlen != NULL) {
+        ExpectIntEQ(bc->pathlen->type, WOLFSSL_V_ASN1_INTEGER);
+        ExpectIntEQ(bc->pathlen->length, 1);
+        ExpectIntEQ(bc->pathlen->data[0], 0x01);
+    }
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     bc = NULL;
     wolfSSL_X509_free(x509);
@@ -1349,11 +1430,104 @@ int test_wolfSSL_X509_get_ext_d2i_basic_constraints(void)
     ExpectNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509_get_ext_d2i(
         x509, NID_basic_constraints, &crit, NULL));
     ExpectNotNull(bc->pathlen);
-    ExpectIntEQ(bc->pathlen->length, 0);
+    ExpectIntEQ(wolfSSL_ASN1_INTEGER_get(bc->pathlen), 0);
+    /* Zero is the single byte 0x00. */
+    if (bc != NULL && bc->pathlen != NULL) {
+        ExpectIntEQ(bc->pathlen->length, 1);
+        ExpectIntEQ(bc->pathlen->data[0], 0x00);
+    }
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
     bc = NULL;
     wolfSSL_X509_free(x509);
     x509 = NULL;
+#endif
+    return EXPECT_RESULT();
+}
+
+/* wolfSSL_X509_get_ext_d2i(NID_subject_alt_name) on a certificate whose SAN
+ * carries a directoryName entry. GENERAL_NAME_new() pre-allocates d.ia5, which
+ * shares the union slot with d.dirn; the ASN_DIR_TYPE arm must release it
+ * before storing the parsed X509_NAME, otherwise one ASN1_STRING leaks per
+ * directoryName entry (caught by the memory checkers under make check). */
+int test_wolfSSL_X509_get_ext_d2i_dirname_san(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_ALL)) && !defined(NO_RSA) && \
+    !defined(IGNORE_NAME_CONSTRAINTS) && \
+    (!defined(WOLFSSL_X509_TINY) || defined(WOLFSSL_X509_TINY_SAN_DIR))
+    XFILE f = XBADFILE;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_GENERAL_NAMES* gns = NULL;
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    char buf[64];
+    int crit = 0;
+    int i;
+    int dnsCount = 0;
+    int dirCount = 0;
+
+    /* SAN = DNS:example.com, dirName:{C=US, O=wolfSSL, CN=Dir Name SAN} */
+    ExpectTrue((f = XFOPEN("./certs/test/cert-ext-dirsan.pem", "rb")) !=
+        XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    ExpectNotNull(gns = (WOLFSSL_GENERAL_NAMES*)wolfSSL_X509_get_ext_d2i(x509,
+        NID_subject_alt_name, &crit, NULL));
+    ExpectIntEQ(wolfSSL_sk_GENERAL_NAME_num(gns), 2);
+    /* More than one SAN entry is reported as -2. */
+    ExpectIntEQ(crit, -2);
+
+    for (i = 0; i < wolfSSL_sk_GENERAL_NAME_num(gns); i++) {
+        ExpectNotNull(gn = wolfSSL_sk_GENERAL_NAME_value(gns, i));
+        if (gn == NULL)
+            break;
+        if (gn->type == WOLFSSL_GEN_DNS) {
+            dnsCount++;
+            ExpectNotNull(gn->d.dNSName);
+            ExpectIntEQ(wolfSSL_ASN1_STRING_length(gn->d.dNSName), 11);
+            ExpectIntEQ(XMEMCMP(wolfSSL_ASN1_STRING_data(gn->d.dNSName),
+                "example.com", 11), 0);
+        }
+        else if (gn->type == WOLFSSL_GEN_DIRNAME) {
+            dirCount++;
+            ExpectNotNull(gn->d.dirn);
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_commonName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "Dir Name SAN");
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_organizationName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "wolfSSL");
+            XMEMSET(buf, 0, sizeof(buf));
+            ExpectIntGT(wolfSSL_X509_NAME_get_text_by_NID(gn->d.dirn,
+                NID_countryName, buf, (int)sizeof(buf)), 0);
+            ExpectStrEQ(buf, "US");
+        }
+        else {
+            ExpectIntEQ(gn->type, -1); /* unexpected entry type */
+        }
+    }
+    ExpectIntEQ(dnsCount, 1);
+    ExpectIntEQ(dirCount, 1);
+
+    wolfSSL_GENERAL_NAMES_free(gns);
+    gns = NULL;
+
+    /* Repeated calls must each produce independent, fully-owned results. */
+    for (i = 0; i < 3; i++) {
+        ExpectNotNull(gns = (WOLFSSL_GENERAL_NAMES*)wolfSSL_X509_get_ext_d2i(
+            x509, NID_subject_alt_name, NULL, NULL));
+        ExpectIntEQ(wolfSSL_sk_GENERAL_NAME_num(gns), 2);
+        wolfSSL_GENERAL_NAMES_free(gns);
+        gns = NULL;
+    }
+
+    wolfSSL_X509_free(x509);
 #endif
     return EXPECT_RESULT();
 }
@@ -1429,6 +1603,21 @@ int test_wolfSSL_X509V3_EXT_aia(void)
     wolfSSL_AUTHORITY_INFO_ACCESS_free(aia);
     aia = NULL;
 
+    if (ext != NULL) {
+        wolfSSL_sk_free(ext->ext_sk);
+        ext->ext_sk = NULL;
+    }
+    ExpectNotNull(sk = wolfSSL_sk_new_asn1_obj());
+    if (ext != NULL) {
+        ext->ext_sk = sk;
+        sk = NULL;
+    }
+    ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS *)
+        wolfSSL_X509V3_EXT_d2i(ext));
+    ExpectIntEQ(wolfSSL_sk_num(aia), 0);
+    wolfSSL_AUTHORITY_INFO_ACCESS_free(aia);
+    aia = NULL;
+
     ExpectNotNull(entry = wolfSSL_ASN1_OBJECT_new());
     if (entry != NULL) {
         entry->nid = WC_NID_ad_OCSP;
@@ -1455,6 +1644,95 @@ int test_wolfSSL_X509V3_EXT_aia(void)
     wolfSSL_sk_free(node);
     wolfSSL_ASN1_OBJECT_free(obj);
     wolfSSL_X509_EXTENSION_free(ext);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(WOLFSSL_X509_TINY)
+static int test_X509V3_EXT_d2i_keyid(int nid, const byte* der, int derSz,
+    const byte* keyId, int keyIdSz)
+{
+    EXPECT_DECLS;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    WOLFSSL_ASN1_OBJECT* obj = NULL;
+    WOLFSSL_ASN1_STRING* val = NULL;
+    WOLFSSL_ASN1_STRING* str = NULL;
+    WOLFSSL_AUTHORITY_KEYID* akey = NULL;
+    void* d2i = NULL;
+
+    ExpectNotNull(ext = wolfSSL_X509_EXTENSION_new());
+    ExpectNotNull(obj = wolfSSL_ASN1_OBJECT_new());
+    if (obj != NULL) {
+        obj->type = nid;
+        obj->nid = nid;
+    }
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_object(ext, obj), WOLFSSL_SUCCESS);
+    ExpectNotNull(val = wolfSSL_ASN1_STRING_new());
+    ExpectIntEQ(wolfSSL_ASN1_STRING_set(val, der, derSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_X509_EXTENSION_set_data(ext, val), WOLFSSL_SUCCESS);
+
+    ExpectNotNull(d2i = wolfSSL_X509V3_EXT_d2i(ext));
+    if (nid == NID_authority_key_identifier) {
+        akey = (WOLFSSL_AUTHORITY_KEYID*)d2i;
+        str = (akey != NULL) ? akey->keyid : NULL;
+    }
+    else {
+        str = (WOLFSSL_ASN1_STRING*)d2i;
+    }
+    ExpectNotNull(str);
+    ExpectIntEQ(wolfSSL_ASN1_STRING_length(str), keyIdSz);
+    ExpectBufEQ(wolfSSL_ASN1_STRING_data(str), keyId, keyIdSz);
+
+    if (akey != NULL)
+        wolfSSL_AUTHORITY_KEYID_free(akey);
+    else
+        wolfSSL_ASN1_STRING_free((WOLFSSL_ASN1_STRING*)d2i);
+    wolfSSL_ASN1_STRING_free(val);
+    wolfSSL_ASN1_OBJECT_free(obj);
+    wolfSSL_X509_EXTENSION_free(ext);
+    return EXPECT_RESULT();
+}
+#endif
+
+int test_wolfSSL_X509V3_EXT_d2i_keyid(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    !defined(WOLFSSL_X509_TINY)
+    static const byte id8[8] = {
+        0x41, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+    };
+    static const byte id33[33] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+        0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+        0x21
+    };
+    byte der[2 + 2 + sizeof(id33)];
+    word32 i;
+    const byte* ids[2];
+    word32 idSzs[2];
+
+    ids[0] = id8;  idSzs[0] = (word32)sizeof(id8);
+    ids[1] = id33; idSzs[1] = (word32)sizeof(id33);
+
+    for (i = 0; i < 2; i++) {
+        der[0] = ASN_OCTET_STRING;
+        der[1] = (byte)idSzs[i];
+        XMEMCPY(der + 2, ids[i], idSzs[i]);
+        ExpectIntEQ(test_X509V3_EXT_d2i_keyid(NID_subject_key_identifier,
+            der, (int)(2 + idSzs[i]), ids[i], (int)idSzs[i]), TEST_SUCCESS);
+
+        der[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+        der[1] = (byte)(2 + idSzs[i]);
+        der[2] = ASN_CONTEXT_SPECIFIC | 0;
+        der[3] = (byte)idSzs[i];
+        XMEMCPY(der + 4, ids[i], idSzs[i]);
+        ExpectIntEQ(test_X509V3_EXT_d2i_keyid(NID_authority_key_identifier,
+            der, (int)(4 + idSzs[i]), ids[i], (int)idSzs[i]), TEST_SUCCESS);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -1797,6 +2075,37 @@ int test_wolfSSL_X509V3_EXT_print(void)
         BIO_free(bio);
         X509_free(x509);
     }
+
+#ifdef WOLFSSL_FPKI
+    {
+        /* rid-cert.der SAN: otherName (UPN), registeredID, DNS, URI and a
+         * second otherName. With WOLFSSL_FPKI the otherName entries are put
+         * in the GENERAL_NAME stack and must not be read as an ASN1_STRING. */
+        const char* ridCert = "./certs/rid-cert.der";
+        X509* x509 = NULL;
+        BIO* bio = NULL;
+        X509_EXTENSION* ext = NULL;
+        char buf[256];
+        int loc = 0;
+        int len = 0;
+
+        ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(ridCert,
+            WOLFSSL_FILETYPE_ASN1));
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+
+        ExpectIntGT(loc = X509_get_ext_by_NID(x509, NID_subject_alt_name, -1),
+            -1);
+        ExpectNotNull(ext = X509_get_ext(x509, loc));
+        ExpectIntEQ(X509V3_EXT_print(bio, ext, 0, 0), 1);
+
+        XMEMSET(buf, 0, sizeof(buf));
+        ExpectIntGT(len = BIO_read(bio, buf, sizeof(buf) - 1), 0);
+        ExpectNotNull(XSTRSTR(buf, "www.example.org"));
+
+        BIO_free(bio);
+        X509_free(x509);
+    }
+#endif /* WOLFSSL_FPKI */
 
     {
         BIO* bio = NULL;
@@ -2367,6 +2676,12 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
         /* @ at end */
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
             "user@", 5), 0);
+        /* An '@' outside a quoted local-part is not permitted */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "x@evil.com@sub.wolfssl.com", 26), 0);
+        /* A quoted local-part may hold an '@' */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "\"x@y\"@sub.wolfssl.com", 21), 1);
     }
 
     NAME_CONSTRAINTS_free(nc);
@@ -2434,6 +2749,44 @@ int test_wolfSSL_NAME_CONSTRAINTS_check_name(void)
             "foo.example.com", 15), 0);
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
             "bar.example.com", 15), 1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* An empty excluded dNSName covers every DNS name (RFC 5280
+         * 4.2.1.10), as does a lone trailing dot unless OpenSSL
+         * compatible. */
+        GENERAL_SUBTREE* subtree = NULL;
+
+        ExpectNotNull(subtree =
+            wolfSSL_sk_GENERAL_SUBTREE_value(nc->excludedSubtrees, 0));
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                "", 0), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "evil.com", 8), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "*.evil.com", 10), 0);
+        if (EXPECT_SUCCESS()) {
+            ExpectIntEQ(wolfSSL_ASN1_STRING_set(subtree->base->d.ia5,
+                ".", 1), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "evil.com", 8), !NC_DNS_DOT_BASE_MATCH);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* Moved to the permitted side, an empty dNSName permits every DNS
+         * name. */
+        nc->permittedSubtrees = nc->excludedSubtrees;
+        nc->excludedSubtrees = NULL;
+        ExpectIntEQ(wolfSSL_ASN1_STRING_set(
+            wolfSSL_sk_GENERAL_SUBTREE_value(nc->permittedSubtrees, 0)->
+            base->d.ia5, "", 0), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "any.example.org", 15), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_DNS,
+            "*.example.org", 13), 1);
     }
 
     NAME_CONSTRAINTS_free(nc);
@@ -2677,6 +3030,19 @@ int test_wolfSSL_NAME_CONSTRAINTS_excluded(void)
         /* Excluded email .blocked.example.com, should be blocked */
         ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
             "user@www.blocked.example.com", 28), 0);
+
+        /* A leading '.' in the local-part does not hide the host-part */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            ".x@www.example.com", 18), 1);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            ".x@www.blocked.example.com", 26), 0);
+
+        /* A malformed mailbox is not shown to be outside the excluded
+         * subtree */
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "x@www.blocked.example.com@", 26), 0);
+        ExpectIntEQ(wolfSSL_NAME_CONSTRAINTS_check_name(nc, GEN_EMAIL,
+            "x@.www.blocked.example.com", 26), 0);
     }
 
     NAME_CONSTRAINTS_free(nc);
@@ -2730,5 +3096,377 @@ int test_wolfSSL_X509_set_ext_oid_collision(void)
     X509_free(x509);
 #endif /* OPENSSL_EXTRA && !NO_FILESYSTEM && !NO_CERTS && HAVE_ECC &&
         * !WOLFSSL_OLD_OID_SUM */
+    return EXPECT_RESULT();
+}
+
+/* An otherName UTF8String of 128 bytes or more needs a long-form length. */
+int test_wolfSSL_X509_add_ext_othername_long(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WC_NO_RNG) && !defined(NO_PWDBASED) && \
+    (!defined(WC_CTC_MAX_ALT_SIZE) || (WC_CTC_MAX_ALT_SIZE >= 1024))
+    /* UPN type-id 1.3.6.1.4.1.311.20.2.3 */
+    static const byte upnOid[] = {
+        0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x82, 0x37, 0x14, 0x02, 0x03
+    };
+    static const byte valueHdr[] = { 0xA0, 0x81, 0xCB, 0x0C, 0x81, 0xC8 };
+    char upn[201];
+    X509* x509 = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_OBJECT* oid = NULL;
+    ASN1_UTF8STRING* str = NULL;
+    ASN1_TYPE* value = NULL;
+    X509_EXTENSION* ext = NULL;
+    EVP_PKEY* priv = NULL;
+    const byte* der = NULL;
+    const unsigned char* pt;
+    byte* key = NULL;
+    size_t keySz = 0;
+    int derSz = 0;
+    char* big = NULL;
+    int i;
+    int found = 0;
+
+    XMEMSET(upn, 'u', sizeof(upn) - 1);
+    upn[sizeof(upn) - 1] = '\0';
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/server-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    ExpectNotNull(oid = OBJ_txt2obj("1.3.6.1.4.1.311.20.2.3", 1));
+    ExpectNotNull(str = ASN1_UTF8STRING_new());
+    ExpectIntEQ(ASN1_STRING_set(str, upn, -1), 1);
+    ExpectNotNull(value = ASN1_TYPE_new());
+    if (value != NULL) {
+        ASN1_TYPE_set(value, V_ASN1_UTF8STRING, str);
+        str = NULL;
+    }
+    ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+    if (EXPECT_SUCCESS()) {
+        value = NULL;
+    }
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    if (EXPECT_SUCCESS()) {
+        gn = NULL;
+    }
+    ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), 1);
+
+    ExpectIntEQ(load_file("./certs/server-key.der", &key, &keySz), 0);
+    pt = key;
+    ExpectNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &pt,
+        (long)keySz));
+    ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull(der = wolfSSL_X509_get_der(x509, &derSz));
+
+    for (i = 0; (der != NULL) && (i + (int)(sizeof(upnOid) +
+            sizeof(valueHdr) + sizeof(upn) - 1) <= derSz); i++) {
+        if (XMEMCMP(der + i, upnOid, sizeof(upnOid)) == 0) {
+            ExpectBufEQ(der + i + sizeof(upnOid), valueHdr, sizeof(valueHdr));
+            ExpectBufEQ(der + i + sizeof(upnOid) + sizeof(valueHdr), upn,
+                sizeof(upn) - 1);
+            found = 1;
+            break;
+        }
+    }
+    ExpectIntEQ(found, 1);
+
+    /* SANs that do not fit in CTC_MAX_ALT_SIZE make signing fail. */
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    gns = NULL;
+    ExpectNotNull(big = (char*)XMALLOC(CTC_MAX_ALT_SIZE + 1, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    if (big != NULL) {
+        XMEMSET(big, 'b', CTC_MAX_ALT_SIZE);
+        big[CTC_MAX_ALT_SIZE] = '\0';
+    }
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    ExpectNotNull(str = ASN1_UTF8STRING_new());
+    ExpectIntEQ(ASN1_STRING_set(str, big, -1), 1);
+    ExpectNotNull(value = ASN1_TYPE_new());
+    if (value != NULL) {
+        ASN1_TYPE_set(value, V_ASN1_UTF8STRING, str);
+        str = NULL;
+    }
+    ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+    if (EXPECT_SUCCESS()) {
+        value = NULL;
+    }
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    if (EXPECT_SUCCESS()) {
+        gn = NULL;
+    }
+    ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), 1);
+    ExpectIntLE(X509_sign(x509, priv, EVP_sha256()), 0);
+
+    XFREE(big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_EXTENSION_free(ext);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    GENERAL_NAME_free(gn);
+    ASN1_OBJECT_free(oid);
+    ASN1_TYPE_free(value);
+    ASN1_UTF8STRING_free(str);
+    EVP_PKEY_free(priv);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* otherName values other than UTF8String keep their own encoding. */
+int test_wolfSSL_X509_add_ext_othername_types(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_PEM_TO_DER) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WC_NO_RNG) && !defined(NO_PWDBASED) && \
+    (!defined(WC_CTC_MAX_ALT_SIZE) || (WC_CTC_MAX_ALT_SIZE >= 1024))
+    /* HardwareModuleName { 1.3.6.1.4.1.99999.1, "SN-0001" }, as decoded. */
+    static const byte hmn[] = {
+        0x30, 0x14, 0x06, 0x09, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x86, 0x8D,
+        0x1F, 0x01, 0x04, 0x07, 'S', 'N', '-', '0', '0', '0', '1'
+    };
+    static const byte hmnEnc[] = {
+        0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x04, 0xA0, 0x16
+    };
+    /* SRVName (RFC 4985) IA5String "_sip.example.com" */
+    static const char srv[] = "_sip.example.com";
+    static const byte srvEnc[] = {
+        0x06, 0x08, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x08, 0x07, 0xA0, 0x12,
+        0x16, 0x10
+    };
+    /* OCTET STRING value under a private type-id 1.2.3.4 */
+    static const byte oct[] = { 0x00, 0x01, 0xFE, 0xFF };
+    static const byte octEnc[] = {
+        0x06, 0x03, 0x2A, 0x03, 0x04, 0xA0, 0x06, 0x04, 0x04
+    };
+    /* [32] "A", a high tag number, under a private type-id 1.2.3.5 */
+    static const byte ctx32[] = { 0x9F, 0x20, 0x01, 'A' };
+    static const byte ctx32Enc[] = { 0x06, 0x03, 0x2A, 0x03, 0x05, 0xA0, 0x04 };
+    static const byte twoElems[] = { 0x30, 0x00, 0x05, 0x00 };
+    static const byte eoc[] = { 0x00, 0x00 };
+    static const byte highTag[] = { 0x1F, 0x81 };
+    static const byte indef[] = { 0x30, 0x80 };
+    /* SEQUENCE holding an OCTET STRING that is missing its content */
+    static const byte badInner[] = { 0x30, 0x02, 0x04, 0x01 };
+    byte deep[40];
+    const byte* badVals[6];
+    int badSzs[6];
+    const char* oids[4] = { "1.3.6.1.5.5.7.8.4", "1.3.6.1.5.5.7.8.7",
+        "1.2.3.4", "1.2.3.5" };
+    const byte* vals[4];
+    int valSzs[4];
+    int types[4] = { V_ASN1_SEQUENCE, V_ASN1_IA5STRING, V_ASN1_OCTET_STRING,
+        V_ASN1_SEQUENCE };
+    const byte* encs[4];
+    int encSzs[4];
+    X509* x509 = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAME* dns = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_STRING* dnsStr = NULL;
+    DNS_entry* entry;
+    int altCnt = 0;
+    int cnt;
+    ASN1_OBJECT* oid = NULL;
+    ASN1_STRING* str = NULL;
+    ASN1_TYPE* value = NULL;
+    X509_EXTENSION* ext = NULL;
+    EVP_PKEY* priv = NULL;
+    const byte* der = NULL;
+    const unsigned char* pt;
+    byte* key = NULL;
+    size_t keySz = 0;
+    int derSz = 0;
+    int i;
+    int k;
+    int found;
+
+    vals[0] = hmn;
+    valSzs[0] = (int)sizeof(hmn);
+    vals[1] = (const byte*)srv;
+    valSzs[1] = (int)sizeof(srv) - 1;
+    encs[0] = hmnEnc;
+    encSzs[0] = (int)sizeof(hmnEnc);
+    encs[1] = srvEnc;
+    encSzs[1] = (int)sizeof(srvEnc);
+    vals[2] = oct;
+    valSzs[2] = (int)sizeof(oct);
+    badVals[0] = twoElems;
+    badSzs[0] = (int)sizeof(twoElems);
+    badVals[1] = eoc;
+    badSzs[1] = (int)sizeof(eoc);
+    badVals[2] = highTag;
+    badSzs[2] = (int)sizeof(highTag);
+    badVals[3] = indef;
+    badSzs[3] = (int)sizeof(indef);
+    badVals[4] = badInner;
+    badSzs[4] = (int)sizeof(badInner);
+    /* 20 nested SEQUENCEs, deeper than SetOthername() walks */
+    for (i = 0; i < (int)sizeof(deep) / 2; i++) {
+        deep[2 * i] = 0x30;
+        deep[2 * i + 1] = (byte)(sizeof(deep) - 2 - 2 * i);
+    }
+    badVals[5] = deep;
+    badSzs[5] = (int)sizeof(deep);
+    encs[2] = octEnc;
+    encSzs[2] = (int)sizeof(octEnc);
+    vals[3] = ctx32;
+    valSzs[3] = (int)sizeof(ctx32);
+    encs[3] = ctx32Enc;
+    encSzs[3] = (int)sizeof(ctx32Enc);
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(
+        "./certs/server-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    for (k = 0; k < 4; k++) {
+        ExpectNotNull(gn = GENERAL_NAME_new());
+        ExpectNotNull(oid = OBJ_txt2obj(oids[k], 1));
+        ExpectNotNull(str = ASN1_STRING_type_new(types[k]));
+        ExpectIntEQ(ASN1_STRING_set(str, vals[k], valSzs[k]), 1);
+        ExpectNotNull(value = ASN1_TYPE_new());
+        if (value != NULL) {
+            ASN1_TYPE_set(value, types[k], str);
+            str = NULL;
+        }
+        ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+        if (EXPECT_SUCCESS()) {
+            value = NULL;
+        }
+        ASN1_OBJECT_free(oid);
+        oid = NULL;
+        ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), k + 1);
+        if (EXPECT_SUCCESS()) {
+            gn = NULL;
+        }
+        ASN1_STRING_free(str);
+        str = NULL;
+        ASN1_TYPE_free(value);
+        value = NULL;
+    }
+    ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    ExpectIntEQ(X509_add_ext(x509, ext, -1), 1);
+
+    ExpectIntEQ(load_file("./certs/server-key.der", &key, &keySz), 0);
+    pt = key;
+    ExpectNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &pt,
+        (long)keySz));
+    ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+    ExpectNotNull(der = wolfSSL_X509_get_der(x509, &derSz));
+
+    for (k = 0; k < 4; k++) {
+        found = 0;
+        for (i = 0; (der != NULL) && (i + encSzs[k] + valSzs[k] <= derSz);
+                i++) {
+            if (XMEMCMP(der + i, encs[k], (size_t)encSzs[k]) == 0) {
+                ExpectBufEQ(der + i + encSzs[k], vals[k], valSzs[k]);
+                found = 1;
+                break;
+            }
+        }
+        ExpectIntEQ(found, 1);
+    }
+
+    /* A SEQUENCE value must hold exactly one definite-length element, and a
+     * DNS name before the bad entry is not added either. */
+    for (entry = (x509 != NULL) ? x509->altNames : NULL; entry != NULL;
+            entry = entry->next) {
+        altCnt++;
+    }
+    ExpectNotNull(oid = OBJ_txt2obj(oids[0], 1));
+    for (k = 0; k < 6; k++) {
+        X509_EXTENSION_free(ext);
+        ext = NULL;
+        sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+        gns = NULL;
+        ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+        ExpectNotNull(dns = GENERAL_NAME_new());
+        ExpectNotNull(dnsStr = ASN1_STRING_type_new(V_ASN1_IA5STRING));
+        ExpectIntEQ(ASN1_STRING_set(dnsStr, "dropped.example.com", -1), 1);
+        if ((dns != NULL) && (dnsStr != NULL)) {
+            GENERAL_NAME_set0_value(dns, GEN_DNS, dnsStr);
+            dnsStr = NULL;
+        }
+        ExpectIntEQ(sk_GENERAL_NAME_push(gns, dns), 1);
+        if (EXPECT_SUCCESS()) {
+            dns = NULL;
+        }
+        ExpectNotNull(gn = GENERAL_NAME_new());
+        ExpectNotNull(str = ASN1_STRING_type_new(V_ASN1_SEQUENCE));
+        ExpectIntEQ(ASN1_STRING_set(str, badVals[k], badSzs[k]), 1);
+        ExpectNotNull(value = ASN1_TYPE_new());
+        if (value != NULL) {
+            ASN1_TYPE_set(value, V_ASN1_SEQUENCE, str);
+            str = NULL;
+        }
+        ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+        if (EXPECT_SUCCESS()) {
+            value = NULL;
+        }
+        ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 2);
+        if (EXPECT_SUCCESS()) {
+            gn = NULL;
+        }
+        ExpectNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+        ExpectIntEQ(X509_add_ext(x509, ext, -1), 0);
+        cnt = 0;
+        for (entry = (x509 != NULL) ? x509->altNames : NULL; entry != NULL;
+                entry = entry->next) {
+            cnt++;
+        }
+        ExpectIntEQ(cnt, altCnt);
+        ASN1_STRING_free(str);
+        str = NULL;
+        ASN1_TYPE_free(value);
+        value = NULL;
+    }
+
+    /* A NULL value is not a supported otherName type. */
+    X509_EXTENSION_free(ext);
+    ext = NULL;
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    gns = NULL;
+    ExpectNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    ExpectNotNull(gn = GENERAL_NAME_new());
+    ExpectNotNull(value = ASN1_TYPE_new());
+    if (value != NULL) {
+        ASN1_TYPE_set(value, V_ASN1_NULL, NULL);
+    }
+    ExpectIntEQ(GENERAL_NAME_set0_othername(gn, oid, value), 1);
+    if (EXPECT_SUCCESS()) {
+        value = NULL;
+    }
+    ExpectIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    if (EXPECT_SUCCESS()) {
+        gn = NULL;
+    }
+    ExpectNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+
+    X509_EXTENSION_free(ext);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    GENERAL_NAME_free(gn);
+    GENERAL_NAME_free(dns);
+    ASN1_STRING_free(dnsStr);
+    ASN1_OBJECT_free(oid);
+    ASN1_TYPE_free(value);
+    ASN1_STRING_free(str);
+    EVP_PKEY_free(priv);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    X509_free(x509);
+#endif
     return EXPECT_RESULT();
 }

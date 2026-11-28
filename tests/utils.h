@@ -69,6 +69,15 @@ extern const char* currentTestName;
         } while (0)
 #endif
 
+/* What wolfSSL_get_error() returns when a TLS record failed authentication or
+ * decryption with err. The OpenSSL compatibility layer reports SSL_ERROR_SSL;
+ * ssl->error keeps err. */
+#ifdef OPENSSL_EXTRA
+    #define TEST_RECORD_ERR(err) WOLFSSL_ERROR_SSL
+#else
+    #define TEST_RECORD_ERR(err) (err)
+#endif
+
 #ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 #define TEST_MEMIO_MAX_MSGS 32
@@ -84,6 +93,10 @@ struct test_memio_ctx
 
     int c_force_want_write;
     int s_force_want_write;
+
+    /* Transport keeps a byte stream rather than datagrams (DTLS over SCTP),
+     * so a partial read must not drop the rest of the message. */
+    byte sctp;
 
     int c_msg_sizes[TEST_MEMIO_MAX_MSGS];
     int c_msg_count;
@@ -119,6 +132,9 @@ int test_memio_move_message(struct test_memio_ctx *ctx, int client,
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos);
 int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int msg_pos, int new_len);
 int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz);
+#ifdef WOLFSSL_SESSION_EXPORT
+void test_export_options_v6(unsigned char* session, unsigned int* sessionSz);
+#endif
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD */
 
 /* Shared TLS server/client thread bodies, defined in tests/api.c. The
@@ -129,6 +145,17 @@ int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int of
  * prototypes are harmless and any caller would get a link error. */
 THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args);
 void run_wolfssl_client(void* args);
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+int test_bio_mem_to_str(WOLFSSL_BIO* bio, char* buf, int bufSz);
+#endif
+
+/* Under 80 bytes as is, over 80 once control characters are escaped. */
+#define TEST_CTRL_LONG_RAW "0123456789\r\n0123456789\r\n0123456789\r\n" \
+                           "0123456789\r\n0123456789\r\n0123456789"
+#define TEST_CTRL_LONG_ESC "0123456789\\0D\\0A0123456789\\0D\\0A" \
+                           "0123456789\\0D\\0A0123456789\\0D\\0A" \
+                           "0123456789\\0D\\0A0123456789"
 
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)

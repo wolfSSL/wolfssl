@@ -158,7 +158,13 @@ static const char* WB_M1024_EVEN =
 #endif
 
 /* Number of distinct operations swept. */
-#define WB_OP_COUNT   34
+#if defined(WB_HAVE_EXPTMOD_BASE_2) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
+    #define WB_SWEEP_BASE_2_SINGLE_DIGIT
+    #define WB_OP_COUNT 35
+#else
+    #define WB_OP_COUNT 34
+#endif
 
 #ifndef WC_NO_RNG
 static WC_RNG wb_rng;
@@ -232,6 +238,16 @@ static void wb_op(int op, int n)
             goto done;
         }
         break;
+#ifdef WB_SWEEP_BASE_2_SINGLE_DIGIT
+    case 34:
+        /* Pair the single-digit modulus with case 10's multi-digit one
+         * in the same binary for the generic engine's useMont decisions. */
+        if (mp_set(&m, 17) != MP_OKAY || mp_set(&b, 2) != MP_OKAY) {
+            wb_fail = 1;
+            goto done;
+        }
+        break;
+#endif
     default:
         if (mp_read_radix(&m, WB_M_ODD, MP_RADIX_HEX) != MP_OKAY) {
             goto done;
@@ -398,6 +414,11 @@ static void wb_op(int op, int n)
         (void)_sp_div(&a, &m, &q, &r, (unsigned int)(a.used + 1U));
 #endif
         break;
+#ifdef WB_SWEEP_BASE_2_SINGLE_DIGIT
+    case 34:
+        (void)mp_exptmod(&b, &e, &m, &r);
+        break;
+#endif
     default:
         break;
     }

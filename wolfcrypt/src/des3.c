@@ -43,7 +43,7 @@
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$d")
         #pragma const_seg(".fipsB$d")
     #endif
@@ -147,22 +147,32 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         return wc_Des3_SetIV(des, iv);
     }
 
-    static void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
+    static int DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
                   int dir, int mode)
     {
         int ret;
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
     #else
-        word32 *dkey, *iv;
+        word32 *dkey;
         CRYP_InitTypeDef DES_CRYP_InitStructure;
         CRYP_KeyInitTypeDef DES_CRYP_KeyInitStructure;
         CRYP_IVInitTypeDef DES_CRYP_IVInitStructure;
     #endif
 
+        if (des == NULL || out == NULL || in == NULL)
+            return BAD_FUNC_ARG;
+        /* CRYP only processes whole blocks. A partial final block would read
+         * and write past in/out, and wrap sz in the per-block loops. */
+        if (sz % DES_BLOCK_SIZE != 0)
+            return BAD_LENGTH_E;
+        /* nothing to do, and the IV handling below needs a block */
+        if (sz == 0)
+            return 0;
+
         ret = wolfSSL_CryptHwMutexLock();
         if (ret != 0) {
-            return;
+            return ret;
         }
 
     #ifdef WOLFSSL_STM32_CUBEMX
@@ -191,7 +201,9 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
                 STM32_HAL_TIMEOUT);
         }
-        /* save off IV */
+        /* save off the CBC IV (the IV registers are not used by ECB, so
+         * reading them back would replace des->reg with stale contents) */
+        if (mode == DES_CBC) {
         #ifdef WOLFSSL_STM32MP13
             des->reg[0] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0LR;
             des->reg[1] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0RR;
@@ -199,11 +211,16 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             des->reg[0] = hcryp.Instance->IV0LR;
             des->reg[1] = hcryp.Instance->IV0RR;
         #endif
+        }
     #else
-        while (sz > 0) {
-            /* if input and output same will overwrite input iv */
+        /* CRYP chains the blocks of this call itself, so des->reg only has to
+         * carry the CBC IV into the next call: the last ciphertext block.
+         * When decrypting that is the last input block, saved here before an
+         * in-place operation overwrites it. ECB has no IV to carry. */
+        if (mode == DES_CBC && dir == DES_DECRYPTION)
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
+        while (sz > 0) {
             if (mode == DES_CBC) {
                 if (dir == DES_ENCRYPTION) {
                     HAL_CRYP_DESCBC_Encrypt(&hcryp, (uint8_t*)in,
@@ -225,19 +242,22 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
                 }
             }
 
-            /* store iv for next call */
-            XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
-
             sz  -= DES_BLOCK_SIZE;
             in  += DES_BLOCK_SIZE;
             out += DES_BLOCK_SIZE;
+        }
+
+        if (mode == DES_CBC) {
+            if (dir == DES_ENCRYPTION)
+                XMEMCPY(des->reg, out - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+            else
+                XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
         }
     #endif /* STM32_HAL_V2 */
 
         HAL_CRYP_DeInit(&hcryp);
     #else
         dkey = des->key;
-        iv = des->reg;
 
         /* crypto structure initialization */
         CRYP_KeyStructInit(&DES_CRYP_KeyInitStructure);
@@ -268,61 +288,89 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         DES_CRYP_KeyInitStructure.CRYP_Key1Right = dkey[1];
         CRYP_KeyInit(&DES_CRYP_KeyInitStructure);
 
-        /* set iv */
-        ByteReverseWords(iv, iv, DES_BLOCK_SIZE);
-        DES_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
-        DES_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+        /* set iv, leaving des->reg untouched so ECB keeps the CBC IV */
+        DES_CRYP_IVInitStructure.CRYP_IV0Left  = ByteReverseWord32(des->reg[0]);
+        DES_CRYP_IVInitStructure.CRYP_IV0Right = ByteReverseWord32(des->reg[1]);
         CRYP_IVInit(&DES_CRYP_IVInitStructure);
 
         /* enable crypto processor */
         CRYP_Cmd(ENABLE);
 
+        /* CRYP chains the blocks of this call itself, so des->reg only has to
+         * carry the CBC IV into the next call: the last ciphertext block.
+         * When decrypting that is the last input block, saved here before an
+         * in-place operation overwrites it. ECB has no IV to carry. */
+        if (mode == DES_CBC && dir == DES_DECRYPTION)
+            XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+
         while (sz > 0) {
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
-            /* if input and output same will overwrite input iv */
-            XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-
             wc_Stm32_CrypDesBlock(in, out);
-
-            /* store iv for next call */
-            XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
 
             sz  -= DES_BLOCK_SIZE;
             in  += DES_BLOCK_SIZE;
             out += DES_BLOCK_SIZE;
         }
 
+        if (mode == DES_CBC) {
+            if (dir == DES_ENCRYPTION)
+                XMEMCPY(des->reg, out - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+            else
+                XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
+        }
+
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
     #endif /* WOLFSSL_STM32_CUBEMX */
         wolfSSL_CryptHwMutexUnLock();
+
+        return 0;
     }
 
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_CBC);
-        return 0;
+        return DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_CBC);
     }
 
     int wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        DesCrypt(des, out, in, sz, DES_DECRYPTION, DES_CBC);
-        return 0;
+        return DesCrypt(des, out, in, sz, DES_DECRYPTION, DES_CBC);
     }
 
+    /* The CRYP takes the same key in both directions, so ECB decryption
+     * cannot come from a reversed key schedule as it does in software:
+     * des3.h maps wc_Des_EcbDecrypt / wc_Des3_EcbDecrypt to these. */
     int wc_Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_ECB);
-        return 0;
+        return DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_ECB);
+    }
+
+    int wc_Des_EcbDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        return DesCrypt(des, out, in, sz, DES_DECRYPTION, DES_ECB);
     }
 
     static int Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
-                   int dir)
+                   int dir, int mode)
     {
+        int ret;
+
         if (des == NULL || out == NULL || in == NULL)
             return BAD_FUNC_ARG;
+        /* CRYP only processes whole blocks. A partial final block would read
+         * and write past in/out, and wrap sz in the per-block loops. */
+        if (sz % DES_BLOCK_SIZE != 0)
+            return BAD_LENGTH_E;
+        /* nothing to do, and the IV handling below needs a block */
+        if (sz == 0)
+            return 0;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
     #ifdef WOLFSSL_STM32_CUBEMX
         {
@@ -336,7 +384,10 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)des->reg;
         #ifdef STM32_HAL_V2
             hcryp.Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-            hcryp.Init.Algorithm = CRYP_TDES_CBC;
+            if (mode == DES_CBC)
+                hcryp.Init.Algorithm = CRYP_TDES_CBC;
+            else
+                hcryp.Init.Algorithm = CRYP_TDES_ECB;
         #endif
 
             HAL_CRYP_Init(&hcryp);
@@ -350,7 +401,8 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
                 HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
                     STM32_HAL_TIMEOUT);
             }
-            /* save off IV */
+            /* save off the CBC IV (not used by ECB, see DesCrypt) */
+            if (mode == DES_CBC) {
             #ifdef WOLFSSL_STM32MP13
                 des->reg[0] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0LR;
                 des->reg[1] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0RR;
@@ -358,23 +410,48 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
                 des->reg[0] = hcryp.Instance->IV0LR;
                 des->reg[1] = hcryp.Instance->IV0RR;
             #endif
+            }
         #else
+            /* CRYP chains the blocks of this call itself, so des->reg only
+             * has to carry the CBC IV into the next call: the last ciphertext
+             * block. When decrypting that is the last input block, saved here
+             * before an in-place operation overwrites it. ECB has no IV to
+             * carry. */
+            if (mode == DES_CBC && dir == DES_DECRYPTION)
+                XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+
             while (sz > 0) {
-                if (dir == DES_ENCRYPTION) {
-                    HAL_CRYP_TDESCBC_Encrypt(&hcryp, (byte*)in,
+                if (mode == DES_CBC) {
+                    if (dir == DES_ENCRYPTION) {
+                        HAL_CRYP_TDESCBC_Encrypt(&hcryp, (byte*)in,
                                        DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
+                    }
+                    else {
+                        HAL_CRYP_TDESCBC_Decrypt(&hcryp, (byte*)in,
+                                       DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
+                    }
                 }
                 else {
-                    HAL_CRYP_TDESCBC_Decrypt(&hcryp, (byte*)in,
+                    if (dir == DES_ENCRYPTION) {
+                        HAL_CRYP_TDESECB_Encrypt(&hcryp, (byte*)in,
                                        DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
+                    }
+                    else {
+                        HAL_CRYP_TDESECB_Decrypt(&hcryp, (byte*)in,
+                                       DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
+                    }
                 }
-
-                /* store iv for next call */
-                XMEMCPY(des->reg, out + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
                 sz  -= DES_BLOCK_SIZE;
                 in  += DES_BLOCK_SIZE;
                 out += DES_BLOCK_SIZE;
+            }
+
+            if (mode == DES_CBC) {
+                if (dir == DES_ENCRYPTION)
+                    XMEMCPY(des->reg, out - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+                else
+                    XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
             }
         #endif /* STM32_HAL_V2 */
 
@@ -382,7 +459,7 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         }
     #else
         {
-            word32 *dkey1, *dkey2, *dkey3, *iv;
+            word32 *dkey1, *dkey2, *dkey3;
             CRYP_InitTypeDef DES3_CRYP_InitStructure;
             CRYP_KeyInitTypeDef DES3_CRYP_KeyInitStructure;
             CRYP_IVInitTypeDef DES3_CRYP_IVInitStructure;
@@ -390,7 +467,6 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             dkey1 = des->key[0];
             dkey2 = des->key[1];
             dkey3 = des->key[2];
-            iv = des->reg;
 
             /* crypto structure initialization */
             CRYP_KeyStructInit(&DES3_CRYP_KeyInitStructure);
@@ -407,7 +483,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
                 DES3_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Decrypt;
             }
 
-            DES3_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_TDES_CBC;
+            if (mode == DES_CBC) {
+                DES3_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_TDES_CBC;
+            } else { /* DES_ECB */
+                DES3_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_TDES_ECB;
+            }
             DES3_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
             CRYP_Init(&DES3_CRYP_InitStructure);
 
@@ -420,14 +500,23 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             DES3_CRYP_KeyInitStructure.CRYP_Key3Right = dkey3[1];
             CRYP_KeyInit(&DES3_CRYP_KeyInitStructure);
 
-            /* set iv */
-            ByteReverseWords(iv, iv, DES_BLOCK_SIZE);
-            DES3_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
-            DES3_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+            /* set iv, without modifying des->reg */
+            DES3_CRYP_IVInitStructure.CRYP_IV0Left  =
+                ByteReverseWord32(des->reg[0]);
+            DES3_CRYP_IVInitStructure.CRYP_IV0Right =
+                ByteReverseWord32(des->reg[1]);
             CRYP_IVInit(&DES3_CRYP_IVInitStructure);
 
             /* enable crypto processor */
             CRYP_Cmd(ENABLE);
+
+            /* CRYP chains the blocks of this call itself, so des->reg only
+             * has to carry the CBC IV into the next call: the last ciphertext
+             * block. When decrypting that is the last input block, saved here
+             * before an in-place operation overwrites it. ECB has no IV to
+             * carry. */
+            if (mode == DES_CBC && dir == DES_DECRYPTION)
+                XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
             while (sz > 0)
             {
@@ -436,29 +525,45 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
 
                 wc_Stm32_CrypDesBlock(in, out);
 
-                /* store iv for next call */
-                XMEMCPY(des->reg, out + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-
                 sz  -= DES_BLOCK_SIZE;
                 in  += DES_BLOCK_SIZE;
                 out += DES_BLOCK_SIZE;
+            }
+
+            if (mode == DES_CBC) {
+                if (dir == DES_ENCRYPTION)
+                    XMEMCPY(des->reg, out - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+                else
+                    XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
             }
 
             /* disable crypto processor */
             CRYP_Cmd(DISABLE);
         }
     #endif /* WOLFSSL_STM32_CUBEMX */
+        wolfSSL_CryptHwMutexUnLock();
+
         return 0;
     }
 
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        return Des3Crypt(des, out, in, sz, DES_ENCRYPTION);
+        return Des3Crypt(des, out, in, sz, DES_ENCRYPTION, DES_CBC);
     }
 
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        return Des3Crypt(des, out, in, sz, DES_DECRYPTION);
+        return Des3Crypt(des, out, in, sz, DES_DECRYPTION, DES_CBC);
+    }
+
+    int wc_Des3_EcbEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        return Des3Crypt(des, out, in, sz, DES_ENCRYPTION, DES_ECB);
+    }
+
+    int wc_Des3_EcbDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        return Des3Crypt(des, out, in, sz, DES_DECRYPTION, DES_ECB);
     }
 
 #elif defined(HAVE_COLDFIRE_SEC)
@@ -563,13 +668,15 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             if ((desc==SEC_DESC_DES3_CBC_ENCRYPT)||(desc==SEC_DESC_DES_CBC_ENCRYPT)) {
                 XMEMCPY((void*)iv, (void*)&(out[size-secDesc->length2]), secDesc->length2);
             } else {
-                XMEMCPY((void*)iv, (void*)&(in[size-secDesc->length2]), secDesc->length2);
+                /* read from the input copy; in may alias out */
+                XMEMCPY((void*)iv, (void*)&(desBuffIn[size-secDesc->length2]), secDesc->length2);
             }
 
             in  += size;
             out += size;
 
         }
+        ForceZero(secKey, secDesc->length3);
         wc_UnLockMutex(&Mutex_DesSEC) ;
 
     }
@@ -881,6 +988,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         }
     #endif
 
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -925,6 +1037,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             return BAD_ALIGN_E;
         }
     #endif
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
 
         while (len > 0)
         {
@@ -972,6 +1089,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             return BAD_ALIGN_E;
         }
     #endif
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
 
         while (len > 0)
         {
@@ -1023,6 +1145,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         }
     #endif
 
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -1073,6 +1200,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
         }
     #endif
 
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -1109,6 +1241,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
             return BAD_ALIGN_E;
         }
     #endif
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
+        }
 
         while (len > 0)
         {
@@ -1147,6 +1284,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
 
         if (!des->keySet) {
             return MISSING_KEY;
+        }
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
         }
 
     #ifdef FREESCALE_MMCAU_CLASSIC
@@ -1197,6 +1339,11 @@ static WC_INLINE void wc_Stm32_CrypDesBlock(const byte* in, byte* out)
 
         if (!des->keySet) {
             return MISSING_KEY;
+        }
+
+        if (sz & (DES_BLOCK_SIZE - 1)) {
+            WOLFSSL_MSG("Buffer length was not a multiple of DES block size");
+            return BAD_LENGTH_E;
         }
 
     #ifdef FREESCALE_MMCAU_CLASSIC

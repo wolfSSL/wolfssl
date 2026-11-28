@@ -19,3 +19,182 @@ tests:
     extra_args: CONF_FILE="prj-no-malloc.conf"
     integration_platforms:
       - qemu_x86
+  sample.crypto.wolfssl_test_ecc_nist:
+    timeout: 400
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-nist.conf"
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_ecc_custom:
+    # Brainpool forces the generic SP backend, which is slower than the
+    # per-curve one, and this runs the whole suite over every curve under QEMU.
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_2048:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_2048=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_2048_ecc_custom:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_2048=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_3072:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_3072=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_rsa_3072_ecc_custom:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ecc-custom.conf"
+    extra_configs:
+      - CONFIG_WOLFSSL_RSA_MAX_BITS_3072=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_sp_stack:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFCRYPT_SP_SMALL_STACK=n
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_ghash_table_4bit:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_GHASH_TABLE_4BIT=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_ghash_table_8bit:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_GHASH_TABLE_8BIT=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_aes_constant_time:
+    timeout: 120
+    platform_allow: qemu_x86
+    extra_configs:
+      - CONFIG_WOLFSSL_AES_CONSTANT_TIME=y
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_cert:
+    timeout: 600
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-cert.conf"
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_x25519_ed448:
+    timeout: 200
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-x25519-ed448.conf"
+    integration_platforms:
+      - qemu_x86
+  sample.crypto.wolfssl_test_ed25519_x448:
+    timeout: 200
+    platform_allow: qemu_x86
+    extra_args: CONF_FILE="prj.conf;prj-ed25519-x448.conf"
+    integration_platforms:
+      - qemu_x86
+  # One scenario per assembly port CONFIG_WOLFCRYPT_ASM can select, so a
+  # regression in the generated sources or in the arch dispatch fails here
+  # rather than on hardware.
+  sample.crypto.wolfssl_test_asm_x86_64:
+    # qemu_x86_64 advertises no AVX, so this also exercises the CPUID fallback
+    # that keeps the Intel sources off a CPU whose OS never enabled the vector
+    # state.
+    timeout: 400
+    platform_allow: qemu_x86_64
+    extra_configs:
+      - CONFIG_WOLFCRYPT_ASM=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - qemu_x86_64
+  sample.crypto.wolfssl_test_asm_aarch64:
+    # The ARMv8 symmetric port plus the ARM64 math one, at the board's own
+    # -mcpu. Plain ARMv8-A has no crypto extension, so user_settings.h opts out
+    # of the hardware paths and this covers the software ones.
+    timeout: 900
+    platform_allow: qemu_cortex_a53
+    extra_configs:
+      - CONFIG_WOLFCRYPT_ASM=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - qemu_cortex_a53
+  sample.crypto.wolfssl_test_asm_aarch64_crypto:
+    # The same port with the crypto extension named, which is what turns the
+    # hardware paths on. Covers the .arch_extension directives the generated
+    # files carry, which a plain ARMv8-A -mcpu rejects without them.
+    timeout: 900
+    platform_allow: qemu_cortex_a53
+    extra_configs:
+      - CONFIG_WOLFCRYPT_ASM=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+      - CONFIG_COMPILER_OPT="-mcpu=cortex-a53+crypto"
+    integration_platforms:
+      - qemu_cortex_a53
+  sample.crypto.wolfssl_test_asm_thumb2:
+    # AN521 is a Cortex-M33, so this is the Thumb2 symmetric port plus the
+    # Cortex-M math one - the pair every ARMv8-M mainline target takes.
+    timeout: 1800
+    platform_allow: mps2/an521/cpu0
+    extra_configs:
+      - CONFIG_WOLFCRYPT_ASM=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - mps2/an521/cpu0
+  sample.crypto.wolfssl_test_asm_thumb2_ghash_table_8bit:
+    timeout: 1800
+    platform_allow: mps2/an521/cpu0
+    extra_configs:
+      - CONFIG_WOLFCRYPT_ASM=y
+      - CONFIG_WOLFSSL_GHASH_TABLE_8BIT=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - mps2/an521/cpu0
+  sample.crypto.wolfssl_test_asm_aarch64_ghash_table_8bit:
+    timeout: 900
+    platform_allow: qemu_cortex_a53
+    extra_configs:
+      - CONFIG_WOLFCRYPT_ASM=y
+      - CONFIG_WOLFSSL_GHASH_TABLE_8BIT=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - qemu_cortex_a53
+  sample.crypto.wolfssl_test_els_pkc:
+    # Not in boards/frdm_rw612.conf, which every build for the board would
+    # merge.
+    timeout: 600
+    platform_allow: frdm_rw612
+    extra_configs:
+      - CONFIG_WOLFSSL_ELS_PKC=y
+      # wc_port.c calls clock_gettime(). POSIX_TIMERS is gated behind
+      # POSIX_SYSTEM_INTERFACES and silently does nothing without it.
+      - CONFIG_POSIX_SYSTEM_INTERFACES=y
+      - CONFIG_POSIX_TIMERS=y
+      # The board has a real entropy source, so drop prj.conf's placeholder.
+      - CONFIG_TEST_RANDOM_GENERATOR=n
+      - CONFIG_ENTROPY_GENERATOR=y
+      - CONFIG_MAIN_STACK_SIZE=65536
+      - CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE=65536
+    integration_platforms:
+      - frdm_rw612

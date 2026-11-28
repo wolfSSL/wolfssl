@@ -68,6 +68,11 @@ pub const SRTCP_INDEX_LEN: usize = sys::WC_SRTCP_INDEX_LEN as usize;
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_pbkdf2))]
 /// {
 /// use wolfssl_wolfcrypt::kdf::pbkdf2;
@@ -112,6 +117,11 @@ pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_pbkdf2))]
 /// {
 /// use wolfssl_wolfcrypt::kdf::pbkdf2_ex;
@@ -396,6 +406,11 @@ pub fn scrypt_ex(password: &[u8], salt: &[u8], iterations: u32,
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -432,6 +447,11 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -489,8 +509,8 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// * `protocol`: Buffer containing TLS protocol.
 /// * `label`: Buffer containing label.
 /// * `info`: Buffer containing additional info.
-/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer size
+///   must not exceed 255 times the digest size of the hash type `typ`.
 ///
 /// # Returns
 ///
@@ -500,6 +520,11 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -544,8 +569,8 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// * `protocol`: Buffer containing TLS protocol.
 /// * `label`: Buffer containing label.
 /// * `info`: Buffer containing additional info.
-/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer can be
-///   any size.
+/// * `out`: Output buffer to store TLS1.3 HKDF-Expand result. The buffer size
+///   must not exceed 255 times the digest size of the hash type `typ`.
 /// * `heap`: Optional heap hint.
 /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
 ///
@@ -557,6 +582,11 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(all(hmac, kdf_tls13))]
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
@@ -634,6 +664,11 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
 /// {
 /// use wolfssl_wolfcrypt::hmac::HMAC;
 /// use wolfssl_wolfcrypt::kdf::*;
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1);
+/// }
 /// let k = [0x42u8; 256];
 /// let h = [0x43u8; 32];
 /// let sid = [0x44u8; 32];
@@ -643,12 +678,17 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
 /// ```
 #[cfg(kdf_ssh)]
 pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key: &mut [u8]) -> Result<(), i32> {
+    /* wc_SSH_KDF() takes the hash type as a byte.  Reject anything that does
+     * not fit rather than truncating it, which would silently turn an invalid
+     * hash type into a different, valid-looking one. */
+    let typ = u8::try_from(typ)
+        .map_err(|_| sys::wolfCrypt_ErrorCodes_BAD_FUNC_ARG)?;
     let key_size = crate::buffer_len_to_u32(key.len())?;
     let k_size = crate::buffer_len_to_u32(k.len())?;
     let h_size = crate::buffer_len_to_u32(h.len())?;
     let session_size = crate::buffer_len_to_u32(session_id.len())?;
     let rc = unsafe {
-        sys::wc_SSH_KDF(typ as u8, key_id,
+        sys::wc_SSH_KDF(typ, key_id,
             key.as_mut_ptr(), key_size,
             k.as_ptr(), k_size, h.as_ptr(), h_size,
             session_id.as_ptr(), session_size)
@@ -679,6 +719,11 @@ pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key:
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;
@@ -731,6 +776,11 @@ pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_INDEX_L
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;
@@ -767,9 +817,9 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_I
 /// * `salt`: Random non-secret value.
 /// * `kdr_index`: Key derivation rate: -1 for 0, otherwise KDR = 2^kdr_index.
 /// * `idx`: Index value to XOR in.
-/// * `key1`: Output buffer for first key (label of 0x00).
-/// * `key2`: Output buffer for second key (label of 0x01).
-/// * `key3`: Output buffer for third key (label of 0x02).
+/// * `key1`: Output buffer for first key (label of 0x03, `SRTCP_LABEL_ENCRYPTION`).
+/// * `key2`: Output buffer for second key (label of 0x04, `SRTCP_LABEL_MSG_AUTH`).
+/// * `key3`: Output buffer for third key (label of 0x05, `SRTCP_LABEL_SALT`).
 ///
 /// # Returns
 ///
@@ -779,6 +829,11 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTP_I
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;
@@ -831,6 +886,11 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8; SRTCP_INDEX
 /// # Example
 ///
 /// ```rust
+/// #[cfg(fips)]
+/// {
+/// use wolfssl_wolfcrypt::fips;
+/// fips::set_private_key_read_enable(1).expect("Error with set_private_key_read_enable()");
+/// }
 /// #[cfg(kdf_srtp)]
 /// {
 /// use wolfssl_wolfcrypt::kdf::*;

@@ -179,12 +179,35 @@
     static int pkcs1_sha3_512_loaded = 0;
 #endif /* WOLFSSL_SHA3 */
 
+/* The kernel crypto API permits concurrent operations on a single tfm,
+ * with no serialization by the core, so the tfm context must be
+ * effectively read-only after setkey (cf. the ML-DSA glue, the model
+ * for this pattern).  The former tfm-resident RsaKey and
+ * lazily-initialized WC_RNG were each a race under that contract: the
+ * ctx now holds only the DER-encoded key, verbatim as setkey received
+ * it, and each operation deserializes it into a heap-transient RsaKey
+ * wired to its own transient WC_RNG (struct km_rsa_op_state below).
+ * The DER is a heap copy rather than a fixed in-ctx array because its
+ * size spans ~100 bytes to several KB across supported modulus sizes
+ * and seventeen registrations share this ctx. */
 struct km_rsa_ctx {
-    WC_RNG       rng;            /* needed for pkcs1 padding, and blinding */
-    RsaKey *     key;
+    byte *       der;            /* DER-encoded key, immutable after
+                                  * setkey; holds the private key
+                                  * whenever one is set. */
+    word32       der_len;
+    byte         priv;           /* nonzero: der decodes as a private
+                                  * key. */
     int          hash_oid;       /* hash_oid for wc_EncodeSignature */
     unsigned int digest_len;
     word32       key_len;
+};
+
+/* Per-operation state: a transient RsaKey deserialized from the ctx's
+ * stored DER, plus its own WC_RNG where the operation needs one. */
+struct km_rsa_op_state {
+    RsaKey  key;
+    WC_RNG  rng;
+    byte    rng_inited;
 };
 
 /* shared rsa callbacks */
@@ -247,6 +270,7 @@ static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm);
                                          const void *key,
                                          unsigned int keylen);
     static unsigned int km_pkcs1_key_size(struct crypto_sig *tfm);
+    static unsigned int km_pkcs1_digest_size(struct crypto_sig *tfm);
     static int          km_pkcs1_sign(struct crypto_sig *tfm,
                                       const void *src, unsigned int slen,
                                       void *dst, unsigned int dlen);
@@ -257,6 +281,8 @@ static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm);
 #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 /* misc */
     static int          get_hash_enc_len(int hash_oid);
+    static int          km_pkcs1_check_digest_len(const struct km_rsa_ctx * ctx,
+                                                  unsigned int digest_len);
 
 #if defined(LINUXKM_DIRECT_RSA)
 static struct akcipher_alg direct_rsa = {
@@ -433,6 +459,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha224_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -450,6 +477,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha256_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -467,6 +495,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha384_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -484,6 +513,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha512_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -501,6 +531,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha3_256_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -516,6 +547,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha3_384_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -531,6 +563,7 @@ static struct akcipher_alg direct_rsa = {
         .set_priv_key         = km_pkcs1_set_priv,
         .set_pub_key          = km_pkcs1_set_pub,
         .key_size             = km_pkcs1_key_size,
+        .digest_size          = km_pkcs1_digest_size,
         .init                 = km_pkcs1_sha3_512_init,
         .exit                 = km_pkcs1_exit,
     };
@@ -540,14 +573,169 @@ static struct akcipher_alg direct_rsa = {
 static inline void km_rsa_ctx_clear(struct km_rsa_ctx * ctx)
 {
     if (ctx) {
-        if (ctx->key) {
-            wc_FreeRsaKey(ctx->key);
-            free(ctx->key);
-            ctx->key = NULL;
+        if (ctx->der) {
+            /* the DER holds the private key whenever one is set. */
+            ForceZero(ctx->der, ctx->der_len);
+            free(ctx->der);
+            ctx->der = NULL;
         }
-
-        wc_FreeRng(&ctx->rng);
+        ctx->der_len = 0;
+        ctx->priv = 0;
+        ctx->key_len = 0;
     }
+}
+
+static void km_rsa_op_free(struct km_rsa_op_state *op)
+{
+    if (op == NULL)
+        return;
+    wc_FreeRsaKey(&op->key);
+    if (op->rng_inited)
+        wc_FreeRng(&op->rng);
+    ForceZero(op, sizeof(*op));
+    free(op);
+}
+
+/* Materialize per-operation state from the ctx's stored DER.  need_rng
+ * selects whether a transient WC_RNG is initialized and wired to the
+ * key (private-key operations and pkcs1 encryption need one; public-key
+ * operations do not).  Returns 0, -EINVAL, or -ENOMEM; *op_out is
+ * non-NULL only on success, and must be passed to km_rsa_op_free() when
+ * done. */
+static int km_rsa_op_init(const struct km_rsa_ctx *ctx, int need_rng,
+                          struct km_rsa_op_state **op_out)
+{
+    struct km_rsa_op_state *op = NULL;
+    word32                  idx = 0;
+    int                     err;
+
+    *op_out = NULL;
+
+    if ((ctx->der == NULL) || (ctx->key_len == 0))
+        return -EINVAL;
+
+    op = (struct km_rsa_op_state *)malloc(sizeof(*op));
+    if (unlikely(op == NULL))
+        return -ENOMEM;
+    XMEMSET(op, 0, sizeof(*op));
+
+    err = wc_InitRsaKey(&op->key, NULL);
+    if (unlikely(err)) {
+        free(op);
+        return -ENOMEM;
+    }
+
+    if (ctx->priv)
+        err = wc_RsaPrivateKeyDecode(ctx->der, &idx, &op->key,
+                                     ctx->der_len);
+    else
+        err = wc_RsaPublicKeyDecode(ctx->der, &idx, &op->key,
+                                    ctx->der_len);
+
+    if ((err == 0) && need_rng) {
+        err = LKCAPI_INITRNG(&op->rng);
+        if (err == 0) {
+            op->rng_inited = 1;
+            err = wc_RsaSetRNG(&op->key, &op->rng);
+        }
+    }
+
+    if (unlikely(err)) {
+        #ifdef WOLFKM_DEBUG_RSA
+        pr_err("%s: per-op key materialization failed: %d\n",
+               WOLFKM_RSA_DRIVER, err);
+        #endif /* WOLFKM_DEBUG_RSA */
+        km_rsa_op_free(op);
+        if (err == WC_NO_ERR_TRACE(MEMORY_E))
+            return -ENOMEM;
+        else
+            return -EINVAL;
+    }
+
+    *op_out = op;
+    return 0;
+}
+
+/* Shared setkey core for all four setters: validate the DER by a
+ * transient probe decode (capturing the modulus size for key_len), then
+ * store a verbatim heap copy.  Destroy-first, per kernel setkey
+ * semantics: the previous key material is released up front, so a
+ * rejected key leaves the transform keyless.  A key that fails to decode
+ * is rejected with -EBADMSG, as by the in-tree rsa-generic. */
+static int km_rsa_set_key(struct km_rsa_ctx *ctx, const void *key,
+                          unsigned int keylen, int priv)
+{
+    RsaKey * probe_key = NULL;
+    byte *   der_copy = NULL;
+    word32   idx = 0;
+    int      key_len = 0;
+    int      err;
+    int      ret = 0;
+
+    km_rsa_ctx_clear(ctx);
+
+    if ((key == NULL) || (keylen == 0))
+        return -EINVAL;
+
+    probe_key = (RsaKey *)malloc(sizeof(*probe_key));
+    if (unlikely(probe_key == NULL))
+        return -ENOMEM;
+    err = wc_InitRsaKey(probe_key, NULL);
+    if (unlikely(err)) {
+        free(probe_key);
+        return -ENOMEM;
+    }
+
+    if (priv)
+        err = wc_RsaPrivateKeyDecode(key, &idx, probe_key, keylen);
+    else
+        err = wc_RsaPublicKeyDecode(key, &idx, probe_key, keylen);
+
+    if (err == 0) {
+        key_len = wc_RsaEncryptSize(probe_key);
+        if (unlikely(key_len <= 0)) {
+            pr_err("error: %s: rsa encrypt size returned: %d\n",
+                   WOLFKM_RSA_DRIVER, key_len);
+            ret = -EINVAL;
+        }
+    }
+    else {
+        if (err == WC_NO_ERR_TRACE(MEMORY_E))
+            ret = -ENOMEM;
+        else
+            ret = -EBADMSG;
+
+        if (priv) {
+            if (!disable_setkey_warnings) {
+                pr_err("%s: wc_RsaPrivateKeyDecode failed: %d\n",
+                       WOLFKM_RSA_DRIVER, err);
+            }
+        }
+        else {
+            #ifdef WOLFKM_DEBUG_RSA
+            pr_err("%s: wc_RsaPublicKeyDecode failed: %d\n",
+                   WOLFKM_RSA_DRIVER, err);
+            #endif /* WOLFKM_DEBUG_RSA */
+        }
+    }
+
+    wc_FreeRsaKey(probe_key);
+    ForceZero(probe_key, sizeof(*probe_key));
+    free(probe_key);
+
+    if (unlikely(ret))
+        return ret;
+
+    der_copy = (byte *)malloc(keylen);
+    if (unlikely(der_copy == NULL))
+        return -ENOMEM;
+    XMEMCPY(der_copy, key, keylen);
+
+    ctx->der = der_copy;
+    ctx->der_len = (word32)keylen;
+    ctx->priv = (byte)(priv != 0);
+    ctx->key_len = (word32)key_len;
+    return 0;
 }
 
 static int km_rsa_ctx_init(struct km_rsa_ctx * ctx, int hash_oid)
@@ -555,26 +743,6 @@ static int km_rsa_ctx_init(struct km_rsa_ctx * ctx, int hash_oid)
     int ret = 0;
 
     XMEMSET(ctx, 0, sizeof(struct km_rsa_ctx));
-
-    ctx->key = (RsaKey *)malloc(sizeof(RsaKey));
-    if (!ctx->key) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    ret = wc_InitRsaKey(ctx->key, NULL);
-    if (ret) {
-        pr_err("%s: init rsa key returned: %d\n", WOLFKM_RSA_DRIVER, ret);
-        ret = -EINVAL;
-        goto out;
-    }
-
-    /* Note the initialization of ctx->rng is deferred unless/until needed. */
-    ret = wc_RsaSetRNG(ctx->key, &ctx->rng);
-    if (ret) {
-        ret = -EINVAL;
-        goto out;
-    }
 
     ctx->hash_oid = hash_oid;
 
@@ -632,30 +800,6 @@ out:
     return ret;
 }
 
-static inline int km_rsa_ctx_init_rng(struct km_rsa_ctx * ctx) {
-    switch (ctx->rng.status) {
-    case WC_DRBG_OK:
-#ifdef WC_HAVE_RNG_BANKREF
-    case WC_DRBG_BANKREF:
-#endif
-        return 0;
-    case WC_DRBG_NOT_INIT:
-    {
-        int err = LKCAPI_INITRNG(&ctx->rng);
-        if (err) {
-            pr_err("%s: init rng returned: %d\n", WOLFKM_RSA_DRIVER, err);
-            if (err == WC_NO_ERR_TRACE(MEMORY_E))
-                return -ENOMEM;
-            else
-                return -EINVAL;
-        }
-        return 0;
-    }
-    default:
-        return -EINVAL;
-    }
-}
-
 #if defined(LINUXKM_DIRECT_RSA)
 /*
  * RSA encrypt with public key.
@@ -673,6 +817,7 @@ static int km_direct_rsa_enc(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
     int                      err = 0;
     word32                   out_len = 0;
     byte *                   dec = NULL;
@@ -729,8 +874,14 @@ static int km_direct_rsa_enc(struct akcipher_request *req)
      * input args).
      */
 
+    /* per-operation key, deserialized locally from the ctx's stored
+     * DER (see struct km_rsa_op_state). */
+    err = km_rsa_op_init(ctx, 0 /* need_rng */, &op);
+    if (err)
+        goto rsa_enc_out;
+
     err = wc_RsaFunction(dec, req->src_len, enc, &out_len,
-                         RSA_PUBLIC_ENCRYPT, ctx->key, NULL /* rng */);
+                         RSA_PUBLIC_ENCRYPT, &op->key, NULL /* rng */);
 
     if (unlikely(err || (out_len != ctx->key_len))) {
         #ifdef WOLFKM_DEBUG_RSA
@@ -746,6 +897,7 @@ static int km_direct_rsa_enc(struct akcipher_request *req)
 
     err = 0;
 rsa_enc_out:
+    km_rsa_op_free(op);
     free(enc);
     if (dec != NULL) {
         ForceZero(dec, req->src_len);
@@ -770,6 +922,7 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
     int                      err = 0;
     word32                   out_len = 0;
     word32                   dec_alloc = 0;
@@ -824,12 +977,14 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
     XMEMSET(dec, 0, req->dst_len);
     scatterwalk_map_and_copy(enc, req->src, 0, req->src_len, 0);
 
-    err = km_rsa_ctx_init_rng(ctx);
+    /* per-operation key and RNG, deserialized locally from the ctx's
+     * stored DER (see struct km_rsa_op_state). */
+    err = km_rsa_op_init(ctx, 1 /* need_rng */, &op);
     if (err)
         goto rsa_dec_out;
 
     err = wc_RsaDirect(enc, ctx->key_len, dec, &out_len,
-                       ctx->key, RSA_PRIVATE_DECRYPT, &ctx->rng);
+                       &op->key, RSA_PRIVATE_DECRYPT, &op->rng);
 
     if (unlikely(err != (int) ctx->key_len || ctx->key_len != out_len)) {
         #ifdef WOLFKM_DEBUG_RSA
@@ -851,6 +1006,7 @@ static int km_direct_rsa_dec(struct akcipher_request *req)
 
     err = 0;
 rsa_dec_out:
+    km_rsa_op_free(op);
     free(enc);
     if (dec != NULL) {
         ForceZero(dec, dec_alloc);
@@ -874,48 +1030,8 @@ rsa_dec_out:
 static int km_rsa_set_priv(struct crypto_akcipher *tfm, const void *key,
                             unsigned int keylen)
 {
-    int                 err = 0;
-    struct km_rsa_ctx * ctx = NULL;
-    word32              idx = 0;
-    int                 key_len = 0;
-
-    ctx = akcipher_tfm_ctx(tfm);
-
-    if (ctx->key_len) {
-        /* Free old key. */
-        ctx->key_len = 0;
-        wc_FreeRsaKey(ctx->key);
-
-        err = wc_InitRsaKey(ctx->key, NULL);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-
-        /* Note the initialization of ctx->rng is deferred unless/until needed. */
-        err = wc_RsaSetRNG(ctx->key, &ctx->rng);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-    }
-
-    err = wc_RsaPrivateKeyDecode(key, &idx, ctx->key, keylen);
-
-    if (unlikely(err)) {
-        if (!disable_setkey_warnings) {
-            pr_err("%s: wc_RsaPrivateKeyDecode failed: %d\n",
-                   WOLFKM_RSA_DRIVER, err);
-        }
-        return -EINVAL;
-    }
-
-    key_len = wc_RsaEncryptSize(ctx->key);
-    if (unlikely(key_len <= 0)) {
-        pr_err("error: %s: rsa encrypt size returned: %d\n",
-               WOLFKM_RSA_DRIVER, key_len);
-        return -EINVAL;
-    }
-
-    ctx->key_len = (word32) key_len;
+    int err = km_rsa_set_key(akcipher_tfm_ctx(tfm), key, keylen,
+                             1 /* priv */);
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_rsa_set_priv: %d\n", keylen);
@@ -933,50 +1049,8 @@ static int km_rsa_set_priv(struct crypto_akcipher *tfm, const void *key,
 static int km_rsa_set_pub(struct crypto_akcipher *tfm, const void *key,
                            unsigned int keylen)
 {
-    int                 err = 0;
-    struct km_rsa_ctx * ctx = NULL;
-    word32              idx = 0;
-    int                 key_len = 0;
-
-    ctx = akcipher_tfm_ctx(tfm);
-
-    if (ctx->key_len) {
-        /* Free old key. */
-        ctx->key_len = 0;
-        wc_FreeRsaKey(ctx->key);
-
-        err = wc_InitRsaKey(ctx->key, NULL);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-
-        /* Note the initialization of ctx->rng is deferred unless/until needed. */
-        err = wc_RsaSetRNG(ctx->key, &ctx->rng);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-    }
-
-    err = wc_RsaPublicKeyDecode(key, &idx, ctx->key, keylen);
-
-    if (unlikely(err)) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("%s: wc_RsaPublicKeyDecode failed: %d\n",
-               WOLFKM_RSA_DRIVER, err);
-        #endif /* WOLFKM_DEBUG_RSA */
-        return -EINVAL;
-    }
-
-    key_len = wc_RsaEncryptSize(ctx->key);
-    if (unlikely(key_len <= 0)) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: rsa encrypt size returned: %d\n",
-               WOLFKM_RSA_DRIVER, key_len);
-        #endif /* WOLFKM_DEBUG_RSA */
-        return -EINVAL;
-    }
-
-    ctx->key_len = (word32) key_len;
+    int err = km_rsa_set_key(akcipher_tfm_ctx(tfm), key, keylen,
+                             0 /* priv */);
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_rsa_set_pub %d\n", keylen);
@@ -1081,13 +1155,64 @@ static int km_pkcs1_sha3_512_init(struct tfm_type *tfm)
 }
 #endif /* WOLFSSL_SHA3 */
 
+/*
+ * Argument validation common to the pkcs1 sign and verify callbacks, in
+ * both the akcipher and sig_alg editions: the tfm must be keyed,
+ * digest_len must be exactly the digest length of the tfm's hash, and
+ * the encoded, minimally padded digest must fit in the key.
+ *
+ * The callbacks encode the digest in place with wc_EncodeSignature(), and
+ * nothing above them holds the caller to the hash's digest length (the
+ * kernel bounds e.g. a KEYCTL_PKEY_SIGN request only by the size the
+ * driver advertises), so the exact match is required on every path.
+ *
+ * Returns 0 on success, -EINVAL or -EOVERFLOW on error.
+ */
+static int km_pkcs1_check_digest_len(const struct km_rsa_ctx * ctx,
+                                     unsigned int digest_len)
+{
+    int hash_enc_len = 0;
+
+    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
+        /* invalid key state */
+        return -EINVAL;
+    }
+
+    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
+    if (hash_enc_len <= 0) {
+        #ifdef WOLFKM_DEBUG_RSA
+        pr_err("error: %s: bad hash enc len %d\n",
+               WOLFKM_RSA_DRIVER, hash_enc_len);
+        #endif /* WOLFKM_DEBUG_RSA */
+        return -EINVAL;
+    }
+
+    if (digest_len != ctx->digest_len) {
+        #ifdef WOLFKM_DEBUG_RSA
+        pr_err("error: %s: got digest_len %u, expected %u\n",
+               WOLFKM_RSA_DRIVER, digest_len, ctx->digest_len);
+        #endif /* WOLFKM_DEBUG_RSA */
+        return -EINVAL;
+    }
+
+    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA
+     * key. */
+    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ >
+        ctx->key_len)
+    {
+        return -EOVERFLOW;
+    }
+
+    return 0;
+}
+
 #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
 /*
  * Generates a pkcs1 encoded signature.
  *
  * src:
  *   - req->src scatterlist is the digest to be encoded, padded, and signed.
- *   - req->src_len + encoding + min padding must be <= key_size.
+ *   - req->src_len must be the correct digest len.
  *
  * dst:
  *   - req->dst scatterlist is destination signature.
@@ -1100,10 +1225,10 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
     int                      err = 0;
     int                      sig_len = 0;
     int                      enc_len = 0;
-    int                      hash_enc_len = 0;
     byte *                   msg = NULL;
     byte *                   sig = NULL;
     byte *                   work_buffer = NULL;
@@ -1116,22 +1241,9 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
     tfm = crypto_akcipher_reqtfm(req);
     ctx = akcipher_tfm_ctx(tfm);
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, req->src_len);
+    if (err)
         goto pkcs1pad_sign_out;
-    }
-
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        err = -EINVAL;
-        goto pkcs1pad_sign_out;
-    }
-
-    if ((word64)req->src_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
-        goto pkcs1pad_sign_out;
-    }
 
     if (req->dst_len < ctx->key_len) {
         err = -EOVERFLOW;
@@ -1163,13 +1275,15 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
         goto pkcs1pad_sign_out;
     }
 
-    err = km_rsa_ctx_init_rng(ctx);
+    /* per-operation key and RNG, deserialized locally from the ctx's
+     * stored DER (see struct km_rsa_op_state). */
+    err = km_rsa_op_init(ctx, 1 /* need_rng */, &op);
     if (err)
         goto pkcs1pad_sign_out;
 
     /* sign encoded message. */
     sig_len = wc_RsaSSL_Sign(msg, enc_len, sig,
-                             ctx->key_len, ctx->key, &ctx->rng);
+                             ctx->key_len, &op->key, &op->rng);
     if (unlikely(sig_len != (int)ctx->key_len)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: wc_RsaSSL_Sign returned: %d\n",
@@ -1184,6 +1298,7 @@ static int km_pkcs1pad_sign(struct akcipher_request *req)
 
     err = 0;
 pkcs1pad_sign_out:
+    km_rsa_op_free(op);
     if (work_buffer) {
         ForceZero(work_buffer, 2 * ctx->key_len);
         free(work_buffer);
@@ -1211,12 +1326,12 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
     int                      err = 0;
     word32                   sig_len = 0;
     int                      dec_len = 0;
     word32                   msg_len = 0;
     int                      enc_msg_len = 0;
-    int                      hash_enc_len = 0;
     int                      n_diff = 0;
     byte *                   sig = NULL;
     byte *                   msg = NULL;
@@ -1233,35 +1348,13 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     msg_len = req->dst_len;
     sig_len = req->src_len;
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, msg_len);
+    if (err)
         goto pkcs1pad_verify_out;
-    }
 
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: bad hash enc len %d\n",
-               WOLFKM_RSA_DRIVER, hash_enc_len);
-        #endif /* WOLFKM_DEBUG_RSA */
+    if (sig_len != ctx->key_len) {
+        /* invalid src args */
         err = -EINVAL;
-        goto pkcs1pad_verify_out;
-    }
-
-    if (msg_len != ctx->digest_len || sig_len != ctx->key_len) {
-        /* invalid src or dst args */
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: got msg_len %d, expected %d\n",
-               WOLFKM_RSA_DRIVER, msg_len, ctx->digest_len);
-        #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
-        goto pkcs1pad_verify_out;
-    }
-
-    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA key. */
-    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
         goto pkcs1pad_verify_out;
     }
 
@@ -1278,8 +1371,14 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
     /* copy sig from req->src to sig */
     scatterwalk_map_and_copy(sig, req->src, 0, sig_len, 0);
 
+    /* per-operation key, deserialized locally from the ctx's stored
+     * DER (see struct km_rsa_op_state); public-key op, no RNG. */
+    err = km_rsa_op_init(ctx, 0 /* need_rng */, &op);
+    if (err)
+        goto pkcs1pad_verify_out;
+
     /* verify encoded message. */
-    dec_len = wc_RsaSSL_Verify(sig, sig_len, msg, sig_len, ctx->key);
+    dec_len = wc_RsaSSL_Verify(sig, sig_len, msg, sig_len, &op->key);
     if (unlikely(dec_len <= 0)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: wc_RsaSSL_Verify returned: %d\n",
@@ -1302,12 +1401,18 @@ static int km_pkcs1pad_verify(struct akcipher_request *req)
 
     n_diff = ConstantCompare(sig, msg, dec_len);
     if (unlikely(n_diff != 0)) {
-        err = -EKEYREJECTED;
+        /* -EBADMSG for the recovered-digest mismatch, same as for the
+         * padding-level failure above: the branch convention for
+         * verification failure, matching the kernel's modern
+         * rsassa-pkcs1.c (the legacy rsa-pkcs1pad.c distinguished this
+         * case as -EKEYREJECTED; no testmgr vector exercises it). */
+        err = -EBADMSG;
         goto pkcs1pad_verify_out;
     }
 
     err = 0;
 pkcs1pad_verify_out:
+    km_rsa_op_free(op);
     free(work_buffer);
 
     #ifdef WOLFKM_DEBUG_RSA
@@ -1335,12 +1440,24 @@ static unsigned int km_pkcs1_key_size(struct crypto_sig *tfm)
     #endif /* linux >= 6.15.3 */
 }
 
+/* Returns the digest size in bytes.  The kernel uses it to bound the data
+ * it will pass to km_pkcs1_sign() (see software_key_query()); without it,
+ * the sig core substitutes the key size. */
+static unsigned int km_pkcs1_digest_size(struct crypto_sig *tfm)
+{
+    struct km_rsa_ctx * ctx = NULL;
+
+    ctx = crypto_sig_ctx(tfm);
+
+    return ctx->digest_len;
+}
+
 /*
  * Generates a pkcs1 encoded signature.
  *
  * src:
  *   - src contains the digest to be encoded, padded, and signed.
- *   - slen + encoding + min padding must be <= key_size.
+ *   - slen must be the correct digest len.
  *
  * dst:
  *   - dst is destination signature buffer.
@@ -1356,14 +1473,14 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
                          const void *src, unsigned int slen,
                          void *dst, unsigned int dlen)
 {
-    struct km_rsa_ctx * ctx = NULL;
-    int                 err = 0;
-    int                 sig_len = 0;
-    int                 enc_msg_len = 0;
-    int                 hash_enc_len = 0;
-    byte *              msg = NULL;
-    byte *              sig = dst; /* reuse dst buffer. we will check if
-                                    * it is large enough. */
+    struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
+    int                      err = 0;
+    int                      sig_len = 0;
+    int                      enc_msg_len = 0;
+    byte *                   msg = NULL;
+    byte *                   sig = dst; /* reuse dst buffer. we will check
+                                         * if it is large enough. */
 
     if (src == NULL || dst == NULL) {
         err = -EINVAL;
@@ -1372,22 +1489,9 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
 
     ctx = crypto_sig_ctx(tfm);
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, slen);
+    if (err)
         goto pkcs1_sign_out;
-    }
-
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        err = -EINVAL;
-        goto pkcs1_sign_out;
-    }
-
-    if ((word64)slen + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
-        goto pkcs1_sign_out;
-    }
 
     if (dlen < ctx->key_len) {
         err = -EOVERFLOW;
@@ -1417,13 +1521,15 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
         goto pkcs1_sign_out;
     }
 
-    err = km_rsa_ctx_init_rng(ctx);
+    /* per-operation key and RNG, deserialized locally from the ctx's
+     * stored DER (see struct km_rsa_op_state). */
+    err = km_rsa_op_init(ctx, 1 /* need_rng */, &op);
     if (err)
         goto pkcs1_sign_out;
 
     /* sign encoded message. */
     sig_len = wc_RsaSSL_Sign(msg, enc_msg_len, sig,
-                             ctx->key_len, ctx->key, &ctx->rng);
+                             ctx->key_len, &op->key, &op->rng);
     if (unlikely(sig_len != (int)ctx->key_len)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: wc_RsaSSL_Sign returned: %d\n",
@@ -1441,6 +1547,7 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
     err = 0;
     #endif /* linux >= 6.15.0 */
 pkcs1_sign_out:
+    km_rsa_op_free(op);
     if (msg != NULL) {
         ForceZero(msg, ctx->key_len);
         free(msg);
@@ -1471,17 +1578,17 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
                            const void *src, unsigned int slen,
                            const void *digest, unsigned int dlen)
 {
-    struct km_rsa_ctx * ctx = NULL;
-    int                 err = 0;
-    word32              sig_len = 0;
-    int                 dec_len = 0;
-    word32              msg_len = 0;
-    int                 enc_msg_len = 0;
-    int                 hash_enc_len = 0;
-    int                 n_diff = 0;
-    byte *              enc_digest = NULL;
-    byte *              msg = NULL;
-    byte *              work_buffer = NULL;
+    struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
+    int                      err = 0;
+    word32                   sig_len = 0;
+    int                      dec_len = 0;
+    word32                   msg_len = 0;
+    int                      enc_msg_len = 0;
+    int                      n_diff = 0;
+    byte *                   enc_digest = NULL;
+    byte *                   msg = NULL;
+    byte *                   work_buffer = NULL;
 
     if (src == NULL || digest == NULL) {
         err = -EINVAL;
@@ -1493,35 +1600,13 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
     msg_len = dlen;
     sig_len = slen;
 
-    if (ctx->key_len <= 0 || ctx->digest_len <= 0) {
-        /* invalid key state */
-        err = -EINVAL;
+    err = km_pkcs1_check_digest_len(ctx, msg_len);
+    if (err)
         goto pkcs1_verify_out;
-    }
 
-    hash_enc_len = get_hash_enc_len(ctx->hash_oid);
-    if (hash_enc_len <= 0) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: bad hash enc len %d\n",
-               WOLFKM_RSA_DRIVER, hash_enc_len);
-        #endif /* WOLFKM_DEBUG_RSA */
+    if (sig_len != ctx->key_len) {
+        /* invalid src args */
         err = -EINVAL;
-        goto pkcs1_verify_out;
-    }
-
-    if (msg_len != ctx->digest_len || sig_len != ctx->key_len) {
-        /* invalid src or dst args */
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: got msg_len %d, expected %d\n",
-               WOLFKM_RSA_DRIVER, msg_len, ctx->digest_len);
-        #endif /* WOLFKM_DEBUG_RSA */
-        err = -EINVAL;
-        goto pkcs1_verify_out;
-    }
-
-    /* bail if the padded ASN.1-prefixed digest won't fit in the given RSA key. */
-    if ((word64)ctx->digest_len + (word64)hash_enc_len + RSA_MIN_PAD_SZ > ctx->key_len) {
-        err = -EOVERFLOW;
         goto pkcs1_verify_out;
     }
 
@@ -1535,8 +1620,14 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
     msg = work_buffer;
     enc_digest = work_buffer + ctx->key_len;
 
+    /* per-operation key, deserialized locally from the ctx's stored
+     * DER (see struct km_rsa_op_state); public-key op, no RNG. */
+    err = km_rsa_op_init(ctx, 0 /* need_rng */, &op);
+    if (err)
+        goto pkcs1_verify_out;
+
     /* verify encoded message. msg contains recovered original message. */
-    dec_len = wc_RsaSSL_Verify(src, sig_len, msg, sig_len, ctx->key);
+    dec_len = wc_RsaSSL_Verify(src, sig_len, msg, sig_len, &op->key);
     if (unlikely(dec_len <= 0)) {
         #ifdef WOLFKM_DEBUG_RSA
         pr_err("error: %s: wc_RsaSSL_Verify returned: %d\n",
@@ -1562,12 +1653,16 @@ static int km_pkcs1_verify(struct crypto_sig *tfm,
         pr_err("error: %s: recovered msg did not match digest: %d\n",
                WOLFKM_RSA_DRIVER, n_diff);
         #endif /* WOLFKM_DEBUG_RSA */
-        err = -EKEYREJECTED;
+        /* -EBADMSG, as in km_pkcs1pad_verify(): the branch convention
+         * for verification failure, matching the kernel's modern
+         * rsassa-pkcs1.c. */
+        err = -EBADMSG;
         goto pkcs1_verify_out;
     }
 
     err = 0;
 pkcs1_verify_out:
+    km_rsa_op_free(op);
     free(work_buffer);
 
     #ifdef WOLFKM_DEBUG_RSA
@@ -1580,48 +1675,8 @@ pkcs1_verify_out:
 static int km_pkcs1_set_priv(struct crypto_sig *tfm, const void *key,
                              unsigned int keylen)
 {
-    int                 err = 0;
-    struct km_rsa_ctx * ctx = NULL;
-    word32              idx = 0;
-    int                 key_len = 0;
-
-    ctx = crypto_sig_ctx(tfm);
-
-    if (ctx->key_len) {
-        /* Free old key. */
-        ctx->key_len = 0;
-        wc_FreeRsaKey(ctx->key);
-
-        err = wc_InitRsaKey(ctx->key, NULL);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-
-        /* Note the initialization of ctx->rng is deferred unless/until needed. */
-        err = wc_RsaSetRNG(ctx->key, &ctx->rng);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-    }
-
-    err = wc_RsaPrivateKeyDecode(key, &idx, ctx->key, keylen);
-
-    if (unlikely(err)) {
-        if (!disable_setkey_warnings) {
-            pr_err("%s: wc_RsaPrivateKeyDecode failed: %d\n",
-                   WOLFKM_RSA_DRIVER, err);
-        }
-        return -EINVAL;
-    }
-
-    key_len = wc_RsaEncryptSize(ctx->key);
-    if (unlikely(key_len <= 0)) {
-        pr_err("error: %s: rsa encrypt size returned: %d\n",
-               WOLFKM_RSA_DRIVER, key_len);
-        return -EINVAL;
-    }
-
-    ctx->key_len = (word32) key_len;
+    int err = km_rsa_set_key(crypto_sig_ctx(tfm), key, keylen,
+                             1 /* priv */);
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_pkcs1_set_priv: %d\n", keylen);
@@ -1632,50 +1687,8 @@ static int km_pkcs1_set_priv(struct crypto_sig *tfm, const void *key,
 static int km_pkcs1_set_pub(struct crypto_sig *tfm, const void *key,
                             unsigned int keylen)
 {
-    int                 err = 0;
-    struct km_rsa_ctx * ctx = NULL;
-    word32              idx = 0;
-    int                 key_len = 0;
-
-    ctx = crypto_sig_ctx(tfm);
-
-    if (ctx->key_len) {
-        /* Free old key. */
-        ctx->key_len = 0;
-        wc_FreeRsaKey(ctx->key);
-
-        err = wc_InitRsaKey(ctx->key, NULL);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-
-        /* Note the initialization of ctx->rng is deferred unless/until needed. */
-        err = wc_RsaSetRNG(ctx->key, &ctx->rng);
-        if (unlikely(err)) {
-            return -ENOMEM;
-        }
-    }
-
-    err = wc_RsaPublicKeyDecode(key, &idx, ctx->key, keylen);
-
-    if (unlikely(err)) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("%s: wc_RsaPublicKeyDecode failed: %d\n",
-               WOLFKM_RSA_DRIVER, err);
-        #endif /* WOLFKM_DEBUG_RSA */
-        return -EINVAL;
-    }
-
-    key_len = wc_RsaEncryptSize(ctx->key);
-    if (unlikely(key_len <= 0)) {
-        #ifdef WOLFKM_DEBUG_RSA
-        pr_err("error: %s: rsa encrypt size returned: %d\n",
-               WOLFKM_RSA_DRIVER, key_len);
-        #endif /* WOLFKM_DEBUG_RSA */
-        return -EINVAL;
-    }
-
-    ctx->key_len = (word32) key_len;
+    int err = km_rsa_set_key(crypto_sig_ctx(tfm), key, keylen,
+                             0 /* priv */);
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_pkcs1_set_pub %d\n", keylen);
@@ -1702,6 +1715,7 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
     int                      err = 0;
     byte *                   dec = NULL;
     byte *                   enc = NULL;
@@ -1748,12 +1762,15 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
     XMEMSET(enc, 0, req->dst_len);
     scatterwalk_map_and_copy(dec, req->src, 0, req->src_len, 0);
 
-    err = km_rsa_ctx_init_rng(ctx);
+    /* per-operation key and RNG, deserialized locally from the ctx's
+     * stored DER (see struct km_rsa_op_state): pkcs1 v1.5 encryption
+     * needs the RNG for its random nonzero padding. */
+    err = km_rsa_op_init(ctx, 1 /* need_rng */, &op);
     if (err)
         goto pkcs1_enc_out;
 
     err = wc_RsaPublicEncrypt(dec, req->src_len, enc, ctx->key_len,
-                              ctx->key, &ctx->rng);
+                              &op->key, &op->rng);
 
     if (unlikely(err != (int) ctx->key_len)) {
         #ifdef WOLFKM_DEBUG_RSA
@@ -1769,6 +1786,7 @@ static int km_pkcs1pad_enc(struct akcipher_request *req)
 
     err = 0;
 pkcs1_enc_out:
+    km_rsa_op_free(op);
     free(enc);
     if (dec != NULL) {
         ForceZero(dec, req->src_len);
@@ -1785,6 +1803,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
     struct km_rsa_ctx *      ctx = NULL;
+    struct km_rsa_op_state * op = NULL;
     int                      err = 0;
     int                      dec_len = 0;
     word32                   dec_alloc = 0;
@@ -1832,14 +1851,19 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
     XMEMSET(dec, 0, req->dst_len);
     scatterwalk_map_and_copy(enc, req->src, 0, req->src_len, 0);
 
+    /* per-operation key, deserialized locally from the ctx's stored
+     * DER (see struct km_rsa_op_state); the RNG is needed only for
+     * blinding. */
 #ifdef WC_RSA_BLINDING
-    err = km_rsa_ctx_init_rng(ctx);
+    err = km_rsa_op_init(ctx, 1 /* need_rng */, &op);
+#else
+    err = km_rsa_op_init(ctx, 0 /* need_rng */, &op);
+#endif
     if (err)
         goto pkcs1_dec_out;
-#endif
 
     dec_len = wc_RsaPrivateDecrypt(enc, ctx->key_len, dec, req->dst_len,
-                                   ctx->key);
+                                   &op->key);
 
     if (unlikely(dec_len <= 0 || dec_len > (int)ctx->key_len)) {
         #ifdef WOLFKM_DEBUG_RSA
@@ -1861,6 +1885,7 @@ static int km_pkcs1pad_dec(struct akcipher_request *req)
 
     err = 0;
 pkcs1_dec_out:
+    km_rsa_op_free(op);
     free(enc);
     if (dec != NULL) {
         ForceZero(dec, dec_alloc);
@@ -2120,7 +2145,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     struct crypto_akcipher *  tfm = NULL;
     struct akcipher_request * req = NULL;
     RsaKey *                  key = NULL;
-    WC_RNG                    rng;
+    WC_RNG *                  rng = NULL;
     byte *                    priv = NULL; /* priv der */
     int                       priv_len = 0;
     byte *                    pub = NULL; /* pub der */
@@ -2146,16 +2171,21 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     struct scatterlist        src, dst;
     size_t                    i = 0;
 
+    rng = (WC_RNG *)malloc(sizeof *rng);
+    if (! rng) {
+        pr_err("error: allocating RNG failed\n");
+        goto test_rsa_end;
+    }
     key = (RsaKey*)malloc(sizeof(RsaKey));
     if (key == NULL) {
         pr_err("error: allocating key(%zu) failed\n", sizeof(RsaKey));
         goto test_rsa_end;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(rng, 0, sizeof(*rng));
     XMEMSET(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG(&rng);
+    ret = LKCAPI_INITRNG(rng);
 
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
@@ -2170,7 +2200,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     }
     init_key = 1;
 
-    ret = wc_RsaSetRNG(key, &rng);
+    ret = wc_RsaSetRNG(key, rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         goto test_rsa_end;
@@ -2179,7 +2209,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     #ifdef HAVE_FIPS
     for (;;) {
     #endif
-        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, rng);
     #ifdef HAVE_FIPS
         /* Retry if not prime. */
         if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
@@ -2238,7 +2268,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
      * */
     out_len = key_len;
     enc_ret = wc_RsaDirect(dec, key_len, enc, &out_len, key,
-                           RSA_PUBLIC_ENCRYPT, &rng);
+                           RSA_PUBLIC_ENCRYPT, rng);
     if (enc_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa pub enc returned: %d, %d\n", enc_ret, out_len);
         ret = -1;
@@ -2247,7 +2277,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     XMEMSET(dec, 0, key_len);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
-                           RSA_PRIVATE_DECRYPT, &rng);
+                           RSA_PRIVATE_DECRYPT, rng);
     if (dec_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa priv dec returned: %d, %d\n", dec_ret, out_len);
         goto test_rsa_end;
@@ -2352,10 +2382,41 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
         goto test_rsa_end;
     }
 
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * operation against the previously installed key -- and a restored
+     * key must work again.  (raw RSA encryption is deterministic, so
+     * the re-encrypt below reproduces enc byte-for-byte for the
+     * cross-checks that follow.) */
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24 - 1);
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
+        pr_err("error: crypto_akcipher_set_pub_key (truncated) returned "
+               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
+        goto test_rsa_end;
+    }
+    ret = crypto_akcipher_encrypt(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_encrypt after rejected "
+               "set_pub_key returned %d, expected %d\n", ret,
+               -WC_NO_ERR_TRACE(EINVAL));
+        goto test_rsa_end;
+    }
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24);
+    if (ret) {
+        pr_err("error: crypto_akcipher_set_pub_key (restore) returned: "
+               "%d\n", ret);
+        goto test_rsa_end;
+    }
+    ret = crypto_akcipher_encrypt(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_encrypt after restored "
+               "set_pub_key returned: %d\n", ret);
+        goto test_rsa_end;
+    }
+
     /* wolfcrypt private decrypt */
     XMEMSET(dec, 0, key_len + 1);
     dec_ret = wc_RsaDirect(enc, key_len, dec, &out_len, key,
-                           RSA_PRIVATE_DECRYPT, &rng);
+                           RSA_PRIVATE_DECRYPT, rng);
 
     if (dec_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa priv dec returned: %d, %d\n", dec_ret, out_len);
@@ -2370,7 +2431,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 
     /* wolfcrypt public encrypt */
     enc_ret = wc_RsaDirect(dec, key_len, enc, &out_len, key,
-                           RSA_PUBLIC_ENCRYPT, &rng);
+                           RSA_PUBLIC_ENCRYPT, rng);
 
     if (enc_ret != key_len || key_len != (int)out_len) {
         pr_err("error: rsa pub enc returned: %d, %d\n", enc_ret, out_len);
@@ -2403,7 +2464,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     ret = crypto_akcipher_decrypt(req);
    #if defined(RHEL_RELEASE_CODE) && \
               (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
-    if (ret == -ENOSYS) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
         pr_info("info: ignoring failure from crypto_akcipher_decrypt (disabled by RHEL policy)\n");
         test_rc = 0;
         goto test_rsa_end;
@@ -2438,9 +2499,10 @@ test_rsa_end:
     free(enc);
     if (init_key)
         wc_FreeRsaKey(key);
-    if (init_rng)
-        wc_FreeRng(&rng);
     free(key);
+    if (init_rng)
+        wc_FreeRng(rng);
+    free(rng);
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: %s, %d, %d: self test returned: %d\n", driver,
@@ -2466,7 +2528,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     struct crypto_akcipher *  tfm = NULL;
     struct akcipher_request * req = NULL;
     RsaKey *                  key = NULL;
-    WC_RNG                    rng;
+    WC_RNG *                  rng = NULL;
     byte *                    priv = NULL; /* priv der */
     int                       priv_len = 0;
     byte *                    pub = NULL; /* pub der */
@@ -2507,6 +2569,12 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     (void)hash_len;
     #endif
 
+    rng = (WC_RNG *)malloc(sizeof *rng);
+    if (! rng) {
+        pr_err("error: allocating RNG failed.\n");
+        test_rc = MEMORY_E;
+        goto test_pkcs1_end;
+    }
     #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
     hash = malloc(hash_len);
     if (! hash) {
@@ -2534,10 +2602,10 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(rng, 0, sizeof(*rng));
     XMEMSET(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG(&rng);
+    ret = LKCAPI_INITRNG(rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -2552,7 +2620,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
     init_key = 1;
 
-    ret = wc_RsaSetRNG(key, &rng);
+    ret = wc_RsaSetRNG(key, rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         test_rc = ret;
@@ -2562,7 +2630,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     #ifdef HAVE_FIPS
     for (;;) {
     #endif
-        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, rng);
     #ifdef HAVE_FIPS
         /* Retry if not prime. */
         if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
@@ -2698,7 +2766,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, &rng);
+    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, rng);
     if (sig_len <= 0) {
         pr_err("error: wc_RsaSSL_Sign returned: %d\n", sig_len);
         test_rc = sig_len;
@@ -2736,7 +2804,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         else {
             pr_err("error: allocating akcipher algorithm %s failed: %d\n",
                    driver, (int)PTR_ERR(tfm));
-            if (PTR_ERR(tfm) == -ENOMEM) {
+            if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM)) {
                 test_rc = MEMORY_E;
             }
             else {
@@ -2785,7 +2853,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     ret = crypto_akcipher_sign(req);
     #if defined(RHEL_RELEASE_CODE) && \
                (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
-    if (ret == -ENOSYS) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
         pr_info("info: ignoring failure from crypto_akcipher_sign (disabled by RHEL policy)\n");
         test_rc = 0;
         goto test_pkcs1_end;
@@ -2795,6 +2863,22 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
         pr_err("error: crypto_akcipher_sign returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
+    }
+
+    /* a digest of any length but the hash's own must be rejected, with
+     * nothing written to dst.  sig serves as a long enough source.  The
+     * in-tree pkcs1pad signs any digest that fits the key, so this is
+     * checked only on the wolfCrypt driver (!optional). */
+    if (! optional) {
+        sg_init_one(&src, sig, hash_len + 1);
+        akcipher_request_set_crypt(req, &src, &dst, hash_len + 1, key_len);
+        ret = crypto_akcipher_sign(req);
+        if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+            pr_err("error: crypto_akcipher_sign (oversize digest) returned "
+                   "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
+            test_rc = BAD_FUNC_ARG;
+            goto test_pkcs1_end;
+        }
     }
 
     /* now set pub key for verify test. */
@@ -2833,6 +2917,39 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     ret = crypto_akcipher_verify(req);
     if (ret) {
         pr_err("error: crypto_akcipher_verify returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+
+    /* a rejected set_pub_key must leave the transform keyless -- no
+     * verification against the previously installed key -- and a
+     * restored key must verify again. */
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24 - 1);
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
+        pr_err("error: crypto_akcipher_set_pub_key (truncated) returned "
+               "%d, expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_akcipher_verify(req);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_akcipher_verify after rejected "
+               "set_pub_key returned %d, expected %d\n", ret,
+               -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24);
+    if (ret) {
+        pr_err("error: crypto_akcipher_set_pub_key (restore) returned: "
+               "%d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_akcipher_verify(req);
+    if (ret) {
+        pr_err("error: crypto_akcipher_verify after restored "
+               "set_pub_key returned: %d\n", ret);
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
@@ -2893,7 +3010,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
 
     ret = wc_RsaPublicEncrypt(dec2, sizeof(p_vector), enc2,
-                              key_len, key, &rng);
+                              key_len, key, rng);
 
     if (unlikely(ret != (int) key_len)) {
         pr_err("error: wc_RsaPublicEncrypt returned: %d\n", ret);
@@ -2919,7 +3036,7 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     ret = crypto_akcipher_decrypt(req);
     #if defined(RHEL_RELEASE_CODE) && \
                (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 6))
-    if (ret == -ENOSYS) {
+    if (ret == -WC_NO_ERR_TRACE(ENOSYS)) {
         pr_info("info: ignoring failure from crypto_akcipher_decrypt (disabled by RHEL policy)\n");
         test_rc = 0;
         goto test_pkcs1_end;
@@ -2977,7 +3094,8 @@ test_pkcs1_end:
     #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
     if (init_rng)
-        wc_FreeRng(&rng);
+        wc_FreeRng(rng);
+    free(rng);
     if (init_key)
         wc_FreeRsaKey(key);
     free(key);
@@ -3011,7 +3129,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     int                  ret = 0;
     struct crypto_sig *  tfm = NULL;
     RsaKey *             key = NULL;
-    WC_RNG               rng;
+    WC_RNG *             rng = NULL;
     byte *               priv = NULL; /* priv der */
     int                  priv_len = 0;
     byte *               pub = NULL; /* pub der */
@@ -3036,6 +3154,13 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     int                  enc_len = 0;
     int                  n_diff = 0;
     uint8_t              skipped = 0;
+
+    rng = (WC_RNG *)malloc(sizeof *rng);
+    if (! rng) {
+        pr_err("error: allocating RNG failed.\n");
+        test_rc = MEMORY_E;
+        goto test_pkcs1_end;
+    }
 
     hash = malloc(hash_len);
     if (! hash) {
@@ -3062,10 +3187,10 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(rng, 0, sizeof(*rng));
     XMEMSET(key, 0, sizeof(RsaKey));
 
-    ret = LKCAPI_INITRNG(&rng);
+    ret = LKCAPI_INITRNG(rng);
     if (ret) {
         pr_err("error: init rng returned: %d\n", ret);
         goto test_pkcs1_end;
@@ -3080,7 +3205,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     }
     init_key = 1;
 
-    ret = wc_RsaSetRNG(key, &rng);
+    ret = wc_RsaSetRNG(key, rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
         test_rc = ret;
@@ -3090,7 +3215,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     #ifdef HAVE_FIPS
     for (;;) {
     #endif
-        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, rng);
     #ifdef HAVE_FIPS
         /* Retry if not prime. */
         if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
@@ -3207,7 +3332,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
-    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, &rng);
+    sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, rng);
     if (sig_len <= 0) {
         pr_err("error: wc_RsaSSL_Sign returned: %d\n", sig_len);
         test_rc = sig_len;
@@ -3243,7 +3368,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         else {
             pr_err("error: allocating sig algorithm %s failed: %d\n",
                    driver, (int)PTR_ERR(tfm));
-            if (PTR_ERR(tfm) == -ENOMEM) {
+            if (PTR_ERR(tfm) == -WC_NO_ERR_TRACE(ENOMEM)) {
                 test_rc = MEMORY_E;
             }
             else {
@@ -3264,11 +3389,17 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     {
         /* The behavior of crypto_sig_Xsize (X= max, key, digest) changed
          * at linux kernel v6.15.3:
-         *   <  6.15.3: all three should return the same value (in bytes).
-         *   >= 6.15.3: keysize is in bits, maxsize and digestsize in bytes. */
+         *   <  6.15.3: maxsize and keysize should return the same value (in
+         *              bytes).
+         *   >= 6.15.3: keysize is in bits, maxsize in bytes.
+         * digestsize is the hash's digest size in bytes throughout on the
+         * wolfCrypt driver (!optional).  The in-tree driver has no
+         * .digest_size, and reports the kernel's key-size-based default. */
         unsigned int maxsize = crypto_sig_maxsize(tfm);
         unsigned int keysize = crypto_sig_keysize(tfm);
         unsigned int digestsize = crypto_sig_digestsize(tfm);
+        unsigned int expected_digestsize =
+            optional ? (unsigned int)key_len : (unsigned int)hash_len;
 
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 3)
         keysize = ((keysize + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE);
@@ -3282,10 +3413,23 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
 
         if ((int)maxsize != key_len ||
             (int)keysize != key_len ||
-            (int)digestsize != key_len) {
+            digestsize != expected_digestsize) {
             pr_err("error: crypto_sig_{max, key, digest}size "
-                   "returned {%d, %d, %d}, expected %d\n",
-                    maxsize, keysize, digestsize, key_len);
+                   "returned {%d, %d, %d}, expected {%d, %d, %d}\n",
+                    maxsize, keysize, digestsize, key_len, key_len,
+                    (int)expected_digestsize);
+            test_rc = BAD_FUNC_ARG;
+            goto test_pkcs1_end;
+        }
+    }
+
+    if (! optional) {
+        /* a digest length not matching the hash must be rejected.  sig serves as a
+         * long enough source. */
+        ret = crypto_sig_sign(tfm, sig, hash_len + 1, km_sig, key_len);
+        if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+            pr_err("error: crypto_sig_sign (oversize digest) returned %d, "
+                   "expected %d\n", ret, -WC_NO_ERR_TRACE(EINVAL));
             test_rc = BAD_FUNC_ARG;
             goto test_pkcs1_end;
         }
@@ -3323,6 +3467,39 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
+    /* a rejected set_pubkey must leave the transform keyless -- no
+     * verification against the previously installed key -- and a
+     * restored key must verify again. */
+    ret = crypto_sig_set_pubkey(tfm, pub + 24, pub_len - 24 - 1);
+    if (ret != -WC_NO_ERR_TRACE(EBADMSG)) {
+        pr_err("error: crypto_sig_set_pubkey (truncated) returned %d, "
+               "expected %d\n", ret, -WC_NO_ERR_TRACE(EBADMSG));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_sig_verify(tfm, sig, sig_len, hash, hash_len);
+    if (ret != -WC_NO_ERR_TRACE(EINVAL)) {
+        pr_err("error: crypto_sig_verify after rejected set_pubkey "
+               "returned %d, expected %d\n", ret,
+               -WC_NO_ERR_TRACE(EINVAL));
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_sig_set_pubkey(tfm, pub + 24, pub_len - 24);
+    if (ret) {
+        pr_err("error: crypto_sig_set_pubkey (restore) returned: %d\n",
+               ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+    ret = crypto_sig_verify(tfm, sig, sig_len, hash, hash_len);
+    if (ret) {
+        pr_err("error: crypto_sig_verify after restored set_pubkey "
+               "returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+
     test_rc = 0;
 test_pkcs1_end:
     if (tfm)
@@ -3340,7 +3517,8 @@ test_pkcs1_end:
     free(hash);
 
     if (init_rng)
-        wc_FreeRng(&rng);
+        wc_FreeRng(rng);
+    free(rng);
     if (init_key)
         wc_FreeRsaKey(key);
     free(key);

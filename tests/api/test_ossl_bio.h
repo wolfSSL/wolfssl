@@ -42,6 +42,7 @@ int test_wolfSSL_BIO_f_md(void);
 int test_wolfSSL_BIO_up_ref(void);
 int test_wolfSSL_BIO_reset(void);
 int test_wolfSSL_BIO_get_len(void);
+int test_wolfSSL_BIO_read_filename(void);
 int test_wolfSSL_BIO(void);
 int test_wolfSSL_BIO_BIO_ring_read(void);
 int test_wolfSSL_BIO_custom_method(void);
@@ -67,6 +68,7 @@ int test_wolfSSL_BIO_get_new_index_threaded(void);
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_up_ref),         \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_reset),          \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_get_len),        \
+    TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_read_filename),  \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO),                \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_BIO_ring_read),  \
     TEST_DECL_GROUP("ossl_bio", test_wolfSSL_BIO_custom_method),  \

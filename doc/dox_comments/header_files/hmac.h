@@ -1,6 +1,41 @@
 /*!
     \ingroup HMAC
 
+    \brief This function initializes an Hmac object, setting the heap hint
+    and the device ID used with crypto callbacks or async hardware. It is up
+    to the user to call wc_HmacFree on the Hmac object when done.
+
+    \return 0 Returned on successfully initializing the Hmac object
+    \return BAD_FUNC_ARG Returned if hmac is NULL
+
+    \param hmac pointer to the Hmac object to initialize
+    \param heap heap hint to use for memory allocation, or NULL
+    \param devId ID to use with crypto callbacks or async hardware. Set to
+    INVALID_DEVID (-2) if not used
+
+    \note On 64-bit CPUs, Hmac has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
+
+    _Example_
+    \code
+    Hmac hmac;
+    byte key[] = { // initialize with key to use for encryption };
+    if (wc_HmacInit(&hmac, NULL, INVALID_DEVID) != 0) {
+        // error initializing Hmac object
+    }
+    else if (wc_HmacSetKey(&hmac, WC_SHA256, key, sizeof(key)) != 0) {
+        // error setting the key
+    }
+    wc_HmacFree(&hmac);
+    \endcode
+
+    \sa wc_HmacSetKey
+*/
+int wc_HmacInit(Hmac* hmac, void* heap, int devId);
+
+/*!
+    \ingroup HMAC
+
     \brief This function initializes an Hmac object, setting its
     encryption type, key and HMAC length.
 
@@ -29,6 +64,7 @@
     }
     \endcode
 
+    \sa wc_HmacInit
     \sa wc_HmacUpdate
     \sa wc_HmacFinal
 */
@@ -46,6 +82,8 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz);
     \return 0 Returned on successfully updating the message to authenticate
     \return MEMORY_E Returned if there is an error allocating memory for
     use with a hashing algorithm
+    \return MISSING_KEY Returned for an Hmac named by id or label with no
+    key bytes set when no device performs the operation
 
     \param hmac pointer to the Hmac object for which to update the message
     \param msg pointer to the buffer containing the message to append
@@ -78,6 +116,8 @@ int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz);
     \return 0 Returned on successfully computing the final hash
     \return MEMORY_E Returned if there is an error allocating memory for
     use with a hashing algorithm
+    \return MISSING_KEY Returned for an Hmac named by id or label with no
+    key bytes set when no device performs the operation
 
     \param hmac pointer to the Hmac object for which to calculate the
     final hash
@@ -120,6 +160,204 @@ int wc_HmacFinal(Hmac* hmac, byte* out);
     \sa none
 */
 int wolfSSL_GetHmacMaxSize(void);
+
+/*!
+    \ingroup HMAC
+
+    \brief Single shot function for generating an HMAC. Initializes, keys,
+    hashes the message and finalizes in one call. The full digest size tag of
+    the hash type is always written.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if out or outSz is NULL, in is NULL with a non-zero
+    inSz, key is NULL with a non-zero keySz, or type is invalid
+    \return BUFFER_E if *outSz is smaller than the digest size of type
+    \return MEMORY_E if allocating the HMAC context fails
+    \return HMAC_MIN_KEYLEN_E may be returned in FIPS builds when the key is
+    shorter than the FIPS minimum
+
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param out buffer to hold the tag
+    \param outSz on input the size of out, at least the digest size of type
+    (WC_MAX_DIGEST_SIZE always fits); on output the digest size
+    \param in message to authenticate
+    \param inSz length of the message
+    \param key HMAC key; may be NULL when keySz is 0
+    \param keySz length of the key
+
+    _Example_
+    \code
+    byte   tag[WC_SHA256_DIGEST_SIZE];
+    word32 tagSz = sizeof(tag);
+    ret = wc_HmacGenerate(WC_SHA256, tag, &tagSz, msg, msgSz, key, keySz);
+    \endcode
+
+    \sa wc_HmacGenerate_ex
+    \sa wc_HmacVerify
+*/
+int wc_HmacGenerate(int type, byte* out, word32* outSz,
+                    const byte* in, word32 inSz,
+                    const byte* key, word32 keySz);
+
+/*!
+    \ingroup HMAC
+
+    \brief Single shot HMAC for use with a crypto callback device. Use this
+    function only with crypto callbacks; otherwise use wc_HmacGenerate. It
+    works like wc_HmacGenerate, but uses caller provided storage for the HMAC
+    context and takes a heap hint and device ID. Unless key is NULL, the
+    context is initialized with wc_HmacInit and released with wc_HmacFree
+    inside this call, so it must not hold a live HMAC operation on entry.
+
+    If a devId is specified, the crypto callback is immediately dispatched to,
+    with all arguments passed in and no context initialization. If the one-shot
+    operation is declined, the HMAC context is then initialized with the
+    supplied key (if present) and offload to the device will again be attempted,
+    but through the streaming interface (update/final).
+
+    To use a key that is stored on the device, initialize hmac with
+    wc_HmacInit_Id or wc_HmacInit_Label and pass a NULL key. The context is
+    then not initialized or freed by this call, and the caller is expected to
+    free it manually.
+
+    With a NULL key, hmac must always be initialized by the caller. A NULL key
+    is only for a key that is stored on the crypto callback device. If no
+    device computes the tag, the call fails with MISSING_KEY. A NULL key is
+    never used as a key of zero length. For a key of zero length, pass a
+    non-NULL key with a keySz of 0, or use wc_HmacGenerate.
+
+    \return see wc_HmacGenerate; also BAD_FUNC_ARG if hmac is NULL
+    \return MISSING_KEY if key is NULL and no device computed the tag
+    \return WC_PENDING_E if a crypto callback device returned pending; no tag
+    was produced. The caller may call again, which starts a new operation.
+
+    \param hmac storage for the HMAC context, or an initialized context that
+    names a key on the device
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param out buffer to hold the tag
+    \param outSz on input the size of out; on output the digest size
+    \param in message to authenticate
+    \param inSz length of the message
+    \param key HMAC key, or NULL to use the key on the device that hmac names.
+    With a NULL key, hmac must be initialized by the caller
+    \param keySz length of the key
+    \param heap heap hint for dynamic memory, or NULL
+    \param devId device ID for crypto callbacks or async, or INVALID_DEVID
+
+    _Example_
+    \code
+    Hmac   hmac;
+    byte   tag[WC_SHA256_DIGEST_SIZE];
+    word32 tagSz = sizeof(tag);
+    ret = wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+                             key, keySz, NULL, devId);
+
+    // key stored on the device
+    ret = wc_HmacInit_Id(&hmac, id, idLen, NULL, devId);
+    if (ret == 0) {
+        tagSz = sizeof(tag);
+        ret = wc_HmacGenerate_ex(&hmac, WC_SHA256, tag, &tagSz, msg, msgSz,
+                                 NULL, 0, NULL, devId);
+        wc_HmacFree(&hmac);
+    }
+    \endcode
+
+    \sa wc_HmacGenerate
+    \sa wc_HmacVerify_ex
+*/
+int wc_HmacGenerate_ex(Hmac* hmac, int type, byte* out, word32* outSz,
+                       const byte* in, word32 inSz,
+                       const byte* key, word32 keySz,
+                       void* heap, int devId);
+
+/*!
+    \ingroup HMAC
+
+    \brief Single shot function for validating an HMAC. Computes the tag over
+    the message and compares it against check in constant time. Only full
+    length tags are accepted.
+
+    \return 0 if the tag matches
+    \return MAC_CMP_FAILED_E if the tag does not match
+    \return BAD_FUNC_ARG if check is NULL, checkSz is not the digest size of
+    type, or any wc_HmacGenerate argument check fails
+    \return MEMORY_E if allocating the HMAC context fails
+    \return HMAC_MIN_KEYLEN_E may be returned in FIPS builds when the key is
+    shorter than the FIPS minimum
+
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param check expected tag
+    \param checkSz length of the expected tag; must equal the digest size of
+    type
+    \param in message that was authenticated
+    \param inSz length of the message
+    \param key HMAC key; may be NULL when keySz is 0
+    \param keySz length of the key
+
+    _Example_
+    \code
+    ret = wc_HmacVerify(WC_SHA256, tag, tagSz, msg, msgSz, key, keySz);
+    if (ret == MAC_CMP_FAILED_E) {
+        // reject the message
+    }
+    \endcode
+
+    \sa wc_HmacVerify_ex
+    \sa wc_HmacGenerate
+*/
+int wc_HmacVerify(int type, const byte* check, word32 checkSz,
+                  const byte* in, word32 inSz,
+                  const byte* key, word32 keySz);
+
+/*!
+    \ingroup HMAC
+
+    \brief Single shot HMAC verify for use with a crypto callback device. Use
+    this function only with crypto callbacks; otherwise use wc_HmacVerify. It
+    works like wc_HmacVerify, but uses caller provided storage for the HMAC
+    context and takes a heap hint and device ID. The context, the crypto
+    callback device and a key stored on the device are used as in
+    wc_HmacGenerate_ex.
+
+    With a NULL key, hmac must always be initialized by the caller. A NULL key
+    is only for a key that is stored on the crypto callback device. If no
+    device computes the tag, the call fails with MISSING_KEY. A NULL key is
+    never used as a key of zero length.
+
+    \return see wc_HmacVerify; also BAD_FUNC_ARG if hmac is NULL
+    \return MISSING_KEY if key is NULL and no device computed the tag
+    \return WC_PENDING_E if a crypto callback device returned pending; the
+    tag was not checked. The caller may call again, which starts a new
+    operation.
+
+    \param hmac storage for the HMAC context, or an initialized context that
+    names a key on the device
+    \param type hash type, such as WC_SHA256 or WC_SHA3_384
+    \param check expected tag
+    \param checkSz length of the expected tag; must equal the digest size of
+    type
+    \param in message that was authenticated
+    \param inSz length of the message
+    \param key HMAC key, or NULL to use the key on the device that hmac names.
+    With a NULL key, hmac must be initialized by the caller
+    \param keySz length of the key
+    \param heap heap hint for dynamic memory, or NULL
+    \param devId device ID for crypto callbacks or async, or INVALID_DEVID
+
+    _Example_
+    \code
+    Hmac hmac;
+    ret = wc_HmacVerify_ex(&hmac, WC_SHA256, tag, tagSz, msg, msgSz,
+                           key, keySz, NULL, devId);
+    \endcode
+
+    \sa wc_HmacVerify
+    \sa wc_HmacGenerate_ex
+*/
+int wc_HmacVerify_ex(Hmac* hmac, int type, const byte* check, word32 checkSz,
+                     const byte* in, word32 inSz,
+                     const byte* key, word32 keySz,
+                     void* heap, int devId);
 
 /*!
     \ingroup HMAC
@@ -245,6 +483,19 @@ int wc_HKDF_Extract(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it. The caller must re-invoke with identical arguments until the
+    result is no longer WC_PENDING_E; HKDF has no WC_ASYNC_DEV, so this is a
+    poll and not a wc_AsyncWait(). In a WOLFSSL_ASYNC_CRYPT build the TLS 1.3
+    key schedule resumes a pending HKDF request by re-invoking the callback
+    with identical arguments; without WOLFSSL_ASYNC_CRYPT a device also used
+    for TLS 1.3 must complete HKDF requests synchronously. wc_HKDF_ex()
+    follows the same contract and re-issues its extract step on every retry,
+    so a device that pends must serve a repeated identical request from its
+    completed result. There is no request handle: a device should key its
+    completion tracking on the output pointer plus the argument tuple, and
+    one that cannot correlate a retry that way must not pend.
 
     \param type hash type to use for the HKDF. Valid types are: WC_MD5, WC_SHA,
     WC_SHA256, WC_SHA384, WC_SHA512, WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or
@@ -357,6 +608,19 @@ int wc_HKDF_Expand(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it. The caller must re-invoke with identical arguments until the
+    result is no longer WC_PENDING_E; HKDF has no WC_ASYNC_DEV, so this is a
+    poll and not a wc_AsyncWait(). In a WOLFSSL_ASYNC_CRYPT build the TLS 1.3
+    key schedule resumes a pending HKDF request by re-invoking the callback
+    with identical arguments; without WOLFSSL_ASYNC_CRYPT a device also used
+    for TLS 1.3 must complete HKDF requests synchronously. wc_HKDF_ex()
+    follows the same contract and re-issues its extract step on every retry,
+    so a device that pends must serve a repeated identical request from its
+    completed result. There is no request handle: a device should key its
+    completion tracking on the output pointer plus the argument tuple, and
+    one that cannot correlate a retry that way must not pend.
 
     \param type hash type to use for the HKDF. Valid types are: WC_MD5, WC_SHA,
     WC_SHA256, WC_SHA384, WC_SHA512, WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or
@@ -459,6 +723,11 @@ int wc_Tls13_HKDF_Extract(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it; the caller re-invokes with identical arguments until the
+    result is no longer WC_PENDING_E. The TLS 1.3 key schedule does this in
+    WOLFSSL_ASYNC_CRYPT builds.
 
     \param prk     Generated pseudorandom key
     \param salt    Salt. May be NULL; saltLen is then ignored unless a crypto
@@ -510,6 +779,11 @@ int wc_Tls13_HKDF_Extract_ex(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it; the caller re-invokes with identical arguments until the
+    result is no longer WC_PENDING_E. The TLS 1.3 key schedule does this in
+    WOLFSSL_ASYNC_CRYPT builds.
 
     \param okm         Generated pseudorandom key - output key material.
     \param okmLen      Length of generated pseudorandom key - output key material.
@@ -591,6 +865,11 @@ int wc_Tls13_HKDF_Expand_Label(
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
+    \return WC_PENDING_E May be returned in a WOLF_CRYPTO_CB build when the
+    registered crypto callback device has taken the request but not yet
+    finished it; the caller re-invokes with identical arguments until the
+    result is no longer WC_PENDING_E. The TLS 1.3 key schedule does this in
+    WOLFSSL_ASYNC_CRYPT builds.
 
     \param okm         Generated pseudorandom key - output key material.
     \param okmLen      Length of generated pseudorandom key - output key material.

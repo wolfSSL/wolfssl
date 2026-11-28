@@ -724,7 +724,8 @@ int wc_SHE_LoadKey_Verify_Label(
     output buffer may be NULL to skip that message.
 
     \return 0 on success
-    \return BAD_FUNC_ARG if she is NULL
+    \return BAD_FUNC_ARG if she is NULL, or a non-NULL output buffer is
+    smaller than its message size
     \return CRYPTOCB_UNAVAILABLE if no callback is registered
 
     \param she initialized SHE context

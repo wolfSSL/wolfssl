@@ -49,6 +49,16 @@
 #endif
 
 /* ======== SHAKE parameter guards ======== */
+#ifdef USE_INTEL_SPEEDUP
+/* AVX-512 assembly for SLH-DSA is built (and dispatched at run time on
+ * capable CPUs) whenever the Intel speedups are enabled and AVX-512 is not
+ * opted out.  Matches the HAVE_INTEL_AVX512 guard around the generated
+ * assembly. */
+#ifndef NO_AVX512_SUPPORT
+    #define WOLFSSL_SLHDSA_HAVE_INTEL_AVX512
+#endif
+#endif
+
 #ifdef WOLFSSL_SLHDSA_NO_SHAKE
 
     #define WOLFSSL_SLHDSA_PARAM_NO_128S
@@ -725,11 +735,23 @@ enum SlhDsaParam {
     #error "WOLFSSL_HAVE_SLHDSA requires at least one parameter set"
 #endif
 
-/* Helper macro to detect SHA2 parameter sets. */
-#ifdef WOLFSSL_SLHDSA_SHA2
+/* Helper macro to detect SHA2 parameter sets. Constant when only one hash
+ * family is compiled in. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && defined(WOLFSSL_SLHDSA_NO_SHAKE)
+    #define SLHDSA_IS_SHA2(p)   ((void)(p), 1)
+#elif defined(WOLFSSL_SLHDSA_SHA2)
     #define SLHDSA_IS_SHA2(p)   ((p) >= SLHDSA_SHA2_128S)
 #else
     #define SLHDSA_IS_SHA2(p)   0
+#endif
+
+/* SHA-512 is used only by the SHA2 parameter sets of categories 3 and 5
+ * (n = 24 and 32). The category 1 SHA2 sets use SHA-256 alone, so without
+ * the larger SHA2 sets no SHA-512 code or state is compiled in. */
+#if defined(WOLFSSL_SLHDSA_SHA2) && \
+    (!defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_192) || \
+     !defined(WOLFSSL_SLHDSA_PARAM_NO_SHA2_256))
+    #define WC_SLHDSA_NEED_SHA512
 #endif
 
 /* Pre-defined parameter values. */
@@ -748,6 +770,14 @@ typedef struct SlhDsaParameters {
     word32 sigLen;              /* Signature length in bytes. */
 } SlhDsaParameters;
 
+/* Flags indicating which parts of the key are present in the key object.
+ * Crypto callback devices store keys within the device and clear both flags.
+ * Sign and verify dispatch before the flags are read, so for those the flags
+ * gate the software path only.
+ *
+ * The deterministic sign entry points are the exception: they read PK.seed out
+ * of the local key to pass as addrnd, so they need the public half present
+ * even when the private half lives on the device. */
 #define WC_SLHDSA_FLAG_PRIVATE       0x0001
 #define WC_SLHDSA_FLAG_PUBLIC        0x0002
 #define WC_SLHDSA_FLAG_BOTH_KEYS     (WC_SLHDSA_FLAG_PRIVATE | \
@@ -783,35 +813,47 @@ struct SlhDsaKey {
     byte sk[32 * 4];
     /* Hash objects for SHAKE or SHA2. */
     union {
+#ifndef WOLFSSL_SLHDSA_NO_SHAKE
         struct {
             /* Primary SHAKE-256 object. */
             wc_Shake shake;
             /* Secondary SHAKE-256 object (T_l streaming). */
             wc_Shake shake2;
         } shk;
+#endif
 #ifdef WOLFSSL_SLHDSA_SHA2
         struct {
             /* F, PRF (all cats) + H, T_l (cat 1). */
             wc_Sha256 sha256;
             /* T_l streaming (cat 1), H_msg scratch. */
             wc_Sha256 sha256_2;
+        #ifdef WC_SLHDSA_NEED_SHA512
             /* H, T_l (cats 3, 5). */
             wc_Sha512 sha512;
             /* H_msg streaming (cats 3, 5). */
             wc_Sha512 sha512_2;
+        #endif
             /* Pre-computed midstate: PK.seed || pad(64 - n). */
             wc_Sha256 sha256_mid;
+        #ifdef WC_SLHDSA_NEED_SHA512
             /* Pre-computed midstate: PK.seed || pad(128 - n). */
             wc_Sha512 sha512_mid;
+        #endif
             WC_BITFIELD sha256_inited:1;
             WC_BITFIELD sha256_2_inited:1;
             WC_BITFIELD sha256_mid_inited:1;
+        #ifdef WC_SLHDSA_NEED_SHA512
             WC_BITFIELD sha512_inited:1;
             WC_BITFIELD sha512_2_inited:1;
             WC_BITFIELD sha512_mid_inited:1;
+        #endif
         } sha2;
 #endif
     } hash;
+#ifdef WOLFSSL_SLHDSA_SHA2
+    /* SHA-256 output, cleared after private operations and Free. */
+    byte sha2Digest[WC_SHA256_DIGEST_SIZE];
+#endif
 };
 
 #ifndef WC_SLHDSAKEY_TYPE_DEFINED
@@ -903,6 +945,7 @@ WOLFSSL_API int  wc_SlhDsaKey_PublicSizeFromParam(enum SlhDsaParam param);
 WOLFSSL_API int  wc_SlhDsaKey_SigSizeFromParam(enum SlhDsaParam param);
 
 /* DER encode/decode */
+#ifndef NO_ASN
 #ifndef WOLFSSL_SLHDSA_VERIFY_ONLY
 WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyDecode(const byte* input,
     word32* inOutIdx, SlhDsaKey* key, word32 inSz);
@@ -922,6 +965,7 @@ WOLFSSL_API int  wc_SlhDsaKey_PrivateKeyToDer(SlhDsaKey* key, byte* output,
 WOLFSSL_API int  wc_SlhDsaKey_PublicKeyToDer(SlhDsaKey* key, byte* output,
     word32 inLen, int withAlg);
 #endif
+#endif /* !NO_ASN */
 
 #endif /* WOLFSSL_HAVE_SLHDSA */
 

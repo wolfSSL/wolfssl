@@ -3,6 +3,9 @@
 #
 
 EXTRA_DIST += \
+         certs/test/cert-ext-dirsan.cfg \
+         certs/test/cert-ext-dirsan.der \
+         certs/test/cert-ext-dirsan.pem \
          certs/test/cert-ext-ia.cfg \
          certs/test/cert-ext-ia.der \
          certs/test/cert-ext-ia.pem \
@@ -17,6 +20,8 @@ EXTRA_DIST += \
          certs/test/cert-ext-ncrid.pem \
          certs/test/cert-ext-ncdns.der \
          certs/test/cert-ext-ncdns.pem \
+         certs/test/cert-ext-nc-empty-dns.der \
+         certs/test/cert-ext-nc-empty-dns.pem \
          certs/test/cert-ext-ncmulti.der \
          certs/test/cert-ext-ncmulti.pem \
          certs/test/cert-ext-ncmixed.der \
@@ -48,6 +53,12 @@ EXTRA_DIST += \
          certs/test/cert-over-max-altnames.pem \
          certs/test/cert-over-max-nc.cfg \
          certs/test/cert-over-max-nc.pem \
+         certs/test/cert-max-name-entries.cfg \
+         certs/test/cert-max-name-entries.der \
+         certs/test/cert-max-name-entries.pem \
+         certs/test/cert-over-max-name-entries.cfg \
+         certs/test/cert-over-max-name-entries.der \
+         certs/test/cert-over-max-name-entries.pem \
          certs/test/client-ecc-cert-ski.hex
 
 # The certs/server-cert with the last byte (signature byte) changed
@@ -94,6 +105,9 @@ EXTRA_DIST += \
 
 EXTRA_DIST += \
          certs/test/crit-cert.pem \
+         certs/test/gen-verify-cb-certs.sh \
+         certs/test/server-self-issued-cert.pem \
+         certs/test/ca-cert-unknown-crit-ext.pem \
          certs/test/crit-key.pem \
          certs/test/dh1024.der \
          certs/test/dh1024.pem \
@@ -115,9 +129,28 @@ EXTRA_DIST += \
          certs/test/nc-ancestor/00-uri-permit-ca-permissive-key.pem \
          certs/test/nc-ancestor/01-uri-permit-ca-cert.pem \
          certs/test/nc-ancestor/01-uri-permit-ca-key.pem \
+         certs/test/nc-ancestor/01-uri-permit-ca-selfissued-cert.pem \
+         certs/test/nc-ancestor/01-uri-permit-ca-selfloop-cert.pem \
+         certs/test/nc-ancestor/01-uri-permit-ca-selfloop-key.pem \
+         certs/test/nc-ancestor/02-akid-name-ca-cert.pem \
+         certs/test/nc-ancestor/02-akid-skid-ca-cert.pem \
          certs/test/nc-ancestor/02-benign-sub-ca-cert.pem \
          certs/test/nc-ancestor/02-benign-sub-ca-key.pem \
+         certs/test/nc-ancestor/03-akid-name-leaf-cert.pem \
+         certs/test/nc-ancestor/03-akid-name-valid-leaf-cert.pem \
+         certs/test/nc-ancestor/03-akid-skid-leaf-cert.pem \
+         certs/test/nc-ancestor/03-akid-skid-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-leaf-attacker-key.pem \
          certs/test/nc-ancestor/03-leaf-chain.pem \
+         certs/test/nc-ancestor/03-selfissued-leaf-cert.pem \
+         certs/test/nc-ancestor/03-selfissued-valid-leaf-cert.pem \
+         certs/test/nc-ancestor/03-selfloop-leaf-cert.pem \
+         certs/test/nc-ancestor/03-selfloop-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-valid-leaf-cert.pem \
          certs/test/nc-ancestor/03-valid-leaf-key.pem
+
+EXTRA_DIST += \
+         certs/test/alt-chain-forged-ca/gen-alt-chain-forged-ca.sh \
+         certs/test/alt-chain-forged-ca/realRoot-cert.pem \
+         certs/test/alt-chain-forged-ca/leaf-key.pem \
+         certs/test/alt-chain-forged-ca/server-chain.pem

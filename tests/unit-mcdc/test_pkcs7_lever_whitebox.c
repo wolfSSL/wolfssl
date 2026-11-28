@@ -59,11 +59,11 @@
 #include <string.h>
 #include <wolfssl/certs_test.h>
 
-/* Bounded by vector count, never by elapsed time: 96 fail positions is
- * comfortably past the number of allocation sites these decodes reach, and
- * over-sweeping is harmless -- once the index passes the site count the target
- * simply runs to completion. */
-#define WB_ALLOC_SWEEP 96
+/* Bounded by vector count, never by elapsed time: over-sweeping is harmless,
+ * because once the index passes the site count the target runs to completion.
+ * The AuthEnvelopedData decode reaches its content buffer past position 96, so
+ * keep headroom above the deepest path rather than trimming to fit. */
+#define WB_ALLOC_SWEEP 256
 
 static int wb_fail = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)

@@ -127,6 +127,18 @@ int wc_ChaCha20Poly1305_CheckTag(
 
 /* Implementation of AEAD, which includes support for adding
     data, then final calculation of authentication tag */
+/* As wc_ChaCha20Poly1305_Init(), binding the embedded ChaCha to a crypto
+ * callback device. Pass INVALID_DEVID for software; heap is unused.
+ *
+ * Note the streaming calls below (UpdateAad/Update/Final) always run in
+ * software: they build the tag incrementally, which the one-shot AEAD callback
+ * cannot express. The devId reaches the embedded ChaCha, so offload happens
+ * only through wc_ChaCha20Poly1305_Encrypt_ex()/_Decrypt_ex(). */
+WOLFSSL_API int wc_ChaCha20Poly1305_Init_ex(ChaChaPoly_Aead* aead,
+    const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
+    const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
+    int isEncrypt, void* heap, int devId);
+
 WOLFSSL_API int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
     const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
     const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],

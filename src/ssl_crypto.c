@@ -27,6 +27,20 @@
     #endif
 #else
 
+/* FIPS builds validate cmac.h without the aligned-allocation macros; the
+ * plain allocation path is what they expect. */
+#ifndef WC_ALLOC_CMAC
+#define WC_ALLOC_CMAC(heap) \
+    ((Cmac*)XMALLOC(sizeof(Cmac), (heap), DYNAMIC_TYPE_CMAC))
+#define WC_FREE_CMAC(cmac, heap) \
+    do {XFREE((cmac), (heap), DYNAMIC_TYPE_CMAC);} while (0)
+#endif
+
+/* Check a size_t/unsigned long length can be passed to wolfCrypt as a word32
+ * without being truncated. */
+#define WOLFSSL_CRYPTO_LEN_FITS_WORD32(len) \
+    ((size_t)(word32)(len) == (size_t)(len))
+
 /*******************************************************************************
  * START OF Digest APIs
  ******************************************************************************/
@@ -59,6 +73,11 @@ void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX* md4, const void* data,
 {
     WOLFSSL_ENTER("MD4_Update");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("MD4_Update: length too large");
+        return;
+    }
     /* Update wolfCrypt MD4 object with data. */
     wc_Md4Update((wc_Md4*)md4, (const byte*)data, (word32)len);
 }
@@ -112,6 +131,11 @@ int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
 {
     WOLFSSL_ENTER("MD5_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("MD5 Update size is to long, would have been truncated.");
+        return 0;
+    }
     /* Update wolfCrypt MD5 object with data. */
     return wc_Md5Update((wc_Md5*)md5, (const byte*)input, (word32)sz) == 0;
 }
@@ -185,8 +209,13 @@ unsigned char* wolfSSL_MD5(const unsigned char* data, size_t len,
     if (hash == NULL) {
         hash = dgst;
     }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_MD5: length too large");
+        hash = NULL;
+    }
     /* One shot MD5 hash with wolfCrypt. */
-    if (wc_Md5Hash(data, (word32)len, hash) != 0) {
+    else if (wc_Md5Hash(data, (word32)len, hash) != 0) {
         WOLFSSL_MSG("wc_Md5Hash error");
         hash = NULL;
     }
@@ -226,6 +255,11 @@ int wolfSSL_SHA_Update(WOLFSSL_SHA_CTX* sha, const void* input,
 {
     WOLFSSL_ENTER("SHA_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA Update size is to long, would have been truncated.");
+        return 0;
+    }
     /* Update wolfCrypt SHA object with data. */
     return wc_ShaUpdate((wc_Sha*)sha, (const byte*)input, (word32)sz) == 0;
 }
@@ -375,6 +409,11 @@ int wolfSSL_SHA224_Update(WOLFSSL_SHA224_CTX* sha224, const void* input,
 {
     WOLFSSL_ENTER("SHA224_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA224 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA-224 object with data. */
     return wc_Sha224Update((wc_Sha224*)sha224, (const byte*)input, (word32)sz)
         == 0;
@@ -434,6 +473,11 @@ int wolfSSL_SHA256_Update(WOLFSSL_SHA256_CTX* sha256, const void* input,
 {
     WOLFSSL_ENTER("SHA256_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA256 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA-256 object with data. */
     return wc_Sha256Update((wc_Sha256*)sha256, (const byte*)input, (word32)sz)
         == 0;
@@ -523,6 +567,11 @@ int wolfSSL_SHA384_Update(WOLFSSL_SHA384_CTX* sha384, const void* input,
 {
     WOLFSSL_ENTER("SHA384_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA384 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA-384 object with data. */
     return wc_Sha384Update((wc_Sha384*)sha384, (const byte*)input, (word32)sz)
         == 0;
@@ -582,6 +631,11 @@ int wolfSSL_SHA512_Update(WOLFSSL_SHA512_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA512 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA-512 object with data. */
     return wc_Sha512Update((wc_Sha512*)sha512, (const byte*)input, (word32)sz)
         == 0;
@@ -660,6 +714,11 @@ int wolfSSL_SHA512_224_Update(WOLFSSL_SHA512_224_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_224_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA512-224 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA-512-224 object with data. */
     return wc_Sha512_224Update((wc_Sha512*)sha512, (const byte*)input,
         (word32)sz) == 0;
@@ -739,6 +798,11 @@ int wolfSSL_SHA512_256_Update(WOLFSSL_SHA512_256_CTX* sha512, const void* input,
 {
     WOLFSSL_ENTER("SHA512_256_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA512-256 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA-512-256 object with data. */
     return wc_Sha512_256Update((wc_Sha512*)sha512, (const byte*)input,
         (word32)sz) == 0;
@@ -821,6 +885,11 @@ int wolfSSL_SHA3_224_Update(WOLFSSL_SHA3_224_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_224_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-224 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA3-224 object with data. */
     return wc_Sha3_224_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -880,6 +949,11 @@ int wolfSSL_SHA3_256_Update(WOLFSSL_SHA3_256_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_256_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-256 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA3-256 object with data. */
     return wc_Sha3_256_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -939,6 +1013,11 @@ int wolfSSL_SHA3_384_Update(WOLFSSL_SHA3_384_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_384_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-384 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA3-384 object with data. */
     return wc_Sha3_384_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -998,6 +1077,11 @@ int wolfSSL_SHA3_512_Update(WOLFSSL_SHA3_512_CTX* sha3, const void* input,
 {
     WOLFSSL_ENTER("SHA3_512_Update");
 
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("SHA3-512 Update size is to long.");
+        return 0;
+    }
     /* Update wolfCrypt SHA3-512 object with data. */
     return wc_Sha3_512_Update((wc_Sha3*)sha3, (const byte*)input, (word32)sz)
         == 0;
@@ -1055,6 +1139,12 @@ unsigned char* wolfSSL_SHA1(const unsigned char* data, size_t len,
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA1");
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA1: length too large");
+        return NULL;
+    }
 
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
@@ -1123,6 +1213,12 @@ unsigned char* wolfSSL_SHA224(const unsigned char* data, size_t len,
 
     WOLFSSL_ENTER("wolfSSL_SHA224");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA224: length too large");
+        return NULL;
+    }
+
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
         WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA224 IS NOT "
@@ -1189,6 +1285,12 @@ unsigned char* wolfSSL_SHA256(const unsigned char* data, size_t len,
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA256");
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA256: length too large");
+        return NULL;
+    }
 
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
@@ -1257,6 +1359,12 @@ unsigned char* wolfSSL_SHA384(const unsigned char* data, size_t len,
 
     WOLFSSL_ENTER("wolfSSL_SHA384");
 
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA384: length too large");
+        return NULL;
+    }
+
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
         WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA384 IS NOT "
@@ -1323,6 +1431,12 @@ unsigned char* wolfSSL_SHA512(const unsigned char* data, size_t len,
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA512");
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("wolfSSL_SHA512: length too large");
+        return NULL;
+    }
 
     /* Use static buffer if none passed in. */
     if (hash == NULL) {
@@ -2044,6 +2158,12 @@ unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
     if ((evp_md == NULL) || (key == NULL) || (md == NULL)) {
         rc = BAD_FUNC_ARG;
     }
+    /* wc_HmacUpdate takes a word32 length, reject data that would be
+     * truncated. */
+    if ((rc == 0) && !WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("HMAC size is to long.");
+        rc = BAD_FUNC_ARG;
+    }
 
     if (rc == 0) {
         /* Get the hash type corresponding to the EVP digest. */
@@ -2143,7 +2263,7 @@ WOLFSSL_CMAC_CTX* wolfSSL_CMAC_CTX_new(void)
         /* Allocate memory for EVP cipher context object. */
         ctx->cctx = wolfSSL_EVP_CIPHER_CTX_new();
         if (ctx->cctx == NULL) {
-            XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+            WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
             XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
             ctx = NULL;
         }
@@ -2166,7 +2286,7 @@ void wolfSSL_CMAC_CTX_free(WOLFSSL_CMAC_CTX *ctx)
 #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
             wc_CmacFree((Cmac*)ctx->internal);
 #endif
-            XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+            WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
         }
         if (ctx->cctx != NULL) {
             wolfSSL_EVP_CIPHER_CTX_cleanup(ctx->cctx);
@@ -2237,15 +2357,22 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
         ret = 0;
     }
     /* Key length must match cipher. */
-    if ((ret == 1) && ((int)keySz != wolfSSL_EVP_Cipher_key_length(cipher))) {
+    if ((ret == 1) && (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(keySz) ||
+            ((int)keySz != wolfSSL_EVP_Cipher_key_length(cipher)))) {
         WOLFSSL_MSG("wolfSSL_CMAC_Init: "
                     "supplied key size doesn't match requested cipher");
         ret = 0;
     }
 
-    if ((ret == 1) && (ctx->internal == NULL)) {
+    if ((ret == 1) && (ctx->internal != NULL)) {
+        /* Free internal if re-initializing without a CMAC_Final() */
+    #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+        wc_CmacFree((Cmac*)ctx->internal);
+    #endif
+    }
+    else if (ret == 1) {
         /* Allocate memory for wolfSSL CMAC object. */
-        ctx->internal = (Cmac*)XMALLOC(sizeof(Cmac), NULL, DYNAMIC_TYPE_CMAC);
+        ctx->internal = WC_ALLOC_CMAC(NULL);
         if (ctx->internal == NULL)
             ret = 0;
     }
@@ -2254,7 +2381,7 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
     if ((ret == 1) && (wc_InitCmac((Cmac*)ctx->internal, (const byte*)key,
             (word32)keySz, WC_CMAC_AES, NULL) != 0)) {
         WOLFSSL_MSG("wolfSSL_CMAC_Init: wc_InitCmac() failed");
-        XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+        WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
         ctx->internal = NULL;
         ret = 0;
     }
@@ -2285,8 +2412,9 @@ int wolfSSL_CMAC_Update(WOLFSSL_CMAC_CTX* ctx, const void* data, size_t len)
 
     WOLFSSL_ENTER("wolfSSL_CMAC_Update");
 
-    /* Validate parameters. */
-    if (ctx == NULL) {
+    /* wolfCrypt takes a word32 length, fail rather than truncate. */
+    if ((ctx == NULL) || !WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("CMAC size is to long.");
         ret = 0;
     }
 
@@ -2350,7 +2478,7 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len)
             *len = (size_t)len32;
         }
 
-        XFREE(ctx->internal, NULL, DYNAMIC_TYPE_CMAC);
+        WC_FREE_CMAC((Cmac*)ctx->internal, NULL);
         ctx->internal = NULL;
     }
 
@@ -2611,7 +2739,8 @@ WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
     WOLFSSL_ENTER("wolfSSL_DES_cbc_cksum");
 
     /* Validate parameters. */
-    if ((in == NULL) || (out == NULL) || (sc == NULL) || (iv == NULL)) {
+    if ((in == NULL) || (out == NULL) || (sc == NULL) || (iv == NULL)
+        || length <= 0) {
         WOLFSSL_MSG("Bad argument passed in");
         err = 1;
     }
@@ -2693,6 +2822,13 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
     byte lastBlock[DES_BLOCK_SIZE];
 
     WOLFSSL_ENTER("wolfSSL_DES_cbc_encrypt");
+
+    /* Negative length breaks the block calculations below and wolfCrypt takes
+     * a word32 length - fail rather than truncate. */
+    if ((length < 0) || !WOLFSSL_CRYPTO_LEN_FITS_WORD32(length)) {
+        WOLFSSL_MSG("wolfSSL_DES_cbc_encrypt: bad length");
+        return;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     des = (Des*)XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_CIPHER);
@@ -2833,6 +2969,12 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
         sz = 0;
     }
 #endif
+
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    if ((sz > 0) && !WOLFSSL_CRYPTO_LEN_FITS_WORD32(sz)) {
+        WOLFSSL_MSG("wolfSSL_DES_ede3_cbc_encrypt: length too large");
+        sz = 0;
+    }
 
     if (sz > 0) {
         int    ret;
@@ -3215,23 +3357,46 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
             (len == 0)) {
         WOLFSSL_MSG("Error, Null argument passed in");
     }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    else if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("Error, length too large");
+    }
     /* Set IV for operation. */
     else {
         int ret;
         Aes* aes = (Aes*)key;
+        word32 whole = (word32)len & ~(word32)(WC_AES_BLOCK_SIZE - 1);
+        word32 rem = (word32)len - whole;
 
-        if ((ret = wc_AesSetIV(aes, (const byte*)iv)) != 0) {
+        if ((enc != AES_ENCRYPTION) && (rem > 0)) {
+            ret = BAD_LENGTH_E;
+            WOLFSSL_MSG("AES CBC decrypt length not a block multiple");
+        }
+        else if ((ret = wc_AesSetIV(aes, (const byte*)iv)) != 0) {
             WOLFSSL_MSG("Error with setting iv");
         }
         else if (enc == AES_ENCRYPTION) {
             /* Encrypt with wolfCrypt AES object. */
-            if ((ret = wc_AesCbcEncrypt(aes, out, in, (word32)len)) != 0) {
+            if (whole > 0) {
+                ret = wc_AesCbcEncrypt(aes, out, in, whole);
+            }
+            /* A partial final block is zero-padded and written as
+             * a whole block, so out must have room up to the block end. */
+            if ((ret == 0) && (rem > 0)) {
+                byte blk[WC_AES_BLOCK_SIZE];
+
+                XMEMSET(blk, 0, sizeof(blk));
+                XMEMCPY(blk, in + whole, rem);
+                ret = wc_AesCbcEncrypt(aes, out + whole, blk, sizeof(blk));
+                ForceZero(blk, sizeof(blk));
+            }
+            if (ret != 0) {
                 WOLFSSL_MSG("Error with AES CBC encrypt");
             }
         }
         else {
             /* Decrypt with wolfCrypt AES object. */
-            if ((ret = wc_AesCbcDecrypt(aes, out, in, (word32)len)) != 0) {
+            if ((ret = wc_AesCbcDecrypt(aes, out, in, whole)) != 0) {
                 WOLFSSL_MSG("Error with AES CBC decrypt");
             }
         }
@@ -3280,6 +3445,10 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     /* Validate parameters. */
     if ((key == NULL) || (in == NULL) || (out == NULL) || (iv == NULL)) {
         WOLFSSL_MSG("Error, Null argument passed in");
+    }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    else if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("Error, length too large");
     }
     else {
         int ret;
@@ -3403,6 +3572,7 @@ int wolfSSL_AES_unwrap_key(WOLFSSL_AES_KEY *key, const unsigned char *iv,
  * @return  0 when in, out, cbc, key or iv are NULL.
  * @return  0 when len is less than or equal to 16 bytes.
  */
+WC_NO_SANITIZE_FUNCTION
 size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
     unsigned char *out, size_t len, const void *key, unsigned char *iv,
     WOLFSSL_CBC128_CB cbc)
@@ -3457,6 +3627,7 @@ size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
  * @return  0 when in, out, cbc, key or iv are NULL.
  * @return  0 when len is less than or equal to 16 bytes.
  */
+WC_NO_SANITIZE_FUNCTION
 size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
     unsigned char *out, size_t len, const void *key, unsigned char *iv,
     WOLFSSL_CBC128_CB cbc)
@@ -3564,6 +3735,10 @@ void wolfSSL_RC4(WOLFSSL_RC4_KEY* key, size_t len, const unsigned char* in,
     if ((key == NULL) || (in == NULL) || (out == NULL)) {
         WOLFSSL_MSG("Bad argument passed in");
     }
+    /* wolfCrypt takes a word32 length - fail rather than truncate. */
+    else if (!WOLFSSL_CRYPTO_LEN_FITS_WORD32(len)) {
+        WOLFSSL_MSG("Length too large");
+    }
     else {
         /* Encrypt/decrypt data. */
         wc_Arc4Process((Arc4*)key, out, in, (word32)len);
@@ -3624,7 +3799,7 @@ int wolfSSL_RAND_Init(void)
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 #ifdef HAVE_GLOBAL_RNG
     if (wc_LockMutex(&globalRNGMutex) == 0) {
-        if (initGlobalRNG == 0) {
+        if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0) {
             ret = wc_InitRng(&globalRNG);
             if (ret == 0) {
             #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
@@ -3633,7 +3808,7 @@ int wolfSSL_RAND_Init(void)
 
                 currentRandPid = getpid();
             #endif
-                initGlobalRNG = 1;
+                WOLFSSL_ATOMIC_STORE(initGlobalRNG, 1);
                 ret = WOLFSSL_SUCCESS;
             }
         }
@@ -3785,27 +3960,12 @@ int wolfSSL_RAND_write_file(const char* fname)
     #endif
         bytes = WOLFSSL_RAND_WRITE_FILE_BUF_SZ;
 
-        if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("No RNG to use");
-            WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return 0;
-        }
-
-        if (wc_LockMutex(&globalRNGMutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex rng");
-            WC_FREE_VAR_EX(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return 0;
-        }
-
-        if (wc_RNG_GenerateBlock(&globalRNG, buf, (word32)bytes) != 0) {
-            wc_UnLockMutex(&globalRNGMutex);
+        if (wolfssl_global_rng_generate(buf, (word32)bytes) != 0) {
             WOLFSSL_MSG("Error generating random buffer");
             bytes = 0;
         }
         else {
             XFILE f;
-
-            wc_UnLockMutex(&globalRNGMutex);
 
         #ifdef WOLFSSL_CHECK_MEM_ZERO
             wc_MemZero_Add("wolfSSL_RAND_write_file buf", buf, bytes);
@@ -3921,12 +4081,12 @@ int wolfSSL_RAND_egd(const char* nm)
             break;
         }
         if (ret > 0 && buf[idx] > 0) {
-            bytes += buf[idx]; /* egd stores amount sent in first byte */
-            if (bytes + idx > 255 || buf[idx] > ret) {
+            if (buf[idx] > 255 - bytes || buf[idx] > ret - 1) {
                 WOLFSSL_MSG("Buffer error");
                 ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
+            bytes += buf[idx]; /* egd stores amount sent in first byte */
             XMEMMOVE(buf + idx, buf + idx + 1, buf[idx]);
             idx = bytes;
             ret = WOLFSSL_SUCCESS;
@@ -3953,38 +4113,25 @@ int wolfSSL_RAND_egd(const char* nm)
     }
 
     if (bytes > 0 && ret == WOLFSSL_SUCCESS) {
-        /* call to check global RNG is created */
-        if (wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error with initializing global RNG structure");
+        if (wolfssl_global_rng_mix((const byte*)buf, bytes) != 0) {
+            WOLFSSL_MSG("Error mixing into DRBG structure");
             ret = WOLFSSL_FATAL_ERROR;
         }
-        else if (wc_LockMutex(&globalRNGMutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex rng");
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-        else {
-            if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
-                    != 0) {
-                WOLFSSL_MSG("Error with reseeding DRBG structure");
-                ret = WOLFSSL_FATAL_ERROR;
-            }
-            wc_UnLockMutex(&globalRNGMutex);
 
-            #ifdef SHOW_SECRETS
-            /* print out entropy found only when no error occurred */
-            if (ret == WOLFSSL_SUCCESS) {
-                word32 i;
-                printf("EGD Entropy = ");
-                for (i = 0; i < bytes; i++) {
-                    printf("%02X", buf[i]);
-                }
-                printf("\n");
+        #ifdef SHOW_SECRETS
+        /* print out entropy found only when no error occurred */
+        if (ret == WOLFSSL_SUCCESS) {
+            word32 i;
+            printf("EGD Entropy = ");
+            for (i = 0; i < bytes; i++) {
+                printf("%02X", buf[i]);
             }
-            #endif
+            printf("\n");
         }
+        #endif
     }
 
-    ForceZero(buf, bytes);
+    ForceZero(buf, 256);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -4009,7 +4156,15 @@ int wolfSSL_RAND_egd(const char* nm)
 
 #endif /* !FREERTOS_TCP */
 
+/* Does nothing, as RAND_cleanup() since OpenSSL 1.1.0. wolfSSL_Cleanup()
+ * releases the global RNG. */
 void wolfSSL_RAND_Cleanup(void)
+{
+}
+
+/* Run the RAND method cleanup and free the global RNG. Nothing else may be
+ * using them. */
+void wolfssl_rand_cleanup(void)
 {
 #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
     if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
@@ -4025,9 +4180,9 @@ void wolfSSL_RAND_Cleanup(void)
 #endif
 #ifdef HAVE_GLOBAL_RNG
     if (wc_LockMutex(&globalRNGMutex) == 0) {
-        if (initGlobalRNG) {
+        if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG)) {
             wc_FreeRng(&globalRNG);
-            initGlobalRNG = 0;
+            WOLFSSL_ATOMIC_STORE(initGlobalRNG, 0);
         }
         wc_UnLockMutex(&globalRNGMutex);
     }
@@ -4088,6 +4243,36 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     return ret;
 }
 
+#if defined(HAVE_GLOBAL_RNG) && defined(HAVE_GETPID) && \
+    !defined(WOLFSSL_NO_GETPID) && \
+    ((defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0)) || defined(HAVE_SELFTEST))
+#define WOLFSSL_RAND_CHECK_PID
+/* These RNGs have no fork handling: reseed the global RNG in a new process.
+ * Returns 0 unless the lock fails. */
+static int wolfssl_global_rng_check_pid(void)
+{
+    pid_t p = getpid();
+    int changed;
+
+    if (wc_LockMutex(&globalRNGMutex) != 0)
+        return BAD_MUTEX_E;
+    changed = (p != currentRandPid);
+    wc_UnLockMutex(&globalRNGMutex);
+
+    if (changed) {
+        if (wolfSSL_RAND_poll() != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Issue with check pid and reseed");
+        }
+        if (wc_LockMutex(&globalRNGMutex) != 0)
+            return BAD_MUTEX_E;
+        currentRandPid = p;
+        wc_UnLockMutex(&globalRNGMutex);
+    }
+
+    return 0;
+}
+#endif
+
 /* returns WOLFSSL_SUCCESS (1) if the bytes generated are valid otherwise 0
  * on failure */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
@@ -4096,9 +4281,6 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     WC_RNG* rng = NULL;
     WC_DECLARE_VAR(tmpRNG, WC_RNG, 1, 0);
     int initTmpRng = 0;
-#ifdef HAVE_GLOBAL_RNG
-    int used_global = 0;
-#endif
 
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
     /* sanity check */
@@ -4118,53 +4300,26 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     }
 #endif
 #ifdef HAVE_GLOBAL_RNG
-    if (initGlobalRNG) {
-        if (wc_LockMutex(&globalRNGMutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex rng");
-            return ret;
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG)) {
+    #ifdef WOLFSSL_RAND_CHECK_PID
+        if (wolfssl_global_rng_check_pid() != 0) {
+            WOLFSSL_MSG("Global RNG pid check failed");
+            return WOLFSSL_FAILURE;
         }
-        /* the above access to initGlobalRNG is racey -- recheck it now that we
-         * have the lock.
-         */
-        if (initGlobalRNG) {
-        #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
-                ((defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0)) || \
-                 defined(HAVE_SELFTEST))
-            pid_t p;
-
-            p = getpid();
-            if (p != currentRandPid) {
-                wc_UnLockMutex(&globalRNGMutex);
-                if (wolfSSL_RAND_poll() != WOLFSSL_SUCCESS) {
-                    WOLFSSL_MSG("Issue with check pid and reseed");
-                    ret = WOLFSSL_FAILURE;
-                }
-
-                /* reclaim lock after wolfSSL_RAND_poll */
-                if (wc_LockMutex(&globalRNGMutex) != 0) {
-                    WOLFSSL_MSG("Bad Lock Mutex rng");
-                    return ret;
-                }
-                currentRandPid = p;
-            }
-        #endif
-            rng = &globalRNG;
-            used_global = 1;
+    #endif
+        if (wolfssl_global_rng_generate(buf, (word32)num) != 0) {
+            WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+            return WOLFSSL_FAILURE;
         }
-        else {
-            wc_UnLockMutex(&globalRNGMutex);
-        }
+        return WOLFSSL_SUCCESS;
     }
-
-    if (used_global == 0)
 #endif
-    {
-        WC_ALLOC_VAR_EX(tmpRNG, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
-            return ret);
-        if (wc_InitRng(tmpRNG) == 0) {
-            rng = tmpRNG;
-            initTmpRng = 1;
-        }
+
+    WC_ALLOC_VAR_EX(tmpRNG, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+        return ret);
+    if (wc_InitRng(tmpRNG) == 0) {
+        rng = tmpRNG;
+        initTmpRng = 1;
     }
     if (rng) {
         /* handles size greater than RNG_MAX_BLOCK_LEN */
@@ -4189,10 +4344,6 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
             ret = WOLFSSL_SUCCESS;
     }
 
-#ifdef HAVE_GLOBAL_RNG
-    if (used_global == 1)
-        wc_UnLockMutex(&globalRNGMutex);
-#endif
     if (initTmpRng)
         wc_FreeRng(tmpRNG);
     WC_FREE_VAR_EX(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
@@ -4209,50 +4360,25 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
  */
 int wolfSSL_RAND_poll(void)
 {
-    byte  entropy[16];
     int  ret = 0;
-    word32 entropy_sz = 16;
 
     WOLFSSL_ENTER("wolfSSL_RAND_poll");
-    if (initGlobalRNG == 0){
+    if (WOLFSSL_ATOMIC_LOAD(initGlobalRNG) == 0){
         WOLFSSL_MSG("Global RNG no Init");
         return  WOLFSSL_FAILURE;
     }
 
-    /* lock intentionally covers wc_GenerateSeed as well, since it writes
-     * globalRNG.seed; do not narrow this scope or the seed write races */
-    if (wc_LockMutex(&globalRNGMutex) != 0) {
-        WOLFSSL_MSG("Bad Lock Mutex rng");
-        return WOLFSSL_FAILURE;
-    }
-
-    ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
-    if (ret != 0) {
-        WOLFSSL_MSG("Bad wc_GenerateSeed");
-        ret = WOLFSSL_FAILURE;
-    }
-    else {
 #ifdef HAVE_HASHDRBG
-        ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
-        if (ret != 0) {
-            WOLFSSL_MSG("Error reseeding DRBG");
-            ret = WOLFSSL_FAILURE;
-        }
-        else {
-            ret = WOLFSSL_SUCCESS;
-        }
+    ret = (wolfssl_global_rng_reseed() == 0) ? WOLFSSL_SUCCESS :
+                                                 WOLFSSL_FAILURE;
 #elif defined(HAVE_INTEL_RDRAND)
-        WOLFSSL_MSG("Not polling with RAND_poll, RDRAND used without "
-                    "HAVE_HASHDRBG");
-        ret = WOLFSSL_SUCCESS;
-#else
-        WOLFSSL_MSG("RAND_poll called with HAVE_HASHDRBG not set");
-        ret = WOLFSSL_FAILURE;
+    WOLFSSL_MSG("Not polling with RAND_poll, RDRAND used without "
+                "HAVE_HASHDRBG");
+    ret = WOLFSSL_SUCCESS;
+#else /* !HAVE_HASHDRBG && !HAVE_INTEL_RDRAND */
+    WOLFSSL_MSG("RAND_poll called with HAVE_HASHDRBG not set");
+    ret = WOLFSSL_FAILURE;
 #endif
-    }
-
-    wc_UnLockMutex(&globalRNGMutex);
-    ForceZero(entropy, sizeof(entropy));
 
     return ret;
 }
@@ -4303,20 +4429,11 @@ int wolfSSL_RAND_poll(void)
          * does not directly probe the entropy source. */
     #ifdef HAVE_GLOBAL_RNG
         if (useGlobalRng) {
-            if (wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+            byte b = 0;
+            int genRet = wolfssl_global_rng_generate(&b, 1);
+            ForceZero(&b, 1);
+            if (genRet != 0)
                 ret = WOLFSSL_FAILURE;
-            }
-            else if (wc_LockMutex(&globalRNGMutex) != 0) {
-                ret = WOLFSSL_FAILURE;
-            }
-            else {
-                byte b = 0;
-                int genRet = wc_RNG_GenerateBlock(&globalRNG, &b, 1);
-                wc_UnLockMutex(&globalRNGMutex);
-                ForceZero(&b, 1);
-                if (genRet != 0)
-                    ret = WOLFSSL_FAILURE;
-            }
         }
     #endif
         (void)useGlobalRng;
@@ -4429,12 +4546,6 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
         WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
 #endif
 
-    if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("RAND_load_file: global RNG not available");
-        ret = WOLFSSL_FATAL_ERROR;
-        goto cleanup;
-    }
-
     while (readSoFar < maxBytes) {
         size_t toRead = (size_t)((maxBytes - readSoFar) <
                 WOLFSSL_RAND_LOAD_FILE_BUF_SZ
@@ -4442,21 +4553,14 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
         size_t n = XFREAD(buf, 1, toRead, f);
         if (n == 0)
             break;
-        if (wc_LockMutex(&globalRNGMutex) != 0) {
+        if (wolfssl_global_rng_mix(buf, (word32)n) != 0) {
+            WOLFSSL_MSG("RAND_load_file: DRBG mix failed");
             ret = WOLFSSL_FATAL_ERROR;
             break;
         }
-        if (wc_RNG_DRBG_Reseed(&globalRNG, buf, (word32)n) != 0) {
-            wc_UnLockMutex(&globalRNGMutex);
-            WOLFSSL_MSG("RAND_load_file: DRBG reseed failed");
-            ret = WOLFSSL_FATAL_ERROR;
-            break;
-        }
-        wc_UnLockMutex(&globalRNGMutex);
         readSoFar += (long)n;
     }
 
-cleanup:
     XFCLOSE(f);
     ForceZero(buf, WOLFSSL_RAND_LOAD_FILE_BUF_SZ);
 #ifdef WOLFSSL_SMALL_STACK
@@ -4488,4 +4592,3 @@ cleanup:
 #endif /* !WOLFCRYPT_ONLY */
 
 #endif /* WOLFSSL_SSL_CRYPTO_INCLUDED */
-

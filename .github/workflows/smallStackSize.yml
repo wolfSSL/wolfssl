@@ -32,7 +32,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -74,21 +74,22 @@ jobs:
           {"name": "noasm-pq",
            "configure": ["--disable-asm", "--enable-mlkem", "--enable-lms",
             "--enable-xmss", "--enable-mldsa"]},
+          {"name": "noasm-mldsa-small-smallmem",
+           "configure": ["--disable-asm", "--enable-mldsa=yes,small",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM"]},
+          {"name": "noasm-mldsa-small-smallmem-faultharden",
+           "configure": ["--disable-asm", "--enable-mldsa=yes,small",
+            "--enable-faultharden",
+            "CPPFLAGS=-DWOLFSSL_MLDSA_SIGN_SMALL_MEM -DWOLFSSL_MLDSA_VERIFY_SMALL_MEM -DWOLFSSL_MLDSA_MAKE_KEY_SMALL_MEM"]},
           {"name": "noasm-allcrypto-pq",
-           "configure": ["--disable-asm", "--enable-all-crypto",
-            "--enable-mlkem", "--enable-lms", "--enable-xmss", "--enable-mldsa"]},
-          {"name": "intelasm",
-           "configure": ["--enable-intelasm", "--enable-sp-asm"]},
-          {"name": "intelasm-pq",
-           "configure": ["--enable-intelasm", "--enable-sp-asm",
-            "--enable-mlkem", "--enable-lms", "--enable-xmss", "--enable-mldsa"]},
-          {"name": "intelasm-allcrypto-pq",
-           "configure": ["--enable-intelasm", "--enable-sp-asm",
-            "--enable-all-crypto", "--enable-mlkem", "--enable-lms",
-            "--enable-xmss", "--enable-mldsa"]}
+           "configure": ["--disable-asm", "--enable-all-crypto", "--enable-testcert", "--enable-all-quantum-crypto"]},
+          {"name": "all-asm-allcrypto-pq",
+           "configure": ["--enable-all-asm", "--enable-all-crypto", "--enable-testcert", "--enable-all-quantum-crypto"]}
           ]}
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=10 \
+            --deadline=10 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/smallstacksize-configs.json"
 

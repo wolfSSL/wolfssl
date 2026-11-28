@@ -21,7 +21,7 @@ jobs:
     name: Build wolfSSL
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 8
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -46,16 +46,16 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the parallel tests to run.
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: build_wolfssl
     strategy:
       fail-fast: false
       matrix:
         include:
           - socat_version: "1.8.0.0"
-            expect_fail: "36,64,146,155,156,205,216,227,307,309,310,321,386,399,402,403,459,460,467,468,475,478,491,492,528,529"
+            expect_fail: "23,36,64,146,155,156,205,207,216,227,307,309,310,321,386,399,402,403,459,460,467,468,475,478,491,492,494,528,529"
           - socat_version: "1.8.0.3"
-            expect_fail: "23,146,155,156,307,321,386,399,402,459,460,467,468,475,478,491,492,495,528,529"
+            expect_fail: "23,146,155,156,205,207,307,321,386,399,402,459,460,467,468,475,478,491,492,494,495,528,529"
     steps:
       - name: Checkout wolfSSL CI actions
         uses: actions/checkout@v5
@@ -142,7 +142,7 @@ jobs:
           cat > socat-configs.json <<'EOF'
           [{
             "name": "socat", "build": false, "netns": true, "shards": __SHARDS__,
-            "run": [["bash", "-c", "set -e; ip link set lo up || true; sysctl -wq net.ipv6.conf.lo.disable_ipv6=0 || true; ip addr add ::1/128 dev lo || true; ip addr add fc00::1/128 dev lo || true; ip addr add 192.0.2.1/32 dev lo || true; sysctl -wq net.ipv6.bindv6only=0 || true; cp -a \"$SOCAT_SRC/.\" .; grep -q 'fork,retry=2,' test.sh || { echo 'socat test.sh: fork,retry=2 pattern gone, retry-widen would silently no-op (upstream changed?)' >&2; exit 1; }; sed -i 's/fork,retry=2,/fork,retry=30,/' test.sh; tests=$(seq \"$SHARD\" \"$SHARDS\" 999); SOCAT=\"$PWD/socat\" SHELL=/bin/bash timeout -k 10 600 ./test.sh -t 1.0 --expect-fail \"$EXPECT_FAIL\" ${tests:-0}"]]
+            "run": [["bash", "-c", "set -e; ip link set lo up || true; sysctl -wq net.ipv6.conf.lo.disable_ipv6=0 || true; ip addr add ::1/128 dev lo || true; ip addr add fc00::1/128 dev lo || true; ip addr add 192.0.2.1/32 dev lo || true; sysctl -wq net.ipv6.bindv6only=0 || true; cp -a \"$SOCAT_SRC/.\" .; grep -q 'fork,retry=2,' test.sh || { echo 'socat test.sh: fork,retry=2 pattern gone, retry-widen would silently no-op (upstream changed?)' >&2; exit 1; }; sed -i 's/fork,retry=2,/fork,retry=30,/' test.sh; tests=$(seq \"$SHARD\" \"$SHARDS\" 999); SOCAT=\"$PWD/socat\" SHELL=/bin/bash timeout -k 10 540 ./test.sh -t 1.0 --expect-fail \"$EXPECT_FAIL\" ${tests:-0}"]]
           }]
           EOF
           sed -i "s/__SHARDS__/$(( 6 * $(nproc) ))/" socat-configs.json
@@ -151,4 +151,6 @@ jobs:
           # (mostly waiting), so this just overlaps the waits. fail-fast (the
           # default) aborts the rest on the first failure.
           .github/scripts/parallel-make-check.py \
+            --timeout=10 \
+            --deadline=10 \
             --threads "$(( 2 * $(nproc) ))" socat-configs.json

@@ -27,13 +27,18 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 
-Signer* GetCA(void* vp, byte* hash)
+Signer* GetCA(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
     return NULL;
 }
 
-Signer* GetCAByName(void* vp, byte* hash)
+Signer* GetCAByName(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
     return NULL;
 }
 
+Signer* GetCAByNameSkip(WOLFSSL_CERT_MANAGER* cm, byte* hash,
+    const Signer* skip)
+{
+    return NULL;
+}

@@ -853,24 +853,32 @@ int wc_tsip_AesGcmEncrypt(
 
         /* allocate buffers for plaintext, ciphertext, authTag and aad to make
          * sure those buffers 32bit aligned as TSIP requests.
+         * sz/authInSz may legally be 0 (empty payload/AAD); XMALLOC(0, ...)
+         * is implementation-defined and may return NULL, so skip allocating
+         * (and later copying into) a buffer whose size is 0 rather than
+         * treating that NULL as an allocation failure.
          */
-        plainBuf  = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
+        if (sz != 0)
+            plainBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         cipherBuf = XMALLOC(cipherBufSz, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
-        aadBuf    = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
+        if (authInSz != 0)
+            aadBuf = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
 
-        if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
-                                                      aadBuf == NULL ) {
+        if ((sz != 0 && plainBuf == NULL) || cipherBuf == NULL ||
+                aTagBuf == NULL || (authInSz != 0 && aadBuf == NULL)) {
             WOLFSSL_MSG("wc_tsip_AesGcmEncrypt: buffer allocation failed");
             ret = -1;
         }
 
         if (ret == 0) {
-            XMEMCPY(plainBuf, in, sz);
+            if (sz != 0)
+                XMEMCPY(plainBuf, in, sz);
             ForceZero(cipherBuf, cipherBufSz);
             ForceZero(authTag, authTagSz);
-            XMEMCPY(aadBuf, authIn, authInSz);
+            if (authInSz != 0)
+                XMEMCPY(aadBuf, authIn, authInSz);
         }
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -935,8 +943,7 @@ int wc_tsip_AesGcmEncrypt(
 
             /* Once R_TSIP_AesxxxGcmEncryptInit or R_TSIP_AesxxxEncryptUpdate is
             * called, R_TSIP_AesxxxGcmEncryptFinal must be called regardless of
-            * the result of the previous call. Otherwise, TSIP can not come out
-            * from its error state and all the trailing APIs will fail.
+            * the result of the previous call.
             */
             dataLen = 0;
             err = finalFn(&hdl,
@@ -945,8 +952,10 @@ int wc_tsip_AesGcmEncrypt(
                           aTagBuf); /* aad of 16 bytes will be output */
 
             if (err == TSIP_SUCCESS) {
-                /* copy encrypted data to out */
-                XMEMCPY(out, cipherBuf, sz);
+                /* copy encrypted data to out (sz may be 0, and out may then
+                 * legally be NULL per the argument validation above) */
+                if (sz != 0)
+                    XMEMCPY(out, cipherBuf, sz);
 
                 /* copy auth tag to caller's buffer */
                 XMEMCPY((void*)authTag, (void*)aTagBuf,
@@ -984,6 +993,7 @@ int wc_tsip_AesGcmEncrypt(
  *  - authInSz: AAD size
  * return 0 on success, otherwise on error.
  * Note: As of TSIPv1.13, only accept 128 and 256 bit of key size
+ * Note: sz == 0 and/or authInSz == 0 are legal (GMAC / AAD-only input)
  *
  */
 int wc_tsip_AesGcmDecrypt(
@@ -1017,8 +1027,8 @@ int wc_tsip_AesGcmDecrypt(
 
     WOLFSSL_ENTER("wc_tsip_AesGcmDecrypt");
 
-    if (aes == NULL || in == NULL || out == NULL || sz == 0 || ctx == NULL ||
-        iv == 0 ||
+    if (aes == NULL || ctx == NULL || iv == 0 ||
+        (sz != 0       && (in == NULL  || out == NULL)) ||
         (authInSz != 0 && authIn == NULL) ||
         (authInSz == 0 && authIn != NULL) ||
         (authTagSz != 0 && authTag == NULL) ||
@@ -1050,26 +1060,31 @@ int wc_tsip_AesGcmDecrypt(
 
     if ((ret = tsip_hw_lock()) == 0) {
 
-        /* allocate buffers for plaintext, cipher-text, authTag and AAD.
-         * TSIP requests those buffers 32bit aligned.
+        /* Allocate 32-bit aligned buffers required by TSIP.
+         * Skip zero-size buffers since XMALLOC(0, ...) may return NULL.
+         * plainBufSz is always at least one AES block.
          */
-        cipherBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
+        if (sz != 0)
+            cipherBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         plainBuf  = XMALLOC(plainBufSz, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
-        aadBuf    = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
+        if (authInSz != 0)
+            aadBuf = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
 
-        if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
-                                                        aadBuf == NULL) {
+        if (plainBuf == NULL || (sz != 0 && cipherBuf == NULL) ||
+                aTagBuf == NULL || (authInSz != 0 && aadBuf == NULL)) {
             ret = -1;
         }
 
         if (ret == 0) {
             ForceZero(plainBuf, plainBufSz);
-            XMEMCPY(cipherBuf, in, sz);
+            if (sz != 0)
+                XMEMCPY(cipherBuf, in, sz);
             ForceZero(aTagBuf, TSIP_AES_GCM_AUTH_TAG_SIZE);
             XMEMCPY(aTagBuf,authTag,min(authTagSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
-            XMEMCPY(aadBuf, authIn, authInSz);
+            if (authInSz != 0)
+                XMEMCPY(aadBuf, authIn, authInSz);
         }
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -1133,17 +1148,23 @@ int wc_tsip_AesGcmDecrypt(
                 WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptUpdate: failed in decrypt");
                 ret = -1;
             }
+
+            /* Once R_TSIP_AesxxxGcmDecryptInit or R_TSIP_AesxxxGcmDecryptUpdate
+             * is called, R_TSIP_AesxxxGcmDecryptFinal must be called regardless
+             * of the result of the previous call. Otherwise, TSIP can not come
+             * out from its error state and all the trailing APIs will fail.
+             */
+            dataLen = 0;
+            err = finalFn(&hdl,
+                    plainBuf + (sz / WC_AES_BLOCK_SIZE) * WC_AES_BLOCK_SIZE,
+                    &dataLen,
+                    aTagBuf,
+                    min(16, authTagSz)); /* TSIP accepts upto 16 byte */
+
             if (err == TSIP_SUCCESS) {
-                dataLen = 0;
-                err = finalFn(&hdl,
-                        plainBuf + (sz / WC_AES_BLOCK_SIZE) * WC_AES_BLOCK_SIZE,
-                        &dataLen,
-                        aTagBuf,
-                        min(16, authTagSz)); /* TSIP accepts upto 16 byte */
-            }
-            if (err == TSIP_SUCCESS) {
-                /* copy plain data to out */
-                XMEMCPY(out, plainBuf, sz);
+                /* Copy plain data to out (sz may be 0). */
+                if (sz != 0)
+                    XMEMCPY(out, plainBuf, sz);
             }
             else {
                 WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptFinal: failed");

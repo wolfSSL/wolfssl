@@ -454,6 +454,9 @@ extern "C" {
     #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
 
     #define XSNPRINTF snprintf
+
+    #include <stdlib.h>
+    #define XATOI(s)          atoi((s))
 #endif
 
 

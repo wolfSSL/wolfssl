@@ -23,7 +23,7 @@ jobs:
     # Just to keep it the same as the testing target
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 4
+    timeout-minutes: 8
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -88,9 +88,20 @@ jobs:
             SKIP_LTESTS: >-
               exit-status rekey multiplex forward-control channel-timeout
               connection-timeout
+          - git_ref: 'V_10_5_P1'
+            osp_ver: '10.5p1'
+            SKIP_LTESTS: >-
+              exit-status rekey multiplex forward-control channel-timeout
+              connection-timeout
+          - git_ref: 'V_10_6_P1'
+            osp_ver: '10.6p1'
+            SKIP_LTESTS: >-
+              exit-status rekey multiplex forward-control channel-timeout
+              connection-timeout
     name: ${{ matrix.osp_ver }}
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     needs: build_wolfssl
     steps:
       - name: Download lib

@@ -122,7 +122,7 @@ int  wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output,
     \brief この関数は、PKCS7署名付きデータコンテンツタイプをビルドし、PKCS7構造体を解析可能なPKCS7署名付きデータパケットを含むバッファにエンコードします。
 
     \return Success PKCS7データをバッファに正常にエンコードした場合、PKCS7構造体で解析されたインデックスまで返します。このインデックスは、出力バッファに書き込まれたバイト数にも対応します。
-    \return BAD_FUNC_ARG 署名付きデータパケットを生成するために必要な1つ以上の要素がPKCS7構造体に欠けている場合に返されます。
+    \return BAD_FUNC_ARG 署名付きデータパケットを生成するために必要な1つ以上の要素がPKCS7構造体に欠けている場合、または署名者識別子タイプがDEGENERATE_SIDでコンテンツが設定されている場合に返されます。
     \return MEMORY_E メモリ割り当てエラーがある場合に返されます。
     \return PUBLIC_KEY_E 公開鍵の解析エラーがある場合に返されます。
     \return RSA_BUFFER_E バッファエラー、出力が小さすぎるか入力が大きすぎる場合に返されます。
@@ -183,7 +183,7 @@ int  wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7,
     データのハッシュを計算して提供する必要があります。
 
     \return 0=Success
-    \return BAD_FUNC_ARG 署名付きデータパケットを生成するために必要な1つ以上の要素がPKCS7構造体に欠けている場合に返されます。
+    \return BAD_FUNC_ARG 署名付きデータパケットを生成するために必要な1つ以上の要素がPKCS7構造体に欠けている場合、または署名者識別子タイプがDEGENERATE_SIDでコンテンツが設定されている場合に返されます。
     \return MEMORY_E メモリ割り当てエラーがある場合に返されます。
     \return PUBLIC_KEY_E 公開鍵の解析エラーがある場合に返されます。
     \return RSA_BUFFER_E バッファエラー、出力が小さすぎるか入力が大きすぎる場合に返されます。
@@ -266,6 +266,7 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \return 0 メッセージから情報を正常に抽出した場合に返されます。
     \return BAD_FUNC_ARG 入力パラメータの1つが無効な場合に返されます。
     \return ASN_PARSE_E 与えられたpkiMsgの解析エラーがある場合に返されます。
+    \return PKCS7_NO_SIGNER_E メッセージに署名者がなく空でないeContentを含む場合、または署名者がなく縮退メッセージが許可されていない場合(wc_PKCS7_AllowDegenerateを参照)に返されます。
     \return PKCS7_OID_E 与えられたpkiMsgが署名付きデータタイプでない場合に返されます。
     \return ASN_VERSION_E PKCS7署名者情報がバージョン1でない場合に返されます。
     \return MEMORY_E メモリ割り当てエラーがある場合に返されます。
@@ -324,6 +325,7 @@ int  wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7,
     \return 0 メッセージから情報を正常に抽出した場合に返されます。
     \return BAD_FUNC_ARG 入力パラメータの1つが無効な場合に返されます。
     \return ASN_PARSE_E 与えられたpkiMsgの解析エラーがある場合に返されます。
+    \return PKCS7_NO_SIGNER_E メッセージに署名者がなく空でないeContentを含む場合、または署名者がなく縮退メッセージが許可されていない場合(wc_PKCS7_AllowDegenerateを参照)に返されます。
     \return PKCS7_OID_E 与えられたpkiMsgが署名付きデータタイプでない場合に返されます。
     \return ASN_VERSION_E PKCS7署名者情報がバージョン1でない場合に返されます。
     \return MEMORY_E メモリ割り当てエラーがある場合に返されます。

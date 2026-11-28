@@ -549,22 +549,30 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
     /* Build M2P/M4P headers from counter/flags (skipped if overridden) */
     she_build_headers(she, counter, flags, m2pHeader, m4pHeader);
 
-    WC_ALLOC_VAR(aes, Aes, 1, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(she->heap);
+#endif
     if (!WC_VAR_OK(aes)) {
         return MEMORY_E;
     }
 
-    WC_ALLOC_VAR(cmac, Cmac, 1, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    cmac = WC_ALLOC_CMAC(she->heap);
+#endif
     if (!WC_VAR_OK(cmac)) {
-        WC_FREE_VAR(aes, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        WC_FREE_AES(aes, she->heap);
+#endif
         return MEMORY_E;
     }
 
     /* Init AES once -- used by both MP16 and CBC */
     ret = wc_AesInit(aes, she->heap, she->devId);
     if (ret != 0) {
-        WC_FREE_VAR(aes, she->heap);
-        WC_FREE_VAR(cmac, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        WC_FREE_AES(aes, she->heap);
+        WC_FREE_CMAC(cmac, she->heap);
+#endif
         return ret;
     }
 
@@ -639,8 +647,10 @@ int wc_SHE_GenerateM1M2M3(wc_SHE* she,
 #endif
 
     wc_AesFree(aes);
-    WC_FREE_VAR(aes, she->heap);
-    WC_FREE_VAR(cmac, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, she->heap);
+    WC_FREE_CMAC(cmac, she->heap);
+#endif
     return ret;
 }
 
@@ -728,22 +738,30 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
     /* Build headers from counter (skipped if overridden) */
     she_build_headers(she, counter, 0, m2pHeader, m4pHeader);
 
-    WC_ALLOC_VAR(aes, Aes, 1, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    aes = WC_ALLOC_AES(she->heap);
+#endif
     if (!WC_VAR_OK(aes)) {
         return MEMORY_E;
     }
 
-    WC_ALLOC_VAR(cmac, Cmac, 1, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    cmac = WC_ALLOC_CMAC(she->heap);
+#endif
     if (!WC_VAR_OK(cmac)) {
-        WC_FREE_VAR(aes, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        WC_FREE_AES(aes, she->heap);
+#endif
         return MEMORY_E;
     }
 
     /* Init AES once -- used by both MP16 and ECB */
     ret = wc_AesInit(aes, she->heap, she->devId);
     if (ret != 0) {
-        WC_FREE_VAR(aes, she->heap);
-        WC_FREE_VAR(cmac, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        WC_FREE_AES(aes, she->heap);
+        WC_FREE_CMAC(cmac, she->heap);
+#endif
         return ret;
     }
 
@@ -810,8 +828,10 @@ int wc_SHE_GenerateM4M5(wc_SHE* she,
 #endif
 
     wc_AesFree(aes);
-    WC_FREE_VAR(aes, she->heap);
-    WC_FREE_VAR(cmac, she->heap);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    WC_FREE_AES(aes, she->heap);
+    WC_FREE_CMAC(cmac, she->heap);
+#endif
     return ret;
 }
 
@@ -1148,7 +1168,12 @@ int wc_SHE_ExportKey(wc_SHE* she,
                       byte* m5, word32 m5Sz,
                       const void* ctx)
 {
-    if (she == NULL) {
+    if (she == NULL ||
+        (m1 != NULL && m1Sz < WC_SHE_M1_SZ) ||
+        (m2 != NULL && m2Sz < WC_SHE_M2_SZ) ||
+        (m3 != NULL && m3Sz < WC_SHE_M3_SZ) ||
+        (m4 != NULL && m4Sz < WC_SHE_M4_SZ) ||
+        (m5 != NULL && m5Sz < WC_SHE_M5_SZ)) {
         return BAD_FUNC_ARG;
     }
 

@@ -176,8 +176,6 @@ EXTRA_DIST+= README
 EXTRA_DIST+= ChangeLog.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
-EXTRA_DIST+= LPCExpresso.cproject
-EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc
 EXTRA_DIST+= CMakeLists.txt
 EXTRA_DIST+= CMakePresets.json
@@ -310,7 +308,9 @@ TESTS += $(check_SCRIPTS)
 # for an out-of-tree build it exists only in the source tree.  Symlink it into
 # the build tree so the tests can find it.  This is driven by a stamp file in
 # BUILT_SOURCES so it runs once, before anything else, for "make", "make all"
-# and "make check".  It is a no-op for in-tree builds.
+# and "make check".  It is a no-op for in-tree builds.  The trees are
+# compared by physical path: a symlinked source dir can make abs_top_srcdir
+# and abs_top_builddir differ as strings for an in-tree build.
 #
 # The setup and the distclean cleanup use rm -rf: a --private-dir run of
 # .github/scripts/parallel-make-check.py replaces the certs symlink with a
@@ -322,7 +322,8 @@ BUILT_SOURCES += wolfssl-test-data.stamp
 
 wolfssl-test-data.stamp:
 	$(AM_V_at)set -e; \
-	if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
+	if test "`cd "$(abs_top_srcdir)" && pwd -P`" != \
+	   "`cd "$(abs_top_builddir)" && pwd -P`"; then \
 		$(MKDIR_P) tests scripts examples; \
 		for f in certs input quit; do \
 			rm -rf "$$f"; \
@@ -366,9 +367,11 @@ clean-local:
 	-rm -rf $(ADVISORY_OUT_DIR)
 
 # Remove the symlinks created for out-of-tree builds.  Gated on
-# srcdir != builddir so an in-tree build never touches the real source files.
+# physical srcdir != builddir so an in-tree build never touches the real
+# source files.
 distclean-local:
-	$(AM_V_at)if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
+	$(AM_V_at)if test "`cd "$(abs_top_srcdir)" && pwd -P`" != \
+	   "`cd "$(abs_top_builddir)" && pwd -P`"; then \
 		rm -rf certs input quit; \
 		rm -f tests/*.conf tests/*.cnf tests/TXT_DB.txt; \
 		rm -f scripts/*.pcap scripts/*.out scripts/*.sslkeylog \
@@ -454,153 +457,35 @@ merge-clean:
 .cu.lo:
 	$(LIBTOOL) --tag=CC --mode=compile $(COMPILE) --compile -o $@ $< -static
 
-# SBOM generation (CRA compliance)
-SBOM_CDX     = wolfssl-$(PACKAGE_VERSION).cdx.json
-SBOM_SPDX    = wolfssl-$(PACKAGE_VERSION).spdx.json
-SBOM_SPDX_TV = wolfssl-$(PACKAGE_VERSION).spdx
-# Use Automake's $(docdir) so a user's --docdir override is honoured (this
-# equals $(datadir)/doc/$(PACKAGE) by default).
-sbomdir      = $(docdir)
+# SBOM generation. The recipe and the generator are the vendored
+# wolfssl-compliance-tooling snapshot in tools/sbom/ (pinned by
+# tools/sbom/.wolfssl-compliance-tooling-rev). wolfSSL records the configured
+# feature set from wolfssl/options.h and whether this build links zlib.
+#
+# User-overridable variables (defined by tools/sbom/sbom.am):
+#   SBOM_LICENSE_OVERRIDE, SBOM_LICENSE_TEXT, SBOM_COPYRIGHT_START,
+#   SBOM_DOCUMENT_NAMESPACE, SBOM_DEP_VERSIONS, SBOM_LIB_OVERRIDE.
+# `make bomsh` sets SBOM_LIB_OVERRIDE so the SBOM hash and the OmniBOR
+# gitoid name the traced library. A private install relinks a different file.
+SBOM_PKGNAME      = wolfssl
+SBOM_LICENSE_FILE = $(srcdir)/LICENSING
+SBOM_OPTIONS_H    = $(abs_builddir)/wolfssl/options.h
+SBOM_DEP_LIBZ     = $(ENABLED_LIBZ)
 
-# Shared-library / Mach-O basenames in priority order (versioned first).
-# Both `sbom:` and `bomsh:` glob for these under their own search prefixes;
-# adding a new platform-specific dynamic-library extension here updates
-# both targets at once.  Static (.a) and Windows (.dll/.lib) variants are
-# listed inline at each call-site because their ordering and prefixes
-# differ between the install tree and the build tree.
+# The vendored tools/sbom/ tree also ships through dist-hook below, which
+# skips __pycache__. Each file is listed in scripts/include.am. The dist
+# check searches include.am for the path, so a pin that adds a file must
+# add that path there too. EXTRA_DIST += tools/sbom would ship __pycache__.
+
+include scripts/sbom.am
+
+# Mach-O / ELF basenames. `make bomsh` searches src/.libs for these.
+# Static and Windows names are listed at the bomsh call site.
 WOLFSSL_LIB_DSO_BASENAMES = \
     libwolfssl.so.[0-9]* \
     libwolfssl.so \
     libwolfssl.[0-9]*.dylib \
     libwolfssl.dylib
-
-.PHONY: sbom install-sbom uninstall-sbom
-
-# Stage a `make install` into a private tree, discover the installed library
-# artifact (shared or static, ELF/Mach-O/PE), hash it, generate SPDX+CDX,
-# validate the SPDX, then convert to tag-value.  The staging tree is removed
-# unconditionally via `trap`, even if any step fails.  Honors SOURCE_DATE_EPOCH
-# for reproducible builds (set by the recipe to `git log -1 --format=%ct` when
-# unset and a git tree is available).
-#
-# User-overridable variables:
-#   SBOM_LICENSE_OVERRIDE  SPDX expression to use instead of the GPL ID
-#                          parsed from LICENSING (e.g. for commercial
-#                          licensees: LicenseRef-wolfSSL-Commercial).
-#   SBOM_LICENSE_TEXT      Path to the actual licence text for any
-#                          LicenseRef-* in SBOM_LICENSE_OVERRIDE.  Required
-#                          for SPDX 2.3 conformance whenever a custom
-#                          LicenseRef is in use; `make sbom` exits with an
-#                          error if it is missing.
-#   SBOM_DOCUMENT_NAMESPACE Override the SPDX documentNamespace.  Default
-#                          is a deterministic urn:uuid (SPDX 2.3 sec. 6.5
-#                          requires only uniqueness, not resolvability).
-#                          Downstream packagers re-hosting the SBOM under
-#                          their own URL should set this to a URI they
-#                          actually serve (e.g.
-#                          https://example.com/sbom/wolfssl-X.Y.Z.spdx.json).
-#   SBOM_DEP_VERSIONS      Space-separated KEY=VERSION list forwarded to
-#                          gen-sbom as repeated --dep-version flags (KEY is
-#                          one of the known deps, e.g. libz / openssl).  Use
-#                          this on build/packaging hosts that lack the dep's
-#                          pkg-config .pc file, where version detection would
-#                          otherwise fall back to NOASSERTION (SPDX) / an
-#                          omitted version+purl (CycloneDX).  Example:
-#                          make sbom SBOM_DEP_VERSIONS='libz=1.3.1 openssl=3.5.0'.
-#   SBOM_LIB_OVERRIDE      Absolute path to the library artefact whose
-#                          SHA-256 should land in the SBOM, INSTEAD of
-#                          discovering one via a private staging install.
-#                          Set by `make bomsh` so the SBOM hash and the
-#                          OmniBOR enrichment refer to the SAME bomsh-
-#                          traced binary; without this override `make
-#                          sbom` would re-link via `make install` and
-#                          hash a different artefact than `bomsh_sbom.py`
-#                          fingerprints, leaving the SHA-256 in
-#                          `checksums[]` and the gitoid in `externalRefs`
-#                          describing two unrelated files.
-sbom:
-	@if test -z "$(PYTHON3)"; then \
-	    echo ""; \
-	    echo "ERROR: 'python3' not found in PATH. Cannot generate SBOM."; \
-	    echo ""; \
-	    exit 1; \
-	fi
-	@if test -z "$(PYSPDXTOOLS)"; then \
-	    echo ""; \
-	    echo "ERROR: 'pyspdxtools' not found in PATH. Cannot validate SBOM."; \
-	    echo "       Install: pip install spdx-tools"; \
-	    echo ""; \
-	    exit 1; \
-	fi
-	@rm -rf $(abs_builddir)/_sbom_staging
-	@set -e; \
-	trap 'rm -rf $(abs_builddir)/_sbom_staging' EXIT INT TERM HUP; \
-	if test -n "$(SBOM_LIB_OVERRIDE)"; then \
-	    if test ! -f "$(SBOM_LIB_OVERRIDE)"; then \
-	        echo ""; \
-	        echo "ERROR: SBOM_LIB_OVERRIDE=$(SBOM_LIB_OVERRIDE) does not exist."; \
-	        echo ""; \
-	        exit 1; \
-	    fi; \
-	    sbom_lib="$(SBOM_LIB_OVERRIDE)"; \
-	else \
-	    $(MAKE) install DESTDIR=$(abs_builddir)/_sbom_staging; \
-	    sbom_lib=""; \
-	    for lib in \
-	        $(addprefix "$(abs_builddir)/_sbom_staging$(libdir)"/,$(WOLFSSL_LIB_DSO_BASENAMES)) \
-	        "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dll \
-	        "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.dll.a \
-	        "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.lib \
-	        "$(abs_builddir)/_sbom_staging$(libdir)"/wolfssl.lib \
-	        "$(abs_builddir)/_sbom_staging$(libdir)"/libwolfssl.a; do \
-	        if test -f "$$lib"; then sbom_lib="$$lib"; break; fi; \
-	    done; \
-	    if test -z "$$sbom_lib"; then \
-	        echo ""; \
-	        echo "ERROR: No installed wolfSSL library artifact found for SBOM."; \
-	        echo "       Searched in $(abs_builddir)/_sbom_staging$(libdir)"; \
-	        echo "       (configure with --enable-shared or --enable-static)"; \
-	        echo ""; \
-	        exit 1; \
-	    fi; \
-	fi; \
-	echo "SBOM: hashing $$sbom_lib"; \
-	if test -z "$${SOURCE_DATE_EPOCH:-}" && test -n "$(GIT)" && \
-	   $(GIT) -C "$(srcdir)" rev-parse --git-dir >/dev/null 2>&1; then \
-	    sde=`$(GIT) -C "$(srcdir)" log -1 --format=%ct 2>/dev/null`; \
-	    if test -n "$$sde"; then \
-	        SOURCE_DATE_EPOCH="$$sde"; \
-	        export SOURCE_DATE_EPOCH; \
-	    fi; \
-	fi; \
-	$(PYTHON3) $(srcdir)/scripts/gen-sbom \
-	    --name $(PACKAGE) \
-	    --version $(PACKAGE_VERSION) \
-	    --license-file $(srcdir)/LICENSING \
-	    $(if $(SBOM_LICENSE_OVERRIDE),--license-override '$(SBOM_LICENSE_OVERRIDE)') \
-	    $(if $(SBOM_LICENSE_TEXT),--license-text '$(SBOM_LICENSE_TEXT)') \
-	    $(if $(SBOM_DOCUMENT_NAMESPACE),--document-namespace '$(SBOM_DOCUMENT_NAMESPACE)') \
-	    --options-h $(abs_builddir)/wolfssl/options.h \
-	    --lib "$$sbom_lib" \
-	    --dep-libz "$(ENABLED_LIBZ)" \
-	    $(foreach dv,$(SBOM_DEP_VERSIONS),--dep-version '$(dv)') \
-	    --cdx-out $(abs_builddir)/$(SBOM_CDX) \
-	    --spdx-out $(abs_builddir)/$(SBOM_SPDX); \
-	$(PYSPDXTOOLS) --infile $(abs_builddir)/$(SBOM_SPDX) \
-	    --outfile $(abs_builddir)/$(SBOM_SPDX_TV)
-
-install-sbom: sbom
-	$(MKDIR_P) $(DESTDIR)$(sbomdir)
-	$(INSTALL_DATA) $(SBOM_CDX) $(DESTDIR)$(sbomdir)/
-	$(INSTALL_DATA) $(SBOM_SPDX) $(DESTDIR)$(sbomdir)/
-	$(INSTALL_DATA) $(SBOM_SPDX_TV) $(DESTDIR)$(sbomdir)/
-
-uninstall-sbom:
-	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_CDX)
-	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX)
-	-rm -f $(DESTDIR)$(sbomdir)/$(SBOM_SPDX_TV)
-
-CLEANFILES += $(SBOM_CDX) $(SBOM_SPDX) $(SBOM_SPDX_TV)
 
 # Security advisory generation (CSAF 2.0 + CycloneDX 1.6 VEX)
 #
@@ -676,6 +561,13 @@ dist-hook:
 	@for f in $(srcdir)/advisories/records/*.json; do \
 	    test -f "$$f" || continue; \
 	    cp -p "$$f" $(distdir)/advisories/records/; \
+	done
+	@set -e; \
+	files=`cd $(srcdir) && find tools/sbom -name __pycache__ -prune -o \
+	    -type f ! -name '*.pyc' -print`; \
+	for f in $$files; do \
+	    $(MKDIR_P) "$(distdir)/`dirname $$f`"; \
+	    cp -fp "$(srcdir)/$$f" "$(distdir)/$$f"; \
 	done
 
 # Bomsh (OmniBOR build artifact tracing + SBOM enrichment)

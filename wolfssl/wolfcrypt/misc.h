@@ -82,6 +82,9 @@ WOLFSSL_LOCAL
 int ConstantCompare(const byte* a, const byte* b, int length);
 
 WOLFSSL_LOCAL
+word32 ctHide32(word32 v);
+
+WOLFSSL_LOCAL
 word16 readUnalignedWord16(const byte *in);
 WOLFSSL_LOCAL
 word16 writeUnalignedWord16(void *out, word16 in);
@@ -170,6 +173,9 @@ WOLFSSL_LOCAL int  ctMaskSelInt(byte m, int a, int b);
 WOLFSSL_LOCAL word32 ctMaskSelWord32(byte m, word32 a, word32 b);
 WOLFSSL_LOCAL byte ctSetLTE(int a, int b);
 WOLFSSL_LOCAL void ctMaskCopy(byte mask, byte* dst, byte* src, word16 size);
+#ifdef WC_NO_PTR_INT_CAST
+WOLFSSL_LOCAL void* ctMaskSelPtr(byte mask, void* a, void* b);
+#endif
 WOLFSSL_LOCAL word32 MakeWordFromHash(const byte* hashID);
 WOLFSSL_LOCAL word32 HashObject(const byte* o, word32 len, int* error);
 WOLFSSL_LOCAL char* CopyString(const char* src, int srcLen, void* heap,

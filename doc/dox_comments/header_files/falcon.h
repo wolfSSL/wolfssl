@@ -4,7 +4,9 @@
     \brief Initializes a falcon_key object with default settings (no heap
     hint, software-only). Must be called before any other Falcon operation.
     Call wc_falcon_set_level() to select a parameter set before generating or
-    importing a key. Release resources with wc_falcon_free() when done.
+    importing a key. Release resources with wc_falcon_free() when done: the
+    structure can own heap allocations, so re-initializing a used key without
+    freeing it first orphans them with the secret material still in them.
 
     Falcon is a quantum-resistant lattice signature scheme. It has not been
     standardized by NIST yet, so the "falcon" API name is experimental and
@@ -119,7 +121,11 @@ int wc_falcon_init_label(falcon_key* key, const char* label, void* heap,
     set before key generation or import.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL or level is not 1 or 5.
+    \return BAD_FUNC_ARG if key is NULL, level is not 1 or 5, or that level was
+    not built into the library (WOLFSSL_NO_FALCON_LEVEL1 /
+    WOLFSSL_NO_FALCON_LEVEL5).
+    \return MEMORY_E if WOLFSSL_FALCON_DYNAMIC_KEYS is defined and the encoded
+    key buffers could not be allocated.
 
     \param [in,out] key Pointer to the falcon_key.
     \param [in] level Parameter set: 1 for Falcon-512, 5 for Falcon-1024.
@@ -149,7 +155,9 @@ int wc_falcon_get_level(falcon_key* key, byte* level);
     \ingroup Falcon
 
     \brief Frees a falcon_key object and securely zeros any key material it
-    holds. The key may be re-initialized afterwards.
+    holds. The key may be re-initialized afterwards. The structure can own heap
+    allocations, so it must have been initialized (or zeroed) first; calling
+    this on an untouched stack object frees indeterminate pointers.
 
     \param [in,out] key Pointer to the falcon_key to free. May be NULL.
 
@@ -168,6 +176,10 @@ void wc_falcon_free(falcon_key* key);
     \return 0 on success.
     \return BAD_FUNC_ARG if key or rng is NULL or the level is unset.
     \return MEMORY_E on allocation failure.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in,out] key Pointer to an initialized falcon_key with a level set.
     \param [in] rng Pointer to an initialized WC_RNG.
@@ -212,7 +224,11 @@ int wc_falcon_make_key(falcon_key* key, WC_RNG* rng);
     \param [in] inLen Length of the message in bytes.
     \param [out] out Buffer to receive the signature.
     \param [in,out] outLen In: size of out; Out: signature length.
-    \param [in] key Pointer to a falcon_key holding a private key.
+    \param [in,out] key Pointer to a falcon_key holding a private key. With
+    WC_FALCON_CACHE_EXPANDED_KEY or WC_FALCON_CACHE_PRIV_BASIS the first call
+    fills a per-key cache and later calls read it. That cache is not
+    synchronized: such a key must not be signed with from two threads at once,
+    nor freed, re-levelled or re-imported while a signature is in flight.
     \param [in] rng Pointer to an initialized WC_RNG.
 
     _Example_
@@ -245,12 +261,17 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
     \return 0 on a completed verification (check *res for validity).
     \return BAD_FUNC_ARG if a required pointer is NULL or the public key is not
     set.
+    \return MEMORY_E if the working buffer could not be allocated. Verify
+    allocates 4*n bytes per call, unless WOLFSSL_NO_MALLOC is defined to use
+    the stack or WOLFSSL_FALCON_VERIFY_NO_MALLOC is defined to use a buffer in
+    the key (so one key must not verify two signatures at the same time).
 
     \param [in] sig Signature to verify.
     \param [in] sigLen Length of the signature in bytes.
     \param [in] msg Message the signature is over.
     \param [in] msgLen Length of the message in bytes.
-    \param [out] res Set to 1 if the signature is valid, 0 otherwise.
+    \param [out] res Set to 1 if the signature is valid, 0 otherwise,
+    including when an error is returned.
     \param [in] key Pointer to a falcon_key holding a public key.
 
     _Example_
@@ -411,16 +432,23 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
 /*!
     \ingroup Falcon
 
-    \brief Checks the consistency of a Falcon key. Requires both key halves to
-    be present. When the native signing core is compiled in, the stored public
-    key h is additionally verified against the private key by checking the
-    defining relation h*f == g (mod q); in verify-only or crypto-callback-only
-    builds only the presence of both halves is checked.
+    \brief Checks the consistency of a Falcon key. With WOLF_CRYPTO_CB, a key
+    with a device id (or any key with WOLF_CRYPTO_CB_FIND) is first passed to
+    the crypto callback, along with the public key when it is set. The device
+    checks the key it contains, so neither key needs to be set locally.
+    Otherwise, or when the callback returns CRYPTOCB_UNAVAILABLE, both the
+    public and private keys must be present. When the native signing core is
+    compiled in, the stored public key h is additionally verified against the
+    private key by checking the defining relation h*f == g (mod q); in
+    verify-only or crypto-callback-only builds only the presence of both keys
+    is checked.
 
     \return 0 on success.
-    \return BAD_FUNC_ARG if key is NULL or the level is unset.
-    \return PUBLIC_KEY_E if either key half is missing, or if the public and
-    private keys are cryptographically inconsistent.
+    \return BAD_FUNC_ARG if key is NULL, the level is unset, or the level was
+    changed without wc_falcon_set_level() to one the key buffers do not fit.
+    \return PUBLIC_KEY_E if the public or private key is missing, or if the
+    public and private keys are cryptographically inconsistent.
+    \return Other negative values returned by the crypto callback.
 
     \param [in] key Pointer to a falcon_key to check.
 

@@ -102,7 +102,7 @@ impl Params {
         if self.log_n == 0 || u32::from(self.log_n) >= log_n_cutoff {
             return Err(Error::ParamInvalid { name: "ln" });
         }
-        if self.output_len == 0 || self.output_len > Output::MAX_LENGTH {
+        if self.output_len < Output::MIN_LENGTH || self.output_len > Output::MAX_LENGTH {
             return Err(Error::ParamInvalid { name: "l" });
         }
 
@@ -150,7 +150,7 @@ impl TryFrom<&PasswordHash> for Params {
         let output_len = if let Some(ref h) = hash.hash {
             h.len()
         } else if let Some(l) = hash.params.get_decimal("l") &&
-                0 < l && (l as usize) <= Output::MAX_LENGTH {
+                (l as usize) >= Output::MIN_LENGTH && (l as usize) <= Output::MAX_LENGTH {
             l as usize
         } else {
             return Err(Error::ParamInvalid { name: "l" });
@@ -226,7 +226,7 @@ impl CustomizedPasswordHasher<PasswordHash> for Scrypt {
 
         let salt = Salt::new(salt)?;
 
-        let mut out_buf = [0u8; Output::MAX_LENGTH];
+        let mut out_buf = zeroize::Zeroizing::new([0u8; Output::MAX_LENGTH]);
         let out_slice = &mut out_buf[..params.output_len];
         kdf::scrypt(password, salt.as_ref(), i32::from(params.log_n),
                 block_size, parallel, out_slice)

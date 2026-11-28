@@ -24,14 +24,18 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
-
-#include <em_device.h>
+#if defined(WOLFSSL_SILABS_SE_TYPES)
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#include <sl_se_manager.h>
-#include <sl_se_manager_hash.h>
+#ifdef WOLFSSL_SILABS_HOST_TEST
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_shim.h>
+#else
+    #include <em_device.h>
+
+    #include <sl_se_manager.h>
+    #include <sl_se_manager_hash.h>
+#endif
 
 /* workaround to detect older Gecko SDK version 3 */
 #if !defined(WOLFSSL_SILABS_SE_ACCEL_3) && !defined(SL_SE_PRF_HMAC_SHA1)
@@ -39,12 +43,25 @@
     #define WOLFSSL_SILABS_SE_ACCEL_3
 #endif
 
-/* Enable SHA2-2384 and SHA2-512 if HW supports and enabled */
+/* SHA-384 and SHA-512 need Secure Vault High. WOLFSSL_SILABS_SE_SHA384/512
+ * mean "the SE can do it" and gate the SE context and the callback port. */
 #if (_SILICON_LABS_SECURITY_FEATURE == _SILICON_LABS_SECURITY_FEATURE_VAULT)
     #ifdef WOLFSSL_SHA384
-        #define WOLFSSL_SILABS_SHA384
+        #define WOLFSSL_SILABS_SE_SHA384
     #endif
     #ifdef WOLFSSL_SHA512
+        #define WOLFSSL_SILABS_SE_SHA512
+    #endif
+#endif
+
+/* WOLFSSL_SILABS_SHA384/512 additionally mean "replace the software
+ * implementation", which is only true for the direct port. The callback port
+ * keeps software compiled in so an unsupported request can fall back. */
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    #ifdef WOLFSSL_SILABS_SE_SHA384
+        #define WOLFSSL_SILABS_SHA384
+    #endif
+    #ifdef WOLFSSL_SILABS_SE_SHA512
         #define WOLFSSL_SILABS_SHA512
     #endif
 #endif
@@ -58,13 +75,17 @@ typedef struct {
         sl_se_sha1_streaming_context_t   sha1_ctx;
         sl_se_sha224_streaming_context_t sha224_ctx;
         sl_se_sha256_streaming_context_t sha256_ctx;
-    #ifdef WOLFSSL_SILABS_SHA384
+    #ifdef WOLFSSL_SILABS_SE_SHA384
         sl_se_sha384_streaming_context_t sha384_ctx;
     #endif
-    #ifdef WOLFSSL_SILABS_SHA512
+    #ifdef WOLFSSL_SILABS_SE_SHA512
         sl_se_sha512_streaming_context_t sha512_ctx;
     #endif
     } hash_type_ctx;
+    /* Set once the SE context has been started. The crypto callback port has
+     * no hook on wc_InitShaXXX, so it starts the SE lazily on the first
+     * update or final; wc_InitShaXXX zeroes the struct, clearing this. */
+    byte started;
 } wc_silabs_sha_t;
 #else
 /* Gecko SDK v4 or later uses "multipart" interface */
@@ -74,15 +95,25 @@ typedef struct {
         sl_se_sha1_multipart_context_t   sha1_ctx;
         sl_se_sha224_multipart_context_t sha224_ctx;
         sl_se_sha256_multipart_context_t sha256_ctx;
-    #ifdef WOLFSSL_SILABS_SHA384
+    #ifdef WOLFSSL_SILABS_SE_SHA384
         sl_se_sha384_multipart_context_t sha384_ctx;
     #endif
-    #ifdef WOLFSSL_SILABS_SHA512
+    #ifdef WOLFSSL_SILABS_SE_SHA512
         sl_se_sha512_multipart_context_t sha512_ctx;
     #endif
     } hash_type_ctx;
+    /* See the note on the streaming variant above. */
+    byte started;
 } wc_silabs_sha_t;
 #endif
+
+/* Return the raw SE Manager status so callers can separate an unsupported
+ * command from a hardware failure. */
+int wc_silabs_se_hash_init_status(wc_silabs_sha_t* sha, enum wc_HashType type);
+int wc_silabs_se_hash_update_status(wc_silabs_sha_t* sha, const byte* data,
+    word32 len);
+int wc_silabs_se_hash_final_status(wc_silabs_sha_t* sha, byte* hash,
+    word32 len);
 
 int wc_silabs_se_hash_init(wc_silabs_sha_t* sha, enum wc_HashType type);
 int wc_silabs_se_hash_update(wc_silabs_sha_t* sha, const byte* data,
@@ -91,6 +122,6 @@ int wc_silabs_se_hash_final(wc_silabs_sha_t* sha, byte* hash, word32 len);
 
 
 
-#endif /* WOLFSSL_SILABS_SE_ACCEL */
+#endif /* WOLFSSL_SILABS_SE_TYPES */
 
 #endif /* _SILABS_HASH_H_ */

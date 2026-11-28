@@ -32,7 +32,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -55,11 +55,17 @@ jobs:
       # One entry per compiler (the former one-runner-per-compiler matrix):
       # default-config build plus "make dist", with the compiler routed
       # through ccache via the per-config "cc" key. CXX rides along as a
-      # configure argument.
+      # configure argument. gcc-9-all also compiles the code a default config
+      # leaves out, such as the OpenSSL compat tests, under the oldest gcc.
       - name: Build all configs (parallel, out-of-tree)
         run: |
           cat > "$RUNNER_TEMP/multi-compiler-configs.json" <<'EOF'
           [
+          {"name": "gcc-9-all", "minutes": 1.5,
+           "cc": "ccache gcc-9",
+           "configure": ["CXX=g++-9", "--enable-all",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false},
           {"name": "gcc-9", "minutes": 1.5,
            "cc": "ccache gcc-9",
            "configure": ["CXX=g++-9",
@@ -95,10 +101,38 @@ jobs:
            "configure": ["CXX=clang++-19",
             "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
            "check": false,
-           "run": [["make", "dist"]]}
+           "run": [["make", "dist"]]},
+          {"name": "clang-19-unreachable-all", "minutes": 2,
+           "comment": "clang-only -Wunreachable-code-aggressive with --enable-all -- not otherwise tested.",
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19", "--enable-all",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wunreachable-code-aggressive"],
+           "check": false},
+          {"name": "clang-19-unreachable-all-crypto", "minutes": 1.3,
+           "comment": "As clang-19-unreachable-all, but enable-all-crypto instead of enable-all to exclude OPENSSL_EXTRA, adding coverage without WOLFSSL_SP_INT_NEGATIVE and other settings implicit to enable-all but not enable-all-crypto.",
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19", "--enable-all-crypto",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wunreachable-code-aggressive"],
+           "check": false},
+          {"name": "clang-19-sp-asm-dh-no-rsa", "minutes": 1.5,
+           "comment": "SP asm with DH but no RSA; clang flags unused static inline SP helpers that gcc does not.",
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19", "--disable-rsa",
+            "--enable-sp=yes,4096", "--enable-sp-asm",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false},
+          {"name": "clang-19-enable-sp-4096-rsapub", "minutes": 1.5,
+           "comment": "--enable-sp=4096 sets WOLFSSL_SP_NO_2048, but the x86_64 SP assembly 4096-bit multiply calls the 2048-bit functions even for public-only RSA.",
+           "cc": "ccache clang-19",
+           "configure": ["CXX=clang++-19", "--enable-sp=4096", "--enable-sp-asm",
+            "--enable-rsapub",
+            "CFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference"],
+           "check": false}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=11 \
+            --deadline=18 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/multi-compiler-configs.json"
 

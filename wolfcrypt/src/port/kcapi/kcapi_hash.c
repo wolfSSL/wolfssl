@@ -276,6 +276,11 @@ int wc_InitSha224_ex(wc_Sha224* sha, void* heap, int devId)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(sha, wc_Sha224)) {
+        return BAD_ALIGN_E;
+    }
+#endif
     return KcapiHashInit(&sha->kcapi, heap, devId, WC_NAME_SHA224);
 }
 
@@ -313,6 +318,11 @@ int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst)
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(dst, wc_Sha224)) {
+        return BAD_ALIGN_E;
+    }
+#endif
     return KcapiHashCopy(&src->kcapi, &dst->kcapi);
 }
 #endif /* WOLFSSL_SHA224 */
@@ -328,6 +338,11 @@ int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devid)
     if (sha == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(sha, wc_Sha256)) {
+        return BAD_ALIGN_E;
+    }
+#endif
     return KcapiHashInit(&sha->kcapi, heap, devid, WC_NAME_SHA256);
 }
 
@@ -364,6 +379,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WC_CTX_IS_ALIGNED
+    if (!WC_CTX_IS_ALIGNED(dst, wc_Sha256)) {
+        return BAD_ALIGN_E;
+    }
+#endif
     return KcapiHashCopy(&src->kcapi, &dst->kcapi);
 }
 #endif /* !NO_SHA256 */

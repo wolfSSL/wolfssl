@@ -821,6 +821,7 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     DerBuffer* der, int* keyFormat, void* heap, byte* keyType, int* keySize)
 {
     int ret;
+    int inited = 0;
     falcon_key* key;
 
     /* Allocate a Falcon key to parse into. */
@@ -829,12 +830,14 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         return MEMORY_E;
     }
 
-    /* Initialize Falcon key. */
-    ret = wc_falcon_init(key);
+    /* Initialize Falcon key. The struct came from 'heap' and, with
+     * WOLFSSL_FALCON_DYNAMIC_KEYS, so must its encoded-key buffers. */
+    ret = wc_falcon_init_ex(key, heap, INVALID_DEVID);
     if (ret == 0) {
         byte level = 0;
         word32 idx;
 
+        inited = 1;
         if (*keyFormat == FALCON_LEVEL1k) {
             level = 1;
         }
@@ -852,26 +855,44 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
         }
         else if (*keyFormat == 0) {
+            int lvlRet;
+
             /* Key format unknown. Try both levels; the expected OID inside
              * wc_Falcon_PrivateKeyDecode rejects non-matching DER. Re-init
              * between attempts so a partial first decode can't leave stale
              * bytes in key->k / key->p. */
             idx = 0;
-            if (wc_falcon_set_level(key, 1) == 0 &&
-                wc_Falcon_PrivateKeyDecode(der->buffer, &idx, key,
-                                           der->length) == 0) {
+            lvlRet = wc_falcon_set_level(key, 1);
+            if (lvlRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+                wc_falcon_free(key);
+                XFREE(key, heap, DYNAMIC_TYPE_FALCON);
+                return MEMORY_E;
+            }
+            if ((lvlRet == 0) &&
+                (wc_Falcon_PrivateKeyDecode(der->buffer, &idx, key,
+                                            der->length) == 0)) {
                 level = 1;
             }
             else {
-                wc_falcon_free(key);
-                if (wc_falcon_init(key) != 0) {
+                /* Only an attempt that ran can have dirtied the key: a level
+                 * that was not built returns before touching it. */
+                if (lvlRet == 0) {
+                    wc_falcon_free(key);
+                    if (wc_falcon_init_ex(key, heap, INVALID_DEVID) != 0) {
+                        XFREE(key, heap, DYNAMIC_TYPE_FALCON);
+                        return MEMORY_E;
+                    }
+                }
+                idx = 0;
+                lvlRet = wc_falcon_set_level(key, 5);
+                if (lvlRet == WC_NO_ERR_TRACE(MEMORY_E)) {
+                    wc_falcon_free(key);
                     XFREE(key, heap, DYNAMIC_TYPE_FALCON);
                     return MEMORY_E;
                 }
-                idx = 0;
-                if (wc_falcon_set_level(key, 5) == 0 &&
-                    wc_Falcon_PrivateKeyDecode(der->buffer, &idx, key,
-                                               der->length) == 0) {
+                if ((lvlRet == 0) &&
+                    (wc_Falcon_PrivateKeyDecode(der->buffer, &idx, key,
+                                                der->length) == 0)) {
                     level = 5;
                 }
             }
@@ -885,7 +906,6 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             ret = 0;
         }
         else {
-            wc_falcon_free(key);
             ret = ALGO_ID_E;
         }
     }
@@ -911,8 +931,6 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             WOLFSSL_MSG("Falcon private key too small");
             ret = FALCON_KEY_SIZE_E;
         }
-
-        wc_falcon_free(key);
     }
     else if ((ret == WC_NO_ERR_TRACE(ALGO_ID_E)) && (*keyFormat == 0)) {
         WOLFSSL_MSG("Not a Falcon key");
@@ -920,7 +938,11 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ret = 0;
     }
 
-    /* Dispose of allocated key. */
+    /* Dispose of allocated key. With WOLFSSL_FALCON_DYNAMIC_KEYS the structure
+     * owns heap buffers, so XFREE alone would leak. */
+    if (inited) {
+        wc_falcon_free(key);
+    }
     XFREE(key, heap, DYNAMIC_TYPE_FALCON);
     return ret;
 }
@@ -1075,8 +1097,8 @@ static int ProcessBufferTryDecodeSlhDsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         return MEMORY_E;
     }
 
-    /* wc_SlhDsaKey_Init returns NOT_COMPILED_IN before it zeroes the key, so
-     * clear it here to keep the unconditional Free below well defined. */
+    /* Clear the key so the unconditional Free below is well defined whatever
+     * wc_SlhDsaKey_Init returns. */
     XMEMSET(key, 0, sizeof(SlhDsaKey));
 
     /* Initialise with an always-present placeholder parameter set;
@@ -1404,7 +1426,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if (ssl != NULL) {
             /* Dispose of previous key if not context's. */
             if (ssl->buffers.weOwnAltKey) {
-                FreeDer(&ssl->buffers.altKey);
+                FreeKeyDer(&ssl->buffers.altKey);
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
                 FreeDer(&ssl->buffers.altKeyMask);
             #endif
@@ -1421,7 +1443,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         else if (ctx != NULL) {
             /* Dispose of previous key. */
-            FreeDer(&ctx->altPrivateKey);
+            FreeKeyDer(&ctx->altPrivateKey);
             ctx->altPrivateKeyId = 0;
             ctx->altPrivateKeyLabel = 0;
             ctx->altPrivateKeyDevId = INVALID_DEVID;
@@ -1437,7 +1459,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (ssl != NULL) {
         /* Dispose of previous key if not context's. */
         if (ssl->buffers.weOwnKey) {
-            FreeDer(&ssl->buffers.key);
+            FreeKeyDer(&ssl->buffers.key);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.keyMask);
         #endif
@@ -1454,7 +1476,7 @@ static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
     else if (ctx != NULL) {
         /* Dispose of previous key. */
-        FreeDer(&ctx->privateKey);
+        FreeKeyDer(&ctx->privateKey);
         ctx->privateKeyId = 0;
         ctx->privateKeyLabel = 0;
         ctx->privateKeyDevId = INVALID_DEVID;
@@ -1838,9 +1860,15 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef WC_RSA_PSS
             if (ssl) {
                 ssl->useRsaPss = cert->keyOID == RSAPSSk;
+                ssl->rsaPssHash = cert->keyPssHash;
+                ssl->rsaPssMgf = cert->keyPssMgf;
+                ssl->rsaPssSaltLen = cert->keyPssSaltLen;
             }
             if (ctx) {
                 ctx->useRsaPss = cert->keyOID == RSAPSSk;
+                ctx->rsaPssHash = cert->keyPssHash;
+                ctx->rsaPssMgf = cert->keyPssMgf;
+                ctx->rsaPssSaltLen = cert->keyPssSaltLen;
             }
     #endif
             break;
@@ -1907,9 +1935,13 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Falcon is fixed key size */
             keySz = FALCON_LEVEL1_KEY_SIZE;
             if (checkKeySz) {
+            #ifdef WOLFSSL_NO_FALCON_LEVEL1
+                ret = NOT_COMPILED_IN;
+            #else
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minFalconKeySz :
                     ctx->minFalconKeySz, FALCON_MAX_KEY_SIZE, keySz,
                     FALCON_KEY_SIZE_E);
+            #endif
             }
             break;
         case FALCON_LEVEL5k:
@@ -1917,9 +1949,13 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Falcon is fixed key size */
             keySz = FALCON_LEVEL5_KEY_SIZE;
             if (checkKeySz) {
+            #ifdef WOLFSSL_NO_FALCON_LEVEL5
+                ret = NOT_COMPILED_IN;
+            #else
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minFalconKeySz :
                     ctx->minFalconKeySz, FALCON_MAX_KEY_SIZE, keySz,
                     FALCON_KEY_SIZE_E);
+            #endif
             }
             break;
     #endif /* HAVE_FALCON */
@@ -2159,9 +2195,13 @@ static int ProcessBufferCertAltPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Falcon is fixed key size */
             keySz = FALCON_LEVEL1_KEY_SIZE;
             if (checkKeySz) {
+            #ifdef WOLFSSL_NO_FALCON_LEVEL1
+                ret = NOT_COMPILED_IN;
+            #else
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minFalconKeySz :
                     ctx->minFalconKeySz, FALCON_MAX_KEY_SIZE, keySz,
                     FALCON_KEY_SIZE_E);
+            #endif
             }
             break;
         case FALCON_LEVEL5k:
@@ -2169,9 +2209,13 @@ static int ProcessBufferCertAltPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Falcon is fixed key size */
             keySz = FALCON_LEVEL5_KEY_SIZE;
             if (checkKeySz) {
+            #ifdef WOLFSSL_NO_FALCON_LEVEL5
+                ret = NOT_COMPILED_IN;
+            #else
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minFalconKeySz :
                     ctx->minFalconKeySz, FALCON_MAX_KEY_SIZE, keySz,
                     FALCON_KEY_SIZE_E);
+            #endif
             }
             break;
     #endif /* HAVE_FALCON */
@@ -2497,6 +2541,8 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Store certificate as ours. */
             ctx->certificate = der;
             /* ourCert is created on demand. */
+            /* The cached OCSP request was built from the old certificate. */
+            FreeCtxOcspRequestCache(ctx);
         }
     }
     else {
@@ -2546,7 +2592,8 @@ static int ProcessBufferCertTypes(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         if ((ctx != NULL) && (ctx->cm != NULL) &&
                 (ctx->cm->verifyCallback != NULL)) {
             /* Verify and use callback. */
-            ret = CM_VerifyBuffer_ex(ctx->cm, buff, sz, format, ret);
+            ret = CM_VerifyBuffer_ex(ctx->cm, buff, NULL, sz, format, ret,
+                NULL);
             /* Convert error. */
             if (ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;
@@ -3055,6 +3102,37 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     return ret;
 }
 
+#if defined(WOLFSSL_TRUST_PEER_CERT)
+/* Load a trusted peer certificate from a file with the caller's verification
+ * setting.
+ *
+ * @param [in, out] ctx     SSL context object.
+ * @param [in]      file    Name of peer certificate file.
+ * @param [in]      format  Format of data: WOLFSSL_FILETYPE_PEM or
+ *                             WOLFSSL_FILETYPE_ASN1.
+ * @param [in]      verify  How to verify the certificate.
+ * @return  1 on success.
+ * @return  0 when ctx or file is NULL.
+ * @return  Negative on error.
+ */
+static int TrustPeerCertFile(WOLFSSL_CTX* ctx, const char* file, int format,
+    int verify)
+{
+    int ret;
+
+    /* Validate parameters. */
+    if ((ctx == NULL) || (file == NULL)) {
+        ret = 0;
+    }
+    else {
+        ret = ProcessFile(ctx, file, format, TRUSTED_PEER_TYPE, NULL, 0, NULL,
+            verify);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
 #ifndef NO_WOLFSSL_DIR
 /* Load file when filename is in the path.
  *
@@ -3095,8 +3173,9 @@ static int wolfssl_ctx_load_path_file(WOLFSSL_CTX* ctx, const char* name,
     }
     else {
     #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
-        /* Try loading as a trusted peer certificate. */
-        ret = wolfSSL_CTX_trust_peer_cert(ctx, name, WOLFSSL_FILETYPE_PEM);
+        /* Try loading as a trusted peer certificate with the same
+         * verification setting as the CA load. */
+        ret = TrustPeerCertFile(ctx, name, WOLFSSL_FILETYPE_PEM, verify);
         if (ret != 1) {
             WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error. "
                         "Ignoring this error.");
@@ -3260,14 +3339,21 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
             }
 #endif
 #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
-            /* Load CA as a trusted peer certificate. */
+            if (ret == 1) {
+                /* Load CA as a trusted peer certificate. The verification
+                 * setting computed above, including
+                 * WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY, applies to the trusted
+                 * peer copy too. */
 #ifdef WOLFSSL_PEM_TO_DER
-            ret = wolfSSL_CTX_trust_peer_cert(ctx, file, WOLFSSL_FILETYPE_PEM);
+                ret = TrustPeerCertFile(ctx, file, WOLFSSL_FILETYPE_PEM,
+                    verify);
 #else
-            ret = wolfSSL_CTX_trust_peer_cert(ctx, file, WOLFSSL_FILETYPE_ASN1);
+                ret = TrustPeerCertFile(ctx, file, WOLFSSL_FILETYPE_ASN1,
+                    verify);
 #endif
-            if (ret != 1) {
-                WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error");
+                if (ret != 1) {
+                    WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error");
+                }
             }
 #endif
         }
@@ -3366,8 +3452,7 @@ int wolfSSL_CTX_trust_peer_cert(WOLFSSL_CTX* ctx, const char* file, int format)
         ret = 0;
     }
     else {
-        ret = ProcessFile(ctx, file, format, TRUSTED_PEER_TYPE, NULL, 0, NULL,
-            GET_VERIFY_SETTING_CTX(ctx));
+        ret = TrustPeerCertFile(ctx, file, format, GET_VERIFY_SETTING_CTX(ctx));
     }
 
     return ret;
@@ -4224,6 +4309,48 @@ int wolfSSL_use_RSAPrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 
 #endif /* OPENSSL_EXTRA */
 
+#if defined(WOLFSSL_TRUST_PEER_CERT)
+/* Load a buffer of certificate/s as trusted peer certificates with the
+ * caller's verification setting.
+ *
+ * @param [in, out] ctx     SSL context object.
+ * @param [in]      in      Buffer holding certificate/s.
+ * @param [in]      sz      Length of data in buffer in bytes.
+ * @param [in]      format  Format of data: WOLFSSL_FILETYPE_PEM or
+ *                             WOLFSSL_FILETYPE_ASN1.
+ * @param [in]      verify  How to verify the certificate/s.
+ * @return  1 on success.
+ * @return  0 on failure.
+ * @return  BAD_FUNC_ARG when ctx or in is NULL, or sz is less than zero.
+ * @return  Negative on error.
+ */
+static int TrustPeerCertBuffer(WOLFSSL_CTX* ctx, const unsigned char* in,
+    long sz, int format, int verify)
+{
+    int ret;
+
+    /* Validate parameters. */
+    if ((ctx == NULL) || (in == NULL) || (sz < 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* When PEM, treat as certificate chain of trusted peer
+         * certificates. */
+        if (format == WOLFSSL_FILETYPE_PEM) {
+            ret = ProcessChainBuffer(ctx, NULL, in, sz, TRUSTED_PEER_TYPE,
+                verify, "peer");
+        }
+        /* When DER, load the trusted peer certificate. */
+        else {
+            ret = ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
+                NULL, 0, verify, "peer");
+        }
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
 /* Load a buffer of certificate/s into SSL context.
  *
  * @param [in, out] ctx        SSL context object.
@@ -4272,8 +4399,10 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx, const unsigned char* in,
     }
 #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
     if (ret == 1) {
-        /* Load certificate/s as trusted peer certificate. */
-        ret = wolfSSL_CTX_trust_peer_buffer(ctx, in, sz, format);
+        /* Load certificate/s as trusted peer certificate. The verification
+         * setting computed above, including WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY,
+         * applies to the trusted peer copy too. */
+        ret = TrustPeerCertBuffer(ctx, in, sz, format, verify);
     }
 #endif
 
@@ -4349,16 +4478,7 @@ int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
         verify = GET_VERIFY_SETTING_CTX(ctx);
     #endif
 
-        /* When PEM, treat as certificate chain of trusted peer certificates. */
-        if (format == WOLFSSL_FILETYPE_PEM) {
-            ret = ProcessChainBuffer(ctx, NULL, in, sz, TRUSTED_PEER_TYPE,
-                verify, "peer");
-        }
-        /* When DER, load the trusted peer certificate. */
-        else {
-            ret = ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
-                NULL, 0, verify, "peer");
-        }
+        ret = TrustPeerCertBuffer(ctx, in, sz, format, verify);
     }
 
     return ret;
@@ -4465,7 +4585,7 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     }
 
     /* Dispose of old private key and allocate and copy in id. */
-    FreeDer(&ctx->privateKey);
+    FreeKeyDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, id, (word32)sz, PRIVATEKEY_TYPE,
             ctx->heap) != 0) {
         ret = 0;
@@ -4543,7 +4663,7 @@ int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
     sz = (word32)XSTRLEN(label) + 1;
 
     /* Dispose of old private key and allocate and copy in label. */
-    FreeDer(&ctx->privateKey);
+    FreeKeyDer(&ctx->privateKey);
     if (AllocCopyDer(&ctx->privateKey, (const byte*)label, (word32)sz,
             PRIVATEKEY_TYPE, ctx->heap) != 0) {
         ret = 0;
@@ -4584,7 +4704,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     }
 
     if (ret == 1) {
-        FreeDer(&ctx->altPrivateKey);
+        FreeKeyDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ctx->heap) != 0) {
             ret = 0;
@@ -4635,7 +4755,7 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
-        FreeDer(&ctx->altPrivateKey);
+        FreeKeyDer(&ctx->altPrivateKey);
         if (AllocDer(&ctx->altPrivateKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ctx->heap) != 0) {
             ret = 0;
@@ -4878,7 +4998,7 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
 
     /* Dispose of old private key if owned and allocate and copy in id. */
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -4954,7 +5074,7 @@ int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
 
     /* Dispose of old private key if owned and allocate and copy in label. */
     if (ssl->buffers.weOwnKey) {
-        FreeDer(&ssl->buffers.key);
+        FreeKeyDer(&ssl->buffers.key);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
@@ -4999,7 +5119,7 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
 
     if (ret == 1) {
         if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
         #endif
@@ -5047,7 +5167,7 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
         if (ssl->buffers.weOwnAltKey) {
-            FreeDer(&ssl->buffers.altKey);
+            FreeKeyDer(&ssl->buffers.altKey);
         #ifdef WOLFSSL_BLIND_PRIVATE_KEY
             FreeDer(&ssl->buffers.altKeyMask);
         #endif
@@ -5302,6 +5422,8 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if (res == 1) {
         /* Replace certificate buffer with one holding the new certificate. */
         FreeDer(&ctx->certificate);
+        /* The cached OCSP request was built from the old certificate. */
+        FreeCtxOcspRequestCache(ctx);
         ret = AllocCopyDer(&ctx->certificate, x->derCert->buffer,
             x->derCert->length, CERT_TYPE, ctx->heap);
         if (ret != 0) {
@@ -5337,6 +5459,17 @@ int wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     if (res == 1) {
         /* Set have options based on public key OID. */
         wolfssl_set_have_from_key_oid(ctx, NULL, x->pubKeyOID);
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+        defined(HAVE_FALCON) || defined(WOLFSSL_HAVE_MLDSA) || \
+        defined(WOLFSSL_HAVE_SLHDSA)
+        ctx->pkCurveOID = x->pkCurveOID;
+    #endif
+    #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+        ctx->useRsaPss = (x->pubKeyOID == RSAPSSk);
+        ctx->rsaPssHash = x->keyPssHash;
+        ctx->rsaPssMgf = x->keyPssMgf;
+        ctx->rsaPssSaltLen = x->keyPssSaltLen;
+    #endif
     }
 
     return res;
@@ -5580,12 +5713,19 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
     if (ret == 1) {
         switch (pkey->type) {
-    #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+    #ifndef NO_RSA
         case WC_EVP_PKEY_RSA:
+        #ifdef WOLFSSL_KEY_TO_DER
             WOLFSSL_MSG("populating RSA key");
             ret = PopulateRSAEvpPkeyDer(pkey);
+        #else
+            /* No RSA key encoder (FIPS or selftest without WOLFSSL_KEY_GEN):
+             * use the DER the key was decoded from, as
+             * wolfSSL_use_PrivateKey() does. */
+            WOLFSSL_MSG("using stored RSA key DER");
+        #endif
             break;
-    #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+    #endif /* !NO_RSA */
     #if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
             defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
         case WC_EVP_PKEY_DSA:

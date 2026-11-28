@@ -48,7 +48,8 @@ int  wc_InitRsaKey(RsaKey* key, void* heap);
 
     \return 0 Returned upon successfully initializing the RSA structure for
     use with encryption and decryption
-    \return BAD_FUNC_ARGS Returned if the RSA key pointer evaluates to NULL
+    \return BAD_FUNC_ARGS Returned if the RSA key pointer evaluates to NULL,
+    or if id is NULL while len is positive
     \return BUFFER_E Returned if len is less than 0 or greater than
     RSA_MAX_ID_LEN.
 
@@ -1518,6 +1519,13 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 outLen,
     library used while generating the RSA key
     \return MP_ZERO_E May be returned if there is an error in the math
     library used while generating the RSA key
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
+    \return BAD_STATE_E Returned when the key has an id or label and its
+    PKCS#11 token has no session from wc_Pkcs11Token_Open; a key with neither
+    is generated in software instead
 
     \param key pointer to the RsaKey structure in which to store the
     generated private key

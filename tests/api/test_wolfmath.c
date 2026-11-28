@@ -134,6 +134,215 @@ int test_mp_cond_copy(void)
 } /* End test_mp_cond_copy */
 
 /*
+ * Testing heap-math mp_addmod_ct, mp_submod_ct and mp_div_2_mod_ct against
+ * the variable-time versions, with short operands and the ecc.c aliasing.
+ */
+int test_mp_addsubmod_ct_heap(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_INTEGER_HEAP_MATH) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_PUBLIC_MP)
+    mp_int m, a, b, r, t;
+    mp_int v[6];
+    mp_int z[3];
+    mp_int f[3];
+    int    k, i, j;
+    int    nv = (int)(sizeof(v) / sizeof(v[0]));
+
+    XMEMSET(&m, 0, sizeof(mp_int));
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(&b, 0, sizeof(mp_int));
+    XMEMSET(&r, 0, sizeof(mp_int));
+    XMEMSET(&t, 0, sizeof(mp_int));
+    XMEMSET(z, 0, sizeof(z));
+    XMEMSET(f, 0, sizeof(f));
+    XMEMSET(v, 0, sizeof(v));
+
+    ExpectIntEQ(mp_init_multi(&m, &a, &b, &r, &t, NULL), MP_OKAY);
+    ExpectIntEQ(mp_init_multi(&z[0], &z[1], &z[2], NULL, NULL, NULL),
+        MP_OKAY);
+    ExpectIntEQ(mp_init_multi(&v[0], &v[1], &v[2], &v[3], &v[4], &v[5]),
+        MP_OKAY);
+
+    /* k == 0: P-256 prime. k == 1: 2^(4*DIGIT_BIT) - 1, whose full top limb
+     * makes a + b carry into limb c->used. */
+    for (k = 0; (k < 2) && EXPECT_SUCCESS(); k++) {
+        if (k == 0) {
+            ExpectIntEQ(mp_read_radix(&m,
+                "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFF"
+                "FFFFFFFF", MP_RADIX_HEX), MP_OKAY);
+        }
+        else {
+            ExpectIntEQ(mp_2expt(&m, 4 * DIGIT_BIT), MP_OKAY);
+            ExpectIntEQ(mp_sub_d(&m, 1, &m), MP_OKAY);
+        }
+        /* 0, 1, 5 (short operands), m-1, m-2, (m-1)/2 */
+        ExpectIntEQ(mp_set(&v[0], 0), MP_OKAY);
+        ExpectIntEQ(mp_set(&v[1], 1), MP_OKAY);
+        ExpectIntEQ(mp_set(&v[2], 5), MP_OKAY);
+        ExpectIntEQ(mp_sub_d(&m, 1, &v[3]), MP_OKAY);
+        ExpectIntEQ(mp_sub_d(&m, 2, &v[4]), MP_OKAY);
+        ExpectIntEQ(mp_div_2(&m, &v[5]), MP_OKAY);
+
+        for (i = 0; (i < nv) && EXPECT_SUCCESS(); i++) {
+            for (j = 0; (j < nv) && EXPECT_SUCCESS(); j++) {
+                ExpectIntEQ(mp_copy(&v[i], &a), MP_OKAY);
+                ExpectIntEQ(mp_copy(&v[j], &b), MP_OKAY);
+
+                ExpectIntEQ(mp_addmod_ct(&a, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&a, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+
+                /* (a - b) + b == a */
+                ExpectIntEQ(mp_submod_ct(&a, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&r, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+
+                /* d == a */
+                ExpectIntEQ(mp_copy(&a, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod_ct(&r, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&a, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+                ExpectIntEQ(mp_copy(&a, &r), MP_OKAY);
+                ExpectIntEQ(mp_submod_ct(&r, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&r, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+
+                /* d == b, as in ECDSA signing's s = e + s (mod n). */
+                ExpectIntEQ(mp_copy(&b, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod_ct(&a, &r, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&a, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+                ExpectIntEQ(mp_copy(&b, &r), MP_OKAY);
+                ExpectIntEQ(mp_submod_ct(&a, &r, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&r, &b, &m, &t), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+
+                /* d == c: the result replaces the modulus. */
+                ExpectIntEQ(mp_copy(&m, &t), MP_OKAY);
+                ExpectIntEQ(mp_addmod_ct(&a, &b, &t, &t), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&a, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&t, &r), MP_EQ);
+                ExpectIntEQ(mp_copy(&m, &t), MP_OKAY);
+                ExpectIntEQ(mp_submod_ct(&a, &b, &t, &t), MP_OKAY);
+                ExpectIntEQ(mp_addmod(&t, &b, &m, &r), MP_OKAY);
+                ExpectIntEQ(mp_cmp(&r, &a), MP_EQ);
+            }
+
+            ExpectIntEQ(mp_copy(&v[i], &a), MP_OKAY);
+
+            /* a == b == d */
+            ExpectIntEQ(mp_copy(&a, &r), MP_OKAY);
+            ExpectIntEQ(mp_addmod_ct(&r, &r, &m, &r), MP_OKAY);
+            ExpectIntEQ(mp_addmod(&a, &a, &m, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+
+            /* a == c: m - a */
+            ExpectIntEQ(mp_submod_ct(&m, &a, &m, &r), MP_OKAY);
+            ExpectIntEQ(mp_sub(&m, &a, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&r, &t), MP_EQ);
+
+            /* div_2: doubling the result gives a back; also with c == a. */
+            ExpectIntEQ(mp_div_2_mod_ct(&a, &m, &r), MP_OKAY);
+            ExpectIntEQ(mp_addmod(&r, &r, &m, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+            ExpectIntEQ(mp_copy(&a, &t), MP_OKAY);
+            ExpectIntEQ(mp_div_2_mod_ct(&t, &m, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&t, &r), MP_EQ);
+            /* ... and with c == b: the result replaces the modulus. */
+            ExpectIntEQ(mp_copy(&m, &t), MP_OKAY);
+            ExpectIntEQ(mp_div_2_mod_ct(&a, &t, &t), MP_OKAY);
+            ExpectIntEQ(mp_cmp(&t, &r), MP_EQ);
+        }
+    }
+
+    /* Zero operands that were never grown (dp == NULL). */
+    ExpectIntEQ(mp_addmod_ct(&z[0], &v[1], &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 1), MP_EQ);
+    ExpectIntEQ(mp_submod_ct(&v[1], &z[1], &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 1), MP_EQ);
+    ExpectIntEQ(mp_div_2_mod_ct(&z[2], &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_iszero(&r), MP_YES);
+
+    /* Operand wider than the modulus is rejected. */
+    ExpectIntEQ(mp_2expt(&a, 5 * DIGIT_BIT), MP_OKAY);
+    ExpectIntEQ(mp_addmod_ct(&a, &v[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_addmod_ct(&v[1], &a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&a, &v[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&v[1], &a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_div_2_mod_ct(&a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+
+    /* Negative operands are rejected. */
+    ExpectIntEQ(mp_set(&a, 5), MP_OKAY);
+    a.sign = MP_NEG;
+    ExpectIntEQ(mp_addmod_ct(&a, &v[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_addmod_ct(&v[1], &a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&a, &v[1], &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&v[1], &a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_div_2_mod_ct(&a, &m, &r), WC_NO_ERR_TRACE(MP_VAL));
+
+    /* Short inputs are read in place, not grown to the modulus width. */
+    if (EXPECT_SUCCESS()) {
+        mp_digit* dp_a;
+        mp_digit* dp_b;
+        int       alloc_a;
+        int       alloc_b;
+
+        mp_clear(&a);
+        mp_clear(&b);
+        ExpectIntEQ(mp_init_multi(&a, &b, NULL, NULL, NULL, NULL), MP_OKAY);
+        ExpectIntEQ(mp_set(&a, 5), MP_OKAY);
+        ExpectIntEQ(mp_set(&b, 7), MP_OKAY);
+        ExpectIntLT(a.alloc, m.used);
+        ExpectIntLT(b.alloc, m.used);
+        dp_a = a.dp;
+        dp_b = b.dp;
+        alloc_a = a.alloc;
+        alloc_b = b.alloc;
+        ExpectIntEQ(mp_addmod_ct(&a, &b, &m, &r), MP_OKAY);
+        ExpectIntEQ(mp_cmp_d(&r, 12), MP_EQ);
+        ExpectIntEQ(mp_submod_ct(&b, &a, &m, &r), MP_OKAY);
+        ExpectIntEQ(mp_cmp_d(&r, 2), MP_EQ);
+        ExpectIntEQ(mp_div_2_mod_ct(&a, &m, &r), MP_OKAY);
+        ExpectIntEQ(mp_addmod(&r, &r, &m, &t), MP_OKAY);
+        ExpectIntEQ(mp_cmp(&t, &a), MP_EQ);
+        ExpectPtrEq(a.dp, dp_a);
+        ExpectPtrEq(b.dp, dp_b);
+        ExpectIntEQ(a.alloc, alloc_a);
+        ExpectIntEQ(b.alloc, alloc_b);
+    }
+
+    /* Zero modulus is rejected before any operand is grown. */
+    mp_zero(&m);
+    ExpectIntEQ(mp_init_multi(&f[0], &f[1], &f[2], NULL, NULL, NULL),
+        MP_OKAY);
+    ExpectIntEQ(mp_addmod_ct(&f[0], &f[1], &m, &f[2]),
+        WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_submod_ct(&f[0], &f[1], &m, &f[2]),
+        WC_NO_ERR_TRACE(MP_VAL));
+    ExpectIntEQ(mp_div_2_mod_ct(&f[0], &m, &f[2]), WC_NO_ERR_TRACE(MP_VAL));
+    for (i = 0; i < 3; i++) {
+        ExpectNull(f[i].dp);
+        ExpectIntEQ(f[i].alloc, 0);
+    }
+
+    for (i = 0; i < nv; i++) {
+        mp_clear(&v[i]);
+    }
+    for (i = 0; i < 3; i++) {
+        mp_clear(&z[i]);
+        mp_clear(&f[i]);
+    }
+    mp_clear(&m);
+    mp_clear(&a);
+    mp_clear(&b);
+    mp_clear(&r);
+    mp_clear(&t);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_addsubmod_ct_heap */
+
+/*
  * Testing mp_rand
  */
 int test_mp_rand(void)
@@ -143,6 +352,7 @@ int test_mp_rand(void)
     mp_int a;
     WC_RNG rng;
     int    digits = 1;
+    byte   wide[5 * sizeof(mp_digit)];
 
     XMEMSET(&a, 0, sizeof(mp_int));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -157,18 +367,335 @@ int test_mp_rand(void)
      * rejected: drives the "digits > size" operand of that guard true (the
      * valid call below drives it false). This rejection only exists on the
      * fixed-size backends; USE_INTEGER_HEAP_MATH grows the mp_int instead
-     * (mp_set_bit) and would legally succeed (and force a large allocation),
+     * (mp_2expt) and would legally succeed (and force a large allocation),
      * so the vector is limited to the fixed-size backends. */
 #ifndef USE_INTEGER_HEAP_MATH
     ExpectIntNE(mp_rand(&a, 100000, &rng), 0);
 #endif
     ExpectIntEQ(mp_rand(&a, digits, &rng), 0);
+    /* A wider value already in a must not survive into the result. */
+    XMEMSET(wide, 0xff, sizeof(wide));
+    ExpectIntEQ(mp_read_unsigned_bin(&a, wide, (word32)sizeof(wide)),
+        MP_OKAY);
+    ExpectIntEQ(mp_rand(&a, 2, &rng), 0);
+    ExpectIntLE(mp_count_bits(&a), 2 * DIGIT_BIT);
+    ExpectIntGT(mp_count_bits(&a), DIGIT_BIT);
 
     mp_clear(&a);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
     return EXPECT_RESULT();
 } /* End test_mp_rand */
+
+/* An even modulus with a zero low digit must not use single-digit 2k
+ * reduction: its setup value is 2^DIGIT_BIT and does not fit in a digit. */
+int test_mp_exptmod_even_2k(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_INTEGER_HEAP_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(BN_MP_REDUCE_IS_2K_C) && defined(BN_S_MP_EXPTMOD_C)
+    mp_int g, x, p, y;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&y, 0, sizeof(y));
+    ExpectIntEQ(mp_init_multi(&g, &x, &p, &y, NULL, NULL), MP_OKAY);
+
+    /* p = 2^DIGIT_BIT, then p = 3 * 2^DIGIT_BIT. */
+    ExpectIntEQ(mp_set(&p, 1), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&p, DIGIT_BIT, &p), MP_OKAY);
+    ExpectIntEQ(mp_reduce_is_2k(&p), MP_NO);
+    /* (p - 1)^2 mod p = 1. */
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_set(&x, 2), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    ExpectIntEQ(mp_set(&p, 3), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&p, DIGIT_BIT, &p), MP_OKAY);
+    ExpectIntEQ(mp_reduce_is_2k(&p), MP_NO);
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    /* The adjacent modulus has a representable single-digit setup value. */
+    ExpectIntEQ(mp_add_d(&p, 1, &p), MP_OKAY);
+    ExpectIntEQ(mp_reduce_is_2k(&p), MP_YES);
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&y);
+#endif
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_PUBLIC_MP) && defined(USE_INTEGER_HEAP_MATH) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_NO_MALLOC)
+/* Allocators that record each live buffer's size and, on free, count the
+ * buffers that still hold non-zero bytes. Reallocation always moves the
+ * buffer, as realloc() does when it cannot grow it in place, and checks the
+ * old one in the same way. */
+#define MP_CLEAR_TRACK_MAX 8
+static void*  mp_clear_ptr[MP_CLEAR_TRACK_MAX];
+static size_t mp_clear_sz[MP_CLEAR_TRACK_MAX];
+static int    mp_clear_dirty = 0;
+
+static void mp_clear_track(void* p, size_t sz)
+{
+    int i;
+
+    for (i = 0; i < MP_CLEAR_TRACK_MAX; i++) {
+        if (mp_clear_ptr[i] == NULL) {
+            mp_clear_ptr[i] = p;
+            mp_clear_sz[i] = sz;
+            break;
+        }
+    }
+}
+
+static size_t mp_clear_size(void* p)
+{
+    int i;
+
+    for (i = 0; i < MP_CLEAR_TRACK_MAX; i++) {
+        if ((p != NULL) && (mp_clear_ptr[i] == p)) {
+            return mp_clear_sz[i];
+        }
+    }
+    return 0;
+}
+
+static void mp_clear_untrack(void* p)
+{
+    int i;
+    size_t j;
+
+    for (i = 0; i < MP_CLEAR_TRACK_MAX; i++) {
+        if ((p != NULL) && (mp_clear_ptr[i] == p)) {
+            for (j = 0; j < mp_clear_sz[i]; j++) {
+                if (((byte*)p)[j] != 0) {
+                    mp_clear_dirty++;
+                    break;
+                }
+            }
+            mp_clear_ptr[i] = NULL;
+            break;
+        }
+    }
+}
+
+static void* mp_clear_malloc(size_t sz)
+{
+    void* p = malloc(sz);
+    if (p != NULL)
+        mp_clear_track(p, sz);
+    return p;
+}
+
+static void mp_clear_free(void* p)
+{
+    mp_clear_untrack(p);
+    free(p);
+}
+
+static void* mp_clear_realloc(void* p, size_t sz)
+{
+    void*  n;
+    size_t oldSz = mp_clear_size(p);
+
+    if ((p != NULL) && (oldSz == 0)) {
+        /* Not allocated here, so its size is not known. */
+        return realloc(p, sz);
+    }
+
+    n = malloc(sz);
+    if (n != NULL) {
+        if (p != NULL) {
+            XMEMCPY(n, p, (oldSz < sz) ? oldSz : sz);
+            mp_clear_free(p);
+        }
+        mp_clear_track(n, sz);
+    }
+    return n;
+}
+#endif
+
+/*
+ * Testing that mp_clear() zeroizes every digit, including those above used.
+ * Those can still hold part of an earlier, larger value.
+ */
+int test_mp_clear_zeroize(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
+    mp_int a;
+    byte   val[32];
+    word32 i;
+    int    nonZero = 0;
+
+    XMEMSET(val, 0xA5, sizeof(val));
+    XMEMSET(&a, 0, sizeof(mp_int));
+
+    ExpectIntEQ(mp_init(&a), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&a, val, (word32)sizeof(val)), MP_OKAY);
+    /* Make the value smaller. With SP math the digits above used keep the
+     * earlier value. */
+    ExpectIntEQ(mp_set(&a, 1), MP_OKAY);
+    mp_clear(&a);
+
+    /* The digits are held in the mp_int itself, so can be checked. */
+    for (i = 0; i < (word32)((sizeof(val) + sizeof(mp_digit) - 1) /
+                              sizeof(mp_digit)); i++) {
+        nonZero |= (a.dp[i] != 0);
+    }
+    ExpectIntEQ(nonZero, 0);
+#elif defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(USE_INTEGER_HEAP_MATH) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_NO_MALLOC)
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    mp_int a;
+    byte   val[32];
+
+    XMEMSET(val, 0xA5, sizeof(val));
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(mp_clear_ptr, 0, sizeof(mp_clear_ptr));
+    mp_clear_dirty = 0;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(mp_clear_malloc, mp_clear_free,
+        mp_clear_realloc), 0);
+
+    ExpectIntEQ(mp_init(&a), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&a, val, (word32)sizeof(val)), MP_OKAY);
+    /* Make the value smaller without clearing the digits above used, as an
+     * operation that does not clear its excess digits would. */
+    a.used = 1;
+    mp_clear(&a);
+
+    /* The freed digit buffer must have been wiped in full. */
+    ExpectIntEQ(mp_clear_dirty, 0);
+
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_clear_zeroize */
+
+/*
+ * Testing that mp_grow() wipes the digit array it replaces, which holds the
+ * value, before freeing it.
+ */
+int test_mp_grow_zeroize(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_PUBLIC_MP) && defined(USE_INTEGER_HEAP_MATH) && \
+    defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY) && \
+    !defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_NO_MALLOC)
+    wolfSSL_Malloc_cb prevM = NULL;
+    wolfSSL_Free_cb prevF = NULL;
+    wolfSSL_Realloc_cb prevR = NULL;
+    mp_int a;
+    mp_int b;
+    byte   val[32];
+
+    XMEMSET(val, 0xA5, sizeof(val));
+    XMEMSET(&a, 0, sizeof(mp_int));
+    XMEMSET(&b, 0, sizeof(mp_int));
+    XMEMSET(mp_clear_ptr, 0, sizeof(mp_clear_ptr));
+    mp_clear_dirty = 0;
+
+    ExpectIntEQ(wolfSSL_GetAllocators(&prevM, &prevF, &prevR), 0);
+    ExpectIntEQ(wolfSSL_SetAllocators(mp_clear_malloc, mp_clear_free,
+        mp_clear_realloc), 0);
+
+    ExpectIntEQ(mp_init(&a), MP_OKAY);
+    ExpectIntEQ(mp_init(&b), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&a, val, (word32)sizeof(val)), MP_OKAY);
+    ExpectIntEQ(mp_read_unsigned_bin(&b, val, (word32)sizeof(val)), MP_OKAY);
+    /* Grow beyond the current allocation so that a new array is needed. */
+    ExpectIntEQ(mp_grow(&a, a.alloc + 8), MP_OKAY);
+
+    /* The old array must have been wiped, and the value kept. */
+    ExpectIntEQ(mp_clear_dirty, 0);
+    ExpectIntEQ(mp_cmp(&a, &b), MP_EQ);
+
+    mp_clear(&a);
+    mp_clear(&b);
+    (void)wolfSSL_SetAllocators(prevM, prevF, prevR);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_grow_zeroize */
+
+/*
+ * Testing TFM exponentiation with a modulus of FP_SIZE / 2 digits - the largest
+ * accepted. Constant time exponentiation keeps working values at the length of
+ * the modulus so products use all FP_SIZE digits.
+ */
+int test_mp_exptmod_fp_size_boundary(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_FAST_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(TFM_TIMING_RESISTANT) && !defined(WC_NO_MODEXP_TIMING_RESISTANT)
+    mp_int g, x, p, y, e;
+    int k = (FP_SIZE / 2) * DIGIT_BIT;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&y, 0, sizeof(y));
+    XMEMSET(&e, 0, sizeof(e));
+    ExpectIntEQ(mp_init_multi(&g, &x, &p, &y, &e, NULL), MP_OKAY);
+
+    /* p = 2^k - 1: odd and all FP_SIZE / 2 digits set. */
+    ExpectIntEQ(mp_set(&p, 1), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&p, k, &p), MP_OKAY);
+    ExpectIntEQ(mp_sub_d(&p, 1, &p), MP_OKAY);
+    ExpectIntEQ(p.used, FP_SIZE / 2);
+
+    /* Base 2: 2^(k.2^64 + 7) mod (2^k - 1) = 2^7 as 2^k = 1 mod p. */
+    ExpectIntEQ(mp_set(&g, 2), MP_OKAY);
+    ExpectIntEQ(mp_set_int(&x, (unsigned long)k), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&x, 64, &x), MP_OKAY);
+    ExpectIntEQ(mp_add_d(&x, 7, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 128), MP_EQ);
+
+    /* General base: (p - 1)^x mod p = p - 1 when x odd and 1 when x even.
+     * Full width base and exponent. */
+    ExpectIntEQ(mp_sub_d(&p, 1, &g), MP_OKAY);
+    ExpectIntEQ(mp_sub_d(&p, 2, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&y, &g), MP_EQ);
+    ExpectIntEQ(mp_sub_d(&p, 3, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&y, 1), MP_EQ);
+
+    /* Exponent processed as a fixed number of digits. */
+    ExpectIntEQ(mp_sub_d(&p, 2, &x), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_ex(&g, &x, x.used, &p, &y), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&y, &g), MP_EQ);
+
+    /* One digit more than the boundary is rejected. */
+    ExpectIntEQ(mp_mul_2d(&p, DIGIT_BIT, &e), MP_OKAY);
+    ExpectIntEQ(mp_add_d(&e, 1, &e), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &e, &y), WC_NO_ERR_TRACE(MP_VAL));
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&y);
+    mp_clear(&e);
+#endif
+    return EXPECT_RESULT();
+}
 
 /*
  * Testing wc_export_int
@@ -221,6 +748,53 @@ int test_wc_export_int(void)
 #endif
     return EXPECT_RESULT();
 } /* End test_wc_export_int */
+
+/*
+ * Testing mp_invmod with an odd modulus of about 8192 bits
+ */
+int test_mp_invmod_large_odd_modulus(void)
+{
+    EXPECT_DECLS;
+#if defined(USE_INTEGER_HEAP_MATH) && defined(WOLFSSL_PUBLIC_MP) && \
+    !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    mp_int a;
+    mp_int k;
+    mp_int m;
+    mp_int r;
+    mp_int t;
+    WC_RNG rng;
+    int    digits = (4096 + DIGIT_BIT - 1) / DIGIT_BIT;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(mp_init_multi(&a, &k, &m, &r, &t, NULL), MP_OKAY);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* m = 2*a*k + 1 is odd and coprime to a, so the inverse exists. */
+    ExpectIntEQ(mp_rand(&a, digits, &rng), 0);
+    ExpectIntEQ(mp_set_bit(&a, 4095), MP_OKAY);
+    ExpectIntEQ(mp_rand(&k, digits, &rng), 0);
+    ExpectIntEQ(mp_set_bit(&k, 4095), MP_OKAY);
+    ExpectIntEQ(mp_mul(&a, &k, &m), MP_OKAY);
+    ExpectIntEQ(mp_mul_2d(&m, 1, &m), MP_OKAY);
+    ExpectIntEQ(mp_add_d(&m, 1, &m), MP_OKAY);
+    ExpectIntGE(mp_count_bits(&m), 8192);
+
+    ExpectIntEQ(mp_invmod(&a, &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_isneg(&r), MP_NO);
+    ExpectIntEQ(mp_cmp(&r, &m), MP_LT);
+    ExpectIntEQ(mp_mulmod(&a, &r, &m, &t), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&t, 1), MP_EQ);
+
+    mp_clear(&t);
+    mp_clear(&r);
+    mp_clear(&m);
+    mp_clear(&k);
+    mp_clear(&a);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_invmod_large_odd_modulus */
 
 /*
  * MC/DC coverage for the sp_int.c multi-precision engine (the sp-math
@@ -930,6 +1504,23 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
     ExpectIntEQ(sp_set(&a, 20), 0);
     ExpectIntEQ(sp_exptmod_ex(&a, &b, 0, &m, &m), WC_NO_ERR_TRACE(MP_VAL));
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    /* Base 2 with a multi-digit exponent, using both a single-digit and
+     * a multi-digit odd modulus. The exponent is 2^64 + 5. */
+    ExpectIntEQ(sp_set(&a, 2), MP_OKAY);
+    ExpectIntEQ(sp_2expt(&b, 64), MP_OKAY);
+    ExpectIntEQ(sp_add_d(&b, 5, &b), MP_OKAY);
+    ExpectIntEQ(sp_set(&m, 17), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 15), MP_EQ);
+
+    /* 2^128 == -1 modulo (2^128 + 1), so 2^256 == 1. */
+    ExpectIntEQ(sp_2expt(&m, 128), MP_OKAY);
+    ExpectIntEQ(sp_add_d(&m, 1, &m), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&a, &b, &m, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp_d(&r, 32), MP_EQ);
+#endif
+
     /* sp_gcd: NULL args; a or b too big (>= SP_INT_DIGITS, skipped: needs
      * an operand at the compile limit, documented residual); undersized
      * dest; both zero (undefined); a zero, b nonzero (gcd = b); normal;
@@ -1010,6 +1601,13 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
         ExpectIntEQ(sp_set(&a, 4), 0);
         ExpectIntEQ(sp_prime_is_prime(&a, 8, &result), 0);
         ExpectIntEQ(result, MP_NO);
+        /* Too large to test: an error and no primality claim. */
+        ExpectIntEQ(sp_set_bit(&a, (SP_INT_DIGITS / 2) * SP_WORD_SIZE), 0);
+        result = MP_YES;
+        ExpectIntEQ(sp_prime_is_prime(&a, 8, &result),
+            WC_NO_ERR_TRACE(MP_VAL));
+        ExpectIntEQ(result, MP_NO);
+        ExpectIntEQ(sp_set(&a, 4), 0);
 
 #if !defined(WC_NO_RNG)
         {
@@ -1022,10 +1620,17 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
                 WC_NO_ERR_TRACE(MP_VAL));
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 8, &result, NULL),
                 WC_NO_ERR_TRACE(MP_VAL));
+            result = MP_YES;
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 0, &result, &rng),
                 WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(result, MP_NO);
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 1000000, &result, &rng),
                 WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(sp_set_bit(&a, (SP_INT_DIGITS / 2) * SP_WORD_SIZE), 0);
+            result = MP_YES;
+            ExpectIntEQ(sp_prime_is_prime_ex(&a, 8, &result, &rng),
+                WC_NO_ERR_TRACE(MP_VAL));
+            ExpectIntEQ(result, MP_NO);
             ExpectIntEQ(sp_set(&a, 1), 0);
             ExpectIntEQ(sp_prime_is_prime_ex(&a, 8, &result, &rng), 0);
             ExpectIntEQ(result, MP_NO);
@@ -1041,3 +1646,62 @@ int test_wc_SpIntExptGcdDecisionCoverage(void)
 #endif
     return EXPECT_RESULT();
 } /* End test_wc_SpIntExptGcdDecisionCoverage */
+
+/*
+ * Testing mp_exptmod and mp_exptmod_nct with a negative base
+ */
+int test_mp_exptmod_neg_base(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(HAVE_ECC) || !defined(NO_DSA) || defined(OPENSSL_EXTRA)) && \
+    (defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
+     (defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_SP_INT_NEGATIVE) && \
+      !defined(WOLFSSL_RSA_VERIFY_ONLY))) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    mp_int g;
+    mp_int x;
+    mp_int p;
+    mp_int r;
+    mp_int want;
+
+    XMEMSET(&g, 0, sizeof(g));
+    XMEMSET(&x, 0, sizeof(x));
+    XMEMSET(&p, 0, sizeof(p));
+    XMEMSET(&r, 0, sizeof(r));
+    XMEMSET(&want, 0, sizeof(want));
+    ExpectIntEQ(mp_init_multi(&g, &x, &p, &r, &want, NULL), MP_OKAY);
+
+    /* Base -2 must not take the base-2 shortcut. */
+    ExpectIntEQ(mp_read_radix(&g, "-2", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&x, "3", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&p, "65", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&want, "5D", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&r, &want), MP_EQ);
+
+#ifdef WOLFSSL_SP_MATH_ALL
+    /* Multi-digit odd modulus on the nct path. */
+    ExpectIntEQ(mp_read_radix(&g, "-3", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&x, "5", MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&p,
+        "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
+        MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_read_radix(&want,
+        "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFF0C",
+        MP_RADIX_HEX), MP_OKAY);
+    ExpectIntEQ(mp_exptmod_nct(&g, &x, &p, &r), MP_OKAY);
+    ExpectIntEQ(mp_cmp(&r, &want), MP_EQ);
+
+    /* A negative base is reduced into r, so r may not alias m. */
+    ExpectIntEQ(mp_exptmod(&g, &x, &p, &p), WC_NO_ERR_TRACE(MP_VAL));
+#endif
+
+    mp_clear(&g);
+    mp_clear(&x);
+    mp_clear(&p);
+    mp_clear(&r);
+    mp_clear(&want);
+#endif
+    return EXPECT_RESULT();
+} /* End test_mp_exptmod_neg_base */

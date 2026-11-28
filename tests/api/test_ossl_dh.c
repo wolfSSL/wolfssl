@@ -171,9 +171,17 @@ int test_wolfSSL_DH(void)
     DH_free(dh);
     dh = NULL;
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DH_GEN_PARAMS)
     ExpectNotNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
     ExpectIntEQ(wolfSSL_DH_generate_parameters_ex(NULL, 2048, 2, NULL), 0);
+    DH_free(dh);
+    dh = NULL;
+#elif defined(WOLFSSL_KEY_GEN)
+    /* Domain parameter generation is compiled out: the calls must fail
+     * cleanly on a valid DH object rather than generate. */
+    ExpectNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
+    ExpectNotNull(dh = wolfSSL_DH_new());
+    ExpectIntEQ(wolfSSL_DH_generate_parameters_ex(dh, 2048, 2, NULL), 0);
     DH_free(dh);
     dh = NULL;
 #endif

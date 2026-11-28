@@ -24,6 +24,11 @@
   >> at publish time. (lines with ">>" are removed at publish time)
 */
 
+/* Arduino Due uses its TRNG. Other boards must provide a hardware-backed
+ * CUSTOM_RAND_GENERATE_SEED (or equivalent secure seed source) before using
+ * wolfSSL's RNG. The Arduino random() fallback is test-only and requires an
+ * explicit WOLFSSL_ACCEPT_WEAK_ENTROPY build define. */
+
 /* Define a macro to display user settings version in example code: */
 #define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.8.2"
 
@@ -78,7 +83,7 @@
 
     #define NO_MAIN_DRIVER
     #define WOLFSSL_NO_SP
-    #define WOLFSSL_NO_SIG_WRAPPER
+    #define NO_SIG_WRAPPER
     #define TFM_TIMING_RESISTANT
 
     #undef WOLFSSL_DTLS

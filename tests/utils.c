@@ -22,6 +22,7 @@
 #include <tests/unit.h>
 #include <tests/utils.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/internal.h>
 
 #ifdef HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD
 
@@ -109,7 +110,7 @@ int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     int is_dtls;
 
     test_ctx = (struct test_memio_ctx*)ctx;
-    is_dtls = wolfSSL_dtls(ssl);
+    is_dtls = wolfSSL_dtls(ssl) && !test_ctx->sctp;
 
     if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
         buf = test_ctx->s_buff;
@@ -129,7 +130,44 @@ int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     if (*len == 0 || *msg_pos >= *msg_count)
         return WOLFSSL_CBIO_ERR_WANT_READ;
 
-    /* Calculate how much we can read from current message */
+    if (!is_dtls) {
+        /* TLS is a byte stream: serve across message boundaries so
+         * pending-crypto re-read patterns cannot desync the slots. */
+        int rem;
+
+        read_sz = *len;
+        if (read_sz > sz)
+            read_sz = sz;
+
+        XMEMCPY(data, buf, (size_t)read_sz);
+        XMEMMOVE(buf, buf + read_sz, (size_t)(*len - read_sz));
+        *len -= read_sz;
+
+        rem = read_sz;
+        while (rem > 0 && *msg_pos < *msg_count) {
+            if (msg_sizes[*msg_pos] > rem) {
+                msg_sizes[*msg_pos] -= rem;
+                rem = 0;
+            }
+            else {
+                rem -= msg_sizes[*msg_pos];
+                msg_sizes[*msg_pos] = 0;
+                (*msg_pos)++;
+            }
+        }
+        if (rem != 0) {
+            /* Slot accounting desynced from the byte count; fail loudly. */
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+        if (*msg_pos >= *msg_count && *len == 0) {
+            *msg_pos = 0;
+            *msg_count = 0;
+        }
+
+        return read_sz;
+    }
+
+    /* DTLS: datagram boundaries matter, serve one message at a time. */
     read_sz = msg_sizes[*msg_pos];
     if (read_sz > sz)
         read_sz = sz;
@@ -193,6 +231,11 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
                         return -1;
                 }
             #endif
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                else if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+                    /* application has not reached a verdict yet; retry */
+                }
+            #endif
                 else if (err != WOLFSSL_ERROR_WANT_READ &&
                          err != WOLFSSL_ERROR_WANT_WRITE) {
                     char buff[WOLFSSL_MAX_ERROR_SZ];
@@ -219,6 +262,11 @@ int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
                     ret = wolfSSL_AsyncPoll(ssl_s, WOLF_POLL_FLAG_CHECK_HW);
                     if (ret < 0)
                         return -1;
+                }
+            #endif
+            #ifdef WOLFSSL_CHAIN_VERIFY_CB
+                else if (err == WC_NO_ERR_TRACE(CHAIN_VERIFY_WANT_E)) {
+                    /* application has not reached a verdict yet; retry */
                 }
             #endif
                 else if (err != WOLFSSL_ERROR_WANT_READ &&
@@ -832,7 +880,54 @@ int test_memio_setup(struct test_memio_ctx *ctx,
                                method_s, NULL, 0, NULL, 0, NULL, 0);
 }
 
+#ifdef WOLFSSL_SESSION_EXPORT
+/* Relabel a session export as version 6 and drop fatalAlert, the options byte
+ * ahead of the two connection version bytes that version 6 does not have. */
+void test_export_options_v6(unsigned char* session, unsigned int* sessionSz)
+{
+    const unsigned int totalLenAt = WOLFSSL_EXPORT_LEN;
+    const unsigned int optLenAt = 2 * WOLFSSL_EXPORT_LEN;
+    const unsigned int optAt = 3 * WOLFSSL_EXPORT_LEN;
+    unsigned int totalLen;
+    unsigned int optSz;
+    unsigned int at;
+
+    totalLen = ((unsigned int)session[totalLenAt] << 8) |
+        session[totalLenAt + 1];
+    optSz = ((unsigned int)session[optLenAt] << 8) | session[optLenAt + 1];
+    at = optAt + optSz - 3;
+
+    XMEMMOVE(session + at, session + at + 1, *sessionSz - at - 1);
+    *sessionSz -= 1;
+    totalLen -= 1;
+    optSz -= 1;
+    session[1] = (byte)((session[1] & 0xF0) | WOLFSSL_EXPORT_VERSION_6);
+    session[totalLenAt] = (byte)(totalLen >> 8);
+    session[totalLenAt + 1] = (byte)totalLen;
+    session[optLenAt] = (byte)(optSz >> 8);
+    session[optLenAt + 1] = (byte)optSz;
+}
+#endif /* WOLFSSL_SESSION_EXPORT */
+
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES_BUILD */
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+/* Copy a memory BIO into buf as a string. Returns length, or -1. */
+int test_bio_mem_to_str(WOLFSSL_BIO* bio, char* buf, int bufSz)
+{
+    char* data = NULL;
+    int len = wolfSSL_BIO_get_mem_data(bio, &data);
+
+    buf[0] = '\0';
+    if ((data == NULL) || (len <= 0) || (len >= bufSz)) {
+        return -1;
+    }
+    XMEMCPY(buf, data, (size_t)len);
+    buf[len] = '\0';
+
+    return len;
+}
+#endif
 
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)

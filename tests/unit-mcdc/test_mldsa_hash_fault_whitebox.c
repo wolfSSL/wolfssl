@@ -35,7 +35,8 @@
  *
  * mcdc_fault_hash.h macro-interposes those for THIS translation unit only and
  * mcdc_fh_arm(n) makes the n-th call -- and every later one -- return
- * BAD_FUNC_ARG. Sweeping n across sign / verify / keygen therefore drives
+ * BAD_FUNC_ARG. Sweeping n across sign / verify / keygen / MakePublicKey
+ * therefore drives
  *
  *     for (r = 0; (ret == 0) && (r < l); r++)              expand-mask
  *     for (i = N - tau; (ret == 0) && (i < N); i++)        sample-in-ball
@@ -44,6 +45,7 @@
  *     if ((ret == 0) && valid)                             small-mem sign
  *     for (r = 0; (ret == 0) && (r < params->k); r++)      small-mem verify
  *     for (s = 0; (ret == 0) && (s < params->l); s++)      small-mem verify
+ *     if ((ret == 0) && (ConstantCompare(...) != 0))       check-pub-tr
  *
  * false, against the ordinary (T,T) rows the same binary produces disarmed.
  *
@@ -52,7 +54,9 @@
  * same FALSE outcome. Every site above is a loop header or is followed by work
  * that runs in the ordinary case, so the disarmed run supplies a genuine (T,T).
  * Where that is NOT true the operand is a documented residual instead; see the
- * list at the bottom of this comment.
+ * list at the bottom of this comment. check-pub-tr needs a third vector: its
+ * ordinary row has a matching tr (X false), so the MakePublicKey sweep also
+ * runs one disarmed mismatch to supply (T,T).
  *
  * ARGUMENT ROWS (no injector needed)
  * ----------------------------------
@@ -118,6 +122,7 @@ int main(void)
 #define WB_POINTS_SIGN    64
 #define WB_POINTS_VERIFY  64
 #define WB_POINTS_KEYGEN  32
+#define WB_POINTS_MAKEPUB 32
 
 static byte s_keySeed[MLDSA_SEED_SZ];
 static byte s_sigSeed[MLDSA_RND_SZ];
@@ -155,10 +160,25 @@ static int wb_build_key(wc_MlDsaKey* key)
 
 #if !defined(WOLFSSL_MLDSA_NO_MAKE_KEY) && !defined(WOLFSSL_MLDSA_NO_SIGN)
 
+static int wb_all_bytes(const byte* b, word32 len, byte v)
+{
+    word32 i;
+
+    for (i = 0; i < len; i++) {
+        if (b[i] != v) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static void wb_sweep_sign(wc_MlDsaKey* key)
 {
     word32 sigLen = (word32)sizeof(s_sig);
-    long   k, n, points = 0;
+    long   k, n, points = 0, scrubbed = 0, partial = 0;
+    byte   s2[sizeof(s_sig)];
+    word32 l2;
+    int    ret;
 
     mcdc_fh_disarm();
     if (wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s_sig, &sigLen, s_msg,
@@ -170,16 +190,43 @@ static void wb_sweep_sign(wc_MlDsaKey* key)
     k = mcdc_fh_seen();
     printf("  [wb] sign K=%ld\n", k);
 
+    /* A buffer that is too small is rejected before anything is written. */
+    XMEMSET(s2, 0xa5, sizeof(s2));
+    l2 = sigLen - 1;
+    ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s2, &l2, s_msg,
+        (word32)sizeof(s_msg), s_sigSeed);
+    if ((ret != WC_NO_ERR_TRACE(BUFFER_E)) || !wb_all_bytes(s2, sigLen, 0xa5)) {
+        WB_NOTE("short signature buffer not rejected untouched");
+        wb_fail = 1;
+    }
+
     for (n = 1; n <= k; n = wb_next(n, k, WB_POINTS_SIGN)) {
-        byte   s2[sizeof(s_sig)];
-        word32 l2 = (word32)sizeof(s2);
+        l2 = (word32)sizeof(s2);
+        XMEMSET(s2, 0xa5, sizeof(s2));
         mcdc_fh_arm(n);
-        (void)wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s2, &l2, s_msg,
+        ret = wc_MlDsaKey_SignCtxWithSeed(key, NULL, 0, s2, &l2, s_msg,
             (word32)sizeof(s_msg), s_sigSeed);
         mcdc_fh_disarm();
+        /* A failed signature leaves the buffer untouched or all zero. */
+        if (ret != 0) {
+            if (wb_all_bytes(s2, sigLen, 0)) {
+                scrubbed++;
+            }
+            else if (!wb_all_bytes(s2, sigLen, 0xa5)) {
+                partial++;
+            }
+        }
         points++;
     }
-    printf("  [wb] sign sweep: %ld points\n", points);
+    printf("  [wb] sign sweep: %ld points, %ld scrubbed\n", points, scrubbed);
+    if (partial != 0) {
+        WB_NOTE("failed sign left part of a signature behind");
+        wb_fail = 1;
+    }
+    if (scrubbed == 0) {
+        WB_NOTE("no failure reached the signature scrub");
+        wb_fail = 1;
+    }
 }
 
 #else
@@ -198,6 +245,7 @@ static void wb_sweep_verify(wc_MlDsaKey* key, word32 sigLen)
 {
     long k, n, points = 0;
     int  res = 0;
+    int  ret;
 
     if (sigLen == 0) {
         return;
@@ -210,11 +258,16 @@ static void wb_sweep_verify(wc_MlDsaKey* key, word32 sigLen)
     printf("  [wb] verify K=%ld\n", k);
 
     for (n = 1; n <= k; n = wb_next(n, k, WB_POINTS_VERIFY)) {
-        res = 0;
+        /* A sentinel: an error must come back with res cleared to 0. */
+        res = 1;
         mcdc_fh_arm(n);
-        (void)wc_MlDsaKey_VerifyCtx(key, s_sig, sigLen, NULL, 0, s_msg,
+        ret = wc_MlDsaKey_VerifyCtx(key, s_sig, sigLen, NULL, 0, s_msg,
             (word32)sizeof(s_msg), &res);
         mcdc_fh_disarm();
+        if ((ret != 0) && (res != 0)) {
+            printf("  [wb] verify n=%ld: ret=%d with res=%d\n", n, ret, res);
+            wb_fail = 1;
+        }
         points++;
     }
     printf("  [wb] verify sweep: %ld points\n", points);
@@ -270,6 +323,114 @@ static void wb_sweep_makekey(void)
 static void wb_sweep_makekey(void)
 {
     WB_NOTE("keygen not compiled in this variant; keygen sweep skipped");
+}
+
+#endif
+
+#if defined(WC_MLDSA_HAVE_MAKE_PUBLIC_KEY) && defined(WC_MLDSA_HAVE_NATIVE)
+
+/* Set up a private-only key, optionally over an earlier public key. */
+static int wb_makepub_key(wc_MlDsaKey* key, const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz)
+{
+    int ret;
+
+    XMEMSET(key, 0, sizeof(*key));
+    ret = wc_MlDsaKey_Init(key, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_MlDsaKey_SetParams(key, WB_LEVEL);
+    }
+    if ((ret == 0) && (pub != NULL)) {
+        ret = wc_MlDsaKey_ImportPubRaw(key, pub, pubSz);
+    }
+    if (ret == 0) {
+        ret = wc_MlDsaKey_ImportPrivRaw(key, priv, privSz);
+    }
+    return ret;
+}
+
+/* Sweep MakePublicKey on the derive path and on the already-set path. */
+static void wb_sweep_makepub(void)
+{
+    static byte priv[WC_MLDSA_87_PRV_KEY_SIZE];
+    static byte pub[WC_MLDSA_87_PUB_KEY_SIZE];
+    word32 privSz = (word32)sizeof(priv);
+    word32 pubSz = (word32)sizeof(pub);
+    wc_MlDsaKey key;
+    long k, n, points = 0;
+    int pass;
+    int ret;
+
+    mcdc_fh_disarm();
+    XMEMSET(&key, 0, sizeof(key));
+    if ((wb_build_key(&key) != 0) ||
+            (wc_MlDsaKey_ExportPrivRaw(&key, priv, &privSz) != 0) ||
+            (wc_MlDsaKey_ExportPubRaw(&key, pub, &pubSz) != 0)) {
+        wc_MlDsaKey_Free(&key);
+        WB_NOTE("baseline key unavailable; MakePublicKey sweep skipped");
+        return;
+    }
+    wc_MlDsaKey_Free(&key);
+
+    /* tr mismatch, disarmed: the (T,T) row of check-pub-tr. */
+    pub[pubSz - 1] ^= 0x01;
+    if (wb_makepub_key(&key, priv, privSz, pub, pubSz) != 0) {
+        WB_NOTE("FAIL: MakePublicKey key setup failed");
+        wb_fail = 1;
+    }
+    else if (wc_MlDsaKey_MakePublicKey(&key) !=
+            WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
+        WB_NOTE("FAIL: mismatched public key not rejected");
+        wb_fail = 1;
+    }
+    wc_MlDsaKey_Free(&key);
+    pub[pubSz - 1] ^= 0x01;
+
+    /* Pass 0 derives the public key; pass 1 checks an already-set one. */
+    for (pass = 0; pass < 2; pass++) {
+        const byte* setPub = (pass == 0) ? NULL : pub;
+
+        /* Count only MakePublicKey's calls, not the imports'. */
+        ret = wb_makepub_key(&key, priv, privSz, setPub, pubSz);
+        if (ret != 0) {
+            wc_MlDsaKey_Free(&key);
+            WB_NOTE("FAIL: MakePublicKey key setup failed");
+            wb_fail = 1;
+            return;
+        }
+        mcdc_fh_disarm();
+        ret = wc_MlDsaKey_MakePublicKey(&key);
+        if (ret != 0) {
+            wc_MlDsaKey_Free(&key);
+            WB_NOTE("FAIL: baseline MakePublicKey failed");
+            wb_fail = 1;
+            return;
+        }
+        k = mcdc_fh_seen();
+        wc_MlDsaKey_Free(&key);
+        printf("  [wb] makepub pass %d K=%ld\n", pass, k);
+
+        for (n = 1; n <= k; n = wb_next(n, k, WB_POINTS_MAKEPUB)) {
+            if (wb_makepub_key(&key, priv, privSz, setPub, pubSz) == 0) {
+                mcdc_fh_arm(n);
+                if (wc_MlDsaKey_MakePublicKey(&key) == 0) {
+                    WB_NOTE("FAIL: MakePublicKey ignored a SHAKE failure");
+                    wb_fail = 1;
+                }
+                mcdc_fh_disarm();
+                points++;
+            }
+            wc_MlDsaKey_Free(&key);
+        }
+    }
+    printf("  [wb] makepub sweep: %ld points\n", points);
+}
+
+#else
+
+static void wb_sweep_makepub(void)
+{
+    WB_NOTE("MakePublicKey not compiled in this variant; sweep skipped");
 }
 
 #endif
@@ -368,8 +529,10 @@ static void wb_init_id_rows(void)
 #endif
 
 /* mldsa_verify_ctx_hash()'s `if ((ret == 0) && (hashLen != digestSize))`: the
- * first operand's FALSE side needs key == NULL, which every public wrapper
- * rejects first. The helper is file-static, so it is called directly. Both
+ * first operand's FALSE side needs mldsa_verify_key_check() to fail. A
+ * private-only key reaches it from the public API (PUBLIC_KEY_E); the NULL
+ * key row here, which every public wrapper rejects first, covers it without
+ * building a key. The helper is file-static, so it is called directly. Both
  * arguments after the key are only read once ret is still 0, so the NULL key
  * short-circuits before any dereference. */
 #ifndef WOLFSSL_MLDSA_NO_VERIFY
@@ -659,6 +822,7 @@ int main(void)
     wc_MlDsaKey_Free(&key);
 
     wb_sweep_makekey();
+    wb_sweep_makepub();
     wb_sign_no_private();
     wb_init_id_rows();
     wb_verify_ctx_hash_null();

@@ -27,11 +27,16 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
 
-#include <sl_se_manager.h>
-#include <sl_se_manager_entropy.h>
+#ifdef WOLFSSL_SILABS_HOST_TEST
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_shim.h>
+#else
+    #include <sl_se_manager.h>
+    #include <sl_se_manager_entropy.h>
+#endif
 
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/silabs/silabs_random.h>
 
 int silabs_GenerateRand(byte* output, word32 sz)
@@ -49,4 +54,4 @@ int silabs_GenerateRand(byte* output, word32 sz)
     return (status != SL_STATUS_OK) ? WC_HW_E : 0;
 }
 
-#endif /* WOLFSSL_SILABS_SE_ACCEL */
+#endif /* WOLFSSL_SILABS_SE_TYPES */

@@ -28,6 +28,7 @@ int test_wolfSSL_RAND_set_rand_method(void);
 int test_wolfSSL_RAND_bytes(void);
 int test_wolfSSL_RAND_load_file(void);
 int test_wolfSSL_RAND(void);
+int test_wolfSSL_RAND_threads(void);
 int test_wolfSSL_RAND_poll(void);
 
 #define TEST_OSSL_RAND_DECLS                                            \
@@ -35,6 +36,7 @@ int test_wolfSSL_RAND_poll(void);
     TEST_DECL_GROUP("ossl_rand", test_wolfSSL_RAND_bytes),              \
     TEST_DECL_GROUP("ossl_rand", test_wolfSSL_RAND_load_file),          \
     TEST_DECL_GROUP("ossl_rand", test_wolfSSL_RAND),                    \
+    TEST_DECL_GROUP("ossl_rand", test_wolfSSL_RAND_threads),            \
     TEST_DECL_GROUP("ossl_rand", test_wolfSSL_RAND_poll)
 
 #endif /* WOLFCRYPT_TEST_OSSL_RAND_H */

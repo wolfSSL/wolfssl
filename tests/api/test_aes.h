@@ -23,6 +23,7 @@
 #define WOLFCRYPT_TEST_AES_H
 
 #include <tests/api/api_decl.h>
+#include <wolfssl/wolfcrypt/aes.h>
 
 int test_wc_AesSetKey(void);
 int test_wc_AesSetIV(void);
@@ -47,16 +48,24 @@ int test_wc_AesCtrCounterOverflow(void);
 int test_wc_AesGcmSetKey(void);
 int test_wc_AesGcmEncryptDecrypt_Sizes(void);
 int test_wc_AesGcmEncryptDecrypt(void);
+int test_wc_AesSetTagLen(void);
+int test_wc_AesGcmStreamTagLen(void);
 int test_wc_AesGcmEncryptDecrypt_InPlace(void);
 int test_wc_AesGcmEncryptDecrypt_UnalignedBuffers(void);
 int test_wc_AesGcm_CrossCipher(void);
 int test_wc_AesGcmMixedEncDecLongIV(void);
+int test_wc_AesGcmEncryptDecrypt_NonStdIv(void);
 int test_wc_AesGcmNonStdNonce(void);
+int test_wc_AesGcmEncrypt_ex_NonceUnique(void);
+int test_wc_AesCcmEncrypt_ex_NonceUnique(void);
 int test_wc_AesGcmSivEncryptDecrypt(void);
 int test_wc_AesGcmStream(void);
 int test_wc_AesGcmStream_MidStreamState(void);
 int test_wc_AesGcmStream_ReinitAfterFinal(void);
 int test_wc_AesGcmStream_BadAuthTag(void);
+int test_wc_AesGcm_NoStateCarryOver(void);
+int test_wc_AesGcmDecrypt_WipeOnAuthFail(void);
+int test_wc_AesGcm_PrimitiveFailureCleanup(void);
 int test_wc_AesKeyWrapVectors(void);
 int test_wc_AesKeyWrapDecisionCoverage(void);
 int test_wc_AesGcmDecisionCoverage(void);
@@ -64,6 +73,7 @@ int test_wc_AesFeatureCoverage(void);
 int test_wc_AesSetKeyArgMcdc(void);
 int test_wc_AesModesArgMcdc(void);
 int test_wc_AesGcmArgMcdc(void);
+int test_wc_AesGcmStreamMcdc(void);
 int test_wc_AesGmacArgMcdc(void);
 int test_wc_AesCcmArgMcdc(void);
 int test_wc_AesXtsArgMcdc(void);
@@ -86,6 +96,9 @@ int test_wc_AesXtsEncryptDecryptSector(void);
 int test_wc_AesXtsStream(void);
 int test_wc_AesXtsStream_MidStreamState(void);
 int test_wc_AesXtsStream_ReinitAfterFinal(void);
+int test_wc_AesXtsStream_CounterOverflow(void);
+int test_wc_AesUnalignedBuffers(void);
+int test_wc_AesXtsDataUnitLimit(void);
 #if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 int test_wc_AesEaxVectors(void);
@@ -107,6 +120,7 @@ int test_wc_AesGcm_MonteCarlo(void);
 int test_wc_AesCcm_MonteCarlo(void);
 int test_wc_AesCfb_MonteCarlo(void);
 int test_wc_AesOfb_MonteCarlo(void);
+int test_wc_AesReworkDecisionCoverage(void);
 
 int test_wc_GmacSetKey(void);
 int test_wc_GmacUpdate(void);
@@ -124,6 +138,10 @@ int test_wc_CryptoCb_AesCfb_EncryptDecrypt(void);
 int test_wc_CryptoCb_AesOfb_EncryptDecrypt(void);
 #endif
 int test_wc_AesEcb_RetCodeChecked(void);
+int test_wc_CryptoCb_SetKey_NullKey(void);
+int test_wc_CryptoCb_SetKey_Iv(void);
+int test_wc_CryptoCb_AesSetKeyDirect(void);
+int test_wc_CryptoCb_AesSetKeyDirect_DevKey(void);
 
 /* These test functions always have a (possibly empty) definition in
  * test_aes.c so that callers can reference them unconditionally.  Declare
@@ -184,8 +202,37 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
 #define TEST_CRYPTOCB_AES_KEYWRAP_DECL
 #endif
 
+#if defined(WC_AES_DIRECT_CRYPTO_CB) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AES_DECRYPT)
+int test_wc_CryptoCb_AesDirect(void);
+#define TEST_CRYPTOCB_AES_DIRECT_DECL \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesDirect)
+#else
+#define TEST_CRYPTOCB_AES_DIRECT_DECL
+#endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    !defined(NO_AES)
+int test_wc_CryptoCb_SetKeyLocation(void);
+#define TEST_CRYPTOCB_SETKEY_LOCATION_DECL \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_SetKeyLocation)
+#else
+#define TEST_CRYPTOCB_SETKEY_LOCATION_DECL
+#endif
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SETKEY) && \
+    defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_128) && defined(WOLFSSL_AES_REQUIRE_KEY_SET)
+int test_wc_CryptoCb_AesNoSwKey(void);
+#define TEST_CRYPTOCB_AES_NOSW_KEY_DECL \
+    , TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesNoSwKey)
+#else
+#define TEST_CRYPTOCB_AES_NOSW_KEY_DECL
+#endif
+
 #define TEST_AES_DECLS                                          \
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
+    TEST_DECL_GROUP("aes", test_wc_AesReworkDecisionCoverage),  \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV_RestartsStream),    \
     TEST_DECL_GROUP("aes", test_wc_AesEncryptDecryptDirect),    \
@@ -208,16 +255,24 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesGcmSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_Sizes), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt),        \
+    TEST_DECL_GROUP("aes", test_wc_AesSetTagLen),                \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmStreamTagLen),          \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_InPlace),            \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_UnalignedBuffers),  \
     TEST_DECL_GROUP("aes", test_wc_AesGcm_CrossCipher),                    \
     TEST_DECL_GROUP("aes", test_wc_AesGcmMixedEncDecLongIV),                \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_NonStdIv),          \
     TEST_DECL_GROUP("aes", test_wc_AesGcmNonStdNonce),          \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncrypt_ex_NonceUnique), \
+    TEST_DECL_GROUP("aes", test_wc_AesCcmEncrypt_ex_NonceUnique), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmSivEncryptDecrypt),    \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream),               \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_MidStreamState),  \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_ReinitAfterFinal), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream_BadAuthTag),       \
+    TEST_DECL_GROUP("aes", test_wc_AesGcm_NoStateCarryOver),       \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmDecrypt_WipeOnAuthFail),    \
+    TEST_DECL_GROUP("aes", test_wc_AesGcm_PrimitiveFailureCleanup),  \
     TEST_DECL_GROUP("aes", test_wc_AesKeyWrapVectors),          \
     TEST_DECL_GROUP("aes", test_wc_AesKeyWrapDecisionCoverage), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmDecisionCoverage),     \
@@ -225,6 +280,7 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesSetKeyArgMcdc),           \
     TEST_DECL_GROUP("aes", test_wc_AesModesArgMcdc),            \
     TEST_DECL_GROUP("aes", test_wc_AesGcmArgMcdc),              \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmStreamMcdc),           \
     TEST_DECL_GROUP("aes", test_wc_AesGmacArgMcdc),             \
     TEST_DECL_GROUP("aes", test_wc_AesCcmArgMcdc),              \
     TEST_DECL_GROUP("aes", test_wc_AesXtsArgMcdc),              \
@@ -244,15 +300,25 @@ int test_wc_CryptoCb_AesKeyWrapEcbCompose(void);
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream),                   \
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream_MidStreamState),     \
     TEST_DECL_GROUP("aes", test_wc_AesXtsStream_ReinitAfterFinal),  \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsStream_CounterOverflow),   \
+    TEST_DECL_GROUP("aes", test_wc_AesUnalignedBuffers),           \
+    TEST_DECL_GROUP("aes", test_wc_AesXtsDataUnitLimit),            \
     TEST_DECL_GROUP("aes", test_wc_AesCbc_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCtr_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesGcm_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCcm_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesCfb_MonteCarlo),    \
     TEST_DECL_GROUP("aes", test_wc_AesOfb_MonteCarlo),    \
-    TEST_DECL_GROUP("aes", test_wc_AesEcb_RetCodeChecked) \
+    TEST_DECL_GROUP("aes", test_wc_AesEcb_RetCodeChecked), \
+    TEST_DECL_GROUP("aes", test_wc_CryptoCb_SetKey_NullKey), \
+    TEST_DECL_GROUP("aes", test_wc_CryptoCb_SetKey_Iv), \
+    TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesSetKeyDirect), \
+    TEST_DECL_GROUP("aes", test_wc_CryptoCb_AesSetKeyDirect_DevKey) \
     TEST_CRYPTOCB_AES_SETKEY_DECL                         \
     TEST_CRYPTOCB_AES_KEYWRAP_DECL                        \
+    TEST_CRYPTOCB_AES_DIRECT_DECL                         \
+    TEST_CRYPTOCB_SETKEY_LOCATION_DECL                    \
+    TEST_CRYPTOCB_AES_NOSW_KEY_DECL                       \
     TEST_CRYPTOCB_TLS13_KEY_ZERO_DECL                     \
     TEST_CRYPTOCB_AESCFB_DECL                             \
     TEST_CRYPTOCB_AESOFB_DECL

@@ -3,7 +3,7 @@
  * White-box MC/DC supplement for src/tls13.c.
  *
  * This is the FIRST white-box driver in the harness that targets a src/ file
- * rather than wolfcrypt/src/*.c. The build contract is identical (see
+ * rather than a wolfcrypt source file. The build contract is identical (see
  * tests/unit-mcdc/README.md): this TU #includes the target .c verbatim, is
  * compiled with the exact flags the instrumented library used for it, and is
  * linked against that variant's libwolfssl.a with the target's own object
@@ -380,8 +380,8 @@ static void wb_create_cookie_ext_guards(void)
  * SanityCheckTls13MsgReceived(): the handshake-message ordering matrix.
  *
  * This file-static predicate is the densest single cluster of open conditions
- * in tls13.c. It is a PURE function of ssl->options, ssl->msgsReceived,
- * ssl->earlyData and ssl->certReqCtx -- it allocates nothing, reads no buffer
+ * in tls13.c. It is a PURE function of ssl->options, ssl->msgsReceived and
+ * ssl->earlyData -- it allocates nothing, reads no buffer
  * and performs no crypto -- yet from tests/api most of its operand
  * combinations are unreachable, because reaching a given message type at all
  * means the state machine has already forced the very fields the decision
@@ -413,7 +413,7 @@ static void wb_sc_reset(void)
     ssl->options.dtls                = 0;
     ssl->options.downgrade           = 0;
     ssl->options.minDowngrade        = 0;
-    ssl->certReqCtx                  = NULL;
+    ssl->options.handShakeDone       = 0;
 #ifdef WOLFSSL_EARLY_DATA
     ssl->earlyData                   = no_early_data;
 #endif
@@ -539,9 +539,6 @@ static void wb_sanity_check_certificate_request(void) { }
 static void wb_sanity_check_finished(void)
 {
     WOLFSSL* ssl = wb_ssl_c;
-    CertReqCtx reqCtx;
-
-    XMEMSET(&reqCtx, 0, sizeof(reqCtx));
 
 #if !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_EARLY_DATA)
     /* Server early-data guard:
@@ -572,8 +569,8 @@ static void wb_sanity_check_finished(void)
     /* The three peer-certificate guards. All are reached on the server with
      * serverState >= SERVER_FINISHED_COMPLETE and clientState >=
      * CLIENT_HELLO_COMPLETE, or on the client with serverState ==
-     * SERVER_CERT_VERIFY_COMPLETE. pskNegotiated must be 0 for the block to be
-     * entered at all. */
+     * SERVER_CERT_VERIFY_COMPLETE. The block is entered when
+     * !pskNegotiated || (side == SERVER && handShakeDone). */
 #define WB_SC_FIN_SERVER()                                       \
     do { wb_sc_reset();                                          \
          ssl->options.side        = WOLFSSL_SERVER_END;          \
@@ -587,43 +584,54 @@ static void wb_sanity_check_finished(void)
          ssl->options.serverState = SERVER_CERT_VERIFY_COMPLETE;  \
     } while (0)
 
+#if defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+    /* Block entry: !pskNegotiated || (side == SERVER && handShakeDone).
+     * The (T,-,-) partner is any vector below. */
 #ifndef NO_WOLFSSL_SERVER
-    /* Guard 1: verifyPeer &&
-     *          (!verifyPostHandshake ||
-     *           (side == SERVER && certReqCtx != NULL)) &&
-     *          !got_certificate                                             */
-    WB_SC_FIN_SERVER(); ssl->options.verifyPeer = 1;        /* (T,T,-,-,T) */
+    WB_SC_FIN_SERVER(); ssl->options.pskNegotiated = 1;
+    ssl->options.verifyPeer = 1;
+    ssl->options.handShakeDone = 1;                         /* (F,T,T) */
     WB_SC(finished);
 
-    WB_SC_FIN_SERVER();                                     /* (F,-,-,-,-) */
+    WB_SC_FIN_SERVER(); ssl->options.pskNegotiated = 1;
+    ssl->options.verifyPeer = 1;                            /* (F,T,F) */
+    WB_SC(finished);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
+    WB_SC_FIN_CLIENT(); ssl->options.pskNegotiated = 1;
+    ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
+    ssl->options.verifyPeer = 1;
+    ssl->options.handShakeDone = 1;                         /* (F,F,-) */
+    WB_SC(finished);
+#endif
+#endif
+
+#ifndef NO_WOLFSSL_SERVER
+    /* Guard 1: verifyPeer &&
+     *          (!verifyPostHandshake || handShakeDone) &&
+     *          !got_certificate                                             */
+    WB_SC_FIN_SERVER(); ssl->options.verifyPeer = 1;        /* (T,T,-,T) */
+    WB_SC(finished);
+
+    WB_SC_FIN_SERVER();                                     /* (F,-,-,-) */
     WB_SC(finished);
 
     WB_SC_FIN_SERVER(); ssl->options.verifyPeer = 1;
-    ssl->msgsReceived.got_certificate = 1;                  /* (T,T,-,-,F) */
+    ssl->msgsReceived.got_certificate = 1;                  /* (T,T,-,F) */
     WB_SC(finished);
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     WB_SC_FIN_SERVER(); ssl->options.verifyPeer = 1;
     ssl->options.verifyPostHandshake = 1;
-    ssl->certReqCtx = &reqCtx;                              /* (T,F,T,T,T) */
+    ssl->options.handShakeDone = 1;                         /* (T,F,T,T) */
     WB_SC(finished);
-    ssl->certReqCtx = NULL;
 
     WB_SC_FIN_SERVER(); ssl->options.verifyPeer = 1;
-    ssl->options.verifyPostHandshake = 1;                   /* (T,F,T,F,-) */
+    ssl->options.verifyPostHandshake = 1;                   /* (T,F,F,-) */
     WB_SC(finished);
 #endif
 #endif /* !NO_WOLFSSL_SERVER */
-
-#ifndef NO_WOLFSSL_CLIENT
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    /* (T,F,F,-,-): a client never satisfies the side == SERVER operand. */
-    WB_SC_FIN_CLIENT(); ssl->options.verifyPeer = 1;
-    ssl->options.verifyPostHandshake = 1;
-    ssl->msgsReceived.got_certificate = 1;
-    WB_SC(finished);
-#endif
-#endif
 
 #ifndef NO_WOLFSSL_SERVER
     /* Guard 2: (mutualAuth || (side == CLIENT && verifyPeer)) &&
@@ -676,7 +684,6 @@ static void wb_sanity_check_finished(void)
 
 #undef WB_SC_FIN_SERVER
 #undef WB_SC_FIN_CLIENT
-    (void)reqCtx;
 }
 
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
@@ -754,8 +761,8 @@ static void wb_sanity_check_msgs(void)
  * parameters do not decode is by construction not something a certificate
  * generator emits.
  *
- * A certificate that does not parse is reported as not self signed
- * (IsSelfSignedCert()), so a placeholder tbsCertificate still takes the
+ * A certificate that does not parse is reported as not self issued
+ * (IsSelfIssuedCert()), so a placeholder tbsCertificate still takes the
  * MATCH_SUITE_ERROR arm the rule is there to produce.
  * ------------------------------------------------------------------------- */
 #if defined(WB_HAVE_SSL_FIXTURE) && !defined(NO_CERTS) && \
@@ -966,7 +973,7 @@ static void wb_cert_chain_sigalgo(void)
         printf("  [wb] SHA-1 leaf not rejected: %d\n", ret);
 
     /* (T,T): the only other value the check produces is MEMORY_E, from the
-     * decoder IsSelfSignedCert() cannot allocate. Every allocation is failed
+     * decoder IsSelfIssuedCert() cannot allocate. Every allocation is failed
      * rather than a chosen one, so this does not depend on how many the call
      * makes before reaching the decoder. */
     mcdc_fa_install();
@@ -975,7 +982,7 @@ static void wb_cert_chain_sigalgo(void)
     mcdc_fa_disarm();
     mcdc_fa_restore();
     if (ret != WC_NO_ERR_TRACE(MEMORY_E))
-        printf("  [wb] allocation failure did not reach IsSelfSignedCert: "
+        printf("  [wb] allocation failure did not reach IsSelfIssuedCert: "
                "%d\n", ret);
 
     ssl->options.side         = savedSide;

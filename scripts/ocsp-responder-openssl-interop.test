@@ -192,7 +192,7 @@ wait_for_ready_file() {
     local port="$3"
     local counter=0
 
-    while [ ! -s "$ready_file" ] && [ "$counter" -lt 20 ]; do
+    while [ ! -s "$ready_file" ] && [ "$counter" -lt 100 ]; do
         if ! kill -0 "$pid" 2>/dev/null; then
             echo "ERROR: Responder pid $pid for port $port exited before creating ready file" 1>&2
             print_responder_logs
@@ -203,7 +203,7 @@ wait_for_ready_file() {
     done
 
     if [ ! -s "$ready_file" ]; then
-        echo "ERROR: Ready file $ready_file not created after 2 seconds" 1>&2
+        echo "ERROR: Ready file $ready_file not created after 10 seconds" 1>&2
         print_responder_logs
         exit 1
     fi

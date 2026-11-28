@@ -277,6 +277,37 @@ error:
     return NULL;
 }
 
+/* Return 1 if the DER certificate is equal to on of 'certs' passed in. */
+static int wolfSSL_PKCS7_CertInStack(WOLFSSL_STACK* certs, const byte* der,
+                                     word32 derSz)
+{
+    int i;
+    int num;
+
+    if (certs == NULL || der == NULL || derSz == 0) {
+        return 0;
+    }
+
+    num = wolfSSL_sk_X509_num(certs);
+    for (i = 0; i < num; i++) {
+        WOLFSSL_X509* x509;
+        const byte*   certDer = NULL;
+        int certDerSz = 0;
+
+        x509 = wolfSSL_sk_X509_value(certs, i);
+        if (x509 != NULL) {
+            certDer = wolfSSL_X509_get_der(x509, &certDerSz);
+        }
+        if (certDer != NULL && certDerSz > 0 && (word32)certDerSz == derSz &&
+                XMEMCMP(certDer, der, derSz) == 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
 /**
  * Return stack of signers contained in PKCS7 cert.
  * Notes:
@@ -284,7 +315,8 @@ error:
  * - Returned WOLFSSL_STACK must be freed by caller.
  *
  * pkcs7 - PKCS7 struct to retrieve signer certs from.
- * certs - currently unused
+ * certs - certificates the signer may be taken from. With PKCS7_NOINTERN the
+ *         signer must be one of these.
  * flags - flags to control function behavior.
  *
  * Return WOLFSSL_STACK of signers on success, NULL on error.
@@ -302,8 +334,13 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return NULL;
 
     if (flags & PKCS7_NOINTERN) {
-        WOLFSSL_MSG("PKCS7_NOINTERN flag not supported");
-        return NULL;
+        /* With this flag the signer must be in certs stack. A signer that is
+         * only embedded in the message is rejected. */
+        if (!wolfSSL_PKCS7_CertInStack(certs, p7->pkcs7.verifyCert,
+                                       p7->pkcs7.verifyCertSz)) {
+            WOLFSSL_MSG("PKCS7_NOINTERN: verified signer not in certs");
+            return NULL;
+        }
     }
 
     /* Prefer the certificate that actually verified the signature. Falling
@@ -340,8 +377,6 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         wolfSSL_sk_X509_pop_free(signers, NULL);
         return NULL;
     }
-
-    (void)certs;
 
     return signers;
 }
@@ -830,13 +865,14 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         p7->pkcs7.content = mem;
         p7->pkcs7.contentSz = (word32)memSz;
     }
-
-    /* certs is the list of certificates to find the cert with issuer/serial. */
-    (void)certs;
-    /* store is the certificate store to use to verify signer certificate
-     * associated with the signers.
-     */
-    (void)store;
+    else {
+        /* No detached content supplied: drop any leftover content pointer a
+         * prior verify (e.g. the internal verify in d2i_PKCS7) set to the
+         * decoded eContent, so the bundle's own eContent drives verification
+         * rather than being compared against a stale pointer. */
+        p7->pkcs7.content = NULL;
+        p7->pkcs7.contentSz = 0;
+    }
 
     ret = wc_PKCS7_VerifySignedData(&p7->pkcs7, p7->data, p7->len);
     if (ret != 0)
@@ -852,6 +888,15 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
      */
     if (p7->pkcs7.verifyCert == NULL) {
         WOLFSSL_MSG("PKCS7 has no verified signer (degenerate/certs-only)");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* A signer lookup happens regardless of PKCS7_NOVERIFY. With PKCS7_NOINTERN
+     * the signer must be in the certs stack. */
+    if ((flags & PKCS7_NOINTERN) &&
+            !wolfSSL_PKCS7_CertInStack(certs, p7->pkcs7.verifyCert,
+                                       p7->pkcs7.verifyCertSz)) {
+        WOLFSSL_MSG("PKCS7_NOINTERN: verified signer not in certs");
         return WOLFSSL_FAILURE;
     }
 
@@ -877,7 +922,10 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 
         for (i = 0; i < wolfSSL_sk_X509_num(signers); i++) {
             signer = wolfSSL_sk_X509_value(signers, i);
-            if (wolfSSL_X509_STORE_CTX_init(ctx, store, signer, NULL)
+
+            /* Trust anchors come from the store and untrusted intermediates
+             * from the certs stack. */
+            if (wolfSSL_X509_STORE_CTX_init(ctx, store, signer, certs)
                         != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Failed to initialize X509 STORE CTX");
                 wolfSSL_sk_X509_pop_free(signers, NULL);
@@ -1582,25 +1630,12 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
     if (ret > 0) {
         if (flags & PKCS7_DETACHED) {
 
-            /* generate random boundary */
-            if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("No RNG to use");
+            /* generate random boundary, no need to generate random byte for
+             * null terminator (size-1) */
+            if (wolfssl_global_rng_generate((byte*)boundary,
+                    (word32)sizeof(boundary) - 1) != 0) {
+                WOLFSSL_MSG("Error in wc_RNG_GenerateBlock");
                 ret = 0;
-            }
-
-            if ((ret > 0) && (wc_LockMutex(&globalRNGMutex) != 0)) {
-                WOLFSSL_MSG("Bad Lock Mutex rng");
-                ret = 0;
-            }
-
-            /* no need to generate random byte for null terminator (size-1) */
-            if (ret > 0) {
-                if (wc_RNG_GenerateBlock(&globalRNG, (byte*)boundary,
-                                  sizeof(boundary) - 1 ) != 0) {
-                    WOLFSSL_MSG("Error in wc_RNG_GenerateBlock");
-                    ret = 0;
-                }
-                wc_UnLockMutex(&globalRNGMutex);
             }
 
             if (ret > 0) {
@@ -1818,7 +1853,8 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
  * keyNID  type of encryption to use on the key (-1 means no encryption)
  * certNID type of encryption to use on the certificate
  * itt     number of iterations with encryption
- * macItt  number of iterations with mac creation
+ * macItt  number of iterations with mac creation. 0 selects
+ *         WC_PKCS12_ITT_DEFAULT, -1 means no MAC, below -1 is rejected
  * keyType flag for signature and/or encryption key
  *
  * returns a pointer to a new WC_PKCS12 structure on success and NULL on fail
@@ -1837,7 +1873,7 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
 
     WOLFSSL_ENTER("wolfSSL_PKCS12_create");
 
-    if (pass == NULL || pkey == NULL || cert == NULL) {
+    if (pass == NULL || pkey == NULL || cert == NULL || macItt < -1) {
         WOLFSSL_LEAVE("wolfSSL_PKCS12_create", BAD_FUNC_ARG);
         return NULL;
     }
@@ -1888,6 +1924,10 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
             sk = sk->next;
             numCerts--;
         }
+    }
+
+    if (macItt == 0) {
+        macItt = WC_PKCS12_ITT_DEFAULT;
     }
 
     pkcs12 = wc_PKCS12_create(pass, passSz, name, keyDer, keyDerSz,

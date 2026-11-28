@@ -56,7 +56,7 @@ pub mod cmac_mac;
 pub mod curve25519;
 pub mod dh;
 pub mod ecc;
-#[cfg(feature = "signature")]
+#[cfg(all(feature = "signature", sig_wrapper))]
 pub mod ecdsa;
 pub mod ed25519;
 pub mod ed448;
@@ -76,7 +76,7 @@ pub mod random;
 pub mod rsa;
 #[cfg(rsa_oaep)]
 pub mod rsa_oaep;
-#[cfg(feature = "signature")]
+#[cfg(all(feature = "signature", sig_wrapper))]
 pub mod rsa_pkcs1v15;
 pub mod sha;
 #[cfg(all(feature = "password-hash", hmac, kdf_pbkdf2))]
@@ -91,9 +91,41 @@ pub(crate) fn buffer_len_to_u32(len: usize) -> Result<u32, i32> {
     u32::try_from(len).map_err(|_| sys::wolfCrypt_ErrorCodes_BUFFER_E)
 }
 
+/// Feed `data` to a streaming update function in chunks that fit wolfCrypt's
+/// 32-bit length type.
+///
+/// The infallible RustCrypto `Update` trait accepts a slice of any length,
+/// which on a 64-bit target can exceed `u32::MAX`. Hash and MAC updates are
+/// streaming operations, so splitting the input across several calls produces
+/// the same result as a single call would.
+#[cfg(any(feature = "digest", feature = "mac"))]
+pub(crate) fn update_in_chunks<F>(data: &[u8], mut update: F) -> Result<(), i32>
+where
+    F: FnMut(&[u8]) -> Result<(), i32>,
+{
+    const MAX_CHUNK: usize = u32::MAX as usize;
+
+    if data.len() <= MAX_CHUNK {
+        return update(data);
+    }
+    for chunk in data.chunks(MAX_CHUNK) {
+        update(chunk)?;
+    }
+    Ok(())
+}
+
 /// Convert a buffer length to `i32`, returning `BUFFER_E` if it overflows.
 pub(crate) fn buffer_len_to_i32(len: usize) -> Result<i32, i32> {
     i32::try_from(len).map_err(|_| sys::wolfCrypt_ErrorCodes_BUFFER_E)
+}
+
+/// Pass a read only value to a C call as a mutable pointer.
+///
+/// Some FIPS modules declare an argument non const in calls that only read
+/// it, newer wolfSSL declares it const. A mutable pointer fits both. Use it
+/// only for calls that never write through the pointer.
+pub(crate) fn ptr_for_read<T>(value: &T) -> *mut T {
+    core::ptr::from_ref(value).cast_mut()
 }
 
 /// Initialize resources used by wolfCrypt.
@@ -120,6 +152,9 @@ pub fn wolfcrypt_init() -> Result<(), i32> {
 }
 
 /// Clean up resources used by wolfCrypt.
+///
+/// The caller should ensure that all wolfCrypt objects have been destroyed
+/// and will no longer be used across all threads before calling this function.
 ///
 /// # Returns
 ///

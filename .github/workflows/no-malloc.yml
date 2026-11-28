@@ -32,7 +32,7 @@ jobs:
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -59,6 +59,17 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/no-malloc-configs.json" <<'EOF'
           [
+          {"name": "opensslextra-staticmemory", "minutes": 2.0,
+           "configure": ["--enable-opensslextra", "--enable-staticmemory",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -DWOLFSSL_TEST_CERT -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
+          {"name": "cryptonly-opensslextra-embedded", "minutes": 1.2,
+           "configure": ["--enable-cryptonly", "--enable-opensslextra",
+            "--enable-staticmemory",
+            "CFLAGS=-DWOLFSSL_NO_MALLOC -DBENCH_EMBEDDED -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
+           "check": false,
+           "run": [["./wolfcrypt/test/testwolfcrypt"]]},
           {"name": "rsa-keygen", "minutes": 0.8,
            "configure": ["--enable-rsa", "--enable-keygen", "--disable-dh",
             "CFLAGS=-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
@@ -88,13 +99,16 @@ jobs:
            "run": [["./wolfcrypt/test/testwolfcrypt"]]},
           {"name": "no-heap-cert", "minutes": 0.8,
            "configure": ["--enable-rsa", "--enable-keygen", "--enable-ecc",
-            "--enable-acert", "--disable-dh", "--disable-filesystem",
+            "--enable-acert", "--enable-certgen", "--enable-certreq",
+            "--enable-certext", "--disable-dh", "--disable-filesystem",
             "CFLAGS=-DWOLFSSL_NO_MALLOC -DNO_WOLFSSL_MEMORY -DRSA_MIN_SIZE=1024 -DWOLFSSL_TEST_CERT -DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"],
            "check": false,
            "run": [["./wolfcrypt/test/testwolfcrypt"]]}
           ]
           EOF
           .github/scripts/parallel-make-check.py \
+            --timeout=10 \
+            --deadline=10 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/no-malloc-configs.json"
 

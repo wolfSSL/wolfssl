@@ -28,16 +28,25 @@ permissions:
 # hardware. Replaces the previous Renode-based STM32H753 workflow and adds
 # U5/PKA + MP135 (SHA3/SHAKE on HASH1) coverage.
 #
+# The F417-RNG-fault entry runs the STM32F4 RNG fault test: the StdPeriph
+# and WOLFSSL_STM32_RNG_NOLIB arms of wc_GenerateSeed() on an emulated
+# STM32F417 whose RNG raises recoverable and persistent seed and clock
+# errors mid-request. Each call must return the expected code (0 after
+# recovery, RNG_FAILURE_E once the retries run out) instead of hanging,
+# and must leave the crypto hardware mutex released.
+#
 # Dockerfile.wolfcrypt reads wolfSSL from /opt/wolfssl at runtime via a
 # bind mount, so unlike se050-sim.yml / stsafe-a120-sim.yml no Dockerfile
 # patching is required - we just mount the PR checkout.
 #
 # The simulators repo is pinned via SIMULATORS_REF so the MP135 SHAKE-
 # enabling sed patch below has a known anchor in user_settings.h. Bump
-# the pin when simulators changes are needed.
+# the pin when simulators changes are needed. The commit is fetched by
+# SHA, so the pin may also name a commit still under review in a
+# simulators pull request.
 
 env:
-  SIMULATORS_REF: 840da2f4a28a9e3027c127da38d758ded902d926
+  SIMULATORS_REF: 02351c8ca4d11fa19b52c5c8b14a7b9901d4b250
 
 jobs:
   stm32_sim:
@@ -55,6 +64,8 @@ jobs:
             script: run-wolfcrypt-u5.sh
           - chip_label: MP135
             script: run-wolfcrypt-mp135.sh
+          - chip_label: F417-RNG-fault
+            script: run-rng-fault-f417.sh
     steps:
       - name: Checkout wolfSSL (PR source)
         uses: actions/checkout@v5
@@ -63,8 +74,11 @@ jobs:
 
       - name: Clone STM32 simulator
         run: |
-          git clone https://github.com/wolfSSL/simulators simulators
-          cd simulators && git checkout "$SIMULATORS_REF"
+          git init -q simulators
+          cd simulators
+          git remote add origin https://github.com/wolfSSL/simulators
+          git fetch --depth 1 origin "$SIMULATORS_REF"
+          git checkout -q FETCH_HEAD
 
       # The MP135 firmware in the simulators repo currently disables SHAKE
       # in user_settings.h with a comment pointing at the wolfSSL build

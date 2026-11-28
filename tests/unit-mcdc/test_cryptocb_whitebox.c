@@ -76,10 +76,12 @@
  * HMAC, RNG (RandomBlock/RandomSeed), GetCert, CMAC,
  * HKDF (extract/expand/two-step-CMAC), the generic Copy/Free/SetKey/
  * ExportKey callbacks, and the ML-KEM / ML-DSA PQC dispatch functions.
- * wc_SHE (WOLFSSL_SHE) and the LMS/XMSS/FALCON/SLHDSA/FRODOKEM PQC families
- * are left as residuals - they need family-specific key setup (wc_SHE,
- * LmsKey, XmssKey, falcon_key, SlhDsaKey) that is out of scope for this
- * pass; see the WB_NOTE calls below for exactly which are skipped.
+ * LMS PqcStatefulSigVerify is also driven, from a zeroed LmsKey.
+ * wc_SHE (WOLFSSL_SHE), the rest of the LMS/XMSS stateful family and the
+ * FALCON/SLHDSA/FRODOKEM PQC families are left as residuals - they need
+ * family-specific key setup (wc_SHE, LmsKey, XmssKey, falcon_key, SlhDsaKey)
+ * that is out of scope for this pass; see the WB_NOTE calls below for
+ * exactly which are skipped.
  *
  * Crash-safety: wb_cb() always returns CRYPTOCB_UNAVAILABLE before touching
  * `info`, so every `if (dev && dev->cb)` body returns immediately after the
@@ -139,6 +141,15 @@
  *            this file is evaluated with CryptoCb_FindCb == NULL, i.e. with
  *            wc_CryptoCb_FindDevice() behaving exactly as in the shipped
  *            variants.
+ *
+ * Fourth pass - wc_CryptoCb_RegisterDevice()'s free-slot scan,
+ * `devId == INVALID_DEVID && cb == NULL` in wc_CryptoCb_GetFreeDevice().
+ * The (T,F) half of the pair - a slot part way through registration, with
+ * cb already set but devId not yet published - exists only transiently
+ * inside a WOLF_CRYPTO_CB_CMD register command, so the vector plants it
+ * directly in gCryptoDev[]; see the section just before the final
+ * unregisters. (T,T) is every successful registration in this file and
+ * (F,-) every occupied slot the scan walks past.
  */
 
 /* See the "third pass" note above: compiled in for this TU only, so the
@@ -148,11 +159,19 @@
 #define WOLF_CRYPTO_CB_FIND
 #endif
 
+/* Pick up the build's feature defines, else WOLF_CRYPTO_CB is never seen
+ * here and this whole file compiles down to its "nothing to exercise" stub. */
+#ifndef WOLFSSL_USER_SETTINGS
+#include <wolfssl/options.h>
+#endif
+
 #include <wolfcrypt/src/cryptocb.c>
 
 #include <stdio.h>
 
 static int wb_fail = 0;
+/* Set by a check of what the code must do, not by a coverage skip. */
+static int wb_bad = 0;
 #define WB_NOTE(msg) do { printf("  [wb] %s\n", (msg)); } while (0)
 
 #ifdef WOLF_CRYPTO_CB
@@ -199,6 +218,32 @@ static int wb_cb_hash_fallback_ok(int devId, wc_CryptoInfo* info, void* ctx)
     }
     return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 }
+
+#if defined(WOLFSSL_HAVE_MLDSA) || defined(WOLFSSL_HAVE_LMS)
+/* A device that reports a PQC verify as completed without touching info,
+ * so the post-dev->cb `ret != 0` decision that clears *res in
+ * wc_CryptoCb_PqcVerify{,Msg} and wc_CryptoCb_PqcStatefulSigVerify can be
+ * shown FALSE. Registered only around those calls. */
+#define WB_DEVID_VERIFY_OK 4
+
+static int wb_cb_pqc_verify_ok(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    (void)devId;
+    (void)ctx;
+    if (info == NULL || info->algo_type != WC_ALGO_TYPE_PK)
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+#ifdef WOLFSSL_HAVE_MLDSA
+    if (info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY ||
+            info->pk.type == WC_PK_TYPE_PQC_SIG_VERIFY_MSG)
+        return 0;
+#endif
+#ifdef WOLFSSL_HAVE_LMS
+    if (info->pk.type == WC_PK_TYPE_PQC_STATEFUL_SIG_VERIFY)
+        return 0;
+#endif
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif /* WOLFSSL_HAVE_MLDSA || WOLFSSL_HAVE_LMS */
 
 #ifdef WOLF_CRYPTO_CB_FIND
 /* Find callback used ONLY by the :1159/:1189 (F,F) vectors. It rewrites the
@@ -252,7 +297,7 @@ int main(void)
 
     /* gCryptoDev is a plain static array; its BSS zero-init leaves every
      * slot's devId == 0, not INVALID_DEVID. wc_CryptoCb_RegisterDevice()
-     * looks for a free slot via wc_CryptoCb_GetDevice(INVALID_DEVID), so
+     * looks for a free slot via wc_CryptoCb_GetFreeDevice(), so
      * without this call every registration below fails with BUFFER_E ("out
      * of devices") - none of the BSS-zeroed slots match INVALID_DEVID.
      * wc_CryptoCb_Init() marks all slots devId == INVALID_DEVID, matching
@@ -799,7 +844,7 @@ int main(void)
 #else
             WC_HASH_TYPE_SHAKE256,
 #endif
-            in, sizeof(in), out, outLen));
+            in, sizeof(in), out, outLen, WC_SHAKE_OP_NONE));
         WB_NOTE("SHAKE: Shake dev&&dev->cb driven");
 #endif
     }
@@ -814,7 +859,7 @@ int main(void)
         Hmac hmac;
         XMEMSET(&hmac, 0, sizeof(hmac));
         WB_DRIVE3(hmac.devId, wc_CryptoCb_Hmac(&hmac, WC_HASH_TYPE_SHA256,
-            in, sizeof(in), out));
+            NULL, 0, in, sizeof(in), out));
         WB_NOTE("HMAC: Hmac dev&&dev->cb driven");
     }
 #else
@@ -984,28 +1029,152 @@ int main(void)
         WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignatureCheckPrivKey(&mldsa,
             WC_PQC_SIG_TYPE_MLDSA, NULL, 0));
 
-        /* bonus: same INVALID_DEVID early-return guard as ML-KEM above */
+        /* seeded key generation and caller-supplied signing randomness */
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
+            WC_PQC_SIG_TYPE_MLDSA, 65, in, 48, &mldsa));
+
+        outLen = sizeof(out);
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignEx(in, sizeof(in), out,
+            &outLen, NULL, 0, 0, NULL, in, 16, WC_PQC_SIG_TYPE_MLDSA,
+            &mldsa));
+
+        /* internal interface: caller supplies the built message
+         * representative */
+        outLen = sizeof(out);
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcSignMsg(in, sizeof(in), out,
+            &outLen, NULL, in, 16, WC_PQC_SIG_TYPE_MLDSA, &mldsa));
+
+        WB_DRIVE3(mldsa.devId, wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa));
+
+        /* `ret != 0 && res != NULL` after dev->cb: (T,T) a declining
+         * device clears *res, (T,F) res is NULL, (F,-) a device that
+         * completes leaves *res as it wrote it. */
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_VERIFY_OK,
+                wb_cb_pqc_verify_ok, NULL) != 0)
+            wb_fail = 1;
+        mldsa.devId = WB_DEVID;
+        res = 1;
+        (void)wc_CryptoCb_PqcVerify(out, sizeof(out), in, sizeof(in), NULL,
+            0, 0, &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 0)
+            wb_bad = 1;
+        (void)wc_CryptoCb_PqcVerify(out, sizeof(out), in, sizeof(in), NULL,
+            0, 0, NULL, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        res = 1;
+        (void)wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in, sizeof(in),
+            &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 0)
+            wb_bad = 1;
+        (void)wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in, sizeof(in),
+            NULL, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        mldsa.devId = WB_DEVID_VERIFY_OK;
+        res = 1;
+        (void)wc_CryptoCb_PqcVerify(out, sizeof(out), in, sizeof(in), NULL,
+            0, 0, &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 1)
+            wb_bad = 1;
+        res = 1;
+        (void)wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in, sizeof(in),
+            &res, WC_PQC_SIG_TYPE_MLDSA, &mldsa);
+        if (res != 1)
+            wb_bad = 1;
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_VERIFY_OK);
+
+        /* bonus: an unrecognized algorithm type leaves GetDevId at
+         * INVALID_DEVID, which then finds no device */
         mldsa.devId = WB_DEVID;
         (void)wc_CryptoCb_MakePqcSignatureKey(NULL, -1, 65, &mldsa);
 
-        WB_NOTE("PQC ML-DSA: MakePqcSignatureKey/PqcSign/PqcVerify/"
-                "PqcSignatureCheckPrivKey dev&&dev->cb driven, plus "
-                "GetDevId's INVALID_DEVID guard");
+        WB_NOTE("PQC ML-DSA: MakePqcSignatureKey{,Ex}/PqcSign{,Ex}/"
+                "PqcSignMsg/PqcVerify{,Msg}/PqcSignatureCheckPrivKey "
+                "dev&&dev->cb driven, plus GetDevId's unknown-type path");
     }
 #else
-    WB_NOTE("WOLFSSL_HAVE_MLDSA not defined (only FALCON/SLHDSA); "
-            "Falcon/SLH-DSA dispatch skipped - their key setup is out of "
-            "scope for this pass");
+    WB_NOTE("WOLFSSL_HAVE_MLDSA not defined; ML-DSA dispatch skipped");
+#endif
+#ifdef WOLFSSL_HAVE_SLHDSA
+    {
+        SlhDsaKey slhdsa;
+        XMEMSET(&slhdsa, 0, sizeof(slhdsa));
+
+        /* drives the WC_PQC_SIG_TYPE_SLHDSA arm of PqcSigGetDevId; the stub
+         * callback never dereferences the key, so no parameter set is set
+         * up here */
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_MakePqcSignatureKeyEx(NULL,
+            WC_PQC_SIG_TYPE_SLHDSA, 0, in, 48, &slhdsa));
+
+        outLen = sizeof(out);
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcSignEx(in, sizeof(in), out,
+            &outLen, NULL, 0, 0, NULL, in, 16, WC_PQC_SIG_TYPE_SLHDSA,
+            &slhdsa));
+
+        outLen = sizeof(out);
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcSignMsg(in, sizeof(in), out,
+            &outLen, NULL, in, 16, WC_PQC_SIG_TYPE_SLHDSA, &slhdsa));
+
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcVerifyMsg(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_SIG_TYPE_SLHDSA, &slhdsa));
+
+        WB_DRIVE3(slhdsa.devId, wc_CryptoCb_PqcSignatureCheckPrivKey(&slhdsa,
+            WC_PQC_SIG_TYPE_SLHDSA, NULL, 0));
+
+        WB_NOTE("PQC SLH-DSA: MakePqcSignatureKeyEx/PqcSignEx/PqcSignMsg/"
+                "PqcVerifyMsg/PqcSignatureCheckPrivKey dev&&dev->cb driven");
+    }
+#else
+    WB_NOTE("WOLFSSL_HAVE_SLHDSA not defined; SLH-DSA dispatch skipped");
 #endif
 #else
     WB_NOTE("None of HAVE_FALCON/WOLFSSL_HAVE_MLDSA/WOLFSSL_HAVE_SLHDSA "
             "defined; PQC signature dispatch skipped");
 #endif
 
+    /* ---- PQC stateful: PqcStatefulSigVerify ----
+     * Only key->devId is read before dev->cb, so a zeroed LmsKey is enough
+     * for the dev&&dev->cb guard and the *res clear after it. */
+#ifdef WOLFSSL_HAVE_LMS
+    {
+        LmsKey lms;
+        XMEMSET(&lms, 0, sizeof(lms));
+
+        WB_DRIVE3(lms.devId, wc_CryptoCb_PqcStatefulSigVerify(out,
+            sizeof(out), in, sizeof(in), &res, WC_PQC_STATEFUL_SIG_TYPE_LMS,
+            &lms));
+
+        /* *res clear: same three vectors as the ML-DSA block above. */
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_VERIFY_OK,
+                wb_cb_pqc_verify_ok, NULL) != 0)
+            wb_fail = 1;
+        lms.devId = WB_DEVID;
+        res = 1;
+        (void)wc_CryptoCb_PqcStatefulSigVerify(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_STATEFUL_SIG_TYPE_LMS, &lms);
+        if (res != 0)
+            wb_bad = 1;
+        (void)wc_CryptoCb_PqcStatefulSigVerify(out, sizeof(out), in,
+            sizeof(in), NULL, WC_PQC_STATEFUL_SIG_TYPE_LMS, &lms);
+        lms.devId = WB_DEVID_VERIFY_OK;
+        res = 1;
+        (void)wc_CryptoCb_PqcStatefulSigVerify(out, sizeof(out), in,
+            sizeof(in), &res, WC_PQC_STATEFUL_SIG_TYPE_LMS, &lms);
+        if (res != 1)
+            wb_bad = 1;
+        wc_CryptoCb_UnRegisterDevice(WB_DEVID_VERIFY_OK);
+
+        WB_NOTE("PQC LMS: PqcStatefulSigVerify dev&&dev->cb and "
+                "ret!=0&&res!=NULL driven");
+    }
+#endif
+
     /* ---- residuals: not driven in this pass ---- */
-#if defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS)
-    WB_NOTE("RESIDUAL: PqcStatefulSig{KeyGen,Sign,Verify,SigsLeft} "
+#ifdef WOLFSSL_HAVE_LMS
+    WB_NOTE("RESIDUAL: PqcStatefulSig{KeyGen,Sign,SigsLeft} "
             "(LMS/XMSS) not driven - needs LmsKey/XmssKey-specific setup, "
+            "out of scope for this pass");
+#elif defined(WOLFSSL_HAVE_XMSS)
+    WB_NOTE("RESIDUAL: PqcStatefulSig{KeyGen,Sign,Verify,SigsLeft} "
+            "(XMSS) not driven - needs XmssKey-specific setup, "
             "out of scope for this pass");
 #endif
 #ifdef WOLFSSL_SHE
@@ -1014,38 +1183,40 @@ int main(void)
 #endif
 
     /* ---- ECIES encrypt/decrypt dispatch (HAVE_ECC_ENCRYPT) ----
-     * Both bodies resolve their device from privKey->devId and then take the
+     * Both bodies get their device from the devId parameter (the caller reads
+     * it off the ECIES context, not off privKey->devId) and then take the
      * usual `if (dev && dev->cb)` guard, so the standard three-vector sweep
-     * applies. Nothing but privKey->devId is read before the guard, and the
-     * registered callback (wb_cb) ignores the wc_CryptoInfo it is handed and
-     * reports CRYPTOCB_UNAVAILABLE, so a zeroed ecc_key with no key material
-     * is sufficient and safe here -- no curve arithmetic runs. */
+     * works on a plain local devId. Nothing but that parameter is read before
+     * the guard, and the registered callback (wb_cb) ignores the wc_CryptoInfo
+     * it is handed and reports CRYPTOCB_UNAVAILABLE, so a zeroed ecc_key with
+     * no key material is enough and safe here -- no curve math runs. */
 #ifdef HAVE_ECC_ENCRYPT
     {
         ecc_key  ecPriv;
         byte     eciesMsg[16];
         byte     eciesOut[128];
         word32   eciesOutSz;
+        int      eciesDevId = INVALID_DEVID;
 
         XMEMSET(&ecPriv, 0, sizeof(ecPriv));
         XMEMSET(eciesMsg, 0x5e, sizeof(eciesMsg));
         XMEMSET(eciesOut, 0, sizeof(eciesOut));
 
         eciesOutSz = (word32)sizeof(eciesOut);
-        WB_DRIVE3(ecPriv.devId,
-            wc_CryptoCb_EciesEncrypt(&ecPriv, NULL, eciesMsg,
+        WB_DRIVE3(eciesDevId,
+            wc_CryptoCb_EciesEncrypt(eciesDevId, &ecPriv, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0));
 
         eciesOutSz = (word32)sizeof(eciesOut);
-        WB_DRIVE3(ecPriv.devId,
-            wc_CryptoCb_EciesDecrypt(&ecPriv, NULL, eciesMsg,
+        WB_DRIVE3(eciesDevId,
+            wc_CryptoCb_EciesDecrypt(eciesDevId, &ecPriv, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL));
 
         /* privKey == NULL early return (both entry points). */
         eciesOutSz = (word32)sizeof(eciesOut);
-        (void)wc_CryptoCb_EciesEncrypt(NULL, NULL, eciesMsg,
+        (void)wc_CryptoCb_EciesEncrypt(INVALID_DEVID, NULL, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL, 0);
-        (void)wc_CryptoCb_EciesDecrypt(NULL, NULL, eciesMsg,
+        (void)wc_CryptoCb_EciesDecrypt(INVALID_DEVID, NULL, NULL, eciesMsg,
                 (word32)sizeof(eciesMsg), eciesOut, &eciesOutSz, NULL);
 
         WB_NOTE("ECIES Encrypt/Decrypt dev&&dev->cb three-vector driven");
@@ -1315,6 +1486,45 @@ int main(void)
     WB_NOTE("HAVE_CURVE448 not defined; Curve448MakePub/Generic skipped");
 #endif
 
+    /* ---- wc_CryptoCb_GetFreeDevice: `devId == INVALID_DEVID &&
+     * cb == NULL` (cryptocb.c :409) ----
+     * See the "fourth pass" note in the file header: the (T,F) half of the
+     * pair is planted directly, since it only exists transiently inside a
+     * WOLF_CRYPTO_CB_CMD register command. */
+    {
+        int slot;
+
+        /* (T,F): slot 0 half filled. A registration must skip it, land in
+         * a later slot, and leave the half filled slot untouched. */
+        wc_CryptoCb_Init();
+        gCryptoDev[0].cb = wb_cb;
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_bad = 1;
+        if (wc_CryptoCb_GetDevice(WB_DEVID) == &gCryptoDev[0])
+            wb_bad = 1;
+        if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
+            wb_bad = 1;
+
+        /* With every other slot registered, the scan must reject the half
+         * filled slot rather than hand it out: no free slot, BUFFER_E. */
+        for (slot = 0; slot < MAX_CRYPTO_DEVID_CALLBACKS; slot++) {
+            (void)wc_CryptoCb_RegisterDevice(WB_DEVID_FILL + slot, wb_cb,
+                NULL);
+        }
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID_NOCB, NULL, NULL) !=
+                WC_NO_ERR_TRACE(BUFFER_E))
+            wb_bad = 1;
+        if (gCryptoDev[0].devId != INVALID_DEVID || gCryptoDev[0].cb != wb_cb)
+            wb_bad = 1;
+        WB_NOTE("GetFreeDevice: devId==INVALID_DEVID&&cb==NULL [:409] "
+                "(T,F) half filled slot skipped, full-table BUFFER_E");
+
+        /* Leave the table the way the rest of this file expects it. */
+        wc_CryptoCb_Init();
+        if (wc_CryptoCb_RegisterDevice(WB_DEVID, wb_cb, NULL) != 0)
+            wb_fail = 1;
+    }
+
     wc_CryptoCb_UnRegisterDevice(WB_DEVID);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_NOCB);
     wc_CryptoCb_UnRegisterDevice(WB_DEVID_HASH_OK);
@@ -1328,10 +1538,10 @@ int main(void)
     (void)wb_find_cb;
 #endif
 
-    printf("done (%s)\n", wb_fail ? "with skips" : "ok");
+    printf("done (%s)\n", wb_bad ? "FAILED" : wb_fail ? "with skips" : "ok");
 #else
     printf("  WOLF_CRYPTO_CB not defined; nothing to exercise\n");
 #endif /* WOLF_CRYPTO_CB */
     (void)wb_fail;
-    return 0;
+    return wb_bad ? 1 : 0;
 }

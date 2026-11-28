@@ -128,6 +128,40 @@ enum EncPkcs8Types {
     ENC_PKCS8_ALG_DES3      = 652
 };
 
+/* Hash for key identifiers (SKID, AKID, internal name and key hashes), as
+ * CalcHashId_ex() takes it. SHA-1 for interoperability while it is in the
+ * build, then SHA-256, then a SHA-3 size. */
+#if !defined(NO_SHA256) && (defined(NO_SHA) || defined(WC_ASN_HASH_SHA256))
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA256
+    #define WC_ASN_KEYID_SZ 32 /* WC_SHA256_DIGEST_SIZE */
+#elif !defined(NO_SHA)
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA
+    #define WC_ASN_KEYID_SZ 20 /* WC_SHA_DIGEST_SIZE */
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA3_256
+    #define WC_ASN_KEYID_SZ 32 /* WC_SHA3_256_DIGEST_SIZE */
+#elif defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_SHA3_384
+    #define WC_ASN_KEYID_SZ 48 /* WC_SHA3_384_DIGEST_SIZE */
+#else
+    /* No hash available; the size is only a buffer floor. */
+    #define WC_ASN_KEYID_HASH_TYPE WC_HASH_TYPE_NONE
+    #define WC_ASN_KEYID_SZ 32
+#endif
+
+/* Set when a key identifier hash is available. */
+#if !defined(NO_SHA) || !defined(NO_SHA256) || (defined(WOLFSSL_SHA3) && \
+    (!defined(WOLFSSL_NOSHA3_256) || !defined(WOLFSSL_NOSHA3_384)))
+    #define WC_ASN_KEYID_HASH
+#endif
+
+/* Cert key identifier buffers: 32-byte floor, widened for a larger hash. */
+#if WC_ASN_KEYID_SZ > 32
+    #define WC_CTC_MAX_KEYID_SIZE WC_ASN_KEYID_SZ
+#else
+    #define WC_CTC_MAX_KEYID_SIZE 32
+#endif
+
 /* Certificate file Type */
 enum CertType {
     CERT_TYPE       = 0,
@@ -184,7 +218,8 @@ enum CertType {
     LMS_TYPE,
     XMSS_TYPE,
     XMSSMT_TYPE,
-    FRODOKEM_TYPE
+    FRODOKEM_TYPE,
+    MLKEM_TYPE
 };
 
 #ifndef WOLFSSL_NO_DILITHIUM_LEGACY_NAMES
@@ -223,12 +258,12 @@ enum Ctc_Misc {
     CTC_FILETYPE_ASN1 =     2,
     CTC_FILETYPE_PEM  =     1,
     CTC_FILETYPE_DEFAULT =  2,
+    CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */
-    CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
-    CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
-    CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
+    CTC_MAX_SKID_SIZE = WC_CTC_MAX_KEYID_SIZE,
+    CTC_MAX_AKID_SIZE = WC_CTC_MAX_KEYID_SIZE,
     CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
     CTC_MAX_CRLINFO_SZ = WC_CTC_MAX_CRLINFO_SZ, /* Arbitrary size that should be
                                                  * enough for at least two
@@ -237,6 +272,17 @@ enum Ctc_Misc {
     WOLF_ENUM_DUMMY_LAST_ELEMENT(Ctc_Misc)
 };
 
+/* DER buffers are reference counted when each SSL object has to keep the
+ * certificate and key it was made with even if its CTX replaces them
+ * (WOLFSSL_COPY_CERT, WOLFSSL_COPY_KEY). The SSL then holds a reference to the
+ * CTX's buffer instead of a copy of it. The count needs atomic operations or a
+ * single-threaded build; without either, each SSL gets a copy. */
+#if (defined(WOLFSSL_COPY_CERT) || defined(WOLFSSL_COPY_KEY)) && \
+    (defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)) && \
+    !defined(NO_CERTS)
+    #define WOLFSSL_DER_REFCOUNT
+#endif
+
 /* DER buffer */
 typedef struct DerBuffer {
     byte*  buffer;
@@ -244,6 +290,9 @@ typedef struct DerBuffer {
     word32 length;
     int    type;    /* enum CertType */
     int    dynType; /* DYNAMIC_TYPE_* */
+#ifdef WOLFSSL_DER_REFCOUNT
+    wolfSSL_Ref ref; /* holders; FreeDer() frees on the last one */
+#endif
 } DerBuffer;
 
 typedef struct WOLFSSL_ASN1_TIME {
@@ -336,19 +385,20 @@ typedef struct EncryptedInfo {
 
 
 #define WOLFSSL_ASN1_INTEGER_MAX 20
+/* Stored as OpenSSL does: data is the big-endian magnitude, with no tag, length
+ * or pad byte. Zero is the single byte 0x00. The sign is in type. */
 typedef struct WOLFSSL_ASN1_INTEGER {
-    /* size can be increased set at 20 for tag, length then to hold at least 16
-     * byte type */
+    /* Fixed buffer for values up to 20 bytes, such as any X.509 serial. */
     unsigned char  intData[WOLFSSL_ASN1_INTEGER_MAX];
-    /* ASN_INTEGER | LENGTH | hex of number */
-    unsigned char  negative;   /* negative number flag */
+    /* Set to match type when wolfSSL writes the value. Never read. */
+    unsigned char  negative;
 
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
     WC_BITFIELD    isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 
-    int length;   /* Length of DER encoding. */
-    int type;     /* ASN.1 type. Includes negative flag. */
+    int length;   /* Number of bytes in data. */
+    int type;     /* V_ASN1_INTEGER or V_ASN1_NEG_INTEGER. */
 } WOLFSSL_ASN1_INTEGER;
 
 
@@ -994,11 +1044,19 @@ WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalS
 /* Forward declaration needed, as DecodedCert is defined in asn.h.*/
 struct DecodedCert;
 
+/* The certificate manager is defined by the TLS layer. Only the name is
+ * needed here, so declare it rather than including ssl.h. */
+#ifndef WOLFSSL_CERT_MANAGER_TYPE_DEFINED
+#define WOLFSSL_CERT_MANAGER_TYPE_DEFINED
+typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
+#endif
+
 WOLFSSL_API void wc_InitDecodedCert(
     struct DecodedCert* cert, const byte* source, word32 inSz, void* heap);
 WOLFSSL_API void wc_FreeDecodedCert(struct DecodedCert* cert);
 WOLFSSL_API int  wc_ParseCert(
-    struct DecodedCert* cert, int type, int verify, void* cm);
+    struct DecodedCert* cert, int type, int verify,
+    WOLFSSL_CERT_MANAGER* cm);
 
 WOLFSSL_API int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
                                         byte* derKey, word32* derKeySz);
@@ -1008,6 +1066,9 @@ WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
                                                    word32* pubKeyDerSz);
 WOLFSSL_API int wc_GetDecodedCertSubject(const struct DecodedCert* cert,
                                          char* buf, word32* bufSz);
+WOLFSSL_API int wc_GetDecodedCertSubjectRaw(const struct DecodedCert* cert,
+                                            const byte** subjectRaw,
+                                            int* subjectRawSz);
 WOLFSSL_API int wc_GetDecodedCertIssuer(const struct DecodedCert* cert,
                                         char* buf, word32* bufSz);
 WOLFSSL_API int wc_GetDecodedCertSerial(const struct DecodedCert* cert,

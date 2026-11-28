@@ -742,6 +742,9 @@ int wc_MxcCb_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if ((in == NULL) || (out == NULL) || (aes == NULL)) {
         return BAD_FUNC_ARG;
     }
+    if (aes->rounds == 0) {
+        return MISSING_KEY;
+    }
 
     status = wc_AesGetKeySize(aes, &keySize);
     if (status != 0) {
@@ -764,6 +767,9 @@ int wc_MxcCb_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if ((in == NULL) || (out == NULL) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+    if (aes->rounds == 0) {
+        return MISSING_KEY;
     }
 
     /* Always enforce a length check */
@@ -858,6 +864,9 @@ int wc_MxcCb_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if ((in == NULL) || (out == NULL) || (aes == NULL)) {
         return BAD_FUNC_ARG;
     }
+    if (aes->rounds == 0) {
+        return MISSING_KEY;
+    }
 
     status = wc_AesGetKeySize(aes, &keySize);
     if (status != 0) {
@@ -881,6 +890,9 @@ int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if ((in == NULL) || (out == NULL) || (aes == NULL)) {
         return BAD_FUNC_ARG;
+    }
+    if (aes->rounds == 0) {
+        return MISSING_KEY;
     }
 
     /* Always enforce a length check */
@@ -2332,6 +2344,7 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     if ((multiplier == result) || (multiplicand == result) || (exp == result) ||
             (mod == result)) {
             MAX3266X_MSG("Creating Temp Result Buffer for Hardware");
+            XMEMSET(&result_tmp, 0, sizeof(mp_int));
             result_tmp_ptr = &result_tmp; /* Assign point to temp struct */
     }
     else {

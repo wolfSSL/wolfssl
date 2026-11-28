@@ -30,6 +30,9 @@
 
 #include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #include <tests/api/api.h>
 #include <tests/api/test_ed25519.h>
 
@@ -92,6 +95,56 @@ int test_wc_ed25519_init(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ed25519_init */
+
+/*
+ * Testing wc_ed25519_init_id() and wc_ed25519_init_label()
+ */
+int test_wc_ed25519_init_id(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(ED25519_MAX_ID_LEN)
+    ed25519_key key;
+    byte id[ED25519_MAX_ID_LEN + 1];
+    char label[ED25519_MAX_LABEL_LEN + 2];
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(id, 0x11, sizeof(id));
+    XMEMSET(label, 'a', sizeof(label) - 1);
+    label[sizeof(label) - 1] = '\0';
+
+    ExpectIntEQ(wc_ed25519_init_id(NULL, id, 4, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_init_id(&key, NULL, 4, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, -1, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, ED25519_MAX_ID_LEN + 1, NULL,
+        INVALID_DEVID), WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_ed25519_init_id(&key, NULL, 0, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(key.idLen, 0);
+    wc_ed25519_free(&key);
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, ED25519_MAX_ID_LEN, NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(key.idLen, ED25519_MAX_ID_LEN);
+    ExpectBufEQ(key.id, id, ED25519_MAX_ID_LEN);
+    wc_ed25519_free(&key);
+
+    ExpectIntEQ(wc_ed25519_init_label(NULL, "lbl", NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_init_label(&key, NULL, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_ed25519_init_label(&key, "", NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    ExpectIntEQ(wc_ed25519_init_label(&key, label, NULL, INVALID_DEVID),
+        WC_NO_ERR_TRACE(BUFFER_E));
+    label[ED25519_MAX_LABEL_LEN] = '\0';
+    ExpectIntEQ(wc_ed25519_init_label(&key, label, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(key.labelLen, ED25519_MAX_LABEL_LEN);
+    ExpectBufEQ(key.label, label, ED25519_MAX_LABEL_LEN);
+    wc_ed25519_free(&key);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_init_id */
 
 /*
  * Test wc_ed25519_sign_msg() and wc_ed25519_verify_msg()
@@ -977,6 +1030,26 @@ int test_wc_ed25519_reject_small_order_keys(void)
             wc_ed25519_free(&key);
         }
     }
+    /* (4) y = p + 3 is on the curve and not small order, so only the
+     * y >= p check in verify rejects it (RFC 8032 5.1.3). */
+    {
+        byte nonCanon[ED25519_PUB_KEY_SIZE];
+        const char* msg = "forged message";
+        int verify_result = 1;
+
+        XMEMSET(nonCanon, 0xff, sizeof(nonCanon));
+        nonCanon[0] = 0xf0;
+        nonCanon[ED25519_PUB_KEY_SIZE - 1] = 0x7f;
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_ed25519_init(&key), 0);
+        ExpectIntEQ(wc_ed25519_import_public_ex(nonCanon, sizeof(nonCanon),
+            &key, 1), 0);
+        ExpectIntEQ(wc_ed25519_verify_msg(forged_sig, sizeof(forged_sig),
+            (const byte*)msg, (word32)XSTRLEN(msg), &verify_result, &key),
+            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(verify_result, 0);
+        wc_ed25519_free(&key);
+    }
 #endif
 #endif
     return EXPECT_RESULT();
@@ -1020,12 +1093,19 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
 
     /* Ed25519ctx round trip: type==Ed25519ctx true side, real context. */
     sigLen = sizeof(sig);
+#ifdef WC_FIPS_ED25519CTX_NOT_APPROVED
+    /* A module whose fips.h defines WC_FIPS_ED25519CTX_NOT_APPROVED rejects
+     * Ed25519ctx signing with SIG_TYPE_E. */
+    ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
+        ctx, sizeof(ctx)), WC_NO_ERR_TRACE(SIG_TYPE_E));
+#else
     ExpectIntEQ(wc_ed25519ctx_sign_msg(msg, sizeof(msg), sig, &sigLen, &key,
         ctx, sizeof(ctx)), 0);
     verify_ok = 0;
     ExpectIntEQ(wc_ed25519ctx_verify_msg(sig, sigLen, msg, sizeof(msg),
         &verify_ok, &key, ctx, sizeof(ctx)), 0);
     ExpectIntEQ(verify_ok, 1);
+#endif
 
     /* Ed25519ph round trip via hash and via full message, type==Ed25519ph
      * true side, WC_SHA512_DIGEST_SIZE length check false side (equal). */
@@ -1045,7 +1125,7 @@ int test_wc_ed25519_sign_verify_ctx_ph(void)
         &verify_ok, &key, ctx, sizeof(ctx)), 0);
     ExpectIntEQ(verify_ok, 1);
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     /* Ed25519ph length check true side: wrong-size "hash" input. */
     sigLen = sizeof(sig);
     ExpectIntEQ(wc_ed25519_sign_msg_ex(hash, sizeof(hash) - 1, sig, &sigLen,
@@ -1098,7 +1178,6 @@ int test_wc_ed25519_verify_streaming(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
     };
     byte badSig[ED25519_SIG_SIZE];
-    byte ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
     XMEMSET(&key, 0, sizeof(key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
@@ -1123,7 +1202,7 @@ int test_wc_ed25519_verify_streaming(void)
     /* init: NULL args. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(NULL, sigLen, &key, (byte)Ed25519,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, NULL, (byte)Ed25519,
         NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
@@ -1140,19 +1219,31 @@ int test_wc_ed25519_verify_streaming(void)
     /* update: NULL msgSegment, then NULL key (independent operand). */
     ExpectIntEQ(wc_ed25519_verify_msg_update(NULL, 4, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_update(msg, 4, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 
-    /* init: context==NULL/contextLen!=0 compound, explicit both-sides
-     * pairing within this function (type left as plain Ed25519 so the
-     * context is never actually consumed by the hash math either way,
-     * isolating the argument-check decision itself). */
+    /* init: context==NULL/contextLen!=0 compound (TRUE side), and the
+     * pure-type context rejection: RFC 8032 defines no context for pure
+     * Ed25519, so a non-empty context with type Ed25519 is rejected
+     * outright rather than silently discarded -- formerly this returned
+     * 0 and verified without binding the context. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
         NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
+    /* the pure-type non-empty-context rejection is absent from frozen
+     * FIPS module sources before v7. */
+    {
+        static const byte ctx[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+        ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
+            ctx, sizeof(ctx)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    }
+#endif
+    /* the rejected inits happen ahead of any hash-state work, so a fresh
+     * pure roundtrip on the same key must still verify. */
     ExpectIntEQ(wc_ed25519_verify_msg_init(sig, sigLen, &key, (byte)Ed25519,
-        ctx, sizeof(ctx)), 0);
+        NULL, 0), 0);
     ExpectIntEQ(wc_ed25519_verify_msg_update(msg, sizeof(msg), &key), 0);
     verify_ok = 0;
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, &key),
@@ -1165,7 +1256,7 @@ int test_wc_ed25519_verify_streaming(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, NULL, &key),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#if !defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0)
     ExpectIntEQ(wc_ed25519_verify_msg_final(sig, sigLen, &verify_ok, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
@@ -1222,7 +1313,7 @@ int test_wc_ed25519_verify_streaming(void)
 /*
  * Testing wc_ed25519_check_key edge cases: NULL key, pubKeySet==0,
  * privKeySet-mismatch, and the no-private-key Y-range boundary decision
- * (key->p[31]&0x7f==0x7f, the byte-loop, and the p[0]<0xed compound).
+ * (y compared byte by byte from the top against p = 2^255 - 19).
  */
 int test_wc_ed25519_check_key_edgecases(void)
 {
@@ -1258,7 +1349,8 @@ int test_wc_ed25519_check_key_edgecases(void)
 
     /* No private key: Y-range boundary, "order or higher" (deterministic
      * reject: top byte 0x7f, all mid bytes 0xff, low byte 0xff so the
-     * post-loop p[0]<0xed check is false -> stays PUBLIC_KEY_E without
+     * low byte is above p's, so ed25519_check_pub_y() returns PUBLIC_KEY_E
+     * without
      * reaching ge_frombytes_negate_vartime). */
     XMEMSET(&key, 0, sizeof(key));
     ExpectIntEQ(wc_ed25519_init(&key), 0);
@@ -1271,7 +1363,8 @@ int test_wc_ed25519_check_key_edgecases(void)
 
     /* No private key, Y-range boundary loop breaks early (a middle byte
      * is not 0xff): first operand's false side, second never evaluated,
-     * ret reset to 0 by the break -- lands in ge_frombytes_negate_vartime
+     * ed25519_check_pub_y() returns 0 at that byte -- lands in
+     * ge_frombytes_negate_vartime
      * on an arbitrary (not necessarily on-curve) point, so only the
      * decision shape is asserted here, not a specific final verdict. */
     XMEMSET(&key, 0, sizeof(key));
@@ -1464,3 +1557,237 @@ int test_wc_ed25519_make_public_argchecks(void)
     return EXPECT_RESULT();
 } /* END test_wc_ed25519_make_public_argchecks */
 
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WOLF_CRYPTO_CB) && \
+    defined(ED25519_MAX_ID_LEN)
+typedef struct ed25519DevPubCtx {
+    int decline;
+    int calls;
+} ed25519DevPubCtx;
+
+/* Device that knows the public key of the key it holds by reference. */
+static int ed25519_dev_pub_cb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    ed25519DevPubCtx* dev = (ed25519DevPubCtx*)ctx;
+
+    (void)devIdArg;
+
+    if ((info->algo_type != WC_ALGO_TYPE_PK) ||
+            (info->pk.type != WC_PK_TYPE_ED25519_MAKE_PUB)) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    dev->calls++;
+    if (dev->decline) {
+        return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    XMEMSET(info->pk.ed25519makepub.pubOut, 0x5a,
+        info->pk.ed25519makepub.pubOutSz);
+    return 0;
+}
+#endif
+
+/*
+ * Testing wc_ed25519_make_public() on a key held by a device.
+ */
+int test_wc_ed25519_make_public_dev_key(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WOLF_CRYPTO_CB) && \
+    defined(ED25519_MAX_ID_LEN)
+    int devId = 25519;
+    ed25519DevPubCtx dev;
+    ed25519_key key;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+    byte pub[ED25519_PUB_KEY_SIZE];
+    byte expPub[ED25519_PUB_KEY_SIZE];
+
+    XMEMSET(&dev, 0, sizeof(dev));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(expPub, 0x5a, sizeof(expPub));
+
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed25519_dev_pub_cb, &dev), 0);
+
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_public(&key, pub, (word32)sizeof(pub)), 0);
+    ExpectIntEQ(dev.calls, 1);
+    ExpectBufEQ(pub, expPub, sizeof(pub));
+    ExpectIntEQ(key.pubKeySet, 1);
+    ExpectBufEQ(key.p, expPub, sizeof(expPub));
+    wc_ed25519_free(&key);
+
+    /* Declined by the device, there is no private key to derive from. */
+    dev.decline = 1;
+    ExpectIntEQ(wc_ed25519_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_public(&key, pub, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(dev.calls, 2);
+    ExpectIntEQ(key.pubKeySet, 0);
+    wc_ed25519_free(&key);
+
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, (int)sizeof(id), NULL,
+        INVALID_DEVID), 0);
+    ExpectIntEQ(wc_ed25519_make_public(&key, pub, (word32)sizeof(pub)),
+        WC_NO_ERR_TRACE(ECC_PRIV_KEY_E));
+    ExpectIntEQ(dev.calls, 2);
+    wc_ed25519_free(&key);
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ed25519_make_public_dev_key */
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+static int ed25519_keygen_decline_cb(int devIdArg, wc_CryptoInfo* info,
+    void* ctx)
+{
+    (void)devIdArg;
+    (void)info;
+    (void)ctx;
+    return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+}
+#endif
+
+/*
+ * Testing wc_ed25519_make_key() on an id or label key whose device declines
+ * keygen.
+ */
+int test_wc_ed25519_make_key_id_dev(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY) && \
+    defined(WC_CRYPTOCB_KEYGEN_ID_CHECK) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FIPS)
+    int devId = 2403;
+    ed25519_key key;
+    WC_RNG rng;
+    static const byte id[] = { 0x01, 0x02, 0x03, 0x04 };
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_CryptoCb_RegisterDevice(devId, ed25519_keygen_decline_cb,
+        NULL), 0);
+
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, (int)sizeof(id), NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed25519_free(&key);
+
+    ExpectIntEQ(wc_ed25519_init_label(&key, "dev-key", NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key),
+        WC_NO_ERR_TRACE(NO_VALID_DEVID));
+    wc_ed25519_free(&key);
+
+#if !defined(WOLF_CRYPTO_CB_ONLY_ED25519) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_SHA512)
+    /* Without a registered device the key stays in software. */
+    ExpectIntEQ(wc_ed25519_init_id(&key, id, (int)sizeof(id), NULL,
+        devId + 100), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    wc_ed25519_free(&key);
+
+    ExpectIntEQ(wc_ed25519_init_ex(&key, NULL, devId), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
+    wc_ed25519_free(&key);
+#endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Verify that separately imported Ed25519 keys export a valid key pair. */
+int test_wc_ed25519_separate_import_roundtrip(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && \
+    defined(HAVE_ED25519_KEY_EXPORT) && defined(HAVE_ED25519_MAKE_KEY) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    ed25519_key original;
+    ed25519_key imported;
+    ed25519_key restored;
+    WC_RNG rng;
+    byte seed[ED25519_KEY_SIZE];
+    byte wrongSeed[ED25519_KEY_SIZE];
+    byte pub[ED25519_PUB_KEY_SIZE];
+    byte combined[ED25519_PRV_KEY_SIZE];
+    word32 seedSz = sizeof(seed);
+    word32 pubSz = sizeof(pub);
+    word32 combinedSz;
+    int order;
+
+    XMEMSET(&original, 0, sizeof(original));
+    XMEMSET(&rng, 0, sizeof(rng));
+    ExpectIntEQ(wc_ed25519_init(&original), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &original), 0);
+    PRIVATE_KEY_UNLOCK();
+    ExpectIntEQ(wc_ed25519_export_private_only(&original, seed,
+        &seedSz), 0);
+    PRIVATE_KEY_LOCK();
+    ExpectIntEQ(wc_ed25519_export_public(&original, pub, &pubSz), 0);
+    ExpectIntEQ(seedSz, ED25519_KEY_SIZE);
+    ExpectIntEQ(pubSz, ED25519_PUB_KEY_SIZE);
+
+    XMEMCPY(wrongSeed, seed, sizeof(seed));
+    wrongSeed[0] ^= 1;
+
+    for (order = 0; order < 2 && EXPECT_SUCCESS(); order++) {
+        XMEMSET(&imported, 0, sizeof(imported));
+        XMEMSET(&restored, 0, sizeof(restored));
+        ExpectIntEQ(wc_ed25519_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed25519_import_private_only(seed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed25519_import_public(pub, pubSz, &imported), 0);
+        }
+        else {
+            ExpectIntEQ(wc_ed25519_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed25519_import_private_only(seed, seedSz,
+                &imported), 0);
+        }
+        ExpectIntEQ(wc_ed25519_check_key(&imported), 0);
+        combinedSz = sizeof(combined);
+        PRIVATE_KEY_UNLOCK();
+        ExpectIntEQ(wc_ed25519_export_private(&imported, combined,
+            &combinedSz), 0);
+        PRIVATE_KEY_LOCK();
+        ExpectIntEQ(combinedSz, ED25519_PRV_KEY_SIZE);
+        ExpectBufEQ(combined, seed, ED25519_KEY_SIZE);
+        ExpectBufEQ(combined + ED25519_KEY_SIZE, pub, ED25519_PUB_KEY_SIZE);
+
+        ExpectIntEQ(wc_ed25519_init(&restored), 0);
+        ExpectIntEQ(wc_ed25519_import_private_key(combined, combinedSz,
+            NULL, 0, &restored), 0);
+        ExpectIntEQ(wc_ed25519_check_key(&restored), 0);
+        wc_ed25519_free(&restored);
+        wc_ed25519_free(&imported);
+
+        /* A different seed must not be accepted with the public key. */
+        XMEMSET(&imported, 0, sizeof(imported));
+        ExpectIntEQ(wc_ed25519_init(&imported), 0);
+        if (order == 0) {
+            ExpectIntEQ(wc_ed25519_import_private_only(wrongSeed, seedSz,
+                &imported), 0);
+            ExpectIntEQ(wc_ed25519_import_public(pub, pubSz, &imported),
+                WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        else {
+            ExpectIntEQ(wc_ed25519_import_public(pub, pubSz, &imported), 0);
+            ExpectIntEQ(wc_ed25519_import_private_only(wrongSeed, seedSz,
+                &imported), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+        }
+        wc_ed25519_free(&imported);
+    }
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ed25519_free(&original);
+    ForceZero(seed, sizeof(seed));
+    ForceZero(wrongSeed, sizeof(wrongSeed));
+    ForceZero(combined, sizeof(combined));
+#endif
+    return EXPECT_RESULT();
+}

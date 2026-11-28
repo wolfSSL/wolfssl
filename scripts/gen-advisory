@@ -184,9 +184,27 @@ def cpe_for(product, version):
     return f'cpe:2.3:a:wolfssl:{product.lower()}:{version}:*:*:*:*:*:*:*'
 
 
+# Release-tag form per product, keyed by lowercased product name. This table
+# and the lowercasing below must stay identical to GITHUB_TAG_FORMS and
+# github_purl() in tools/sbom/gen-sbom. A scanner compares purl strings
+# literally, so a VEX statement matches the SBOM only when they are equal.
+GITHUB_TAG_FORMS = {
+    'wolfssl': 'v{version}-stable',
+    'wolfssh': 'v{version}-stable',
+    'wolfclu': 'v{version}-stable',
+    'wolfscep': 'v{version}-stable',
+    'wolfhsm': 'wolfHSM-v{version}',
+}
+DEFAULT_GITHUB_TAG_FORM = 'v{version}'
+
+
 def purl_for(product, version):
-    """PURL for a wolfSSL product release (matches gen-sbom: pkg:github)."""
-    return f'pkg:github/wolfSSL/{product.lower()}@v{version}'
+    """PURL for a wolfSSL product release (matches gen-sbom: pkg:github).
+
+    purl-spec requires a lowercase namespace and name for the `github` type.
+    The version is a git ref, so it is the product's real release tag."""
+    form = GITHUB_TAG_FORMS.get(product.lower(), DEFAULT_GITHUB_TAG_FORM)
+    return f'pkg:github/wolfssl/{product.lower()}@{form.format(version=version)}'
 
 
 # --------------------------------------------------------------------------- #
@@ -777,7 +795,7 @@ def generate_cdx_vex(advs, ov_map, advisory_id, timestamp):
                 'supplier': {'name': 'wolfSSL Inc.'},
                 'name': 'wolfssl',
                 'cpe': cpe_for('wolfssl', '*'),
-                'purl': 'pkg:github/wolfSSL/wolfssl',
+                'purl': 'pkg:github/wolfssl/wolfssl',
             },
         },
         'components': list(extra_components.values()),

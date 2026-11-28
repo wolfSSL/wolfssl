@@ -46,6 +46,8 @@ extern "C" {
 
 /* OpenSSL-compatible names and behavior */
 #define WOLFSSL_VERBOSE_ERRORS
+/* Per-thread queues need HAVE_THREAD_LS (real compiler thread-local storage);
+ * without it a threaded build uses the shared, mutex protected queue. */
 #define ERROR_QUEUE_PER_THREAD
 #define WOLFSSL_ERROR_CODE_OPENSSL
 #define HAVE_WOLFSSL_SSL_H

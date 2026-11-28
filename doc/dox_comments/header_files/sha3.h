@@ -126,6 +126,46 @@ void wc_Sha3_224_Free(wc_Sha3* sha3);
 /*!
     \ingroup SHA
 
+    \brief Resets the sha3 structure to its freshly initialized state,
+    continuing with the established heap hint and device association.
+    Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially hashed message,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Sha3_224_Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if sha3 is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param sha3 Pointer to the sha3 structure to be reset.
+
+    _Example_
+    \code
+    wc_Sha3 sha3;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[WC_SHA3_224_DIGEST_SIZE];
+
+    if ((ret = wc_InitSha3_224(&sha3, NULL, INVALID_DEVID)) == 0) {
+        wc_Sha3_224_Update(&sha3, data, sizeof(data));
+        wc_Sha3_224_Reset(&sha3); /* discard the partially hashed message */
+        wc_Sha3_224_Update(&sha3, data2, sizeof(data2));
+        wc_Sha3_224_Final(&sha3, hash);
+        wc_Sha3_224_Free(&sha3);
+    }
+    \endcode
+
+    \sa wc_InitSha3_224
+    \sa wc_Sha3_224_Final
+    \sa wc_Sha3_224_Free
+*/
+int wc_Sha3_224_Reset(wc_Sha3* sha3);
+
+/*!
+    \ingroup SHA
+
     \brief Gets hash data. Result is placed into hash.  Does not
     reset state of sha3 struct.
 
@@ -309,6 +349,46 @@ int wc_Sha3_256_Final(wc_Sha3* sha3, byte* hash);
     \sa wc_Sha3_256_Final
 */
 void wc_Sha3_256_Free(wc_Sha3* sha3);
+
+/*!
+    \ingroup SHA
+
+    \brief Resets the sha3 structure to its freshly initialized state,
+    continuing with the established heap hint and device association.
+    Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially hashed message,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Sha3_256_Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if sha3 is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param sha3 Pointer to the sha3 structure to be reset.
+
+    _Example_
+    \code
+    wc_Sha3 sha3;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[WC_SHA3_256_DIGEST_SIZE];
+
+    if ((ret = wc_InitSha3_256(&sha3, NULL, INVALID_DEVID)) == 0) {
+        wc_Sha3_256_Update(&sha3, data, sizeof(data));
+        wc_Sha3_256_Reset(&sha3); /* discard the partially hashed message */
+        wc_Sha3_256_Update(&sha3, data2, sizeof(data2));
+        wc_Sha3_256_Final(&sha3, hash);
+        wc_Sha3_256_Free(&sha3);
+    }
+    \endcode
+
+    \sa wc_InitSha3_256
+    \sa wc_Sha3_256_Final
+    \sa wc_Sha3_256_Free
+*/
+int wc_Sha3_256_Reset(wc_Sha3* sha3);
 
 /*!
     \ingroup SHA
@@ -500,6 +580,46 @@ void wc_Sha3_384_Free(wc_Sha3* sha3);
 /*!
     \ingroup SHA
 
+    \brief Resets the sha3 structure to its freshly initialized state,
+    continuing with the established heap hint and device association.
+    Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially hashed message,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Sha3_384_Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if sha3 is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param sha3 Pointer to the sha3 structure to be reset.
+
+    _Example_
+    \code
+    wc_Sha3 sha3;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[WC_SHA3_384_DIGEST_SIZE];
+
+    if ((ret = wc_InitSha3_384(&sha3, NULL, INVALID_DEVID)) == 0) {
+        wc_Sha3_384_Update(&sha3, data, sizeof(data));
+        wc_Sha3_384_Reset(&sha3); /* discard the partially hashed message */
+        wc_Sha3_384_Update(&sha3, data2, sizeof(data2));
+        wc_Sha3_384_Final(&sha3, hash);
+        wc_Sha3_384_Free(&sha3);
+    }
+    \endcode
+
+    \sa wc_InitSha3_384
+    \sa wc_Sha3_384_Final
+    \sa wc_Sha3_384_Free
+*/
+int wc_Sha3_384_Reset(wc_Sha3* sha3);
+
+/*!
+    \ingroup SHA
+
     \brief Gets hash data. Result is placed into hash.  Does not
     reset state of sha3 struct.
 
@@ -683,6 +803,46 @@ int wc_Sha3_512_Final(wc_Sha3* sha3, byte* hash);
     \sa wc_Sha3_512_Final
 */
 void wc_Sha3_512_Free(wc_Sha3* sha3);
+
+/*!
+    \ingroup SHA
+
+    \brief Resets the sha3 structure to its freshly initialized state,
+    continuing with the established heap hint and device association.
+    Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially hashed message,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Sha3_512_Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if sha3 is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param sha3 Pointer to the sha3 structure to be reset.
+
+    _Example_
+    \code
+    wc_Sha3 sha3;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[WC_SHA3_512_DIGEST_SIZE];
+
+    if ((ret = wc_InitSha3_512(&sha3, NULL, INVALID_DEVID)) == 0) {
+        wc_Sha3_512_Update(&sha3, data, sizeof(data));
+        wc_Sha3_512_Reset(&sha3); /* discard the partially hashed message */
+        wc_Sha3_512_Update(&sha3, data2, sizeof(data2));
+        wc_Sha3_512_Final(&sha3, hash);
+        wc_Sha3_512_Free(&sha3);
+    }
+    \endcode
+
+    \sa wc_InitSha3_512
+    \sa wc_Sha3_512_Final
+    \sa wc_Sha3_512_Free
+*/
+int wc_Sha3_512_Reset(wc_Sha3* sha3);
 
 /*!
     \ingroup SHA
@@ -944,6 +1104,46 @@ void wc_Shake128_Free(wc_Shake* shake);
 /*!
     \ingroup SHA
 
+    \brief Resets the shake structure to its freshly initialized state,
+    continuing with the established heap hint and device association.
+    Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially absorbed input,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Shake128_Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if shake is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param shake Pointer to the shake structure to be reset.
+
+    _Example_
+    \code
+    wc_Shake shake;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[64];
+
+    if ((ret = wc_InitShake128(&shake, NULL, INVALID_DEVID)) == 0) {
+        wc_Shake128_Update(&shake, data, sizeof(data));
+        wc_Shake128_Reset(&shake); /* discard the partially absorbed input */
+        wc_Shake128_Update(&shake, data2, sizeof(data2));
+        wc_Shake128_Final(&shake, hash, sizeof(hash));
+        wc_Shake128_Free(&shake);
+    }
+    \endcode
+
+    \sa wc_InitShake128
+    \sa wc_Shake128_Final
+    \sa wc_Shake128_Free
+*/
+int wc_Shake128_Reset(wc_Shake* shake);
+
+/*!
+    \ingroup SHA
+
     \brief Gets hash data. Result is placed into hash.  Does not
     reset state of shake struct.
 
@@ -1197,6 +1397,46 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt);
     \sa wc_Shake256_Final
 */
 void wc_Shake256_Free(wc_Shake* shake);
+
+/*!
+    \ingroup SHA
+
+    \brief Resets the shake structure to its freshly initialized state,
+    continuing with the established heap hint and device association.
+    Equivalent to a fresh init for all
+    subsequent operations; useful for abandoning a partially absorbed input,
+    including after a failed Update or Final.  Like the Final functions,
+    Reset does not destroy sensitive internal state; use wc_Shake256_Free for
+    teardown at end of life.
+
+    \return 0 Returned upon successfully resetting the structure.
+    \return BAD_FUNC_ARG Returned if shake is NULL.
+    \return negative Other values may be returned on reinitialization
+    failure in fallback (non-plain-software) configurations.
+
+    \param shake Pointer to the shake structure to be reset.
+
+    _Example_
+    \code
+    wc_Shake shake;
+    byte data[] = { Data to be discarded };
+    byte data2[] = { Data to be hashed };
+    byte hash[64];
+
+    if ((ret = wc_InitShake256(&shake, NULL, INVALID_DEVID)) == 0) {
+        wc_Shake256_Update(&shake, data, sizeof(data));
+        wc_Shake256_Reset(&shake); /* discard the partially absorbed input */
+        wc_Shake256_Update(&shake, data2, sizeof(data2));
+        wc_Shake256_Final(&shake, hash, sizeof(hash));
+        wc_Shake256_Free(&shake);
+    }
+    \endcode
+
+    \sa wc_InitShake256
+    \sa wc_Shake256_Final
+    \sa wc_Shake256_Free
+*/
+int wc_Shake256_Reset(wc_Shake* shake);
 
 /*!
     \ingroup SHA

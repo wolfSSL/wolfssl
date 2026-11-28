@@ -3,7 +3,9 @@
 
     \brief This function generates the Ed448 public key from the private key.
     It stores the public key in the buffer pubKey, and sets the bytes
-    written to this buffer in pubKeySz.
+    written to this buffer in pubKeySz. If the key object does not already
+    carry a public key, the derived key is also stored in it, so that the key
+    can be used for signing.
 
     \return 0 Returned upon successfully making the public key.
     \return BAD_FUNC_ARG Returned ifi key or pubKey evaluate to NULL, or if the
@@ -11,7 +13,7 @@
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
 
-    \param [in] key Pointer to the ed448_key for which to generate a key.
+    \param [in,out] key Pointer to the ed448_key for which to generate a key.
     \param [out] pubKey Pointer to the buffer in which to store the public key.
     \param [in] pubKeySz Size of the pubKey buffer in bytes.
 
@@ -26,7 +28,7 @@
 
     wc_ed448_init(&key);
     wc_ed448_import_private_only(priv, sizeof(priv), &key);
-    ret = wc_ed448_make_public(&key, pub, &pubSz);
+    ret = wc_ed448_make_public(&key, pub, pubSz);
     if (ret != 0) {
         // error making public key
     }
@@ -50,6 +52,10 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,
     specified key size is not 57 bytes (Ed448 has 57 byte keys).
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in] rng Pointer to an initialized RNG object with which to
     generate the key.
@@ -427,6 +433,65 @@ int wc_ed448ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
 */
 
 int wc_ed448_init(ed448_key* key);
+
+/*!
+    \ingroup ED448
+
+    \brief Initializes an ed448_key object that references a private key held
+    by a crypto callback device, identified by id. Only available when built
+    with WOLF_PRIVATE_KEY_ID.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key is NULL, or id is NULL and len is greater
+    than 0.
+    \return BUFFER_E if len is negative or greater than ED448_MAX_ID_LEN.
+
+    \param [in,out] key Pointer to the ed448_key to initialize.
+    \param [in] id Key identifier bytes.
+    \param [in] len Length of id in bytes.
+    \param [in] heap Heap hint. May be NULL.
+    \param [in] devId Device identifier for the crypto callback.
+
+    _Example_
+    \code
+    ed448_key key;
+    unsigned char id[] = { 0x01, 0x02, 0x03, 0x04 };
+    int ret = wc_ed448_init_id(&key, id, sizeof(id), NULL, devId);
+    \endcode
+
+    \sa wc_ed448_init_ex
+    \sa wc_ed448_init_label
+*/
+int wc_ed448_init_id(ed448_key* key, const unsigned char* id, int len,
+    void* heap, int devId);
+
+/*!
+    \ingroup ED448
+
+    \brief Initializes an ed448_key object that references a private key held
+    by a crypto callback device, identified by label. Only available when
+    built with WOLF_PRIVATE_KEY_ID.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key or label is NULL.
+    \return BUFFER_E if label is empty or longer than ED448_MAX_LABEL_LEN.
+
+    \param [in,out] key Pointer to the ed448_key to initialize.
+    \param [in] label NUL-terminated label string.
+    \param [in] heap Heap hint. May be NULL.
+    \param [in] devId Device identifier for the crypto callback.
+
+    _Example_
+    \code
+    ed448_key key;
+    int ret = wc_ed448_init_label(&key, "my-key", NULL, devId);
+    \endcode
+
+    \sa wc_ed448_init_ex
+    \sa wc_ed448_init_id
+*/
+int wc_ed448_init_label(ed448_key* key, const char* label, void* heap,
+    int devId);
 
 /*!
     \ingroup ED448

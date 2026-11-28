@@ -29,6 +29,13 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    /* Must come after sha3.h here, unlike the other override sites: sha3.h
+    * processes first with SHAKE off, so shake.h's own fallback typedef and
+    * prototypes are what actually declare wc_Shake here. Moving it ahead
+    * breaks the build. */
+    #include <wolfssl/wolfcrypt/shake.h>
+#endif
 
 #ifdef WOLFSSL_HAVE_MLKEM
 
@@ -324,6 +331,13 @@ enum {
     KYBER_LEVEL3 = KYBER768,
     KYBER_LEVEL5 = KYBER1024,
 
+    /* Pass to wc_MlKemKey_Init to set the object up without committing to a
+     * parameter set, leaving a DER decode to take it from the algorithm OID.
+     * Deliberately not 0: a zeroed object is indistinguishable from one
+     * holding WC_ML_KEM_512, so MLKEM_FLAG_TYPE_SET is what actually
+     * separates the two. */
+    WC_ML_KEM_TYPE_UNSET = 0x20,
+
     /* Symmetric data size. */
     WC_ML_KEM_SYM_SZ            = 32,
     /* Shared secret size. */
@@ -342,6 +356,8 @@ enum {
     MLKEM_FLAG_BOTH_SET = 0x0003,
     MLKEM_FLAG_H_SET    = 0x0004,
     MLKEM_FLAG_A_SET    = 0x0008,
+    /* Set by wc_MlKemKey_Init when a parameter set was named. */
+    MLKEM_FLAG_TYPE_SET = 0x0010,
 
     /* 2 bits of random used to create noise value. */
     MLKEM_CBD_ETA2      = 2,
@@ -367,6 +383,38 @@ enum {
 #define MLKEM_PRF_T     wc_Shake
 
 /* ML-KEM key. */
+#ifdef WC_MLKEM_NONBLOCK
+/* Resumable state for a non-blocking ML-KEM operation. Attach one to a key with
+ * wc_MlKemKey_set_nonblock(); the operation then runs one chunk per call,
+ * returning MP_WOULDBLOCK at each yield point until it returns a final result.
+ * Only the small-memory build (WOLFSSL_MLKEM_*_SMALL_MEM) is supported.
+ *
+ * Re-invoke the same function with the same arguments until it stops returning
+ * MP_WOULDBLOCK. The context records which operation owns it and what that
+ * operation was started with: calling a different operation, or the same one
+ * with other arguments, releases what was in flight and starts over. A resumed
+ * decapsulation whose cipher text was rewritten in place since it started
+ * returns BAD_STATE_E. A key generation from an RNG has no
+ * arguments to tell it from the one in flight, so it resumes that one:
+ * re-attach the context to start another. */
+typedef struct wc_MlKemNonBlock {
+    void*  work;     /* keygen/encapsulate vectors, kept alive across yields */
+    void*  decWork;  /* decapsulate scratch: msg and kr for the re-encryption */
+    const void* arg; /* cipher text buffer the operation was started with */
+    word32 workSz;   /* sizes of the two above, for release on abandon */
+    word32 decWorkSz;
+    int    state;    /* keygen / decapsulate phase cursor */
+    int    encState; /* encapsulate phase cursor (direct or re-encryption) */
+    int    cmpFail;  /* re-encryption block compare result so far */
+    word16 row;      /* per-row loop cursor */
+    byte   op;       /* operation that owns the context, 0 when idle */
+    byte   fromRng;  /* its randomness was drawn here, not passed in */
+    /* What the operation is bound to. keygen: d||z. encapsulate: m.
+     * decapsulate: hash of the cipher text. */
+    byte   rand[WC_ML_KEM_MAKEKEY_RAND_SZ];
+} wc_MlKemNonBlock;
+#endif /* WC_MLKEM_NONBLOCK */
+
 struct MlKemKey {
     /* Type of key: WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024 */
     int type;
@@ -396,6 +444,10 @@ struct MlKemKey {
     MLKEM_HASH_T hash;
     /* A pseudo-random function object. */
     MLKEM_PRF_T prf;
+#ifdef WC_MLKEM_NONBLOCK
+    /* Non-NULL selects resumable (non-blocking) operation. */
+    wc_MlKemNonBlock* nb;
+#endif
 
 #ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
     /* Private key as a vector. */
@@ -416,10 +468,10 @@ struct MlKemKey {
     byte z[WC_ML_KEM_SYM_SZ];
 #ifdef WOLFSSL_MLKEM_CACHE_A
 #ifndef WOLFSSL_MLKEM_DYNAMIC_KEYS
-    /* A matrix from key generation. */
+    /* Cached matrix A. */
     sword16 a[WC_ML_KEM_MAX_K * WC_ML_KEM_MAX_K * MLKEM_N];
 #else
-    /* A matrix from key generation (dynamically allocated). */
+    /* Cached matrix A (dynamically allocated). */
     sword16* a;
 #endif
 #endif
@@ -438,6 +490,9 @@ WOLFSSL_API int wc_MlKemKey_Delete(MlKemKey* key, MlKemKey** key_p);
 WOLFSSL_API int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap,
     int devId);
 WOLFSSL_API int wc_MlKemKey_Free(MlKemKey* key);
+#ifdef WC_MLKEM_NONBLOCK
+WOLFSSL_API int wc_MlKemKey_set_nonblock(MlKemKey* key, wc_MlKemNonBlock* nb);
+#endif
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API int wc_MlKemKey_Init_Id(MlKemKey* key, int type,
     const unsigned char* id, int len, void* heap, int devId);
@@ -445,24 +500,58 @@ WOLFSSL_API int wc_MlKemKey_Init_Label(MlKemKey* key, int type,
     const char* label, void* heap, int devId);
 #endif
 
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
 WOLFSSL_API int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng);
 WOLFSSL_API int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key,
     const unsigned char* rand, int len);
+#endif
 
 WOLFSSL_API int wc_MlKemKey_CipherTextSize(MlKemKey* key, word32* len);
 WOLFSSL_API int wc_MlKemKey_SharedSecretSize(MlKemKey* key, word32* len);
 
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
 WOLFSSL_API int wc_MlKemKey_Encapsulate(MlKemKey* key, unsigned char* ct,
     unsigned char* ss, WC_RNG* rng);
 WOLFSSL_API int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key,
     unsigned char* ct, unsigned char* ss, const unsigned char* rand, int len);
+#endif
+
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
 WOLFSSL_API int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len);
+#endif
 
 WOLFSSL_API int wc_MlKemKey_DecodePrivateKey(MlKemKey* key,
     const unsigned char* in, word32 len);
 WOLFSSL_API int wc_MlKemKey_DecodePublicKey(MlKemKey* key,
     const unsigned char* in, word32 len);
+
+#ifndef WOLFSSL_MLKEM_NO_ASN1
+/* DER (SubjectPublicKeyInfo / PKCS#8) encoding overhead over the raw key. */
+#define MLKEM_ASN1_PUB_OVERHEAD  32
+#define MLKEM_ASN1_PRV_OVERHEAD  40
+/* Maximum DER-encoded key sizes over the enabled parameter sets. Callers may
+ * also pass a NULL output to the *ToDer functions to get the exact length. */
+#define MLKEM_MAX_PUB_KEY_DER_SIZE \
+    (WC_ML_KEM_MAX_PUBLIC_KEY_SIZE + MLKEM_ASN1_PUB_OVERHEAD)
+#define MLKEM_MAX_PRV_KEY_DER_SIZE \
+    (WC_ML_KEM_MAX_PRIVATE_KEY_SIZE + MLKEM_ASN1_PRV_OVERHEAD)
+
+WOLFSSL_LOCAL
+int mlkem_type_from_oid_sum(int oidSum, int* type);
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+WOLFSSL_API int wc_MlKemKey_PublicKeyToDer(MlKemKey* key, byte* output,
+    word32 len, int withAlg);
+WOLFSSL_API int wc_MlKemKey_PrivateKeyToDer(MlKemKey* key, byte* output,
+    word32 len);
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
+WOLFSSL_API int wc_MlKemKey_PublicKeyDecode(MlKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+WOLFSSL_API int wc_MlKemKey_PrivateKeyDecode(MlKemKey* key, const byte* input,
+    word32 inSz, word32* inOutIdx);
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
+#endif /* !WOLFSSL_MLKEM_NO_ASN1 */
 
 WOLFSSL_API int wc_MlKemKey_PrivateKeySize(MlKemKey* key, word32* len);
 WOLFSSL_API int wc_MlKemKey_PublicKeySize(MlKemKey* key, word32* len);
@@ -501,26 +590,34 @@ void mlkem_init(void);
 
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 WOLFSSL_LOCAL
-void mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
+int mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     int kp);
 #else
 WOLFSSL_LOCAL
-int mlkem_keygen_seeds(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
-    sword16* e, int kp, byte* seed, byte* noiseSeed);
+void mlkem_keygen_ntt_priv(sword16* priv, int kp);
+WOLFSSL_LOCAL
+int mlkem_keygen_seeds_row(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
+    sword16* e, sword16* cacheA, int kp, byte* seed, byte* noiseSeed, int i);
 #endif
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
-void mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
+int mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
     const sword16* m, int kp);
 #else
 WOLFSSL_LOCAL
-int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* bp,
-    sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed,
-    byte* coins);
+void mlkem_encapsulate_ntt_y(sword16* sp, int kp);
+WOLFSSL_LOCAL
+int mlkem_encapsulate_seeds_row(MLKEM_PRF_T* prf, byte* c, const byte* cmp,
+    int* cmpFail, sword16* bp, sword16* tp, sword16* sp, int kp, byte* seed,
+    byte* coins, const sword16* cacheA, sword16* fillA, int i);
+WOLFSSL_LOCAL
+int mlkem_encapsulate_seeds_tail(const sword16* pub, MLKEM_PRF_T* prf,
+    byte* c, const byte* cmp, int* fail, int cmpFail, sword16* bp,
+    sword16* tp, sword16* sp, int kp, const byte* msg, byte* coins);
 #endif
 WOLFSSL_LOCAL
-void mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
+int mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
     const sword16* v, int kp);
 
 WOLFSSL_LOCAL
@@ -550,42 +647,42 @@ int mlkem_derive_secret(MLKEM_PRF_T* prf, const byte* z, const byte* ct,
     word32 ctSz, byte* ss);
 
 WOLFSSL_LOCAL
-void mlkem_prf_init(MLKEM_PRF_T* prf);
+int mlkem_prf_reset(MLKEM_PRF_T* prf);
 WOLFSSL_LOCAL
 int mlkem_prf_new(MLKEM_PRF_T* prf, void* heap, int devId);
 WOLFSSL_LOCAL
 void mlkem_prf_free(MLKEM_PRF_T* prf);
 
 WOLFSSL_LOCAL
-int mlkem_cmp(const byte* a, const byte* b, int sz);
+int mlkem_cmp(const byte* a, const byte* b, int sz, int* fail);
 
 WOLFSSL_LOCAL
-void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
+int mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_compress_11(byte* r, sword16* v);
+int mlkem_vec_compress_11(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
+int mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp);
 WOLFSSL_LOCAL
-void mlkem_vec_decompress_11(sword16* v, const unsigned char* b);
+int mlkem_vec_decompress_11(sword16* v, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void mlkem_compress_4(byte* b, sword16* p);
+int mlkem_compress_4(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_compress_5(byte* b, sword16* p);
+int mlkem_compress_5(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_decompress_4(sword16* p, const unsigned char* b);
+int mlkem_decompress_4(sword16* p, const unsigned char* b);
 WOLFSSL_LOCAL
-void mlkem_decompress_5(sword16* p, const unsigned char* b);
+int mlkem_decompress_5(sword16* p, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void mlkem_from_msg(sword16* p, const byte* msg);
+int mlkem_from_msg(sword16* p, const byte* msg);
 WOLFSSL_LOCAL
-void mlkem_to_msg(byte* msg, sword16* p);
+int mlkem_to_msg(byte* msg, sword16* p);
 WOLFSSL_LOCAL
-void mlkem_from_bytes(sword16* p, const byte* b, int k);
+int mlkem_from_bytes(sword16* p, const byte* b, int k);
 WOLFSSL_LOCAL
-void mlkem_to_bytes(byte* b, sword16* p, int k);
+int mlkem_to_bytes(byte* b, sword16* p, int k);
 WOLFSSL_LOCAL
 int mlkem_check_reduced(const sword16* p, int k);
 
@@ -816,16 +913,6 @@ WOLFSSL_LOCAL void mlkem_add3_reduce(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_rsub_reduce(sword16* r, const sword16* a);
 WOLFSSL_LOCAL void mlkem_to_mont(sword16* p);
 WOLFSSL_LOCAL void mlkem_to_mont_sqrdmlsh(sword16* p);
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_neon(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed);
-#ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-WOLFSSL_LOCAL void mlkem_sha3_blocksx3_crypto(word64* state);
-WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_crypto(word64* state,
-    byte* seed);
-#endif
 WOLFSSL_LOCAL unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len,
     const byte* r, unsigned int rLen);
 WOLFSSL_LOCAL int mlkem_cmp_neon(const byte* a, const byte* b, int sz);
@@ -846,6 +933,10 @@ WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a,
 WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b);
 WOLFSSL_LOCAL void mlkem_thumb2_csubq(sword16* p);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_10(byte* r, sword16* v,
+    unsigned int k);
+WOLFSSL_LOCAL void mlkem_thumb2_vec_compress_11(byte* r, sword16* v,
+    unsigned int k);
 WOLFSSL_LOCAL unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen);
 #elif defined(WOLFSSL_ARMASM)
@@ -868,6 +959,19 @@ WOLFSSL_LOCAL unsigned int mlkem_arm32_rej_uniform(sword16* p, unsigned int len,
 
 #ifdef __cplusplus
     } /* extern "C" */
+#endif
+
+/* Native implementation core (internal). The public wc_MlKemKey_* functions
+ * in wc_mlkem.c wrap it with cryptocb dispatch and argument checking. With
+ * WOLF_CRYPTO_CB_ONLY_MLKEM the lattice math is not compiled: key generation,
+ * encapsulation and decapsulation all go through the crypto callback. The
+ * encode and decode helpers stay, since a callback that returns key material
+ * needs them. */
+#ifndef WOLF_CRYPTO_CB_ONLY_MLKEM
+/* Signals that native key generation, encapsulation and decapsulation are
+ * available. Tests gate on this rather than on the build switch, so a test
+ * says what it needs rather than which configuration removed it. */
+#define WC_MLKEM_HAVE_NATIVE
 #endif
 
 #endif /* WOLFSSL_HAVE_MLKEM */

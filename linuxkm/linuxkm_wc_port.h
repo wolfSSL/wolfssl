@@ -31,7 +31,7 @@
     #include <linux/version.h>
     #include <linux/kconfig.h>
 
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
         #error Unsupported kernel.
     #endif
 
@@ -53,7 +53,8 @@
         #endif
     #endif
 
-    #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(WC_LINUX_CONFIG_SELFTESTS_FULL)
+    #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(WC_LINUX_CONFIG_SELFTESTS_FULL) && \
+        !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
         /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS expects AES-XTS-384 to work, even when CONFIG_CRYPTO_FIPS, but FIPS 140-3 only allows AES-XTS-256 and AES-XTS-512. */
         #error CONFIG_CRYPTO_MANAGER_EXTRA_TESTS is incompatible with FIPS wolfCrypt AES-XTS -- please reconfigure the target kernel to disable CONFIG_CRYPTO_MANAGER_EXTRA_TESTS/CONFIG_CRYPTO_SELFTESTS_FULL.
     #endif
@@ -70,7 +71,8 @@
         defined(HAVE_ECC) && \
         (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
          defined(LINUXKM_LKCAPI_REGISTER_ECDSA) || \
-         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDSA)))
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDSA))) && \
+        !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
         #error Target kernel requires SHA-1 signature verification support.
     #endif
 
@@ -125,7 +127,7 @@
      * also needed to suppress inclusion of stdlib.h in
      * wolfssl/wolfcrypt/types.h.
      */
-    #define XATOI(s) ({                                 \
+    #define XATOI(s) __extension__ ({                   \
           long long _xatoi_res = 0;                     \
           int _xatoi_ret = kstrtoll(s, 10, &_xatoi_res); \
           if (_xatoi_ret != 0) {                        \
@@ -199,20 +201,29 @@
         #define WOLFSSL_DEBUG_PRINTF_FN printk
     #endif
 
+#ifdef CONFIG_ARM
+    /* Exported by arch/arm/kernel/traps.c; asmlinkage is empty for C here and
+     * linux/linkage.h is not included yet at this point in the header. */
+    void __div0(void);
+#endif
+
 #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
     struct wolfSSL_Mutex;
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
+    extern int wc_lkm_UnlockMutex(struct wolfSSL_Mutex* m);
 #endif
 
     #ifndef WC_LINUXKM_INTR_SIGNALS
         #define WC_LINUXKM_INTR_SIGNALS { SIGKILL, SIGABRT, SIGHUP, SIGINT }
     #endif
     WOLFSSL_API int wc_linuxkm_can_block(void);
+    WOLFSSL_API int wc_linuxkm_can_long_loop(void);
     WOLFSSL_API int wc_linuxkm_sig_ignore_begin(void);
     WOLFSSL_API int wc_linuxkm_sig_ignore_end(void);
     WOLFSSL_API int wc_linuxkm_check_for_intr_signals(void);
+
     #ifndef WC_LINUXKM_MAX_NS_WITHOUT_YIELD
-        #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD 1000000000
+        #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD (25 * 1000 * 1000)
     #endif
     WOLFSSL_API void wc_linuxkm_relax_long_loop(void);
 
@@ -228,6 +239,12 @@
     #ifndef WC_RELAX_LONG_LOOP
         #define WC_RELAX_LONG_LOOP() wc_linuxkm_relax_long_loop()
     #endif
+    #ifndef WC_CAN_BLOCK
+        #define WC_CAN_BLOCK() wc_linuxkm_can_block()
+    #endif
+    #ifndef WC_CAN_LONG_LOOP
+        #define WC_CAN_LONG_LOOP() wc_linuxkm_can_long_loop()
+    #endif
 
     enum wc_svr_flags {
         WC_SVR_FLAG_NONE = 0,
@@ -235,6 +252,7 @@
         WC_SVR_FLAG_MAYBE_INHIBIT = 2,
         WC_SVR_FLAG_FUZZ = 4
     };
+    #define WC_SVR_HAVE_FLAGS
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
         defined(WOLFSSL_SP_X86_64_ASM)
@@ -251,6 +269,11 @@
           defined(WOLFSSL_SP_ARM_CORTEX_M_ASM)
         #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
             #error ARM SIMD extensions requested, but CONFIG_ARM* is not set.
+        #endif
+        /* A kernel module runs privileged, so the 32-bit Arm feature test reads
+         * ID_ISAR5 directly instead of the userspace getauxval() path. */
+        #if defined(CONFIG_ARM) && !defined(WOLFSSL_ARM32_PRIVILEGE_MODE)
+            #define WOLFSSL_ARM32_PRIVILEGE_MODE
         #endif
         #define WOLFSSL_LINUXKM_SIMD
         #define WOLFSSL_LINUXKM_SIMD_ARM
@@ -601,6 +624,7 @@
         #include <linux/module.h>
         #include <linux/moduleparam.h>
         #include <linux/delay.h>
+        #include <linux/dmi.h>
     #endif
 
     #if defined(HAVE_KVMALLOC) && \
@@ -739,6 +763,16 @@
         /* for local_clock() */
         #include <linux/sched/clock.h>
     #endif
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+        /* in_task() arrived in 4.10 (include/linux/preempt.h); the masks it
+         * is built from reach here through <linux/sched.h> (preempt_mask.h
+         * before 3.17). */
+        #ifndef in_task
+            #define in_task()                                   \
+                (!(preempt_count() &                            \
+                   (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
+        #endif
+    #endif
     #include <linux/random.h>
 
     #if !defined(WC_CONTAINERIZE_THIS) && defined(CONFIG_HAVE_KPROBES)
@@ -769,7 +803,12 @@
             #include <crypto/scatterwalk.h>
             #include <crypto/internal/aead.h>
             #include <crypto/internal/hash.h>
-            #include <crypto/internal/rng.h>
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 5, 0) && !defined(WOLFSSL_LINUXKM_LKCAPI_NO_STDRNG)
+                #define WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+                #include <crypto/internal/rng.h>
+            #else
+                #undef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
+            #endif
             #include <crypto/internal/skcipher.h>
             #include <crypto/internal/akcipher.h>
             #include <crypto/internal/kpp.h>
@@ -793,6 +832,10 @@
                 }
             #endif
             #define WC_LKM_REFCOUNT_TO_INT(refcount) wc_lkm_refcount_to_int(&(refcount))
+            #include <linux/notifier.h>
+            #ifdef CONFIG_PM_SLEEP
+            #include <linux/suspend.h>
+            #endif
         #endif /* !WC_CONTAINERIZE_THIS */
 
     #endif /* LINUXKM_LKCAPI_REGISTER */
@@ -805,8 +848,10 @@
         #define WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #endif
 
+    /* x86 and arm64 share one interface: both glue files keep the wc_*_x86
+     * names, so callers and the PIE redirect table are the same. */
     #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
-        defined(CONFIG_X86)
+        (defined(CONFIG_X86) || defined(CONFIG_ARM64) || defined(CONFIG_ARM))
 
         extern __must_check int wc_linuxkm_allocate_svr_states(void);
         extern void wc_linuxkm_free_svr_states(void);
@@ -819,6 +864,7 @@
         WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
         WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
 
+        #ifdef CONFIG_X86
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -832,13 +878,40 @@
                 #include <crypto/internal/simd.h>
             #endif
         #endif
+        #else /* CONFIG_ARM64 || CONFIG_ARM */
+            /* arch/arm64/include/asm/simd.h, and may_use_simd() with it,
+             * arrived in 4.14; the module otherwise accepts 3.16 and up. */
+            #if defined(CONFIG_ARM64) && \
+                LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0) && \
+                !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
+                #error arm64 vector registers need may_use_simd(), added in 4.14.
+            #endif
+            #include <asm/simd.h> /* may_use_simd() */
+            #include <asm/neon.h> /* kernel_neon_begin(), kernel_neon_end() */
+        #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
+            #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF) && \
+                defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+                #error Conflicting DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_* settings.
+            #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
+                #define CAN_SAVE_VECTOR_REGISTERS() 0
+            #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
+                #define CAN_SAVE_VECTOR_REGISTERS() 1
+            #else
+                #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
+            #endif
         #endif
 
         #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) && \
-            defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
-            #error Conflicting settings for DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_foo
+            defined(LINUXKM_LKCAPI_REGISTER) && \
+            !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
+            #error DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON is incompatible with LINUXKM_LKCAPI_REGISTER.
+        #endif
+
+        #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF) && \
+            defined(WOLFSSL_LINUXKM_BENCHMARKS) && \
+            !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
+            #error DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF is incompatible with WOLFSSL_LINUXKM_BENCHMARKS.
         #endif
 
         #ifndef SAVE_VECTOR_REGISTERS
@@ -879,7 +952,7 @@
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
             #if defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON)
-                #define SAVE_VECTOR_REGISTERS2() \
+                #define SAVE_VECTOR_REGISTERS2() __extension__ \
                 ({                                                                                            \
                     int _svr_ret = wc_save_vector_registers_x86(WC_SVR_FLAG_NONE);                            \
                     if (_svr_ret != 0) {                                                                      \
@@ -890,7 +963,10 @@
                     _svr_ret;                                                                                 \
                 })
             #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF)
-                #define SAVE_VECTOR_REGISTERS2() WC_ACCEL_INHIBIT_E
+                #define SAVE_VECTOR_REGISTERS2() __extension__ ({ \
+                    WC_RELAX_LONG_LOOP();           \
+                    WC_ACCEL_INHIBIT_E;             \
+                })
             #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
                 #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_FUZZ)
             #else
@@ -907,7 +983,7 @@
                  * DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON build -- ERROR if any
                  * calls occur.
                  */
-                #define DISABLE_VECTOR_REGISTERS()                                                          \
+                #define DISABLE_VECTOR_REGISTERS() __extension__                                            \
                 ({                                                                                          \
                     pr_err("ERROR: DISABLE_VECTOR_REGISTERS() with DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON " \
                            "in %s at %s L %d\n", __func__, __FILE__, __LINE__);                             \
@@ -922,8 +998,13 @@
             #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
 
+        /* A 0 return means a section is open on both glues, whether or not
+         * the registers came with it, so the caller must always release it. */
         #ifndef SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT
-            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+            #if (defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_ON) || \
+                 defined(DEBUG_VECTOR_REGISTER_ACCESS_ALWAYS_OFF))
+                #define SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT() SAVE_VECTOR_REGISTERS2()
+            #elif defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
                 #define SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT() wc_save_vector_registers_x86(WC_SVR_FLAG_FUZZ | WC_SVR_FLAG_MAYBE_INHIBIT)
             #else
                 #define SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT() wc_save_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
@@ -933,43 +1014,14 @@
             #define RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED() wc_restore_vector_registers_x86(WC_SVR_FLAG_MAYBE_INHIBIT)
         #endif
 
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
-
-        #error kernel module ARM SIMD is not yet tested or usable.
-
-        #include <asm/fpsimd.h>
-
-        static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
-        {
-            preempt_disable();
-            if (! may_use_simd()) {
-                preempt_enable();
-                return BAD_STATE_E;
-            } else {
-                fpsimd_preserve_current_state();
-                return 0;
-            }
-        }
-        static inline void restore_vector_registers_arm(void)
-        {
-            fpsimd_restore_current_state();
-            preempt_enable();
-        }
-
-        #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
-        #endif
-        #ifndef SAVE_VECTOR_REGISTERS2
-            #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
-        #endif
-        #ifndef CAN_SAVE_VECTOR_REGISTERS
-            #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_arm()
-        #endif
-        #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
-        #endif
-
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #elif (defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) &&    \
+          (!defined(SAVE_VECTOR_REGISTERS) ||               \
+           !defined(SAVE_VECTOR_REGISTERS2) ||              \
+           !defined(RESTORE_VECTOR_REGISTERS) ||            \
+           !defined(DISABLE_VECTOR_REGISTERS) ||            \
+           !defined(REENABLE_VECTOR_REGISTERS) ||           \
+           !defined(SAVE_VECTOR_REGISTERS_MAYBE_INHIBIT) || \
+           !defined(RESTORE_VECTOR_REGISTERS_MAYBE_INHIBITED)))
         #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
     #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
@@ -977,6 +1029,14 @@
      * below continue after inclusion.
      */
     _Pragma("GCC diagnostic pop");
+
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
+    typedef __kernel_time_t time_t;
+    #else
+    typedef __kernel_time64_t time_t;
+    #endif
+    WOLFSSL_API time_t wc_linuxkm_time_epoch_secs(time_t *tp);
+    WOLFSSL_API long long wc_linuxkm_time_epoch_msecs(void);
 
     #define PTR_ERR(x) ((int)PTR_ERR(x))
 
@@ -1076,6 +1136,28 @@
             extern int wolfCrypt_FIPS_SHA3_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2];
 #endif
+/* PQ boundary members added in v7.0.0, staged ahead of their consumer:
+ * fips_test.c DoInCoreCheck has no PQ sanity calls yet. */
+#if defined(WOLFSSL_HAVE_MLKEM) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_MLKEM_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_mlkem_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_MLDSA_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_mldsa_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_SLHDSA_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_slhdsa_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_LMS_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_lms_ro_sanity[2];
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && FIPS_VERSION3_GE(7,0,0)
+            extern int wolfCrypt_FIPS_XMSS_sanity(void);
+            extern const unsigned int wolfCrypt_FIPS_xmss_ro_sanity[2];
+#endif
 #ifndef WOLFSSL_FIPS_DEV_NO_POST
             extern int wolfCrypt_FIPS_FT_sanity(void);
             extern const unsigned int wolfCrypt_FIPS_ft_ro_sanity[2];
@@ -1088,17 +1170,25 @@
     #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
         /* work around backward dependency of asn.c on ssl.c. */
         struct Signer;
-        struct Signer *GetCA(void *signers, unsigned char *hash);
+        struct WOLFSSL_CERT_MANAGER;
+        struct Signer *GetCA(struct WOLFSSL_CERT_MANAGER *cm,
+                             unsigned char *hash);
         #ifndef NO_SKID
-            struct Signer *GetCAByName(void* signers, unsigned char *hash);
+            struct Signer *GetCAByName(struct WOLFSSL_CERT_MANAGER *cm,
+                                       unsigned char *hash);
+            struct Signer *GetCAByNameSkip(struct WOLFSSL_CERT_MANAGER *cm,
+                                           unsigned char *hash,
+                                           const struct Signer *skip);
             #ifdef HAVE_OCSP
-                struct Signer* GetCAByKeyHash(void* vp, const unsigned char* keyHash);
+                struct Signer* GetCAByKeyHash(struct WOLFSSL_CERT_MANAGER *cm,
+                                              const unsigned char* keyHash);
             #endif /* HAVE_OCSP */
             #ifdef WOLFSSL_AKID_NAME
                 #ifdef WOLFSSL_API_PREFIX_MAP
                     #define GetCAByAKID wolfSSL_GetCAByAKID
                 #endif
-                struct Signer* GetCAByAKID(void* vp, const unsigned char* issuer,
+                struct Signer* GetCAByAKID(struct WOLFSSL_CERT_MANAGER *cm,
+                                           const unsigned char* issuer,
                                            unsigned int issuerSz,
                                            const unsigned char* serial,
                                            unsigned int serialSz);
@@ -1112,6 +1202,10 @@
                                                int len, int loc, int set);
             extern void wolfSSL_X509_NAME_free(struct WOLFSSL_X509_NAME* name);
             extern struct WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap);
+            extern int X509NameAddDecodedEntry(struct WOLFSSL_X509_NAME* name,
+                                               int nid, int type,
+                                               const unsigned char* data,
+                                               int dataSz);
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
         #ifdef HAVE_OCSP
@@ -1183,6 +1277,19 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
+#if defined(CONFIG_X86_32) && defined(CONFIG_SMP) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+    /* this_cpu_read() expands the generic 8-byte read, whose nested __ret
+     * locals shadow (linux-4.19.325 asm-generic/percpu.h:121,139). */
+    #undef raw_smp_processor_id
+    #define raw_smp_processor_id() this_cpu_read_4(cpu_number)
+#endif
+
+#ifdef CONFIG_X86_32
+    /* asm/string_32.h #defines memcmp, which would rename its slot below. */
+    #undef memcmp
+#endif
+
     struct wolfssl_linuxkm_pie_redirect_table {
     #ifdef HAVE_FIPS
         typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
@@ -1191,6 +1298,11 @@
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         typeof(memcmp) *memcmp;
+    #endif
+    #ifdef CONFIG_ARM
+        /* The kernel's divide-by-zero reporter, for the EABI division
+         * helpers the container defines (arch/arm/kernel/traps.c). */
+        void (*__div0)(void);
     #endif
     #ifndef __ARCH_MEMCPY_NO_REDIRECT
         typeof(memcpy) *memcpy;
@@ -1307,25 +1419,22 @@
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
         typeof(get_random_bytes) *get_random_bytes;
 #endif
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-            typeof(getnstimeofday) *getnstimeofday;
-        #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-            typeof(current_kernel_time64) *current_kernel_time64;
-        #else
-            typeof(ktime_get_coarse_real_ts64) *ktime_get_coarse_real_ts64;
-        #endif
+
+        typeof(wc_linuxkm_time_epoch_secs) *wc_linuxkm_time_epoch_secs;
+        typeof(wc_linuxkm_time_epoch_msecs) *wc_linuxkm_time_epoch_msecs;
 
         struct task_struct *(*get_current)(void);
 
         #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
 
-            #ifdef CONFIG_X86
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM64) || \
+                defined(CONFIG_ARM)
                 typeof(wc_linuxkm_allocate_svr_states) *wc_linuxkm_allocate_svr_states;
                 typeof(wc_can_save_vector_registers_x86) *wc_can_save_vector_registers_x86;
                 typeof(wc_linuxkm_free_svr_states) *wc_linuxkm_free_svr_states;
                 typeof(wc_restore_vector_registers_x86) *wc_restore_vector_registers_x86;
                 typeof(wc_save_vector_registers_x86) *wc_save_vector_registers_x86;
-            #else /* !CONFIG_X86 */
+            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 && !CONFIG_ARM64 && !CONFIG_ARM */
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
             #endif /* arch */
 
@@ -1414,6 +1523,28 @@
             typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
             typeof(wolfCrypt_FIPS_sha3_ro_sanity) *wolfCrypt_FIPS_sha3_ro_sanity;
 #endif
+/* PQ boundary members added in v7.0.0, staged ahead of their consumer:
+ * fips_test.c DoInCoreCheck has no PQ sanity calls yet. */
+#if defined(WOLFSSL_HAVE_MLKEM) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_MLKEM_sanity) *wolfCrypt_FIPS_MLKEM_sanity;
+            typeof(wolfCrypt_FIPS_mlkem_ro_sanity) *wolfCrypt_FIPS_mlkem_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_MLDSA) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_MLDSA_sanity) *wolfCrypt_FIPS_MLDSA_sanity;
+            typeof(wolfCrypt_FIPS_mldsa_ro_sanity) *wolfCrypt_FIPS_mldsa_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_SLHDSA) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_SLHDSA_sanity) *wolfCrypt_FIPS_SLHDSA_sanity;
+            typeof(wolfCrypt_FIPS_slhdsa_ro_sanity) *wolfCrypt_FIPS_slhdsa_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_LMS_sanity) *wolfCrypt_FIPS_LMS_sanity;
+            typeof(wolfCrypt_FIPS_lms_ro_sanity) *wolfCrypt_FIPS_lms_ro_sanity;
+#endif
+#if defined(WOLFSSL_HAVE_XMSS) && FIPS_VERSION3_GE(7,0,0)
+            typeof(wolfCrypt_FIPS_XMSS_sanity) *wolfCrypt_FIPS_XMSS_sanity;
+            typeof(wolfCrypt_FIPS_xmss_ro_sanity) *wolfCrypt_FIPS_xmss_ro_sanity;
+#endif
 #ifndef WOLFSSL_FIPS_DEV_NO_POST
             typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
             typeof(wolfCrypt_FIPS_ft_ro_sanity) *wolfCrypt_FIPS_ft_ro_sanity;
@@ -1427,6 +1558,7 @@
         typeof(GetCA) *GetCA;
         #ifndef NO_SKID
         typeof(GetCAByName) *GetCAByName;
+        typeof(GetCAByNameSkip) *GetCAByNameSkip;
         #ifdef HAVE_OCSP
         typeof(GetCAByKeyHash) *GetCAByKeyHash;
         #endif /* HAVE_OCSP */
@@ -1439,6 +1571,7 @@
         typeof(wolfSSL_X509_NAME_add_entry_by_NID) *wolfSSL_X509_NAME_add_entry_by_NID;
         typeof(wolfSSL_X509_NAME_free) *wolfSSL_X509_NAME_free;
         typeof(wolfSSL_X509_NAME_new_ex) *wolfSSL_X509_NAME_new_ex;
+        typeof(X509NameAddDecodedEntry) *X509NameAddDecodedEntry;
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
         #ifdef HAVE_OCSP
@@ -1484,9 +1617,11 @@
         typeof(_cond_resched) *_cond_resched;
         #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
+        typeof(wc_lkm_UnlockMutex) *wc_lkm_UnlockMutex;
         #endif
 
         typeof(wc_linuxkm_can_block) *wc_linuxkm_can_block;
+        typeof(wc_linuxkm_can_long_loop) *wc_linuxkm_can_long_loop;
         typeof(wc_linuxkm_sig_ignore_begin) *wc_linuxkm_sig_ignore_begin;
         typeof(wc_linuxkm_sig_ignore_end) *wc_linuxkm_sig_ignore_end;
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
@@ -1550,9 +1685,11 @@
         #define memcmp WC_PIE_INDIRECT_SYM(memcmp)
     #endif
     #ifndef __ARCH_MEMCPY_NO_REDIRECT
+        #undef memcpy
         #define memcpy WC_PIE_INDIRECT_SYM(memcpy)
     #endif
     #ifndef __ARCH_MEMSET_NO_REDIRECT
+        #undef memset
         #define memset WC_PIE_INDIRECT_SYM(memset)
     #endif
     #ifndef __ARCH_MEMMOVE_NO_REDIRECT
@@ -1667,24 +1804,21 @@
 #ifndef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     #define get_random_bytes WC_PIE_INDIRECT_SYM(get_random_bytes)
 #endif
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-        #define getnstimeofday WC_PIE_INDIRECT_SYM(getnstimeofday)
-    #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-        #define current_kernel_time64 WC_PIE_INDIRECT_SYM(current_kernel_time64)
-    #else
-        #define ktime_get_coarse_real_ts64 WC_PIE_INDIRECT_SYM(ktime_get_coarse_real_ts64)
-    #endif
+
+    #define wc_linuxkm_time_epoch_secs WC_PIE_INDIRECT_SYM(wc_linuxkm_time_epoch_secs)
+    #define wc_linuxkm_time_epoch_msecs WC_PIE_INDIRECT_SYM(wc_linuxkm_time_epoch_msecs)
 
     #undef get_current
     #define get_current WC_PIE_INDIRECT_SYM(get_current)
 
-    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && \
+        (defined(CONFIG_X86) || defined(CONFIG_ARM64) || defined(CONFIG_ARM))
         #define wc_linuxkm_allocate_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_allocate_svr_states)
         #define wc_can_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_can_save_vector_registers_x86)
         #define wc_linuxkm_free_svr_states WC_PIE_INDIRECT_SYM(wc_linuxkm_free_svr_states)
         #define wc_restore_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_restore_vector_registers_x86)
         #define wc_save_vector_registers_x86 WC_PIE_INDIRECT_SYM(wc_save_vector_registers_x86)
-    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
         #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
     #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
@@ -1722,6 +1856,7 @@
         #define GetCA WC_PIE_INDIRECT_SYM(GetCA)
         #ifndef NO_SKID
             #define GetCAByName WC_PIE_INDIRECT_SYM(GetCAByName)
+            #define GetCAByNameSkip WC_PIE_INDIRECT_SYM(GetCAByNameSkip)
             #ifdef HAVE_OCSP
                 #define GetCAByKeyHash WC_PIE_INDIRECT_SYM(GetCAByKeyHash)
             #endif /* HAVE_OCSP */
@@ -1738,6 +1873,7 @@
             #define wolfSSL_X509_NAME_add_entry_by_NID WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_add_entry_by_NID)
             #define wolfSSL_X509_NAME_free WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_free)
             #define wolfSSL_X509_NAME_new_ex WC_PIE_INDIRECT_SYM(wolfSSL_X509_NAME_new_ex)
+            #define X509NameAddDecodedEntry WC_PIE_INDIRECT_SYM(X509NameAddDecodedEntry)
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
         #ifdef HAVE_OCSP
@@ -1794,6 +1930,7 @@
     #endif
 
     #define wc_linuxkm_can_block WC_PIE_INDIRECT_SYM(wc_linuxkm_can_block)
+    #define wc_linuxkm_can_long_loop WC_PIE_INDIRECT_SYM(wc_linuxkm_can_long_loop)
     #define wc_linuxkm_sig_ignore_begin WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_begin)
     #define wc_linuxkm_sig_ignore_end WC_PIE_INDIRECT_SYM(wc_linuxkm_sig_ignore_end)
     #define wc_linuxkm_check_for_intr_signals WC_PIE_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
@@ -1810,10 +1947,10 @@
 
 #if defined(WOLFSSL_KERNEL_STACK_DEBUG) || defined(WC_LINUXKM_STACK_DEBUG)
 
-    #ifndef CONFIG_THREAD_INFO_IN_TASK
+    #if !defined(CONFIG_THREAD_INFO_IN_TASK) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
         #error WC_LINUXKM_STACK_DEBUG requires CONFIG_THREAD_INFO_IN_TASK
     #endif
-    #ifdef CONFIG_STACK_GROWSUP
+    #if defined(CONFIG_STACK_GROWSUP) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
         #error WC_LINUXKM_STACK_DEBUG requires !CONFIG_STACK_GROWSUP
     #endif
 
@@ -1976,14 +2113,7 @@
     _Pragma("GCC diagnostic ignored \"-Wstringop-overflow\"");
     #endif
 
-    /* includes are all above, with incompatible warnings masked out. */
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
-    typedef __kernel_time_t time_t;
-    #else
-    typedef __kernel_time64_t time_t;
-    #endif
-    extern time_t time(time_t * timer);
-    #define XTIME time
+    #define XTIME wc_linuxkm_time_epoch_secs
     #define WOLFSSL_GMTIME
     #define XGMTIME(c, t) gmtime(c)
     #define NO_TIMEVAL 1
@@ -2025,7 +2155,8 @@
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */
         #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
-            #if defined(CONFIG_X86)
+            #if defined(CONFIG_X86) || defined(CONFIG_ARM64) || \
+                defined(CONFIG_ARM)
                 WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
                 WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
                 WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
@@ -2035,9 +2166,9 @@
                 #ifndef REENABLE_VECTOR_REGISTERS
                     #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
-            #else /* !CONFIG_X86 */
+            #elif !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS) /* !CONFIG_X86 && !CONFIG_ARM64 && !CONFIG_ARM */
                 #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
-            #endif /* !CONFIG_X86 */
+            #endif /* !CONFIG_X86 && !CONFIG_ARM64 && !CONFIG_ARM */
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
         #ifdef WC_LINUXKM_USE_HEAP_WRAPPERS
             WOLFSSL_API extern void *wc_linuxkm_malloc(size_t size);
@@ -2059,7 +2190,7 @@
     #ifdef WOLFSSL_LINUXKM_USE_MUTEXES
         #define WC_MUTEX_OPS_INLINE
 
-        #ifdef LINUXKM_LKCAPI_REGISTER
+        #if defined(LINUXKM_LKCAPI_REGISTER) && !defined(WC_DEBUG_FORCE_KERNEL_SETTINGS)
             /* must use spin locks when registering implementations with the
              * kernel, because mutexes are forbidden when calling with nonzero
              * irq_count().
@@ -2111,20 +2242,33 @@
          */
         #include <linux/spinlock.h>
 
+        #if IS_ENABLED(CONFIG_PREEMPT_RT) && defined(WC_LINUXKM_SPIN_IN_ATOMIC)
+            #error WC_LINUXKM_SPIN_IN_ATOMIC is incompatible with CONFIG_PREEMPT_RT.
+        #endif
+
         typedef struct wolfSSL_Mutex {
             spinlock_t lock;
+        #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
             unsigned long irq_flags;
+        #else
+            int preempt_reenabled;
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             unsigned int magic;
         #endif
         } wolfSSL_Mutex;
 
+        #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
+            #define WC_LINUXKM_MUTEX_STATE_FIELD .irq_flags
+        #else
+            #define WC_LINUXKM_MUTEX_STATE_FIELD .preempt_reenabled
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             #define WC_LINUXKM_SPINLOCK_MAGIC 1702166717U
 
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
                .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
-               .irq_flags = 0,                            \
+               WC_LINUXKM_MUTEX_STATE_FIELD = 0,          \
                .magic = WC_LINUXKM_SPINLOCK_MAGIC         \
             }
 
@@ -2132,7 +2276,7 @@
 
             #define WOLFSSL_MUTEX_INITIALIZER(lockname) { \
                .lock =__SPIN_LOCK_UNLOCKED(lockname),     \
-               .irq_flags = 0                             \
+               WC_LINUXKM_MUTEX_STATE_FIELD = 0           \
             }
 
         #endif
@@ -2145,7 +2289,11 @@
         # else
             spin_lock_init(&m->lock);
         #endif
+        #ifdef WC_LINUXKM_SPIN_IN_ATOMIC
             m->irq_flags = 0;
+        #else
+            m->preempt_reenabled = 0;
+        #endif
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
             m->magic = WC_LINUXKM_SPINLOCK_MAGIC;
         #endif
@@ -2177,6 +2325,11 @@
             return WC_PIE_INDIRECT_SYM(wc_lkm_LockMutex)(m);
         }
 
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex *m)
+        {
+            return WC_PIE_INDIRECT_SYM(wc_lkm_UnlockMutex)(m);
+        }
+
         #else /* !WC_CONTAINERIZE_THIS */
 
         static __must_check __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
@@ -2184,23 +2337,18 @@
             return wc_lkm_LockMutex(m);
         }
 
-        #endif /* !WC_CONTAINERIZE_THIS */
-
-        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex *m)
         {
-        #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-            if ((m == NULL) || (m->magic != WC_LINUXKM_SPINLOCK_MAGIC))
-                return -1;
-        #endif
-            spin_unlock_irqrestore(&m->lock, m->irq_flags);
-            return 0;
+            return wc_lkm_UnlockMutex(m);
         }
-
+        #endif /* !WC_CONTAINERIZE_THIS */
     #endif
 
-    #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    #ifdef WOLFSSL_LINUXKM_LKCAPI_HAVE_STDRNG
         struct crypto_rng;
         WOLFSSL_API int wc_linux_kernel_rng_is_wolfcrypt(struct crypto_rng *rng);
+    #else
+        #define wc_linux_kernel_rng_is_wolfcrypt(rng) 0
     #endif
 
     /* Undo copied defines from wc_port.h, to avoid redefinition warnings. */
@@ -2247,23 +2395,27 @@
         #endif
     #else /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
     #ifdef USE_KVMALLOC
-        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
+        #define malloc(size) (in_nmi() ? NULL : kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE))
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
-            #define free(ptr) (wc_linuxkm_can_block() ? kvfree(ptr) : kvfree_atomic(ptr))
+            #define free(ptr) (in_nmi() ? (void)(ptr) : (wc_linuxkm_can_block() ? kvfree(ptr) : kvfree_atomic(ptr)))
         #else
-            #define free(ptr) kvfree(ptr)
+            #define free(ptr) (in_nmi() ? (void)(ptr) : kvfree(ptr))
         #endif
         #ifdef USE_KVREALLOC
-            #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
+            #define realloc(ptr, newsize) (in_nmi() ? NULL : kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC)))
         #else
             #define realloc(ptr, newsize) ((void)(ptr), (void)(newsize), NULL)
         #endif
     #else
-        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
-        #define free(ptr) kfree(ptr)
-        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC))
+        #define malloc(size) (in_nmi() ? NULL : kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC)))
+        #define free(ptr) (in_nmi() ? (void)(ptr) : kfree(ptr))
+        #define realloc(ptr, newsize) (in_nmi() ? NULL : krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (wc_linuxkm_can_block() ? GFP_KERNEL : GFP_ATOMIC)))
     #endif
     #endif /* !WC_LINUXKM_USE_HEAP_WRAPPERS */
+
+    /* Scatterlist-safe allocation -- see wc_linuxkm_sg_malloc() in
+     * module_hooks.c.  Pairs with free() in all configurations. */
+    void *wc_linuxkm_sg_malloc(size_t size);
 
     #ifndef static_assert
         #define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)
@@ -2271,23 +2423,23 @@
     #endif
 
 #ifdef WOLFSSL_TRACK_MEMORY
-    #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); wolfSSL_Malloc(s);})
+    #define XMALLOC(s, h, t) __extension__     ({(void)(h); (void)(t); wolfSSL_Malloc(s);})
     #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-        #define XFREE(p, h, t)       ({(void)(h); (void)(t); wolfSSL_Free(p);})
+        #define XFREE(p, h, t) __extension__   ({(void)(h); (void)(t); wolfSSL_Free(p);})
     #else
-        #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) wolfSSL_Free(_xp);})
+        #define XFREE(p, h, t) __extension__   ({void* _xp; (void)(h); _xp = (p); if(_xp) wolfSSL_Free(_xp);})
     #endif
-    #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); wolfSSL_Realloc(p, n);})
+    #define XREALLOC(p, n, h, t) __extension__ ({(void)(h); (void)(t); wolfSSL_Realloc(p, n);})
 #else
     #if !defined(XMALLOC_USER) && !defined(XMALLOC_OVERRIDE)
-        #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); malloc(s);})
+        #define XMALLOC(s, h, t) __extension__         ({(void)(h); (void)(t); malloc(s);})
         #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-            #define XFREE(p, h, t)       ({(void)(h); (void)(t); free(p);})
+            #define XFREE(p, h, t) __extension__       ({(void)(h); (void)(t); free(p);})
         #else
-            #define XFREE(p, h, t)       ({void* _xp; (void)(h); (void)(t); _xp = (p); if(_xp) free(_xp);})
+            #define XFREE(p, h, t) __extension__       ({void* _xp; (void)(h); (void)(t); _xp = (p); if(_xp) free(_xp);})
         #endif
         #if defined(USE_KVREALLOC) || !defined(USE_KVMALLOC)
-            #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); realloc(p, n);})
+            #define XREALLOC(p, n, h, t) __extension__ ({(void)(h); (void)(t); realloc(p, n);})
         #endif
     #endif /* !XMALLOC_USER && !XMALLOC_OVERRIDE */
 #endif

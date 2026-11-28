@@ -159,7 +159,6 @@ static WC_INLINE word32 ByteReverseWord32(word32 value)
 #elif defined(FREESCALE_LTC)
 #elif defined(FREESCALE_MMCAU)
 #elif defined(WOLFSSL_PIC32MZ_CRYPT)
-#elif defined(WOLFSSL_NRF51_AES)
 #elif defined(WOLFSSL_ESP32_CRYPT) && \
      !defined(NO_WOLFSSL_ESP32_CRYPT_AES)
 #elif defined(WOLFSSL_AESNI)

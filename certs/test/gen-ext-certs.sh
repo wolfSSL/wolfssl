@@ -109,6 +109,38 @@ EOF
 gen_cert
 rm -f ./certs/test/cert-ext-ncdns.cfg
 
+# excluded;DNS: with a zero-length base, the CA/Browser Forum encoding for a
+# CA that may not issue DNS names. The OpenSSL config syntax cannot express an
+# empty dNSName, so the extension is given as DER.
+OUT=certs/test/cert-ext-nc-empty-dns
+KEYFILE=certs/test/cert-ext-nc-empty-dns-key.der
+CONFIG=certs/test/cert-ext-nc-empty-dns.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = AU
+ST            = Queensland
+L             = Brisbane
+O             = wolfSSL Inc
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,DER:30:06:A1:04:30:02:82:00
+nsComment       = "Testing empty excluded dNSName constraint"
+
+EOF
+gen_cert
+rm -f ./certs/test/cert-ext-nc-empty-dns.cfg
+
 OUT=certs/test/cert-ext-nc-combined
 KEYFILE=certs/test/cert-ext-nc-combined-key.der
 CONFIG=certs/test/cert-ext-nc-combined.cfg
@@ -1541,3 +1573,98 @@ DNS.1050 = example1050.com
 EOF
 gen_cert
 
+# Subject and issuer with 16 attributes: the most an X509_NAME holds
+# with OPENSSL_EXTRA
+OUT=certs/test/cert-max-name-entries
+CONFIG=certs/test/cert-max-name-entries.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+0.OU = Unit 1
+1.OU = Unit 2
+2.OU = Unit 3
+3.OU = Unit 4
+4.OU = Unit 5
+5.OU = Unit 6
+6.OU = Unit 7
+7.OU = Unit 8
+8.OU = Unit 9
+9.OU = Unit 10
+10.OU = Unit 11
+11.OU = Unit 12
+12.OU = Unit 13
+13.OU = Unit 14
+14.OU = Unit 15
+CN = www.wolfssl.com
+
+[ v3_ca ]
+basicConstraints = critical, CA:TRUE
+EOF
+gen_cert
+
+# Subject and issuer with 17 attributes: one more than an X509_NAME
+# holds with OPENSSL_EXTRA
+OUT=certs/test/cert-over-max-name-entries
+CONFIG=certs/test/cert-over-max-name-entries.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+0.OU = Unit 1
+1.OU = Unit 2
+2.OU = Unit 3
+3.OU = Unit 4
+4.OU = Unit 5
+5.OU = Unit 6
+6.OU = Unit 7
+7.OU = Unit 8
+8.OU = Unit 9
+9.OU = Unit 10
+10.OU = Unit 11
+11.OU = Unit 12
+12.OU = Unit 13
+13.OU = Unit 14
+14.OU = Unit 15
+15.OU = Unit 16
+CN = www.wolfssl.com
+
+[ v3_ca ]
+basicConstraints = critical, CA:TRUE
+EOF
+gen_cert
+
+KEY=certs/server-key.der
+OUT=certs/test/cert-ext-dirsan
+CONFIG=certs/test/cert-ext-dirsan.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_req
+
+[ req_distinguished_name ]
+C             = US
+ST            = Montana
+L             = Bozeman
+O             = wolfSSL
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_req ]
+subjectKeyIdentifier = hash
+basicConstraints     = critical, CA:FALSE
+subjectAltName       = DNS:example.com, dirName:dir_san
+
+[ dir_san ]
+C  = US
+O  = wolfSSL
+CN = Dir Name SAN
+EOF
+gen_cert

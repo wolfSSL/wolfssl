@@ -149,11 +149,19 @@ int  wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output,
     the PKCS7 structure into a buffer containing a parsable PKCS7
     signed data packet. For RSA-PSS signers (WC_RSA_PSS), see \ref PKCS7_RSA_PSS.
 
+    For an SLH-DSA signer (RFC 9814), pkcs7->hashOID may be left at 0. It is
+    then set to the digestAlgorithm RFC 9814 requires for the parameter set
+    (SHA-256 or SHA-512 for the SHA2 sets, SHAKE128 or SHAKE256 for the SHAKE
+    sets) and keeps that value after the call. With signed attributes, the
+    digest must be at least twice the SLH-DSA tree hash size (2n).
+
     \return Success On successfully encoding the PKCS7 data into the buffer,
     returns the index parsed up to in the PKCS7 structure. This index also
     corresponds to the bytes written to the output buffer.
     \return BAD_FUNC_ARG Returned if the PKCS7 structure is missing one or
-    more required elements to generate a signed data packet
+    more required elements to generate a signed data packet, if the
+    signer identifier type is DEGENERATE_SID and content is set, or if the
+    digestAlgorithm is too short for an SLH-DSA signer
     \return MEMORY_E Returned if there is an error allocating memory
     \return PUBLIC_KEY_E Returned if there is an error parsing the public key
     \return RSA_BUFFER_E Returned if buffer error, output too small or input
@@ -230,7 +238,8 @@ int  wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7,
 
     \return 0=Success
     \return BAD_FUNC_ARG Returned if the PKCS7 structure is missing one or
-    more required elements to generate a signed data packet
+    more required elements to generate a signed data packet, or if the
+    signer identifier type is DEGENERATE_SID and content is set
     \return MEMORY_E Returned if there is an error allocating memory
     \return PUBLIC_KEY_E Returned if there is an error parsing the public key
     \return RSA_BUFFER_E Returned if buffer error, output too small or input
@@ -327,12 +336,30 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \brief This function takes in a transmitted PKCS7 signed data message,
     extracts the certificate list and certificate revocation list, and then
     verifies the signature. It stores the extracted content in the given
-    PKCS7 structure.
+    PKCS7 structure. For legacy PKCS#7 ANY-typed eContent (a non-OCTET STRING
+    element, e.g. a SEQUENCE as RFC 2315 permits), pkcs7->content is the whole
+    DER element (so contentSz includes the tag and length octets), whereas a
+    CMS OCTET STRING eContent reports the value only. The element shape is
+    enforced only when the signer uses signed attributes: in that case it must
+    be a single DER element spanning the whole eContent, and an element shorter
+    than two octets, trailing bytes after it, an indefinite length, a
+    non-minimal or out-of-range length, the end-of-contents identifier (0x00),
+    or a high-tag-number identifier are
+    rejected with ASN_PARSE_E; with no signed attributes no shape check runs
+    and the signature covers the eContent region as received. pkcs7->content
+    is valid only until the next verify on this structure or wc_PKCS7_Free();
+    when the message is verified from a single input buffer it may point into
+    that buffer, so it is also invalid once the input buffer is freed or reused.
+    A verify that fails with an error other than PKCS7_SIGNEEDS_CHECK leaves
+    pkcs7->content as the caller set it.
 
     \return 0 Returned on successfully extracting the information
     from the message
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
     \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
+    \return PKCS7_NO_SIGNER_E Returned if the message has no signers and
+    carries non-empty eContent, or has no signers and degenerate messages
+    are not allowed (see wc_PKCS7_AllowDegenerate)
     \return PKCS7_OID_E Returned if the given pkiMsg is not a signed data type
     \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 1
     \return MEMORY_E Returned if there is an error allocating memory
@@ -340,7 +367,8 @@ int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate
+    hold the encoded certificate, or if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -448,12 +476,24 @@ int  wc_PKCS7_DecodeSignedData(wc_PKCS7* pkcs7,
     \brief This function takes in a transmitted PKCS7 signed data message as
     hash/header/footer, then extracts the certificate list and certificate
     revocation list, and then verifies the signature. It stores the extracted
-    content in the given PKCS7 structure.
+    content in the given PKCS7 structure, in the same form as
+    wc_PKCS7_VerifySignedData() reports it.
+    Content that a verify leaves in pkcs7->content can point into the
+    input buffer, so it stays valid only while that buffer does and until
+    the next verify or wc_PKCS7_Free() on the same structure. A verify that
+    fails with an error other than PKCS7_SIGNEEDS_CHECK leaves pkcs7->content
+    as the caller set it.
+    Set pkcs7->contentSz to the content length before each header/footer
+    verify, since a value left by an earlier verify on the same structure is
+    kept.
 
     \return 0 Returned on successfully extracting the information
     from the message
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
     \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
+    \return PKCS7_NO_SIGNER_E Returned if the message has no signers and
+    carries non-empty eContent, or has no signers and degenerate messages
+    are not allowed (see wc_PKCS7_AllowDegenerate)
     \return PKCS7_OID_E Returned if the given pkiMsg is not a signed data type
     \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 1
     \return MEMORY_E Returned if there is an error allocating memory
@@ -461,7 +501,8 @@ int  wc_PKCS7_DecodeSignedData(wc_PKCS7* pkcs7,
     \return RSA_BUFFER_E Returned if buffer error, output too small or
     input too large
     \return BUFFER_E Returned if the given buffer is not large enough to
-    hold the encoded certificate
+    hold the encoded certificate, or if a certificates-only (degenerate)
+    message holds more than MAX_PKCS7_CERTS certificates
     \return MP_INIT_E may be returned if there is an error generating
     the signature
     \return MP_READ_E may be returned if there is an error generating
@@ -492,7 +533,7 @@ int  wc_PKCS7_DecodeSignedData(wc_PKCS7* pkcs7,
     to verify and decode
     \param pkiMsgHeadSz size of the signed message header
     \param pkiMsgFoot pointer to the buffer containing the signed message footer
-    to verify and decode
+    to verify and decode, only supported together with hashBuf
     \param pkiMsgFootSz size of the signed message footer
 
     _Example_
@@ -1296,10 +1337,16 @@ wc_PKCS7* wc_PKCS7_New(void* heap, int devId);
     \ingroup PKCS7
     \brief Sets unknown extension callback.
 
+    Each OID arc is passed to the callback as a word16, so arcs with values
+    > 65535 are truncated. Use wc_PKCS7_SetUnknownExtCallback32() in new code.
+
     \return none No returns
 
     \param pkcs7 PKCS7 structure
     \param cb Callback function
+
+    \note When both a word16 and a word32 callback are registered on the same
+    wc_PKCS7 structure, only the word32 callback is invoked.
 
     _Example_
     \code
@@ -1307,9 +1354,39 @@ wc_PKCS7* wc_PKCS7_New(void* heap, int devId);
     \endcode
 
     \sa wc_PKCS7_Init
+    \sa wc_PKCS7_SetUnknownExtCallback32
 */
 void wc_PKCS7_SetUnknownExtCallback(wc_PKCS7* pkcs7,
                                     wc_UnknownExtCallback cb);
+
+/*!
+    \ingroup PKCS7
+    \brief Sets unknown extension callback.
+
+    Behaves exactly like wc_PKCS7_SetUnknownExtCallback() except that each OID
+    arc is passed to the callback as a word32, so arcs with values > 65535 are
+    represented without truncation.
+
+    \return none No returns
+
+    \param pkcs7 PKCS7 structure
+    \param cb Callback function
+
+    \note A word32 callback takes precedence over a word16 one: when both
+    wc_PKCS7_SetUnknownExtCallback() and wc_PKCS7_SetUnknownExtCallback32()
+    have been called on the same wc_PKCS7 structure, only the word32 callback
+    is invoked.
+
+    _Example_
+    \code
+    wc_PKCS7_SetUnknownExtCallback32(pkcs7, myCallback32);
+    \endcode
+
+    \sa wc_PKCS7_Init
+    \sa wc_PKCS7_SetUnknownExtCallback
+*/
+void wc_PKCS7_SetUnknownExtCallback32(wc_PKCS7* pkcs7,
+                                      wc_UnknownExtCallback32 cb);
 
 /*!
     \ingroup PKCS7

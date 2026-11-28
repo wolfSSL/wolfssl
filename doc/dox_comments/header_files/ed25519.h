@@ -3,7 +3,8 @@
 
     \brief This function generates the Ed25519 public key from the private key,
     stored in the ed25519_key object. It stores the public key in the buffer
-    pubKey.
+    pubKey. If the key object does not already carry a public key, the derived
+    key is also stored in it, so that the key can be used for signing.
 
     \return 0 Returned upon successfully making the public key.
     \return BAD_FUNC_ARG Returned if key or pubKey evaluate to NULL, or if the
@@ -13,7 +14,7 @@
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
 
-    \param [in] key Pointer to the ed25519_key for which to generate a key.
+    \param [in,out] key Pointer to the ed25519_key for which to generate a key.
     \param [out] pubKey Pointer to the buffer in which to store the public key.
     \param [in] pubKeySz Size of the public key. Should be ED25519_PUB_KEY_SIZE.
 
@@ -28,7 +29,7 @@
 
     wc_ed25519_init(&key);
     wc_ed25519_import_private_only(priv, sizeof(priv), &key);
-    ret = wc_ed25519_make_public(&key, pub, &pubSz);
+    ret = wc_ed25519_make_public(&key, pub, pubSz);
     if (ret != 0) {
         // error making public key
     }
@@ -52,6 +53,10 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     specified key size is not 32 bytes (Ed25519 has 32 byte keys).
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
+    \return NO_VALID_DEVID if the key was initialized with an id or label and
+    its devId, or the device a WOLF_CRYPTO_CB_FIND callback picks for it, is a
+    registered device that did not generate it, unless
+    WOLF_CRYPTO_CB_KEYGEN_SW_FALLBACK is defined.
 
     \param [in] rng Pointer to an initialized RNG object with which to
     generate the key.
@@ -523,8 +528,13 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
 
     \return 0 Returned upon successfully initializing the ed25519_key object.
     \return BAD_FUNC_ARG Returned if key is NULL.
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param [in,out] key Pointer to the ed25519_key object to initialize.
+
+    \note ed25519_key has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -1236,10 +1246,15 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen,
 
     \return 0 on success
     \return negative on failure
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
 
     \param key Ed25519 key structure
     \param heap Heap hint for memory allocation
     \param devId Device ID for hardware acceleration
+
+    \note ed25519_key has 16-byte alignment when WOLFSSL_USE_ALIGN
+    is defined (default in configure and CMake, forced for AES-NI and asm).
 
     _Example_
     \code
@@ -1250,6 +1265,69 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen,
     \sa wc_ed25519_init
 */
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
+
+/*!
+    \ingroup ED25519
+
+    \brief Initializes an ed25519_key object that references a private key held
+    by a crypto callback device, identified by id. Only available when built
+    with WOLF_PRIVATE_KEY_ID.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key is NULL, or id is NULL and len is greater
+    than 0.
+    \return BUFFER_E if len is negative or greater than ED25519_MAX_ID_LEN.
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
+
+    \param [in,out] key Pointer to the ed25519_key to initialize.
+    \param [in] id Key identifier bytes.
+    \param [in] len Length of id in bytes.
+    \param [in] heap Heap hint. May be NULL.
+    \param [in] devId Device identifier for the crypto callback.
+
+    _Example_
+    \code
+    ed25519_key key;
+    unsigned char id[] = { 0x01, 0x02, 0x03, 0x04 };
+    int ret = wc_ed25519_init_id(&key, id, sizeof(id), NULL, devId);
+    \endcode
+
+    \sa wc_ed25519_init_ex
+    \sa wc_ed25519_init_label
+*/
+int wc_ed25519_init_id(ed25519_key* key, const unsigned char* id, int len,
+    void* heap, int devId);
+
+/*!
+    \ingroup ED25519
+
+    \brief Initializes an ed25519_key object that references a private key held
+    by a crypto callback device, identified by label. Only available when
+    built with WOLF_PRIVATE_KEY_ID.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG if key or label is NULL.
+    \return BUFFER_E if label is empty or longer than ED25519_MAX_LABEL_LEN.
+    \return BAD_ALIGN_E On x86_64, if key is not 16-byte aligned.
+        The structure is left unmodified.
+
+    \param [in,out] key Pointer to the ed25519_key to initialize.
+    \param [in] label NUL-terminated label string.
+    \param [in] heap Heap hint. May be NULL.
+    \param [in] devId Device identifier for the crypto callback.
+
+    _Example_
+    \code
+    ed25519_key key;
+    int ret = wc_ed25519_init_label(&key, "my-key", NULL, devId);
+    \endcode
+
+    \sa wc_ed25519_init_ex
+    \sa wc_ed25519_init_id
+*/
+int wc_ed25519_init_label(ed25519_key* key, const char* label, void* heap,
+    int devId);
 
 /*!
     \ingroup ED25519

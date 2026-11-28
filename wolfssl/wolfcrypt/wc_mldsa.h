@@ -82,8 +82,30 @@
  * legacy compatibility shim is dropped. */
 #include <wolfssl/wolfcrypt/dilithium.h>
 
+/* The pre-FIPS 204 no-context API is not in the FIPS module boundary. */
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GE(7,0,0) && \
+    (defined(WOLFSSL_MLDSA_NO_CTX) || defined(WOLFSSL_MLDSA_FIPS204_DRAFT))
+    #error "WOLFSSL_MLDSA_NO_CTX or WOLFSSL_MLDSA_FIPS204_DRAFT is not allowed in FIPS v7 or later."
+#endif
+
+/* Unconditional so the key layout does not depend on include order. */
+#if (defined(WOLFSSL_MLDSA_SIGN_SMALLEST_MEM) || \
+     defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC) || \
+     defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM_PRECALC_A)) && \
+    !defined(WOLFSSL_MLDSA_SIGN_SMALL_MEM)
+    #define WOLFSSL_MLDSA_SIGN_SMALL_MEM
+#endif
+/* Allocates its buffers unless WOLFSSL_MLDSA_VERIFY_NO_MALLOC is also set. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM)
+    #define WOLFSSL_MLDSA_VERIFY_SMALL_MEM
+#endif
+
 #if defined(WOLFSSL_HAVE_MLDSA)
 
+#if defined(WOLFSSL_SHA3) && defined(V5_NONFIPS_SHAKE)
+    #include <wolfssl/wolfcrypt/shake.h>
+#endif
 #include <wolfssl/wolfcrypt/sha3.h>
 #ifndef WOLFSSL_MLDSA_VERIFY_ONLY
     #include <wolfssl/wolfcrypt/random.h>
@@ -96,6 +118,12 @@
 #if defined(WC_MLDSA_CACHE_PUB_VECTORS) && \
         !defined(WC_MLDSA_CACHE_MATRIX_A)
     #define WC_MLDSA_CACHE_MATRIX_A
+#endif
+
+/* wc_MlDsaKey_MakePublicKey() is available. */
+#if !defined(WOLFSSL_MLDSA_ASSIGN_KEY) && \
+    !defined(WOLFSSL_MLDSA_NO_MAKE_KEY)
+    #define WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
 #endif
 
 #ifdef __cplusplus
@@ -409,6 +437,7 @@
 #define MLDSA_MAX_W1_ENC_SZ         PARAMS_ML_DSA_87_W1_ENC_SZ
 /* Maximum collision strength of c-tilde in bytes. */
 #define MLDSA_MAX_LAMBDA            PARAMS_ML_DSA_87_LAMBDA
+#define MLDSA_MAX_TAU               PARAMS_ML_DSA_87_TAU
 
 /* Maximum count of elements of a vector with dimension K. */
 #define MLDSA_MAX_K_VECTOR_COUNT     \
@@ -426,6 +455,7 @@
 #define MLDSA_MAX_W1_ENC_SZ         PARAMS_ML_DSA_65_W1_ENC_SZ
 /* Maximum collision strength of c-tilde in bytes. */
 #define MLDSA_MAX_LAMBDA            PARAMS_ML_DSA_65_LAMBDA
+#define MLDSA_MAX_TAU               PARAMS_ML_DSA_65_TAU
 
 /* Maximum count of elements of a vector with dimension K. */
 #define MLDSA_MAX_K_VECTOR_COUNT     \
@@ -443,6 +473,7 @@
 #define MLDSA_MAX_W1_ENC_SZ         PARAMS_ML_DSA_44_W1_ENC_SZ
 /* Maximum collision strength of c-tilde in bytes. */
 #define MLDSA_MAX_LAMBDA            PARAMS_ML_DSA_44_LAMBDA
+#define MLDSA_MAX_TAU               PARAMS_ML_DSA_44_TAU
 
 /* Maximum count of elements of a vector with dimension K. */
 #define MLDSA_MAX_K_VECTOR_COUNT     \
@@ -591,7 +622,71 @@ typedef struct wc_MlDsaParams {
 typedef struct wc_MlDsaParams MlDsaParams;
 #endif
 
+/* Small memory verify keeps c sparse unless NTT(t1) is cached. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+    !defined(WC_MLDSA_CACHE_PUB_VECTORS)
+    #define MLDSA_VERIFY_SPARSE_C
+#endif
+/* POLY64 applies to the small memory verify but not the smallest. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && \
+    defined(WOLFSSL_MLDSA_SMALL_MEM_POLY64) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    #define MLDSA_VERIFY_POLY64
+#endif
+/* Small memory verify samples A straight into w unless it sums in 64 bits. */
+#if defined(WOLFSSL_MLDSA_VERIFY_SMALL_MEM) && !defined(MLDSA_VERIFY_POLY64)
+    #define MLDSA_VERIFY_FUSED_A
+#endif
+/* With neither A nor a sparse c to expand, w1 is encoded into the block. */
+#if defined(MLDSA_VERIFY_FUSED_A) && !defined(MLDSA_VERIFY_SPARSE_C) && \
+    !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM)
+    #define MLDSA_VERIFY_W1_IN_BLOCK
+#endif
+#if defined(MLDSA_VERIFY_W1_IN_BLOCK) && !defined(WOLFSSL_NO_ML_DSA_44)
+    /* A row of ML-DSA-44 w1 is larger than a SHAKE-128 block. */
+    #define MLDSA_VERIFY_BLOCK_SZ   (MLDSA_N * MLDSA_Q_HI_88_ENC_BITS / 8)
+#elif defined(MLDSA_VERIFY_FUSED_A)
+    #define MLDSA_VERIFY_BLOCK_SZ   MLDSA_GEN_A_BLOCK_BYTES
+#else
+    #define MLDSA_VERIFY_BLOCK_SZ   MLDSA_REJ_NTT_POLY_H_SIZE
+#endif
+
+#ifdef WC_MLDSA_NONBLOCK
+/* Resumable state for a non-blocking ML-DSA operation. Attach one to a key with
+ * wc_MlDsaKey_set_nonblock(); the operation then runs one chunk per call,
+ * returning MP_WOULDBLOCK at each yield point until it returns a final result.
+ * Only the small-memory build (WOLFSSL_MLDSA_*_SMALL_MEM) is supported.
+ *
+ * Re-invoke the same function with the same arguments until it stops returning
+ * MP_WOULDBLOCK. The context records which operation owns it and what that
+ * operation was started with: calling a different operation, or the same one
+ * with other arguments, releases what was in flight and starts over. A resumed
+ * operation whose message or signature buffer was rewritten in place since it
+ * started returns BAD_STATE_E. A key generation from an RNG has no
+ * arguments to tell it from the one in flight, so it resumes that one:
+ * re-attach the context to start another. */
+typedef struct wc_MlDsaNonBlock {
+    void*  work;    /* working allocation kept alive across yields */
+    const void* in; /* message the operation was started with */
+    const void* out; /* signature buffer the operation was started with */
+    word32 workSz;  /* size of work, for release on abandon or free */
+    word32 inLen;   /* length of the message at in */
+    int    state;   /* operation phase cursor */
+    word16 kappa;   /* sign: rejection nonce carried across attempts */
+    word16 row;     /* per-row loop cursor (keygen/verify/sign matrix row) */
+    byte   hintPos; /* verify: running hint offset across the row loop */
+    byte   op;      /* operation that owns the context, 0 when idle */
+    byte   fromRng; /* its randomness was drawn here, not passed in */
+    /* What the operation is bound to. keygen: seed. sign: rnd||mu.
+     * verify: digest of the signature||mu. */
+    byte   seedMu[MLDSA_RND_SZ + MLDSA_MU_SZ];
+    wc_Shake* shake; /* verify: w1 hash in work that is set up, or NULL */
+} wc_MlDsaNonBlock;
+#endif /* WC_MLDSA_NONBLOCK */
+
 struct wc_MlDsaKey {
+    /* Set when this object holds the public key bytes in p. A key generated
+     * on a crypto-callback device has none here and leaves it clear. */
     byte pubKeySet;
     byte prvKeySet;
     byte level; /* 2,3 or 5 */
@@ -634,6 +729,19 @@ struct wc_MlDsaKey {
 
     const wc_MlDsaParams* params;
     wc_Shake shake;
+#ifdef WC_MLDSA_NONBLOCK
+    wc_MlDsaNonBlock* nb;  /* non-NULL selects resumable operation */
+#endif
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+    /* Caller-supplied matrix A, expanded off-target and typically flash
+     * resident.  NULL means expand it here as usual.  Read only, never freed:
+     * it must outlive the key.  aPreLen and aPreRho record what it was bound
+     * to, so a later SetParams or key import cannot leave a stale matrix in
+     * use - see mldsa_precomp_a(). */
+    const sword32* aPre;
+    word32 aPreLen;
+    byte aPreRho[MLDSA_PUB_SEED_SZ];
+#endif
 #ifndef WC_MLDSA_FIXED_ARRAY
 #ifdef WC_MLDSA_CACHE_MATRIX_A
     sword32* a;
@@ -672,15 +780,23 @@ struct wc_MlDsaKey {
 #else
     sword32 z[MLDSA_MAX_L_VECTOR_COUNT];
 #endif
+#ifdef MLDSA_VERIFY_SPARSE_C
+    byte cSparse[2 * MLDSA_MAX_TAU];     /* positions then signs of c */
+#else
     sword32 c[MLDSA_N];
+#endif
     sword32 w[MLDSA_N];
-    sword32 t1[MLDSA_N];
-    byte w1e[MLDSA_MAX_W1_ENC_SZ];
-#ifdef WOLFSSL_MLDSA_SMALL_MEM_POLY64
+#if !defined(WOLFSSL_MLDSA_VERIFY_SMALLEST_MEM) && \
+    !defined(MLDSA_VERIFY_W1_IN_BLOCK)
+    /* NTT(c) and a row of w1, or a polynomial of A when summing in 64 bits.
+     * Not named t1 as WC_MLDSA_CACHE_PUB_VECTORS has a member of that name. */
+    sword32 vt1[MLDSA_N];
+#endif
+#ifdef MLDSA_VERIFY_POLY64
     sword64 t64[MLDSA_N];
 #endif
-    byte h[MLDSA_REJ_NTT_POLY_H_SIZE];
-    byte block[MLDSA_GEN_C_BLOCK_BYTES];
+    wc_Shake w1Shake;                    /* hashes mu and w1 a poly at a time */
+    byte h[MLDSA_VERIFY_BLOCK_SZ];
 #endif /* WOLFSSL_MLDSA_VERIFY_NO_MALLOC &&
         * WOLFSSL_MLDSA_VERIFY_SMALL_MEM */
 };
@@ -707,6 +823,10 @@ WOLFSSL_API
 int wc_MlDsaKey_MakeKey(wc_MlDsaKey* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_MlDsaKey_MakeKeyFromSeed(wc_MlDsaKey* key, const byte* seed);
+#ifdef WC_MLDSA_HAVE_MAKE_PUBLIC_KEY
+WOLFSSL_API
+int wc_MlDsaKey_MakePublicKey(wc_MlDsaKey* key);
+#endif
 
 /* Legacy sign API without context parameter (pre-FIPS 204).
  * Only available when WOLFSSL_MLDSA_NO_CTX is defined.
@@ -763,6 +883,27 @@ int wc_MlDsaKey_VerifyCtxHash(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
 WOLFSSL_API
 int wc_MlDsaKey_VerifyMu(wc_MlDsaKey* key, const byte* sig, word32 sigLen,
     const byte* mu, word32 muLen, int* res);
+WOLFSSL_API
+int wc_MlDsaKey_GenMu(wc_MlDsaKey* key, const byte* ctx, byte ctxLen,
+    const byte* msg, word32 msgLen, byte* mu, word32 muLen);
+
+#ifdef WOLFSSL_MLDSA_VERIFY_PRECOMP_A
+/* Supply a matrix A expanded off-target for this key's rho, so verify can skip
+ * the SHAKE128 rejection sampling that otherwise dominates it.  a holds
+ * k * l * MLDSA_N sword32 in row-major (r, s) order, exactly as ExpandA
+ * produces them, and must remain valid for the life of the key.
+ *
+ * SECURITY: A is derived from the public key and must be protected exactly as
+ * the public key is - an attacker able to substitute it can influence
+ * verification.  rho is checked against the imported key to catch a mismatched
+ * or stale matrix, so import the public key first.
+ *
+ * Returns 0, BAD_FUNC_ARG on NULL or a bad length, PUBLIC_KEY_E when no
+ * public key is imported yet or rho does not match the imported key. */
+WOLFSSL_API
+int wc_MlDsaKey_SetPrecompA(wc_MlDsaKey* key, const sword32* a, word32 aLen,
+    const byte* rho, word32 rhoLen);
+#endif
 
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API
@@ -773,6 +914,11 @@ int wc_MlDsaKey_Delete(wc_MlDsaKey* key, wc_MlDsaKey** key_p);
 
 WOLFSSL_API
 int wc_MlDsaKey_Init(wc_MlDsaKey* key, void* heap, int devId);
+
+#ifdef WC_MLDSA_NONBLOCK
+WOLFSSL_API
+int wc_MlDsaKey_set_nonblock(wc_MlDsaKey* key, wc_MlDsaNonBlock* nb);
+#endif
 
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API
@@ -871,7 +1017,7 @@ WOLFSSL_API int wc_MlDsaKey_PrivateKeyToDer(wc_MlDsaKey* key, byte* output,
 /* AVX512 assembly for ML-DSA is built (and dispatched at runtime on capable
  * CPUs) whenever the Intel speedups are enabled and AVX512 is not opted out.
  * Matches the HAVE_INTEL_AVX512 guard around the generated assembly. */
-#ifndef NO_AVX512_SUPPORT
+#if !defined(NO_AVX512_SUPPORT) && !defined(WC_MLDSA_NO_AVX2)
     #define WOLFSSL_MLDSA_HAVE_INTEL_AVX512
     /* AVX512VBMI (vpermb) functions are built (matching the auto-enabled
      * HAVE_INTEL_AVX512_VBMI guard around the generated assembly) and
@@ -925,7 +1071,8 @@ WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta4_avx2(const byte* z,
 
 WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_2_avx2(const sword32* s, byte d,
     byte* p);
-WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_4_avx2(const sword32* t, byte* p);
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_4_avx2(const sword32* s, byte d,
+    byte* p);
 WOLFSSL_LOCAL void wc_mldsa_decode_eta_2_avx2(const byte* p, sword32* s);
 WOLFSSL_LOCAL void wc_mldsa_decode_eta_4_avx2(const byte* p, sword32* s);
 
@@ -1057,6 +1204,146 @@ WOLFSSL_LOCAL void wc_mldsa_encode_t0_t1_avx512_vbmi(const sword32* t,
 #endif /* WOLFSSL_MLDSA_HAVE_INTEL_AVX512_VBMI */
 #endif
 
+/* AArch32 NEON. Every ML-DSA operation the AArch64 assembly covers is here
+ * too; only the FEAT_RDM (sqrdmlsh) flavours have no AArch32 counterpart, and
+ * the transforms leave coefficients in natural order so one entry point
+ * serves where AArch64 needs both a plain and a "full" form. */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+WOLFSSL_LOCAL void mldsa_mul_neon(sword32* r, sword32* a, sword32* b);
+/* Transforms in place, leaving coefficients in natural order. */
+WOLFSSL_LOCAL void mldsa_ntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_decompose_q88_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void mldsa_decompose_q32_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void mldsa_use_hint_q88_neon(sword32* w1);
+WOLFSSL_LOCAL void mldsa_use_hint_q32_neon(sword32* w1);
+WOLFSSL_LOCAL void mldsa_poly_add_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_sub_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_make_pos_neon(sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_red_neon(sword32* a);
+WOLFSSL_LOCAL int mldsa_vec_check_low_neon(const sword32* a, byte l,
+    sword32 hi);
+WOLFSSL_LOCAL void mldsa_decode_eta_2_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_eta_4_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t1_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t0_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_17_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_19_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_encode_w1_88_neon(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void mldsa_encode_w1_32_neon(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void mldsa_encode_gamma1_17_neon(const sword32* z, byte* s);
+WOLFSSL_LOCAL void mldsa_encode_gamma1_19_neon(const sword32* z, byte* s);
+WOLFSSL_LOCAL void mldsa_mul_vec_4_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_5_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_7_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta2_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta4_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+
+/* MakeHint over one polynomial. h is the write position, idx the running
+ * count. Returns the new count, or -1 when it passed omega. */
+WOLFSSL_LOCAL int mldsa_make_hint_neon(const sword32* s, const sword32* w1,
+    byte* h, int idx, int omega, sword32 gamma2);
+
+/* Rejection sample 23-bit values below q. Returns the number written. */
+WOLFSSL_LOCAL unsigned int mldsa_rej_uniform_neon(sword32* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#endif
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#ifndef WC_SHA3_NO_ASM
+WOLFSSL_LOCAL unsigned int mldsa_rej_uniform_neon(sword32* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+#endif
+
+/* The plain transforms leave the coefficients lane-permuted; the _full ones
+ * use the standard order. See the flavor-selection note in wc_mldsa.c. */
+WOLFSSL_LOCAL void mldsa_ntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_ntt_full_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_full_neon(sword32* r);
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+/* Same transforms, using the ARMv8.1 rounding-doubling multiply-subtract to
+ * fold the Montgomery reduction into one instruction. Chosen at run time on
+ * CPUs reporting FEAT_RDM. */
+WOLFSSL_LOCAL void mldsa_ntt_sqrdmlsh_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_ntt_full_sqrdmlsh_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_sqrdmlsh_neon(sword32* r);
+WOLFSSL_LOCAL void mldsa_invntt_full_sqrdmlsh_neon(sword32* r);
+#endif
+
+WOLFSSL_LOCAL void mldsa_mul_neon(sword32* r, sword32* a, sword32* b);
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+WOLFSSL_LOCAL void mldsa_mul_sqrdmlsh_neon(sword32* r, sword32* a, sword32* b);
+#endif
+
+/* One row of the matrix-vector product: the l products are accumulated at 64
+ * bits and Montgomery reduced once, matching mldsa_matrix_mul_c(). */
+WOLFSSL_LOCAL void mldsa_mul_vec_4_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_5_neon(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void mldsa_mul_vec_7_neon(sword32* r, const sword32* m,
+    const sword32* v);
+
+/* Decompose one polynomial. GAMMA2 picks the variant, as it does in the C. */
+WOLFSSL_LOCAL void mldsa_decompose_q88_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void mldsa_decompose_q32_neon(const sword32* r, sword32* r0,
+    sword32* r1);
+
+/* UseHint for every coefficient no hint touches: convert to the positive
+ * range, decompose and keep the high part, in place. */
+WOLFSSL_LOCAL void mldsa_use_hint_q88_neon(sword32* w1);
+WOLFSSL_LOCAL void mldsa_use_hint_q32_neon(sword32* w1);
+
+/* Unpack MLDSA_N bit-packed fields into 32-bit coefficients. */
+WOLFSSL_LOCAL void mldsa_decode_eta_2_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_eta_4_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t1_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_t0_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_17_neon(const byte* p, sword32* z);
+WOLFSSL_LOCAL void mldsa_decode_gamma1_19_neon(const byte* p, sword32* z);
+
+/* Pack MLDSA_N high-part values into the w1 encoding. */
+WOLFSSL_LOCAL void mldsa_encode_w1_88_neon(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void mldsa_encode_w1_32_neon(const sword32* w1, byte* w1e);
+
+/* Pack MLDSA_N values into the gamma1 encoding. */
+WOLFSSL_LOCAL void mldsa_encode_gamma1_17_neon(const sword32* z, byte* s);
+WOLFSSL_LOCAL void mldsa_encode_gamma1_19_neon(const sword32* z, byte* s);
+
+/* 1 when every value of every polynomial is inside -(hi-1)..(hi-1). */
+WOLFSSL_LOCAL int mldsa_vec_check_low_neon(const sword32* a, byte l,
+    sword32 hi);
+
+/* Coefficient-wise add, subtract, and add q to the negative values. */
+WOLFSSL_LOCAL void mldsa_poly_add_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_sub_neon(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void mldsa_poly_make_pos_neon(sword32* a);
+
+/* Barrett reduce every coefficient of a polynomial. */
+WOLFSSL_LOCAL void mldsa_poly_red_neon(sword32* a);
+
+/* Rejection sample nibbles into -eta..eta, appending from *cnt. */
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta2_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+WOLFSSL_LOCAL void mldsa_extract_coeffs_eta4_neon(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+
+/* MakeHint over one polynomial. h is the write position, idx the running
+ * count. Returns the new count, or -1 when it passed omega. */
+WOLFSSL_LOCAL int mldsa_make_hint_neon(const sword32* s, const sword32* w1,
+    byte* h, int idx, int omega, sword32 gamma2);
+#endif
+
 
 #define WC_ML_DSA_DRAFT         10
 
@@ -1075,15 +1362,38 @@ WOLFSSL_API int wc_MlDsaKey_GetSigLen(wc_MlDsaKey* key, int* len);
 #if !defined(WOLFSSL_MLDSA_NO_SIGN) || \
     !defined(WOLFSSL_MLDSA_NO_VERIFY)
 #ifndef WOLFSSL_NO_ML_DSA_44
-WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e);
+WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_88(const sword32* w1, byte* w1e);
 #endif
 #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
-WOLFSSL_TEST_VIS void wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
+WOLFSSL_TEST_VIS int wc_mldsa_encode_w1_32(const sword32* w1, byte* w1e);
 #endif
+#endif
+
+#ifndef WOLFSSL_MLDSA_NO_MAKE_KEY
+WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_eta(const sword32* s, byte d,
+    byte eta, byte* p);
+WOLFSSL_TEST_VIS int wc_mldsa_vec_encode_t0_t1(const sword32* t, byte d,
+    byte* t0, byte* t1);
+#endif
+
+#if defined(WOLFSSL_MLDSA_TEST_REJ_NTT_FAIL) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_MLDSA)
+WOLFSSL_TEST_VIS int wc_mldsa_test_rej_ntt_fail(int n);
 #endif
 
 #ifdef __cplusplus
     }    /* extern "C" */
+#endif
+
+/* Native implementation core (internal). The public wc_MlDsaKey_* functions
+ * in wc_mldsa.c wrap it with cryptocb dispatch and argument checking. With
+ * WOLF_CRYPTO_CB_ONLY_MLDSA the native core is not compiled: all operations go
+ * through the crypto callback. */
+#ifndef WOLF_CRYPTO_CB_ONLY_MLDSA
+/* Signals that native key generation, signing and verifying are available.
+ * Tests gate on this rather than on the build switch, so a test says what it
+ * needs rather than which configuration removed it. */
+#define WC_MLDSA_HAVE_NATIVE
 #endif
 
 #endif /* WOLFSSL_HAVE_MLDSA */

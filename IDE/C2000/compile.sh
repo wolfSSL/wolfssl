@@ -30,19 +30,20 @@ fi
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 
-INCS="-I$CGT_ROOT/include -I$WOLFROOT -I$SELF_DIR"
+# $SELF_DIR before $WOLFROOT: wolfSSL's documented user_settings.h workflow
+# puts one at the repo root, and if $WOLFROOT came first that copy would shadow
+# this guard's config and silently compile a different build.
+INCS="-I$CGT_ROOT/include -I$SELF_DIR -I$WOLFROOT"
 CFLAGS="-v28 --abi=eabi --float_support=fpu32 --tmu_support=tmu1 -O2 \
   --define=WOLFSSL_USER_SETTINGS --display_error_number --diag_warning=225"
 
 # wolfCrypt sources to compile-guard under CHAR_BIT==16.  This is the set that
 # carries the CHAR_BIT != 8 gated fixes (plus their direct deps) - the
-# regression surface for this port.  hash.c (an unmodified dispatch wrapper) is
-# intentionally omitted: its wc_OidGetHash() OID switch needs the fuller ASN/OID
-# config of a real build to avoid a 16-bit-int case-label fold, and it is
-# covered by the on-target example build, not by this minimal guard.
-SRCS="error wc_port memory logging misc coding \
-  sha sha256 sha512 sha3 wc_mldsa random ecc sp_int sp_c32 \
-  aes cmac chacha poly1305 \
+# regression surface for this port, plus hash.c, which HashML-DSA
+# (wc_MlDsaKey_VerifyCtxHash) calls for the digest size and OID.
+SRCS="error wc_port memory logging misc coding hash \
+  sha sha256 sha512 sha3 wc_mldsa random rng_noisesrc ecc sp_int sp_c32 \
+  aes cmac chacha poly1305 cryptocb \
   curve25519 ed25519 fe_operations ge_operations \
   curve448 ed448 fe_448 ge_448"
 
@@ -59,6 +60,35 @@ for s in $SRCS; do
         rc=1
     fi
 done
+
+# The AESA hardware-AES port needs C2000Ware driverlib headers, which CI does
+# not download, so it is an opt-in extra leg: set C2000WARE to a C2000Ware
+# install to include it.
+if [ -n "${C2000WARE:-}" ]; then
+    DRV="$C2000WARE/driverlib/f28p55x/driverlib"
+    DRVINCS="-I$DRV \
+        -I$C2000WARE/device_support/f28p55x/common/include \
+        -I$C2000WARE/device_support/f28p55x/headers/include"
+    for p in "ti-c2000-aes:--define=WOLF_CRYPTO_CB --define=WOLFSSL_C2000_AES" \
+             "ti-c2000-entropy:"; do
+        f=${p%%:*}
+        d=${p#*:}
+        printf 'CC  port/ti/%s.c ... ' "$f"
+        if "$CL" $CFLAGS $INCS $DRVINCS $d \
+                --compile_only --skip_assembler \
+                --asm_directory="$OUT" --obj_directory="$OUT" \
+                "$WOLFROOT/wolfcrypt/src/port/ti/$f.c" \
+                > "$OUT/$f.log" 2>&1; then
+            echo "ok"
+        else
+            echo "FAIL"
+            cat "$OUT/$f.log"
+            rc=1
+        fi
+    done
+else
+    echo "SKIP port/ti/ti-c2000-*.c (set C2000WARE to include them)"
+fi
 
 if [ "$rc" -eq 0 ]; then
     echo "TI C2000 compile-only guard: PASS"

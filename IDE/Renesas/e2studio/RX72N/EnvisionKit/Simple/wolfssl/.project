@@ -70,6 +70,11 @@
 			<locationURI>PARENT-7-PROJECT_LOC/src/wolfio.c</locationURI>
 		</link>
 		<link>
+			<name>src/x509.c</name>
+			<type>1</type>
+			<locationURI>PARENT-7-PROJECT_LOC/src/x509.c</locationURI>
+		</link>
+		<link>
 			<name>wolfcrypt/port/renesas_common.c</name>
 			<type>1</type>
 			<locationURI>PARENT-7-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_common.c</locationURI>

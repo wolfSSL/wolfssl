@@ -22,14 +22,33 @@
 #ifndef TESTS_API_SSL_CERT_H
 #define TESTS_API_SSL_CERT_H
 
+int test_wolfSSL_cert_api_arg_guards(void);
+int test_ssl_cert_decision_coverage(void);
+int test_wolfSSL_crl_ocsp_api_arg_guards(void);
+int test_wolfSSL_ocsp_stapling_accessors(void);
+int test_wolfSSL_crl_io_mock(void);
+int test_wolfSSL_x509_accessor_guards(void);
+int test_wolfSSL_dtls_api_on_dtls_object(void);
+int test_wolfSSL_load_pathological_files(void);
+int test_wolfSSL_load_from_fifo(void);
+int test_wolfSSL_dtls_api_more_guards(void);
+int test_wolfSSL_alloc_failure_sweep(void);
+
 int test_wolfSSL_get_verify_mode(void);
 int test_wolfSSL_CTX_get_verify_mode(void);
 int test_wolfSSL_get_verify_callback(void);
 int test_wolfSSL_CTX_get_extra_chain_certs(void);
 int test_wolfSSL_get_peer_chain(void);
+int test_wolfSSL_alt_chain_same_dn_root(void);
+int test_wolfSSL_alt_chain_bad_sig(void);
 int test_wolfSSL_get_chain_X509(void);
 int test_wolfSSL_get_chain_cert_pem(void);
 int test_wolfSSL_cmp_peer_cert_to_file(void);
+int test_wolfSSL_peer_cert_copy_oom(void);
+int test_wolfSSL_get_peer_certificate_ref(void);
+int test_wolfSSL_peer_cert_on_demand(void);
+int test_wolfSSL_peer_cert_kept_decode_err(void);
+int test_wolfSSL_CTX_set0_chain_bad_cert(void);
 int test_wolfSSL_CTX_set_client_cert_cb(void);
 int test_wolfSSL_CTX_set_cert_cb(void);
 int test_wolfSSL_cert_setup_cb_ret(void);
@@ -39,6 +58,8 @@ int test_wolfSSL_get0_verified_chain(void);
 int test_wolfSSL_CA_list_add(void);
 int test_wolfSSL_CA_list_get(void);
 int test_wolfSSL_load_client_CA_file(void);
+int test_wolfSSL_CA_names_sent(void);
+int test_wolfSSL_X509_NAME_dup_encoding(void);
 int test_wolfSSL_mutual_auth(void);
 int test_wolfSSL_post_handshake_auth(void);
 int test_wolfSSL_verify_cert_store(void);
@@ -47,6 +68,25 @@ int test_wolfSSL_CTX_cert_store_manager_link(void);
 int test_wolfSSL_cert_cb_ctx(void);
 int test_wolfSSL_get_certificate_api(void);
 int test_wolfSSL_cert_unload(void);
+int test_wolfSSL_verify_mode_options(void);
+int test_wolfSSL_verify_client_once_ignored(void);
+int test_wolfSSL_verify_mode_ctx_inherit(void);
+int test_wolfSSL_verify_none_accepts_untrusted(void);
+int test_wolfSSL_verify_fail_except_psk(void);
+int test_wolfSSL_verify_no_client_cert(void);
+int test_wolfSSL_verify_none_server_no_request(void);
+int test_wolfSSL_verify_tls13_failnocert_only(void);
+int test_wolfSSL_verify_empty_server_cert(void);
+int test_wolfSSL_verify_post_handshake_defers(void);
+int test_wolfSSL_chain_ca_ext_key_usage(void);
+int test_wolfSSL_alt_chain_forged_ca(void);
+int test_wolfSSL_small_cert_verify_sig_error(void);
+int test_wolfSSL_session_chain_oversized_cert(void);
+int test_wolfSSL_session_ticket_oversized_peer_cert(void);
+int test_wolfSSL_session_chain_tls13_pha(void);
+int test_wolfSSL_session_chain_resume_declined(void);
+int test_wolfSSL_clear_peer_cert_key(void);
+int test_wolfSSL_SESSION_get0_peer_full_chain(void);
 
 #define TEST_SSL_CERT_DECLS                                                    \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_mode),             \
@@ -54,9 +94,16 @@ int test_wolfSSL_cert_unload(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_verify_callback),         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_get_extra_chain_certs),   \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_peer_chain),              \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alt_chain_same_dn_root),      \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alt_chain_bad_sig),           \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_X509),              \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_chain_cert_pem),          \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cmp_peer_cert_to_file),       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_peer_cert_copy_oom),          \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_peer_certificate_ref),    \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_peer_cert_on_demand),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_peer_cert_kept_decode_err),   \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set0_chain_bad_cert),     \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_client_cert_cb),      \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CTX_set_cert_cb),             \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_setup_cb_ret),           \
@@ -66,6 +113,8 @@ int test_wolfSSL_cert_unload(void);
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_add),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_list_get),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_client_CA_file),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_CA_names_sent),               \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_X509_NAME_dup_encoding),      \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_mutual_auth),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_post_handshake_auth),         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_cert_store),           \
@@ -75,6 +124,47 @@ int test_wolfSSL_cert_unload(void);
             test_wolfSSL_CTX_cert_store_manager_link),                         \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_cb_ctx),                 \
         TEST_DECL_GROUP("ssl_cert", test_wolfSSL_get_certificate_api),         \
-        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload)
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_unload),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_mode_options),         \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_client_once_ignored),                          \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_mode_ctx_inherit),     \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_none_accepts_untrusted),                       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_fail_except_psk), \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_verify_no_client_cert), \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_none_server_no_request),                   \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_tls13_failnocert_only),                     \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_empty_server_cert),                         \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_verify_post_handshake_defers),                        \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_chain_ca_ext_key_usage),      \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alt_chain_forged_ca),         \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_small_cert_verify_sig_error),                         \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_session_chain_oversized_cert),                        \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_session_ticket_oversized_peer_cert),                  \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_session_chain_tls13_pha),     \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_session_chain_resume_declined),                       \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_clear_peer_cert_key),         \
+        TEST_DECL_GROUP("ssl_cert",                                            \
+            test_wolfSSL_SESSION_get0_peer_full_chain),                        \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_cert_api_arg_guards),         \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_crl_ocsp_api_arg_guards),     \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_ocsp_stapling_accessors),     \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_crl_io_mock),                 \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_x509_accessor_guards),        \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_on_dtls_object),     \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_pathological_files),     \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_load_from_fifo),              \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_dtls_api_more_guards),              \
+        TEST_DECL_GROUP("ssl_cert", test_wolfSSL_alloc_failure_sweep), \
+        TEST_DECL_GROUP("ssl_cert", test_ssl_cert_decision_coverage)
 
 #endif /* TESTS_API_SSL_CERT_H */

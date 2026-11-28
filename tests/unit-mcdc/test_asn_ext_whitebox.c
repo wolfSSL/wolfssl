@@ -40,7 +40,8 @@
  *   1. wolfssl_local_MatchBaseName() ................ :18555,:18607,:18626
  *   2. URI host classification (UriHostIsDecOctet/
  *      UriHostIsIpv4Address/UriRegNameHasNonEmptyLabels/
- *      GetUriHost) ...................................... :18664-:18794
+ *      GetUriSchemeEnd/GetUriHost), including scheme syntax and the
+ *      four-operand authority guard (older helpers: :18664-:18794)
  *   3. wolfssl_local_MatchDnsConstraintWildcard() ... :18944,:18954,:18978
  *   4. wolfssl_local_MatchIpSubnet() ........................... :19038
  *   5. MatchOtherNameConstraint() ............................... :19063
@@ -144,6 +145,14 @@ static int wb_fail = 0;
     do { if (!(cond)) { printf("  [wbext][FAIL] %s\n", (msg)); wb_fail = 1; } } \
     while (0)
 
+/* A lone "." dNSName constraint base covers every DNS name, except with
+ * OPENSSL_COMPATIBLE_DEFAULTS where it matches no name. */
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    #define NC_DNS_DOT_BASE_MATCH 0
+#else
+    #define NC_DNS_DOT_BASE_MATCH 1
+#endif
+
 /* ========================================================================
  * Small stack-based pools for Base_entry / DNS_entry so name-constraint
  * tests never need heap bookkeeping.
@@ -185,10 +194,24 @@ static DNS_entry* wb_mk_dns(const char* name, int len, int type)
 static void wb_match_base_name(void)
 {
     WB_NOTE("MatchBaseName(): trailing-dot trim to empty [:18555]");
-    /* Both name and base are a single trailing dot: after trim both become
-     * length 0 -> both operands true. */
+    /* A name starting with '.' is rejected before the base is looked at,
+     * even when the base covers every DNS name. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_DNS_TYPE, ".", 1, ".", 1) == 0,
-            "both trim to empty (both true)");
+            "lone dot name against lone dot base");
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_DNS_TYPE, ".x.com", 6, "", 0)
+                == 0, "leading-dot name against zero-length base");
+    /* A zero-length base covers every DNS name (RFC 5280 4.2.1.10). */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_DNS_TYPE, "evil.com", 8, "", 0)
+                == 1, "zero-length base matches all names");
+    /* A one-byte base other than '.' is an ordinary base. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_DNS_TYPE, "a.b", 3, "b", 1)
+                == 1, "one-byte non-dot base");
+    /* A zero-length base of another type matches nothing. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "u@a.com", 7, "",
+                0) == 0, "RFC822 zero-length base");
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_DIR_TYPE,
+                "\x31\x0a\x30\x08\x06\x03\x55\x04\x0a\x0c\x01""a", 12, "", 0)
+                == 0, "DIR zero-length base");
     /* name trims to empty, base does not -> 1st true, 2nd false (base
      * longer than the dot alone; nameSz(0) < baseSz so returns via the
      * nameSz<baseSz check either way, but the :18555 pair itself is shown
@@ -203,16 +226,37 @@ static void wb_match_base_name(void)
     WB_NOTE("MatchBaseName(): RFC822 '@' position validation [:18607]");
     /* atPos < 0: no '@' in name at all. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "nombre", 6,
-                "a.com", 5) == 0, "no '@' in name (atPos<0 true)");
+                "a.com", 5) < 0, "no '@' in name (atPos<0 true)");
     /* atPos == 0: '@' is the first character. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "@a.com", 6,
-                "a.com", 5) == 0, "'@' at start (atPos==0 true)");
+                "a.com", 5) < 0, "'@' at start (atPos==0 true)");
     /* atPos == nameSz-1: '@' is the last character. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "user@", 5,
-                "a.com", 5) == 0, "'@' at end (atPos==nameSz-1 true)");
+                "a.com", 5) < 0, "'@' at end (atPos==nameSz-1 true)");
+    /* Host-part starting with '.'. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "user@.a.com", 11,
+                "a.com", 5) < 0, "host-part starts with '.'");
     /* All three false: '@' present, not at start, not at end. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "user@a.com", 10,
                 "a.com", 5) == 1, "'@' well-formed (all three false)");
+
+    WB_NOTE("MatchBaseName(): RFC822 local-part holding '@'");
+    /* Quoted local-part: split at the last '@'. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "\"x@y\"@a.com", 11,
+                "a.com", 5) == 1, "quoted local-part with '@'");
+    /* Escaped quote inside the quoted local-part. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE,
+                "\"x\\\"@y\"@a.com", 13, "a.com", 5) == 1,
+                "escaped quote in quoted local-part");
+    /* Unquoted, unbalanced or escaped-close quoting cannot be compared. */
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "x@y@a.com", 9,
+                "a.com", 5) < 0, "unquoted '@' in local-part");
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "x@\"y\"@a.com", 11,
+                "a.com", 5) < 0, "quote does not open the local-part");
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "\"x\"@y\"@a.com",
+                11, "a.com", 5) < 0, "bare quote inside quoted local-part");
+    WB_CHECK(wolfssl_local_MatchBaseName(ASN_RFC822_TYPE, "\"x@y\\\"@a.com",
+                12, "a.com", 5) < 0, "closing quote escaped");
 
     WB_NOTE("MatchBaseName(): DNS-style suffix selection OR [:18626]");
     /* type==DNS_TYPE: 1st operand true regardless of 2nd. */
@@ -234,14 +278,14 @@ static void wb_match_base_name(void)
      * a fresh pair for this specific line. */
 
     /* --- :18609 revisited ------------------------------------------------
-     * The ".", "." rows above never actually reach this decision: the
-     * function's entry guard rejects any name whose first byte is '.', so a
-     * name that trims to length 0 is impossible and the 1st operand
-     * (`nameSz <= 0`) has NO satisfiable independence pair. The 2nd operand
-     * does: a base of a single '.' trims to length 0 while the name is a
-     * normal FQDN. */
+     * The function rejects any name whose first byte is '.', so a name that
+     * trims to length 0 is impossible and the 1st operand (`nameSz <= 0`)
+     * has NO satisfiable independence pair. The 2nd operand is reachable
+     * only with OPENSSL_COMPATIBLE_DEFAULTS, where a base of a single '.'
+     * trims to length 0; other builds return earlier because that base
+     * covers every DNS name. */
     WB_CHECK(wolfssl_local_MatchBaseName(ASN_DNS_TYPE, "www.a.com", 9, ".", 1)
-                == 0, ":18609 2nd operand true (base trims to empty)");
+                == NC_DNS_DOT_BASE_MATCH, "lone dot base");
 
     /* --- :18680 2nd operand ----------------------------------------------
      * NOT satisfiable: the entry guard admits only RFC822, DNS and DIR, and
@@ -352,12 +396,13 @@ static void wb_match_dir_attr(void)
  *   UriHostIsDecOctet():   :18664 (NULL/sSz<=0/sSz>3), :18667 (leading zero)
  *   UriHostIsIpv4Address(): :18687 (NULL/hostSz<=0), :18699 (non-digit)
  *   UriRegNameHasNonEmptyLabels(): :18711-:18712 (NULL/leading-dot/trailing-dot)
- *   GetUriHost(): :18736-:18737 (bad args), :18744 ("://" scan),
+ *   GetUriSchemeEnd(): NULL, bounded scan, colon, ALPHA, initial letter,
+ *                      DIGIT and '+'/'-'/'.' decisions
+ *   GetUriHost(): :18736-:18737 (bad args), scheme/authority guard
+ *                 (p == NULL || uriEnd - p < 3 || p[1] != '/' || p[2] != '/'),
  *                 :18772 (bracket scan), :18794 (trailing-dot re-check)
- * Driven indirectly through wolfssl_local_MatchUriNameConstraint() (the
- * only external entry point reaching these file-static helpers) since none of
- * them are directly link-visible on their own; MatchUriNameConstraint IS
- * WOLFSSL_LOCAL/global so it is callable directly here.
+ * Driven through wolfssl_local_MatchUriNameConstraint(), plus direct calls
+ * to file-static helpers for scheme decisions and otherwise masked operands.
  * ------------------------------------------------------------------------- */
 #ifndef IGNORE_NAME_CONSTRAINTS
 static void wb_uri_host_helpers(void)
@@ -410,15 +455,40 @@ static void wb_uri_host_helpers(void)
                 == 0, "base==NULL (short-circuits before GetUriHost host/hostSz "
                 "args, but exercises the same bad-args style entry)");
 
-    WB_NOTE("GetUriHost(): \"://\" scheme scan [:18744]");
-    /* No "://" anywhere in the (long enough) buffer -> scan runs to
-     * completion without a match, hostStart stays NULL. */
+    WB_NOTE("GetUriSchemeEnd(): NULL, length, colon and scheme characters");
+    WB_CHECK(GetUriSchemeEnd(NULL, 5) == NULL, "uri==NULL");
+    WB_CHECK(GetUriSchemeEnd("a:", 0) == NULL, "empty segment");
+    WB_CHECK(GetUriSchemeEnd("a:", 1) == NULL, "colon outside segment");
+    WB_CHECK(GetUriSchemeEnd(":", 1) == NULL, "colon cannot start scheme");
+    WB_CHECK(GetUriSchemeEnd("1:", 2) == NULL, "first byte must be ALPHA");
+    WB_CHECK(GetUriSchemeEnd("A:", 2) != NULL, "uppercase ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a:", 2) != NULL, "lowercase ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a@:", 3) == NULL, "byte below 'A'");
+    WB_CHECK(GetUriSchemeEnd("a[:", 3) == NULL, "byte above 'Z', below 'a'");
+    WB_CHECK(GetUriSchemeEnd("a{:", 3) == NULL, "byte above 'z'");
+    WB_CHECK(GetUriSchemeEnd("a/:", 3) == NULL, "byte below '0'");
+    WB_CHECK(GetUriSchemeEnd("a0:", 3) != NULL, "DIGIT");
+    WB_CHECK(GetUriSchemeEnd("a;:", 3) == NULL, "byte above '9'");
+    WB_CHECK(GetUriSchemeEnd("a+:", 3) != NULL, "plus allowed after ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a-:", 3) != NULL, "minus allowed after ALPHA");
+    WB_CHECK(GetUriSchemeEnd("a.:", 3) != NULL, "dot allowed after ALPHA");
+
+    WB_NOTE("GetUriHost(): scheme + four-operand authority guard");
+    /* No colon in the bounded segment -> GetUriSchemeEnd() returns NULL. */
     WB_CHECK(wolfssl_local_MatchUriNameConstraint("not-a-uri-at-all", 16,
-                ".host.com", 9) == 0, "no \"://\" present");
-    /* "://" present and matched mid-scan (true branch of the 3-byte
-     * lookahead comparison). */
-    WB_CHECK(wolfssl_local_MatchUriNameConstraint("s://a.host.com/x", 16,
-                ".host.com", 9) == 1, "\"://\" found (baseline true)");
+                "host.com", 8) == 0, "no scheme colon present");
+    /* Valid scheme followed by both slashes: all guard operands false. */
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 14,
+                "host.com", 8) == 1, "scheme + authority (baseline)");
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 4,
+                "host.com", 8) == 0, "scheme colon is the last byte");
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("abc://host.com", 5,
+                "host.com", 8) == 0, "only one byte after scheme colon");
+    /* Exact-host constraints ensure subtree rejection cannot mask a bug. */
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("ab:cd://host.com/x", 18,
+                "host.com", 8) == 0, "scheme colon not followed by '/'");
+    WB_CHECK(wolfssl_local_MatchUriNameConstraint("a:/b://host.com/x", 17,
+                "host.com", 8) == 0, "scheme colon followed by only one '/'");
 
     WB_NOTE("GetUriHost(): IP-literal '[' bracket scan [:18772]");
     /* '[' opens an IP-literal host; scan for ']' runs to completion
@@ -463,25 +533,6 @@ static void wb_uri_host_helpers(void)
     WB_CHECK(UriHostIsIpv4Address("1.2.3.4", 7) == 1,
             ":18753 both operands false (valid dotted quad)");
 
-    /* :18798 -- the three-byte "://" lookahead. Every URI used above has
-     * its ':' immediately followed by "//", so the 2nd and 3rd operands are
-     * pinned true. These two URIs each contain an earlier ':' that fails
-     * the lookahead at a different operand before the real "://" is found. */
-    {
-        /* Compared against the plain "s://host.com/x" form rather than a
-         * hard-coded 1: what this row has to show is that an earlier ':'
-         * which fails the lookahead does not change the outcome, and the
-         * base-matching semantics themselves are asserted elsewhere. */
-        int plain = wolfssl_local_MatchUriNameConstraint("s://host.com/x", 14,
-                ".host.com", 9);
-        WB_CHECK(wolfssl_local_MatchUriNameConstraint("ab:cd://host.com/x", 18,
-                    ".host.com", 9) == plain,
-                ":18798 2nd operand false (':' not followed by '/')");
-        WB_CHECK(wolfssl_local_MatchUriNameConstraint("a:/b://host.com/x", 17,
-                    ".host.com", 9) == plain,
-                ":18798 3rd operand false (\":/\" not followed by '/')");
-    }
-
     /* :18848 -- after stripping one trailing dot the host is empty. The
      * "http://../x" row above lands on the 2nd operand (still ends in '.');
      * a host of exactly "." lands on the 1st. */
@@ -507,9 +558,15 @@ static void wb_match_dns_wildcard(void)
      * 3rd operand. */
     WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard(".", 1, "a.com", 5, 1)
                 == 0, "name[0]=='.' (3rd operand true)");
-    /* baseSz<=0 after trim (base is a lone dot). */
+    /* A lone dot base covers every DNS name, except with
+     * OPENSSL_COMPATIBLE_DEFAULTS where it trims to empty and matches none. */
     WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard("*.a.com", 7, ".", 1, 1)
-                == 0, "base trims to empty (2nd operand true)");
+                == NC_DNS_DOT_BASE_MATCH, "lone dot base, permitted");
+    /* A leading-dot name is rejected even against a base covering all. */
+    WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard(".*.a.com", 8, "", 0, 1)
+                == 0, "leading-dot name, zero-length base");
+    WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard("*.a.com", 7, "", 0, 0)
+                == 1, "zero-length base, excluded");
     /* Baseline: neither empty, name[0] is '*' not '.'. */
     WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard("*.a.com", 7, "a.com",
                 5, 1) == 1, "baseline (all operands false)");
@@ -526,12 +583,11 @@ static void wb_match_dns_wildcard(void)
                 0) == 0, "base \"..\"  (1st operand true after strip)");
     WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard("*.a.com", 7, "..a.com",
                 7, 0) == 0, ":19008 2nd operand true (base[0]=='.' after strip)");
-    /* baseSz<=0 after stripping the single leading dot (base was just "."
-     * -- already covered by :18944 above via the name-side check; here the
-     * base itself is only "." with a WILDCARD name so :18944 name[0]=='.'
-     * is false, isolating :18954's own 1st operand). */
+    /* A base of just "." returns before :18954: in most builds it covers
+     * every DNS name, and with OPENSSL_COMPATIBLE_DEFAULTS it trims to
+     * empty and fails the post-trim check. */
     WB_CHECK(wolfssl_local_MatchDnsConstraintWildcard("x*.a.com", 8, ".", 1,
-                0) == 0, "base is lone leading dot (1st operand true)");
+                0) == NC_DNS_DOT_BASE_MATCH, "lone dot base, excluded");
 
     WB_NOTE("MatchDnsConstraintWildcard(): empty label [:18978]");
     /* Double dot inside the name produces a zero-length label when
@@ -609,10 +665,12 @@ static void wb_match_other_name(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS; skippe
 #ifndef IGNORE_NAME_CONSTRAINTS
 static void wb_permitted_excluded_lists(void)
 {
-    DNS_entry ridName, dirName;
+    DNS_entry ridName, dirName, dnsName, emailName;
     Base_entry* ridList;
     Base_entry* dirList;
     Base_entry* dirTail;
+    Base_entry* dnsList;
+    Base_entry* emailList;
 
     WB_NOTE("PermittedListOk()/IsInExcludedList(): RID exact-match [:19142,:19214]");
     XMEMSET(&ridName, 0, sizeof(ridName));
@@ -715,6 +773,57 @@ static void wb_permitted_excluded_lists(void)
     WB_CHECK(IsInExcludedList(&dirName, dirList, ASN_DIR_TYPE) < 0,
             "DIR no match, unusable subtree last (excluded)");
 
+    WB_NOTE("PermittedListOk()/IsInExcludedList(): zero-length dNSName subtree");
+    /* RFC 5280 4.2.1.10: an empty dNSName base covers every DNS name. */
+    XMEMSET(&dnsName, 0, sizeof(dnsName));
+    dnsName.type = ASN_DNS_TYPE;
+    dnsName.name = "evil.com";
+    dnsName.len = 8;
+    dnsList = wb_mk_base(NULL, "", 0, ASN_DNS_TYPE);
+    WB_CHECK(IsInExcludedList(&dnsName, dnsList, ASN_DNS_TYPE) == 1,
+            "empty excluded dNSName excludes every name");
+    WB_CHECK(PermittedListOk(&dnsName, dnsList, ASN_DNS_TYPE) == 1,
+            "empty permitted dNSName permits every name");
+    dnsName.name = "*.evil.com";
+    dnsName.len = 10;
+    WB_CHECK(IsInExcludedList(&dnsName, dnsList, ASN_DNS_TYPE) == 1,
+            "empty excluded dNSName excludes wildcard name");
+
+    WB_NOTE("PermittedListOk()/IsInExcludedList(): quoted rfc822 local-part");
+    XMEMSET(&emailName, 0, sizeof(emailName));
+    emailName.type = ASN_RFC822_TYPE;
+    emailName.name = "\"x@y\"@evil.com";
+    emailName.len = 14;
+    emailList = wb_mk_base(NULL, "evil.com", 8, ASN_RFC822_TYPE);
+    WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) == 1,
+            "quoted local-part host is in excluded subtree");
+    emailName.name = "\"x@y\"@good.com";
+    WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) == 0,
+            "quoted local-part host is outside excluded subtree");
+
+    /* An unquoted '@' in the local-part cannot be compared, which fails
+     * the check on both lists. */
+    emailName.name = "x@evil.com@good.com";
+    emailName.len = 19;
+    emailList = wb_mk_base(NULL, "good.com", 8, ASN_RFC822_TYPE);
+    WB_CHECK(PermittedListOk(&emailName, emailList, ASN_RFC822_TYPE) < 0,
+            "unquoted '@' in local-part is not permitted");
+    emailName.name = "x@y@evil.com";
+    emailName.len = 12;
+    emailList = wb_mk_base(NULL, "evil.com", 8, ASN_RFC822_TYPE);
+    WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) < 0,
+            "unquoted '@' in local-part is not shown outside");
+
+    /* A leading-dot local-part is judged by its host-part, and a mailbox
+     * with an empty host-part cannot be compared. */
+    emailName.name = ".x@evil.com";
+    emailName.len = 11;
+    WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) == 1,
+            "leading-dot local-part host is in excluded subtree");
+    emailName.name = "x@evil.com@";
+    WB_CHECK(IsInExcludedList(&emailName, emailList, ASN_RFC822_TYPE) < 0,
+            "trailing '@' is not shown outside");
+
     WB_NOTE("PermittedListOk()/IsInExcludedList(): empty list -> not needed [need=0]");
     WB_CHECK(PermittedListOk(&dirName, NULL, ASN_DIR_TYPE) == 1,
             "no restriction of this type -> ok");
@@ -810,6 +919,85 @@ static void wb_confirm_name_constraints(void)
     cert.isCA = 0;
     WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
             "subjectCN==NULL (1st operand false)");
+
+    WB_NOTE("ConfirmNameConstraints(): subjectCN fallback needs a host name");
+    /* An excluded zero-length dNSName excludes every DNS name, but a CN
+     * that is not a host name is not a DNS name. */
+    XMEMSET(&signer, 0, sizeof(signer));
+    signer.excludedNames = wb_mk_base(NULL, "", 0, ASN_DNS_TYPE);
+    XMEMSET(&cert, 0, sizeof(cert));
+    cert.subjectCN = "John Doe";
+    cert.subjectCNLen = 8;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
+            "non-hostname CN skips DNS constraints");
+    cert.subjectCN = "www.example.com";
+    cert.subjectCNLen = 15;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "hostname CN excluded by zero-length dNSName");
+    cert.subjectCN = "*.example.com";
+    cert.subjectCNLen = 13;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "wildcard CN excluded by zero-length dNSName");
+    /* Single-label and IPv6 CNs can still be matched by hostname
+     * verification, so they stay subject to DNS constraints. */
+    cert.subjectCN = "localhost";
+    cert.subjectCNLen = 9;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "single-label CN excluded by zero-length dNSName");
+    cert.subjectCN = "2001:db8::1";
+    cert.subjectCNLen = 11;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "IPv6 CN excluded by zero-length dNSName");
+    /* A UTF-8 CN may match a UTF-8 host name from the application. */
+    cert.subjectCN = "intran\xc3\xa9t";
+    cert.subjectCNLen = 9;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "UTF-8 CN excluded by zero-length dNSName");
+
+    /* Under a permitted dNSName subtree, a single-label or IPv6 CN is
+     * outside it and rejected. */
+    XMEMSET(&signer, 0, sizeof(signer));
+    signer.permittedNames = wb_mk_base(NULL, "example.com", 11, ASN_DNS_TYPE);
+    cert.subjectCN = "intranet";
+    cert.subjectCNLen = 8;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "single-label CN outside permitted dNSName");
+    cert.subjectCN = "2001:db8::1";
+    cert.subjectCNLen = 11;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "IPv6 CN outside permitted dNSName");
+    cert.subjectCN = "\xc3\xa9t.example.org";
+    cert.subjectCNLen = 15;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 0,
+            "UTF-8 CN outside permitted dNSName");
+    cert.subjectCN = "\xc3\xa9t.example.com";
+    cert.subjectCNLen = 15;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
+            "UTF-8 CN inside permitted dNSName");
+    cert.subjectCN = "www.example.com";
+    cert.subjectCNLen = 15;
+    WB_CHECK(ConfirmNameConstraints(&signer, &cert) == 1,
+            "hostname CN inside permitted dNSName");
+
+    WB_NOTE("CnMayBeHostName(): host name or IP literal characters");
+    WB_CHECK(CnMayBeHostName("www.example.com", 15) == 1, "plain host name");
+    WB_CHECK(CnMayBeHostName("a-b_c.d", 7) == 1, "'-' and '_' inside");
+    WB_CHECK(CnMayBeHostName("*.example.com", 13) == 1, "wildcard label");
+    WB_CHECK(CnMayBeHostName("example.com.", 12) == 1, "trailing dot");
+    WB_CHECK(CnMayBeHostName("localhost", 9) == 1, "single label");
+    WB_CHECK(CnMayBeHostName("*", 1) == 1, "lone wildcard");
+    WB_CHECK(CnMayBeHostName("2001:db8::1", 11) == 1, "IPv6 literal");
+    WB_CHECK(CnMayBeHostName("::ffff:10.0.0.1", 15) == 1,
+            "IPv4-mapped IPv6 literal");
+    WB_CHECK(CnMayBeHostName("10.0.0.1", 8) == 1, "IPv4 literal");
+    WB_CHECK(CnMayBeHostName("a..com", 6) == 1, "malformed but matchable");
+    WB_CHECK(CnMayBeHostName("\xc3\xa9t.example", 11) == 1, "UTF-8 U-label");
+    WB_CHECK(CnMayBeHostName("\xff", 1) == 1, "high byte");
+    WB_CHECK(CnMayBeHostName(NULL, 3) == 0, "NULL");
+    WB_CHECK(CnMayBeHostName("a.b", 0) == 0, "zero length");
+    WB_CHECK(CnMayBeHostName("John Doe", 8) == 0, "space");
+    WB_CHECK(CnMayBeHostName("a@b.com", 7) == 0, "'@'");
+    WB_CHECK(CnMayBeHostName("a/b", 3) == 0, "'/'");
 
     WB_NOTE("ConfirmNameConstraints(): URI-without-DNS-host rejection [:19366-:19368]");
     XMEMSET(&signer, 0, sizeof(signer));
@@ -1264,6 +1452,30 @@ static void wb_decode_ext_key_usage(void)
             &ssh, NULL);
     WB_CHECK(ret == 0, "extExtKeyUsageOidCnt==NULL out-ptr (2nd operand false)");
 
+    /* An OID that is not id-kp-serverAuth but whose wc_oid_sum() collides with
+     * it must not be treated as serverAuth. */
+    {
+    #ifdef WOLFSSL_OLD_OID_SUM
+        /* 1.5.6.1.5.5.3.1, the same byte sum (71) as serverAuth. */
+        static const byte ekuCollide[] = {
+            0x30,0x0A,
+              0x06,0x08, 0x2D,0x06,0x01,0x05,0x05,0x05,0x03,0x01
+        };
+    #else
+        /* 1.19.6.1.5.21.7.3.1, the same XOR-shift sum (0x0402012e) as
+         * serverAuth. */
+        static const byte ekuCollide[] = {
+            0x30,0x0A,
+              0x06,0x08, 0x3B,0x06,0x01,0x05,0x15,0x07,0x03,0x01
+        };
+    #endif
+        src = NULL; srcSz = 0; count = 0; usage = 0; ssh = 0; oidCnt = 0;
+        ret = DecodeExtKeyUsage(ekuCollide, sizeof(ekuCollide), &src, &srcSz,
+                &count, &usage, &ssh, &oidCnt);
+        WB_CHECK(ret == 0 && usage == 0 && oidCnt == 1,
+                "OID colliding with serverAuth checksum not set as serverAuth");
+    }
+
     /* Empty SEQUENCE OF -> loop condition false immediately. */
     {
         static const byte ekuEmpty[] = { 0x30, 0x00 };
@@ -1395,6 +1607,14 @@ static void wb_decode_name_constraints(void)
             0x30,0x06,
               0x82,0x04, 'h','o','s','t'
     };
+    /* excludedSubtrees holding a zero-length dNSName, the CA/Browser Forum
+     * encoding for a CA that may not issue DNS names. */
+    static const byte ncEmptyDns[] = {
+        0x30,0x06,
+          0xA1,0x04,              /* [1] excludedSubtrees */
+            0x30,0x02,
+              0x82,0x00
+    };
 
     WB_NOTE("DecodeNameConstraints(): hasUnsupported -> extNameConstraintHasUnsupported [:21217]");
     XMEMSET(&cert, 0, sizeof(cert));
@@ -1406,6 +1626,15 @@ static void wb_decode_name_constraints(void)
     ret = DecodeNameConstraints(ncSupported, sizeof(ncSupported), &cert);
     WB_CHECK(ret == 0 && cert.extNameConstraintHasUnsupported == 0,
             "recognized form only (2nd operand false)");
+
+    WB_NOTE("DecodeNameConstraints(): zero-length dNSName subtree");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeNameConstraints(ncEmptyDns, sizeof(ncEmptyDns), &cert);
+    WB_CHECK(ret == 0 && cert.excludedNames != NULL &&
+            cert.excludedNames->type == ASN_DNS_TYPE &&
+            cert.excludedNames->nameSz == 0,
+            "zero-length dNSName stored as an empty excluded subtree");
+    FreeNameSubtrees(cert.excludedNames, NULL);
 }
 #else
 static void wb_decode_name_constraints(void) { WB_NOTE("IGNORE_NAME_CONSTRAINTS; skipped"); }
@@ -1476,6 +1705,9 @@ static void wb_decode_policy_oid(void)
  *           total_length==0 empty-SEQUENCE check, reached before that loop
  *   :21369  ret==0 && cert->deviceType==NULL          (WOLFSSL_SEP)
  *   :21401  duplicate-OID scan loop (WOLFSSL_CERT_EXT, !WOLFSSL_DUP_CERTPOL)
+ *   post-loop  (ret==0) && critical && (idx < policyEnd)  (WOLFSSL_CERT_EXT,
+ *              !WOLFSSL_NO_ASN_STRICT): reject a critical certificatePolicies
+ *              whose policies could not all be stored (ASN_CRIT_EXT_E).
  * MAX_CERTPOL_NB is 2, so three policies exercise the count limit.
  * ------------------------------------------------------------------------- */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
@@ -1525,13 +1757,14 @@ static void wb_decode_cert_policy(void)
 
     WB_NOTE("DecodeCertPolicy(): empty SEQUENCE rejected before the loop (total_length==0)");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(noPolicies, sizeof(noPolicies), &cert);
+    /* 4-arg signature (critical) + upstream's empty-SEQUENCE rejection. */
+    ret = DecodeCertPolicy(noPolicies, sizeof(noPolicies), &cert, 0);
     WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_PARSE_E),
             "empty SEQUENCE rejected: RFC 5280 4.2.1.4 requires SIZE (1..MAX)");
 
     WB_NOTE("DecodeCertPolicy(): one policy (loop true then false) [:21346,:21369]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(onePolicy, sizeof(onePolicy), &cert);
+    ret = DecodeCertPolicy(onePolicy, sizeof(onePolicy), &cert, 0);
 #if defined(WOLFSSL_CERT_EXT)
     WB_CHECK(ret == 0 && cert.extCertPoliciesNb == 1,
             "single policy accepted");
@@ -1548,7 +1781,7 @@ static void wb_decode_cert_policy(void)
 
     WB_NOTE("DecodeCertPolicy(): second policy, deviceType already set [:21369]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert);
+    ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert, 0);
     WB_CHECK(ret == 0, "two policies accepted (:21369 2nd operand false on "
             "the second, :21401 2nd operand true)");
 #ifdef WOLFSSL_SEP
@@ -1559,14 +1792,14 @@ static void wb_decode_cert_policy(void)
 
     WB_NOTE("DecodeCertPolicy(): malformed PolicyInformation [:21369 1st operand]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(badPolicy, sizeof(badPolicy), &cert);
+    ret = DecodeCertPolicy(badPolicy, sizeof(badPolicy), &cert, 0);
     WB_CHECK(ret != 0 && cert.deviceType == NULL,
             "INTEGER in place of the policy OID (:21369 1st operand false)");
 
 #if defined(WOLFSSL_CERT_EXT)
     WB_NOTE("DecodeCertPolicy(): MAX_CERTPOL_NB cap with 3 policies [:21346 3rd operand]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert);
+    ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert, 0);
     WB_CHECK(ret == 0 && cert.extCertPoliciesNb == MAX_CERTPOL_NB,
             "loop stops at MAX_CERTPOL_NB even though bytes remain "
             "(3rd operand false while 1st/2nd stay true)");
@@ -1576,10 +1809,39 @@ static void wb_decode_cert_policy(void)
     }
 #endif
 
+#ifndef WOLFSSL_NO_ASN_STRICT
+    /* Post-loop critical check: (ret==0) && critical && (idx < policyEnd).
+     * Independence pair for the `critical` and `idx < policyEnd` operands. */
+    WB_NOTE("DecodeCertPolicy(): critical + policies remain -> ASN_CRIT_EXT_E");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(threePolicies, sizeof(threePolicies), &cert, 1);
+    WB_CHECK(ret == WC_NO_ERR_TRACE(ASN_CRIT_EXT_E) &&
+            cert.extCertPoliciesNb == MAX_CERTPOL_NB,
+            "critical cert policies over MAX_CERTPOL_NB rejected as "
+            "unsupported-critical (critical true, idx < policyEnd true)");
+#ifdef WOLFSSL_SEP
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
+
+    WB_NOTE("DecodeCertPolicy(): critical but all policies consumed -> accepted");
+    XMEMSET(&cert, 0, sizeof(cert));
+    ret = DecodeCertPolicy(twoPolicies, sizeof(twoPolicies), &cert, 1);
+    WB_CHECK(ret == 0,
+            "critical cert policies within MAX_CERTPOL_NB accepted "
+            "(critical true, idx < policyEnd false)");
+#ifdef WOLFSSL_SEP
+    if (cert.deviceType != NULL) {
+        XFREE(cert.deviceType, cert.heap, DYNAMIC_TYPE_X509_EXT);
+    }
+#endif
+#endif /* !WOLFSSL_NO_ASN_STRICT */
+
 #ifndef WOLFSSL_DUP_CERTPOL
     WB_NOTE("DecodeCertPolicy(): duplicate-OID rejection [:21401]");
     XMEMSET(&cert, 0, sizeof(cert));
-    ret = DecodeCertPolicy(dupPolicies, sizeof(dupPolicies), &cert);
+    ret = DecodeCertPolicy(dupPolicies, sizeof(dupPolicies), &cert, 0);
     WB_CHECK(ret == WC_NO_ERR_TRACE(CERTPOLICIES_E),
             "duplicate policy OID rejected (loop finds a match)");
 #ifdef WOLFSSL_SEP
@@ -1971,6 +2233,22 @@ static void wb_decode_cert_extensions_badargs(void)
         (void)wc_SetUnknownExtCallback(&cert, NULL);
         ret = DecodeCertExtensions(&cert);
         WB_CHECK(ret == 0, "unknown extension, no callback set (skipped, no crash)");
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.extensions = unknownExt;
+        cert.extensionsSz = (int)sizeof(unknownExt);
+        (void)wc_SetUnknownExtCallback32(&cert, NULL);
+        ret = DecodeCertExtensions(&cert);
+        WB_CHECK(ret == 0,
+            "unknown extension 32 bit, no callback set (skipped, no crash)");
+
+        XMEMSET(&cert, 0, sizeof(cert));
+        cert.extensions = unknownExt;
+        cert.extensionsSz = (int)sizeof(unknownExt);
+        (void)wc_SetUnknownExtCallback32Ex(&cert, NULL, NULL);
+        ret = DecodeCertExtensions(&cert);
+        WB_CHECK(ret == 0,
+            "unknown extension 32 bit Ex, no callback set (skipped, no crash)");
     }
 #endif
 }
@@ -2737,7 +3015,7 @@ static void wb_decode_cert_req_version(void) { WB_NOTE("WOLFSSL_CERT_REQ off; sk
  * Section 26: ParseCert() RSA public key store [:23263-:23267]
  * (best-effort -- see file-header RESIDUAL note for operands 2/3).
  * ------------------------------------------------------------------------- */
-#if (!defined(WOLFSSL_NO_MALLOC) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
+#if (!defined(WC_ASN_NO_HEAP) && !defined(NO_WOLFSSL_CM_VERIFY)) || \
     defined(WOLFSSL_DYN_CERT)
 static void wb_parse_cert_rsa_pubkey(void)
 {
@@ -2761,7 +3039,7 @@ static void wb_parse_cert_rsa_pubkey(void)
     FreeDecodedCert(&cert);
 }
 #else
-static void wb_parse_cert_rsa_pubkey(void) { WB_NOTE("WOLFSSL_NO_MALLOC build; ParseCert copy-out skipped"); }
+static void wb_parse_cert_rsa_pubkey(void) { WB_NOTE("WC_ASN_NO_HEAP build; ParseCert copy-out skipped"); }
 #endif
 
 /* ------------------------------------------------------------------------- *

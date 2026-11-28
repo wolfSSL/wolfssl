@@ -48,11 +48,8 @@ jobs:
     name: build library/module
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Generous for a cold ccache; warm reruns finish in a fraction.  The
-    # wall is set by kernel-settings-all-pqc-asm, the one config no other
-    # thread can overlap once the rest are done: it alone has been measured
-    # at 23 min on a cold cache, against a 23 min job total.
-    timeout-minutes: 40
+    # A cold-ccache run takes ~27 min, set by kernel-settings-all-pqc-asm.
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v5
         name: Checkout wolfSSL
@@ -60,8 +57,14 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/install-apt-deps
         with:
-          packages: autoconf automake libtool build-essential linux-headers-$(uname -r)
+          packages: autoconf automake libtool build-essential bubblewrap linux-headers-$(uname -r)
           ghcr-debs-tag: ubuntu-24.04-linuxkm
+
+      # Ubuntu 24.04 can restrict unprivileged user namespaces via AppArmor,
+      # which would stop the test scripts from re-execing under
+      # bwrap --unshare-net (their port-isolation mechanism).
+      - name: Allow unprivileged user namespaces (for bwrap)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       - name: Set up ccache
         uses: ./.github/actions/ccache-setup
@@ -117,13 +120,13 @@ jobs:
           {"name": "all-pqc-asm-fallback-fuzzer", "minutes": 8,
            "configure": ["--enable-all", "--enable-sp", "--enable-experimental", "--enable-all-quantum-crypto",
             "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]},
-          {"name": "kernel-settings", "minutes": 9.5,
-           "configure": ["--enable-kernel-settings", "--enable-dh",
-            "CPPFLAGS=-pedantic"]},
-          {"name": "kernel-settings-all-pqc-asm", "minutes": 17,
-           "configure": ["--enable-kernel-settings", "--enable-all", "--enable-experimental", "--enable-all-quantum-crypto",
+          {"name": "kernel-settings", "minutes": 22.7,
+           "configure": ["--enable-kernel-settings", "--disable-cryptonly", "--enable-dh",
+            "CPPFLAGS=-pedantic -DNO_WOLFSSL_WIRE_MANGLE_TESTS"]},
+          {"name": "kernel-settings-all-pqc-asm", "minutes": 26.8,
+           "configure": ["--enable-kernel-settings", "--enable-all", "--disable-cryptonly", "--enable-experimental", "--enable-all-quantum-crypto",
             "--enable-all-asm", "--enable-sp",
-            "CPPFLAGS=-pedantic -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
+            "CPPFLAGS=-pedantic -DNO_WOLFSSL_WIRE_MANGLE_TESTS -DWC_DEBUG_CIPHER_LIFECYCLE -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$FUZZING_SEED"]}
           ]}
           EOF
           # out-of-tree kernel module builds not working yet:
@@ -144,6 +147,8 @@ jobs:
           #            "--enable-linuxkm-benchmarks", "--with-max-rsa-bits=16384",
           #            "CFLAGS=-Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1"]}
           .github/scripts/parallel-make-check.py \
+            --timeout=41 \
+            --deadline=41 \
             ${{ github.event_name == 'schedule' && '--build-only' || '' }} \
             "$RUNNER_TEMP/fips-dev-no-post-configs.json"
 

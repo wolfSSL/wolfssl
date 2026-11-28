@@ -53,6 +53,9 @@
     #undef USE_INTEL_SPEEDUP
     #undef WOLFSSL_ARMASM
     #undef WOLFSSL_RISCV_ASM
+    #undef WOLFSSL_PPC64_ASM
+    #undef WOLFSSL_PPC64_ASM_POWER8
+    #undef WOLFSSL_PPC32_ASM
 #endif
 #ifdef WOLFSSL_X86_BUILD
     #undef USE_INTEL_SPEEDUP
@@ -66,7 +69,7 @@
    !defined(WOLFSSL_AFALG_XILINX_SHA3)
 
 #if FIPS_VERSION3_GE(2,0,0)
-    #ifdef USE_WINDOWS_API
+    #if defined(USE_WINDOWS_API) && defined(_MSC_VER)
         #pragma code_seg(".fipsA$n")
         #pragma const_seg(".fipsB$n")
     #endif
@@ -118,6 +121,13 @@
     #include <wolfssl/wolfcrypt/cpuid.h>
 
     static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+
+    static WC_INLINE cpuid_flags_t sha3_cpuid_flags(void)
+    {
+        if (cpuid_flags == WC_CPUID_INITIALIZER)
+            cpuid_get_flags_ex(&cpuid_flags);
+        return cpuid_flags;
+    }
 #ifdef WC_C_DYNAMIC_FALLBACK
     #define SHA3_BLOCK (sha3->sha3_block)
     #define SHA3_BLOCK_N (sha3->sha3_block_n)
@@ -131,25 +141,50 @@
 #endif
 
 #ifdef USE_INTEL_SPEEDUP
-    /* Block-function selection when USE_INTEL_SPEEDUP: AVX2 on Intel, else
-     * BMI2, else the C block.  Measured single-instance Keccak-f[1600]
-     * (Ethereum "Optimizing Keccak"; OpenSSL keccak1600-x86_64.pl): AVX2 is
-     * ~13-17% faster than BMI2 on Intel Haswell..Skylake, tied on Ice Lake,
-     * but ~2x SLOWER on AMD Zen, so AVX2 is Intel-only.  (Single-stream
+    /* Block-function selection when USE_INTEL_SPEEDUP: BMI2, then AVX2, then
+     * the C block.  BMI2 is preferred because its block uses general
+     * registers only and so needs no vector-register save; AVX2 goes first
+     * only when WOLFSSL_SHA3_AVX2 explicitly asks for it.  (Single-stream
      * AVX-512 is vpermt2q-bound and slower than BMI2 everywhere measured, so
      * it is not built - see scripts sha3_avx512.rb.)
-     * Overrides: WOLFSSL_SHA3_AVX2 forces AVX2 on any vendor with it;
+     * Overrides: WOLFSSL_SHA3_AVX2 puts AVX2 ahead of BMI2;
      *            WOLFSSL_SHA3_NO_AVX2 never uses AVX2. */
-    /* SHA3_USE_AVX2() is defined in sha3.h - shared with ML-DSA. */
+    /* SHA3_USE_AVX2() is defined in sha3.h - shared with ML-DSA, which still
+     * selects AVX2 first; only SHA-3's own order changed here. */
 
     /* True when the selected block function uses vector registers and so
      * needs the caller to save/restore them.  BMI2 and the C block use only
      * general registers. */
-#ifdef WOLFSSL_SHA3_NO_AVX2
+#if defined(WOLFSSL_SHA3_NO_AVX2)
     #define SHA3_BLOCK_VREGS(f) 0
 #else
     #define SHA3_BLOCK_VREGS(f) ((f) == sha3_block_avx2)
 #endif
+#endif
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    defined(WOLFSSL_ARMASM_CRYPTO_SHA3)
+    /* BlockSha3_crypto is the ARMv8.2 crypto-extension permutation and writes
+     * v0-v31, so the caller must hold the vector registers for it. */
+    #define SHA3_BLOCK_VREGS(f) ((f) == BlockSha3_crypto)
+    #define SHA3_NEEDS_VREG_CLAIM
+#endif
+
+/* Whether a refused SAVE_VECTOR_REGISTERS2() may switch this call to the C
+ * block.  A certifiable build carries one Keccak permutation, so there it is an
+ * error instead; dev and dev-no-post keep the switch (WOLFSSL_FIPS_DEV covers
+ * both). */
+#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK) && \
+    !(FIPS_VERSION3_GE(7,0,0) && !defined(WOLFSSL_FIPS_DEV))
+    #define SHA3_MAY_SWITCH_TO_C
+#endif
+
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__) && \
+    !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_SHA3_NO_NEON)
+    /* armv8-32-sha3-asm.S has a NEON block (vpush d8-d15) and an integer-only
+     * one under WOLFSSL_ARMASM_SHA3_NO_NEON; only NEON needs the save. */
+    #define SHA3_BLOCK_VREGS(f) 1
+    #define SHA3_NEEDS_VREG_CLAIM
 #endif
 
 #if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM) && \
@@ -831,16 +866,19 @@ void BlockSha3(word64* s)
 
 #ifdef WC_SHA3_SW_KECCAK
 #if defined(BIG_ENDIAN_ORDER) || defined(WOLFSSL_WIDE_BYTE)
+/* Mask each cell to an octet: where CHAR_BIT != 8 a cell can hold more than an
+ * octet and would bleed into the neighbouring lane bits.  Matches
+ * readUnalignedWord32/64() in misc.c.  No-op where a byte is an octet. */
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
-    return ((word64)a[0] <<  0) |
-           ((word64)a[1] <<  8) |
-           ((word64)a[2] << 16) |
-           ((word64)a[3] << 24) |
-           ((word64)a[4] << 32) |
-           ((word64)a[5] << 40) |
-           ((word64)a[6] << 48) |
-           ((word64)a[7] << 56);
+    return ((word64)(a[0] & 0xFF) <<  0) |
+           ((word64)(a[1] & 0xFF) <<  8) |
+           ((word64)(a[2] & 0xFF) << 16) |
+           ((word64)(a[3] & 0xFF) << 24) |
+           ((word64)(a[4] & 0xFF) << 32) |
+           ((word64)(a[5] & 0xFF) << 40) |
+           ((word64)(a[6] & 0xFF) << 48) |
+           ((word64)(a[7] & 0xFF) << 56);
 }
 
 /* Convert the array of bytes, in little-endian order, to a 64-bit integer.
@@ -853,8 +891,9 @@ static word64 Load64BitLittleEndian(const byte* a)
     word64 n = 0;
     int i;
 
+    /* Masked as in Load64Unaligned() above. */
     for (i = 0; i < 8; i++)
-        n |= (word64)a[i] << (8 * i);
+        n |= (word64)(a[i] & 0xFF) << (8 * i);
 
     return n;
 }
@@ -874,11 +913,8 @@ static word64 Load64BitLittleEndian(const byte* a)
 }
 #endif
 
-/* Initialize the state for a SHA3-224 hash operation.
- *
- * sha3   wc_Sha3 object holding state.
- * returns 0 on success.
- */
+/* Reset the sponge state of sha3 for any SHA-3 or SHAKE operation.
+ * Returns 0 on success. */
 
 static int InitSha3(wc_Sha3* sha3)
 {
@@ -898,30 +934,47 @@ static int InitSha3(wc_Sha3* sha3)
     sha3->hashType = WC_HASH_TYPE_NONE;
 #endif
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP)
     {
         int cpuid_flags_were_updated = cpuid_get_flags_ex(&cpuid_flags);
 #ifdef WC_C_DYNAMIC_FALLBACK
         (void)cpuid_flags_were_updated;
+#ifdef SHA3_MAY_SWITCH_TO_C
+        /* Same gate as the places that handle a refused save: a certifiable
+         * build must not pick a second permutation, so cpuid alone decides. */
         if (! CAN_SAVE_VECTOR_REGISTERS()) {
             SHA3_BLOCK = BlockSha3;
             SHA3_BLOCK_N = NULL;
         }
         else
+#endif
 #else
         if ((! cpuid_flags_were_updated) && (SHA3_BLOCK != NULL)) {
         }
         else
 #endif
-        /* See the selection comment above: AVX2 on Intel, otherwise BMI2. */
-        if (SHA3_USE_AVX2(cpuid_flags)) {
+#if defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
+        /* WOLFSSL_SHA3_AVX2 asks for AVX2 ahead of BMI2. */
+        if (SHA3_USE_AVX2(sha3_cpuid_flags())) {
             SHA3_BLOCK = sha3_block_avx2;
             SHA3_BLOCK_N = sha3_block_n_avx2;
         }
-        else if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+        else
+#endif
+        /* BMI2 before AVX2: sha3_block_bmi2 uses general registers only, so
+         * it needs no vector-register save. */
+        if (IS_INTEL_BMI1(sha3_cpuid_flags()) && IS_INTEL_BMI2(sha3_cpuid_flags())) {
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
         }
+#if !defined(WOLFSSL_SHA3_AVX2) && !defined(WOLFSSL_SHA3_NO_AVX2)
+        /* AVX2 without BMI2.  Only live in the plain build: the overrides
+         * either select AVX2 above or disable it outright. */
+        else if (SHA3_USE_AVX2(sha3_cpuid_flags())) {
+            SHA3_BLOCK = sha3_block_avx2;
+            SHA3_BLOCK_N = sha3_block_n_avx2;
+        }
+#endif
         else {
             SHA3_BLOCK = BlockSha3;
             SHA3_BLOCK_N = NULL;
@@ -936,7 +989,7 @@ static int InitSha3(wc_Sha3* sha3)
         }
         else
     #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-        if (IS_AARCH64_SHA3(cpuid_flags)) {
+        if (IS_AARCH64_SHA3(sha3_cpuid_flags())) {
             SHA3_BLOCK = BlockSha3_crypto;
             SHA3_BLOCK_N = NULL;
         }
@@ -972,6 +1025,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 {
     word32 i;
     word32 blocks;
+    word32 blockSz;
     int ret = 0;
 #ifdef WC_SHA3_FAULT_HARDEN
     word32 check = 0;
@@ -988,11 +1042,13 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     if ((p < WC_SHA3_512_COUNT) || (p > WC_SHA3_128_COUNT))
         return BAD_STATE_E;
 
-#ifdef USE_INTEL_SPEEDUP
+    blockSz = p * 8U;
+
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_MAY_SWITCH_TO_C
             sha3_block = BlockSha3;
             sha3_block_n = NULL;
             ret = 0;
@@ -1001,16 +1057,16 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     if (sha3->i > 0) {
         byte *t;
         word32 l;
-        if (p * 8 < sha3->i) {
+        if (blockSz < sha3->i) {
             ret = BAD_STATE_E;
             goto out;
         }
-        l = (p * 8 - sha3->i);
+        l = (blockSz - sha3->i);
         if (l > len) {
             l = len;
         }
@@ -1033,10 +1089,10 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
         len -= i;
         sha3->i += i;
 
-        if (sha3->i == p * 8) {
+        if (sha3->i == blockSz) {
     #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
         !defined(WOLFSSL_WIDE_BYTE)
-            xorbuf(sha3->s, sha3->t, (word32)(p * 8));
+            xorbuf(sha3->s, sha3->t, blockSz);
     #else
             for (i = 0; i < p; i++) {
                 sha3->s[i] ^= Load64BitLittleEndian(sha3->t + 8 * i);
@@ -1060,12 +1116,12 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
             sha3->i = 0;
         }
     }
-    blocks = len / (p * 8U);
+    blocks = len / blockSz;
     #ifdef SHA3_FUNC_PTR
     if ((sha3_block_n != NULL) && (blocks > 0)) {
-        (*sha3_block_n)(sha3->s, data, blocks, p * 8U);
-        len -= blocks * (p * 8U);
-        data += blocks * (p * 8U);
+        (*sha3_block_n)(sha3->s, data, blocks, blockSz);
+        len -= blocks * blockSz;
+        data += blocks * blockSz;
         blocks = 0;
     }
     #endif
@@ -1075,7 +1131,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     for (; blocks > 0; blocks--) {
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
     !defined(WOLFSSL_WIDE_BYTE)
-        xorbuf(sha3->s, data, (word32)(p * 8));
+        xorbuf(sha3->s, data, blockSz);
 #else
         for (i = 0; i < p; i++) {
             sha3->s[i] ^= Load64Unaligned(data + 8 * i);
@@ -1095,8 +1151,8 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     #else
         BlockSha3(sha3->s);
     #endif
-        len -= p * 8U;
-        data += p * 8U;
+        len -= blockSz;
+        data += blockSz;
     }
 #ifdef WC_SHA3_FAULT_HARDEN
     if (check != total_check) {
@@ -1107,7 +1163,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
 
 out:
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         RESTORE_VECTOR_REGISTERS();
     }
@@ -1165,10 +1221,25 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     if (sha3->i >= rate)
         return BAD_STATE_E;
 
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+    if (SHA3_BLOCK_VREGS(sha3_block)) {
+        int ret = SAVE_VECTOR_REGISTERS2();
+        if (ret != 0) {
+#ifdef SHA3_MAY_SWITCH_TO_C
+            sha3_block = BlockSha3;
+#else
+            return ret;
+#endif
+        }
+    }
+#endif
+
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_SHA3_FAULT_HARDEN) && \
     !defined(WOLFSSL_WIDE_BYTE)
     xorbuf(sha3->s, sha3->t, sha3->i);
-#ifdef WOLFSSL_HASH_FLAGS
+    /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
+     * Keccak-256 0x01 pad is excluded from a certifiable build (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_NO_KECCAK256)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -1177,7 +1248,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     ((byte*)sha3->s)[rate - 1] ^= 0x80;
 #else
     sha3->t[rate - 1]  = 0x00;
-#ifdef WOLFSSL_HASH_FLAGS
+    /* SHA3-256 emits the FIPS 202 0x06 pad; the non-approved legacy
+     * Keccak-256 0x01 pad is excluded from a certifiable build (FIPS 202 6.1). */
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_NO_KECCAK256)
     if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
     }
@@ -1195,22 +1268,14 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
     }
 #ifdef WC_SHA3_FAULT_HARDEN
     if (check != p) {
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+        if (SHA3_BLOCK_VREGS(sha3_block)) {
+            RESTORE_VECTOR_REGISTERS();
+        }
+#endif
         return BAD_COND_E;
     }
 #endif
-#endif
-
-#ifdef USE_INTEL_SPEEDUP
-    if (SHA3_BLOCK_VREGS(sha3_block)) {
-        int ret = SAVE_VECTOR_REGISTERS2();
-        if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
-            sha3_block = BlockSha3;
-#else
-            return ret;
-#endif
-        }
-    }
 #endif
 
     for (j = 0; l - j >= rate; j += rate) {
@@ -1242,7 +1307,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, word32 p, word32 l
         XMEMCPY(hash + j, sha3->s, l - j);
     #endif
     }
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         RESTORE_VECTOR_REGISTERS();
     }
@@ -1437,6 +1502,25 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 
 #if !(defined(WOLFSSL_NOSHA3_224) && defined(WOLFSSL_NOSHA3_256) && \
       defined(WOLFSSL_NOSHA3_384) && defined(WOLFSSL_NOSHA3_512))
+#ifdef WOLF_CRYPTO_CB
+/* Hash type of a SHA-3 call, from its block count. */
+static int wc_Sha3HashType(word32 p)
+{
+    switch (p) {
+        case WC_SHA3_224_COUNT:
+            return WC_HASH_TYPE_SHA3_224;
+        case WC_SHA3_256_COUNT:
+            return WC_HASH_TYPE_SHA3_256;
+        case WC_SHA3_384_COUNT:
+            return WC_HASH_TYPE_SHA3_384;
+        case WC_SHA3_512_COUNT:
+            return WC_HASH_TYPE_SHA3_512;
+        default:
+            return WC_HASH_TYPE_NONE;
+    }
+}
+#endif
+
 /* Update the SHA-3 hash state with message data.
  *
  * sha3  wc_Sha3 object holding state.
@@ -1467,21 +1551,13 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, word32 p)
     if (sha3->devId != INVALID_DEVID)
     #endif
     {
-        /* If the hash type is not set, determine it based on the p value */
-        /* We can skip the switch statement if the hash type set already */
-        if (sha3->hashType == WC_HASH_TYPE_NONE) {
-            switch (p) {
-                case WC_SHA3_224_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_224; break;
-                case WC_SHA3_256_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_256; break;
-                case WC_SHA3_384_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_384; break;
-                case WC_SHA3_512_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_512; break;
-                default: return BAD_FUNC_ARG;
-            }
-        }
+        int hashType = wc_Sha3HashType(p);
+
+        if (hashType == WC_HASH_TYPE_NONE)
+            return BAD_FUNC_ARG;
+        /* Derive from the block count every call: a Final the callback
+         * handles skips InitSha3, so a cached hashType outlives its op. */
+        sha3->hashType = hashType;
         ret = wc_CryptoCb_Sha3Hash(sha3, sha3->hashType, data, len, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -1528,21 +1604,13 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
     if (sha3->devId != INVALID_DEVID)
     #endif
     {
-        /* If the hash type is not set, determine it based on the p value */
-        /* We can skip the switch statement if the hash type is set already */
-        if (sha3->hashType == WC_HASH_TYPE_NONE) {
-            switch (p) {
-                case WC_SHA3_224_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_224; break;
-                case WC_SHA3_256_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_256; break;
-                case WC_SHA3_384_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_384; break;
-                case WC_SHA3_512_COUNT:
-                    sha3->hashType = WC_HASH_TYPE_SHA3_512; break;
-                default: return BAD_FUNC_ARG;
-            }
-        }
+        int hashType = wc_Sha3HashType(p);
+
+        if (hashType == WC_HASH_TYPE_NONE)
+            return BAD_FUNC_ARG;
+        /* Derive from the block count every call: a Final the callback
+         * handles skips InitSha3, so a cached hashType outlives its op. */
+        sha3->hashType = hashType;
         ret = wc_CryptoCb_Sha3Hash(sha3, sha3->hashType, NULL, 0, hash);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
@@ -1579,18 +1647,33 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
+/* Wipe the SSP-bearing state but keep the object usable: SLH-DSA reuses it
+ * after Free and the block function pointers live in it under
+ * WC_C_DYNAMIC_FALLBACK. */
+static void wc_Sha3Wipe(wc_Sha3* sha3)
+{
+#ifdef PSOC6_HASH_SHA3
+    ForceZero(sha3, sizeof(*sha3));
+#else
+    ForceZero(sha3->s, sizeof(sha3->s));
+    ForceZero(sha3->t, sizeof(sha3->t));
+#ifdef STM32_HASH_SHA3
+    ForceZero(&sha3->stmCtx, sizeof(sha3->stmCtx));
+#endif
+    sha3->i = 0;
+#endif
+}
+
 static void wc_Sha3Free(wc_Sha3* sha3)
 {
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     int ret = 0;
 #endif
 
-    (void)sha3;
-
-#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     if (sha3 == NULL)
         return;
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (sha3->devId != INVALID_DEVID)
     #endif
@@ -1620,6 +1703,68 @@ static void wc_Sha3Free(wc_Sha3* sha3)
 #if defined(PSOC6_HASH_SHA3)
     wc_Psoc6_Sha_Free();
 #endif
+
+    /* s and t hold absorbed keys and seeds for Ed448, ML-KEM, ML-DSA,
+     * SLH-DSA, LMS, XMSS and HMAC-SHA3 (ISO/IEC 19790:2012 7.9.7). */
+    wc_Sha3Wipe(sha3);
+}
+
+/* Reset a SHA-3/SHAKE context to its freshly initialized state, reusing its
+ * existing heap hint and device association.  Like the Final functions,
+ * Reset does not destroy sensitive internal state; use the matching Free
+ * function for teardown at end of life.
+ */
+static int wc_Sha3Reset(wc_Sha3* sha3)
+{
+    if (sha3 == NULL)
+        return BAD_FUNC_ARG;
+
+#if !defined(WOLFSSL_HASH_KEEP) && !defined(STM32_HASH_SHA3) && \
+    !defined(PSOC6_HASH_SHA3)
+#ifdef WOLF_CRYPTO_CB
+    /* A device may hang state off devCtx that InitSha3() cannot restart.
+     * Free and re-init so the callback gets its teardown and setup. */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha3->devId != INVALID_DEVID)
+    #endif
+    {
+        void* heap = sha3->heap;
+        int devId = sha3->devId;
+        wc_Sha3Free(sha3);
+        return wc_InitSha3(sha3, heap, devId);
+    }
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+    defined(HAVE_INTEL_QA) && defined(QAT_V2)
+    /* QAT caches updates in asyncDev, which InitSha3() cannot discard. */
+    {
+        int ret = IntelQaSymHashReset(&sha3->asyncDev);
+        if (ret != 0)
+            return ret;
+    }
+#endif
+    /* InitSha3() reinitializes the sponge and block-dispatch state in place,
+     * touching neither the heap hint nor the device association. */
+    return InitSha3(sha3);
+#else
+    {
+#if defined(PSOC6_HASH_SHA3)
+        /* The PSOC6 wc_Sha3 carries no heap hint or devId, and its
+         * wc_InitSha3() ignores both. */
+        void *heap = NULL;
+        int devId = INVALID_DEVID;
+#else
+        void *heap = sha3->heap;
+#ifdef WOLF_CRYPTO_CB
+        int devId = sha3->devId;
+#else
+        int devId = INVALID_DEVID;
+#endif
+#endif /* PSOC6_HASH_SHA3 */
+        wc_Sha3Free(sha3);
+        return wc_InitSha3(sha3, heap, devId);
+    }
+#endif /* !ASYNC && !HASH_KEEP && !STM32 && !PSOC6 */
 }
 
 /* Copy the state of the SHA3 operation.
@@ -1673,16 +1818,8 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 
 #if !(defined(WOLFSSL_NOSHA3_224) && defined(WOLFSSL_NOSHA3_256) && \
       defined(WOLFSSL_NOSHA3_384) && defined(WOLFSSL_NOSHA3_512))
-/* Calculate the SHA3-224 hash based on all the message data so far.
- * More message data can be added, after this operation, using the current
- * state.
- *
- * sha3  wc_Sha3 object holding state.
- * hash  Buffer to hold the hash result. Must be at least 28 bytes.
- * p     Number of 64-bit numbers in a block of data to process.
- * len   Number of bytes in output.
- * returns 0 on success.
- */
+/* Write the len-byte SHA-3 hash, block count p, of the data so far to hash;
+ * more data may follow. Returns 0 on success. */
 static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
 {
     int ret;
@@ -1695,10 +1832,18 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, word32 p, word32 len)
                     return MEMORY_E);
 
     XMEMSET(tmpSha3, 0, sizeof(*tmpSha3));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_Sha3GetHash tmpSha3", tmpSha3, sizeof(*tmpSha3));
+#endif
     ret = wc_Sha3Copy(sha3, tmpSha3);
     if (ret == 0) {
         ret = wc_Sha3Final(tmpSha3, hash, p, len);
     }
+
+    ForceZero(tmpSha3, sizeof(*tmpSha3));
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && !defined(WOLFSSL_SMALL_STACK)
+    wc_MemZero_Check(tmpSha3, sizeof(*tmpSha3));
+#endif
 
     WC_FREE_VAR_EX(tmpSha3, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
@@ -1751,6 +1896,10 @@ int wc_Sha3_224_Final(wc_Sha3* sha3, byte* hash)
 void wc_Sha3_224_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
+}
+
+int wc_Sha3_224_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
 }
 
 /* Calculate the SHA3-224 hash based on all the message data so far.
@@ -1826,6 +1975,10 @@ void wc_Sha3_256_Free(wc_Sha3* sha3)
     wc_Sha3Free(sha3);
 }
 
+int wc_Sha3_256_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
+}
+
 /* Calculate the SHA3-256 hash based on all the message data so far.
  * More message data can be added, after this operation, using the current
  * state.
@@ -1897,6 +2050,10 @@ int wc_Sha3_384_Final(wc_Sha3* sha3, byte* hash)
 void wc_Sha3_384_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
+}
+
+int wc_Sha3_384_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
 }
 
 /* Calculate the SHA3-384 hash based on all the message data so far.
@@ -1972,6 +2129,10 @@ void wc_Sha3_512_Free(wc_Sha3* sha3)
     wc_Sha3Free(sha3);
 }
 
+int wc_Sha3_512_Reset(wc_Sha3* sha3) {
+    return wc_Sha3Reset(sha3);
+}
+
 /* Calculate the SHA3-512 hash based on all the message data so far.
  * More message data can be added, after this operation, using the current
  * state.
@@ -2000,6 +2161,14 @@ int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)
 {
+#ifdef WOLFSSL_NO_KECCAK256
+    /* Keccak-256 is a different hash from SHA3-256, so refuse the request
+     * instead of accepting it and hashing with the other one (FIPS 202 6.1).
+     * Checked first, so the answer does not depend on having a context. */
+    if ((flags & WC_HASH_SHA3_KECCAK256) != 0) {
+        return FIPS_NOT_ALLOWED_E;
+    }
+#endif
     if (sha3) {
         sha3->flags = flags;
     }
@@ -2158,7 +2327,7 @@ int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
     #endif
     {
         int ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128, data, len,
-            NULL, 0);
+            NULL, 0, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2172,7 +2341,8 @@ int wc_Shake128_Update(wc_Shake* shake, const byte* data, word32 len)
  * The state is initialized ready for a new message to hash.
  *
  * shake  wc_Shake object holding state.
- * hash  Buffer to hold the hash result. Must be at least 64 bytes.
+ * hash  Buffer to hold the hash result. Must be at least hashLen bytes.
+ * hashLen Size of hash in bytes.
  * returns 0 on success.
  */
 int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen)
@@ -2189,7 +2359,7 @@ int wc_Shake128_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     #endif
     {
         ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128, NULL, 0, hash,
-            hashLen);
+            hashLen, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2226,6 +2396,19 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128,
+            data, len, NULL, 0, WC_SHAKE_OP_ABSORB);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
+
     ret = Sha3Update(shake, data, len, WC_SHA3_128_COUNT);
     if (ret == 0) {
         byte hash[1];
@@ -2261,22 +2444,38 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#ifdef USE_INTEL_SPEEDUP
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    /* Use software when the byte count does not fit in outSz. */
+    if (blockCnt <= WOLFSSL_MAX_32BIT / (WC_SHA3_128_COUNT * 8U)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && shake->devId != INVALID_DEVID
+    #endif
+    ) {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE128,
+            NULL, 0, out, blockCnt * (WC_SHA3_128_COUNT * 8U),
+            WC_SHAKE_OP_SQUEEZE);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
+
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
     sha3_block = SHA3_BLOCK;
 #endif
 
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_MAY_SWITCH_TO_C
             sha3_block = BlockSha3;
 #else
             return ret;
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     for (; (blockCnt > 0); blockCnt--) {
     #ifdef SHA3_FUNC_PTR
@@ -2294,7 +2493,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         out += WC_SHA3_128_COUNT * 8;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
@@ -2315,12 +2514,18 @@ void wc_Shake128_Free(wc_Shake* shake)
     wc_Sha3Free(shake);
 }
 
-/* Copy the state of the SHA3-512 operation.
- *
- * src  wc_Shake object holding state top copy.
- * dst  wc_Shake object to copy into.
- * returns 0 on success.
- */
+int wc_Shake128_Reset(wc_Shake* shake) {
+    int ret = wc_Sha3Reset(shake);
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so restore the type here for
+     * the Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE128;
+#endif
+    return ret;
+}
+
+/* Copy the SHAKE128 state in src to dst. Returns 0 on success. */
 int wc_Shake128_Copy(wc_Shake* src, wc_Shake* dst)
 {
     return wc_Sha3Copy(src, dst);
@@ -2470,7 +2675,7 @@ int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
     #endif
     {
         int ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256, data, len,
-            NULL, 0);
+            NULL, 0, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2484,7 +2689,7 @@ int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
  * The state is initialized ready for a new message to hash.
  *
  * shake  wc_Shake object holding state.
- * hash  Buffer to hold the hash result. Must be at least 64 bytes.
+ * hash  Buffer to hold the hash result. Must be at least hashLen bytes.
  * hashLen Size of hash in bytes.
  * returns 0 on success.
  */
@@ -2502,7 +2707,7 @@ int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen)
     #endif
     {
         ret = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256, NULL, 0, hash,
-            hashLen);
+            hashLen, WC_SHAKE_OP_NONE);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -2539,6 +2744,19 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (shake->devId != INVALID_DEVID)
+    #endif
+    {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256,
+            data, len, NULL, 0, WC_SHAKE_OP_ABSORB);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
+
     ret = Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
     if (ret == 0) {
         byte hash[1];
@@ -2567,22 +2785,38 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         return BAD_FUNC_ARG;
     }
 
-#ifdef USE_INTEL_SPEEDUP
-#ifdef WC_C_DYNAMIC_FALLBACK
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_SHAKE_XOF)
+    /* Use software when the byte count does not fit in outSz. */
+    if (blockCnt <= WOLFSSL_MAX_32BIT / (WC_SHA3_256_COUNT * 8U)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && shake->devId != INVALID_DEVID
+    #endif
+    ) {
+        int cbRet = wc_CryptoCb_Shake(shake, WC_HASH_TYPE_SHAKE256,
+            NULL, 0, out, blockCnt * (WC_SHA3_256_COUNT * 8U),
+            WC_SHAKE_OP_SQUEEZE);
+        if (cbRet != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return cbRet;
+        /* fall-through when unavailable */
+    }
+#endif
+
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
+#if defined(USE_INTEL_SPEEDUP) && defined(WC_C_DYNAMIC_FALLBACK)
     sha3_block = SHA3_BLOCK;
 #endif
 
     if (SHA3_BLOCK_VREGS(sha3_block)) {
         int ret = SAVE_VECTOR_REGISTERS2();
         if (ret != 0) {
-#ifdef WC_C_DYNAMIC_FALLBACK
+#ifdef SHA3_MAY_SWITCH_TO_C
             sha3_block = BlockSha3;
 #else
             return ret;
 #endif
         }
     }
-#endif /* USE_INTEL_SPEEDUP */
+#endif
 
     for (; (blockCnt > 0); blockCnt--) {
     #ifdef SHA3_FUNC_PTR
@@ -2600,7 +2834,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         out += WC_SHA3_256_COUNT * 8;
     }
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || defined(SHA3_NEEDS_VREG_CLAIM)
     if (SHA3_BLOCK_VREGS(sha3_block))
         RESTORE_VECTOR_REGISTERS();
 #endif
@@ -2620,12 +2854,18 @@ void wc_Shake256_Free(wc_Shake* shake)
     wc_Sha3Free(shake);
 }
 
-/* Copy the state of the SHA3-512 operation.
- *
- * src  wc_Shake object holding state top copy.
- * dst  wc_Shake object to copy into.
- * returns 0 on success.
- */
+int wc_Shake256_Reset(wc_Shake* shake) {
+    int ret = wc_Sha3Reset(shake);
+#if defined(WOLF_CRYPTO_CB) && !defined(PSOC6_HASH_SHA3)
+    /* SHAKE never hits the SHA3 auto-detect, so restore the type here for
+     * the Copy/Free callback dispatch. */
+    if (ret == 0)
+        shake->hashType = WC_HASH_TYPE_SHAKE256;
+#endif
+    return ret;
+}
+
+/* Copy the SHAKE256 state in src to dst. Returns 0 on success. */
 int wc_Shake256_Copy(wc_Shake* src, wc_Shake* dst)
 {
     return wc_Sha3Copy(src, dst);
@@ -2634,6 +2874,15 @@ int wc_Shake256_Copy(wc_Shake* src, wc_Shake* dst)
 
 #if (defined(WOLFSSL_KMAC) || defined(WOLFSSL_CSHAKE)) && \
     defined(WC_SHA3_SW_KECCAK)
+
+#if FIPS_VERSION3_GE(7,0,0) && \
+    !defined(WOLFSSL_FIPS_DEV) && !defined(WOLFSSL_FIPS_READY)
+    /* KMAC and cSHAKE (SP 800-185) have no CAST and no service-layer gate, so
+     * they are not approved services and stay out of the validated module.
+     * The dev and ready prep builds still exercise them. */
+    #error "KMAC/cSHAKE (SP 800-185) are not part of the FIPS module boundary"
+#endif
+
 /* cSHAKE and KMAC - NIST SP 800-185.
  *
  * cSHAKE is a customizable SHAKE; KMAC is cSHAKE keyed with the function name
@@ -2903,6 +3152,8 @@ static int KmacInit(wc_Kmac* kmac, word32 count, const byte* key, word32 keyLen,
             if (ret == 0) {
                 ret = CshakeBytePad(&kmac->shake, count, rate);
             }
+            /* The block buffer staged the key (ISO/IEC 19790 7.9.7). */
+            ForceZero(kmac->shake.t, sizeof(kmac->shake.t));
         }
     }
 

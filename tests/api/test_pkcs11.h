@@ -1,0 +1,72 @@
+/* test_pkcs11.h
+ *
+ * Copyright (C) 2006-2026 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+#ifndef WOLFCRYPT_TEST_PKCS11_H
+#define WOLFCRYPT_TEST_PKCS11_H
+
+#include <tests/api/api_decl.h>
+
+int test_wc_Pkcs11_EcdsaSigDecode(void);
+int test_wc_Pkcs11_ValueRead(void);
+int test_wc_Pkcs11_AesCtrStream(void);
+
+#if defined(HAVE_PKCS11) && defined(HAVE_ECC) && !defined(NO_PKCS11_ECC) && \
+    defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG) && \
+    !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+
+int test_wc_Pkcs11_FreeKeepsTokenKey(void);
+int test_wc_Pkcs11_RsaIdNoLeak(void);
+int test_wc_Pkcs11_EcKeyUsage(void);
+int test_wc_Pkcs11_LoginShared(void);
+int test_wc_Pkcs11_LoginSharedTokens(void);
+int test_wc_Pkcs11_TokenPinCopy(void);
+int test_wc_Pkcs11_RsaKeyGenError(void);
+int test_wc_Pkcs11_RsaKeyGenExponent(void);
+int test_wc_Pkcs11_TokenOpenDropsPin(void);
+int test_wc_Pkcs11_FreeNoObject(void);
+int test_wc_Pkcs11_KeyGenSessionClosed(void);
+
+#define TEST_PKCS11_DECLS                                                   \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeKeepsTokenKey),            \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaIdNoLeak),                  \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcKeyUsage),                   \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_LoginShared),                  \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_LoginSharedTokens),            \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_TokenPinCopy),                 \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenError),               \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_RsaKeyGenExponent),            \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_TokenOpenDropsPin),            \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_FreeNoObject),                 \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_KeyGenSessionClosed),          \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_ValueRead),                    \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_AesCtrStream)
+
+#else
+
+#define TEST_PKCS11_DECLS                                                   \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_EcdsaSigDecode),               \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_ValueRead),                    \
+    TEST_DECL_GROUP("pkcs11", test_wc_Pkcs11_AesCtrStream)
+
+#endif
+
+#endif /* WOLFCRYPT_TEST_PKCS11_H */

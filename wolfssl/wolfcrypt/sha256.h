@@ -90,10 +90,7 @@
 #if defined(WOLFSSL_ESP32_CRYPT)
     #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
 #endif
-#if defined(WOLFSSL_CRYPTOCELL)
-    #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
-#endif
-#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_SILABS_SE_TYPES)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
 #if defined(WOLFSSL_KCAPI_HASH)
@@ -110,6 +107,39 @@
 #if defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 #undef  WOLFSSL_NO_HASH_RAW
 #define WOLFSSL_NO_HASH_RAW
+#endif
+
+/* Ports with no software transform or with state outside sha256->digest. */
+#if (defined(WOLFSSL_HAVE_LMS) || \
+     (defined(WOLFSSL_HAVE_SLHDSA) && defined(WOLFSSL_SLHDSA_SHA2))) && \
+    !defined(WOLFSSL_NO_HASH_RAW) && \
+    !defined(WOLFSSL_TI_HASH) && \
+    !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_MAX3266X) && \
+    !defined(WOLFSSL_MAX3266X_OLD) && \
+    !defined(FREESCALE_LTC_SHA) && \
+    !defined(WOLFSSL_PIC32MZ_HASH) && \
+    !defined(STM32_HASH_SHA2) && \
+    !(defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+      !defined(WOLFSSL_QNX_CAAM)) && \
+    !(defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)) && \
+    !defined(WOLFSSL_AFALG_HASH) && \
+    !defined(WOLFSSL_DEVCRYPTO_HASH) && \
+    !(defined(WOLFSSL_ESP32_CRYPT) && \
+      !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)) && \
+    !((defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
+      !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
+    !((defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+       defined(WOLFSSL_RENESAS_RSIP)) && \
+      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) && \
+    !defined(WOLFSSL_RENESAS_RX64_HASH) && \
+    !defined(PSOC6_HASH_SHA2) && \
+    !defined(WOLFSSL_IMXRT_DCP) && \
+    !defined(WOLFSSL_NXP_HASHCRYPT_SHA) && \
+    !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_HASH)
+    #define WOLFSSL_HAVE_SHA256_HASH_BLOCK
 #endif
 
 #define SHA256_NOINLINE WC_NO_INLINE
@@ -130,6 +160,24 @@
 #define WC_SHA256_BLOCK_SIZE   64
 #define WC_SHA256_DIGEST_SIZE  32
 #define WC_SHA256_PAD_SIZE     56
+
+/* Size, in bytes, of the C transform's caller-owned scratch (Sha256TScratch
+ * in sha256.c): the message schedule plus the eight working variables.
+ * External providers of wc_Sha256.W under WOLFSSL_SMALL_STACK_CACHE (the
+ * init and copy paths, the Nuvoton copy callback, linuxkm's w_buf) must
+ * supply at least this much; sha256.c statically asserts this matches the
+ * struct.  SHA256_MANY_REGISTERS must be defined globally (settings.h or
+ * user_settings.h), never per-TU, or providers and the transform disagree
+ * on this size.  The macro's name is itself interface: external
+ * integrators -- notably wolfBoot's static allocator -- size their
+ * buffers by it and gate on its presence, so do not rename it. */
+#ifdef SHA256_MANY_REGISTERS
+    #define WC_SHA256_TSCRATCH_SIZE \
+        (WC_SHA256_BLOCK_SIZE + 8 * sizeof(word32))
+#else
+    #define WC_SHA256_TSCRATCH_SIZE \
+        ((WC_SHA256_BLOCK_SIZE + 8) * sizeof(word32))
+#endif
 
 
 #ifdef WOLFSSL_TI_HASH
@@ -199,7 +247,14 @@ struct wc_Sha256 {
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
 
-#endif
+#endif /* end of the hardware-vs-software member chain */
+
+/* The callback port keeps the software implementation compiled in for
+ * fallback, so the SE context is added alongside those members rather than
+ * replacing them - hence this block sits outside the chain closed above. */
+#if defined(WOLFSSL_SILABS_CRYPTOCB)
+    wc_silabs_sha_t silabsCtx;
+#endif /* WOLFSSL_SILABS_CRYPTOCB */
     void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
@@ -208,6 +263,10 @@ struct wc_Sha256 {
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WC_SHA2_NO_SMALL_STACK)
+    /* Every provider of this buffer (InitSha256, the copy paths, the
+     * Nuvoton callback, linuxkm's w_buf) must size it
+     * WC_SHA256_TSCRATCH_SIZE: the C transform uses it as its full
+     * caller-owned scratch, not just the message schedule. */
     word32* W;
 #endif /* !FREESCALE_LTC_SHA && !STM32_HASH_SHA2 */
 #ifdef WOLFSSL_DEVCRYPTO_HASH
@@ -226,9 +285,6 @@ struct wc_Sha256 {
 #endif
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     maxq_sha256_t maxq_ctx;
-#endif
-#ifdef WOLFSSL_CRYPTOCELL
-    CRYS_HASHUserContext_t ctx;
 #endif
 #ifdef WOLFSSL_KCAPI_HASH
     wolfssl_KCAPI_Hash kcapi;
@@ -268,15 +324,146 @@ WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash);
 #endif
 WOLFSSL_API int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
 WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256);
+WOLFSSL_API int wc_Sha256Reset(wc_Sha256* sha256);
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
     !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
     !defined(WOLF_CRYPTO_CB_ONLY_SHA256)
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
-#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+#ifdef WOLFSSL_HAVE_SHA256_HASH_BLOCK
 WOLFSSL_API int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
     unsigned char* hash);
 #endif
+
+/* Multi-buffer SHA-256: compress several independent message blocks at once,
+ * one per 32-bit lane of a vector register.  LMS and XMSS drive these
+ * directly, the way ML-KEM and SLH-DSA drive the multi-way Keccak in sha3.h -
+ * there is no wrapper API, so the caller owns the interleaved state, the
+ * CPUID check and the vector-register save.
+ *
+ * state is lane-interleaved: word i of message m is state[i * cnt + m], which
+ * is what the round code needs in a register.  data is 'cnt' consecutive
+ * 64-byte blocks.  The compressed block is added into state, so a caller
+ * starts it from the SHA-256 initial value or from a shared prefix's chaining
+ * value and calls once per block.
+ *
+ * Two widths are built.  Which is usable is a property of the CPU, so the
+ * lane count is decided at run time and WC_SHA256_N_WAY_MAX_CNT is only for
+ * sizing buffers.  Measured per compressed block on a Zen 5: sixteen-way
+ * AVX-512 7.3 ns, eight-way AVX2 25.5 ns, single-stream SHA-NI 23.5 ns - so
+ * callers take sixteen lanes wherever AVX-512 is present, but eight only
+ * where SHA-NI is absent.  (The AVX2 eight-way is now level with SHA-NI
+ * rather than clearly behind it, so that last rule is closer than it used to
+ * be; it still goes the same way.)
+ *
+ * The condition must stay in step with the guards the generator puts around
+ * these in sha256_asm.S.
+ */
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    !defined(NO_AVX2_SUPPORT) && !defined(WOLFSSL_NO_SHA256_N_WAY) && \
+    (defined(WOLFSSL_HAVE_LMS) || defined(WOLFSSL_HAVE_XMSS) || \
+     defined(WOLFSSL_HAVE_SLHDSA))
+
+#define WC_SHA256_N_WAY
+/* Widest batch this build can run. */
+#ifdef NO_AVX512_SUPPORT
+    #define WC_SHA256_N_WAY_MAX_CNT   8
+#else
+    #define WC_SHA256_N_WAY_MAX_CNT   16
+#endif
+/* Bytes of message data the widest batch consumes per block index. */
+#define WC_SHA256_N_WAY_MAX_BLK_SZ  \
+    (WC_SHA256_N_WAY_MAX_CNT * WC_SHA256_BLOCK_SIZE)
+
+WOLFSSL_LOCAL void Transform_Sha256_x8_AVX2(word32* state, const byte* data);
+#ifndef NO_AVX512_SUPPORT
+WOLFSSL_LOCAL void Transform_Sha256_x16_AVX512(word32* state,
+    const byte* data);
+#ifndef NO_AVX512BW_SUPPORT
+/* The same kernel, byte-swapping the message with vpshufb instead of the
+ * rotate-and-merge pair the AVX-512F-only form uses - two instructions
+ * saved on each of the sixteen loads, about 1%.  Call it only after
+ * IS_INTEL_AVX512_BW(); the plain form is what runs otherwise. */
+WOLFSSL_LOCAL void Transform_Sha256_x16_AVX512_BW(word32* state,
+    const byte* data);
+#endif
+
+/* LM-OTS kernels: these fill the lanes themselves and leave the compressed
+ * state lane-interleaved in the caller's buffer, so a chain runs without ever
+ * de-interleaving - the same shape as SLH-DSA's SHAKE x4 chain, where the
+ * state persists across the loop and the hashes are read out only at the end.
+ *
+ * One sets the lanes up in the first place, one reuses the buffer they leave;
+ * what differs between call sites is passed in rather than made into more
+ * functions.
+ *
+ * st    - WC_SHA256_N_WAY_MAX_CNT * 8 words, lane-interleaved, in and out.
+ * tmpl  - the LM-OTS block as sixteen host-order words: the fields that do
+ *         not vary between lanes.
+ * idx0  - chain index of lane 0; lane l takes idx0 + l.
+ * idxv  - per-lane chain index.
+ * jv    - per-lane iteration index.
+ */
+WOLFSSL_LOCAL void Transform_Sha256_x16_LmsInit_AVX512(word32* st,
+    const word32* tmpl, word32 idx0);
+WOLFSSL_LOCAL void Transform_Sha256_x16_LmsStep_AVX512(word32* st,
+    const word32* tmpl, const word32* idxv, const word32* jv);
+/* Key generation runs every chain of a group the same length with every lane
+ * at the same iteration, so the whole loop goes in here: 'max' iterations
+ * without the state leaving registers between them. */
+WOLFSSL_LOCAL void Transform_Sha256_x16_LmsChain_AVX512(word32* st,
+    const word32* tmpl, const word32* idxv, word32 max);
+#ifdef WOLFSSL_LMS_SHA256_192
+/* The same three for a 24-byte hash: the message is eight bytes shorter, so
+ * tmp ends in W11 and the digest is six words rather than eight. */
+WOLFSSL_LOCAL void Transform_Sha256_x16_Lms192Init_AVX512(word32* st,
+    const word32* tmpl, word32 idx0);
+WOLFSSL_LOCAL void Transform_Sha256_x16_Lms192Step_AVX512(word32* st,
+    const word32* tmpl, const word32* idxv, const word32* jv);
+WOLFSSL_LOCAL void Transform_Sha256_x16_Lms192Chain_AVX512(word32* st,
+    const word32* tmpl, const word32* idxv, word32 max);
+#endif
+#endif
+
+#if defined(WOLFSSL_HAVE_XMSS) && !defined(NO_AVX512_SUPPORT)
+/* XMSS with SHA-256 and n = 32, sixteen chains at a time.
+ *
+ * PRF hashes padding || SEED || ADRS.  Padding and SEED are one whole block
+ * and do not change within a WOTS+ operation, so the caller absorbs them once
+ * and every PRF here is the single block that holds ADRS.
+ *
+ * F hashes padding || KEY || (tmp ^ BM), all of which this code already holds
+ * lane-interleaved - so a chain runs PRF, PRF, F without any of the three
+ * touching a byte buffer.
+ *
+ * out   - WC_SHA256_N_WAY_MAX_CNT * 8 words, lane-interleaved.
+ * mid   - the eight-word state left by padding || SEED.
+ * adrs  - ADRS as eight host-order words: the fields alike in every lane,
+ *         including the key-and-mask word that selects KEY or BM.
+ * chainv, hashv - per-lane chain and hash address.
+ * st    - the chain value, lane-interleaved, in and out.
+ * key, bm - lane-interleaved, as PRF left them.
+ */
+WOLFSSL_LOCAL void Transform_Sha256_x16_XmssPrf_AVX512(word32* out,
+    const word32* mid, const word32* adrs, const word32* chainv,
+    const word32* hashv);
+WOLFSSL_LOCAL void Transform_Sha256_x16_XmssF_AVX512(word32* st,
+    const word32* key, const word32* bm);
+/* The 24-byte parameter sets pad with four bytes, not a whole hash, so the
+ * blocks fall differently: PRF's 60-byte message spills into a second block
+ * and has no whole block of prefix to absorb once, while F's 52-byte message
+ * fits in one.  Both start from the initial value.
+ *
+ * pfx - the four padding bytes and SEED as seven words.
+ */
+WOLFSSL_LOCAL void Transform_Sha256_x16_Xmss192Prf_AVX512(word32* out,
+    const word32* pfx, const word32* adrs, const word32* chainv,
+    const word32* hashv);
+WOLFSSL_LOCAL void Transform_Sha256_x16_Xmss192F_AVX512(word32* st,
+    const word32* key, const word32* bm);
+#endif
+
+#endif /* multi-buffer SHA-256 */
 #if defined(WOLFSSL_HASH_KEEP)
 WOLFSSL_API int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
 #endif
@@ -326,6 +513,7 @@ WOLFSSL_API int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId);
 WOLFSSL_API int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len);
 WOLFSSL_API int wc_Sha224Final(wc_Sha224* sha224, byte* hash);
 WOLFSSL_API void wc_Sha224Free(wc_Sha224* sha224);
+WOLFSSL_API int wc_Sha224Reset(wc_Sha224* sha224);
 
 #if defined(WOLFSSL_HASH_KEEP)
 WOLFSSL_API int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz);

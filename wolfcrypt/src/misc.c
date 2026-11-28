@@ -791,11 +791,14 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
     byte *zb = (byte *)mem;
     unsigned long *zl;
 
-    XFENCE();
+    /* Make the compiler put the buffer's current contents at mem, so the
+     * wipe below hits the memory that holds them and not a copy. */
+    WC_BARRIER_DATA(mem);
 
-    while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
-        if (len == 0)
-            return;
+    /* No early return here: a short unaligned buffer must still reach the
+     * trailing barrier, or its wipe can be dropped as a dead store. */
+    while ((len != 0) &&
+            ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U))) {
         *zb++ = 0;
         --len;
     }
@@ -814,26 +817,68 @@ WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
         --len;
     }
 
-    XFENCE();
+    /* The caller is done with the buffer, so the compiler may drop the
+     * stores above as dead. The barrier makes the buffer look read by
+     * opaque code. No CPU fence is needed for that. */
+    WC_BARRIER_DATA(mem);
 }
 #endif
 
 
 #ifndef WOLFSSL_NO_CONST_CMP
-/* check all length bytes for equality, return 0 on success */
+/* Compare length bytes of a and b in constant time.
+ * Returns 0 if equal, positive if they differ, and 1 if length is negative. */
 WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
                                              int length)
 {
     int i;
     int compareSum = 0;
+    /* Volatile loads keep the compiler from turning this into an early-exit
+     * memcmp() or a vectorised compare-and-branch. */
+    const volatile byte* va = (const volatile byte*)a;
+    const volatile byte* vb = (const volatile byte*)b;
 
-    for (i = 0; i < length; i++) {
-        compareSum |= a[i] ^ b[i];
+    /* length is public, so branching is safe. Return positive: callers
+     * such as AES_GCM_decrypt_C() build masks that read negative as equal. */
+    if (length < 0) {
+        return 1;
     }
 
+    for (i = 0; i < length; i++) {
+        compareSum |= va[i] ^ vb[i];
+    }
+
+#ifdef WOLFSSL_WIDE_BYTE
+    /* A byte wider than 8 bits can set the int's sign bit, which callers'
+     * masks would read as equal.  Normalize to 0/1 without a branch. */
+    return (int)(((word32)compareSum | ((word32)0 - (word32)compareSum)) >> 31);
+#else
     return compareSum;
+#endif
 }
 #endif
+
+/* Value barrier: returns v unchanged, but the compiler can no longer see where
+ * it came from or what range it has.
+ *
+ * Branch-free C is not enough on its own.  When the compiler can prove that a
+ * mask formula is a comparison (e.g. ((word32)b - 1) >> 31 on a byte b is
+ * exactly b == 0), it may emit a compare-and-branch for it, or for a select
+ * built from the mask.  Clang does this for Thumb-1, which has no conditional
+ * select.  Pass the secret through this barrier before the formula (so the
+ * compiler cannot prove the formula equals a comparison) and pass the result
+ * through again before building a mask from it (so the select stays as
+ * arithmetic). */
+WC_MISC_STATIC WC_INLINE word32 ctHide32(word32 v)
+{
+#if defined(__GNUC__) && !defined(__CC_ARM) && !defined(WOLFSSL_NO_ASM)
+    __asm__ ("" : "+r" (v));
+    return v;
+#else
+    volatile word32 t = v;
+    return t;
+#endif
+}
 
 
 #if defined(WOLFSSL_NO_CT_OPS) && (!defined(NO_RSA) || !defined(WOLFCRYPT_ONLY)) \
@@ -960,6 +1005,28 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
     }
 }
 
+#ifdef WC_NO_PTR_INT_CAST
+/* Constant time - return b when mask is set and a when it is clear.
+ *
+ * ctMaskCopy() cannot be used to select a pointer on a capability based
+ * target: it copies byte by byte, which drops the capability even when the
+ * bytes are unchanged. Index a two entry table instead. The table is aligned
+ * to 32 bytes - not 16 - so that both entries share one cache line even when
+ * a pointer is 16 bytes wide, as it is on CHERI purecap. XALIGNED is used
+ * rather than ALIGN16 because ALIGN16 expands to nothing unless
+ * WOLFSSL_USE_ALIGN is defined.
+ */
+WC_MISC_STATIC WC_INLINE void* ctMaskSelPtr(byte mask, void* a, void* b)
+{
+    XALIGNED(32) void* p[2];
+
+    p[0] = a;
+    p[1] = b;
+
+    return p[mask & 1];
+}
+#endif /* WC_NO_PTR_INT_CAST */
+
 #endif /* !WOLFSSL_NO_CT_OPS */
 
 #ifndef WOLFSSL_HAVE_MIN
@@ -992,7 +1059,9 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
 #if !defined(WOLFSSL_NO_CT_OPS) && !defined(WOLFSSL_NO_CT_MAX_MIN) && \
     defined(WORD64_AVAILABLE)
         volatile word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
-        return (a & gte_mask) | (b & ~gte_mask);
+        word32 a_masked = (a & gte_mask);
+        word32 b_masked = (b & ~gte_mask);
+        return a_masked | b_masked;
 #else /* WOLFSSL_NO_CT_OPS */
         return a > b ? a : b;
 #endif /* WOLFSSL_NO_CT_OPS */
