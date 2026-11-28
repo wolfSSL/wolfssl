@@ -9964,11 +9964,35 @@ int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
 #endif /* WOLFSSL_CERT_REQ */
 
 #if !defined(NO_FILESYSTEM)
+/* Size of the DER SEQUENCE at the file's current position, or 0 when it can't
+ * be determined or exceeds avail. The file position is unchanged. */
+static long d2i_fp_der_sz(XFILE file, long avail)
+{
+    byte hdr[6];
+    word32 idx = 0;
+    int len = 0;
+    long start = XFTELL(file);
+    long hdrSz = (avail < (long)sizeof(hdr)) ? avail : (long)sizeof(hdr);
+    long rdSz;
+
+    if (start < 0) {
+        return 0;
+    }
+    rdSz = (long)XFREAD(hdr, 1, (size_t)hdrSz, file);
+    if (XFSEEK(file, start, XSEEK_SET) != 0 || rdSz != hdrSz ||
+            GetSequence_ex(hdr, &idx, &len, (word32)hdrSz, 0) < 0 ||
+            len == 0 || (long)idx + len > avail) {
+        return 0;
+    }
+    return (long)idx + len;
+}
+
 static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
 {
     void *newx509 = NULL;
     byte *fileBuffer = NULL;
     long sz = 0;
+    long derSz;
 
     /* init variable */
     if (x509)
@@ -9979,17 +10003,20 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
         return NULL;
     }
 
-    /* determine file size */
-    if (XFSEEK(file, 0, XSEEK_END) != 0) {
-        return NULL;
-    }
-    sz = XFTELL(file);
-    if (XFSEEK(file, 0, XSEEK_SET) != 0) {
+    /* Read from the current position. */
+    if (wolfssl_file_len(file, &sz) != 0) {
+        WOLFSSL_MSG("d2i_X509_fp_ex file size error");
         return NULL;
     }
 
-    if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
-        WOLFSSL_MSG("d2i_X509_fp_ex file size error");
+    /* Read only the first object, leaving the file after it. */
+    derSz = d2i_fp_der_sz(file, sz);
+    if (derSz > 0) {
+        sz = derSz;
+    }
+    /* BER PKCS#12 may use an indefinite length, so read it all. */
+    else if (type != PKCS12_TYPE) {
+        WOLFSSL_MSG("d2i_X509_fp_ex bad DER header");
         return NULL;
     }
 

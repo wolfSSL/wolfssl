@@ -201,6 +201,7 @@ check_result $?
 echo "Step 26"
 openssl crl -in crl.pem -inform PEM -out crl.der -outform DER
 openssl crl -in crl2.pem -inform PEM -out crl2.der -outform DER
+cat crl.der crl2.der > crl-chain.der
 
 # clear state for RSA-PSS revoke
 cp blank.index.txt demoCA/index.txt
