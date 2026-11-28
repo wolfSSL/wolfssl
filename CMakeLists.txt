@@ -5406,6 +5406,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_evp_cipher.c
         tests/api/test_evp_pkey.c
         tests/api/test_certman.c
+        tests/api/test_idevid.c
         tests/api/test_tls13.c
         tests/api/test_tls13_bounds.c
         tests/api/test_tls13_features.c

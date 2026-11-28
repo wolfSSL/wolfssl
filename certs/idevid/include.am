@@ -1,0 +1,24 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+	     certs/idevid/gen-idevid.sh \
+	     certs/idevid/idevid.cnf \
+	     certs/idevid/dev-ecc-cert.der \
+	     certs/idevid/dev-ecc-chain.pem \
+	     certs/idevid/dev-ecc-dns-cert.der \
+	     certs/idevid/dev-ecc-eku-cert.der \
+	     certs/idevid/dev-ecc-masacrit-cert.der \
+	     certs/idevid/dev-ecc-nc-cert.der \
+	     certs/idevid/dev-ecc-nc-dns-cert.der \
+	     certs/idevid/dev-ecc-nocn-cert.der \
+	     certs/idevid/dev-key.pem \
+	     certs/idevid/dev-rsa-cert.der \
+	     certs/idevid/dev-rsa-chain.pem \
+	     certs/idevid/dev-rsa-key.pem \
+	     certs/idevid/int-cert.der \
+	     certs/idevid/int-cert.pem \
+	     certs/idevid/int-key.pem \
+	     certs/idevid/int-nc-cert.pem \
+	     certs/idevid/root-cert.pem

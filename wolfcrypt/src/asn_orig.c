@@ -3063,6 +3063,7 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
     word32* idxIn, word32 sz)
 {
     word32 idx = *idxIn;
+    word32 valueEnd;
     int  strLen;
     int  ret;
     byte tag;
@@ -3088,9 +3089,14 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
         WOLFSSL_MSG("\tfail: str len");
         return ASN_PARSE_E;
     }
+    valueEnd = idx + (word32)strLen;
 
     if (GetSequence(input, &idx, &strLen, sz) < 0) {
         WOLFSSL_MSG("\tBad Sequence");
+        return ASN_PARSE_E;
+    }
+    if (idx + (word32)strLen != valueEnd) {
+        WOLFSSL_MSG("\tHardware Module Name length mismatch");
         return ASN_PARSE_E;
     }
 
@@ -3116,6 +3122,13 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
         XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
         cert->hwType = NULL;
         return ret;
+    }
+    if (idx + (word32)strLen != valueEnd) {
+        WOLFSSL_MSG("\tData after Hardware Module Name serial number");
+        XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
+        cert->hwType = NULL;
+        cert->hwTypeSz = 0;
+        return ASN_PARSE_E;
     }
 
     cert->hwSerialNum = (byte*)XMALLOC((size_t)strLen + 1, cert->heap,
@@ -3615,6 +3628,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
             int strLen;
             word32 lenStartIdx = idx;
+            word32 otherNameEnd;
             word32 oid = 0;
             int    ret = 0;
 
@@ -3627,6 +3641,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
             length -= (int)(((word32)strLen + idx - lenStartIdx));
+            otherNameEnd = idx + (word32)strLen;
 
         #ifndef IGNORE_NAME_CONSTRAINTS
             /* Store the raw OtherName encoding (OID || [0] EXPLICIT value)
@@ -3684,19 +3699,17 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 
                 default:
                     WOLFSSL_MSG("\tUnsupported other name type, skipping");
-                    if (GetLength(input, &idx, &strLen, sz) < 0) {
-                        /* check to skip constructed other names too */
-                        if (DecodeConstructedOtherName(cert, input, &idx, sz,
-                                    (int)oid) != 0) {
-                            WOLFSSL_MSG("\tfail: unsupported other name length");
-                            return ASN_PARSE_E;
-                        }
-                    }
-                    else {
-                        idx += (word32)strLen;
+                    if (DecodeConstructedOtherName(cert, input, &idx, sz,
+                                (int)oid) != 0) {
+                        WOLFSSL_MSG("\tfail: unsupported other name length");
+                        return ASN_PARSE_E;
                     }
             }
             (void)ret;
+            if (idx != otherNameEnd) {
+                WOLFSSL_MSG("\tData after other name value");
+                return ASN_PARSE_E;
+            }
         }
         else {
             int strLen;

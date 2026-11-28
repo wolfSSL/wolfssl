@@ -6031,6 +6031,14 @@ static void FreeX509Contents(WOLFSSL_X509* x509)
 
     FreeX509Name(&x509->issuer);
     FreeX509Name(&x509->subject);
+#ifdef WOLFSSL_SEP
+    XFREE(x509->deviceType, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    x509->deviceType = NULL;
+    XFREE(x509->hwType, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    x509->hwType = NULL;
+    XFREE(x509->hwSerialNum, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    x509->hwSerialNum = NULL;
+#endif /* WOLFSSL_SEP */
     if (x509->pubKey.buffer) {
         XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         x509->pubKey.buffer = NULL;
@@ -16322,32 +16330,38 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
 
 /* Copy parts X509 needs from Decoded cert, 0 on success */
 #ifdef WOLFSSL_SEP
-/* Copy the SEP device/hardware identity fields from the decoded cert. */
-static void CopyDecodedSepFields(WOLFSSL_X509* x509, DecodedCert* dCert)
+static int CopySepField(byte** dst, int* dstSz, const byte* src, int srcSz,
+    void* heap)
 {
-    int minSz;
+    XFREE(*dst, heap, DYNAMIC_TYPE_X509_EXT);
+    *dst = NULL;
+    *dstSz = 0;
+    if ((src != NULL) && (srcSz > 0)) {
+        *dst = (byte*)XMALLOC((size_t)srcSz, heap, DYNAMIC_TYPE_X509_EXT);
+        if (*dst == NULL)
+            return MEMORY_E;
+        XMEMCPY(*dst, src, (size_t)srcSz);
+        *dstSz = srcSz;
+    }
+    return 0;
+}
 
-    minSz = min(dCert->deviceTypeSz, EXTERNAL_SERIAL_SIZE);
-    if (minSz > 0) {
-        x509->deviceTypeSz = minSz;
-        XMEMCPY(x509->deviceType, dCert->deviceType, minSz);
+/* Copy the SEP device/hardware identity fields from the decoded cert. */
+static int CopyDecodedSepFields(WOLFSSL_X509* x509, DecodedCert* dCert)
+{
+    int ret;
+
+    ret = CopySepField(&x509->deviceType, &x509->deviceTypeSz,
+        dCert->deviceType, dCert->deviceTypeSz, x509->heap);
+    if (ret == 0) {
+        ret = CopySepField(&x509->hwType, &x509->hwTypeSz, dCert->hwType,
+            dCert->hwTypeSz, x509->heap);
     }
-    else
-        x509->deviceTypeSz = 0;
-    minSz = min(dCert->hwTypeSz, EXTERNAL_SERIAL_SIZE);
-    if (minSz > 0) {
-        x509->hwTypeSz = minSz;
-        XMEMCPY(x509->hwType, dCert->hwType, minSz);
+    if (ret == 0) {
+        ret = CopySepField(&x509->hwSerialNum, &x509->hwSerialNumSz,
+            dCert->hwSerialNum, dCert->hwSerialNumSz, x509->heap);
     }
-    else
-        x509->hwTypeSz = 0;
-    minSz = min(dCert->hwSerialNumSz, EXTERNAL_SERIAL_SIZE);
-    if (minSz > 0) {
-        x509->hwSerialNumSz = minSz;
-        XMEMCPY(x509->hwSerialNum, dCert->hwSerialNum, minSz);
-    }
-    else
-        x509->hwSerialNumSz = 0;
+    return ret;
 }
 #endif /* WOLFSSL_SEP */
 
@@ -16656,7 +16670,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif /* WOLFSSL_CERT_REQ */
 
 #ifdef WOLFSSL_SEP
-    CopyDecodedSepFields(x509, dCert);
+    copyRet = CopyDecodedSepFields(x509, dCert);
+    if (copyRet != 0)
+        ret = copyRet;
 #endif /* WOLFSSL_SEP */
 
     CopyDateToASN1_TIME(dCert->beforeDate, dCert->beforeDateLen,

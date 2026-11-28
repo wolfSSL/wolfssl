@@ -9271,14 +9271,19 @@ WOLFSSL_X509*
 
     \return pointer returns a byte pointer holding the device type from
     the x509 structure.
-    \return NULL returned if the buffer size is NULL.
+    \return NULL returned if x509 or inOutSz is NULL, *inOutSz is negative
+    while in is not NULL, an allocation fails, or in is NULL in a
+    WOLFSSL_STATIC_MEMORY build.
+    \return in, or NULL when in is NULL, with *inOutSz set to 0 when the
+    certificate has no device type.
 
     \param x509 pointer to a WOLFSSL_X509 structure, created with
     WOLFSSL_X509_new().
     \param in a pointer to a byte type that will hold the device type
-    (the buffer).
-    \param inOutSz the minimum of either the parameter inOutSz or the
-    deviceTypeSz member of the x509 structure.
+    (the buffer). When NULL, a buffer of the full size is allocated, which
+    the caller frees with XFREE(ptr, NULL, DYNAMIC_TYPE_OPENSSL).
+    \param inOutSz on input the size of in, on output the number of bytes
+    copied, or 0 when the certificate has no device type.
 
     _Example_
     \code
@@ -9310,12 +9315,19 @@ unsigned char*
 
     \return byte The function returns a byte type of the data previously held
     in the hwType member of the WOLFSSL_X509 structure.
-    \return NULL returned if  inOutSz is NULL.
+    \return NULL returned if x509 or inOutSz is NULL, *inOutSz is negative
+    while in is not NULL, an allocation fails, or in is NULL in a
+    WOLFSSL_STATIC_MEMORY build.
+    \return in, or NULL when in is NULL, with *inOutSz set to 0 when the
+    certificate has no HardwareModuleName.
 
     \param x509 a pointer to a WOLFSSL_X509 structure containing certificate
     information.
-    \param in pointer to type byte that represents the buffer.
-    \param inOutSz pointer to type int that represents the size of the buffer.
+    \param in pointer to type byte that represents the buffer. When NULL, a
+    buffer of the full size is allocated, which the caller frees with
+    XFREE(ptr, NULL, DYNAMIC_TYPE_OPENSSL).
+    \param inOutSz on input the size of in, on output the number of bytes
+    copied, or 0 when the certificate has no HardwareModuleName.
 
     _Example_
     \code
@@ -9344,11 +9356,19 @@ unsigned char*
 
     \return pointer the function returns a byte pointer to the in buffer that
     will contain the serial number loaded from the x509 object.
+    \return NULL returned if x509 or inOutSz is NULL, *inOutSz is negative
+    while in is not NULL, an allocation fails, or in is NULL in a
+    WOLFSSL_STATIC_MEMORY build.
+    \return in, or NULL when in is NULL, with *inOutSz set to 0 when the
+    certificate has no HardwareModuleName.
 
     \param x509 pointer to a WOLFSSL_X509 structure containing certificate
     information.
-    \param in a pointer to the buffer that will be copied to.
-    \param inOutSz a pointer to the size of the buffer.
+    \param in a pointer to the buffer that will be copied to. When NULL, a
+    buffer of the full size is allocated, which the caller frees with
+    XFREE(ptr, NULL, DYNAMIC_TYPE_OPENSSL).
+    \param inOutSz on input the size of in, on output the number of bytes
+    copied, or 0 when the certificate has no HardwareModuleName.
 
     _Example_
     \code

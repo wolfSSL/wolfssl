@@ -5103,8 +5103,11 @@ byte* wolfSSL_X509_get_device_type(WOLFSSL_X509* x509, byte* in, int *inOutSz)
 
     WOLFSSL_ENTER("wolfSSL_X509_get_dev_type");
     if (x509 == NULL) return NULL;
-    if (inOutSz == NULL) return NULL;
-    if (!x509->deviceTypeSz) return in;
+    if ((inOutSz == NULL) || ((in != NULL) && (*inOutSz < 0))) return NULL;
+    if (!x509->deviceTypeSz) {
+        *inOutSz = 0;
+        return in;
+    }
 
     copySz = min(*inOutSz, x509->deviceTypeSz);
 
@@ -5132,8 +5135,11 @@ byte* wolfSSL_X509_get_hw_type(WOLFSSL_X509* x509, byte* in, int* inOutSz)
 
     WOLFSSL_ENTER("wolfSSL_X509_get_hw_type");
     if (x509 == NULL) return NULL;
-    if (inOutSz == NULL) return NULL;
-    if (!x509->hwTypeSz) return in;
+    if ((inOutSz == NULL) || ((in != NULL) && (*inOutSz < 0))) return NULL;
+    if (!x509->hwTypeSz) {
+        *inOutSz = 0;
+        return in;
+    }
 
     copySz = min(*inOutSz, x509->hwTypeSz);
 
@@ -5162,8 +5168,11 @@ byte* wolfSSL_X509_get_hw_serial_number(WOLFSSL_X509* x509,byte* in,
 
     WOLFSSL_ENTER("wolfSSL_X509_get_hw_serial_number");
     if (x509 == NULL) return NULL;
-    if (inOutSz == NULL) return NULL;
-    if (!x509->hwTypeSz) return in;
+    if ((inOutSz == NULL) || ((in != NULL) && (*inOutSz < 0))) return NULL;
+    if (!x509->hwSerialNumSz) {
+        *inOutSz = 0;
+        return in;
+    }
 
     copySz = min(*inOutSz, x509->hwSerialNumSz);
 

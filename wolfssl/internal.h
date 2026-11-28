@@ -6399,10 +6399,10 @@ struct WOLFSSL_X509 {
 #ifdef WOLFSSL_SEP
     int              deviceTypeSz;
     int              hwTypeSz;
-    byte             deviceType[EXTERNAL_SERIAL_SIZE];
-    byte             hwType[EXTERNAL_SERIAL_SIZE];
     int              hwSerialNumSz;
-    byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
+    byte*            deviceType;
+    byte*            hwType;
+    byte*            hwSerialNum;
     byte             certPolicySet;
     byte             certPolicyCrit;
 #endif /* WOLFSSL_SEP */

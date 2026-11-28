@@ -1089,6 +1089,19 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
+    ###### calling gen-idevid.sh              ##################
+    ############################################################
+    if openssl x509 -help 2>&1 | grep -q -- '-not_before'; then
+        echo "Calling gen-idevid.sh"
+        echo ""
+        ./idevid/gen-idevid.sh
+        check_result $? "gen-idevid.sh"
+    else
+        echo "Skipping gen-idevid.sh (needs OpenSSL 3.4+ for -not_before)"
+    fi
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ###### generate cms bundles in test directory ##############
     ############################################################
     echo "Generating CMS bundle"
