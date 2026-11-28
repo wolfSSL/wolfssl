@@ -1393,6 +1393,7 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
     int sanCnt = 0;
     int crit = -1;
     WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* eku = NULL;
+    X509* anyCert = NULL;
 
     ExpectNotNull(conf = NCONF_new(NULL));
     ExpectIntEQ(NCONF_load(conf, confFile, &eline), 1);
@@ -1468,6 +1469,13 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
     ExpectIntEQ(sk_GENERAL_NAME_num(names), 4);
     GENERAL_NAMES_free(names);
     names = NULL;
+
+    /* anyExtendedKeyUsage is encoded alone, so mixing it with other usages
+     * is rejected and leaves the configured usages unchanged. */
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_eku_any_mixed", leaf),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(X509_get_extended_key_usage(leaf),
+        XKU_SSL_SERVER | XKU_SSL_CLIENT);
 
     ExpectNotNull(bio = BIO_new_file("./certs/ca-ecc-key.pem", "rb"));
     ExpectNotNull(caKey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
@@ -1549,6 +1557,35 @@ int test_wolfSSL_X509V3_EXT_add_nconf(void)
         WOLFSSL_FAILURE);
     ExpectIntEQ(X509V3_EXT_add_nconf(conf, &ctx, "bad_akid_crit", root),
         WOLFSSL_FAILURE);
+
+    /* anyExtendedKeyUsage alone is kept through signing and parsing. */
+    ExpectNotNull(anyCert = X509_new());
+    ExpectNotNull(pub = X509_get_pubkey(srvCert));
+    ExpectIntEQ(X509_set_pubkey(anyCert, pub), WOLFSSL_SUCCESS);
+    EVP_PKEY_free(pub);
+    pub = NULL;
+    ExpectIntEQ(X509_set_version(anyCert, 2), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set_subject_name(anyCert,
+        X509_get_subject_name(srvCert)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set_issuer_name(anyCert, X509_get_subject_name(caCert)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set1_notBefore(anyCert, X509_get0_notBefore(srvCert)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_set1_notAfter(anyCert, X509_get0_notAfter(srvCert)),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509V3_EXT_add_nconf(conf, NULL, "eku_any", anyCert),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_get_extended_key_usage(anyCert), XKU_ANYEKU);
+    ExpectIntGT(X509_sign(anyCert, caKey, EVP_sha256()), 0);
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+    X509_free(decoded);
+    decoded = NULL;
+    ExpectIntGT(derSz = i2d_X509(anyCert, &der), 0);
+    p = der;
+    ExpectNotNull(decoded = d2i_X509(NULL, &p, derSz));
+    ExpectIntEQ(X509_get_extended_key_usage(decoded), XKU_ANYEKU);
+    X509_free(anyCert);
     /* subjectKeyIdentifier = hash for each way a public key is held. */
     ExpectIntEQ(test_X509V3_EXT_add_nconf_skid_hash(conf,
         "./certs/ca-ecc-cert.pem", 0), TEST_SUCCESS);

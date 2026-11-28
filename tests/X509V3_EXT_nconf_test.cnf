@@ -62,3 +62,9 @@ subjectKeyIdentifier = critical, hash
 
 [ bad_akid_crit ]
 authorityKeyIdentifier = critical, keyid
+
+[ bad_eku_any_mixed ]
+extendedKeyUsage = any, serverAuth
+
+[ eku_any ]
+extendedKeyUsage = any

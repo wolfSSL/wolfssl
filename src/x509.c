@@ -19092,6 +19092,10 @@ static int x509v3_conf_eku(WOLFSSL_X509* cert, const char* value, int crit)
     if (ParseExtKeyUsageStr(value, &usage, cert->heap) != 0) {
         return WOLFSSL_FAILURE;
     }
+    if ((usage & EXTKEYUSE_ANY) && (usage != EXTKEYUSE_ANY)) {
+        WOLFSSL_MSG("extendedKeyUsage any with other usages not supported");
+        return WOLFSSL_FAILURE;
+    }
     der = (byte*)XMALLOC(sizeof(anyOid) +
         (sizeof(kp) / sizeof(kp[0])) * (sizeof(kpOid) + 1), cert->heap,
         DYNAMIC_TYPE_X509_EXT);
