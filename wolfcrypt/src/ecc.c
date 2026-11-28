@@ -10667,7 +10667,7 @@ static int ecc_nb_verify_bind(ecc_nb_ctx_t* nb_ctx, mp_int* r, mp_int* s,
                Caller should check the *res value to determine if the signature
                is valid or invalid. Other negative values are returned on error.
 */
-int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+static int ecc_verify_hash_ex_impl(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
 {
 #if (defined(WOLFSSL_STM32_PKA) && !defined(WC_STM32_PKA_SIGN_ONLY)) || \
@@ -10900,11 +10900,6 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
   err = ecc_verify_hash_sp(r, s, hash, hashlen, res, key);
 
-#ifdef WC_ECC_NONBLOCK
-  if ((key->nb_ctx != NULL) && (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK))) {
-      key->nb_ctx->verifyInProgress = 0;
-  }
-#endif
   if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
       if (curveLoaded) {
            wc_ecc_curve_free(curve);
@@ -10940,6 +10935,21 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    return err;
 #endif /* WOLFSSL_STM32_PKA */
+}
+
+int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+                    word32 hashlen, int* res, ecc_key* key)
+{
+    int ret;
+
+    ret = ecc_verify_hash_ex_impl(r, s, hash, hashlen, res, key);
+#ifdef WC_ECC_NONBLOCK
+    if ((ret != WC_NO_ERR_TRACE(FP_WOULDBLOCK)) && (key != NULL) &&
+        (key->nb_ctx != NULL)) {
+        XMEMSET(key->nb_ctx, 0, sizeof(*key->nb_ctx));
+    }
+#endif
+    return ret;
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 #endif /* HAVE_ECC_VERIFY */
