@@ -814,12 +814,35 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
     return ret;
 }
 
+/* Check whether any BIO in the read chain (up to an SSL BIO) wants a retry.
+ * A nonblocking source sets its own retry flag, not the head filter BIO's.
+ *
+ * @param [in] bio  Head of the BIO chain that was read.
+ * @return  1 when a BIO in the chain wants a retry.
+ * @return  0 otherwise.
+ */
+static int wolfssl_pkcs7_bio_chain_should_retry(WOLFSSL_BIO* bio)
+{
+    while (bio != NULL) {
+        if (wolfSSL_BIO_should_retry(bio)) {
+            return 1;
+        }
+        if (bio->type == WOLFSSL_BIO_SSL) {
+            break;
+        }
+        bio = bio->next;
+    }
+
+    return 0;
+}
+
 /* Read all remaining data from a BIO of any type into a new buffer.
  *
  * BIO_read() may return less than asked for, and not every BIO type knows its
  * length up front, so keep reading until the BIO has no more data. Like
- * OpenSSL's PKCS7_verify(), a read returning <= 0 ends the data. A BIO that
- * asks to be retried has not delivered all of its data, so that is an error.
+ * OpenSSL's PKCS7_verify(), a read returning <= 0 ends the data. A BIO chain
+ * where any BIO asks to be retried has not delivered all of its data, so that
+ * is an error.
  * Zero bytes is a valid (empty) result.
  *
  * @param [in, out] bio   BIO to read from.
@@ -871,7 +894,7 @@ static int wolfssl_pkcs7_read_bio(WOLFSSL_BIO* bio, void* heap, byte** data,
 
         rd = wolfSSL_BIO_read(bio, buf + total, bufSz - total);
         if (rd <= 0) {
-            if (wolfSSL_BIO_should_retry(bio)) {
+            if (wolfssl_pkcs7_bio_chain_should_retry(bio)) {
                 WOLFSSL_MSG("BIO wants retry, detached content incomplete");
                 ret = WOLFSSL_FATAL_ERROR;
             }

@@ -892,6 +892,43 @@ int test_wolfSSL_PKCS7_verify_detached_bio(void)
         ExpectNull(p7Ver->pkcs7.content);
     }
 
+    /* filter BIO over an open BIO pair: retry is set only on the source, and
+     * the content is incomplete even if it matches the signature so far */
+    {
+        WOLFSSL_BIO* mdBio = NULL;
+        WOLFSSL_BIO* pairW = NULL;
+        WOLFSSL_BIO* pairR = NULL;
+        int pushed = 0;
+        EVP_MD_CTX* mdCtx = NULL;
+
+        ExpectIntEQ(BIO_new_bio_pair(&pairW, 0, &pairR, 0), 1);
+        ExpectIntEQ(BIO_write(pairW, content, sizeof(content)),
+                    sizeof(content));
+        ExpectNotNull(mdBio = BIO_new(BIO_f_md()));
+        ExpectIntEQ(BIO_get_md_ctx(mdBio, &mdCtx), 1);
+        ExpectIntEQ(EVP_DigestInit(mdCtx, EVP_sha256()), 1);
+        if (mdBio != NULL && pairR != NULL) {
+            ExpectPtrEq(BIO_push(mdBio, pairR), mdBio);
+            pushed = 1;
+        }
+        ExpectIntNE(PKCS7_verify((PKCS7*)p7Ver, NULL, store, mdBio, NULL,
+                                 PKCS7_BINARY), 1);
+        ExpectIntEQ(BIO_should_retry(mdBio), 0);
+        ExpectIntNE(BIO_should_retry(pairR), 0);
+        if (p7Ver != NULL) {
+            ExpectNull(p7Ver->pkcs7.content);
+        }
+
+        if (pushed) {
+            BIO_free_all(mdBio);   /* frees the MD BIO and pairR */
+        }
+        else {
+            BIO_free(mdBio);
+            BIO_free(pairR);
+        }
+        BIO_free(pairW);
+    }
+
     /* Expect*() never returns early, so this runs on failure too */
     (void)remove(contentFile);
 
