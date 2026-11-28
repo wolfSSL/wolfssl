@@ -371,5 +371,21 @@
   "--enable-riscv-asm", "--enable-sp=4096", "--enable-sp-asm", "--disable-examples",
   "--disable-shared", "CFLAGS=-O2"],
  "check": false,
- "run": [["env", "QEMU_LD_PREFIX=/usr/riscv64-linux-gnu", "./wolfcrypt/test/testwolfcrypt"]]}
+ "run": [["env", "QEMU_LD_PREFIX=/usr/riscv64-linux-gnu", "./wolfcrypt/test/testwolfcrypt"]]},
+{"name": "armhf-sp-tiny", "minutes": 1.5,
+ "cc": "ccache arm-linux-gnueabihf-gcc",
+ "comment": "WOLFSSL_SP_TINY on 32-bit Arm with the DSP extension: the only job that builds and runs the UMAAL multiply of the tiny P-256.",
+ "configure": ["--host=arm-linux-gnueabihf", "--enable-cryptonly",
+  "--enable-sp=tiny", "--disable-sp-asm", "--enable-compkey", "--disable-examples",
+  "--disable-shared", "CFLAGS=-Os"],
+ "check": false,
+ "run": [["env", "QEMU_LD_PREFIX=/usr/arm-linux-gnueabihf", "./wolfcrypt/test/testwolfcrypt"]]},
+{"name": "armhf-sp-tiny-no-umaal", "minutes": 1.5,
+ "cc": "ccache arm-linux-gnueabihf-gcc",
+ "comment": "The same build with WOLFSSL_SP_NO_UMAAL, so the plain C multiply of the tiny P-256 runs on Arm too.",
+ "configure": ["--host=arm-linux-gnueabihf", "--enable-cryptonly",
+  "--enable-sp=tiny", "--disable-sp-asm", "--enable-compkey", "--disable-examples",
+  "--disable-shared", "CFLAGS=-Os", "CPPFLAGS=-DWOLFSSL_SP_NO_UMAAL"],
+ "check": false,
+ "run": [["env", "QEMU_LD_PREFIX=/usr/arm-linux-gnueabihf", "./wolfcrypt/test/testwolfcrypt"]]}
 ]

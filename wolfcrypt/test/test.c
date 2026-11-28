@@ -56768,7 +56768,451 @@ done_free:
 #endif
     return ret;
 }
+
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(NO_ECC_MAKE_PUB) && !defined(WOLFSSL_NO_ECC_SW) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 0))
+/* FIPS v2 and selftest ecc.c predate wc_ecc_make_pub_ex and wc_ecc_set_rng */
+#define WC_TEST_P256_EDGE
+/* P-256 edge cases through the public API: d = n - 1 gives -G, out-of-range
+ * r and s never verify, off-curve and zero points fail the key check,
+ * compressed G and -G decode, and ECDH with d = 1 returns the peer's x. */
+static wc_test_ret_t ecc_p256_edge_test(WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    ecc_key* key = NULL;
+#else
+    ecc_key key[2];
 #endif
+    static const byte gx[32] = {
+        0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47,
+        0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2,
+        0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0,
+        0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96
+    };
+    static const byte gy[32] = {
+        0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b,
+        0x8e, 0xe7, 0xeb, 0x4a, 0x7c, 0x0f, 0x9e, 0x16,
+        0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce,
+        0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5
+    };
+    static const byte negGy[32] = {
+        0xb0, 0x1c, 0xbd, 0x1c, 0x01, 0xe5, 0x80, 0x65,
+        0x71, 0x18, 0x14, 0xb5, 0x83, 0xf0, 0x61, 0xe9,
+        0xd4, 0x31, 0xcc, 0xa9, 0x94, 0xce, 0xa1, 0x31,
+        0x34, 0x49, 0xbf, 0x97, 0xc8, 0x40, 0xae, 0x0a
+    };
+    static const byte order[32] = {
+        0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
+        0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51
+    };
+    static const byte zero[1] = { 0x00 };
+    static const byte one[1] = { 0x01 };
+    const byte* rs[8];
+    word32 rsSz[8];
+    byte pt[1 + 2 * 32];
+    byte out[1 + 2 * 32];
+    byte nm1[32];
+    byte hash[32];
+    byte sig[ECC_MAX_SIG_SIZE];
+    word32 outSz;
+    word32 sigSz;
+    int verified;
+    int inited0 = 0;
+    int inited1 = 0;
+    int i;
+
+    if (wc_ecc_get_curve_idx(ECC_SECP256R1) == ECC_CURVE_INVALID)
+        return 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    key = (ecc_key*)XMALLOC(2 * sizeof(ecc_key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+#endif
+    XMEMCPY(nm1, order, sizeof(nm1));
+    nm1[31] -= 1;
+    XMEMSET(hash, 0x5a, sizeof(hash));
+
+    ret = wc_ecc_init_ex(&key[0], HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    inited0 = 1;
+    ret = wc_ecc_init_ex(&key[1], HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    inited1 = 1;
+
+    /* d = n - 1: the public key is -G and signatures round-trip */
+    ret = wc_ecc_import_private_key_ex(nm1, sizeof(nm1), NULL, 0, &key[0],
+        ECC_SECP256R1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    ret = wc_ecc_make_pub_ex(&key[0], NULL, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    outSz = sizeof(out);
+    ret = wc_ecc_export_x963(&key[0], out, &outSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if ((outSz != sizeof(out)) || (out[0] != 0x04) ||
+            (XMEMCMP(out + 1, gx, 32) != 0) ||
+            (XMEMCMP(out + 33, negGy, 32) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    ret = wc_ecc_check_key(&key[0]);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && !defined(WC_NO_RNG)
+    sigSz = sizeof(sig);
+    ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, &key[0]);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    verified = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash, sizeof(hash), &verified,
+        &key[0]);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if (verified != 1)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+#endif
+
+#if defined(HAVE_ECC_VERIFY) && !defined(NO_ASN)
+    /* r or s of 0 or n is rejected; the call may also fail outright */
+    rs[0] = zero;  rsSz[0] = 1;  rs[1] = one;   rsSz[1] = 1;
+    rs[2] = one;   rsSz[2] = 1;  rs[3] = zero;  rsSz[3] = 1;
+    rs[4] = order; rsSz[4] = 32; rs[5] = one;   rsSz[5] = 1;
+    rs[6] = one;   rsSz[6] = 1;  rs[7] = order; rsSz[7] = 32;
+    for (i = 0; i < 8; i += 2) {
+        sigSz = sizeof(sig);
+        ret = wc_ecc_rs_raw_to_sig(rs[i], rsSz[i], rs[i + 1], rsSz[i + 1],
+            sig, &sigSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
+        verified = 1;
+        (void)wc_ecc_verify_hash(sig, sigSz, hash, sizeof(hash), &verified,
+            &key[0]);
+        if (verified != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
+    }
+#else
+    (void)rs;
+    (void)rsSz;
+    (void)zero;
+#endif
+    (void)one;
+
+#ifdef HAVE_ECC_DHE
+    /* d = 1 against -G: the shared x is G's x */
+    pt[0] = 0x04;
+    XMEMCPY(pt + 1, gx, 32);
+    XMEMCPY(pt + 33, negGy, 32);
+    ret = wc_ecc_import_x963_ex(pt, sizeof(pt), &key[1], ECC_SECP256R1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    wc_ecc_free(&key[0]);
+    inited0 = 0;
+    ret = wc_ecc_init_ex(&key[0], HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    inited0 = 1;
+    ret = wc_ecc_import_private_key_ex(one, sizeof(one), NULL, 0, &key[0],
+        ECC_SECP256R1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+#if defined(ECC_TIMING_RESISTANT) && !defined(WC_NO_RNG)
+    ret = wc_ecc_set_rng(&key[0], rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+#endif
+    outSz = 32;
+    ret = wc_ecc_shared_secret(&key[0], &key[1], out, &outSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if ((outSz != 32) || (XMEMCMP(out, gx, 32) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    wc_ecc_free(&key[1]);
+    inited1 = 0;
+    ret = wc_ecc_init_ex(&key[1], HEAP_HINT, INVALID_DEVID);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    inited1 = 1;
+#endif
+
+    /* G with y off by one, and (0, 0), fail at import or at the key check */
+    for (i = 0; i < 2; i++) {
+        pt[0] = 0x04;
+        if (i == 0) {
+            XMEMCPY(pt + 1, gx, 32);
+            XMEMCPY(pt + 33, gy, 32);
+            pt[64] ^= 0x01;
+        }
+        else {
+            XMEMSET(pt + 1, 0, 64);
+        }
+        wc_ecc_free(&key[1]);
+        inited1 = 0;
+        ret = wc_ecc_init_ex(&key[1], HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        inited1 = 1;
+        ret = wc_ecc_import_x963_ex(pt, sizeof(pt), &key[1], ECC_SECP256R1);
+        if ((ret == 0) && (wc_ecc_check_key(&key[1]) == 0))
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
+    }
+    ret = 0;
+
+#ifdef HAVE_COMP_KEY
+    /* 0x03 || Gx is G (odd y) and 0x02 || Gx is -G */
+    for (i = 0; i < 2; i++) {
+        pt[0] = (byte)(0x03 - i);
+        XMEMCPY(pt + 1, gx, 32);
+        wc_ecc_free(&key[1]);
+        inited1 = 0;
+        ret = wc_ecc_init_ex(&key[1], HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        inited1 = 1;
+        ret = wc_ecc_import_x963_ex(pt, 33, &key[1], ECC_SECP256R1);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        outSz = sizeof(out);
+        ret = wc_ecc_export_x963(&key[1], out, &outSz);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        if ((outSz != sizeof(out)) || (XMEMCMP(out + 1, gx, 32) != 0) ||
+                (XMEMCMP(out + 33, (i == 0) ? gy : negGy, 32) != 0))
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), done);
+    }
+#endif
+
+done:
+    if (inited1)
+        wc_ecc_free(&key[1]);
+    if (inited0)
+        wc_ecc_free(&key[0]);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    (void)rs;
+    (void)rsSz;
+    (void)sig;
+    (void)sigSz;
+    (void)verified;
+    return ret;
+}
+#endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT && ... */
+
+#if defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_PUBLIC_ECC_ADD_DBL) && \
+    defined(WOLFSSL_PUBLIC_MP) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WOLFSSL_SP_NO_256) && \
+    !defined(WOLFSSL_NO_MALLOC)
+#define WC_TEST_P256_PROJ
+/* SP P-256 projective add, double and map through the public point API:
+ * 2G, map and double of a Z = 2 input, in-place 2G + 2G, G + -G and inf + G */
+static wc_test_ret_t ecc_p256_proj_test(void)
+{
+    wc_test_ret_t ret = 0;
+    static const byte g[65] = {
+        0x04,
+        0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47,
+        0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2,
+        0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0,
+        0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+        0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b,
+        0x8e, 0xe7, 0xeb, 0x4a, 0x7c, 0x0f, 0x9e, 0x16,
+        0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce,
+        0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5
+    };
+    /* G and -G in Montgomery form, z = R mod p, as the projective API takes */
+    static const byte gM[65] = {
+        0x04,
+        0x18, 0x90, 0x5f, 0x76, 0xa5, 0x37, 0x55, 0xc6,
+        0x79, 0xfb, 0x73, 0x2b, 0x77, 0x62, 0x25, 0x10,
+        0x75, 0xba, 0x95, 0xfc, 0x5f, 0xed, 0xb6, 0x01,
+        0x79, 0xe7, 0x30, 0xd4, 0x18, 0xa9, 0x14, 0x3c,
+        0x85, 0x71, 0xff, 0x18, 0x25, 0x88, 0x5d, 0x85,
+        0xd2, 0xe8, 0x86, 0x88, 0xdd, 0x21, 0xf3, 0x25,
+        0x8b, 0x4a, 0xb8, 0xe4, 0xba, 0x19, 0xe4, 0x5c,
+        0xdd, 0xf2, 0x53, 0x57, 0xce, 0x95, 0x56, 0x0a
+    };
+    static const byte negGM[65] = {
+        0x04,
+        0x18, 0x90, 0x5f, 0x76, 0xa5, 0x37, 0x55, 0xc6,
+        0x79, 0xfb, 0x73, 0x2b, 0x77, 0x62, 0x25, 0x10,
+        0x75, 0xba, 0x95, 0xfc, 0x5f, 0xed, 0xb6, 0x01,
+        0x79, 0xe7, 0x30, 0xd4, 0x18, 0xa9, 0x14, 0x3c,
+        0x7a, 0x8e, 0x00, 0xe6, 0xda, 0x77, 0xa2, 0x7b,
+        0x2d, 0x17, 0x79, 0x77, 0x22, 0xde, 0x0c, 0xda,
+        0x74, 0xb5, 0x47, 0x1c, 0x45, 0xe6, 0x1b, 0xa3,
+        0x22, 0x0d, 0xac, 0xa8, 0x31, 0x6a, 0xa9, 0xf5
+    };
+    static const byte montOne[32] = {
+        0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xfe,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+    /* G as Jacobian (4x, 8y, 2) in Montgomery form */
+    static const byte gJ[65] = {
+        0x04,
+        0x62, 0x41, 0x7d, 0xda, 0x94, 0xdd, 0x57, 0x19,
+        0xe7, 0xed, 0xcc, 0xad, 0xdd, 0x88, 0x94, 0x41,
+        0xd6, 0xea, 0x57, 0xf1, 0x7f, 0xb6, 0xd8, 0x05,
+        0xe7, 0x9c, 0xc3, 0x50, 0x62, 0xa4, 0x50, 0xf0,
+        0x2b, 0x8f, 0xf8, 0xc5, 0x2c, 0x42, 0xec, 0x2a,
+        0x97, 0x44, 0x34, 0x46, 0xe9, 0x0f, 0x99, 0x2c,
+        0x5a, 0x55, 0xc7, 0x21, 0xd0, 0xcf, 0x22, 0xe6,
+        0xef, 0x92, 0x9a, 0xbe, 0x74, 0xaa, 0xb0, 0x54
+    };
+    static const byte montTwo[32] = {
+        0x00, 0x00, 0x00, 0x01, 0xff, 0xff, 0xff, 0xfd,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xfe, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
+    };
+    static const byte g2[65] = {
+        0x04,
+        0x7c, 0xf2, 0x7b, 0x18, 0x8d, 0x03, 0x4f, 0x7e,
+        0x8a, 0x52, 0x38, 0x03, 0x04, 0xb5, 0x1a, 0xc3,
+        0xc0, 0x89, 0x69, 0xe2, 0x77, 0xf2, 0x1b, 0x35,
+        0xa6, 0x0b, 0x48, 0xfc, 0x47, 0x66, 0x99, 0x78,
+        0x07, 0x77, 0x55, 0x10, 0xdb, 0x8e, 0xd0, 0x40,
+        0x29, 0x3d, 0x9a, 0xc6, 0x9f, 0x74, 0x30, 0xdb,
+        0xba, 0x7d, 0xad, 0xe6, 0x3c, 0xe9, 0x82, 0x29,
+        0x9e, 0x04, 0xb7, 0x9d, 0x22, 0x78, 0x73, 0xd1
+    };
+    static const byte prime[32] = {
+        0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+    };
+    ecc_point* pt[4] = { NULL, NULL, NULL, NULL };
+    mp_int modulus;
+    mp_int a;
+    byte out[65];
+    byte out2[65];
+    word32 outSz;
+    int idx;
+    int i;
+
+    idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+    if (idx < 0)
+        return 0;
+    ret = mp_init_multi(&modulus, &a, NULL, NULL, NULL, NULL);
+    if (ret != MP_OKAY)
+        return WC_TEST_RET_ENC_EC(ret);
+    for (i = 0; i < 4; i++) {
+        pt[i] = wc_ecc_new_point_h(HEAP_HINT);
+        if (pt[i] == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_ERRNO, done);
+    }
+    ret = mp_read_unsigned_bin(&modulus, prime, sizeof(prime));
+    if (ret == 0)
+        ret = wc_ecc_import_point_der(gM, sizeof(gM), idx, pt[0]);
+    if (ret == 0)
+        ret = wc_ecc_import_point_der(negGM, sizeof(negGM), idx, pt[1]);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(pt[0]->z, montOne, sizeof(montOne));
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(pt[1]->z, montOne, sizeof(montOne));
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    ret = ecc_projective_dbl_point(pt[0], pt[2], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[2], &modulus, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    outSz = sizeof(out);
+    ret = wc_ecc_export_point_der(idx, pt[2], out, &outSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if ((outSz != sizeof(g2)) || (XMEMCMP(out, g2, sizeof(g2)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    /* A Z that is not one: the same G must map to G and double to 2G */
+    ret = wc_ecc_import_point_der(gJ, sizeof(gJ), idx, pt[3]);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(pt[3]->z, montTwo, sizeof(montTwo));
+    if (ret == 0)
+        ret = ecc_projective_dbl_point(pt[3], pt[2], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[2], &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[3], &modulus, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    outSz = sizeof(out);
+    ret = wc_ecc_export_point_der(idx, pt[2], out, &outSz);
+    if (ret == 0) {
+        outSz = sizeof(out2);
+        ret = wc_ecc_export_point_der(idx, pt[3], out2, &outSz);
+    }
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if ((XMEMCMP(out, g2, sizeof(g2)) != 0) ||
+            (XMEMCMP(out2, g, sizeof(g)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    /* 4G as (G + G) + (G + G) and as dbl(dbl(G)), both in place */
+    ret = ecc_projective_add_point(pt[0], pt[0], pt[3], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_projective_add_point(pt[3], pt[3], pt[3], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_projective_dbl_point(pt[0], pt[2], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_projective_dbl_point(pt[2], pt[2], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[3], &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[2], &modulus, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    outSz = sizeof(out);
+    ret = wc_ecc_export_point_der(idx, pt[2], out, &outSz);
+    if (ret == 0) {
+        outSz = sizeof(out2);
+        ret = wc_ecc_export_point_der(idx, pt[3], out2, &outSz);
+    }
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if (XMEMCMP(out, out2, sizeof(out)) != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+
+    ret = ecc_projective_add_point(pt[0], pt[1], pt[3], &a, &modulus, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if (!mp_iszero(pt[3]->z))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+#if defined(WOLFSSL_SP_TINY) && !defined(WOLFSSL_SP_ASM) && \
+    (SP_WORD_SIZE == 32)
+    /* only the tiny P-256 takes Z = 0 as infinity on input */
+    ret = ecc_projective_add_point(pt[3], pt[0], pt[3], &a, &modulus, 1);
+    if (ret == 0)
+        ret = ecc_map(pt[3], &modulus, 1);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    outSz = sizeof(out);
+    ret = wc_ecc_export_point_der(idx, pt[3], out, &outSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    if ((outSz != sizeof(g)) || (XMEMCMP(out, g, sizeof(g)) != 0))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+#endif
+
+done:
+    for (i = 0; i < 4; i++)
+        wc_ecc_del_point_h(pt[i], HEAP_HINT);
+    mp_clear(&modulus);
+    mp_clear(&a);
+    return ret;
+}
+#endif
+#endif /* WC_TEST_P256_SOFTWARE_SP */
 
 #if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
    (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_SWDEV)) && \
@@ -60064,6 +60508,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
         goto done;
 #endif
 #undef WC_TEST_P256_SOFTWARE_SP
+#ifdef WC_TEST_P256_EDGE
+    PRIVATE_KEY_UNLOCK();
+    ret = ecc_p256_edge_test(&rng);
+    PRIVATE_KEY_LOCK();
+    if (ret != 0)
+        goto done;
+#endif
+#undef WC_TEST_P256_EDGE
+#ifdef WC_TEST_P256_PROJ
+    ret = ecc_p256_proj_test();
+    if (ret != 0)
+        goto done;
+#endif
+#undef WC_TEST_P256_PROJ
 
     ret = ecc_test_all_curves(&rng);
     if (ret < 0)
