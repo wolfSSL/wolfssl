@@ -2359,6 +2359,11 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             WOLFSSL_SP_NO_MALLOC
             WC_ECC_NONBLOCK
 
+    \note While an operation returns FP_WOULDBLOCK, call it again with the
+        same inputs until it returns something else. Calling a verification
+        with different inputs while one is in progress returns BAD_STATE_E
+        and abandons the operation in progress.
+
     \return 0 Returned upon successfully setting the callback context the input message
 
     \param key pointer to the ecc_key object
@@ -2379,13 +2384,13 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     &r, &s,       // r/s as mp_int
                     hash, hashSz, // computed hash digest
                     &verify_res,  // verification result 1=success
-                    &key
+                    &ecc
                 );
 
                 // TODO: Real-time work can be called here
             } while (ret == FP_WOULDBLOCK);
         }
-        wc_ecc_free(&key);
+        wc_ecc_free(&ecc);
     }
     \endcode
 */

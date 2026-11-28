@@ -10597,6 +10597,76 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 #endif /* !WOLFSSL_SP_MATH || FREESCALE_LTC_ECC */
 #endif /* HAVE_ECC_VERIFY_HELPER */
 
+#if defined(WC_ECC_NONBLOCK) && defined(HAVE_ECC_VERIFY_HELPER) && \
+    !defined(WOLFSSL_MICROCHIP)
+/* Bind a non-blocking verification to the inputs that started it.
+ *
+ * The SP state machine reads the hash, s and public key only when it starts,
+ * but reads r from every call. Resuming with different inputs would therefore
+ * judge the old computation against the new r. Reject such a call and abandon
+ * the operation instead.
+ *
+ * nb_ctx   Non-blocking context of the key.
+ * r        r of the signature.
+ * s        s of the signature.
+ * hash     Hash that was signed.
+ * hashlen  Length of hash in bytes.
+ * returns  0 on success, BAD_STATE_E when the inputs differ from those of the
+ *          verification in progress, or another error from the conversion.
+ */
+static int ecc_nb_verify_bind(ecc_key* key, mp_int* r, mp_int* s,
+    const byte* hash, word32 hashlen)
+{
+    int    err;
+    word32 len = (hashlen < (word32)MAX_ECC_BYTES) ? hashlen :
+                                                     (word32)MAX_ECC_BYTES;
+    byte   rBuf[MAX_ECC_BYTES];
+    byte   sBuf[MAX_ECC_BYTES];
+    byte   xBuf[MAX_ECC_BYTES];
+    byte   yBuf[MAX_ECC_BYTES];
+
+    /* r and s as fixed-length big-endian bytes. */
+    err = mp_to_unsigned_bin_len(r, rBuf, (int)sizeof(rBuf));
+    if (err == MP_OKAY) {
+        err = mp_to_unsigned_bin_len(s, sBuf, (int)sizeof(sBuf));
+    }
+    if (err == MP_OKAY) {
+        err = mp_to_unsigned_bin_len(key->pubkey.x, xBuf, (int)sizeof(xBuf));
+    }
+    if (err == MP_OKAY) {
+        err = mp_to_unsigned_bin_len(key->pubkey.y, yBuf, (int)sizeof(yBuf));
+    }
+    if (err != MP_OKAY) {
+        return err;
+    }
+
+    if (!key->nb_ctx->verifyInProgress) {
+        /* A new verification: remember its inputs. */
+        XMEMSET(key->nb_ctx->verifyHash, 0, sizeof(key->nb_ctx->verifyHash));
+        XMEMCPY(key->nb_ctx->verifyHash, hash, len);
+        XMEMCPY(key->nb_ctx->verifyR, rBuf, sizeof(rBuf));
+        XMEMCPY(key->nb_ctx->verifyS, sBuf, sizeof(sBuf));
+        XMEMCPY(key->nb_ctx->verifyPubX, xBuf, sizeof(xBuf));
+        XMEMCPY(key->nb_ctx->verifyPubY, yBuf, sizeof(yBuf));
+        key->nb_ctx->verifyHashLen = hashlen;
+        key->nb_ctx->verifyInProgress = 1;
+    }
+    else if ((key->nb_ctx->verifyHashLen != hashlen) ||
+             (XMEMCMP(key->nb_ctx->verifyHash, hash, len) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyR, rBuf, sizeof(rBuf)) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyS, sBuf, sizeof(sBuf)) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyPubX, xBuf, sizeof(xBuf)) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyPubY, yBuf, sizeof(yBuf)) != 0) ) {
+        /* A resumed call with different inputs: abandon the operation. */
+        WOLFSSL_MSG("Non-blocking verify resumed with different inputs");
+        XMEMSET(key->nb_ctx, 0, sizeof(*key->nb_ctx));
+        err = BAD_STATE_E;
+    }
+
+    return err;
+}
+#endif /* WC_ECC_NONBLOCK HAVE_ECC_VERIFY_HELPER && !WOLFSSL_MICROCHIP */
+
 /**
    Verify an ECC signature
    r           The signature R component to verify
@@ -10609,7 +10679,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
                Caller should check the *res value to determine if the signature
                is valid or invalid. Other negative values are returned on error.
 */
-int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+static int ecc_verify_hash_ex_impl(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
 {
 #if (defined(WOLFSSL_STM32_PKA) && !defined(WC_STM32_PKA_SIGN_ONLY)) || \
@@ -10827,7 +10897,21 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       curveLoaded = 1;
   }
 
+#ifdef WC_ECC_NONBLOCK
+  if (key->nb_ctx != NULL) {
+      err = ecc_nb_verify_bind(key, r, s, hash, hashlen);
+      if (err != 0) {
+          if (curveLoaded) {
+               wc_ecc_curve_free(curve);
+               FREE_CURVE_SPECS();
+          }
+          return err;
+      }
+  }
+#endif
+
   err = ecc_verify_hash_sp(r, s, hash, hashlen, res, key);
+
   if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
       if (curveLoaded) {
            wc_ecc_curve_free(curve);
@@ -10863,6 +10947,21 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    return err;
 #endif /* WOLFSSL_STM32_PKA */
+}
+
+int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+                    word32 hashlen, int* res, ecc_key* key)
+{
+    int ret;
+
+    ret = ecc_verify_hash_ex_impl(r, s, hash, hashlen, res, key);
+#ifdef WC_ECC_NONBLOCK
+    if ((ret != WC_NO_ERR_TRACE(FP_WOULDBLOCK)) && (key != NULL) &&
+        (key->nb_ctx != NULL)) {
+        XMEMSET(key->nb_ctx, 0, sizeof(*key->nb_ctx));
+    }
+#endif
+    return ret;
 }
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 #endif /* HAVE_ECC_VERIFY */

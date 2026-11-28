@@ -4703,6 +4703,243 @@ int test_wc_ecc_verify_hash_ex(void)
     return EXPECT_RESULT();
 } /* END test_wc_ecc_verify_hash_ex */
 
+int test_wc_ecc_verify_hash_ex_nonblock_switch_inputs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WC_ECC_NONBLOCK) && \
+    defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    !defined(NO_ASN) && !defined(WC_NO_RNG) && \
+    defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_ECC_KEY_IMPORT)
+    ecc_key      key;
+    ecc_key      key2;
+    byte         pub1[ECC_BUFSIZE];
+    byte         pub2[ECC_BUFSIZE];
+    word32       pub1Sz = (word32)sizeof(pub1);
+    word32       pub2Sz = (word32)sizeof(pub2);
+    WC_RNG       rng;
+    ecc_nb_ctx_t nbCtx;
+    int          ret = 0;
+    int          res = 0;
+    byte         sig[ECC_MAX_SIG_SIZE];
+    word32       sigSz = (word32)sizeof(sig);
+    byte         sigR[ECC_MAX_SIG_SIZE];
+    byte         sigS[ECC_MAX_SIG_SIZE];
+    static const byte hash1[] = {
+        0x8d, 0x28, 0xa3, 0x8b, 0x0b, 0xa9, 0xfe, 0xd4, 0x0e, 0x54, 0xc4, 0x17,
+        0x3d, 0x54, 0x66, 0x34, 0xbf, 0x5d, 0x6f, 0x46, 0xc2, 0x20, 0xcb, 0xc3,
+        0x22, 0xe9, 0xb0, 0xdf, 0xe7, 0x64, 0x3f, 0xd9
+    };
+    byte hash2[sizeof(hash1)];
+
+    XMEMCPY(hash2, hash1, sizeof(hash1));
+    hash2[0] ^= 0x01;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&nbCtx, 0, sizeof(nbCtx));
+
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init(&key2), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex(&rng, KEY32, &key, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex(&rng, KEY32, &key2, ECC_SECP256R1), 0);
+
+    ExpectIntEQ(wc_ecc_sign_hash(hash1, sizeof(hash1), sig, &sigSz, &rng,
+        &key), 0);
+    ExpectIntEQ(wc_ecc_set_nonblock(&key, &nbCtx), 0);
+
+    /* The signature verifies against hash1. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+    /* The signature does not verify against hash2. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash2, sizeof(hash2), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 0);
+
+    /* Start verifying hash1 and stop before it finishes. */
+    ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, FP_WOULDBLOCK);
+
+    /* Continuing with hash2 must not accept it. */
+    res = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash2, sizeof(hash2), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntNE(res, 1);
+
+    /* A full verification afterwards starts from a clean state. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+    /* sigR and sigS differ from sig in the last byte of r and of s. The
+     * DER encoding is 30 len 02 rLen r... 02 sLen s... */
+    XMEMCPY(sigR, sig, sigSz);
+    XMEMCPY(sigS, sig, sigSz);
+    if (sigSz > 4) {
+        sigR[4 + sigR[3] - 1] ^= 0x01;
+    }
+    sigS[sigSz - 1] ^= 0x01;
+
+    /* Start verifying sig, then switch to sigR before it finishes. */
+    res = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ret = wc_ecc_verify_hash(sigR, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntNE(res, 1);
+
+    /* A full verification afterwards starts from a clean state. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+    /* Start verifying sig, then switch to sigS before it finishes. */
+    res = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ret = wc_ecc_verify_hash(sigS, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntNE(res, 1);
+
+    /* A full verification afterwards starts from a clean state. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+        /* Public keys of key and key2 in X9.63 format. */
+    ExpectIntEQ(wc_ecc_export_x963(&key, pub1, &pub1Sz), 0);
+    ExpectIntEQ(wc_ecc_export_x963(&key2, pub2, &pub2Sz), 0);
+
+    /* Start verifying sig, then switch to the public key of key2 before it
+     * finishes. */
+    res = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ExpectIntEQ(wc_ecc_import_x963(pub2, pub2Sz, &key), 0);
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntNE(res, 1);
+
+    /* A full verification with the original public key afterwards starts
+     * from a clean state. */
+    ExpectIntEQ(wc_ecc_import_x963(pub1, pub1Sz, &key), 0);
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&key);
+    wc_ecc_free(&key2);
+#endif
+    return EXPECT_RESULT();
+}
+
+/* A non-blocking verification that ends with an error must not block a new
+ * verification with different inputs. */
+int test_wc_ecc_verify_hash_nonblock_error_restart(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_ECC) && defined(WC_ECC_NONBLOCK) && \
+    defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    defined(WOLFSSL_PUBLIC_MP) && !defined(WC_NO_RNG)
+    ecc_key      key;
+    WC_RNG       rng;
+    ecc_nb_ctx_t nbCtx;
+    mp_int       r1;
+    mp_int       s1;
+    mp_int       r2;
+    mp_int       s2;
+    mp_int       z;
+    int          ret = 0;
+    int          res = 0;
+    static const byte hash1[] = {
+        0x8d, 0x28, 0xa3, 0x8b, 0x0b, 0xa9, 0xfe, 0xd4, 0x0e, 0x54, 0xc4, 0x17,
+        0x3d, 0x54, 0x66, 0x34, 0xbf, 0x5d, 0x6f, 0x46, 0xc2, 0x20, 0xcb, 0xc3,
+        0x22, 0xe9, 0xb0, 0xdf, 0xe7, 0x64, 0x3f, 0xd9
+    };
+    byte hash2[sizeof(hash1)];
+
+    /* hash2 differs from hash1 in one byte. */
+    XMEMCPY(hash2, hash1, sizeof(hash1));
+    hash2[0] ^= 0x01;
+
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&nbCtx, 0, sizeof(nbCtx));
+
+    ExpectIntEQ(mp_init_multi(&r1, &s1, &r2, &s2, &z, NULL), MP_OKAY);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex(&rng, KEY32, &key, ECC_SECP256R1), 0);
+
+    /* Sign both hashes before enabling non-blocking mode. */
+    ExpectIntEQ(wc_ecc_sign_hash_ex(hash1, sizeof(hash1), &rng, &key, &r1,
+        &s1), 0);
+    ExpectIntEQ(wc_ecc_sign_hash_ex(hash2, sizeof(hash2), &rng, &key, &r2,
+        &s2), 0);
+    ExpectIntEQ(wc_ecc_set_nonblock(&key, &nbCtx), 0);
+
+    /* Start verifying hash1, then resume with r == 0 so that the call fails
+     * before the computation is resumed. */
+    res = 0;
+    ret = wc_ecc_verify_hash_ex(&r1, &s1, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ret = wc_ecc_verify_hash_ex(&z, &s1, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(MP_ZERO_E));
+    ExpectIntNE(res, 1);
+
+    /* A new verification of hash2 starts from a clean state. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash_ex(&r2, &s2, hash2, sizeof(hash2), &res,
+            &key);
+    } while (ret == WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+    mp_free(&z);
+    mp_free(&s2);
+    mp_free(&r2);
+    mp_free(&s1);
+    mp_free(&r1);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_ecc_free(&key);
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Testing wc_ecc_mulmod()
  */
