@@ -1,0 +1,10 @@
+#!gbuild
+#component target_resources
+[Project]
+default.ld
+INTEGRITY.ld
+default.bsp
+npw_dbg.gpc
+npw_chk.gpc
+npw_rel.gpc
+$__BSP_DIR\default.con

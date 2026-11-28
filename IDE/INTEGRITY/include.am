@@ -1,0 +1,24 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/INTEGRITY/README.md
+EXTRA_DIST+= IDE/INTEGRITY/default.gpj
+EXTRA_DIST+= IDE/INTEGRITY/proj/libwolfssl.gpj
+EXTRA_DIST+= IDE/INTEGRITY/proj/myproject.gpj
+EXTRA_DIST+= IDE/INTEGRITY/proj/myproject.int
+EXTRA_DIST+= IDE/INTEGRITY/proj/myproject_kernel.c
+EXTRA_DIST+= IDE/INTEGRITY/proj/myproject_kernel.gpj
+EXTRA_DIST+= IDE/INTEGRITY/proj/system_loader.c
+EXTRA_DIST+= IDE/INTEGRITY/proj/system_loader.gpj
+EXTRA_DIST+= IDE/INTEGRITY/proj/system_loader.int
+EXTRA_DIST+= IDE/INTEGRITY/proj/wolfssl_test.c
+EXTRA_DIST+= IDE/INTEGRITY/proj/wolfssl_test_app.gpj
+EXTRA_DIST+= IDE/INTEGRITY/tgt/INTEGRITY.ld
+EXTRA_DIST+= IDE/INTEGRITY/tgt/default.bsp
+EXTRA_DIST+= IDE/INTEGRITY/tgt/default.ld
+EXTRA_DIST+= IDE/INTEGRITY/tgt/npw_chk.gpc
+EXTRA_DIST+= IDE/INTEGRITY/tgt/npw_dbg.gpc
+EXTRA_DIST+= IDE/INTEGRITY/tgt/npw_rel.gpc
+EXTRA_DIST+= IDE/INTEGRITY/tgt/resources.gpj
+EXTRA_DIST+= IDE/INTEGRITY/user_settings.h

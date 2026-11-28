@@ -1,0 +1,6 @@
+#!gbuild
+#component integrity_os_modules_system_loader
+[Program]
+	-lvload
+system_loader.c
+system_loader.int		[Module Integrate File]

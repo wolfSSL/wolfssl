@@ -1,0 +1,26 @@
+#!gbuild
+macro __ARCH_NAME=arm64
+macro __BSP_NAME=platform-jacinto7
+macro __BUILD_DIR=%expand_path(.)
+macro __OS_DIR=C:\ghs\int1914
+macro __WOLFSSL_DIR=%expand_path(..\..)
+
+# SA2UL AES/SHA offload (wolfcrypt/src/port/ti/integrity/sa2ul_*.c).
+# Uncomment to build with sa2ul hardware offload.
+#macro WOLFSSL_SA2UL_DRIVER=1
+
+defineConfig ("Debug" "DEBUG" "tgt\npw_dbg.gpc")
+defineConfig ("Checked" "CHECKED" "tgt\npw_chk.gpc")
+defineConfig ("Release" "RELEASE" "tgt\npw_rel.gpc")
+primaryTarget=arm64_integrity.tgt
+customization=${__OS_DIR}\target\integrity.bod
+
+#component top_level_project
+[Project]
+	-bsp platform-jacinto7
+	:sourceDir=.
+	-os_dir ${__OS_DIR}
+	-Itgt
+	-dwarf2
+proj\myproject.gpj		[INTEGRITY Application]
+tgt\resources.gpj		[Project]
