@@ -20076,22 +20076,12 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
         printf(".");
         fflush(stdout);
 #endif /* SHOW_GEN */
-        /* Generate bytes into digit array. */
-        err = wc_RNG_GenerateBlock(rng, (byte*)r->dp, (word32)len);
+        /* Generate len octets of random data into digit array. */
+        err = mp_rand_mem(rng, r->dp, WC_PACKED_CELLS(len));
         if (err != 0) {
             err = MP_VAL;
             break;
         }
-
-        /* Set top bits to ensure bit length required is generated.
-         * Also set second top to help ensure product of two primes is
-         * going to be twice the number of bits of each.
-         */
-#ifdef LITTLE_ENDIAN_ORDER
-        ((byte*)r->dp)[len-1]             |= 0x80 | 0x40;
-#else
-        ((byte*)(r->dp + r->used - 1))[0] |= 0x80 | 0x40;
-#endif /* LITTLE_ENDIAN_ORDER */
 
 #ifdef BIG_ENDIAN_ORDER
         /* Bytes were put into wrong place when less than full digit. */
@@ -20105,6 +20095,15 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
             r->dp[r->used - 1] &= ((sp_int_digit)1 << bits) - 1;
         }
 #endif /* WOLFSSL_SP_MATH_ALL */
+        /* Set top bits to ensure bit length required is generated.
+         * Also set second top to help ensure product of two primes is
+         * going to be twice the number of bits of each.
+         * Set by bit position in the value, after the top digit is adjusted,
+         * so that it does not depend on how the octets are laid out in
+         * memory. Both bits are in the top octet, so in the top digit.
+         */
+        r->dp[r->used - 1] |= (sp_int_digit)3 <<
+            (((unsigned int)len * 8U - 2U) % SP_WORD_SIZE);
         /* Set mandatory low bits
          *  - bottom bit to make odd.
          *  - For BBS, second lowest too to make Blum integer (3 mod 4).
@@ -20530,7 +20529,7 @@ static int _sp_prime_random_trials(const sp_int* a, int trials, int* result,
         /* Keep trying random numbers until all trials complete. */
         while (trials > 0) {
             /* Generate random trial number. */
-            err = wc_RNG_GenerateBlock(rng, (byte*)b->dp, baseSz);
+            err = mp_rand_mem(rng, b->dp, WC_PACKED_CELLS(baseSz));
             if (err != MP_OKAY) {
                 break;
             }

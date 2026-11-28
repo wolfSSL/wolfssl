@@ -160,9 +160,77 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 
 
 #ifndef WC_NO_RNG
+#if CHAR_BIT != 8
+#ifndef MP_RAND_MEM_CHUNK_OCTETS
+    /* Number of octets generated at a time. */
+    #define MP_RAND_MEM_CHUNK_OCTETS    64
+#endif
+
+/* Fill memory with random bits, such as the digits of an mp_int, where a char
+ * is wider than 8 bits (e.g. TI C28x).
+ *
+ * wc_RNG_GenerateBlock() puts one octet in each byte, which leaves the upper
+ * bits of each byte zero. Here every bit of the memory is random: the octets
+ * are packed WC_OCTETS_PER_BYTE to a byte, lowest octet first.
+ *
+ * Where a char is 8 bits, mp_rand_mem() is a macro for wc_RNG_GenerateBlock()
+ * in wolfmath.h.
+ *
+ * Filling digits this way relies on every bit of a digit being used. For SP
+ * math, sp_int.h checks that sp_int_digit has exactly SP_WORD_SIZE bits.
+ *
+ * @param [in]  rng  Random number generator.
+ * @param [out] mem  Memory to fill.
+ * @param [in]  sz   Size of memory in bytes, i.e. in units of sizeof().
+ *
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when rng or mem is NULL.
+ * @return  Other negative value when generating random data fails.
+ */
+int mp_rand_mem(WC_RNG* rng, void* mem, word32 sz)
+{
+    int ret = 0;
+    byte* out = (byte*)mem;
+
+    if ((rng == NULL) || (mem == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        byte octets[MP_RAND_MEM_CHUNK_OCTETS];
+        word32 cnt;
+        word32 i;
+        word32 j;
+
+        while ((ret == 0) && (sz > 0)) {
+            /* Number of bytes of memory to fill this time. */
+            cnt = MP_RAND_MEM_CHUNK_OCTETS / WC_OCTETS_PER_BYTE;
+            if (cnt > sz) {
+                cnt = sz;
+            }
+            ret = wc_RNG_GenerateBlock(rng, octets, cnt * WC_OCTETS_PER_BYTE);
+            if (ret == 0) {
+                for (i = 0; i < cnt; i++) {
+                    byte b = 0;
+                    for (j = 0; j < WC_OCTETS_PER_BYTE; j++) {
+                        b = (byte)(b | ((word32)WC_OCTET(
+                            octets[i * WC_OCTETS_PER_BYTE + j]) << (8 * j)));
+                    }
+                    out[i] = b;
+                }
+                out += cnt;
+                sz -= cnt;
+            }
+        }
+        ForceZero(octets, sizeof(octets));
+    }
+
+    return ret;
+}
+#endif /* CHAR_BIT != 8 */
+
 int mp_get_rand_digit(WC_RNG* rng, mp_digit* d)
 {
-    return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
+    return mp_rand_mem(rng, d, sizeof(mp_digit));
 }
 
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
@@ -198,7 +266,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #endif
     /* fill the data with random bytes */
     if (ret == MP_OKAY) {
-        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, (word32)cnt);
+        ret = mp_rand_mem(rng, a->dp, (word32)cnt);
     }
     if (ret == MP_OKAY) {
 #ifdef USE_INTEGER_HEAP_MATH
