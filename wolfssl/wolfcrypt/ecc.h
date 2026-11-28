@@ -511,6 +511,15 @@ enum {
     typedef struct ecc_nb_ctx {
     #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
         sp_ecc_ctx_t sp_ctx;
+
+        /* Inputs of the verification in progress. A resumed call must pass
+         * the same inputs. Only the first MAX_ECC_BYTES of the hash are kept,
+         * as no more than the curve size is used. */
+        byte   verifyHash[MAX_ECC_BYTES];
+        byte   verifyR[MAX_ECC_BYTES];
+        byte   verifyS[MAX_ECC_BYTES];
+        word32 verifyHashLen;
+        byte   verifyInProgress;
     #else
         /* build configuration not supported */
         #error ECC non-blocking only supports SP (--enable-sp=nonblock)

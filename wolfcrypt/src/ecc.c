@@ -10597,6 +10597,64 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 #endif /* !WOLFSSL_SP_MATH || FREESCALE_LTC_ECC */
 #endif /* HAVE_ECC_VERIFY_HELPER */
 
+#if defined(WC_ECC_NONBLOCK) && defined(HAVE_ECC_VERIFY_HELPER) && \
+    !defined(WOLFSSL_MICROCHIP)
+/* Bind a non-blocking verification to the inputs that started it.
+ *
+ * The SP state machine reads the hash, s and public key only when it starts,
+ * but reads r from every call. Resuming with different inputs would therefore
+ * judge the old computation against the new r. Reject such a call and abandon
+ * the operation instead.
+ *
+ * nb_ctx   Non-blocking context of the key.
+ * r        r of the signature.
+ * s        s of the signature.
+ * hash     Hash that was signed.
+ * hashlen  Length of hash in bytes.
+ * returns  0 on success, BAD_STATE_E when the inputs differ from those of the
+ *          verification in progress, or another error from the conversion.
+ */
+static int ecc_nb_verify_bind(ecc_nb_ctx_t* nb_ctx, mp_int* r, mp_int* s,
+    const byte* hash, word32 hashlen)
+{
+    int    err;
+    word32 len = (hashlen < (word32)MAX_ECC_BYTES) ? hashlen :
+                                                     (word32)MAX_ECC_BYTES;
+    byte   rBuf[MAX_ECC_BYTES];
+    byte   sBuf[MAX_ECC_BYTES];
+
+    /* r and s as fixed-length big-endian bytes. */
+    err = mp_to_unsigned_bin_len(r, rBuf, (int)sizeof(rBuf));
+    if (err == MP_OKAY) {
+        err = mp_to_unsigned_bin_len(s, sBuf, (int)sizeof(sBuf));
+    }
+    if (err != MP_OKAY) {
+        return err;
+    }
+
+    if (!nb_ctx->verifyInProgress) {
+        /* A new verification: remember its inputs. */
+        XMEMSET(nb_ctx->verifyHash, 0, sizeof(nb_ctx->verifyHash));
+        XMEMCPY(nb_ctx->verifyHash, hash, len);
+        XMEMCPY(nb_ctx->verifyR, rBuf, sizeof(rBuf));
+        XMEMCPY(nb_ctx->verifyS, sBuf, sizeof(sBuf));
+        nb_ctx->verifyHashLen = hashlen;
+        nb_ctx->verifyInProgress = 1;
+    }
+    else if ((nb_ctx->verifyHashLen != hashlen) ||
+             (XMEMCMP(nb_ctx->verifyHash, hash, len) != 0) ||
+             (XMEMCMP(nb_ctx->verifyR, rBuf, sizeof(rBuf)) != 0) ||
+             (XMEMCMP(nb_ctx->verifyS, sBuf, sizeof(sBuf)) != 0)) {
+        /* A resumed call with different inputs: abandon the operation. */
+        WOLFSSL_MSG("Non-blocking verify resumed with different inputs");
+        XMEMSET(nb_ctx, 0, sizeof(*nb_ctx));
+        err = BAD_STATE_E;
+    }
+
+    return err;
+}
+#endif /* WC_ECC_NONBLOCK HAVE_ECC_VERIFY_HELPER && !WOLFSSL_MICROCHIP */
+
 /**
    Verify an ECC signature
    r           The signature R component to verify
@@ -10827,7 +10885,26 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       curveLoaded = 1;
   }
 
+#ifdef WC_ECC_NONBLOCK
+  if (key->nb_ctx != NULL) {
+      err = ecc_nb_verify_bind(key->nb_ctx, r, s, hash, hashlen);
+      if (err != 0) {
+          if (curveLoaded) {
+               wc_ecc_curve_free(curve);
+               FREE_CURVE_SPECS();
+          }
+          return err;
+      }
+  }
+#endif
+
   err = ecc_verify_hash_sp(r, s, hash, hashlen, res, key);
+
+#ifdef WC_ECC_NONBLOCK
+  if ((key->nb_ctx != NULL) && (err != WC_NO_ERR_TRACE(MP_WOULDBLOCK))) {
+      key->nb_ctx->verifyInProgress = 0;
+  }
+#endif
   if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
       if (curveLoaded) {
            wc_ecc_curve_free(curve);
