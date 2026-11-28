@@ -4717,6 +4717,8 @@ int test_wc_ecc_verify_hash_ex_nonblock_switch_inputs(void)
     int          res = 0;
     byte         sig[ECC_MAX_SIG_SIZE];
     word32       sigSz = (word32)sizeof(sig);
+    byte         sigR[ECC_MAX_SIG_SIZE];
+    byte         sigS[ECC_MAX_SIG_SIZE];
     static const byte hash1[] = {
         0x8d, 0x28, 0xa3, 0x8b, 0x0b, 0xa9, 0xfe, 0xd4, 0x0e, 0x54, 0xc4, 0x17,
         0x3d, 0x54, 0x66, 0x34, 0xbf, 0x5d, 0x6f, 0x46, 0xc2, 0x20, 0xcb, 0xc3,
@@ -4764,6 +4766,49 @@ int test_wc_ecc_verify_hash_ex_nonblock_switch_inputs(void)
     /* Continuing with hash2 must not accept it. */
     res = 0;
     ret = wc_ecc_verify_hash(sig, sigSz, hash2, sizeof(hash2), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntNE(res, 1);
+
+    /* A full verification afterwards starts from a clean state. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+    /* sigR and sigS differ from sig in the last byte of r and of s. The
+     * DER encoding is 30 len 02 rLen r... 02 sLen s... */
+    XMEMCPY(sigR, sig, sigSz);
+    XMEMCPY(sigS, sig, sigSz);
+    if (sigSz > 4) {
+        sigR[4 + sigR[3] - 1] ^= 0x01;
+    }
+    sigS[sigSz - 1] ^= 0x01;
+
+    /* Start verifying sig, then switch to sigR before it finishes. */
+    res = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ret = wc_ecc_verify_hash(sigR, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntNE(res, 1);
+
+    /* A full verification afterwards starts from a clean state. */
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
+    /* Start verifying sig, then switch to sigS before it finishes. */
+    res = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ret = wc_ecc_verify_hash(sigS, sigSz, hash1, sizeof(hash1), &res, &key);
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
     ExpectIntNE(res, 1);
 
