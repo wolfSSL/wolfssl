@@ -35654,10 +35654,17 @@ struct sig_algs {
     { sm2_sa_algo,     "SM2" },
 #endif
 #ifdef WOLFSSL_HAVE_MLDSA
-    /* Hash is implied: written without a digest suffix. */
+    /* Hash is implied: written without a digest suffix.
+     * Only parameter sets compiled in are recognized. */
+    #ifndef WOLFSSL_NO_ML_DSA_44
     { mldsa_44_sa_algo, "MLDSA44" },
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_65
     { mldsa_65_sa_algo, "MLDSA65" },
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_87
     { mldsa_87_sa_algo, "MLDSA87" },
+    #endif
 #endif
 };
 #define SIG_NAMES_SZ    (int)(sizeof(sig_names)/sizeof(*sig_names))
@@ -35683,13 +35690,29 @@ static byte GetSigAlgFromName(const char* name, int len)
  * list without a "+<digest>" suffix. */
 static int SigAlgHasImpliedHash(byte sigAlg)
 {
-    if (sigAlg == ed25519_sa_algo || sigAlg == ed448_sa_algo)
-        return 1;
-#ifdef WOLFSSL_HAVE_MLDSA
-    if (sigAlg == mldsa_44_sa_algo || sigAlg == mldsa_65_sa_algo ||
-            sigAlg == mldsa_87_sa_algo)
+#ifdef HAVE_ED25519
+    if (sigAlg == ed25519_sa_algo)
         return 1;
 #endif
+#ifdef HAVE_ED448
+    if (sigAlg == ed448_sa_algo)
+        return 1;
+#endif
+#ifdef WOLFSSL_HAVE_MLDSA
+    #ifndef WOLFSSL_NO_ML_DSA_44
+    if (sigAlg == mldsa_44_sa_algo)
+        return 1;
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_65
+    if (sigAlg == mldsa_65_sa_algo)
+        return 1;
+    #endif
+    #ifndef WOLFSSL_NO_ML_DSA_87
+    if (sigAlg == mldsa_87_sa_algo)
+        return 1;
+    #endif
+#endif
+    (void)sigAlg;
     return 0;
 }
 

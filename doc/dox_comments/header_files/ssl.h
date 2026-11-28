@@ -16623,9 +16623,12 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     | ED448             | HAVE_ED448   (no digest suffix)                    |
     | DSA               | !NO_DSA                                            |
     | SM2               | WOLFSSL_SM2 and WOLFSSL_SM3 (digest is SM3)        |
-    | MLDSA44           | WOLFSSL_HAVE_MLDSA (no digest suffix)              |
-    | MLDSA65           | WOLFSSL_HAVE_MLDSA (no digest suffix)              |
-    | MLDSA87           | WOLFSSL_HAVE_MLDSA (no digest suffix)              |
+    | MLDSA44           | WOLFSSL_HAVE_MLDSA and !WOLFSSL_NO_ML_DSA_44       |
+    |                   | (no digest suffix)                                 |
+    | MLDSA65           | WOLFSSL_HAVE_MLDSA and !WOLFSSL_NO_ML_DSA_65       |
+    |                   | (no digest suffix)                                 |
+    | MLDSA87           | WOLFSSL_HAVE_MLDSA and !WOLFSSL_NO_ML_DSA_87       |
+    |                   | (no digest suffix)                                 |
 
     Digest tokens:
 

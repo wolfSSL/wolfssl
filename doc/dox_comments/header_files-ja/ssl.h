@@ -12413,9 +12413,12 @@ int  wolfSSL_request_certificate(WOLFSSL* ssl);
     | ED448             | HAVE_ED448 （ハッシュ指定不要）                    |
     | DSA               | !NO_DSA                                            |
     | SM2               | WOLFSSL_SM2 かつ WOLFSSL_SM3（ハッシュは SM3 固定） |
-    | MLDSA44           | WOLFSSL_HAVE_MLDSA（ハッシュ指定不要）              |
-    | MLDSA65           | WOLFSSL_HAVE_MLDSA（ハッシュ指定不要）              |
-    | MLDSA87           | WOLFSSL_HAVE_MLDSA（ハッシュ指定不要）              |
+    | MLDSA44           | WOLFSSL_HAVE_MLDSA かつ !WOLFSSL_NO_ML_DSA_44      |
+    |                   | （ハッシュ指定不要）                                |
+    | MLDSA65           | WOLFSSL_HAVE_MLDSA かつ !WOLFSSL_NO_ML_DSA_65      |
+    |                   | （ハッシュ指定不要）                                |
+    | MLDSA87           | WOLFSSL_HAVE_MLDSA かつ !WOLFSSL_NO_ML_DSA_87      |
+    |                   | （ハッシュ指定不要）                                |
 
     ハッシュトークン:
 
