@@ -1,0 +1,12 @@
+#!/bin/sh
+# Require wolfCrypt before any encrypted volume is unlocked.
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+. /scripts/functions
+if out=$(/usr/local/sbin/wolfcrypt-luks-guard 2>&1); then
+    echo "$out" | while read -r line; do echo "wolfcrypt-luks-guard: $line" > /dev/kmsg; done
+else
+    echo "wolfcrypt-luks-guard: $out" > /dev/kmsg
+    panic "wolfCrypt is not available; encrypted volumes stay closed"
+fi

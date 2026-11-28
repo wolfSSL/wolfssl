@@ -1,0 +1,20 @@
+#!/bin/sh
+# Succeeds only when wolfCrypt is the highest-priority kernel driver for every
+# algorithm listed in GUARD_ALGS in /etc/wolfcrypt-luks.conf.
+. /etc/wolfcrypt-luks.conf
+[ -n "$GUARD_ALGS" ] || { echo "GUARD_ALGS is empty; check FIPS_FLAVOR in /etc/wolfcrypt-luks.conf" >&2; exit 1; }
+modprobe libwolfssl || { echo "libwolfssl is not available for kernel $(uname -r)" >&2; exit 1; }
+for alg in $GUARD_ALGS; do
+    drv=$(awk -v want="$alg" -v RS= -F'\n' '
+        { n = d = ""; p = 0
+          for (i = 1; i <= NF; i++) {
+              split($i, f, / *: /)
+              if (f[1] == "name") n = f[2]; else if (f[1] == "driver") d = f[2]; else if (f[1] == "priority") p = f[2] + 0
+          }
+          if (n == want && p > best) { best = p; top = d } }
+        END { print top }' /proc/crypto)
+    case "$drv" in
+        *-wolfcrypt-*) echo "$alg -> $drv" ;;
+        *) echo "highest-priority driver for $alg is '${drv:-none}', not wolfCrypt" >&2; exit 1 ;;
+    esac
+done
