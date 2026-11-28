@@ -2384,13 +2384,13 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     &r, &s,       // r/s as mp_int
                     hash, hashSz, // computed hash digest
                     &verify_res,  // verification result 1=success
-                    &key
+                    &ecc
                 );
 
                 // TODO: Real-time work can be called here
             } while (ret == FP_WOULDBLOCK);
         }
-        wc_ecc_free(&key);
+        wc_ecc_free(&ecc);
     }
     \endcode
 */
