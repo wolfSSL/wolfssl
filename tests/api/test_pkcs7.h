@@ -104,6 +104,7 @@ int test_wc_PKCS7_VerifySignedData_DegenerateEmptyEContent(void);
 int test_wc_PKCS7_VerifySignedData_DegenerateIndefOmittedEContent(void);
 int test_wc_PKCS7_VerifySignedData_DegenerateTaggedEContent(void);
 int test_wc_PKCS7_VerifySignedData_ShortEncapContentInfo(void);
+int test_wc_PKCS7_DecodeSignedData(void);
 int test_wc_PKCS7_VerifySignedData_DegenerateEmptyCertsCrls(void);
 int test_wc_PKCS7_VerifySignedData_TruncSignerInfosTag(void);
 int test_wc_PKCS7_VerifySignedData_NoSignerInfosTag(void);
@@ -183,6 +184,7 @@ int test_wc_PKCS7_VerifySignedData_CertSetAttrCert(void);
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateIndefOmittedEContent), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateTaggedEContent), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_ShortEncapContentInfo), \
+    TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_DecodeSignedData), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_DegenerateEmptyCertsCrls), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_TruncSignerInfosTag), \
     TEST_DECL_GROUP("pkcs7_sd", test_wc_PKCS7_VerifySignedData_NoSignerInfosTag), \
