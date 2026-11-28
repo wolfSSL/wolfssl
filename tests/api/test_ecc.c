@@ -4709,8 +4709,14 @@ int test_wc_ecc_verify_hash_ex_nonblock_switch_inputs(void)
 #if defined(HAVE_ECC) && defined(WC_ECC_NONBLOCK) && \
     defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256) && \
     defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
-    !defined(NO_ASN) && !defined(WC_NO_RNG)
+    !defined(NO_ASN) && !defined(WC_NO_RNG) && \
+    defined(HAVE_ECC_KEY_EXPORT) && defined(HAVE_ECC_KEY_IMPORT)
     ecc_key      key;
+    ecc_key      key2;
+    byte         pub1[ECC_BUFSIZE];
+    byte         pub2[ECC_BUFSIZE];
+    word32       pub1Sz = (word32)sizeof(pub1);
+    word32       pub2Sz = (word32)sizeof(pub2);
     WC_RNG       rng;
     ecc_nb_ctx_t nbCtx;
     int          ret = 0;
@@ -4730,12 +4736,15 @@ int test_wc_ecc_verify_hash_ex_nonblock_switch_inputs(void)
     hash2[0] ^= 0x01;
 
     XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&nbCtx, 0, sizeof(nbCtx));
 
     ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_init(&key2), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_make_key_ex(&rng, KEY32, &key, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_make_key_ex(&rng, KEY32, &key2, ECC_SECP256R1), 0);
 
     ExpectIntEQ(wc_ecc_sign_hash(hash1, sizeof(hash1), sig, &sigSz, &rng,
         &key), 0);
@@ -4821,8 +4830,37 @@ int test_wc_ecc_verify_hash_ex_nonblock_switch_inputs(void)
     ExpectIntEQ(ret, 0);
     ExpectIntEQ(res, 1);
 
+        /* Public keys of key and key2 in X9.63 format. */
+    ExpectIntEQ(wc_ecc_export_x963(&key, pub1, &pub1Sz), 0);
+    ExpectIntEQ(wc_ecc_export_x963(&key2, pub2, &pub2Sz), 0);
+
+    /* Start verifying sig, then switch to the public key of key2 before it
+     * finishes. */
+    res = 0;
+    ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res, &key);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(FP_WOULDBLOCK));
+    ExpectIntEQ(wc_ecc_import_x963(pub2, pub2Sz, &key), 0);
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_STATE_E));
+    ExpectIntNE(res, 1);
+
+    /* A full verification with the original public key afterwards starts
+     * from a clean state. */
+    ExpectIntEQ(wc_ecc_import_x963(pub1, pub1Sz, &key), 0);
+    res = 0;
+    do {
+        ret = wc_ecc_verify_hash(sig, sigSz, hash1, sizeof(hash1), &res,
+            &key);
+    } while (ret == FP_WOULDBLOCK);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(res, 1);
+
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);
+    wc_ecc_free(&key2);
 #endif
     return EXPECT_RESULT();
 }

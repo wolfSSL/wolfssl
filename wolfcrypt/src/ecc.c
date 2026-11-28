@@ -10614,7 +10614,7 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
  * returns  0 on success, BAD_STATE_E when the inputs differ from those of the
  *          verification in progress, or another error from the conversion.
  */
-static int ecc_nb_verify_bind(ecc_nb_ctx_t* nb_ctx, mp_int* r, mp_int* s,
+static int ecc_nb_verify_bind(ecc_key* key, mp_int* r, mp_int* s,
     const byte* hash, word32 hashlen)
 {
     int    err;
@@ -10622,32 +10622,44 @@ static int ecc_nb_verify_bind(ecc_nb_ctx_t* nb_ctx, mp_int* r, mp_int* s,
                                                      (word32)MAX_ECC_BYTES;
     byte   rBuf[MAX_ECC_BYTES];
     byte   sBuf[MAX_ECC_BYTES];
+    byte   xBuf[MAX_ECC_BYTES];
+    byte   yBuf[MAX_ECC_BYTES];
 
     /* r and s as fixed-length big-endian bytes. */
     err = mp_to_unsigned_bin_len(r, rBuf, (int)sizeof(rBuf));
     if (err == MP_OKAY) {
         err = mp_to_unsigned_bin_len(s, sBuf, (int)sizeof(sBuf));
     }
+    if (err == MP_OKAY) {
+        err = mp_to_unsigned_bin_len(key->pubkey.x, xBuf, (int)sizeof(xBuf));
+    }
+    if (err == MP_OKAY) {
+        err = mp_to_unsigned_bin_len(key->pubkey.y, yBuf, (int)sizeof(yBuf));
+    }
     if (err != MP_OKAY) {
         return err;
     }
 
-    if (!nb_ctx->verifyInProgress) {
+    if (!key->nb_ctx->verifyInProgress) {
         /* A new verification: remember its inputs. */
-        XMEMSET(nb_ctx->verifyHash, 0, sizeof(nb_ctx->verifyHash));
-        XMEMCPY(nb_ctx->verifyHash, hash, len);
-        XMEMCPY(nb_ctx->verifyR, rBuf, sizeof(rBuf));
-        XMEMCPY(nb_ctx->verifyS, sBuf, sizeof(sBuf));
-        nb_ctx->verifyHashLen = hashlen;
-        nb_ctx->verifyInProgress = 1;
+        XMEMSET(key->nb_ctx->verifyHash, 0, sizeof(key->nb_ctx->verifyHash));
+        XMEMCPY(key->nb_ctx->verifyHash, hash, len);
+        XMEMCPY(key->nb_ctx->verifyR, rBuf, sizeof(rBuf));
+        XMEMCPY(key->nb_ctx->verifyS, sBuf, sizeof(sBuf));
+        XMEMCPY(key->nb_ctx->verifyPubX, xBuf, sizeof(xBuf));
+        XMEMCPY(key->nb_ctx->verifyPubY, yBuf, sizeof(yBuf));
+        key->nb_ctx->verifyHashLen = hashlen;
+        key->nb_ctx->verifyInProgress = 1;
     }
-    else if ((nb_ctx->verifyHashLen != hashlen) ||
-             (XMEMCMP(nb_ctx->verifyHash, hash, len) != 0) ||
-             (XMEMCMP(nb_ctx->verifyR, rBuf, sizeof(rBuf)) != 0) ||
-             (XMEMCMP(nb_ctx->verifyS, sBuf, sizeof(sBuf)) != 0)) {
+    else if ((key->nb_ctx->verifyHashLen != hashlen) ||
+             (XMEMCMP(key->nb_ctx->verifyHash, hash, len) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyR, rBuf, sizeof(rBuf)) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyS, sBuf, sizeof(sBuf)) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyPubX, xBuf, sizeof(xBuf)) != 0) ||
+             (XMEMCMP(key->nb_ctx->verifyPubY, yBuf, sizeof(yBuf)) != 0) ) {
         /* A resumed call with different inputs: abandon the operation. */
         WOLFSSL_MSG("Non-blocking verify resumed with different inputs");
-        XMEMSET(nb_ctx, 0, sizeof(*nb_ctx));
+        XMEMSET(key->nb_ctx, 0, sizeof(*key->nb_ctx));
         err = BAD_STATE_E;
     }
 
@@ -10887,7 +10899,7 @@ static int ecc_verify_hash_ex_impl(mp_int *r, mp_int *s, const byte* hash,
 
 #ifdef WC_ECC_NONBLOCK
   if (key->nb_ctx != NULL) {
-      err = ecc_nb_verify_bind(key->nb_ctx, r, s, hash, hashlen);
+      err = ecc_nb_verify_bind(key, r, s, hash, hashlen);
       if (err != 0) {
           if (curveLoaded) {
                wc_ecc_curve_free(curve);

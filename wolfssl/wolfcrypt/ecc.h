@@ -518,7 +518,10 @@ enum {
         byte   verifyHash[MAX_ECC_BYTES];
         byte   verifyR[MAX_ECC_BYTES];
         byte   verifyS[MAX_ECC_BYTES];
+        byte   verifyPubX[MAX_ECC_BYTES];
+        byte   verifyPubY[MAX_ECC_BYTES];
         word32 verifyHashLen;
+        int    verifyCurveId;
         byte   verifyInProgress;
     #else
         /* build configuration not supported */
